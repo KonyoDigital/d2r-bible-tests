@@ -11342,6 +11342,13 @@ function d2jspForumUrl(board) {
   var n = Number(board);
   return (n === D2JSP_BOARD || n === D2JSP_LADDER_BOARD) ? ('https://forums.d2jsp.org/forum.php?f=' + n) : '';
 }
+/* #114 - the board a saved topic link names (its f=), 0 when it is not a d2jsp topic link or names no board */
+function d2jspTopicBoard(url) {
+  var v = String(url == null ? '' : url);
+  if (v.indexOf('https://forums.d2jsp.org/topic.php') !== 0) return 0;
+  var found = /[?&]f=(\d+)/.exec(v);
+  return found ? (Number(found[1]) | 0) : 0;
+}
 /* when the console says a post went out: a time it sent, as it sent it; seconds or milliseconds become a UTC stamp */
 function d2jspAtText(at) {
   if (at == null || at === '') return '';
@@ -11621,21 +11628,36 @@ function d2jspPriceLine(q) {
     try { return localStorage; } catch (e2) { return null; }
   }
   /* #114 - the six desk keys fork per profile (_LP_FORKED). The owner main reads them bare, as it always did, and a
-     ladder starts empty. A GUEST world wrote them bare before the fork, and its main now reads them under the install
-     prefix, so its own filings, prices and saved topic would vanish and the next list post would start a second
-     topic. Its main copies each bare value once into its own key, only where that key is still empty. Never a ladder,
-     never the owner, never over a value already there. */
+     ladder starts with an empty list. Two things written bare before the fork still belong somewhere:
+       * THE LIVE LADDER TOPIC. Bare, both profiles shared one saved topic, which held whichever board posted last. A
+         bare topic on board 271 is the ladder topic live on d2jsp now; stranded, the next ladder list post opens a
+         second 271 topic. A ladder (owner L, guest IL) copies it into its own key while that key is empty. A 271
+         topic is never copied into a main key, and a topic of any other board never onto ladder.
+       * A GUEST world wrote all six bare, and its main now reads them under the install prefix, so its own filings,
+         prices and saved topic would vanish. Its main copies each bare value into its own key while that key is
+         empty. Never the owner, never over a value already there.
+     Copies, not moves: a page still on an older build reads the bare keys. The profile switch reloads the page, so
+     this runs once for the profile the page is on. */
   (function(){
     try {
       var R = window.LSR;
-      if (!R || !R.raw || typeof R.key !== 'function' || window._D2R_OWNER || window.D2R_PROFILE === 'ladder') return;
+      if (!R || !R.raw || typeof R.key !== 'function') return;
+      if (window.D2R_PROFILE === 'ladder') {
+        var lt = R.key('d2r_d2jsp_topic');
+        var bare = R.raw.getItem('d2r_d2jsp_topic');
+        if (lt !== 'd2r_d2jsp_topic' && !R.raw.getItem(lt) && d2jspTopicBoard(bare) === D2JSP_LADDER_BOARD) R.raw.setItem(lt, String(bare));
+        return;
+      }
+      if (window._D2R_OWNER) return;
       D2JSP_FORKED_KEYS.forEach(function(k){
         var to = R.key(k);
         /* the router's own raw store: the bare key is the one this guest world wrote before the fork, and the
            copy lands under this world's main prefix only */
         if (to === k || R.raw.getItem(to) != null) return;
         var was = R.raw.getItem(k);
-        if (was != null) R.raw.setItem(to, was);
+        if (was == null) return;
+        if (k === 'd2r_d2jsp_topic' && d2jspTopicBoard(was) === D2JSP_LADDER_BOARD) return;
+        R.raw.setItem(to, was);
       });
     } catch (eAdopt) {}
   })();
@@ -11745,8 +11767,7 @@ function d2jspPriceLine(q) {
       var v = String(s.getItem('d2r_d2jsp_topic') || '');
       if (v.indexOf('https://forums.d2jsp.org/topic.php') !== 0) return '';
       var board = d2jspBoard();
-      var found = /[?&]f=(\d+)/.exec(v);
-      var on = found ? (Number(found[1]) | 0) : 0;
+      var on = d2jspTopicBoard(v);
       if (on) return on === board ? v : '';
       return board === 268 ? v : '';
     } catch (eTopic) { return ''; }
@@ -12294,15 +12315,11 @@ function d2jspPriceLine(q) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject: draft.subject, body: draft.body, forum: draft.forum })
       }).then(function(r){
-        return r.json().then(function(j){ return j || {}; }, function(){ return null; });
-      }).then(function(j){
+        var code = (r && r.status) | 0;
+        return r.json().then(function(j){ return { code: code, j: j || {} }; }, function(){ return { code: code, j: null }; });
+      }).then(function(got){
         settle();
-        if (!j) {
-          say('This console has not loaded the Chrome connection, so nothing was posted.');
-          showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
-          return;
-        }
-        var w = sendWords(j, draft.forum, false);
+        var w = answerWords(got.code, got.j, draft.forum, false);
         if (w.kind === 'confirmed') {
           say(w.say);
           showReceipt('confirmed', w.text, w.topic);
@@ -12313,8 +12330,9 @@ function d2jspPriceLine(q) {
         showReceipt(w.kind, w.text, w.link);
       }).catch(function(){
         settle();
-        say('This console has not loaded the Chrome connection, so nothing was posted.');
-        showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
+        var lost = answerWords(0, undefined, draft.forum, false);
+        say(lost.text);
+        showReceipt(lost.kind, lost.text, lost.link);
       });
       return;
     }
@@ -12371,6 +12389,23 @@ function d2jspPriceLine(q) {
     }
     if (missed) return { kind: 'missed', text: missed };
     return { kind: 'maybe', text: 'The console answered ' + (reason ? ('"' + reason.slice(0, 40) + '"') : 'with no reason') + ', which this page does not know, so the post may be up. ' + check, link: link };
+  }
+  /* #106 — THE ANSWER AS IT ARRIVED. code is the HTTP status (0 when none came back) and j the parsed body: null when
+     the body was not JSON, undefined when the request never got an answer. Once the request left this page the
+     console may already have clicked submit, and its re-send record lives only in that process (a restart forgets
+     it), so a lost answer (the connection dropped, the console restarted or crashed mid-send) and an unreadable one
+     (a 5xx page) are a MAYBE that links the board, never "nothing was posted". Only a 404 that names no contract
+     reason proves the send never ran: this console has no post route. A contract reason always speaks for itself. */
+  function answerWords(code, j, board, updating){
+    var body = (j && typeof j === 'object') ? j : null;
+    if (body && D2JSP_SEND_REASONS.indexOf(String(body.reason || '')) >= 0) return sendWords(body, board, updating);
+    if (code === 404) return { kind: 'missed', text: 'This console has no post route (it answered 404), so nothing was posted.' };
+    if (body) return sendWords(body, board, updating);
+    var n = d2jspPostBoard(null, board);
+    var heard = (j === null)
+      ? ('The answer from the console' + (code ? (' (HTTP ' + code + ')') : '') + ' could not be read')
+      : 'The console did not answer';
+    return { kind: 'maybe', text: heard + ', so the post may be up. Check board ' + n + ' before you post again.', link: d2jspForumUrl(n) };
   }
   /* ⟦D2JSP SEND WORDS END⟧ */
   document.addEventListener('input', function(ev){
@@ -12657,15 +12692,11 @@ function d2jspPriceLine(q) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).then(function(r){
-      return r.json().then(function(j){ return j || {}; }, function(){ return null; });
-    }).then(function(j){
+      var code = (r && r.status) | 0;
+      return r.json().then(function(j){ return { code: code, j: j || {} }; }, function(){ return { code: code, j: null }; });
+    }).then(function(got){
       settle();
-      if (!j) {
-        say('This console has not loaded the Chrome connection, so nothing was posted.');
-        showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
-        return;
-      }
-      var w = sendWords(j, draft.forum, !!payload.topic);
+      var w = answerWords(got.code, got.j, draft.forum, !!payload.topic);
       if (w.kind === 'confirmed') {
         if (draft.shop && w.topic) writeTopic(w.topic);
         say(w.say);
@@ -12677,8 +12708,9 @@ function d2jspPriceLine(q) {
       showReceipt(w.kind, w.text, w.link);
     }).catch(function(){
       settle();
-      say('This console has not loaded the Chrome connection, so nothing was posted.');
-      showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
+      var lost = answerWords(0, undefined, draft.forum, !!payload.topic);
+      say(lost.text);
+      showReceipt(lost.kind, lost.text, lost.link);
     });
   }
   window.addEventListener('message', function(ev){

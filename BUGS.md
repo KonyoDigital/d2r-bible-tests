@@ -22,10 +22,19 @@ list topic is kept, so the next list post updates it); busy says this click star
 the failure came before the post was submitted; an answer the page does not know is a maybe, never a no. D2JSP_SEND_REASONS (desk
 block) is the contract list; it equals T1's SEND_REASONS tuple at the time of writing - the integrator adds the assertion that
 pins the two together once T1 merges.
+FIX ROUND (the adversarial review): an answer that never arrives was still "Not sent ... This console has not loaded the Chrome
+connection, so nothing was posted." on both paths - the fetch rejecting (the connection dropped, the console restarted or crashed
+mid-send) and a reply that is not JSON (a 5xx page). By then the POST had reached /api/d2jsp_send, the console may have clicked
+submit, and its re-send record lives only in that process (a restart forgets it), so the click that receipt invited could post a
+second topic. The review's probe: three sends reached the stubbed console and all three painted "Not sent". Now answerWords (in
+the same marked block) reads the answer as it arrived - HTTP status plus parsed body: a contract reason always speaks for itself;
+a 404 that names no reason is the one answer that proves the send never ran ("This console has no post route (it answered 404),
+so nothing was posted."); an answer that never came ("The console did not answer") or could not be read ("The answer from the
+console (HTTP 500) could not be read") is a MAYBE that links the board: "... so the post may be up. Check board N before you
+post again." The old transport sentence is gone from the page.
 GUARD: tv/test_a_maybe_sent_post_is_never_shown_as_unsent.py drives the room's own click handler in node for both paths with a
-stubbed /api/d2jsp_send and reads the receipt it paints; 9 red-proofs.
-NOT CHANGED: a fetch that throws, or a console that answers no JSON, still reads "This console has not loaded the Chrome
-connection, so nothing was posted." - no reason reached the page, so the contract does not cover it.
+stubbed /api/d2jsp_send and reads the receipt it paints - the contract reasons, plus a rejected fetch, a 500 whose body is not
+JSON and a 404, on both paths; 15 red-proofs.
 
 ### REG-2501 - THE POSTED PRICE WAS A READING TAKEN ON ANOTHER BOARD (#113, M6 T2)
 
@@ -53,8 +62,19 @@ desk keys bare too and now reads them under its install prefix, so its main copi
 where that key is still empty - never on ladder, never for the owner, never over a value it holds (a guest topic left behind would
 have started a second topic, the defect this entry closes). Routing needed no change: the desk's store() returns LS, and LS is
 window.LSR.
+FIX ROUND (the adversarial review): the fork stranded the ladder's LIVE topic. Bare, both profiles shared one saved topic, which
+held whichever board posted last; when that was ladder, the bare key held a topic on board 271. Forked, the owner ladder reads
+L·d2r_d2jsp_topic (a guest ladder IL·<id>·...), which was empty, so the next ladder "Post the list" sent {subject, body, forum:
+271} with NO topic and the console opened a second 271 topic while the first was live (the review's probe; the same probe on
+origin/main sent topic=...f=271). The no-migration reason covers main's filings and prices, not a topic that names board 271
+itself. Now, on ladder, a bare topic whose f= is 271 is copied into the ladder key while that key is empty (owner and guest; a
+copy, not a move, so a page still on an older build keeps reading it); a 271 topic is never adopted into a main key (the guest
+main copy skips it) and a topic of any other board never onto ladder. d2jspTopicBoard reads a topic link's board for both the copy
+and topicUrl. The ladder notice ("Ladder keeps its own trade list, prices and saved topic for board 271") is true again.
 GUARD: tv/test_the_d2jsp_desk_forks_with_the_profile.py runs the real fork sets, the real LSR router and the real room in node and
-reads the raw store key by key for owner main, owner ladder, guest main and guest ladder (6 red-proofs).
+reads the raw store key by key for owner main, owner ladder, guest main and guest ladder, and drives the real "Post the list"
+click to read the topic the console is sent: owner and guest ladder update the live 271 topic, a 271 topic never lands in a
+main key, a saved ladder topic is never replaced, a 268 topic never moves onto ladder (10 red-proofs).
 
 ### REG-2503 - A GOOD MF PRINTED A 1:N AS A PERCENT AND DROPPED IT FROM THE RANKING (#63, M6 T2)
 

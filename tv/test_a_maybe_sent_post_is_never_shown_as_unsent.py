@@ -14,6 +14,11 @@ This law runs the room's own code in node, never a browser:
     does not know is a maybe, never a no.
   * Both send paths are driven end to end through the room's click handler with a stubbed /api/d2jsp_send: the
     receipt they paint is read back, so a path that kept its own map goes red.
+  * AN ANSWER THAT NEVER ARRIVES IS A MAYBE TOO. Once the request has left the page the console may already have
+    clicked submit, and its re-send record lives only in that process (a restart forgets it). So a dropped
+    connection (fetch rejects: the console restarted or crashed mid-send) and an answer that is not JSON (a 5xx
+    page) are headed "Maybe sent" and link the board, on both paths. Only a 404 with no contract reason proves the
+    send never ran (this console has no post route), and only that one says nothing was posted.
 
 THE CONTRACT below is the list in T1's brief (tv/d2jsp_chrome.py). After T1 merges, the integrator adds one
 assertion that it equals d2jsp_chrome.SEND_REASONS.
@@ -100,13 +105,20 @@ var localStorage = { getItem: function(k){ return Object.prototype.hasOwnPropert
 var location = { hostname: '127.0.0.1' };
 var MULE = JSON.stringify({ 'Grief': 'm1' });
 var window = { addEventListener: function(){}, LSR: { getItem: function(k){ return k === 'd2r_muleAssign' ? MULE : null; } } };
-var ANSWER = null, SENT = [];
+var ANSWER = null, SENT = [], MODE = '';
 function fetch(url, opts){
   var body = null;
-  if (String(url) === '/api/d2jsp_send') { SENT.push(JSON.parse(opts.body)); body = ANSWER; }
+  if (String(url) === '/api/d2jsp_send') {
+    SENT.push(JSON.parse(opts.body));
+    // the request reached the console; what comes back is the transport the scenario names
+    if (MODE === 'reset') return Promise.reject(new TypeError('Failed to fetch'));
+    if (MODE === 'html500') return Promise.resolve({ status: 500, json: function(){ return Promise.reject(new SyntaxError('Unexpected token <')); } });
+    if (MODE === 'route404') return Promise.resolve({ status: 404, json: function(){ return Promise.resolve({ ok: false, msg: 'not found' }); } });
+    body = ANSWER;
+  }
   else if (String(url).indexOf('d2jsp_login') >= 0) body = { state: 'unknown' };
   else body = { fg: null, reason: 'no prices', n: 0 };
-  return Promise.resolve({ json: function(){ return Promise.resolve(body); } });
+  return Promise.resolve({ status: 200, json: function(){ return Promise.resolve(body); } });
 }
 function flush(){ return new Promise(function(r){ setTimeout(r, 0); }); }
 function button(attrs, selfSel){
@@ -159,6 +171,17 @@ async function shop(answer){
   out.shopAlready = await shop(fixture['already-posted']);
   out.shopUnknown = await shop({ ok: false, reason: 'gremlin' });
   out.topicSaved = RAW['d2r_d2jsp_topic'] || '';
+  // the transport: an answer that never arrives, one that is not JSON, and a console with no post route
+  for (var mi = 0, modes = ['reset', 'html500', 'route404']; mi < modes.length; mi++) {
+    MODE = modes[mi];
+    out['one_' + MODE] = await one(null);
+    out['shop_' + MODE] = await shop(null);
+    MODE = '';
+  }
+  out.lost271 = answerWords(0, undefined, 271, false);
+  out.unread502 = answerWords(502, null, 268, false);
+  out.noRoute = answerWords(404, null, 268, false);
+  out.maybeOn404 = answerWords(404, { ok: false, reason: 'maybe-sent', board: 268, at: 'x' }, 268, false);
   out.sent = SENT.length;
   process.stdout.write(JSON.stringify(out));
 })().catch(function(e){ process.stderr.write(String(e && e.stack || e)); process.exit(1); });
@@ -252,13 +275,40 @@ class AMaybeSentPostIsNeverShownAsUnsent(unittest.TestCase):
         u = self.o["shopUnknown"]
         self.assertIn(">Maybe sent<", u["receipt"])
         self.assertIsNone(NO.search(u["receipt"]))
-        self.assertEqual(self.o["sent"], 8, "every click reached the stubbed console exactly once")
+        self.assertEqual(self.o["sent"], 14, "every click reached the stubbed console exactly once")
+
+    def test_an_answer_that_never_arrives_is_a_maybe_on_both_paths(self):
+        for path in ("one", "shop"):
+            for mode in ("reset", "html500"):
+                r = self.o["%s_%s" % (path, mode)]
+                self.assertIn(">Maybe sent<", r["receipt"],
+                              "%s path: a %s after the request left is headed Not sent" % (path, mode))
+                self.assertIn("https://forums.d2jsp.org/forum.php?f=268", r["receipt"], "%s %s" % (path, mode))
+                self.assertIsNone(NO.search(r["receipt"]), "%s path: a %s says nothing was posted" % (path, mode))
+                self.assertIsNone(NO.search(r["status"]), "%s %s" % (path, mode))
+                self.assertIn("Check board 268 before you post again.", r["status"])
+            self.assertIn("did not answer", self.o["%s_reset" % path]["status"])
+            self.assertIn("HTTP 500", self.o["%s_html500" % path]["status"])
+            gone = self.o["%s_route404" % path]
+            self.assertIn(">Not sent<", gone["receipt"], "%s path: a console with no post route is a maybe" % path)
+            self.assertIn("no post route", gone["receipt"])
+        self.assertEqual(self.o["lost271"]["kind"], "maybe")
+        self.assertEqual(self.o["lost271"]["link"], "https://forums.d2jsp.org/forum.php?f=271")
+        self.assertIn("Check board 271", self.o["lost271"]["text"])
+        self.assertEqual(self.o["unread502"]["kind"], "maybe")
+        self.assertIn("HTTP 502", self.o["unread502"]["text"])
+        self.assertEqual(self.o["noRoute"]["kind"], "missed")
+        self.assertEqual(self.o["maybeOn404"]["kind"], "maybe", "a contract reason did not speak for itself")
 
     def test_one_map_serves_both_paths(self):
         handler = self.src[self.src.index("t.getAttribute('data-d2jsp-post')"):self.src.index("function draftHost()")]
         post = self.src[self.src.index("function postDraft("):self.src.index("window.addEventListener('message'")]
-        self.assertIn("sendWords(j, draft.forum, false)", handler)
-        self.assertIn("sendWords(j, draft.forum, !!payload.topic)", post)
+        self.assertIn("answerWords(got.code, got.j, draft.forum, false)", handler)
+        self.assertIn("answerWords(got.code, got.j, draft.forum, !!payload.topic)", post)
+        self.assertIn("answerWords(0, undefined, draft.forum, false)", handler, "the one-item path calls a lost answer a no")
+        self.assertIn("answerWords(0, undefined, draft.forum, !!payload.topic)", post, "the list path calls a lost answer a no")
+        self.assertNotIn("This console has not loaded the Chrome connection", self.src,
+                         "the old transport sentence (nothing was posted, for an answer that never came) is back")
         for body in (handler.replace(self.words_fn, ""), post):
             self.assertNotIn("reason === 'need-login'", body, "a send path keeps its own copy of the reason map")
         self.assertEqual(self.src.count("The board did not confirm the post, so nothing was posted."), 1)
@@ -297,13 +347,43 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#106 - the list path keeps its own reason map, which calls a maybe unsent",
      "file": "bible.html",
-     "find": "      var w = sendWords(j, draft.forum, !!payload.topic);\n",
-     "replace": "      var w = (j.ok && j.reason === 'submitted') ? sendWords(j, draft.forum, !!payload.topic) : { kind: 'missed', text: 'The board did not confirm the post, so nothing was posted.' };\n",
+     "find": "      var w = answerWords(got.code, got.j, draft.forum, !!payload.topic);\n",
+     "replace": "      var j = got.j || {}; var w = (j.ok && j.reason === 'submitted') ? answerWords(got.code, j, draft.forum, !!payload.topic) : { kind: 'missed', text: 'The board did not confirm the post, so nothing was posted.' };\n",
      "matches": 1},
     {"why": "#106 - the one-item path keeps its own reason map, which calls a maybe unsent",
      "file": "bible.html",
-     "find": "        var w = sendWords(j, draft.forum, false);\n",
-     "replace": "        var w = (j.ok && j.reason === 'submitted') ? sendWords(j, draft.forum, false) : { kind: 'missed', text: 'The board did not confirm the post, so nothing was posted.' };\n",
+     "find": "        var w = answerWords(got.code, got.j, draft.forum, false);\n",
+     "replace": "        var j = got.j || {}; var w = (j.ok && j.reason === 'submitted') ? answerWords(got.code, j, draft.forum, false) : { kind: 'missed', text: 'The board did not confirm the post, so nothing was posted.' };\n",
+     "matches": 1},
+    {"why": "#106 - an answer that never arrives (the connection dropped mid-send) is called Not sent again",
+     "file": "bible.html",
+     "find": "    return { kind: 'maybe', text: heard + ', so the post may be up. Check board ' + n + ' before you post again.', link: d2jspForumUrl(n) };\n",
+     "replace": "    return { kind: 'missed', text: 'This console has not loaded the Chrome connection, so nothing was posted.' };\n",
+     "matches": 1},
+    {"why": "#106 - the one-item path calls an unreadable answer (a 5xx page) unsent again",
+     "file": "bible.html",
+     "find": "        var w = answerWords(got.code, got.j, draft.forum, false);\n",
+     "replace": "        var w = got.j ? answerWords(got.code, got.j, draft.forum, false) : { kind: 'missed', text: 'This console has not loaded the Chrome connection, so nothing was posted.' };\n",
+     "matches": 1},
+    {"why": "#106 - the list path calls an unreadable answer (a 5xx page) unsent again",
+     "file": "bible.html",
+     "find": "      var w = answerWords(got.code, got.j, draft.forum, !!payload.topic);\n",
+     "replace": "      var w = got.j ? answerWords(got.code, got.j, draft.forum, !!payload.topic) : { kind: 'missed', text: 'This console has not loaded the Chrome connection, so nothing was posted.' };\n",
+     "matches": 1},
+    {"why": "#106 - the one-item path calls a dropped connection unsent again",
+     "file": "bible.html",
+     "find": "        var lost = answerWords(0, undefined, draft.forum, false);\n",
+     "replace": "        var lost = { kind: 'missed', text: 'This console has not loaded the Chrome connection, so nothing was posted.' };\n",
+     "matches": 1},
+    {"why": "#106 - the list path calls a dropped connection unsent again",
+     "file": "bible.html",
+     "find": "      var lost = answerWords(0, undefined, draft.forum, !!payload.topic);\n",
+     "replace": "      var lost = { kind: 'missed', text: 'This console has not loaded the Chrome connection, so nothing was posted.' };\n",
+     "matches": 1},
+    {"why": "#106 - a console with no post route (404) is called a maybe, so the one answer that proves no send is lost",
+     "file": "bible.html",
+     "find": "    if (code === 404) return { kind: 'missed', text: 'This console has no post route (it answered 404), so nothing was posted.' };\n",
+     "replace": "",
      "matches": 1},
     {"why": "#106 - an already-posted list topic is not kept, so the next list post starts a second topic",
      "file": "bible.html",
