@@ -391,9 +391,9 @@ RED_PROOF = [
     {
         "why": "#246 review - the socket-count rename mints his hand again for a filing that never had a witness",
         "file": "bible.html",
-        "find": ("      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) _rfF = window.vaultFile(newLabel, null,"
+        "find": ("      if (oldMule && typeof muleById === 'function' && (muleById(oldMule) || oldMule === '__keep')) _rfF = window.vaultFile(newLabel, null,"
                  " { restore: true, mule: oldMule, prov: _pvF });\n"),
-        "replace": ("      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) _rfF = window.vaultFile(newLabel, _pvF ?"
+        "replace": ("      if (oldMule && typeof muleById === 'function' && (muleById(oldMule) || oldMule === '__keep')) _rfF = window.vaultFile(newLabel, _pvF ?"
                     " _provAsWitness(_pvF) : { by: 'hand', at: new Date().toISOString(), where: 'the socket count fix' },"
                     " { mule: oldMule });\n"),
         "matches": 1,

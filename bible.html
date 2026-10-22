@@ -47475,6 +47475,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _vfS = null;
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
         _vfS = window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'the socket fix (throw-out review)' }, { mule: sg.id });
+      /* REG-2565 — A REFUSED FILING IS SAID AS A REFUSAL: it used to fall through to "registered"/"kept" and {ok:true} */
+      if (_vfS && !_vfS.ok){
+        var _why_vfS = String(_vfS.why || _vfS.refused || 'the vault door refused it');
+        persistOwned(); renderVault(); refreshOpenCard();
+        status('⚠ ' + clean + ' → ' + n + ' sockets — not filed: ' + _why_vfS + ' (it is on your owned list, unfiled)');
+        return { ok: false, label: label, refused: _vfS.refused || 'refused', why: _why_vfS, filed: _vfS };
+      }
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base' + _socketFiledSay(_vfS));
       return { ok: true, label: label, filed: _vfS };
@@ -47495,6 +47502,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _vfK = null;
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
         _vfK = window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'keep as a Larzuk base (throw-out review)' }, { mule: sg.id });
+      /* REG-2565 — A REFUSED FILING IS SAID AS A REFUSAL: it used to fall through to "registered"/"kept" and {ok:true} */
+      if (_vfK && !_vfK.ok){
+        var _why_vfK = String(_vfK.why || _vfK.refused || 'the vault door refused it');
+        persistOwned(); renderVault(); refreshOpenCard();
+        status('⚠ ' + clean + ' (Larzuk base) — not filed: ' + _why_vfK + ' (it is on your owned list, unfiled)');
+        return { ok: false, label: label, refused: _vfK.refused || 'refused', why: _why_vfK, filed: _vfK };
+      }
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('⚒ ' + clean + ' kept UNSOCKETED — Larzuk / cube-gamble base, the Forge will plan around it' + _socketFiledSay(_vfK));
       return { ok: true, label: label, filed: _vfK };

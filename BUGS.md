@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2565 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
+
+vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with
+"registered" / "kept" and {ok:true}. A refusal is now said as "not filed" with its reason and answered
+{ok:false, refused, why}; the label stays on the owned list, unfiled. Law:
+tv/test_a_refused_socket_filing_is_never_said_registered.py (2 red-proofs).
+
 ### REG-2564 - A MULE-MAP WRITE THAT DID NOT STICK DROPPED A FILING; ANOTHER TAB'S ROSTER SKIPPED THE MAP RULE - focused second eye on ede52513c
 
 The r3a fix round (ede52513c) was never reviewed; a focused Grok CLI review (2026-10-23) failed it with three majors:
@@ -730,6 +737,7 @@ entry covers the STALE ones. Each spec now asserts the ruling that replaced the 
 - REG-2241 (torches and anni stay in shared, gheeds gets muled): v1958, v203 taxonomy, v363, v3721, v3724, v3726 keeper.
 - REG-2242 (merc gear goes to shared): v203 Vampire Gaze, v3724 Visage. v3723 and v3726 now use Arreat's Face as
   the med-tier mule precondition.
+- ⚠ replaced by REG-2530 (10-22): a different second pick is a second add and keeps the first pick's copy; the v3740/v3742 specs follow REG-2530 on the V1 merge.
 - REG-2267 (a different pick in one planner open is a SWAP and takes back the swapped-away copy) supersedes the
   REG-2227 expectation in v3740 and v3742 reroll. The python twin is griefAfterSwap in test_a_hand_added_item_stays_his.
 - L1 war cap (2026-10-20) and the 10-22 war-gear ruling retire "every copy on the war stash": v3737, v3738.

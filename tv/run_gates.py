@@ -11324,6 +11324,10 @@ GATES = [
          why="REG-2564 (focused second eye on the r3a fix round) - a refused or throwing mule-map write left the filing "
              "deleted in the live map, a refused restore answered ok, and another tab's roster dropping a filed mule was "
              "adopted. Whole page in node, real doors."),
+    Gate("test_a_refused_socket_filing_is_never_said_registered",
+         [sys.executable, os.path.join(HERE, "test_a_refused_socket_filing_is_never_said_registered.py")], 300,
+         needs_app=False,
+         why="REG-2565 - set sockets / keep as base said \"registered\" and ok over a refused filing. Whole page in node."),
     Gate("test_no_gate_calls_the_claude_cli",
          [sys.executable, os.path.join(HERE, "test_no_gate_calls_the_claude_cli.py")], 300,
          needs_app=False,
