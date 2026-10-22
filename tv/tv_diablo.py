@@ -4349,7 +4349,7 @@ def _vision_budget_armed():
         return False
     return True
 
-def _sub_budget_calls(st, now):
+def _sub_budget_calls(st, now, as_written=False):
     """The call timestamps that still count, in SECONDS, with nonsense dropped.
 
     v1868 — HIS LIVE BUDGET FILE HELD A MILLISECOND TIMESTAMP AMONG SECONDS. Measured:
@@ -4367,6 +4367,13 @@ def _sub_budget_calls(st, now):
     is a two-sided one — `0 <= now - t < WINDOW` — because "not older than a day" and "not in the
     future" are two conditions and the one-sided test only ever checked one of them.
     [[d2r-g5-budget-unit-collision]] [[unknown-stays-unknown]]
+
+    REG-2387 — as_written=True returns the SAME rows in the unit their writer used, for the one caller that writes
+    them back (_sub_budget_record). The millisecond rows have a writer: tv/intake_local.mjs records every intake read
+    here as Date.now() and counts only millisecond rows against its own cap. Written back divided by 1000, they were
+    rows that cap no longer counts, so ONE vision read reset the intake cap (reproduced on a fixture: 20 intake rows,
+    the 21st read refused 429; one vision read recorded; the 21st admitted). Which rows count is decided here, in
+    seconds, either way.
     """
     out = []
     for raw in (st.get("calls") or []):
@@ -4374,12 +4381,13 @@ def _sub_budget_calls(st, now):
             t = float(raw)
         except Exception:
             continue
+        v = t                   # REG-2387 — the row as its writer wrote it
         if t > 1e12:            # milliseconds, written by something that used a different clock
             t = t / 1000.0
         if t > now + 60:        # beyond clock skew: a timestamp we cannot place, not a call
             continue
         if now - t < 86400:
-            out.append(t)
+            out.append(v if as_written else t)
     return out
 
 
@@ -4414,8 +4422,11 @@ def _sub_budget_record():
                                       # on EVERY read, so the leaked handle recurred per frame
         except Exception:
             st = {}
-        calls = _sub_budget_calls(st, now)   # v1868 — normalise on WRITE too, or the poison is
-        calls.append(now)                    # simply rewritten every time a read is recorded
+        # v1868 — the WINDOW applies on write too, or a row that can never age out is rewritten every time a read is
+        # recorded. REG-2387 — but each row goes back in the unit its writer used: the intake lane's millisecond rows
+        # stay milliseconds, or one vision read resets the intake cap (see _sub_budget_calls).
+        calls = _sub_budget_calls(st, now, as_written=True)
+        calls.append(now)
         try:
             # v1779 — ATOMIC, because a torn write here silently DISARMS the circuit breaker.
             # _sub_budget_load returns {} on any parse failure, so a half-written file makes the

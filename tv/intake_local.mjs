@@ -117,7 +117,9 @@ function budgetCheck() {
 // IN MILLISECONDS - which no seconds row ever is - so every intake read ERASED the vision lane's rows (reproduced on a
 // fixture: three fresh vision rows in, one intake row out). The other lane's rows are kept now, aged in their own unit
 // (tv_diablo._sub_budget_calls' window: a minute of skew, under a day). What this lane COUNTS is unchanged: budgetCheck
-// windows in milliseconds, so it counts its own rows only - the G5 ledger records the same collision (v1698).
+// windows in milliseconds, so it counts its own rows only - the G5 ledger records the same collision (v1698). That
+// holds only while tv_diablo writes these rows back in milliseconds: it divided them by 1000, and one vision read
+// reset this cap (REG-2387).
 const MS_FLOOR = 1e11;   // 1e11 ms is 1973 and 1e11 s is the year 5138: nothing real lands between them
 
 function budgetRecord() {

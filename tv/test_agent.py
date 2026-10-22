@@ -3710,12 +3710,27 @@ class TestTheSubscriptionMeterCannotBePoisonedByUnits(unittest.TestCase):
                          [now - 5])
 
     def test_the_poison_is_not_rewritten_on_every_record(self):
-        # normalise on WRITE as well as READ, or the next recorded read copies it straight back in
-        import inspect
+        """The writer applies the reader's window, or the next recorded read copies a row that can never age out
+        straight back in. REG-2387 - and it writes each row back in the unit its writer used: tv/intake_local.mjs
+        records and counts MILLISECONDS in this ledger, and a writer that divided them by 1000 reset the intake cap
+        with every vision read. This read the writer's source for `_sub_budget_calls(st, now)` - the very
+        normalisation that reset it - so it is driven on a fixture ledger now."""
+        import time
         import tv_diablo as tv
-        src = inspect.getsource(tv._sub_budget_record)
-        self.assertIn("_sub_budget_calls(st, now)", src,
-                      "the writer still rebuilds the list with the raw filter")
+        d = tempfile.mkdtemp(prefix="sub-budget-")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "ledger.json")
+        now = time.time()
+        intake_ms, vision_s = (now - 120.0) * 1000.0, now - 60.0
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"calls": [(now - 3 * 86400.0) * 1000.0, intake_ms, now + 999999, "x", vision_s]}, fh)
+        with mock.patch.object(tv, "_SUB_BUDGET_PATH", path), mock.patch.object(tv, "_vision_budget_armed", lambda: True):
+            tv._sub_budget_record()
+        with open(path, encoding="utf-8") as fh:
+            got = json.load(fh)["calls"]
+        self.assertEqual(got[:2], [intake_ms, vision_s],
+                         "the writer kept a row that cannot count, or rewrote a row in another unit: %r" % (got,))
+        self.assertEqual(len(got), 3, "the recorded read is missing, or a dead row came back: %r" % (got,))
 
 
 class TestTheFixtureRootIsDecidedByTheFilesystem(unittest.TestCase):

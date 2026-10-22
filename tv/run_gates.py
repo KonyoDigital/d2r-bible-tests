@@ -10993,7 +10993,9 @@ GATES = [
              "its cap on a fixture ledger, and the board receives HTTP 429 with used, limit and the limit's source, "
              "never 200 and never the website. Node-only on purpose, and its proof key names the JavaScript it runs "
              "(the runner, tv/pc_settings.mjs, functions/api/intake.js) - heart2's closure follows Python imports "
-             "only, so an edit to the settings reader would otherwise be served a PROVEN it never ran on."),
+             "only, so an edit to the settings reader would otherwise be served a PROVEN it never ran on. REG-2387 - "
+             "tv_diablo's vision writer handed the shared ledger back in seconds, so one vision read reset the intake "
+             "cap: 20 intake rows, one _sub_budget_record(), and the board's 21st read is still 429."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

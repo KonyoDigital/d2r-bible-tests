@@ -201,11 +201,20 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+
+### REG-2387 - ONE VISION READ RESET THE INTAKE CAP: TV_DIABLO WROTE THE INTAKE LANE'S ROWS BACK AS SECONDS
+
+tv/.subscription_budget.json has two writers on two clocks (REG-2385): tv_diablo's vision lane (`_sub_budget_record`, `time.time()` SECONDS) and tv/intake_local.mjs (`Date.now()` MILLISECONDS), whose cap counts only millisecond rows. `_sub_budget_record` ran every row through `_sub_budget_calls` - which divides a millisecond row by 1000 so the vision lane can window it (REG-217, v1868, "normalised on write as well as read") - and wrote the result back, so one vision read turned every intake row into a seconds row the intake cap does not count, and that cap restarted from zero. Reproduced on a fixture 2026-10-22: 20 intake rows, the 21st intake read refused 429; one vision read recorded by tv_diablo's own writer; the ledger then held 21 rows, all in seconds, and the 21st intake read was admitted. The same writer and the same count are on origin/main (read, not run). Found by the round-2 review of REG-2382..2386.
+
+FIX: `_sub_budget_calls(st, now, as_written=True)` returns the rows that still count in the unit their writer used, and `_sub_budget_record` writes those back. The window (under a day, a minute of skew) is still judged in seconds on write, so REG-217's never-expiring row cannot come back; only the unit is kept. What each lane counts is unchanged: the vision lane both kinds (rescaled), the intake cap its own millisecond rows.
+
+GUARD: tv/test_a_capped_runner_reaches_the_board_as_429.py `test_a_vision_read_on_the_same_ledger_leaves_the_cap_standing` (registered) - 20 intake rows on a fixture ledger, one `_sub_budget_record()` by tv_diablo's own writer, and the board's 21st read through the real runner is still HTTP 429 (used 20, limit 20); 2 RED proofs (the in-place normalisation restored at the writer, and in the window). tv/test_agent.py `test_the_poison_is_not_rewritten_on_every_record` drives the writer on a fixture now - it read the writer's source for `_sub_budget_calls(st, now)`, the very normalisation that reset the cap.
+
 ### REG-2385 - EVERY INTAKE READ ERASED THE VISION LANE'S ROWS FROM THE SHARED SUBSCRIPTION LEDGER
 
 tv/.subscription_budget.json has two writers on two clocks: tv_diablo's vision lane (`_sub_budget_record`, `time.time()` SECONDS - the meter control_app's `_meter_state` draws) and tv/intake_local.mjs (`Date.now()` MILLISECONDS). REG-217 taught the Python side to read a millisecond row; the Node side was never fixed. Recording an intake call kept only the rows younger than a day IN MILLISECONDS - which no seconds row ever is - and wrote the file back, so every intake read deleted every vision row. Reproduced on a fixture 2026-10-21: three fresh vision rows in, one intake row out. (His live ledger that evening held 40 rows, every one in milliseconds.) The write was also in place: a torn file reads as {} on both sides and restarts both lanes' caps.
 
-FIX: `budgetRecord()` keeps the other lane's rows, aged in their own unit (tv_diablo's window: a minute of skew, under a day); the write is tmp + rename (per-process tmp; the old in-place write only where a rename is refused). What the intake cap COUNTS is unchanged - its own millisecond rows - and is now pinned: whether vision reads should count against the intake cap is a ruling nobody has made. `tv/.subscription_budget.json.*` (both writers' temp files) is ignored.
+FIX: `budgetRecord()` keeps the other lane's rows, aged in their own unit (tv_diablo's window: a minute of skew, under a day); the write is tmp + rename (per-process tmp; the old in-place write only where a rename is refused). What the intake cap COUNTS is unchanged - its own millisecond rows - and is now pinned: whether vision reads should count against the intake cap is a ruling nobody has made. `tv/.subscription_budget.json.*` (both writers' temp files) is ignored. The mirror - tv_diablo writing this lane's rows back as seconds, which reset the intake cap - is REG-2387.
 
 GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `TheLedgerKeepsTheOtherLanesRows` (a stand-in claude CLI admits and records a call; POSIX only, so its 3 RED proofs declare `needs: posix` and a Windows PC with node files them ELSEWHERE, never BLIND) and tv/test_this_pcs_settings_file_never_travels.py `test_the_ledgers_temp_files_are_ignored_by_git` (1 RED proof).
 
@@ -22284,6 +22293,9 @@ recoverable: 1787177667153 → today 18:14), drops anything beyond a minute of c
 future, and uses a **two-sided** window — *"not older than a day"* and *"not in the future"* are two
 conditions and the one-sided test only ever checked one. Normalised on write as well as read, or the
 next recorded call copies the poison straight back in.
+
+REG-2387 (2026-10-22): the window still applies on write; the unit no longer changes there. The millisecond
+rows are tv/intake_local.mjs's own reads, and writing them back divided by 1000 reset the intake cap.
 
 
 ## REG-218 — one gate run rewrote five of his live files, and spent a real vision call (FIXED v1869)
