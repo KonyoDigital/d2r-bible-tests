@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2560 - A BARREN HELD REEL WAS RE-READ ON EVERY TICK, AND EVERY PADLOCK OPEN RESTARTED THEM ALL (#188, GB-L on Claude's 38ab93ab, 2026-10-22, v3789)
+The panels-never-banked requeue reset tries to 0 and the reel was owed again on the next tick, so the same reels
+were paid for over and over. Claude's WIP called an undefined `_vault_cooling_board`. Now `_vault_cool` sets a
+wall-clock cooldown that doubles from 6 h up to 7 days, `_vault_cooling` skips the reel in the owed loop, a new
+VAULT_PROMPT_VER ends it, and the cooldown is persisted in .vault_autoread.json, so an opened vault.sweep_start
+padlock or a relaunch no longer restarts it. Law: tv/test_a_barren_held_reel_cools.py, with 3 RED_PROOFs.
+
 ### REG-2559 - A LAW SPENT HIS PLAN ON OPUS: THE CLOUD-ROUTE CASE RAN THE REAL `claude -p` (#189, GB-L, 2026-10-22, v3788)
 
 test_triage_runs_beside_a_shadow_reel's test_a_cloud_route_pc_is_never_told_to_launch_d2r calls farmgate_payload,

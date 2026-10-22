@@ -31473,6 +31473,75 @@ def _chron_sweep_hang_check():
 _VAULT_AUTOREEL_ON = os.environ.get("TV_VAULT_AUTOREEL", "1") != "0"
 _VAULT_AUTOREAD_EVERY_S = 45          # slower than chronicle's 20s: a vault sweep is the dearer read
 _VAULT_AUTOREAD_MAX_TRIES = 2
+
+#: #188 REG-2560 - THE RIVER RE-READ THE SAME UNEXTRACTABLE REELS FOREVER. A reel the prune holds as
+#: panels-never-banked that still comes back owed after its tries was sent "back to the top" with tries=0, so the next
+#: tick paid for it again: about 6,000 Sonnet reads on the same few reels. It now COOLS: not read again before `until`,
+#: and each barren round doubles the wait (6 h, 12 h, 24 h ... capped at 7 days). A new vault reader
+#: (VAULT_PROMPT_VER) ends every cooldown at once, because that is the one change that can make a barren reel read.
+#: The cooldown is wall-clock and persisted, so neither a relaunch nor a locked-then-opened sweep door
+#: (vault.sweep_start) hands a cooling reel its read back the moment the lane can run again.
+_VAULT_COOL_BASE_MS = 6 * 3600 * 1000
+_VAULT_COOL_MAX_MS = 7 * 24 * 3600 * 1000
+
+
+def _vault_reader_ver():
+    try:
+        import tv_diablo as _tvc
+        return str(getattr(_tvc, "VAULT_PROMPT_VER", "") or "")
+    except Exception:
+        return ""
+
+
+def _vault_cooling(rid, now_ms=None):
+    """-> the cooldown entry when `rid` must not be read yet, else None. A bad entry is "not cooling", never a raise."""
+    c = _VAULT_AUTOREAD.get("cooldown")
+    e = c.get(rid) if isinstance(c, dict) else None
+    if not isinstance(e, dict):
+        return None
+    try:
+        until = float(e.get("until") or 0)
+    except (TypeError, ValueError):
+        return None
+    if str(e.get("promptVer") or "") != _vault_reader_ver():
+        return None
+    now = time.time() * 1000 if now_ms is None else now_ms
+    return e if now < until else None
+
+
+def _vault_cool(rid, why="", now_ms=None):
+    """Record one more barren round for `rid` and set its next read time. -> the entry written."""
+    c = _VAULT_AUTOREAD.get("cooldown")
+    if not isinstance(c, dict):
+        c = _VAULT_AUTOREAD["cooldown"] = {}
+    now = time.time() * 1000 if now_ms is None else now_ms
+    old = c.get(rid) if isinstance(c.get(rid), dict) else {}
+    ver = _vault_reader_ver()
+    try:
+        n = int(old.get("barren") or 0) if str(old.get("promptVer") or "") == ver else 0
+    except (TypeError, ValueError):
+        n = 0
+    n += 1
+    wait = min(_VAULT_COOL_MAX_MS, _VAULT_COOL_BASE_MS * (2 ** min(n - 1, 10)))
+    e = {"until": now + wait, "at": now, "barren": n, "promptVer": ver, "why": str(why or "")[:200]}
+    c[rid] = e
+    return e
+
+
+def _vault_cooling_board(owed, now_ms=None):
+    """Every owed reel that is cooling, in words. -> [{reel, until, barren, why}]; never raises."""
+    out = []
+    try:
+        for d in owed or []:
+            rid = os.path.basename(str(d))
+            e = _vault_cooling(rid, now_ms)
+            if e:
+                out.append({"reel": rid, "until": e.get("until"), "barren": e.get("barren"),
+                            "why": "%d barren round(s); not read again until the cooldown ends or the vault reader "
+                                   "changes" % int(e.get("barren") or 0)})
+    except Exception:
+        return out
+    return out
 _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired": {},
                    # v2302 — the LAST reason an attempt on this reel gave. Retirement used
                    # to assert a cause it had never measured; now it can quote one.
@@ -31487,7 +31556,7 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
                    # "promptVer", "agentVer", "ts"} }. Written by the sweep's checkpoint, CLEARED when
                    # a reel completes, ignored when stale. The sibling of chron_autoread["resume"].
                    "resume": {},
-                   # #188 REG-2553 — a reel the prune holds as panels-never-banked whose read came back
+                   # #188 REG-2560 — a reel the prune holds as panels-never-banked whose read came back
                    # barren: { rid: {"until": ms, "at": ms, "barren": n, "promptVer": str} }. Not read
                    # again before `until` unless the vault reader changes. See _vault_cool.
                    "cooldown": {}}
@@ -31829,7 +31898,7 @@ def _vault_autoread_load():
         for k in ("retired", "tries", "lastWhy", "reextract", "rejudged", "resume"):   # #130 — resume added
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
-        # #188 REG-2553 — a restart must not hand a cooling reel its read back. Not a dict -> ignored, and a bad
+        # #188 REG-2560 — a restart must not hand a cooling reel its read back. Not a dict -> ignored, and a bad
         # entry inside it reads as "not cooling" in _vault_cooling, never as an exception.
         if isinstance(d.get("cooldown"), dict):
             _VAULT_AUTOREAD["cooldown"] = dict(d["cooldown"])
@@ -31924,7 +31993,7 @@ def _vault_autoread_save():
                "latticeTried": _VAULT_AUTOREAD.get("latticeTried") or {},
                "joinQueued": _VAULT_AUTOREAD.get("joinQueued") or {},
                "joinTried": _VAULT_AUTOREAD.get("joinTried") or {},
-               # #188 REG-2553 — lost here, every relaunch would re-read each cooling reel at once
+               # #188 REG-2560 — lost here, every relaunch would re-read each cooling reel at once
                "cooldown": (_VAULT_AUTOREAD.get("cooldown")
                             if isinstance(_VAULT_AUTOREAD.get("cooldown"), dict) else {}),
                # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
@@ -33654,7 +33723,7 @@ def _vault_autoread_state():
                                   else _vault_no_tick_why() if (owed and not _lt) else None)),   # REG-1646
                 "lastTick": _lt,
                 "triageRuledEmpty": _TRIAGE_RULED_EMPTY.get("vault"),            # REG-1751
-                # #188 REG-2553 - every owed reel that is cooling, with its until-time and why, in words
+                # #188 REG-2560 - every owed reel that is cooling, with its until-time and why, in words
                 "cooling": _vault_cooling_board(owed),
                 "retired": sorted(d.get("retired") or {}),
                 "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
@@ -33902,6 +33971,8 @@ def vault_autoreel_tick():
                 pass
         if rid in _VAULT_AUTOREAD["retired"]:
             continue
+        if _vault_cooling(rid):          # #188 REG-2560 - a barren held reel waits out its cooldown
+            continue
         if rid in _VAULT_SWEEP_QUARANTINE:
             # river watchdog quarantined this reel after it HUNG the measurer; skip it so the lane reads
             # the rest instead of re-hanging on the same reel (cleared on relaunch — a transient hang retries)
@@ -33963,6 +34034,7 @@ def vault_autoreel_tick():
                 _held_unextracted = True
             if _held_unextracted:
                 _VAULT_AUTOREAD["tries"][rid] = 0          # back to the top of the river
+                _vault_cool(rid, _said)                    # #188 REG-2560 - but not before its cooldown ends
                 _vault_autoread_save()
                 return {"ok": False, "requeued": rid, "owed": owed,
                         "why": ("%s — but this reel carries panel frames with NO vault row, so the "
