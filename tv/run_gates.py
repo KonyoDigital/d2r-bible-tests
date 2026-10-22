@@ -10937,6 +10937,26 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_hand_add_is_not_quadratic",
+         [sys.executable, os.path.join(HERE, "test_a_hand_add_is_not_quadratic.py")], 300,
+         needs_app=False,
+         why="V1c (#152 item 4, #111 item 6; REG-2420..REG-2427) - GrokBot on v3784: hand adds were QUADRATIC (30 ms at 50 "
+             "items, 2.7 s at 600; his 550-item test ~7.5 min). One add at 300 asked the router 15 times per owned name, "
+             "ran the fuzzy fold 861 times, walked the catalogue, the saved moves and ITEMS per item, and read "
+             "d2r_plannerMade 1,341 times (_itemCells read it before its cache); a paint rebuilt the records 3x per locker. "
+             "The whole page runs in node (tv/vault_page_node.py) and one add at 40 and at 160, a copy add and a paint are "
+             "COUNTED, never clocked: router asks < 4 per name and linear, folds <= 2, catalogue walks <= 4, keeper walks "
+             "<= 8, ITEMS walks <= 12, set-piece folds <= 60, planner parses <= 1, records rebuilds per paint <= 8."),
+    Gate("test_the_vault_memo_changes_no_answer",
+         [sys.executable, os.path.join(HERE, "test_the_vault_memo_changes_no_answer.py")], 900,
+         needs_app=False,
+         why="V1c (#152 item 4, #111 item 6; REG-2420..REG-2427) - the speed fix is eight memos, and a memo that changes an "
+             "answer is a defect wearing a speed-up. The same fixture (84 names of every kind, copies past the war cap, share "
+             "switches, hand filings, a lane lock, sightings, auto intake, a planner record written / changed / corrupted / "
+             "cleared, a drain, FIND, a throw-out keep, a catalogue that grows) runs on the whole page in node as it ships "
+             "and with window._vaultMemoOff = true; every door's answer, every name's router / seam / footprint / picture / "
+             "keeper / home / canon, the MOVE TASKS, dock and shelf HTML, the records and every store must be identical. "
+             "ITEMS and ITEM_REGISTRY keep their one writer (the BOSSES build), which the catalogue memos lean on."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

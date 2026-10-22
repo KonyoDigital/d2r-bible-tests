@@ -2692,5 +2692,27 @@
     "purpose": "What a version stamp may not carry: a home path, an IP, a hostname, a token or this machine's identity (leak_problem), and anything but inert words (free_text_problem). bump_version refuses a leaking or non-inert name or note with them, and gate_ledger checks every added stamp line with it before a coherent bump carries a gate.",
     "gotcha": "One definition, two callers. A check that cannot load counts as dirty, never clean.",
     "territory": "gates-proofs"
+  },
+  "vault_page_node.py": {
+    "territory": "gates-proofs",
+    "purpose": "V1c (#152 item 4): the WHOLE bible.html in node - every inline <script> in page order in one global world over a small DOM/localStorage stand-in (ids from the markup and from every innerHTML it writes), storage starting EMPTY, timers queued until the body flushes them, and no network at all (fetch, XHR, WebSocket, EventSource, sendBeacon inert). run(body) boots the page, fires DOMContentLoaded and load, runs the body and returns the OUT it filled; PATCHES are exact find/replace pairs applied to the source first (a law counts calls with them), a PRELUDE runs before the first page script, and clock/seed make two runs comparable byte for byte. The vault laws that must see a hand add as it ships (test_a_hand_add_is_not_quadratic, test_the_vault_memo_changes_no_answer) and the speed bench stand on it.",
+    "entryPoints": [
+      "run",
+      "program",
+      "NODE",
+      "BIBLE",
+      "HARNESS_JS"
+    ],
+    "gotcha": "It is not a browser: querySelectorAll answers [], layout is zero, and innerHTML costs nothing, so it measures the page's JavaScript and never its DOM (a Chrome-only cost needs a Playwright spec on CI). A PATCH whose anchor matches the wrong number of times fails the run by name (PATCH ANCHOR MOVED), never silently. The page's console goes to stderr and OUT travels on one marked stdout line, because a page log after the body would otherwise be read as the answer. A script that throws at boot is listed in OUT.__boot.errors - a law must assert that list is empty, or it is measuring half a page."
+  },
+  "vault_speed_bench.py": {
+    "territory": "vault",
+    "purpose": "V1c (#152 item 4): the hand-add speed CURVE - N hand adds (default 50/200/550) on a fresh whole page in node through the real door (vaultHandAdd) and through his click (vaultHandTake, which repaints after every add), printing per size the total, the mean of the last 10 adds before each mark and one paint. --memo-off sets window._vaultMemoOff = true, which is the path v3784 took, so before and after are measured on one tree.",
+    "entryPoints": [
+      "main",
+      "measure",
+      "BODY"
+    ],
+    "gotcha": "A REPORT, not a gate: a clock moves with the load on the box, so the gate is test_a_hand_add_is_not_quadratic (it counts work). 550 adds with the memos off take 10-20 minutes in node, and node is not Chrome - GrokBot's perf3.py on his screen is the browser measurement."
   }
 }

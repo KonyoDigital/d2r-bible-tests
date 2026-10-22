@@ -20355,7 +20355,11 @@ function _itemCells(name){
      keeps today's key. The name is never read as a base. */
   var _storedBase = '';
   try {
-    if (typeof window !== 'undefined' && window && typeof window._vpMadeOf === 'function'){
+    /* V1c (#111 item 6, REG-2422) - the planner store is parsed once per stored string (_vpMadeBaseCode), not on
+       every footprint before this cache is asked; a page without that reader asks _vpMadeOf as before. */
+    if (typeof window !== 'undefined' && window && typeof window._vpMadeBaseCode === 'function'){
+      _storedBase = String(window._vpMadeBaseCode(name) || '');
+    } else if (typeof window !== 'undefined' && window && typeof window._vpMadeOf === 'function'){
       var _rec0 = window._vpMadeOf(name);
       if (_rec0 && _rec0.base) _storedBase = String(_rec0.base);
     }
@@ -40827,6 +40831,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   try { window._shareOverride = _shareOverride; window._shareDefault = _shareDefault; window._setShareOverride = _setShareOverride; } catch(e){}
   var _sugFolding = false;   // v1958 re-entry guard, see below
+  /* V1c (#152 item 4, REG-2420) - THE FUZZY FOLD IS ASKED ONCE PER NAME, NOT ONCE PER PAINT.
+     suggestMule hands every name the catalogues call unknown to d2rInboxEngine, and every runeword is
+     unknown there. One hand add re-asks the router about every item many times, so a 300-item vault
+     ran the 398-name Ratcliff-Obershelp fold 861 times per add: 64% of the add (measured on the whole
+     page in node, tv/vault_page_node.py). For a trimmed string name, the canonical this hop reads is fixed by the
+     name, the register's catalogues and the roster, and each of those is built once per page. The one
+     branch that reads his ledger (_chSetPiecesOnBase) can only answer the name itself, which never hops.
+     So the answer is kept per name, and the memo is dropped whenever the engine, the resolver, the
+     roster or the fold it reads is replaced. Any other name is asked fresh, as before.
+     window._vaultMemoOff = true turns every V1c memo off; tv/test_the_vault_memo_changes_no_answer.py
+     runs the same adds both ways and requires the same answers. */
+  var _sugFoldMemo = null, _sugFoldDeps = null;
+  function _sugFoldCanon(name){
+    var memo = typeof name === 'string' && name !== '' && name === name.trim() && window._vaultMemoOff !== true
+               && typeof Map === 'function';
+    if (memo){
+      var deps = [window.d2rInboxEngine, window.d2rResolveItem, window._gUniqueRoster, window.D2R_INBOX_FOLD];
+      var same = !!_sugFoldDeps;
+      for (var di = 0; same && di < deps.length; di++) if (deps[di] !== _sugFoldDeps[di]) same = false;
+      if (!same){ _sugFoldMemo = new Map(); _sugFoldDeps = deps; }
+      if (_sugFoldMemo.has(name)) return _sugFoldMemo.get(name);
+    }
+    var fe = window.d2rInboxEngine({ name: name });
+    var fc = fe && fe.canonical;
+    if (memo){ if (_sugFoldMemo.size >= 5000) _sugFoldMemo.clear(); _sugFoldMemo.set(name, fc); }
+    return fc;
+  }
   /* ══ v2198 — THE ROUTING UNIVERSE IS ITEM_REGISTRY (547), NOT THE CALCULATOR'S ITEMS (320) ══
      Konyo, measuring his own empty Vault Manager: "everywhere and anything that uses the items to
      identify and analyze ... should get the entire database ... except runewords and sets and
@@ -40855,6 +40886,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function d2rItemLookup(name){
     var q = String(name || '').trim();
     if (!q) return null;
+    var _ilm = _d2rItemLookupMemo();                     /* V1c one walk per name */
+    if (_ilm && _ilm.has(q)) return _ilm.get(q);
+    var _ila = _d2rItemLookupWalk(q);
+    if (_ilm){ if (_ilm.size >= 5000) _ilm.clear(); _ilm.set(q, _ila); }
+    return _ila;
+  }
+  /* V1c (#152 item 4, REG-2423) - ONE CATALOGUE WALK PER NAME. A name the exact keys miss (every runeword, every
+     display name with its base in brackets) walked all 320 ITEMS and all 547 registry keys through _c on every call,
+     and the router asks this for every item many times per hand add: 30% of an add at 300 items once the fold memo
+     was in. The answer is a pure function of the trimmed name and the two catalogues, which the BOSSES build fills
+     once before this script runs and nothing writes after (tv/test_the_vault_memo_changes_no_answer.py pins that
+     there is no other writer). The memo is dropped if ITEMS or ITEM_REGISTRY is replaced or ITEMS changes length,
+     it returns the very object the walk found, and window._vaultMemoOff = true asks the walk every time. */
+  var _ilMemo = null, _ilSig = null;
+  function _d2rItemLookupMemo(){
+    if (window._vaultMemoOff === true || typeof Map !== 'function' || typeof ITEMS === 'undefined' || !ITEMS) return null;
+    var R = (typeof ITEM_REGISTRY !== 'undefined') ? ITEM_REGISTRY : (window.ITEM_REGISTRY || null);
+    if (!(_ilSig && _ilSig[0] === ITEMS && _ilSig[1] === ITEMS.length && _ilSig[2] === R)){
+      _ilMemo = new Map(); _ilSig = [ITEMS, ITEMS.length, R];
+    }
+    return _ilMemo;
+  }
+  function _d2rItemLookupWalk(q){
     try {
       /* ITEMS FIRST, so every name that already resolved resolves identically. A widening that
          changes an answer it used to get right is not a widening, it is a rewrite. */
@@ -41026,8 +41080,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           && typeof window.d2rInboxEngine === 'function'){
         var _rv = window.d2rResolveItem(name);
         if (_rv && _rv.kind === 'unknown'){
-          var _fe = window.d2rInboxEngine({ name: name });
-          var _fc = _fe && _fe.canonical;
+          var _fc = (typeof _sugFoldCanon === 'function') ? _sugFoldCanon(name)
+                  : (window.d2rInboxEngine({ name: name }) || {}).canonical; /* V1c one fold per name */
           if (_fc && String(_fc) !== String(name)){
             _sugFolding = true;                       // one hop only; the fold target is on the roster
             try {
@@ -41503,8 +41557,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // EXTRA_ITEM or set piece, so it was falling out of the pool → its mule assignment got pruned every
       // render → it vanished from all lockers (Konyo: "where did the Enigma go?"). Keep runewords in.
       if (window.findRuneword && window.findRuneword(n)) return true;
-      return ITEMS.some(function(i){return i.n===n;}) || !!(window.findSetPiece && window.findSetPiece(n));
+      return _vaultItemsHas(n) || !!(window.findSetPiece && window.findSetPiece(n)); /* V1c one name set */
     }catch(e){ return false; }
+  }
+  /* V1c (#152 item 4, REG-2427) - ownedPool asks this of every owned name, and a hand add with its paint builds the pool
+     about 20 times: 1.7 million name compares per add at 300 items. ITEMS is built once from the drop tables before
+     this script runs, so its names are kept in one Set, rebuilt when ITEMS is replaced or changes length. An entry that
+     is not an object keeps the old walk (it would have thrown in the walk), and window._vaultMemoOff = true walks. */
+  var _vkNames = null, _vkSig = null;
+  function _vaultItemsHas(n){
+    if (window._vaultMemoOff === true || typeof Set !== 'function') return ITEMS.some(function(i){return i.n===n;});
+    if (!(_vkSig && _vkSig[0] === ITEMS && _vkSig[1] === ITEMS.length)){
+      var set = new Set();
+      for (var i = 0; i < ITEMS.length && set; i++){
+        if (ITEMS[i] && typeof ITEMS[i] === 'object') set.add(ITEMS[i].n); else set = null;
+      }
+      _vkNames = set; _vkSig = [ITEMS, ITEMS.length];
+    }
+    return _vkNames ? _vkNames.has(n) : ITEMS.some(function(i){return i.n===n;});
   }
   function ownedPool(){
     try{
@@ -41546,9 +41616,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      share a key (so the v3751 fold could miss it). Fold every apostrophe glyph to a straight ' so the canon
      matches however the name was typed or read. SCOPED to the set-piece canon on purpose — _etherNorm and
      _norm are left untouched (narrow blast radius). [[d2r-curly-apostrophe-class]] */
+  /* V1c (#152 item 4, REG-2425) - a renderVault at 550 items spent 58% of its time here: every set piece asks
+     _vaultSameItemNames, which folds every pool name, and every locker card re-derives the records. The fold is a
+     pure function of the string, so each string is folded once (the memo is cleared past 5,000 names, and
+     window._vaultMemoOff = true folds every time). */
+  var _spNormMemo = (typeof Map === 'function') ? new Map() : null, _spNormBy = null;
   function _spNorm(s){
-    var b = (typeof _etherNorm === 'function') ? _etherNorm(s) : String(s == null ? '' : s).toLowerCase();
-    return b.replace(/[‘’ʼ＇′´‛]/g, "'");
+    var en = (typeof _etherNorm === 'function') ? _etherNorm : null;
+    var memo = !!_spNormMemo && typeof s === 'string' && window._vaultMemoOff !== true;
+    if (memo){
+      if (_spNormBy !== en){ _spNormMemo.clear(); _spNormBy = en; }
+      if (_spNormMemo.has(s)) return _spNormMemo.get(s);
+    }
+    var b = en ? en(s) : String(s == null ? '' : s).toLowerCase();
+    var out = b.replace(/[‘’ʼ＇′´‛]/g, "'");
+    if (memo){ if (_spNormMemo.size >= 5000) _spNormMemo.clear(); _spNormMemo.set(s, out); }
+    return out;
   }
   function _vfSpCanonMap(){
     if (_VF_SP_CANON) return _VF_SP_CANON;
@@ -43047,6 +43130,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +'<button class="vc-unown" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="not mine — remove from ✓ owned (AI misread? this erases it)">✕</button></span>';
     }).join('');
     try { window._warOverCache = null; window._warCapCache = null; } catch (eWcc) {} /* L1 fresh war plan per paint */
+    /* V1c (#152 item 4, REG-2426) - ONE RECORDS MODEL FOR THE WHOLE SHELF. Every locker card asked _vaultRecordsSource three
+       times (its item count, its mule load, its names), and each ask rebuilt every record: 31 rebuilds in one paint of a
+       vault with ten lockers, 62% of a paint at 300 items. The shelf only reads the model and writes nothing, so it is one
+       records pass, the same pass FIND already uses (window._vrFindPass): the first ask builds the model, the rest of the
+       shelf reads it, and the pass ends with the shelf. window._vaultMemoOff = true paints without the pass. */
+    var _vrShelfOuter = window._vrFindPass;
+    if (window._vaultMemoOff !== true) window._vrFindPass = _vrShelfOuter || {};
+    try {
     var byMule = _vaultByMule();
     shelf.innerHTML = roster.map(function(m){
       var items=(byMule[m.id]||[]).slice();
@@ -43291,6 +43382,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + _ovHtml
         + '</div>' + linked + '</div>';
     }).join('');
+    } finally { window._vrFindPass = _vrShelfOuter || null; } /* V1c the shelf pass ends with the shelf */
   }
 
   // ── actions ──
@@ -44914,6 +45006,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
 }
   try { window._vaultSeamHome = _vaultSeamHome; } catch (eSeam) {}
+  /* V1c (#152 item 4, REG-2424) - ONE ROUTER ASK PER NAME WHILE NOTHING IS WRITTEN, OUTSIDE A PAINT TOO. The memo above
+     lives only inside renderVault, so a hand add, which plans its row, rebuilds the records and repaints MOVE TASKS
+     outside any paint, asked the router about every owned name about 15 times per add: the pack of every home rescans
+     the whole pool, the dock and the records each ask, and every throw route asks again (4,595 asks for one add at 300
+     items). A READ PHASE opens the same memo for code that writes nothing (the plan of one row, one records pass, the
+     collect loop before its commit, the unrouted check after it) and drops it when the phase ends, so every write
+     (an owned add, a commit, a persist) is followed by fresh asks. Inside renderVault the paint's own memo is used
+     unchanged. window._vaultMemoOff = true runs every phase without a memo. */
+  function _vaultSeamPhase(fn){
+    if (window._seamPaint || window._vaultMemoOff === true) return fn();
+    var prev = window._seamPaint;
+    window._seamPaint = {};
+    try { return fn(); }
+    finally { window._seamPaint = prev; }
+  }
+  try { window._vaultSeamPhase = _vaultSeamPhase; } catch (ePh) {}
   function _dockNames(){
     try {
       var car = null;
@@ -46289,8 +46397,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!rec || !rec.base || !rec.id || rec.q !== 'r') return null;
     return rec;
   };
+  /* V1c (#111 item 6, REG-2422) - A READ THAT ONLY LOOKS PARSES ONCE PER STORED STRING. _itemCells asked _vpMadeOf
+     before its own cache, and artOr asked _vpMadeBase on every tile, so every footprint and every picture parsed
+     d2r_plannerMade again (1,341 reads in one hand add at 300 items, each a parse once a pick is stored). These two readers only read a base, so they
+     share one parse kept beside the exact string it came from: the store is still read on every call, any change
+     to it (this tab, another tab, a reset) is a different string and is parsed again, and a store that will not
+     parse answers as before. _vpMadeOf itself still parses fresh, because its callers hold the record it returns. */
+  var _vpMadeRO = { raw: null, map: null, ok: false };
+  function _vpMadeRec(nm){
+    var map = null;
+    if (window._vaultMemoOff === true) map = _vpMadeRead();
+    else {
+      var raw = null;
+      try { raw = LS.getItem(VP_MADE_KEY); } catch (e) { return null; }
+      if (raw == null || raw === '') return null;
+      if (!(_vpMadeRO.ok && _vpMadeRO.raw === raw)){
+        var v = null;
+        try { v = JSON.parse(raw); v = (v && typeof v === 'object' && !Array.isArray(v)) ? v : null; } catch (e2) { v = null; }
+        _vpMadeRO.raw = raw; _vpMadeRO.map = v; _vpMadeRO.ok = true;
+      }
+      map = _vpMadeRO.map;
+    }
+    if (!map) return null;
+    var rec = map[String(nm || '')];
+    if (!rec || !rec.base || !rec.id || rec.q !== 'r') return null;
+    return rec;
+  }
+  /* the stored catalogue base code of a planner pick, '' when there is none -> the key _itemCells caches under */
+  window._vpMadeBaseCode = function(nm){
+    var rec = _vpMadeRec(nm);
+    return (rec && rec.base) ? String(rec.base) : '';
+  };
   window._vpMadeBase = function(nm){
-    var rec = window._vpMadeOf(nm);
+    var rec = _vpMadeRec(nm);
     if (!rec) return '';
     var named = rec.baseName ? String(rec.baseName) : '';
     if (named && named !== String(nm || '')) return named;
@@ -49089,11 +49228,34 @@ window.vaultAutoAssign = function(){
     for (var i = 0; g && i < g.length; i++) if (g[i] && g[i].location === 'shared') return i; /* L1 a war-stash copy wins */
     var bag = window._warKeepBag || (window._warKeepBag = (typeof _vaultMoveBag === 'function' ? _vaultMoveBag() : { map: {} }));
     var best = null;
-    Object.keys(bag.map || {}).forEach(function(k){
+    var ix = (typeof name === 'string' && typeof _vaultWarKeeperIx === 'function') ? _vaultWarKeeperIx(bag) : null;
+    if (ix) best = ix.has(name) ? ix.get(name) : null; /* V1c one walk per bag */
+    else Object.keys(bag.map || {}).forEach(function(k){
       var p = k.split('\u0000'), to = bag.map[k] && bag.map[k].to;
       if (p[0] === name && to && to.location === 'shared' && to.cell != null && (best == null || +p[1] < best)) best = +p[1];
     });
     return best == null ? 0 : best; /* L1 else the first-witnessed copy */
+  }
+  /* V1c (#152 item 4, REG-2421) - THE KEEPER WALK IS DONE ONCE PER BAG, NOT ONCE PER ITEM. _vaultWarKeeper walked every
+     saved move for every item it was asked about, and the war cap asks it for every copy in the shared stash: O(N^2)
+     per paint, 12% of a hand add at 300 items. The same walk, in the same key order and with the same rule (lowest
+     copy whose saved target is a shared-stash cell), now runs once per bag object; window._warKeepBag is a fresh bag
+     whenever a paint resets it, and nothing writes a bag after it is built. -> Map(name -> lowest copy) | null */
+  var _vaultWarKeeperIxOf = (typeof WeakMap === 'function' && typeof Map === 'function') ? new WeakMap() : null;
+  function _vaultWarKeeperIx(bag){
+    if (!_vaultWarKeeperIxOf || !bag || typeof bag !== 'object' || window._vaultMemoOff === true) return null;
+    var ix = _vaultWarKeeperIxOf.get(bag);
+    if (ix) return ix;
+    ix = new Map();
+    var map = bag.map || {};
+    Object.keys(map).forEach(function(k){
+      var p = k.split('\u0000'), to = map[k] && map[k].to;
+      if (!(to && to.location === 'shared' && to.cell != null)) return;
+      var cur = ix.has(p[0]) ? ix.get(p[0]) : null;
+      if (cur == null || +p[1] < cur) ix.set(p[0], +p[1]);
+    });
+    _vaultWarKeeperIxOf.set(bag, ix);
+    return ix;
   }
   function _vaultWarExtra(name, copyIx){
     if (copyIx == null) return null;
@@ -49423,10 +49585,14 @@ window.vaultAutoAssign = function(){
     } catch (eO) {}
     try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3773 owned persist */
     window._movePackCache = null; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
-    var ens = _vaultMoveEnsure(nm, copyIx, _vaultMoveBag());
-    var _noRoom = !_vaultMoveWorn(ens.task.from) && ens.task.to && ens.task.to.holder != null && ens.task.to.cell == null; /* L1 hand add, no room */
+    var ens = null, _noRoom = false, _inPlace = false;
     var _newCopy = copyIx > 0; /* L1 a new hand copy is never 'in place': its own MANUAL row, routed by the rules */
-    if (!_newCopy && !_vaultMoveShown(ens.task) && !_noRoom) {
+    ((typeof _vaultSeamPhase === 'function') ? _vaultSeamPhase : function(f){ return f(); })(function(){ /* V1c read phase */
+      ens = _vaultMoveEnsure(nm, copyIx, _vaultMoveBag());
+      _noRoom = !_vaultMoveWorn(ens.task.from) && ens.task.to && ens.task.to.holder != null && ens.task.to.cell == null; /* L1 hand add, no room */
+      _inPlace = !_newCopy && !_vaultMoveShown(ens.task) && !_noRoom;
+    });
+    if (_inPlace) {
       try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP0) {}
       return { ok: true, shown: false, task: ens.task, why: 'in place' };
     }
@@ -49870,9 +50036,11 @@ window.vaultAutoAssign = function(){
   } catch (eTw) {}
   function _vaultMoveCollect(){
     window._movePackCache = {}; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
-    var bag = _vaultMoveBag();
-    var rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : { records: [] };
-    var pending = [], shown = [], done = [];
+    var _ph = (typeof _vaultSeamPhase === 'function') ? _vaultSeamPhase : function(f){ return f(); }; /* V1c read phases */
+    var bag, rec, pending = [], shown = [], done = [];
+    _ph(function(){
+    bag = _vaultMoveBag();
+    rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : { records: [] };
     (rec.records || []).forEach(function(r){
       if (!r || r.name == null) return;
       var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
@@ -49894,9 +50062,11 @@ window.vaultAutoAssign = function(){
         witnesses: (r.sight && typeof r.sight.witnesses === 'number') ? r.sight.witnesses : (r.sight ? r.sight.witnesses : null)
       });
     });
+    });
     if (pending.length) _vaultMoveCommit(pending);
     var unrouted = [], seenRow = {};
     shown.forEach(function(r){ seenRow[r.name] = 1; });
+    return _ph(function(){
     try {
       if (typeof owned !== 'undefined' && owned && typeof window._vaultHandTyped === 'function')
         Array.from(owned).sort().forEach(function(n){
@@ -49906,6 +50076,7 @@ window.vaultAutoAssign = function(){
         });
     } catch (eU) {}
     return { tasks: shown, groups: _vaultMoveGroup(shown), locks: _vaultMoveLocks(rec.records), records: rec.records, unrouted: unrouted, done: done };
+    });
   }
   /* L1 (Elad 2026-10-20) — worn or locked gear is registered, never a move: one quiet line, outside MOVE TASKS. */
   function _vaultEquippedNames(records){
@@ -50255,7 +50426,11 @@ window.vaultAutoAssign = function(){
       return !(a && typeof a === 'object' && !Array.isArray(a));
     } catch (e2) { return true; }
   }
-  function _vaultRecords(){
+  function _vaultRecords(_inPhase){
+    /* V1c one records pass, one ask per name. The inner call says it is inside, so a phase that opened no memo can
+       never send this back into itself. */
+    if (_inPhase !== true && typeof _vaultSeamPhase === 'function' && !window._seamPaint && window._vaultMemoOff !== true)
+      return _vaultSeamPhase(function(){ return _vaultRecords(true); });
     var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, assignUnknown: false, ok: true };
     try {
       if (typeof ownedPool !== 'function' || typeof assign === 'undefined') { out.ok = false; return out; }
