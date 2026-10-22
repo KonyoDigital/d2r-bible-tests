@@ -56,6 +56,13 @@ class ABarrenHeldReelCools(unittest.TestCase):
             self.assertIsNone(CA._vault_cooling("reel_a", now_ms=1))
             self.assertEqual(CA._vault_cool("reel_a", now_ms=1)["barren"], 1)
 
+    def test_a_failed_reader_lookup_keeps_the_cooldown(self):
+        CA._vault_cool("reel_a", now_ms=0)
+        with mock.patch.object(CA, "_vault_reader_ver", lambda: ""):
+            self.assertTrue(CA._vault_cooling("reel_a", now_ms=1))
+            self.assertEqual(CA._vault_cool("reel_a", now_ms=1)["promptVer"], "vpTEST")
+        self.assertEqual(CA._VAULT_AUTOREAD["cooldown"]["reel_a"]["barren"], 2)
+
     def test_a_bad_entry_reads_as_not_cooling(self):
         CA._VAULT_AUTOREAD["cooldown"]["reel_a"] = {"until": "soon"}
         self.assertIsNone(CA._vault_cooling("reel_a"))
@@ -81,14 +88,22 @@ class ABarrenHeldReelCools(unittest.TestCase):
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             src = fh.read()
         self.assertIn("        if _vault_cooling(rid):", src)
-        self.assertIn("                _vault_cool(rid, _said)", src)
+        self.assertIn("                    _vault_cool(rid, _said)", src)
+        self.assertIn("                if _hold_measured:", src)
 
 
 RED_PROOF = [
     {
+        "why": "REG-2561 - a failed reader lookup reads as a new reader and cancels every cooldown",
+        "file": "tv/control_app.py",
+        "find": "    if ver and str(e.get(\"promptVer\") or \"\") != ver:",
+        "replace": "    if str(e.get(\"promptVer\") or \"\") != ver:",
+        "matches": 1,
+    },
+    {
         "why": "#188 REG-2560 - the requeue stops cooling: a barren held reel is read again on the next tick",
         "file": "tv/control_app.py",
-        "find": "                _vault_cool(rid, _said)                    # #188 REG-2560 - but not before its cooldown ends\n",
+        "find": "                    _vault_cool(rid, _said)                # #188 REG-2560 - but not before its cooldown ends\n",
         "replace": "",
         "matches": 1,
     },

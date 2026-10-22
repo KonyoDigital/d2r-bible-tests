@@ -31503,7 +31503,8 @@ def _vault_cooling(rid, now_ms=None):
         until = float(e.get("until") or 0)
     except (TypeError, ValueError):
         return None
-    if str(e.get("promptVer") or "") != _vault_reader_ver():
+    ver = _vault_reader_ver()
+    if ver and str(e.get("promptVer") or "") != ver:      # REG-2561: a failed lookup is not a new reader
         return None
     now = time.time() * 1000 if now_ms is None else now_ms
     return e if now < until else None
@@ -31516,7 +31517,7 @@ def _vault_cool(rid, why="", now_ms=None):
         c = _VAULT_AUTOREAD["cooldown"] = {}
     now = time.time() * 1000 if now_ms is None else now_ms
     old = c.get(rid) if isinstance(c.get(rid), dict) else {}
-    ver = _vault_reader_ver()
+    ver = _vault_reader_ver() or str(old.get("promptVer") or "")   # REG-2561: never stamp an unknown reader
     try:
         n = int(old.get("barren") or 0) if str(old.get("promptVer") or "") == ver else 0
     except (TypeError, ValueError):
@@ -34028,13 +34029,16 @@ def vault_autoreel_tick():
             try:
                 import reel_retention as _rr_hold
                 _held_unextracted = bool(_rr_hold._panels_never_banked(rid))
+                _hold_measured = True
             except Exception as _e_hold:
+                _hold_measured = False                 # REG-2561: an unasked hold is not a barren round
                 # cannot ask -> do NOT retire. Refusing to retire only costs another read;
                 # retiring wrongly costs the extraction for ever.
                 _held_unextracted = True
             if _held_unextracted:
                 _VAULT_AUTOREAD["tries"][rid] = 0          # back to the top of the river
-                _vault_cool(rid, _said)                    # #188 REG-2560 - but not before its cooldown ends
+                if _hold_measured:
+                    _vault_cool(rid, _said)                # #188 REG-2560 - but not before its cooldown ends
                 _vault_autoread_save()
                 return {"ok": False, "requeued": rid, "owed": owed,
                         "why": ("%s — but this reel carries panel frames with NO vault row, so the "

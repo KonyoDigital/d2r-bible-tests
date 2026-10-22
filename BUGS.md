@@ -7,6 +7,11 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2561 - THE COOLDOWN TREATED AN UNANSWERED QUESTION AS AN ANSWER (#188 second eye, GB-L, 2026-10-22, v3789)
+If the reader version could not be read, it compared as a new reader and cancelled every cooldown, and the next
+cooldown was stamped with an empty reader. If the hold lookup raised, that counted as a barren round. Now an
+unknown reader keeps the stamp it had, and only a measured hold cools a reel. RED_PROOF "REG-2561".
+
 ### REG-2560 - A BARREN HELD REEL WAS RE-READ ON EVERY TICK, AND EVERY PADLOCK OPEN RESTARTED THEM ALL (#188, GB-L on Claude's 38ab93ab, 2026-10-22, v3789)
 The panels-never-banked requeue reset tries to 0 and the reel was owed again on the next tick, so the same reels
 were paid for over and over. Claude's WIP called an undefined `_vault_cooling_board`. Now `_vault_cool` sets a
