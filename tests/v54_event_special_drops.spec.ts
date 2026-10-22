@@ -47,7 +47,8 @@ test.describe('v54 pinnacle event special drops', () => {
     // Jewel link text is "Colossal Jewel →" (shortened), routes via openDrop('Colossal Ancient Jewels').
     await page.locator('#event-colossal-ancients .event-card-body .zd-item-click', { hasText: 'Colossal Jewel' }).click();
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
-    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Ancient Jewels');
+    // #69 (REG-2505) - the card shows the game's name, Colossal Jewels; the openDrop key keeps 'Colossal Ancient Jewels'
+    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Jewels');
   });
 
   test('Colossal Ancients body references the 3 Ancients and routes to their jewels', async ({ page }) => {

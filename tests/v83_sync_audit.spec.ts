@@ -439,7 +439,7 @@ test.describe('v83 website synchronization audit', () => {
     expect(mismatches, `ITEM_INFO gear desync from ITEM_CODEX note:\n${mismatches.join('\n')}`).toEqual([]);
   });
 
-  test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (area+3 rule)', async ({ page }) => {
+  test('entity sync: The Summoner Hell mlvl agrees across BOSSES + SUPER_UNIQUES (vanilla 80, labelled)', async ({ page }) => {
     const { boss, su } = await page.evaluate(() => {
       const b = (BOSSES as any[]).find((x: any) => x.id === 'summoner');
       const hell = b.diffs.find((d: any) => d.label === 'HELL');
@@ -447,7 +447,9 @@ test.describe('v83 website synchronization audit', () => {
       return { boss: hell.mlvl, su: s.mlvl };
     });
     expect(boss, `The Summoner Hell mlvl drifted: BOSSES=${boss} vs SUPER_UNIQUES=${su}`).toBe(su);
-    expect(boss, 'The Summoner Hell mlvl should be 83 (Arcane Sanctuary alvl 80 + the verified area+3 rule)').toBe(83);
+    // #68 (REG-2506) - his ruling of 10-22: an RotW number with no source shows the vanilla D2R figure, labelled. The
+    // Summoner is a boss with his own level: 80 in Hell (diablowiki, d2emu, silospen's boss entry); the old 83 had no source.
+    expect(boss, 'The Summoner Hell mlvl is the vanilla D2R 80 (RotW unconfirmed, labelled on both cards)').toBe(80);
   });
 
   test('entity sync: the Hellfire Torch all-resist is unified to +10-20 (no stale all-res drift)', async () => {
