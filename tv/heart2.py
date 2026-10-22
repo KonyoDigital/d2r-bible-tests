@@ -1031,6 +1031,76 @@ def _share_history(work_tree, dst, say):
         _rmtree_hard(tmp)
 
 
+def _drop_run_records(dest, keep, say):
+    """REG-2365 — the copied repo at `dest` loses every LIVE run record. -> {repo-relative path: what was done}
+
+    A run record is what a RUN writes into the tree it grades: heart2's own (_SELF_RECORDS, all in tv/) and the gate
+    runs' (suite_verdict.RUN_RECORDS - read from there, never restated). One that HEAD does not track is removed; one it
+    tracks becomes HEAD's blob, restored by the sandbox's OWN private history (the `../.git` two gates declare, brought
+    by make_sandbox as a clone), so no Python write and no git call ever reaches the real repo. A record a gate declares
+    in PROOF_NEEDS (`keep`) stays: that law asked for it, and its key holds it.
+    ⚠⚠ WHAT IT COST. Since REG-2361 the hook's tv suites run BEFORE the proving stage, in the tree heart2 then copies.
+    One of them (test_control's TestV2414) called render_check.main() without moving HERE and wrote a FIXTURE verdict -
+    abortedAt "state-panel", renderFailures 1 - over tv/.render_verdict.json; MEASURED in the branch's own worktree
+    (04:02), and every sandbox built after it carried that file. A record is never part of the bytes a law is proved on:
+    the key leaves these names out (_SELF_RECORDS), so a law that read one was proved on a live value no key held. CI
+    checks out none of the untracked ones and HEAD's blob of the tracked one; a sandbox now matches it.
+    ⚠ CAN NOT SAY "TRACKED": with no history in the sandbox, heart2's own records still go (git never tracks them) and a
+    gate run's record stays as copied - said, never silent."""
+    own = {"tv/" + n for n in _SELF_RECORDS}
+    recs = set(own)
+    try:
+        import suite_verdict as _SV
+        recs |= {str(r) for r in _SV.RUN_RECORDS}
+    except Exception as e:
+        say("  ⚠ suite_verdict will not import (%s), so which records a gate run writes is UNKNOWN - only heart2's own "
+            "were taken out of the sandbox" % type(e).__name__)
+    root = os.path.normpath(dest)
+    present = sorted(r for r in recs - set(keep or ())
+                     if os.path.lexists(os.path.join(root, *r.split("/"))))
+    if not present:
+        return {}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    gd = os.path.join(root, ".git")
+    git = ["git", "--git-dir=" + gd, "--work-tree=" + root, "-c", "core.hooksPath=" + os.devnull]
+    tracked = None
+    if os.path.isdir(gd):
+        try:
+            r = subprocess.run(git + ["ls-tree", "-z", "--name-only", "HEAD", "--"] + present, cwd=root,
+                               capture_output=True, timeout=60, env=env)
+            if r.returncode == 0:
+                tracked = {n for n in r.stdout.decode("utf-8", "replace").split("\0") if n}
+        except (OSError, subprocess.SubprocessError):
+            tracked = None
+    done = {}
+    for rel in present:
+        p = os.path.normpath(os.path.join(root, *rel.split("/")))
+        if not p.startswith(root + os.sep):
+            done[rel] = "kept: it does not lie inside the sandbox"      # a record list naming `..`: never followed
+            continue
+        if tracked is not None and rel in tracked:
+            try:
+                ok = subprocess.run(git + ["checkout", "-q", "HEAD", "--", rel], cwd=root, capture_output=True,
+                                    timeout=60, env=env).returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                ok = False
+            done[rel] = "HEAD's blob" if ok else "kept: its history could not restore HEAD's blob"
+        elif tracked is not None or rel in own:
+            try:
+                os.remove(p)
+                done[rel] = "removed"
+            except OSError as e:
+                done[rel] = "kept: it could not be removed (%s)" % type(e).__name__
+        else:
+            done[rel] = "kept: the sandbox holds no history to say whether git tracks it"
+    kept = ["%s (%s)" % (r, w[len("kept: "):]) for r, w in sorted(done.items()) if w.startswith("kept: ")]
+    if kept:
+        say("  ⚠ %d live run record(s) stay in the sandbox, so a law that reads one reads a live value: %s"
+            % (len(kept), "; ".join(kept)))
+    return done
+
+
 def _track_sandbox(root):
     """Register a sandbox the moment it exists, and stamp it with this process as its owner."""
     _SANDBOXES.add(root)
@@ -1272,6 +1342,13 @@ def make_sandbox(say=print):
                 # which is the honest outcome. It must never silently look like a pass.
                 say("  could not place %s in the sandbox (%s) — gates that read it stay UNPROVABLE"
                     % (_root_file, type(_e).__name__))
+    # REG-2365 — A SANDBOX NEVER CARRIES A LIVE RUN RECORD (the census, the render verdict, the proof ledger): removed, or
+    # HEAD's blob where git tracks it - after the history above, which restores it. See _drop_run_records.
+    try:
+        _drop_run_records(dest, {os.path.normpath(os.path.join("tv", _n)).replace(os.sep, "/") for _n in _needs}, say)
+    except Exception as _e:
+        say("  ⚠ the run records could not be taken out of the sandbox (%s) - a law that reads one reads a live value"
+            % type(_e).__name__)
     tv = os.path.join(dest, "tv")
     if not os.path.isfile(os.path.join(tv, "control_app.py")):
         say("  the sandbox is missing control_app.py — refusing to report verdicts about it")

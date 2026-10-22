@@ -43292,9 +43292,14 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
         [[feedback-blind-fixture-green-gate]]"""
         import sys, types
         R = self._gate()
-        old_check, old_up, old_targets = R.check, R._chrome_up, R.TARGETS
+        old_check, old_up, old_targets, old_here = R.check, R._chrome_up, R.TARGETS, R.HERE
         R._chrome_up = lambda: True
         R.check = lambda n, spec: (_ for _ in ()).throw(exc)
+        # REG-2365 - main() writes .render_verdict.json beside HERE. Left on the real tv/, this case rewrote the last
+        # real render's record with its own FIXTURE verdict (abortedAt: state-panel, renderFailures 1) - and since the
+        # hook runs these suites before the proving stage, every heart2 sandbox copied it. Its own temp dir instead.
+        verdict_dir = tempfile.mkdtemp(prefix="v2414_verdict_")
+        R.HERE = verdict_dir
         planted = False
         if "websocket" not in sys.modules:
             try:
@@ -43305,7 +43310,8 @@ class TestV2414TheRenderGateReportsATransportLossInsteadOfDying(unittest.TestCas
         try:
             return R.main(list(targets))
         finally:
-            R.check, R._chrome_up, R.TARGETS = old_check, old_up, old_targets
+            R.check, R._chrome_up, R.TARGETS, R.HERE = old_check, old_up, old_targets, old_here
+            shutil.rmtree(verdict_dir, ignore_errors=True)        # this case's own dir, never R.HERE
             if planted:
                 sys.modules.pop("websocket", None)
 

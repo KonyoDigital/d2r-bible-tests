@@ -10948,6 +10948,15 @@ GATES = [
              "gives it a private git clone --shared of that checkout (HEAD = the worktree's, GIT_*-free, push "
              "shut). Driven on a fixture worktree under a leaked GIT_DIR: the sandbox reads the worktree's HEAD and "
              "an old commit, and building it or writing in it leaves the real repo byte-identical."),
+    Gate("test_a_sandbox_never_carries_a_run_record",
+         [sys.executable, os.path.join(HERE, "test_a_sandbox_never_carries_a_run_record.py")], 300,
+         needs_app=False,
+         why="REG-2365 - the hook's tv suites run before the proving stage now (REG-2361), and test_control's "
+             "TestV2414 drove render_check.main() with HERE on the real tv/, writing a fixture render verdict that "
+             "every heart2 sandbox then carried. TestV2414 moves HERE to a dir of its own, and make_sandbox drops "
+             "every live run record (heart2's _SELF_RECORDS + suite_verdict.RUN_RECORDS): untracked ones removed, "
+             "a tracked one restored to HEAD's blob by the sandbox's own history, a PROOF_NEEDS-declared one kept. "
+             "Driven on a fixture repo holding every record live, and TestV2414 run whole against a trap HERE."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
