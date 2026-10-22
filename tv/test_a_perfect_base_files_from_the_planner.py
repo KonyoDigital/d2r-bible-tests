@@ -22,12 +22,12 @@ Driven on the WHOLE page in node (tv/vault_page_node.py):
     in ownedPool, the sentence names the ruling; a plain 0-socket Monarch still stays unfiled in the white-base words;
   * a later open of the same perfect base files copy 2, the same open does not; the open planner is marked to draw on
     close, and the filing writes its ledger row;
-  * a board with no SOCKETED mule refuses in the REAL reason, never the white-base sentence, and owns nothing;
+  * a roster saved without SOCKETED gets that core locker back (REG-2562, track A's fix round) and the base files there;
   * a fresh install (nothing forged) files it to SOCKETED on the router's own answer, with no ruling override said;
   * the later open's pick re-rolled to 0 sockets (a plain white) takes its copy back on disk, the first filing stays;
   * closing the planner runs its one deferred draw (counted), and every filed perfect base is still filed, owned and
     in ownedPool after it.
-RED_PROOF below: the override switched off; the old white-base sentence put back for a refused perfect base; the label
+RED_PROOF below: the override switched off; the label
 not registered as a socketed base (v324); the undo's write removed.
 """
 import json
@@ -196,15 +196,16 @@ class APerfectBaseFilesFromThePlanner(unittest.TestCase):
         self.assertTrue(r["dirty"], "the open planner was not told to draw the filed base on close: %r" % r)
         self.assertIn("Monarch (4os)|filed-by-hand|bases", o["ledger"], "the filing wrote no ledger row: %r" % o["ledger"])
 
-    def test_5_a_board_with_no_socketed_mule_says_the_real_reason(self):
+    def test_5_a_roster_saved_without_socketed_gets_it_back_and_the_base_files_there(self):
+        """REG-2562 (merged V1 round 3): track A's fix round brings a missing core locker back (the v404/v342.5/v360
+        way), so a board with no SOCKETED mule cannot be built by seeding a roster any more; the pick files to SOCKETED"""
         o = run("no-socketed", "one")
-        self.assertNotIn("bases", o["roster"], "PREMISE: the SOCKETED mule is still on this board: %r" % o["roster"])
+        self.assertIn("bases", o["roster"], "a roster saved without SOCKETED did not get its core locker back: %r" % o["roster"])
         r = row(o, "4os Monarch")
-        self.assertFalse(r["filed"], r)
+        self.assertTrue(r["filed"], r)
         self.assertNotIn(WHITE, r["why"], "a perfect base was called a white base again: %r" % r)
-        self.assertIn("no mule on this board has id bases", r["why"], "the refusal does not name its reason: %r" % r)
-        self.assertIsNone(r["home"], r)
-        self.assertFalse(r["ownedDisk"], "a refused perfect base was owned anyway: %r" % r)
+        self.assertEqual(r["home"], "bases", r)
+        self.assertTrue(r["ownedDisk"], r)
 
     def test_6_a_fresh_install_files_it_on_the_routers_own_answer(self):
         o = run("fresh", "one")
@@ -245,11 +246,6 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    if (keeper && keeper.home && sg && sg.id === '__throwout' && !sg.unsorted)\n",
      "replace": "    if (false && keeper && keeper.home && sg && sg.id === '__throwout' && !sg.unsorted)\n",
-     "matches": 1, "needs": "node"},
-    {"why": "#185 (REG-2532) - a perfect base the board refused is called a white base again, and its real reason is lost",
-     "file": "bible.html",
-     "find": "    var routed = _vpRoute(nm, _pb);\n",
-     "replace": "    var routed = _vpRoute(nm, _pb);\n    if (_pb && !(routed && (routed.filed || routed.mode === 'already'))) routed = { ok: true, filed: false, why: nm + ' stays unfiled — a white, superior or low base is not given a mule from its name' };\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2532 (v324) - the perfect base is filed without being registered as the socketed base it is, so ownedPool "
             "and the draw on close leave it out",

@@ -11284,6 +11284,14 @@ GATES = [
              "no word. A target now moves or goes and the count stays; the one reset of an inflated count (a row with "
              "no target) asks first, in words, and a no changes nothing. The panel's functions run on the whole page "
              "in node."),
+    Gate("test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns",
+         [sys.executable, os.path.join(HERE, "test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py")], 300,
+         needs_app=False,
+         why="REG-2560/2561 (V1 round-3 review 2) - a fresh planner pick's clear or re-roll deleted the name outright, "
+             "taking a copy this tab's reader (or another tab, or his HAVE stepper) had counted while it was held; and a "
+             "held vault answered 'copy 2 filed to bases' over a refused write. One copy comes off and the name stays "
+             "owned and filed; the pick's own single copy leaves through the removal door (journaled, undoable); every "
+             "pick asks the hold first. The whole page runs in node, real doors."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

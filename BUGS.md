@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2560 - A FRESH PLANNER PICK'S UNDO DROPPED THE ITEM OUTRIGHT, WITH A COPY ANOTHER DOOR HAD COUNTED (V1 round-3 review 2 of track B, major)
+
+The review (merged A+B+C tree, the whole page in node): a fresh pick files Monarch (4os) to SOCKETED; this tab's own reader
+then counts a re-read one (_autoRegisterLowBase, copy 2); a clear or a re-roll of the held pick ran _vpDrop, which deleted the
+name outright (owned.delete, vaultUnassign, no journal row). Both Monarchs left d2r_owned and SOCKETED and the d2r_copies key
+was orphaned. Pre-existing (identical on 0ea211717); REG-2534 had fixed only the COPY-pick undo.
+FIX: _vpDrop applies REG-2534's rule. When the live count is above 1, one copy comes off, the name stays owned and filed, and
+the clear / re-roll answer says so ("the copy of X this pick added is taken back; N counted now, still filed"). Only the
+pick's own single copy is removed, and through window.vaultRemove (lane planner-take-back, exact) so it is dated, journaled
+and undoable; a refused removal leaves everything as it was and says why.
+LAW: tv/test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py (5 cases, 3 red-proofs).
+
+### REG-2561 - A HELD VAULT ANSWERED "COPY 2 FILED TO BASES" FOR A PERFECT-BASE PICK THAT SAVED NOTHING (V1 round-3 review 2, major)
+
+With d2r_copies cut short (quarantined, the vault held), a perfect-base pick of an already filed label skipped vaultHandAdd
+(the door that refuses while held) and never reached vaultFile: the copy bump answered ok/filed/mode copy and the plate lit
+"Saved into the vault" while the store door refused the write; the 2 came from the empty default of a store that would not
+parse. New with REG-2532/2533.
+FIX: vaultPlannerFile asks window._vaultHeld() for every pick that is not a clear, before any road, and refuses in the hold's
+words ({ok:false, refused:'held'}, "... nothing was added"), writing nothing. LAW: the same file, test_4.
+
+### REG-2562 - THE PERFECT-BASE LAW'S "NO SOCKETED MULE" CASE WENT RED ON THE MERGED V1 TREE (V1 round-3 review 2, major)
+
+test_a_perfect_base_files_from_the_planner test_5 seeded a roster without SOCKETED; after track A's fix round a missing core
+locker comes back, so the premise failed and the gate failed the merged push. The case now pins the merged rule: SOCKETED comes
+back and the perfect base files there. The "no mule on this board has id bases" refusal is unreachable from a seeded roster,
+so its red-proof (the white-base sentence put back for a refused perfect base) is retired; a refused pick's words are pinned by
+REG-2561's law instead.
+
 ### REG-2520 - THE SCAN LEDGER, THE REMOVAL JOURNAL AND THE RECENTLY-REGISTERED LOG READ BYTES CUT SHORT AS EMPTY AND WROTE OVER THEM (V1 round 3, #162 + #152)
 
 Round 2's reviews found REG-2410's defect alive in the stores the vault reads on demand, each through its own

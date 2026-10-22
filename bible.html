@@ -47940,6 +47940,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       delete magicFinds[nm];
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e) {}
     }
+    /* REG-2560 (V1 round-3 review 2 of REG-2534, major) - A FRESH PICK'S UNDO TAKES BACK ONLY ITS OWN ONE. REG-2534 made
+       a COPY pick's undo take one copy off the live count; a FRESH pick's undo still deleted the name outright (owned,
+       filing, no journal row), so a copy another door counted while the pick was held - another tab's write merged by
+       _tabSyncMerge, the low-base register, his own HAVE stepper - left with it and the d2r_copies key was orphaned.
+       Now: when the live count is above 1, one copy comes off and the name stays owned and filed, and the sentence says
+       so. Only the pick's own single copy is removed, and through the removal door (dated, journaled, undoable). */
+    _vpDropSaid = '';
+    var cnt = (typeof copies !== 'undefined' && copies && copies[nm] > 0) ? (copies[nm] | 0) : 1;
+    if (cnt > 1 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
+      if (cnt - 1 > 1) copies[nm] = cnt - 1; else delete copies[nm];
+      try { persistOwned(); } catch (eCd) {}
+      if (window._vaultPlannerOn) window._vaultPlannerDirty = true;
+      _vpDropSaid = 'the copy of ' + nm + ' this pick added is taken back; ' + (cnt - 1) + ' counted now, still filed';
+      _vpForget(nm);
+      return;
+    }
+    if (typeof window.vaultRemove === 'function' && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
+      var vr = null;
+      try { vr = window.vaultRemove([nm], { lane: 'planner-take-back', quiet: true, exact: true, why: 'its planner pick was cleared or re-rolled' }); } catch (eVr) { vr = null; }
+      if (!vr || vr.refused || !(vr.removed && vr.removed.indexOf(nm) >= 0)){
+        _vpDropSaid = nm + ' was not taken back - ' + ((vr && vr.why) || 'the removal door did not answer') + '; it stays as it was';
+        try { status('⚠ ' + _vpDropSaid); } catch (eSd) {}
+        return;
+      }
+      _vpDropSaid = nm + ' is taken back (undo it from Recently removed)';
+      if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
+      _vpForget(nm);
+      return;
+    }
     if (typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
       owned.delete(nm);
       try { persistOwned(); } catch (e2) {}
@@ -47947,6 +47976,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
     _vpForget(nm);
   }
+  var _vpDropSaid = '';
   function _vpRoute(nm, keeper){
     /* REG-2533 — A NAME ALREADY FILED IS FILED, WHATEVER THE ROUTER NOW ADVISES, OR WHETHER IT CAN BE ASKED. This answer
        sat below the advice checks, so a pick of an item he had filed, whose verdict had since turned to throw-out (Axe of
@@ -48083,15 +48113,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!entry){
       /* REG-2530 — a clear takes back only what the HELD pick made; _vpCopyUndo writes it to d2r_copies itself */
       _vpCopyUndone = null;
+      _vpDropSaid = '';
       if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token, _vpMade.name); _vpDrop(); }
       /* REG-2534 — the clear says what it did to the count, and that it took nothing more when the count was lowered elsewhere */
-      return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' + (_vpCopyUndone ? (' — ' + _vpCopyUndone.say) : '') };
+      return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' + (_vpCopyUndone ? (' — ' + _vpCopyUndone.say) : '')
+        + (_vpDropSaid ? (' — ' + _vpDropSaid) : '') };
     }
     var it = null, shown = null;
     try { it = (typeof window._cbItem === 'function') ? window._cbItem(entry.id) : null; } catch (e) { it = null; }
     try { shown = (typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (e2) { shown = null; }
     var nm = shown ? String(shown.name || '').trim() : '';
     if (!nm) return { ok: false, filed: false, why: 'that pick has no name — nothing was filed' };
+    /* REG-2561 (V1 round-3 review 2 of REG-2532/2533, major) - A HELD VAULT SAVES NO PICK. The perfect-base road skips
+       vaultHandAdd (the door that refuses while held) and an already-filed label never reaches vaultFile, so the copy
+       bump answered 'copy 2 filed to bases' and the plate lit 'Saved into the vault' while the store door refused the
+       d2r_copies write (and the 2 came from the empty default of a store that would not parse). Every pick that is not a
+       clear now asks the hold first and refuses in its words, as vaultHandAdd does. */
+    var _hdP = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (_hdP){
+      var whyHd = _hdP.why + ' — nothing was added (restore a backup, or start that store fresh from the notice at the top)';
+      try { status('⚠ ' + whyHd); } catch (eHd) {}
+      return { ok: false, filed: false, refused: 'held', held: _hdP.keys, why: whyHd };
+    }
     var q = shown.q;
     var magicQ = (q === 'm') ? 'magic' : (q === 'rare') ? 'rare' : (q === 'c') ? 'crafted' : '';
     var kind = (q === 'u') ? 'unique' : (q === 's') ? 'set' : (q === 'r') ? 'runeword' : null;
@@ -48131,9 +48174,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     _vpCopyUndone = null;
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #183 (REG-2530) — ONLY A RE-ROLL OF THE SAME PICK TAKES ITS COPY BACK. REG-2267 (v3753) dropped this id check to undo a "swap", and the REG-2240 name check could not hold, because the name it compares IS the first pick's: Grief (copy 2) then Spirit in the same open left d2r_copies with no Grief (GrokBot V0, v3740:63 / v3742r:72), and "copy 2 filed" stayed on screen. A different item in the same open is a SECOND ADD, exactly as _vpDrop below has always ruled for a fresh pick. Guard: tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py. */
+    _vpDropSaid = '';
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
-    /* REG-2534 — a re-roll whose copy undo found the count already lowered elsewhere took nothing back; its answer says so */
-    var _undoHeld = (_vpCopyUndone && !_vpCopyUndone.took) ? _vpCopyUndone.say : '';
+    /* REG-2534 — a re-roll whose copy undo found the count already lowered elsewhere took nothing back; its answer says so.
+       REG-2560 — a re-roll whose fresh pick's undo kept a copy another door counted says that too. */
+    var _undoHeld = [(_vpCopyUndone && !_vpCopyUndone.took) ? _vpCopyUndone.say : '', _vpDropSaid].filter(Boolean).join(' — ');
     var _withUndo = function(w){ return _undoHeld ? (String(w || '') + ' — ' + _undoHeld) : w; };
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
