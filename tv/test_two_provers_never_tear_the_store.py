@@ -15,7 +15,8 @@ tmp unreplaced, so the other writer is provably inside the same window - never a
   3. with NO lock to be had (neither flock nor msvcrt), two writers inside the window at once each install their own
      bytes - a tmp named for one writer is never moved by the other's rename;
   4. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched
-     (on Windows nothing is swept at all: asking a pid there is a Ctrl-C, REG-1725);
+     (on Windows nothing is swept at all: asking a pid there is a Ctrl-C, REG-1725) - beside the verdict cache at its
+     open, and beside the red memory at a process's first read of it;
   5. an old-code writer (a copy of the v1 flush body: fixed tmp, no lock, {_why, entries} only) writes the file it always
      wrote, and the v2 store - with a section that writer would strip - is never reached.
 EVERYTHING HERE IS A FIXTURE: throwaway directories, stores named like heart2's. Nothing of his is read or written.
@@ -246,6 +247,33 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         self.assertIn(names["live"], left, "a LIVE writer's tmp was swept")
         self.assertIn(names["guard"], left, "a file beside a guard was swept")
 
+    def test_a_dead_writers_tmp_beside_the_red_memory_is_swept(self):
+        """★ R9 (Push A1) - the red memory too: a tmp and its .prev link left by a writer whose pid no longer runs leave
+        at this process's first read of the memory (it has no open of its own, so before nothing swept them); this
+        process's own tmp stays"""
+        dead = subprocess.Popen([sys.executable, "-c", "pass"])
+        dead.wait()
+        path = os.path.join(self.root, H._RED_NAME)
+        names = {"dead": "%s.%d.7.tmp" % (H._RED_NAME, dead.pid), "dead_prev": "%s.%d.7.tmp.prev" % (H._RED_NAME, dead.pid),
+                 "live": "%s.%d.7.tmp" % (H._RED_NAME, os.getpid())}
+        for n in names.values():
+            with io.open(os.path.join(self.root, n), "w", encoding="utf-8") as fh:
+                fh.write("x")
+        real = H.RED_MEMORY, H._RED
+        H.RED_MEMORY, H._RED = path, {"path": None, "sig": None, "entries": None, "folded": True}
+        try:
+            with _Env(HEART2_RED_MEMORY=None):
+                H._red_load()
+        finally:
+            H.RED_MEMORY, H._RED = real
+        there = dict((k, os.path.exists(os.path.join(self.root, n))) for k, n in names.items())
+        if os.name == "nt":             # REG-1725 - os.kill(pid, 0) is a Ctrl-C there, never a probe: nothing is swept
+            self.assertEqual(there, dict.fromkeys(names, True), "the sweep removed a file on Windows")
+            return
+        self.assertFalse(there["dead"], "a dead writer's tmp was left beside the red memory")
+        self.assertFalse(there["dead_prev"], "a dead writer's .prev link was left beside the red memory")
+        self.assertTrue(there["live"], "a LIVE writer's tmp beside the red memory was swept")
+
     def test_an_old_code_writer_never_reaches_the_new_store(self):
         """★ (critic) the code that ran before REG-2341 flushes {_why, entries} through a fixed tmp with no lock - into the
         file IT always resolved (main's tv/). The v2 store lives elsewhere, so a section that writer would strip survives"""
@@ -321,6 +349,11 @@ RED_PROOF = [
     {"why": "R9 - a dead writer's tmp is never swept, and a 320 MB leftover rides beside the store for good",
      "file": "heart2.py",
      "find": "        self.file.sweep()                # R9 - a tmp a dead writer left beside the store\n",
+     "replace": "        pass\n",
+     "matches": 1, "needs": "posix"},
+    {"why": "R9 (Push A1) - nothing sweeps the red memory: a dead writer's tmp and .prev link stay beside it for good",
+     "file": "heart2.py",
+     "find": "        _StoreFile(RED_MEMORY, print).sweep_once()   # R9 - a dead writer's tmp beside the red memory, once per process\n",
      "replace": "        pass\n",
      "matches": 1, "needs": "posix"},
     {"why": "(critic) the v2 store is the file old code writes, so an old flush strips its sections",

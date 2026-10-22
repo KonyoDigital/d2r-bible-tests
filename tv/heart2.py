@@ -1640,6 +1640,14 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
 # when its parent exited (REG-2358: the pid was recycled, so it is a new process) - see _kills_in.
 # UNKNOWN is never banked, never a stop, and the narrow path and the closing run both fall through on it. Counted for
 # the push record. The law: test_a_killed_run_is_never_a_red.
+# ⚠ A NEVER-WRONG HOLE THIS LEAVES OPEN, ON EVERY OS (pre-existing; measured by the round-4 review): the 128+N rule reads
+#   only the LAW's own exit code, and the watch sees only children that a TRACED python process started through
+#   subprocess.Popen. Any other descendant killed from outside writes no K line - a shell helper's job (the shell then
+#   exits 137: an E line, not a death), a non-python child's own children (a Python-Playwright law's Chrome under its
+#   node driver, Chrome's renderers), a multiprocessing worker, a child of a python run with -I/-E or a scrubbed
+#   PYTHONPATH. That run ends with an ordinary code, this returns a VERDICT, and a tampered run that is red only because
+#   of that outside kill is PROVEN and banked. origin/main reads EVERY kill that way; this narrows it to those
+#   descendants, it does not close it. Open in BUGS.md REG-2350 LEFT, beside Windows' terminate-code hole.
 # [[unknown-stays-unknown]]
 _SHELL_SIGNALS = (1, 2, 6, 9, 14, 15)
 _SIGNAL_RUNS = {"n": 0}
@@ -2663,6 +2671,18 @@ class _StoreFile(object):
                 pass
         return gone
 
+    _swept = set()                       # the store files this process has swept (sweep_once)
+
+    def sweep_once(self):
+        """R9 (Push A1) - sweep() at most once per process for this store file: the red memory has no open of its own
+        (the verdict cache sweeps at every open), so before this nothing ever swept a dead writer's tmp beside it.
+        -> how many removed"""
+        p = os.path.abspath(self.path)
+        if p in _StoreFile._swept:
+            return 0
+        _StoreFile._swept.add(p)
+        return self.sweep()
+
 
 # ══ #42 lever 1 (REG-1710) — THE RED MEMORY: A PROOF REMEMBERS WHICH CASES CAUGHT IT ══════════════════════════════════
 # MEASURED 2026-10-02: pushes went from 17-20 minutes to 100+ because every batch touched tv/test_control.py, and each of
@@ -2754,10 +2774,12 @@ def _red_ids_of(e):
 
 def _red_load():
     """-> the memory's entries {key: entry}; {} when nothing is learned yet; None when it is closed
-    (HEART2_RED_MEMORY=0). Read again only when its file changed (size, mtime, inode) - not once per proof."""
+    (HEART2_RED_MEMORY=0). Read again only when its file changed (size, mtime, inode) - not once per proof. R9: this
+    process's first read of a memory sweeps the tmps a dead writer left beside it."""
     if os.environ.get("HEART2_RED_MEMORY") == "0":
         return None
     with _RED_LOCK:
+        _StoreFile(RED_MEMORY, print).sweep_once()   # R9 - a dead writer's tmp beside the red memory, once per process
         try:
             st = os.stat(RED_MEMORY)
             sig = (st.st_size, st.st_mtime_ns, st.st_ino)
