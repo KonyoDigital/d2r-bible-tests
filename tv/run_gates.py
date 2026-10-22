@@ -11129,6 +11129,38 @@ GATES = [
              "value TRASH') said it 'stays unfiled' and a later open counted no copy. A filed name now answers 'already' "
              "before the router is asked: the copy is counted, the filing is not moved, and a router that cannot answer "
              "no longer refuses a filed pick. The whole page runs in node, real doors."),
+    Gate("test_a_held_picks_undo_takes_back_only_its_own_copy",
+         [sys.executable, os.path.join(HERE, "test_a_held_picks_undo_takes_back_only_its_own_copy.py")], 300,
+         needs_app=False,
+         why="REG-2534 (V1 round-3 review of REG-2530) - a held planner pick's clear or re-roll put back the copy count "
+             "it had seen at pick time, so a copy another tab counted (merged by _tabSyncMerge), his own HAVE stepper or "
+             "this tab's low-base register counted while the pick was held went with it, and the undo's write put the "
+             "loss on disk (Grief 3 -> gone, "
+             "expected 2). One copy now comes off the live count, only while it is above the count the pick started "
+             "from; a count already walked down is left alone and the answer says so. The whole page runs in node."),
+    Gate("test_a_socketed_tome_files_as_a_base",
+         [sys.executable, os.path.join(HERE, "test_a_socketed_tome_files_as_a_base.py")], 300,
+         needs_app=False,
+         why="REG-2535 (V1 round-3 review of REG-2532) - the furniture law matched the WORD 'tome', so the Warlock's "
+             "Tome, Dark Tome and Occult Tome (2 sockets: Rhyme, Splendor, Vigilance) were locked to his MAIN and the "
+             "door refused every perfect one (11 of 1,506 perfect bases, all tomes). A socket label - (2os), (Larzuk "
+             "base) - is a base, never furniture, on the board and in inventory_law alike (one pattern, pinned equal); "
+             "the perfect tomes file to SOCKETED, survive the draw on close, and the audit does not call them kit."),
+    Gate("test_the_planner_plate_says_what_the_pick_did",
+         [sys.executable, os.path.join(HERE, "test_the_planner_plate_says_what_the_pick_did.py")], 300,
+         needs_app=False,
+         why="REG-2536 (V1 round-3 review) - the planner plate read its headline off the pick's sentence with "
+             "/filed to|already filed/, and a refusal reads '... never filed to a mule': a pick the door refused (locked "
+             "to his MAIN) lit 'Saved into the vault' over nothing on disk. The headline is the pick's result now (filed, "
+             "a copy, already filed). The planner is opened, written and painted through its own doors in node."),
+    Gate("test_want_never_writes_have",
+         [sys.executable, os.path.join(HERE, "test_want_never_writes_have.py")], 300,
+         needs_app=False,
+         why="REG-2537 (V1 round-3 review) - the Multi-copy Keepers WANT controls wrote d2r_copies: lowering a target "
+             "below HAVE clamped the count to it, and removing a target deleted the count - counted copies dropped with "
+             "no word. A target now moves or goes and the count stays; the one reset of an inflated count (a row with "
+             "no target) asks first, in words, and a no changes nothing. The panel's functions run on the whole page "
+             "in node."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

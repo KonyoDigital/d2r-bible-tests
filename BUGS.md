@@ -87,6 +87,76 @@ the duplicate check below the advice is gone. The router's disagreement stays th
 GUARD: tv/test_a_filed_pick_counts_a_copy_whatever_the_router_says.py (4 cases through the real doors, the router taken down by a
 patch to its own function; 2 RED proofs - the early answer removed, the router asked first again - heart2 2/2 PROVEN).
 
+### REG-2534 - A HELD PLANNER PICK'S UNDO TOOK BACK A COPY ANOTHER TAB HAD COUNTED, AND WROTE THE LOSS TO DISK (the V1 round-3 review of REG-2530)
+
+The round-3 review of track B (ed832f3d9), reproduced with the whole page in node through the real doors: Grief filed, a planner
+pick counts copy 2 (disk 2); another tab of the board writes d2r_copies {Grief: 3} and this tab merges it through its own
+window._tabSyncMerge (what the 'storage' listener calls) - live and disk 3; then a clear of the held pick, or a re-roll of it,
+left Grief gone from the live count AND from disk (= 1). Expected 2. _vpCopyUndo put back the count it had SEEN AT PICK TIME, so
+a copy any other door counted while the pick was held went with the pick's own, and REG-2530's write in the undo put that over
+the other tab's write at once. The same shape in one tab (the review read it in the code; MEASURED here): the low-base
+register counts a re-read 4os Monarch while a planner pick of it is held (copy 3), and the clear left it gone (= 1). Nothing
+was said. The absolute restore predates REG-2530 (on 0ea211717 the re-roll wrote 1 at once and the clear left disk at 3 until
+the next write), in the function this track rewrote.
+FIX: the undo takes ONE copy off the live count, and only while that count is above the one the pick started from. At or below it
+(his HAVE stepper walked it down, another tab lowered it) nothing more is taken, and the status line and the pick's answer say
+so ("nothing more of Grief was taken back: 3 counted now, not above the 3 there were before this pick, so the count was already
+lowered elsewhere"); a clear says what it took ("the copy of Grief this pick counted is taken back (2 counted now)").
+GUARD: tv/test_a_held_picks_undo_takes_back_only_its_own_copy.py (7 cases, the whole page in node: another tab's +1 merged, then a
+clear and a re-roll - 2 on disk and live; his HAVE stepper's +1, then a clear - 2; this tab's low-base register re-reading the
+held 4os Monarch, then a clear - 2; the control clear - 1; a count walked down to where the pick started, then a clear and a
+re-roll - left at 3 and said; 2 RED proofs - the pick-time restore put back, the guard removed - heart2 2/2 PROVEN). Red on
+ed832f3d9's page (6 of 7). REG-2530's two laws re-proven (2/2, 4/4).
+
+### REG-2535 - A PERFECT WARLOCK TOME WAS REFUSED AS "INVENTORY FURNITURE" (the V1 round-3 review of REG-2532)
+
+The review swept all 1,506 perfect-base candidates through the planner in his world (ed832f3d9): 1,495 filed; the 11 refused were
+all the Warlock's Tome (wa2), Dark Tome (wa7) and Occult Tome (wac) - 2 max sockets, runeword bases for Rhyme, Splendor and
+Vigilance. _cbPerfectBaseMule names them and suggestMule routes them to SOCKETED, but window.vaultFile refused each as locked to
+his MAIN: the furniture law (bible.html _furnitureLocked and tv/inventory_law.is_locked) matches the WORD 'tome' - there for a
+Tome of Town Portal whose suffix the OCR lost - so _laneLocked('Tome (2os)') = 'inventory'. suggestMule's own kit check had
+already taken 'tome' out of its list for exactly this; the lock never had. #185's ruling still left 11 perfect labels unfiled.
+FIX: furniture is never socketed. A name carrying the board's own socket label - "(Nos)", "(Nos low base)", "(Larzuk base)", the
+label _ensureSocketBaseEntry registers - is a base, never furniture, in BOTH copies of the law: bible.html's
+_FURNITURE_SOCKET_LABEL and inventory_law.SOCKET_LABEL, one pattern character for character (the console doctor's MAIN-lock arm
+asks inventory_law about the board's own filings, so a filed tome is not "a MAIN item sitting in a mule" there either). A bare
+Tome, the Tome of Town Portal and of Identify, the Cube, Wirt's Leg and a Key stay furniture. MEASURED after, the same sweep: all
+1,506 picks file, and the 11 tomes are filed to SOCKETED, owned, in ownedPool, through the planner's draw on close.
+GUARD: tv/test_a_socketed_tome_files_as_a_base.py (5 cases, the whole page in node in his world: the board's predicate and MAIN
+lock on 8 socket labels and 8 kit names, inventory_law answering each the same from the same pattern, 4 perfect tome picks filed
+to SOCKETED through the close draw, and no audit 'kit-in-mule' finding for them; 2 RED proofs - the board's exemption removed,
+inventory_law's removed - heart2 2/2 PROVEN). test_main_gear_never_files_to_a_mule (7/7) and
+test_furniture_filed_in_a_mule_is_an_integrity_finding (8/8) re-proven on the changed lock.
+
+### REG-2536 - THE PLANNER'S PLATE SAID "SAVED INTO THE VAULT" OVER A PICK THE DOOR HAD REFUSED (the V1 round-3 review)
+
+The plate (_vpPlateHtml) chose its headline with /filed to|already filed/ on the pick's sentence, and the door's refusal of a
+MAIN-locked name reads "... carries it, so it is never filed to a mule". The review drove vaultPlannerOpen, ctx.write and
+vaultPlannerPaint and read #vault-planner-host: a 2os Tome and an eth 2os Occult Tome (REG-2535) were refused - writeOk false,
+nothing on disk - under "Saved into the vault" with the saved class. Any MAIN-locked pick did the same; on 0ea211717 the tome's
+plate said "Not in a locker yet" for the wrong reason.
+FIX: the headline is the pick's RESULT: ctx.write keeps what vaultPlannerFile itself counts as kept (filed - a copy too - or
+already filed), and the plate reads that, never a word in the sentence.
+GUARD: tv/test_the_planner_plate_says_what_the_pick_did.py (5 cases through the planner's own doors in node: a 3-session MAIN lock's
+refusal - its sentence says "filed to" - reads "Not in a locker yet"; a filing, an "already filed" and a later open's copy read
+saved; a plain white and a clear do not; the review's own pick, a 2os Tome, files to SOCKETED and its plate agrees with the disk;
+2 RED proofs - the regex put back, the result not kept - heart2 2/2 PROVEN). Red on ed832f3d9's page (the lock case, and the tome
+read "Saved into the vault" with nothing on disk).
+
+### REG-2537 - THE MULTI-COPY KEEPERS' WANT CONTROLS DROPPED COPIES HE HAD COUNTED (the V1 round-3 review; pre-existing)
+
+The review (on ed832f3d9, the whole page in node): Harlequin Crest at copies 3, want 3 - vaultTargetBump(-1) left copies 2 (the
+lowered target clamped the count), and vaultMultiKeepRemove then left the copies key gone (= 1). Both are d2r_copies writers on a
+control about what he WANTS, and the copies they dropped include the ones intake and the planner count. Nothing asked or said so.
+Older than this track; found because d2r_copies is its store.
+FIX: WANT never writes HAVE - a target moves or goes and the count stays, and a WANT step below two removes the target itself
+instead of going through the ✕. The one click that lowers a count is the ✕ on a row with NO target (an inflated set piece, #76
+v3753): it asks first, in words ("Reset X to one copy? 3 are counted now, and the other 2 come off the count."), and a no changes
+nothing and says so on the status line. Each ✕ title says what it does.
+GUARD: tv/test_want_never_writes_have.py (6 cases, the panel's own functions on the whole page in node, d2r_copies on disk and
+live; 4 RED proofs - the WANT clamp put back, the target ✕ deleting the count, the reset without asking, a WANT step sent
+through the ✕ again - heart2 4/4 PROVEN). Red on ed832f3d9's page (5 of 6).
+
 ### REG-2400 - A RELOAD SILENTLY DELETED ~55% OF THE ITEMS FRAMES HAD READ, FOR GOOD (#162 item 1 + #144 item 6, vault batch V1)
 
 GrokBot #230 on v3783, 292 of his real frames x 3 rounds headless, and again on v3784: d2r_owned went 272 -> 113 on ONE reload (the

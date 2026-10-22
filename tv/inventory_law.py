@@ -57,6 +57,13 @@ LOCKED_WHOLE = (
     "keys",
 )
 
+#: REG-2535 — FURNITURE IS NEVER SOCKETED. A name carrying the board's own socket label — "(2os)", "(3os low base)",
+#: "(Larzuk base)" — is a socketed or Larzuk BASE, never furniture: the Warlock's Tome, Dark Tome and Occult Tome take
+#: 2 sockets and make Rhyme, Splendor and Vigilance, and the word "tome" locked a perfect "Tome (2os)" to his MAIN.
+#: bible.html's _FURNITURE_SOCKET_LABEL is this pattern, character for character, and a law pins the two equal (the
+#: console doctor's MAIN-lock arm asks this module about the board's own filings). [[copy-drift]]
+SOCKET_LABEL = re.compile(r"\(\s*(?:[0-9]+\s*os(?:\s+low base)?|larzuk base)\s*\)$")
+
 #: Comes and goes, and is never worth a register or a paid read.
 CONSUMABLE_WORDS = (
     "potion", "rejuvenation", "scroll", "antidote", "thawing", "stamina",
@@ -76,6 +83,8 @@ def is_locked(name):
     low = _low(name)
     if not low:
         return False
+    if SOCKET_LABEL.search(low):
+        return False    # REG-2535 — a socketed or Larzuk base ("Tome (2os)") is never furniture
     # #246 — a whole-name word: "Key", "Keys", "12 Keys" — never "Blackhand Key"
     # ⚠ the second eye on v3517 (reproduced): only a LEADING bare count was stripped, so the other ways a stack
     # reads - "12x Key", "Key (3)", "Keys x12" - fell through to a register or a paid read. A count on either
