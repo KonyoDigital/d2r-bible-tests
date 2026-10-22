@@ -11,10 +11,15 @@ Driven with fixture samples on any PC:
   * his game and Windows' own images are excused - but never a Windows host running THIS tree's code;
   * one sample -> UNMEASURED, never a verdict;
   * an unreadable sampler -> UNMEASURED, never "nothing busy" - and the last good sample is kept;
-  * an idle machine -> OK, and the sentence names what was scanned and by what.
+  * an idle machine -> OK, and the sentence names what was scanned and by what;
+  * WHOSE a suspect is comes from the REAL attribution as it runs on Windows - no lsof, no ps, nothing stubbed: his
+    ports cannot be read there, so it fails CLOSED (never "mine"), spawns nothing, never reads the spawn ledger, and
+    the row says exactly that. The first cut stubbed the port witness to "no port of his" and asserted a WARN 'OF
+    OURS' that a real Windows PC can never produce, while the row it banked claimed three checks that never ran.
 [[unknown-stays-unknown]] [[zero-needs-a-denominator]] [[i-own-everything-i-start]]
 """
 import os
+import subprocess
 import sys
 import unittest
 from unittest import mock
@@ -31,6 +36,9 @@ import my_orphans as MO  # noqa: E402
 
 T0, T1 = 100000.0, 100600.0          # two eagle ticks, ten minutes apart
 OURS_PS = ("C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -File %s\\capture_win.ps1" % HERE)
+_REAL_RUN = subprocess.run
+#: what the row may never claim about a Windows suspect: the three witnesses the attribution never reached there
+NEVER_RAN = ("not in the spawn ledger", "not naming this tree", "holding none of our ports")
 
 
 def _p(cpu_s, exe="python.exe", ppid="1"):
@@ -43,19 +51,34 @@ class _Sweep(unittest.TestCase):
         self.samples, self.clock = [], [T0]
         self.births = {}
         self.cmds = {}
+        self.tools_asked, self.ledger_reads = [], []
+
+        def _windows_has_no_lsof_or_ps(argv, *a, **k):
+            """THIS PC IS WINDOWS: lsof and ps do not exist there, and asking for one fails exactly so."""
+            name = os.path.basename(str((list(argv) if isinstance(argv, (list, tuple)) else [argv])[0])).lower()
+            if name in ("lsof", "ps", "lsof.exe", "ps.exe"):
+                self.tools_asked.append(name)
+                raise FileNotFoundError(2, "The system cannot find the file specified", name)
+            return _REAL_RUN(argv, *a, **k)
+
+        def _ledger():
+            self.ledger_reads.append(1)
+            return set()
         seams = {
             "_platform": lambda: "win32",
             "_now": lambda: self.clock[0],
             "_win_cpu_sample": lambda: self.samples.pop(0) if self.samples else None,
             "_win_birth": lambda pid: self.births.get(str(pid)),
             "_win_command": lambda pid: self.cmds.get(str(pid)),
-            "holds_his_port": lambda pid: (0, "holds no port of his (fixture)"),
-            "_registered_pids": lambda: set(),
+            "_registered_pids": _ledger,                     # a tripwire: the port answer is final on Windows
         }
         for name, val in seams.items():
             p = mock.patch.object(MO, name, val)
             p.start()
             self.addCleanup(p.stop)
+        p = mock.patch.object(MO.subprocess, "run", _windows_has_no_lsof_or_ps)
+        p.start()
+        self.addCleanup(p.stop)
         saved_last, saved_scan = dict(MO._LAST_WIN), dict(MO._SCAN)
         MO._LAST_WIN.update(at=0.0, cpu={})
         MO._SCAN.update(n=None, how=None, at=None, portsSay=None)
@@ -99,18 +122,31 @@ class BusyAndOldIsASuspect(_Sweep):
         by = dict((r["pid"], r) for r in rows)
         print("   suspects: %s" % ", ".join("%s %.0f%% %.0f min" % (r["pid"], r["cpu"], r["minutes"]) for r in rows))
         self.assertEqual(sorted(by), ["3333", "4242", "4444"], "the wrong processes were named: %r" % rows)
-        self.assertIsNone(by["4444"]["ours"], "an inline shell runaway is nobody's to name - and never the OS's")
         self.assertEqual(by["4242"]["cpu"], 50.0, "the load is not the CPU burned between the two samples")
         self.assertEqual(by["4242"]["samples"], 2)
         self.assertAlmostEqual(by["4242"]["minutes"], 70.0, places=1)
-        self.assertIs(by["3333"]["ours"], True,
-                      "a shell running THIS tree's code was not attributed to us")
-        # the next tick, through the row he reads: still burning, so the row is never OK
+        # WHOSE, by the REAL attribution: no lsof on Windows, so his ports are UNKNOWN and it fails CLOSED - the
+        # console's own capture (3333, which names this tree) included. A wrong "mine" is how his console dies.
+        for pid in ("3333", "4242", "4444"):
+            self.assertIs(by[pid]["ours"], False, "pid %s was given an owner on a PC whose ports cannot be read: %r"
+                                                  % (pid, by[pid]))
+            self.assertIn(MO.WIN_PORTS_UNREAD, by[pid]["whose"], "the reason is not that Windows has no lsof")
+        print("   whose (3333): %s" % by["3333"]["whose"])
+        self.assertEqual(self.tools_asked, [], "lsof/ps was asked for on Windows: %r" % self.tools_asked)
+        self.assertEqual(self.ledger_reads, [], "the spawn ledger was read after the port answer, which is final")
+        # the next tick, through the row he reads: still burning, so the row is never OK - and it says only what ran
         self.samples[:] = [dict(second, **{"4242": _p(700.0), "3333": _p(610.0, "powershell.exe")})]
         self.clock[0] = T1 + 600
         st = HE.check_orphans()
-        print("   the row: %s - %s" % (st["state"], st["line"][:120]))
-        self.assertEqual(st["state"], HE.WARN, "a busy, old process of ours was not actionable: %r" % st)
+        print("   the row: %s - %s" % (st["state"], st["line"]))
+        self.assertEqual(st["state"], HE.UNKNOWN, "a busy, old process on a PC whose ports cannot be read must be "
+                                                  "UNKNOWN - never OK, and never 'OF OURS': %r" % st)
+        self.assertIn("2 never counted as mine — " + MO.WIN_PORTS_UNREAD, st["line"])
+        self.assertIn("the spawn ledger and this tree were not asked", st["line"])
+        for claim in NEVER_RAN + ("OF OURS",):
+            self.assertNotIn(claim, st["line"], "the row claims '%s' about a Windows process - a check that never "
+                                                "ran there" % claim)
+        self.assertEqual((self.tools_asked, self.ledger_reads), ([], []))
 
     def test_his_game_and_its_stream_are_never_suspects(self):
         self.births.update({"9": T0 - 7200, "1111": T0 - 7200})
@@ -204,6 +240,31 @@ RED_PROOF = [
         "file": "health_engine.py",
         "find": "        _how = (_scan or {}).get(\"how\") or \"an instrument that did not say which\"\n",
         "replace": "        _how = \"an instrument\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2482 (review) - a NEVER MINE row is described with the three-witness sentence again: on Windows the "
+               "row claims 'not in the spawn ledger, not naming this tree, holding none of our ports' about the "
+               "console's own capture - three checks that never ran",
+        "file": "health_engine.py",
+        "find": "            (_never if r.get(\"ours\") is False else _nobody).append(r)\n",
+        "replace": "            _nobody.append(r)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2482 (review) - Windows asks lsof anyway: a doomed spawn for every suspect on every tick, and the "
+               "reason reads 'FileNotFoundError' instead of saying his ports cannot be read on this PC",
+        "file": "my_orphans.py",
+        "find": "        return set(), WIN_PORTS_UNREAD\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2482 (review) - an unreadable port stops failing closed: on Windows the console's own capture, "
+               "which names this tree, is called OURS - the wrong 'mine' that is how his console gets ended",
+        "file": "my_orphans.py",
+        "find": "    if not found and \"could not be asked\" in why:\n",
+        "replace": "    if False:\n",
         "matches": 1,
     },
 ]
