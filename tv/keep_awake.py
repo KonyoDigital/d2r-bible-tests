@@ -10,6 +10,8 @@ still wins. That stays the OS's call, and his.
 THE CONTRACT (the console calls these; nothing else here is public):
     held(why)               a context manager: THIS thread holds the PC awake for the with-block. Never raises; an
                             exception inside the block still propagates, and the hold is released either way.
+                            Meant for long work - a sweep, a proof - never a per-frame call: on macOS each block is
+                            one caffeinate process.
     hold_for_pid(pid, why)  hold while that process lives. Idempotent per pid, and it ends by itself when the process
                             ends - a normal exit or a kill. Never raises. -> {"held": True|False, "pid", "why"}
     status()                {"on", "holds", "lastTs", "why"} (+ "list", "door", "platform", "taken", "released",
