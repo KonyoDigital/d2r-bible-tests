@@ -472,8 +472,13 @@ def _boot():
                 return real(path, *a, **k)
             try:
                 out_stat = real(path, *a, **k)
-            except FileNotFoundError:
-                note(path, "A")
+            except (FileNotFoundError, NotADirectoryError):
+                # REG-2447 - ENOTDIR too: a path under a FILE is absent, and a tree that makes that file a folder moves
+                # what the run decided (os.path.exists said False and wrote nothing)
+                note(path, "A")  # TRACE-STAT-ABSENT
+                raise
+            except OSError:
+                note(path, "S")  # there but unstattable (a link loop, no permission): a check measures its presence
                 raise
             note(path, "S", (out_stat, follows and k.get("follow_symlinks", True) is not False))
             return out_stat

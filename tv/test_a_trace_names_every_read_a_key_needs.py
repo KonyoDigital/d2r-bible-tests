@@ -110,6 +110,7 @@ os.path.getsize(os.path.join(HERE, 'sized.txt'))
 os.lstat(os.path.join(HERE, 'data.txt'))
 os.path.isdir(os.path.join(HERE, 'sub'))
 os.path.exists(os.path.join(HERE, 'absent.flag'))
+os.path.exists(os.path.join(HERE, 'data.txt', 'under_a_file'))
 with open(os.path.join(HERE, 'log.txt'), 'a') as fh:
     fh.write('more\n')
 with open(os.path.join(HERE, 'made.txt'), 'w') as fh:
@@ -224,6 +225,11 @@ class AStatKeepsItsSizeAndTheLedgerReadsAsBefore(unittest.TestCase):
         self.assertEqual(z.get("tv/sized.txt"), {"f": "4"}, "getsize kept no size: %r" % z.get("tv/sized.txt"))
         self.assertEqual(z.get("tv/data.txt"), {"F": "6"}, "an lstat of a file is not told from a followed stat")
         self.assertEqual(z.get("tv/sub"), {"d": "-"})
+
+    @unittest.skipUnless(_POSIX, "ENOTDIR is POSIX's answer for a path under a file (Windows says not found)")
+    def test_a_stat_under_a_file_is_an_absence(self):
+        self.assertIn("tv/data.txt/under_a_file", self.facts["A"],
+                      "REG-2447 - os.path.exists of a path under a FILE (ENOTDIR) wrote no absence fact")
 
     def test_a_stat_after_the_run_wrote_the_path_is_not_a_fact(self):
         self.assertNotIn("tv/made.txt", self.facts["Z"], "a stat of the run's own file became a size fact")
@@ -559,6 +565,9 @@ RED_PROOF = [
     {"why": "the node twin keeps no size", "file": "gate_trace/node_trace.cjs",
      "find": "    emit('Z', sizeOf(st, false) + ' ' + r);  // TRACE-SIZE-FACT\n", "replace": "    // TRACE-SIZE-FACT\n",
      "matches": 1, "needs": "node"},
+    {"why": "REG-2447 - a stat under a file (ENOTDIR) writes no absence", "file": "gate_trace/sitecustomize.py",
+     "find": "            except (FileNotFoundError, NotADirectoryError):\n",
+     "replace": "            except FileNotFoundError:\n", "matches": 1, "needs": "posix"},
     # REG-2446 - judged on macOS: his Mac's python (3.9) is the one host here whose pathlib copies os.stat into its
     # accessor; a 3.11+ python (CI, the Windows PCs) asks os.stat at call time, so there these change nothing
     {"why": "REG-2446 - pathlib's accessor keeps the real os.stat, so a Path probe writes no fact",
