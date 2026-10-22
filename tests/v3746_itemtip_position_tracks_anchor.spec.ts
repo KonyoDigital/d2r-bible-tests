@@ -61,9 +61,25 @@ async function openConsole(page: any) {
 
 /** Build a scrollable overlay (the shelf's shape: an absolutely-positioned overflow:auto box) holding
  *  a titled row ANCHOR partway down its scroll content, and open the styled tip on it with a real
- *  mousemove — the same delegate path a live hover takes. Returns once #itip is painted. */
+ *  mousemove — the same delegate path a live hover takes. Returns once #itip is painted.
+ *
+ *  V0 spec refresh (#176, GrokBot's low-confidence pair v3746tip:118/:144 — diagnosed, STALE in the
+ *  fixture, not the product). Parking the anchor (`box.scrollTop = 180`) QUEUES a 'scroll' event that the
+ *  browser delivers on the next frame — AFTER the synchronous mousemove below, but long before say()'s
+ *  ~380 ms cold-start timer. The console's capture-phase scroll listener calls _itemTip.reglue()
+ *  (tv/control_ui.html, the REG-2252 delegate), and reglue() hides any tip that is not yet a shown
+ *  'tip-say' — which a pending hover is not — so the fixture's OWN parking scroll cancelled its own hover
+ *  and #itip never opened: `before.on` / `up.on` false on every run (GrokBot re-ran each twice, red both
+ *  times; red in Routine I runs 39593217787, 39666231678 and 39726369389 alike). Simulated in node over the
+ *  lane's verbatim source (tv/control_ui.html _itemTip + _itipBind; a scratch harness, not a law):
+ *  hover-then-scroll → never on; scroll-settled-then-hover → on, then the overlay scroll re-glues it (still
+ *  on), then the mouseout clears it. So the box is parked and its scroll event is AWAITED before the hover
+ *  starts; the two laws below are untouched. (reglue() re-glues only a SHOWN prose tip; anything else takes
+ *  its hide() branch — written for the cursor-following item card, "a mouse-less scroll cannot re-target
+ *  it" — and a hover still waiting on its timer is cancelled there too. That is outside both laws here;
+ *  the next mousemove over the host opens it again.) */
 async function hoverAnchorInScroller(page: any) {
-  await page.evaluate(() => {
+  await page.evaluate(() => new Promise<void>((resolve) => {
     document.getElementById('_v3746box')?.remove();
     const box = document.createElement('div');
     box.id = '_v3746box';
@@ -80,7 +96,16 @@ async function hoverAnchorInScroller(page: any) {
     inner.appendChild(anchor);
     box.appendChild(inner);
     document.body.appendChild(box);
+    // the parking scroll fires on the box; the document's capture listener (reglue) has already run when the
+    // box's own listener resolves. A 1.5 s ceiling keeps a missing event from hanging the test.
+    box.addEventListener('scroll', () => resolve(), { once: true });
+    setTimeout(() => resolve(), 1500);
     box.scrollTop = 180;                     // park the anchor mid-box (viewport y ~ 140 - 180 + 300 = 260)
+  }));
+  const parked = await page.evaluate(() => (document.getElementById('_v3746box') as HTMLElement).scrollTop);
+  expect(parked, 'the fixture box must be parked before the hover starts').toBe(180);
+  await page.evaluate(() => {
+    const anchor = document.getElementById('_v3746anchor') as HTMLElement;
     anchor.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 90, clientY: 260 }));
   });
   // say() opens on a cold-start ~380ms timer (longer than the item card); wait past it, plus the
