@@ -11997,6 +11997,48 @@ GATES = [
              "anything both reach) turns a blind law's tampered run red and banks it PROVEN. Each law run gets a "
              "private TMPDIR in its sandbox and D2R_REPO = the sandbox; under concurrency a tampered red (full or "
              "narrowed) is a verdict only when it goes red again."),
+    Gate("test_a_trace_names_every_read_a_key_needs",
+         [sys.executable, os.path.join(HERE, "test_a_trace_names_every_read_a_key_needs.py")], 300,
+         needs_app=False,
+         why="REG-2442 (#147 R1) - gate_trace dropped every path outside its root without a word, wrote no fact for an "
+             "env read, kept a stat as presence only, and sqlite3/mmap/ctypes/dbm read files no open event names. Now "
+             "TV_GATE_TRACE_DENY/_ALLOW make a read of a denied root a U, STRICT makes those imports and getmtime/"
+             "getctime under the root a U, single-name env reads are E facts (never plumbing, a bulk copy, or a value "
+             "the run made), Z keeps a stat's size, H the bytes as read, D a listing as listed, T the tracked set; "
+             "gate_ledger.facts_of/facts_hold hold a later tree to every one. Driven on fixture trees under the real "
+             "hook, python and node."),
+    Gate("test_a_chrome_the_run_did_not_start_untraces_it",
+         [sys.executable, os.path.join(HERE, "test_a_chrome_the_run_did_not_start_untraces_it.py")], 300,
+         needs_app=False,
+         why="REG-2443 (#147 R1) - every Chrome a traced run started read as U, and render_check._chrome_up silently "
+             "adopted whatever answered on its port. Traced, its Chrome carries TV_GATE_TRACE_CDP=1 and is written C "
+             "(read like U unless the reader allows it); an answering port it did not start is a U line before it is "
+             "adopted (and never adopted unsaid); an unmarked or merely inheriting child is U. A stub Chrome via "
+             "TV_CHROME answers /json/version - no browser runs."),
+    Gate("test_no_page_loads_python_or_markdown",
+         [sys.executable, os.path.join(HERE, "test_no_page_loads_python_or_markdown.py")], 120,
+         needs_app=False,
+         why="REG-2444 (#147 R1) - a browser key can name what a page loads only if no page loads a .py or a .md: no "
+             "tracked .html/.js/.css/.mjs/.cjs names one in src=, a stylesheet/preload/import link, url(), import(), "
+             "@import, a Worker, importScripts, a service worker or fetch(). The page list is the law's own bytes, "
+             "held to git ls-files (a new tracked page must be added there)."),
+    Gate("test_the_suite_ledger_is_one_per_machine",
+         [sys.executable, os.path.join(HERE, "test_the_suite_ledger_is_one_per_machine.py")], 120,
+         needs_app=False,
+         why="REG-2445 (#164/#178 class) - the gate ledger and its map were per checkout, so every fresh push worktree "
+             "started with no carried suite PASS and lost what it proved. They live in git's common dir now (read from "
+             ".git, never by running git), each checkout's own file folded in once; REG-2343's four holes are closed: "
+             "a PASS carries into another checkout only where its absent ignored inputs, untracked folders and listed "
+             "folders' untracked names hold (a folded row only in its own checkout), a writer writes only its own rows "
+             "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing."),
+    Gate("test_a_traced_proof_key_is_never_narrower",
+         [sys.executable, os.path.join(HERE, "test_a_traced_proof_key_is_never_narrower.py")], 180,
+         needs_app=False,
+         why="#147 R1 (REG-2440) - a proof's static key digests every file its closure names (1,217-1,259 for every "
+             "heart2 law) and a law that lists a folder has none. heart2 traces each proof run and also banks a "
+             "PROVEN by what its runs read - never narrower: a read only the TAMPERED run made moves the key, an "
+             "untraceable run (sqlite3, python -I, a shell) is never banked by facts, no full clean run's facts or a "
+             "read+written / changed path is static only, and missing facts are never served."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
