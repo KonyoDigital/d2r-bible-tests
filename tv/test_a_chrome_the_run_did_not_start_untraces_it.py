@@ -199,7 +199,7 @@ class AChromeTheRunDidNotStartUntracesIt(_Stubbed):
         self.assertIn("not adopted", proc.stdout)
 
 
-@unittest.skipUnless(_POSIX and _HAVE_NODE, "a node child spawning a marked process - POSIX with node")
+@unittest.skipUnless(_HAVE_NODE and shutil.which("git"), "no node (or no git) on PATH - the node twin cannot run here")
 class ANodeChildAttestsTheSameWay(unittest.TestCase):
     def test_node_writes_C_for_a_marked_child_and_U_for_an_unmarked_one(self):
         box = tempfile.mkdtemp(prefix="cdp-node.")
@@ -207,8 +207,8 @@ class ANodeChildAttestsTheSameWay(unittest.TestCase):
         script = os.path.join(box, "spawn.js")
         with io.open(script, "w", encoding="utf-8") as fh:
             fh.write("const cp = require('child_process');\n"
-                     "cp.spawnSync('true', [], {env: Object.assign({}, process.env, {TV_GATE_TRACE_CDP: '1'})});\n"
-                     "if (process.argv[2] === 'both') cp.spawnSync('true', [], {env: Object.assign({}, process.env)});\n")
+                     "cp.spawnSync('git', ['--version'], {env: Object.assign({}, process.env, {TV_GATE_TRACE_CDP: '1'})});\n"
+                     "if (process.argv[2] === 'both') cp.spawnSync('git', ['--version'], {env: Object.assign({}, process.env)});\n")
         for arg, want_ok in (("one", True), ("both", False)):
             trace = GL.trace_path()
             try:
@@ -223,7 +223,7 @@ class ANodeChildAttestsTheSameWay(unittest.TestCase):
                 self.assertIsNone(why, "node's marked child was not attested: %s" % why)
                 self.assertTrue(facts["C"], "node wrote no C line")
             else:
-                self.assertIn("started true", why or "", "node's unmarked child was not a U")
+                self.assertIn("started git", why or "", "node's unmarked child was not a U")
 
 
 class UntracedChromeUpIsAsBefore(unittest.TestCase):

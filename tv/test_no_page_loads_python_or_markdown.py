@@ -5,7 +5,8 @@ A browser law's Chrome reads files no audit hook sees (REG-2443: its run is atte
 run can name the pages it loads only if the pages load nothing but the web files themselves: if a page could
 `fetch('notes.md')` or `<script src="tv/x.py">`, a python or markdown edit would change what the browser rendered while
 no key of the run moved. So no TRACKED .html / .htm / .js / .mjs / .cjs / .css file names a .py or a .md in
-  src= (any element), <link rel=stylesheet|preload|modulepreload|import href=>, url(), import() and a static import,
+  src= (any element), <link href=> whose rel loads it (stylesheet, preload, modulepreload, import, prefetch, icon,
+  apple-touch-icon, manifest), url(), import() and a static import,
   @import, new Worker() / new SharedWorker(), importScripts(), navigator.serviceWorker.register(), or fetch().
 A query string or a fragment does not hide one (x.py?v=2). A link a person clicks (<a href="README.md">) is not a load.
 FLOOR, said: a path the page BUILDS at run time (fetch(base + name)) is not a literal and is not read here.
@@ -77,7 +78,7 @@ _SRC = re.compile(r"\bsrc" + _ATTR, re.I)
 _LINK = re.compile(r"<link\b[^>]*>", re.I)
 _REL = re.compile(r"\brel" + _ATTR, re.I)
 _HREF = re.compile(r"\bhref" + _ATTR, re.I)
-_LOAD_RELS = ("stylesheet", "preload", "modulepreload", "import")
+_LOAD_RELS = ("stylesheet", "preload", "modulepreload", "import", "prefetch", "icon", "apple-touch-icon", "manifest")
 _CALL = re.compile(r"\b(url|import|fetch|importScripts)\s*\(\s*(?:" + _Q[3:-1] + r"|([^)'\"`\s]+))", re.I)
 _WORKER = re.compile(r"\bnew\s+(?:Shared)?Worker\s*\(\s*" + _Q)
 _CSS_IMPORT = re.compile(r"@import\s+(?:url\(\s*)?" + _Q, re.I)
@@ -150,6 +151,7 @@ class TheScannerFindsEveryWayAPageLoadsAFile(unittest.TestCase):
         self.assertEqual(self._found('<link href="b.py" rel="preload" as="script">'), ["b.py"])
         self.assertEqual(self._found("<link rel=modulepreload href=c.py>"), ["c.py"])
         self.assertEqual(self._found('<link rel="import" href="d.md">'), ["d.md"])
+        self.assertEqual(self._found('<link rel="shortcut icon" href="favicon.py">'), ["favicon.py"])
 
     def test_url_import_fetch_and_workers_are_found(self):
         self.assertEqual(self._found(".x { background: url('e.md') }"), ["e.md"])
@@ -168,6 +170,8 @@ class TheScannerFindsEveryWayAPageLoadsAFile(unittest.TestCase):
 
     def test_what_is_not_a_load_is_not_found(self):
         self.assertEqual(self._found('<a href="README.md">the readme</a>'), [], "a link a person clicks is a load")
+        self.assertEqual(self._found('<link rel="help" href="README.md"><link rel="canonical" href="x.md">'), [],
+                         "a <link> whose rel loads nothing is a load")
         self.assertEqual(self._found('<script src="app.js"></script> <img src="x.png">'), [])
         self.assertEqual(self._found("fetch('/api/x'); // see tv/heart2.py"), [], "prose that names a .py is a load")
 
@@ -207,8 +211,10 @@ RED_PROOF = [
      "find": "_SRC = re.compile(r\"\\bsrc\" + _ATTR, re.I)\n",
      "replace": "_SRC = re.compile(r\"(?!x)x\" + _ATTR, re.I)\n", "matches": 1},
     {"why": "the scanner skips a stylesheet link", "file": "test_no_page_loads_python_or_markdown.py",
-     "find": "_LOAD_RELS = (\"stylesheet\", \"preload\", \"modulepreload\", \"import\")\n",
-     "replace": "_LOAD_RELS = (\"preload\", \"modulepreload\", \"import\")\n", "matches": 1},
+     "find": "_LOAD_RELS = (\"stylesheet\", \"preload\", \"modulepreload\", \"import\", \"prefetch\", \"icon\", "
+             "\"apple-touch-icon\", \"manifest\")\n",
+     "replace": "_LOAD_RELS = (\"preload\", \"modulepreload\", \"import\", \"prefetch\", \"icon\", "
+                "\"apple-touch-icon\", \"manifest\")\n", "matches": 1},
     {"why": "the scanner skips url()", "file": "test_no_page_loads_python_or_markdown.py",
      "find": "_CALL = re.compile(r\"\\b(url|import|fetch|importScripts)\\s*\\(",
      "replace": "_CALL = re.compile(r\"\\b(import|fetch|importScripts)\\s*\\(", "matches": 1},
@@ -221,7 +227,7 @@ RED_PROOF = [
     {"why": "a query string hides a load", "file": "test_no_page_loads_python_or_markdown.py",
      "find": "    return bool(_PY_OR_MD.search(ref.split(\"?\")[0].split(\"#\")[0].strip()))\n",
      "replace": "    return bool(_PY_OR_MD.search(ref.strip()))\n", "matches": 1},
-    {"why": "a link a person clicks is read as a load", "file": "test_no_page_loads_python_or_markdown.py",
+    {"why": "a <link> whose rel loads nothing is read as a load", "file": "test_no_page_loads_python_or_markdown.py",
      "find": "        if rel and href and any(r in _first(rel).lower().split() for r in _LOAD_RELS):\n",
      "replace": "        if href:\n", "matches": 1},
     {"why": "the completeness rule forgets a new tracked page", "file": "test_no_page_loads_python_or_markdown.py",
