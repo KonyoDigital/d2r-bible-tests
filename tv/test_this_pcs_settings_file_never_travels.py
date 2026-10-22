@@ -12,7 +12,8 @@ happened to list the file would otherwise keep this law green with the tree's li
 
 A law of its own, and node-free on purpose: in the reader-cap law these two cases were the only ones that ran on a PC
 without node, so there every node-only proof stayed green "with 2 laws run" and was filed BLIND, and one BLIND shuts
-every lock on a PC. Apart, that law skips whole where node is absent and this one runs wherever git does.
+every lock on a PC. Apart, that law skips whole where node is absent and this one runs wherever git does. (A law
+that skips whole is still filed BLIND on this heart2; it is ELSEWHERE once REG-2354 lands.)
 RED_PROOF below.
 """
 import os

@@ -10988,7 +10988,8 @@ GATES = [
              "files are ignored by git, asked of git's own matcher in a throwaway repo seeded with the tree's "
              ".gitignore files, with the host's global excludes switched off so no PC's own ignore answers for the "
              "tree. Its own law and node-free: inside the node-only reader-cap law these two cases were the only "
-             "ones a PC without node ran, so every node-only proof there was filed BLIND."),
+             "ones a PC without node ran, so every node-only proof there was filed BLIND - as it still is there on "
+             "this heart2; once REG-2354 lands only a tamper every case skipped is ELSEWHERE."),
     Gate("test_a_capped_runner_reaches_the_board_as_429",
          [sys.executable, os.path.join(HERE, "test_a_capped_runner_reaches_the_board_as_429.py")], 120,
          needs_app=False,

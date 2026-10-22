@@ -13,7 +13,8 @@ cap does not count: one vision read reset the intake cap. Driven with tv_diablo'
 
 A LAW OF ITS OWN, NODE-ONLY ON PURPOSE. In the handler law this was the one case that needed node, so on a PC without
 node (Dean's) its proof stayed green "with 5 laws run" and was filed BLIND - and one BLIND shuts every lock on a PC.
-Here every case skips without node, and such a tamper is ELSEWHERE there (heart2, REG-2354), never BLIND.
+Here every case skips without node. On this heart2 that tamper is still filed BLIND there; it is ELSEWHERE once
+REG-2354 lands, which files ELSEWHERE only a tamper EVERY case skipped - so no node-free case may join this law.
 
 ITS PROOF KEY NAMES THE JAVASCRIPT IT RUNS (PROOF_NEEDS): the runner, the settings reader it imports and the pipeline
 it drives. heart2's closure follows Python imports only, so without them a PROVEN banked for these bytes would be
