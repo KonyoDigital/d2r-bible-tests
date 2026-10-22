@@ -39404,7 +39404,7 @@ def _chron_calibration(reel_dirs):
             exact = {"ok": None, "say": (
                 "the board did not answer (%s), so the exact check did not run%s"
                 % (own_why or "no reason given",
-                   "" if r else " — and no Remaining page has ever been recorded either"))}
+                   "" if r else " — and no Remaining page has ever been recorded on this PC either"))}
     except Exception as e:
         exact = {"ok": None, "say": "counter_ledger unavailable: %s" % str(e)[:110]}
     out["exact"] = exact
