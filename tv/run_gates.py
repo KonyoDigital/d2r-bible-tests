@@ -6450,7 +6450,8 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
          why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "
              "in a PUBLIC repo. Fourth time for this class; every _decision_path name is now read out of the code and "
-             "asked of git check-ignore, primary and scratch form."),
+             "asked of git check-ignore, primary and scratch form. REG-2518: that git never sees a hook's GIT_DIR - "
+             "its throwaway `git init` had re-initialised the pushing repo as bare."),
     Gate("test_the_console_window_claims_its_own_board",
          [sys.executable, os.path.join(HERE, "test_the_console_window_claims_its_own_board.py")], 60,
          why="#239 - his go: wire the one synced identity from what exists. The console's claim door wrote '*' with no "
@@ -10940,14 +10941,17 @@ GATES = [
     Gate("test_a_roster_publish_is_signed_and_a_forgery_is_refused",
          [sys.executable, os.path.join(HERE, "test_a_roster_publish_is_signed_and_a_forgery_is_refused.py")], 180,
          needs_app=False,
-         why="REG-2510..2515 (#95, #112) - the roster's write door trusted the site's public Basic password, so anyone "
+         why="REG-2510..2517 (#95, #112) - the roster's write door trusted the site's public Basic password, so anyone "
              "could overwrite any owner's row and the server re-hashed it clean. Each PC now signs the exact bytes it "
              "posts with its own Ed25519 key (cryptography, or a pure RFC 8032 signer on PCs without it); roster.js "
              "verifies them with crypto.subtle before parsing, registers an owner's first key (TOFU), and refuses an "
              "unsigned, other-key or altered publish for a registered owner without storing a byte. Python signs and "
-             "node runs the real worker: RFC 8032 vectors, 200 random bodies, the refusal matrix. Also: the hash walks "
-             "UTF-16 units (an emoji row no longer reads CORRUPT), boot posts even when unchanged (a forged row heals), "
-             "intentVerified reaches every view, the panel's payload and the doctor, and main() sweeps stale d2jsp scratch once, guarded."),
+             "node runs the real worker: RFC 8032 vectors, 200 random bodies, the refusal matrix. A verified row holds "
+             "only what its own key signed - a section planted before the key arrived is dropped, never stamped "
+             "verified. Also: the hash walks UTF-16 units (an emoji row no longer reads CORRUPT), boot posts even when "
+             "unchanged, intentVerified reaches every view, the doctor and his screen (the roster panel's buttons, its "
+             "lead line and the shadow bar, drawn by the panel's own code in node), and main() sweeps stale d2jsp "
+             "scratch once, guarded."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

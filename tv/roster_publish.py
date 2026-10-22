@@ -500,6 +500,11 @@ def due(state, owner, sections, now_ms, boot):
     over: the PC's digest still matched its own last post. The server skips the write when its
     stored hash matches, so an honest boot costs no write. A refusal is still not retried inside
     the hour. signedAt is the clock the signature covers.
+
+    What a boot post heals, exactly: a SIGNED one that the server verifies replaces a row its key did
+    not write whole - every section this PC did not send is dropped, `owned` included, which no PC
+    sends (REG-2516, roster.js). An UNSIGNED one (no key here, or none usable) overwrites only the
+    sections it sends; the rest of a planted row stays, and the row reads NOT signature-verified.
     """
     state = state if isinstance(state, dict) else {}
     if not roster_key(owner):
@@ -1069,6 +1074,35 @@ def roster_html(payload):
     leads the markup, fetched or not, so a refused or unsigned publish is never left out of it."""
     lead = _me_html(payload.get("me")) if isinstance(payload, dict) else ""
     return lead + _owners_html(payload)
+
+
+#: what a published row whose hash did not hold says about its signature (the doctor's word for it, too)
+CORRUPT_SIGNATURE = "corrupt, so its signature cannot be read"
+
+
+def panel_words(payload):
+    """#95 (REG-2517) - the words the console's roster panel and shadow bar draw, made by the same functions roster_html
+    uses (signature_words, _me_line), so the buttons, the bar and the page cannot say different things. -> payload
+
+    Adds payload["meLine"] = {"cls", "words"}: THIS PC's own last publish (signed, unsigned, refused, ... with why),
+    whenever payload["me"] is there. Adds row["sig"] = {"cls", "words"} to every PUBLISHED row: signature verified
+    (key ...), NOT signature-verified, signature UNKNOWN (published before signing), or, for a corrupt row, that its
+    signature cannot be read. An unpublished row gets none: nothing was published to be signed."""
+    if not isinstance(payload, dict):
+        return payload
+    if "me" in payload:
+        line = _me_line(payload.get("me"))
+        if line:
+            payload["meLine"] = {"cls": line[0], "words": line[1]}
+    for row in payload.get("owners") or []:
+        if not isinstance(row, dict) or row.get("published") is not True:
+            continue
+        if row.get("corrupt") is not False:
+            row["sig"] = {"cls": "roster-unknown", "words": CORRUPT_SIGNATURE}
+            continue
+        cls, words = signature_words(row)
+        row["sig"] = {"cls": cls, "words": words}
+    return payload
 
 
 def _me_html(me):

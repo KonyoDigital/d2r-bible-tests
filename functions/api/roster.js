@@ -16,6 +16,10 @@
  * that looks like the machine went offline.
  *
  * A section that was not in this body stays as it was, or stays absent.
+ * #95 (REG-2516): a signed, verified write keeps a section it did not send only
+ * when the stored row was written under the very same key. Anything else the row
+ * held - planted unsigned, written before signing, another key's - is dropped, never
+ * carried in under this key's "verified".
  * It is never stored as an empty list. Pictures and frame bytes are refused
  * and not stored. GET /api/roster reads the five owner keys and writes nothing.
  * No Roster tab, no D1, no R2.
@@ -317,19 +321,29 @@ export async function onRequestPost(context) {
   } catch (e) { prev = null; }
   if (!prev || typeof prev !== "object" || prev.owner !== owner) prev = null;
 
-  const sections = Object.assign(priorSections(prev), shaped);
   const now = Date.now();
-  const hash = forHash(sections);
   const boot = body.boot === true;
   const verified = intent.verified === true;
   const keyId = verified ? intent.keyId : null;
+  // The whole public key a verified row was written under. keyId is 48 bits of it, a name for people to
+  // compare; two keys can share one, so "the same key" is asked of the key itself.
+  const pub = verified ? sig.pub : null;
+  const prevPub = prev && prev.intentVerified === true && typeof prev.pub === "string" ? prev.pub : null;
+  const sameIntent = !!prev && prev.intentVerified === verified && prevPub === pub && (prev.keyId || null) === keyId;
+  // REG-2516 - a verified row holds only what its own key signed. A section is carried over from the stored
+  // row only when that row was written under this very key. Merging every prior section into a signed write
+  // stamped rows this key never signed - planted unsigned before the key was registered, written before
+  // signing, or another key's - "signature verified (key ...)" for good, because a PC never re-sends a section
+  // it does not read (no PC sends `owned`). An unsigned write still merges: it is stored NOT verified, and says so.
+  const inherit = !verified || sameIntent;
+  const sections = Object.assign(inherit ? priorSections(prev) : {}, shaped);
+  const hash = forHash(sections);
   // What this publish's signature proved, said on every answer so the PC can record it.
   const said = { intentVerified: verified, sig: sig.state };
   if (keyId) said.keyId = keyId;
   if (sig.state === "bad") said.sigWhy = sig.why;
   // A row that becomes verified, changes key, or registers its key is written even when unchanged
   // and inside the hour: that is the owner's key arriving, not a churn of rows. The daily cap holds.
-  const sameIntent = !!prev && prev.intentVerified === verified && (prev.keyId || null) === keyId;
   const upgrade = verified && (!sameIntent || intent.register === true);
 
   if (!Object.keys(sections).length) {
@@ -360,6 +374,7 @@ export async function onRequestPost(context) {
   const rec = { owner: owner, t: now, day: today, n: n + 1, hash: hash, sections: sections };
   rec.intentVerified = verified;
   if (keyId) rec.keyId = keyId;
+  if (pub) rec.pub = pub;
   if (verified && typeof body.signedAt === "number" && Number.isFinite(body.signedAt)) rec.signedAt = body.signedAt;
   try {
     await kv.put(key, JSON.stringify(rec), { expirationTtl: TTL_S });

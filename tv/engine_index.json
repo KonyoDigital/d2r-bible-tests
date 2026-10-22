@@ -1929,11 +1929,12 @@
       "write_cache",
       "read_cache",
       "roster_html",
+      "panel_words",
       "signature_words",
       "signing_verdict",
       "doctor_row"
     ],
-    "gotcha": "An unread section is omitted, never an empty list. The key is the owner label. The publisher must not call install_identity, river_stamp.run, or grail_tally. The hash excludes asOf, so a fresh read of the same rows does not spend a write, and it walks UTF-16 code units exactly like roster.js hashOf (REG-2511: walking code points made every emoji row read CORRUPT). due() posts at boot even when unchanged, so a forged row is healed; the server skips the write when its hash matches. intentVerified is True, False, or None = UNKNOWN (a row published before signing), and every view, the cache file, roster_html and the doctor keep the three apart (the console's roster buttons in control_ui.html do not draw them yet - REG-2513). publish_outcome reads THIS PC's own receipt (refused / unsigned / signed, with why). Signing itself is roster_sign.py; this file only carries what the server said. Pictures stay off the body.",
+    "gotcha": "An unread section is omitted, never an empty list. The key is the owner label. The publisher must not call install_identity, river_stamp.run, or grail_tally. The hash excludes asOf, so a fresh read of the same rows does not spend a write, and it walks UTF-16 code units exactly like roster.js hashOf (REG-2511: walking code points made every emoji row read CORRUPT). due() posts at boot even when unchanged; the server skips the write when its hash matches. What that heals is exact (REG-2512, REG-2516): a SIGNED boot publish the server verifies replaces the row whole, so a section this PC never sends (`owned`) is dropped; an UNSIGNED one overwrites only the sections it sends, and the rest of a planted row stays, reading NOT signature-verified. intentVerified is True, False, or None = UNKNOWN (a row published before signing), and every view, the cache file, roster_html, the doctor and the console's roster panel keep the three apart: panel_words hands the panel's buttons and the shadow bar each row's words and this PC's own line, made by the same functions as roster_html (REG-2517). publish_outcome reads THIS PC's own receipt (refused / unsigned / signed, with why). Signing itself is roster_sign.py; this file only carries what the server said. Pictures stay off the body.",
     "purpose": "Builds the Fleet 3.0 roster body for its own route and KV key (hourly, change-only, plus boot), keeps the receipt of each POST, and carries each owner's signature verdict (#95) to the views, the panel and the doctor.",
     "territory": "console-ui"
   },

@@ -6045,6 +6045,14 @@
   #shadow-bar button { margin-left: auto; }
   .roster-person { display: block; width: 100%; text-align: left; margin: 4px 0; }
   .roster-stale { color: #e9b96e; }
+  /* #95 (REG-2517) - whose signature each row carries, under its name, and THIS PC's own last publish leading the
+     panel. The words come from roster_publish.panel_words; these only colour them. */
+  .roster-sig { display: block; font-size: var(--fs-2xs); line-height: var(--lh-snug); }
+  .roster-me { margin: 2px 0 6px; font-size: var(--fs-2xs); line-height: var(--lh-snug); }
+  .roster-verified { color: var(--st-good); }
+  .roster-unverified { color: var(--st-needs); }
+  .roster-refused { color: var(--st-broken); }
+  .roster-unknown { color: var(--muted); }
   /* ── v2157 — THE FLEET TOOLTIP. Floats beside the cursor on the person's name, shows what
      that machine last reported, and NEVER invents a bar: an unknown total renders the track
      dimmed and full rather than a proportion nobody measured. [[unknown-stays-unknown]] */
@@ -27557,6 +27565,21 @@ function escC(s) {
     } catch (e) {}
   })();
 
+  /* #95 (REG-2517) - THE SIGNATURE REACHES HIS SCREEN. Each owner's verdict (signature verified / NOT signature-verified /
+     UNKNOWN: published before signing / corrupt) and THIS PC's own last publish (signed, unsigned, refused - with why)
+     rode /api/roster-cache and were dropped here: a forged, unverified row drew the same "<owner> · published" button,
+     and the same shadow-bar sentence, as his own. The words are made once, by roster_publish.panel_words from the
+     functions roster_html uses; this only draws them. A published row the console sent no words for reads UNKNOWN,
+     never silent. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  var _rosterSig = function (row) {
+    if (!row || row.published !== true) return null;
+    var sig = row.sig;
+    if (sig && typeof sig.words === 'string' && sig.words) {
+      return { cls: String(sig.cls || 'roster-unknown'), words: sig.words };
+    }
+    return { cls: 'roster-unknown', words: 'signature UNKNOWN: the console did not say' };
+  };
+
   window._rosterOpen = function () {
     /* Painted on the document, in viewport coordinates, above the shelf.
        Inside the rail the card opened under the shelf, and the only new pixel
@@ -27609,11 +27632,17 @@ function escC(s) {
     }
     fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
       var owners = (data && data.owners) || [];
-      if (!owners.length) body.textContent = 'the roster answer had no owners';
-      else body.innerHTML = owners.map(function (row) {
+      // REG-2517 - this PC's own last publish leads the panel, fetched or not: a refused or unsigned publish is said here
+      var me = data && data.meLine && typeof data.meLine.words === 'string' && data.meLine.words ? data.meLine
+        : { cls: 'roster-me roster-unknown', words: 'this PC\'s last publish: UNKNOWN (the console did not say)' };
+      var lead = '<div class="' + esc(me.cls || 'roster-me') + '">' + esc(me.words) + '</div>';
+      if (!owners.length) body.innerHTML = lead + '<div class="roster-none">the roster answer had no owners</div>';
+      else body.innerHTML = lead + owners.map(function (row) {
         var name = row && row.owner ? String(row.owner) : '';
         var age = row && row.published === true ? (row.age === 'stale' ? 'stale' : 'published') : 'not published';
-        return '<button type="button" class="roster-person" data-owner="' + esc(name) + '">' + esc(name) + ' · ' + esc(age) + '</button>';
+        var sig = _rosterSig(row);
+        return '<button type="button" class="roster-person" data-owner="' + esc(name) + '">' + esc(name) + ' · ' + esc(age)
+          + (sig ? '<span class="roster-sig ' + esc(sig.cls) + '">' + esc(sig.words) + '</span>' : '') + '</button>';
       }).join('');
       box.scrollTop = 0;
       place(box);
@@ -27673,9 +27702,12 @@ function escC(s) {
       for (var i = 0; i < owners.length; i++) {
         if (owners[i] && owners[i].owner === owner) row = owners[i];
       }
-      var say = owner + ' · published · read only';
+      // REG-2517 - whose signature this row carries, in the sentence he reads while he is inside it
+      var sig = _rosterSig(row);
+      var signed = sig ? ' · ' + sig.words : '';
+      var say = owner + ' · published' + signed + ' · read only';
       if (!row || row.published !== true) say = owner + ' has not published a console · read only';
-      else if (row.age === 'stale') say = owner + ' · published, stale · read only';
+      else if (row.age === 'stale') say = owner + ' · published, stale' + signed + ' · read only';
       if (who) who.textContent = say;
       try {
         f.contentWindow.postMessage({ type: 'tvd-shadow', owner: owner, row: row || { owner: owner, published: false } }, window.location.origin);

@@ -45658,6 +45658,8 @@ class Handler(BaseHTTPRequestHandler):
             # #95 - this PC's own last publish (signed / unsigned / refused, with why), from its own receipt
             data["me"] = _rp.publish_outcome(_roster_state_load(), int(time.time() * 1000))
             data["html"] = _rp.roster_html(data)
+            # REG-2517 - the words the panel's buttons and the shadow bar draw: each row's signature, and `me` as a line
+            _rp.panel_words(data)
             self._json(200, data)
             return
         if path == "/api/fleet":

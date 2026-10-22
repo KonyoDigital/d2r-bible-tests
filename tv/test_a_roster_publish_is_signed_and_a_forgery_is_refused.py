@@ -15,9 +15,14 @@ What it holds, one acceptance line of the build each:
   * 200 random bodies up to MAX_BODY sign here and verify in node; the two signers agree on every one
   * a string with an emoji no longer reads corrupt (the hash walks UTF-16 units, as the worker does)
   * the key never appears in a response, a receipt, a page, a header or a body
-  * a boot publish goes even when nothing changed, so a forged row is healed
+  * a boot publish goes even when nothing changed, so this PC's first signed publish comes at its next boot
+  * a verified row holds only sections its own key signed (REG-2516): a section planted unsigned, written
+    before signing, or another key's is dropped at the first signed publish, never stamped verified - the
+    same key keeps what it signed before, and an unsigned write still merges, stored NOT verified
   * intentVerified travels with every view, the cache file, the panel's payload and roster_html, and a
     row published before signing reads UNKNOWN
+  * the console's roster panel and shadow bar draw each row's signature and this PC's own last publish
+    (REG-2517): the route's own lines serve real files, and the panel's own code, run in node, draws them
   * the boot sweep of d2jsp scratch (#112) is called exactly once, synchronously, inside a guard
 
 VENUES. Every case that runs roster.js needs node; where node is absent it SKIPS and says so, and its
@@ -37,6 +42,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import textwrap
 import types
 import unittest
 
@@ -54,6 +60,7 @@ enable()
 NODE = shutil.which("node")
 ROSTER_JS = os.path.join(ROOT, *"functions/api/roster.js".split("/"))
 APP = os.path.join(HERE, "control_app.py")
+UI = os.path.join(HERE, "control_ui.html")
 DOCTOR = os.path.join(HERE, "console_doctor.py")
 OWNER = "Konyo · Mac"
 MAX_BODY = 80000
@@ -514,6 +521,102 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                          "the forged row survived the PC's boot publish")
         self.assertIs(rec["intentVerified"], True)
 
+    def test_a_verified_row_holds_only_what_its_own_key_signed(self):
+        """REG-2516 (#95, the review of REG-2510) - a signed publish merged EVERY section of the stored row into the new
+        one and stamped the lot intentVerified:true with its key. No PC sends `owned` (control_app._roster_reads reads
+        characters, stash, vault, chronicle and reels), so a row planted with the public password before the owner's key
+        was registered kept its forged `owned` for good under "signature verified (key ...)", and the doctor read OK.
+        A section is carried into a verified row only from a row written under the very same key - the whole key, not
+        its 48-bit id - and an unsigned write still merges, stored NOT verified."""
+        _need_node(self)
+        rk, kk = "roster:" + OWNER, "rosterkey:" + OWNER
+        forged = {"asOf": 1000, "counts": 1, "rows": [{"name": "FORGED Zod rune", "level": 1}]}
+        mine = {"asOf": 2000, "counts": 1, "rows": [{"name": "Sorceress", "cls": "Sorceress", "level": 90}]}
+
+        def body(sections, at):
+            return {"owner": OWNER, "boot": True, "signedAt": 1790000000000 + at, "sections": sections}
+
+        def record(sections, **extra):
+            """A stored row as roster.js writes one, its hash made by this file's hash_of (the same digest)."""
+            rec = {"owner": OWNER, "t": 10, "day": "2000-01-01", "n": 1, "sections": sections,
+                   "hash": RP.hash_of(RP.packed(RP.for_hash(sections)))}
+            rec.update(extra)
+            return rec
+
+        with tempfile.TemporaryDirectory(prefix="tvd_roster_key_") as d:
+            path_a, _seed_a, pub_a = _key(os.path.join(d, "a"))
+            _path_b, _seed_b, pub_b = _key(os.path.join(d, "b"))
+            kid_a, kid_b = RS.key_id(pub_a), RS.key_id(pub_b)
+            raws = {
+                "plant": _raw(body({"characters": dict(mine, rows=[{"name": "FORGED Sorceress", "level": 1}]),
+                                    "owned": forged}, 1)),
+                "pc": _raw(body({"characters": mine}, 2)),
+                "pc+vault": _raw(body({"characters": mine, "vault": {"asOf": 2000, "counts": 3}}, 3)),
+                "pc91": _raw(body({"characters": dict(mine, rows=[dict(mine["rows"][0], level=91)])}, 4)),
+            }
+            heads = {k: RS.sign_headers(path_a, raw)[0] for k, raw in raws.items() if k != "plant"}
+            both = {"characters": mine, "owned": forged}
+            steps = [
+                # 0-1 (E) unsigned writes, no key registered: still merged, and stored NOT verified
+                _step(raws["plant"], fresh=True), _step(raws["pc"]),
+                # 2 (B) a row written before signing (no verdict at all), then this PC's first signed publish
+                _step(raws["pc"], heads["pc"], fresh=True, seed={rk: record(both)}),
+                # 3 (C) another key's verified row, its key since reset from the Mac, then this PC's key registers
+                _step(raws["pc"], heads["pc"], fresh=True, seed={rk: record(
+                    both, intentVerified=True, keyId=kid_b, pub=RS.b64u(pub_b))}),
+                # 4 (C2) a verified row that carries THIS key's 48-bit id but another key: the whole key decides
+                _step(raws["pc"], heads["pc"], fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    both, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_b))})),
+                # 5-6 (D) the same key keeps what it signed before and did not read this time
+                _step(raws["pc+vault"], heads["pc+vault"], fresh=True), _step(raws["pc91"], heads["pc91"]),
+                # 7-8 (A) planted unsigned while no key was registered, then this PC's first signed (boot) publish;
+                #     last, so GET reads what every viewer would be handed
+                _step(raws["plant"], fresh=True), _step(raws["pc"], heads["pc"]),
+            ]
+            v = _node({"steps": steps, "everyRecord": True, "get": True})
+        s = v["steps"]
+        for i, case in ((8, "A: planted unsigned"), (2, "B: written before signing"), (3, "C: another key's row"),
+                        (4, "C2: same 48-bit id, another key")):
+            r, rec = s[i]["reply"], s[i]["records"][rk]
+            self.assertEqual((r["ok"], r["stored"], r["intentVerified"], r.get("keyId")), (True, ["roster"], True, kid_a),
+                             "%s - the signed publish was not stored verified: %r" % (case, r))
+            self.assertEqual(sorted(rec["sections"]), ["characters"],
+                             "%s - a section this key never signed (%s) was stored under its 'signature verified' "
+                             "(REG-2516)" % (case, sorted(set(rec["sections"]) - {"characters"})))
+            self.assertEqual(rec["sections"]["characters"]["rows"], mine["rows"])
+            self.assertEqual((rec["intentVerified"], rec["keyId"], rec["pub"]), (True, kid_a, RS.b64u(pub_a)))
+            self.assertEqual(rec["hash"], RP.hash_of(RP.packed(RP.for_hash(rec["sections"]))),
+                             "%s - the stored hash is not the hash of what was stored" % case)
+        self.assertIs(s[7]["records"][rk]["intentVerified"], False)
+        self.assertIn("owned", s[7]["records"][rk]["sections"], "the fixture's plant was never stored")
+        for i in (3, 8):
+            self.assertIs(s[i]["reply"].get("registered"), True, "step %d did not register this PC's key" % i)
+            self.assertEqual(s[i]["puts"], [kk, rk])
+        self.assertNotIn("registered", s[4]["reply"], "a key Konyo put there was registered over")
+        self.assertEqual(s[4]["puts"], [rk])
+        kept = s[6]["records"][rk]
+        self.assertEqual(s[6]["reply"]["stored"], ["roster"], "the same key's second publish was not written: %r" % s[6]["reply"])
+        self.assertEqual(sorted(kept["sections"]), ["characters", "vault"],
+                         "the same key's next publish dropped a section it signed before and did not read this time")
+        self.assertEqual(kept["sections"]["characters"]["rows"][0]["level"], 91)
+        self.assertEqual((kept["intentVerified"], kept["pub"]), (True, RS.b64u(pub_a)))
+        merged = s[1]["records"][rk]
+        self.assertEqual((s[1]["reply"]["ok"], s[1]["reply"]["intentVerified"]), (True, False), s[1]["reply"])
+        self.assertEqual(sorted(merged["sections"]), ["characters", "owned"],
+                         "an unsigned write no longer keeps a section it did not send")
+        self.assertIs(merged["intentVerified"], False)
+        self.assertNotIn("pub", merged, "an unverified row names a key")
+        # what every viewer is then handed: GET, the view and the page carry no planted row, under a verified key
+        got = [r for r in v["got"]["body"]["owners"] if r["owner"] == OWNER][0]
+        self.assertEqual((got["corrupt"], got["intentVerified"], got["keyId"], sorted(got["sections"])),
+                         (False, True, kid_a, ["characters"]), "GET still hands viewers a planted section: %r" % got)
+        self.assertNotIn("pub", got, "GET hands out more than the key's id")
+        view = [r for r in RP.view_of(v["got"]["body"]["owners"], s[8]["records"][rk]["t"]) if r["owner"] == OWNER][0]
+        self.assertEqual((view["intentVerified"], sorted(view["sections"])), (True, ["characters"]))
+        page = RP.roster_html({"ok": True, "fetched": True, "now": view.get("t"), "owners": [view]})
+        self.assertNotIn("FORGED", page, "the page still draws a planted row under a verified key")
+        self.assertIn("signature verified (key %s)" % kid_a, page)
+
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
         body = _body(1, name="Ber \U0001f9ff rune")
@@ -645,6 +748,198 @@ class ThisPCSaysItsOwnLastPublish(unittest.TestCase):
         self.assertIn(me, door, "the roster panel no longer carries this PC's own last publish")
         self.assertLess(door.index(me), door.index("roster_html(data)"),
                         "this PC's outcome is added after the page was drawn, so the page cannot show it")
+
+
+# The panel's own code, run as it ships: cut from control_ui.html (never re-typed) and run in node against a stand-in
+# page whose fetch answers with what the console's route served. No browser: the words and their order are the claim.
+_PANEL = r"""
+var PAYLOAD = __PAYLOAD__;
+var ENTER = __ENTER__;
+function El(id) { this.id = id; this.attrs = {}; this.innerHTML = ''; this.textContent = ''; this.style = {};
+  this.parentNode = null; this.scrollTop = 7; this.listeners = {};
+  var set = {}; this.classList = { add: function () { for (var i = 0; i < arguments.length; i++) set[arguments[i]] = 1; },
+    remove: function () { for (var i = 0; i < arguments.length; i++) delete set[arguments[i]]; },
+    contains: function (c) { return !!set[c]; } }; }
+El.prototype.hasAttribute = function (k) { return Object.prototype.hasOwnProperty.call(this.attrs, k); };
+El.prototype.getAttribute = function (k) { return this.hasAttribute(k) ? this.attrs[k] : null; };
+El.prototype.setAttribute = function (k, v) { this.attrs[k] = String(v); };
+El.prototype.removeAttribute = function (k) { delete this.attrs[k]; };
+El.prototype.addEventListener = function (t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); };
+El.prototype.appendChild = function (n) { n.parentNode = this; };
+El.prototype.getBoundingClientRect = function () { return { top: 40, bottom: 60, left: 0, width: 300 }; };
+var els = {};
+['roster-open', 'roster-box', 'roster-body', 'shadow-bar', 'shadow-who', 'tvd-eng'].forEach(function (id) { els[id] = new El(id); });
+els['roster-box'].setAttribute('hidden', '');
+els['shadow-bar'].setAttribute('hidden', '');
+var posted = [];
+els['tvd-eng'].contentWindow = { postMessage: function (m) { posted.push(m); } };
+var document = { body: new El('body'), readyState: 'complete',
+  getElementById: function (id) { return els[id] || null; }, querySelector: function () { return null; } };
+var window = { innerHeight: 900, location: { origin: 'http://127.0.0.1:17772', search: '' },
+  addEventListener: function () {}, removeEventListener: function () {} };
+var fetched = [];
+function fetch(url) { fetched.push(url);
+  return Promise.resolve({ json: function () { return Promise.resolve(JSON.parse(JSON.stringify(PAYLOAD))); } }); }
+function setTimeout() { return 0; }
+__CUT__
+(async function () {
+  var settle = function () { return new Promise(function (r) { setImmediate(r); }); };
+  window._rosterOpen();
+  for (var i = 0; i < 5; i++) await settle();
+  var out = { panel: els['roster-body'].innerHTML, bars: {}, fetched: fetched };
+  for (var j = 0; j < ENTER.length; j++) {
+    window._shadowEnter(ENTER[j]);
+    for (var k = 0; k < 5; k++) await settle();
+    out.bars[ENTER[j]] = els['shadow-who'].textContent;
+  }
+  console.log(JSON.stringify(out));
+})().catch(function (e) { console.error(String(e && e.stack || e)); process.exit(3); });
+"""
+
+
+def _panel_code():
+    """The roster panel's code as it ships: _rosterSig, _rosterOpen, _shadowGen and _shadowEnter, in file order."""
+    ui = _read(UI)
+    start, end = "  var _rosterSig = function (row) {", "  window._shadowLeave = function () {"
+    for anchor in (start, end):
+        if ui.count(anchor) != 1:
+            raise AssertionError("%r is in control_ui.html %d times - re-point this law" % (anchor, ui.count(anchor)))
+    return ui[ui.index(start):ui.index(end)]
+
+
+def _panel(payload, enter=()):
+    """-> what the panel drew (`panel`, innerHTML) and the shadow bar's sentence per owner entered (`bars`)."""
+    js = (_PANEL.replace("__PAYLOAD__", json.dumps(payload)).replace("__ENTER__", json.dumps(list(enter)))
+          .replace("__CUT__", _panel_code()))
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=60)
+    if r.returncode != 0:
+        raise AssertionError("node could not run the panel's shipped code - UNKNOWN, not passing: %s" % r.stderr[-800:])
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def _served(cache_dir, receipt, now_ms):
+    """What /api/roster-cache serves: the route's own lines, cut from control_app.py and run with its two reads stood in.
+    -> the dict it handed to _json"""
+    src = _read(APP)
+    head = '        if path == "/api/roster-cache":\n'
+    if src.count(head) != 1:
+        raise AssertionError("the roster-cache route is in control_app.py %d times - re-point this law" % src.count(head))
+    at = src.index(head) + len(head)
+    door = textwrap.dedent(src[at:src.index("            return\n", at)])
+    sent = []
+    ns = {"_roster_cache_payload": lambda: RP.read_cache(cache_dir, now_ms),
+          "_roster_state_load": lambda: receipt,
+          "time": types.SimpleNamespace(time=lambda: now_ms / 1000.0),
+          "self": types.SimpleNamespace(_json=lambda code, data: sent.append((code, data)))}
+    exec(compile(door, APP, "exec"), ns)
+    if len(sent) != 1 or sent[0][0] != 200:
+        raise AssertionError("the route served %r" % (sent,))
+    return sent[0][1]
+
+
+class TheSignatureReachesHisScreen(unittest.TestCase):
+    """REG-2517 (#95, the review of REG-2513) - every owner's verdict and this PC's own last publish rode /api/roster-cache
+    and the panel dropped them: _rosterOpen drew '<owner> · published' from data.owners alone and the shadow bar said
+    '<owner> · published · read only', so a forged, NOT-verified row looked exactly like his own. Here the route's own
+    lines serve real cache files and a real receipt, and the panel's own code draws them."""
+
+    NOW = 1790000000000
+
+    def _world(self, folder, me_reply):
+        sections = {"characters": {"asOf": self.NOW - 60000, "counts": 1, "rows": [{"name": "Shako"}]}}
+        digest = RP.hash_of(RP.packed(RP.for_hash(sections)))
+
+        def row(owner, **extra):
+            out = {"owner": owner, "published": True, "corrupt": False, "t": self.NOW - 60000, "hash": digest,
+                   "sections": sections}
+            out.update(extra)
+            return out
+        rows = [row("Konyo · Mac", intentVerified=True, keyId="0123456789ab"),
+                row("Dean", intentVerified=False),
+                row("Wife PC"),
+                {"owner": "Konyo · ALT", "published": True, "corrupt": True, "t": self.NOW - 60000},
+                {"owner": "Konyo · GrokBot", "published": False}]
+        RP.write_cache(os.path.join(folder, "roster_cache"), RP.view_of(rows, self.NOW))
+        return RP.apply_reply({}, sections, me_reply, self.NOW - 120000)
+
+    def test_each_row_and_this_pcs_publish_are_drawn_with_their_words(self):
+        refused = {"ok": False, "why": "roster would not take this publish: Konyo · Mac has a registered key and this "
+                                       "publish was not signed", "hint": "nothing was stored",
+                   "signing": {"signed": False, "why": "the key file is unreadable (ValueError); it was left as it is"}}
+        with tempfile.TemporaryDirectory(prefix="tvd_roster_panel_") as d:
+            receipt = self._world(d, refused)
+            data = _served(os.path.join(d, "roster_cache"), receipt, self.NOW)
+        self.assertEqual(data["me"]["state"], "refused")
+        # what the route hands the panel - measured here without node, so a PC with no node still asks it
+        self.assertEqual(data.get("meLine", {}).get("cls"), "roster-me roster-refused",
+                         "the route no longer hands the panel this PC's own last publish as a line")
+        self.assertEqual({r["owner"]: (r.get("sig") or {}).get("words") for r in data["owners"]},
+                         {"Konyo · Mac": "signature verified (key 0123456789ab)",
+                          "Dean": "NOT signature-verified: published without a signature its owner's key made",
+                          "Wife PC": "signature UNKNOWN: published before signing",
+                          "Konyo · ALT": RP.CORRUPT_SIGNATURE, "Konyo · GrokBot": None},
+                         "the route no longer hands the panel each row's signature in words")
+        _need_node(self)
+        drawn = _panel(data, ["Konyo · Mac", "Dean", "Wife PC", "Konyo · ALT", "Konyo · GrokBot"])
+        self.assertEqual(drawn["fetched"], ["/api/roster-cache"] * 6)
+        panel = html.unescape(drawn["panel"])
+        self.assertTrue(panel.startswith('<div class="roster-me roster-refused">this PC\'s last publish (2 min ago) '
+                                         'was REFUSED: roster would not take this publish: Konyo · Mac has a registered key'),
+                        "this PC's refused publish does not lead the panel: %s" % panel[:300])
+        buttons = panel.split('<button type="button" class="roster-person" data-owner="')[1:]
+        self.assertEqual([b.split('"', 1)[0] for b in buttons], list(RP.OWNERS), panel)
+        by = {b.split('"', 1)[0]: b for b in buttons}
+        want = {"Konyo · Mac": ("roster-verified", "signature verified (key 0123456789ab)"),
+                "Dean": ("roster-unverified", "NOT signature-verified: published without a signature its owner's key made"),
+                "Wife PC": ("roster-unknown", "signature UNKNOWN: published before signing"),
+                "Konyo · ALT": ("roster-unknown", RP.CORRUPT_SIGNATURE)}
+        for owner, (cls, words) in want.items():
+            self.assertIn('<span class="roster-sig %s">%s</span></button>' % (cls, words), by[owner],
+                          "%s's button does not say whose signature its row carries: %s" % (owner, by[owner]))
+        self.assertIn("Konyo · GrokBot · not published</button>", by["Konyo · GrokBot"])
+        self.assertNotIn("roster-sig", by["Konyo · GrokBot"], "a row nobody published was given a signature")
+        bars = drawn["bars"]
+        for owner, (_cls, words) in want.items():
+            self.assertEqual(bars[owner], "%s · published · %s · read only" % (owner, words),
+                             "the shadow bar inside %s's console does not say its signature" % owner)
+        self.assertEqual(bars["Konyo · GrokBot"], "Konyo · GrokBot has not published a console · read only")
+
+    def test_a_console_that_sent_no_words_reads_unknown_never_silent(self):
+        """The panel and the route ship together, but a payload without the words (an older console answering) must
+        not draw a NOT-verified row the way it draws a verified one: UNKNOWN, and this PC's publish UNKNOWN too."""
+        _need_node(self)
+        old = {"ok": True, "fetched": True, "owners": [
+            {"owner": "Konyo · Mac", "published": True, "corrupt": False, "intentVerified": True, "age": "current"},
+            {"owner": "Dean", "published": True, "corrupt": False, "intentVerified": False, "age": "stale"}]}
+        drawn = _panel(old, ["Dean"])
+        panel = html.unescape(drawn["panel"])
+        self.assertTrue(panel.startswith('<div class="roster-me roster-unknown">this PC\'s last publish: UNKNOWN'), panel)
+        self.assertEqual(panel.count('<span class="roster-sig roster-unknown">signature UNKNOWN: the console did not say'
+                                     '</span>'), 2, panel)
+        self.assertEqual(drawn["bars"]["Dean"],
+                         "Dean · published, stale · signature UNKNOWN: the console did not say · read only")
+
+    def test_no_owners_still_leads_with_this_pcs_publish(self):
+        _need_node(self)
+        with tempfile.TemporaryDirectory(prefix="tvd_roster_panel_") as d:
+            unsigned = {"ok": True, "stored": ["roster"], "intentVerified": False,
+                        "signing": {"signed": False, "why": "the key could not be written (PermissionError)"}}
+            receipt = RP.apply_reply({}, {"characters": {"asOf": 1, "counts": 1}}, unsigned, self.NOW)
+            data = _served(os.path.join(d, "never_fetched"), receipt, self.NOW)
+        self.assertIs(data["fetched"], False)
+        panel = html.unescape(_panel(data)["panel"])
+        self.assertTrue(panel.startswith('<div class="roster-me roster-unverified">this PC\'s last publish '
+                                         '(under 1 min ago) went UNSIGNED: the key could not be written (PermissionError)'),
+                        panel)
+        self.assertIn('<div class="roster-none">the roster answer had no owners</div>', panel)
+
+    def test_every_word_the_panel_draws_has_a_colour(self):
+        """The four verdict classes roster_publish hands the panel are styled, so NOT-verified does not draw in the
+        verified colour."""
+        ui = _read(UI)
+        for cls in ("roster-sig", "roster-me", "roster-verified", "roster-unverified", "roster-refused", "roster-unknown"):
+            self.assertEqual(ui.count("  .%s {" % cls), 1, "control_ui.html has no single rule for .%s" % cls)
 
 
 class TheConsoleSignsTheBytesItPosts(unittest.TestCase):
@@ -895,6 +1190,61 @@ RED_PROOF = [
      "find": "    if (typeof prev.intentVerified === \"boolean\") row.intentVerified = prev.intentVerified;\n",
      "replace": "    row.intentVerified = prev.intentVerified === true;\n",
      "matches": 1, "needs": "node"},
+    {"why": "REG-2516 (#95): a signed publish merges every section of the stored row again, so a section planted "
+            "unsigned before the key was registered is stamped 'signature verified' under the owner's key for good",
+     "file": "functions/api/roster.js",
+     "find": "  const sections = Object.assign(inherit ? priorSections(prev) : {}, shaped);\n",
+     "replace": "  const sections = Object.assign(priorSections(prev), shaped);\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2516 (#95): 'the same key' is asked of the 48-bit key id instead of the key, so another key's row "
+            "that shares the id is carried into a verified row",
+     "file": "functions/api/roster.js",
+     "find": "prevPub === pub && ",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
+            "section it signed before and could not read this time",
+     "file": "functions/api/roster.js",
+     "find": "  if (pub) rec.pub = pub;\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2517 (#95): the roster buttons drop each row's signature again, so a forged NOT-verified row draws "
+            "exactly like his own",
+     "file": "control_ui.html",
+     "find": "          + (sig ? '<span class=\"roster-sig ' + esc(sig.cls) + '\">' + esc(sig.words) + '</span>' : '') + '</button>';\n",
+     "replace": "          + '</button>';\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2517 (#95): the shadow bar says '<owner> · published · read only' again, whoever signed the row",
+     "file": "control_ui.html",
+     "find": "      var say = owner + ' · published' + signed + ' · read only';\n",
+     "replace": "      var say = owner + ' · published · read only';\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2517 (#95): this PC's own last publish no longer leads the panel, so a refused or unsigned publish is "
+            "said only by the doctor",
+     "file": "control_ui.html",
+     "find": "      else body.innerHTML = lead + owners.map(function (row) {\n",
+     "replace": "      else body.innerHTML = owners.map(function (row) {\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2517 (#95): a published row the console sent no words for draws silent instead of UNKNOWN",
+     "file": "control_ui.html",
+     "find": "    return { cls: 'roster-unknown', words: 'signature UNKNOWN: the console did not say' };\n",
+     "replace": "    return null;\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2517 (#95): panel_words stops giving a published row its signature words",
+     "file": "roster_publish.py",
+     "find": "        row[\"sig\"] = {\"cls\": cls, \"words\": words}\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2517 (#95): the roster-cache route stops calling panel_words, so the panel has no words to draw",
+     "file": "control_app.py",
+     "find": "            _rp.panel_words(data)\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2517 (#95): NOT signature-verified loses its colour and draws like any other line",
+     "file": "control_ui.html",
+     "find": "  .roster-unverified { color: var(--st-needs); }\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-2513 (#95): view_one drops intentVerified, so no viewer can show whether a row was its owner's",
      "file": "roster_publish.py",
      "find": "    out[\"intentVerified\"] = verified_of(row)\n",
