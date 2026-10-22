@@ -7798,7 +7798,11 @@ GATES = [
              "the doctor never prints '? None -> None'. Round 2 (finding C): his rule 'EVERY fall is "
              "recorded, as before' - a fall is measured from the lane's LAST reading, so fall, "
              "partial recovery, fall again is a recorded fall each time; sitting still files "
-             "nothing."),
+             "nothing. REG-2460 - a mark set by data that was never this world's (Dean's 261, "
+             "Konyo's seed) had no door: board_tally_rebase moves it DOWN only, to the world's own "
+             "reading, with his reason and confirm, the old mark kept and the ruling listed; the "
+             "merge and the re-base share one lock, so a tally posted mid-re-base never puts the "
+             "old mark back."),
     Gate("test_a_reset_keeps_the_retro_rows_filed",
          [sys.executable, os.path.join(HERE, "test_a_reset_keeps_the_retro_rows_filed.py")], 180,
          why="2026-09-28 (Ledger fix, finding 1) - his ruling §34.2, \"Keep filed, flag 'retro: "
