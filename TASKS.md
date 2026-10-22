@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3784** | `(this commit)` | v3784 — T1 REG-2340, 2341, 2342 and T2 REG-2350, 2351, 2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359 (Push A1) |
+| **v3785** | `(this commit)` | v3785 — T3 REG-2360 to 2366, six BLIND re-aims REG-2371 to 2376, REG-2392 corrected, REG-2393 (Push A2) |
+| **v3784** | `a0274dcc` | v3784 — T1 REG-2340, 2341, 2342 and T2 REG-2350, 2351, 2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359 (Push A1) |
 | **v3779** | `79c43f22` | v3779 — REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250) |
 | **v3782** | `be9e5c6b` | v3782 — Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335) |
 | **v3778** | `fb541215` | v3778 — (REG-2321) |

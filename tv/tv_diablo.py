@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3784"   # prove once - one red memory per machine, safe stores, a killed run is never a red
+VERSION = "v3785"   # pushes prove themselves where they run - fail fast, saveable suites, the git leak closed
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
