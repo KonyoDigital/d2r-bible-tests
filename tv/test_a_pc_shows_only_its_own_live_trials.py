@@ -7,10 +7,17 @@ on Konyo's Mac - his running console, his shelf, his disk history, his window. D
 frame.release "earned 85/85" was 35 code rows plus 50 of the Mac's live checks.
 
 THE SPLIT. A sabotage, a cross-family refusal or a CI red is a property of the CODE and stays in the shared ledger. A
-LIVE trial is a property of the PC that ran it, so bank(), record() and the deferred fold send it to THAT PC's
-gitignored ledger (tv/.self_arming.here.jsonl, TV_SELF_ARMING_HERE). A live row already in the shared file is LEGACY:
-counted on no PC, reported as a count, until the PC that measured it runs the adoption door
+LIVE trial is a property of the PC that ran it, so bank(), record() and the deferred fold send it to THAT PC's own
+ledger (TV_SELF_ARMING_HERE names it). A live row already in the shared file is LEGACY: counted on no PC, reported as a
+count, until the PC that measured it runs the adoption door
 `python3 tv/self_arming.py --adopt-legacy-live --reason "<why>" --confirm`. The shared file's bytes are never edited.
+
+ONE PER PC, NOT ONE PER CHECKOUT (REG-2473, the review of the first cut). The per-PC ledger was the gitignored
+tv/.self_arming.here.jsonl of whichever checkout ran - and fleet agents work only in linked worktrees, so a deliberate
+live bank from one landed where his console never reads and `git worktree remove` deleted it. It now lives in git's
+COMMON dir (heart2._git_common_dir, the R10 precedent), shared by the main checkout and every linked worktree; the tv/
+file is used only where no git dir exists, and every surface says which of the two it is. The door's sentence names the
+whole path and the checkout it ran from - a basename read as success from the wrong checkout.
 
 Two PCs, each in this law's own scratch (TV_SELF_ARMING_LEDGER / TV_SELF_ARMING_HERE). The shared fixture is a COPY
 of the tracked ledger, so the rows are real and nothing of his is written:
@@ -18,8 +25,11 @@ of the tracked ledger, so the rows are real and nothing of his is written:
   * PC-A counts its own live rows, and only those; PC-B beside it still sees none of them.
   * bank()/record() of a live trial leave the shared fixture byte-identical; fold_deferred routes the same way.
   * git's own matcher ignores the per-PC name and not the shared one (a throwaway repo, GIT_* scrubbed for its scope).
+  * a main checkout and its linked worktree (laid out as git lays them out, no git run) resolve ONE ledger, inside the
+    common dir and inside neither work tree; a tree with no git dir keeps its own and says why; a patch is honoured.
   * adoption: no reason is refused, no --confirm writes nothing, --confirm writes marked rows that keep their age,
-    a second --confirm writes nothing, and the PC then reads exactly what it read before the split.
+    a second --confirm writes nothing, the PC then reads exactly what it read before the split, and the sentence
+    names the whole path and the checkout.
 RED_PROOF below.
 """
 import contextlib
@@ -235,6 +245,83 @@ class GitIgnoresThePerPcLedger(unittest.TestCase):
         self.assertFalse(ignored("tv/.self_arming.jsonl"), "the SHARED ledger must stay trackable")
 
 
+def _worktree_shape(root, name="wt1"):
+    """A main checkout and one linked worktree, laid out as git lays them out (heart2's own law proves this layout is
+    what a real `git worktree add` makes). No git is run, so no GIT_DIR a hook exported can reach anything. -> (main, wt)"""
+    main = os.path.join(root, "main")
+    wt = os.path.join(root, name)
+    gd = os.path.join(main, ".git", "worktrees", name)
+    for d in (os.path.join(main, "tv"), gd, os.path.join(wt, "tv")):
+        os.makedirs(d)
+    with io.open(os.path.join(gd, "commondir"), "w", encoding="utf-8") as fh:
+        fh.write("../..\n")
+    with io.open(os.path.join(wt, ".git"), "w", encoding="utf-8") as fh:
+        fh.write("gitdir: %s\n" % gd)
+    return main, wt
+
+
+class TheLedgerIsOnePerPcNotOnePerCheckout(unittest.TestCase):
+    """REG-2473 - every checkout of one machine reads and writes ONE per-PC ledger, in git's common dir."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="perpc-machine-")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        held = {k: os.environ.pop(k, None) for k in _ENV}
+
+        def _restore():
+            for k in _ENV:
+                os.environ.pop(k, None)
+            for k, v in held.items():
+                if v is not None:
+                    os.environ[k] = v
+        self.addCleanup(_restore)
+
+    @staticmethod
+    def _real(p):
+        return os.path.normcase(os.path.realpath(p))
+
+    def test_a_worktree_and_its_main_checkout_share_one_ledger(self):
+        main, wt = _worktree_shape(self.d)
+        pm, sm, _ = SA._here_where(repo=main)
+        pw, sw, _ = SA._here_where(repo=wt)
+        self.assertEqual((sm, sw), ("machine", "machine"),
+                         "a checkout's per-PC ledger is not the machine's: %r / %r" % (sm, sw))
+        self.assertEqual(self._real(pm), self._real(pw),
+                         "a live bank from the worktree lands where the main checkout's console never reads")
+        common = self._real(os.path.join(main, ".git"))
+        self.assertTrue(self._real(pw).startswith(common + os.sep), "the ledger is not in git's common dir: %s" % pw)
+        for tree in (main, wt):
+            self.assertFalse(self._real(pw).startswith(self._real(os.path.join(tree, "tv")) + os.sep),
+                             "the per-PC ledger sits in a work tree, so `git worktree remove` deletes it")
+
+    def test_a_tree_with_no_git_dir_keeps_its_own_and_says_why(self):
+        plain = os.path.join(self.d, "plain")
+        os.makedirs(os.path.join(plain, "tv"))
+        p, scope, why = SA._here_where(repo=plain)
+        self.assertEqual(scope, "checkout")
+        self.assertEqual(self._real(p), self._real(os.path.join(plain, "tv", ".self_arming.here.jsonl")))
+        self.assertTrue(why, "a ledger that dies with its checkout does not say why")
+
+    def test_a_patched_HERE_LEDGER_is_honoured(self):
+        """A fixture that patches the attribute must get what it patched - silently resolving past it would write the
+        machine's real ledger, the direction a fixture mistake must never go."""
+        mine = os.path.join(self.d, "patched.here.jsonl")
+        old = SA.HERE_LEDGER
+        SA.HERE_LEDGER = mine
+        self.addCleanup(setattr, SA, "HERE_LEDGER", old)
+        self.assertEqual(SA._here_where()[:2], (mine, "patched"))
+        self.assertEqual(SA._here_path(), mine)
+
+    def test_the_label_names_the_kind_of_place_never_a_path(self):
+        main, _wt = _worktree_shape(self.d)
+        old = SA._machine_dir
+        SA._machine_dir = lambda repo=None: (os.path.join(main, ".git"), None)
+        self.addCleanup(setattr, SA, "_machine_dir", old)
+        label = SA.here_label()
+        self.assertIn("git's common dir", label)
+        self.assertNotIn(self.d, label, "a gate log line carries a machine's path")
+
+
 class TheAdoptionDoor(_TwoPCs):
     def test_no_reason_is_refused_and_writes_nothing(self):
         pa = self.pc("pcA")
@@ -304,6 +391,17 @@ class TheAdoptionDoor(_TwoPCs):
         self.assertEqual(rc, 0, out)
         self.assertEqual(len(self.lines(pa)), len(self.legacy))
 
+    def test_the_door_names_the_whole_path_and_the_checkout(self):
+        """REG-2473 - a basename reads as success from the wrong checkout; the whole path and the checkout cannot."""
+        pa = self.pc("pcA")
+        checkout = os.path.dirname(SA.HERE)
+        for confirm in (False, True):
+            res = SA.adopt_legacy_live("measured on this Mac", confirm=confirm)
+            self.assertTrue(res["ok"], res["say"])
+            self.assertEqual(res.get("dest"), pa)
+            self.assertIn(pa, res["say"], "the door did not name the whole path it wrote")
+            self.assertIn(checkout, res["say"], "the door did not name the checkout it ran from")
+
     def test_the_report_alone_adopts_nothing(self):
         pa = self.pc("pcA")
         buf = io.StringIO()
@@ -369,6 +467,19 @@ RED_PROOF = [
      "file": "self_arming.py",
      "find": "    LAST_FOLD.update(shared=len(shared), here=len(here))  # FOLD-SAID\n",
      "replace": "    LAST_FOLD.update(shared=len(good), here=0)  # FOLD-SAID\n", "matches": 1},
+    {"why": "REG-2473 - the per-PC ledger is one per CHECKOUT again: a live bank from a worktree never reaches his "
+            "console, and `git worktree remove` deletes it",
+     "file": "self_arming.py",
+     "find": "    if common:  # PER-MACHINE\n", "replace": "    if False:  # PER-MACHINE\n", "matches": 1},
+    {"why": "REG-2473 - a fixture's patched HERE_LEDGER is resolved past, so its live rows land in the machine's ledger",
+     "file": "self_arming.py",
+     "find": "    if os.path.abspath(HERE_LEDGER) != os.path.abspath(_HERE_LEDGER_DEFAULT):  # PER-PC-PATCHED\n",
+     "replace": "    if False:  # PER-PC-PATCHED\n", "matches": 1},
+    {"why": "REG-2473 - the adoption door names only the file's basename, so the wrong checkout reads as success",
+     "file": "self_arming.py",
+     "find": "    where = \"%s (%s; run from the checkout at %s)\" % (dest, here_label(), os.path.dirname(HERE))"
+             "  # ADOPT-WHERE\n",
+     "replace": "    where = os.path.basename(dest)  # ADOPT-WHERE\n", "matches": 1},
 ]
 
 if __name__ == "__main__":

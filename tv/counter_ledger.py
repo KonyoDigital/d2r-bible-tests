@@ -42,15 +42,21 @@ import json
 import os
 import stat
 import sys
+import time
 from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+#: the checkout this code runs from - the door's sentence names it, so a door run in the wrong one says so
+REPO = os.path.dirname(HERE)
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
 
 _console_safe_enable()
+
+#: #165 (REG-2473) - the per-PC Remaining dir's name inside git's COMMON dir: one per PC, shared by every checkout
+MACHINE_HERE = "remaining_here"
 
 
 def _dir():
@@ -68,19 +74,58 @@ def _hist_env():
     return v if (v and os.path.isabs(v)) else ""
 
 
-def _here_dir():
-    """#165 - the Remaining pages filmed on THIS PC (gitignored, per machine). -> str | None
+def _machine_dir(repo=None):
+    """THIS PC's own directory: git's COMMON dir for the checkout at `repo` - shared by the main checkout and every
+    linked worktree, never inside a work tree. -> (dir, None) | (None, why)
 
-    TV_REMAINING_HERE names it outright. A TV_REMAINING_DIR world is that world's own and names no per-PC dir unless
-    TV_REMAINING_HERE does, and a TV_HIST world keeps its own beside its footage - a fixture never reads the real one.
-    """
+    heart2._git_common_dir is the one implementation (R10, REG-2340: read from the files git itself reads, never by
+    running git - inside a hook GIT_DIR is inherited and git would answer for whichever tree set it). Asked, not copied:
+    a third copy of that walk is how two of them drift. [[copy-drift]]"""
+    try:
+        import heart2 as _h2
+        return _h2._git_common_dir(REPO if repo is None else repo)
+    except Exception as e:  # the helper could not answer: this checkout's own dir, and the door says why
+        return None, "git's common dir could not be asked (%s)" % type(e).__name__
+
+
+def _here_where(repo=None):
+    """#165 - where THIS PC's own Remaining pages live, and what kind of place that is. -> (dir | None, scope, why)
+
+      seam      TV_REMAINING_HERE names it outright
+      world     a TV_REMAINING_DIR world is that world's own and names no per-PC dir (None)
+      hist      a TV_HIST world keeps its own beside its footage - a fixture never reads the real one
+      machine   git's COMMON dir: ONE per PC, shared by the main checkout and every linked worktree
+      checkout  no git dir could be found (a heart2 sandbox, an unpacked copy): this checkout's tv/remaining_here/
+
+    ⚠⚠ REG-2473 - IT WAS ONE PER CHECKOUT. The first cut answered tv/remaining_here/ of whichever checkout ran, and
+    fleet agents work only in linked worktrees (his main tree is the running console): a page kept from one would land
+    where his console never reads, and `git worktree remove` would delete it. [[feedback-per-pc-personal-data]]"""
     env = os.environ.get("TV_REMAINING_HERE")
     if env:
-        return env
+        return env, "seam", ""
     if os.environ.get("TV_REMAINING_DIR"):
-        return None
+        return None, "world", "a TV_REMAINING_DIR world names no per-PC dir"
     h = _hist_env()
-    return os.path.join(h, "remaining_here") if h else os.path.join(HERE, "remaining_here")
+    if h:
+        return os.path.join(h, "remaining_here"), "hist", ""
+    common, why = _machine_dir(repo)
+    if common:  # PER-MACHINE
+        return os.path.join(common, MACHINE_HERE), "machine", ""
+    return os.path.join(REPO if repo is None else repo, "tv", "remaining_here"), "checkout", why
+
+
+def _here_dir():
+    """#165 - the Remaining pages filmed on, or kept by, THIS PC (never tracked). -> str | None. See _here_where."""
+    return _here_where()[0]
+
+
+def _where_say(scope, why=""):
+    """The per-PC dir's kind, in words - for the door's sentence (no path: the caller prints that beside it). -> str"""
+    return {"machine": "THIS PC's own, in git's common dir - one per PC, shared by every checkout of this repo",
+            "checkout": ("this checkout's own (no git dir: %s) - it dies with this checkout" % (why or "none found")),
+            "hist": "a TV_HIST world's own, beside its footage",
+            "seam": "the dir TV_REMAINING_HERE names",
+            "world": "none - a TV_REMAINING_DIR world names no per-PC dir"}.get(scope, scope)
 
 
 def _hist_root():
@@ -98,13 +143,25 @@ def _swept_path():
     return os.path.join(h, "chronicle_swept.json") if h else os.path.join(HERE, "chronicle_swept.json")
 
 
-def _tombstone_path():
-    """THIS PC's reel tombstones, asked of their owner at call time. -> (path, None) | (None, why)"""
+def _tombstone_rows():
+    """THIS PC's reel tombstones, READ BY THEIR OWNER at call time. -> (rows | None, why)
+
+    reel_retention says where (_tombstone_path) and reads it (_load_state), which keeps the two empties apart: absent
+    is an honest [] (nothing was ever pruned here), and a file that will not read, or is not the shape its owner writes
+    ({"reels": [...]}), is None - UNKNOWN, never "absent". A declared READER in store_owners (REG-2473): one read, by
+    the module that writes it, never a second json.load of someone else's store. [[copy-drift]]"""
     try:
         import reel_retention as _rr
-        return _rr._tombstone_path(), None
+        blob, st = _rr._load_state(_rr._tombstone_path())  # OWNER-READS
     except Exception as e:      # the owner could not answer: the store is UNKNOWN, never "absent"
-        return None, "reel_tombstones.json could not be located (%s)" % type(e).__name__
+        return None, "this PC's reel_tombstones.json could not be asked of its owner (%s)" % type(e).__name__
+    if st == "absent":
+        return [], ""
+    rows = blob.get("reels") if (st == "ok" and isinstance(blob, dict)) else None
+    if not isinstance(rows, list):
+        return None, ("this PC's reel_tombstones.json would not read" if st != "ok" else
+                      "this PC's reel_tombstones.json is not the shape its owner writes")
+    return rows, ""
 
 
 def _read_store(p):
@@ -151,13 +208,20 @@ def _names_of(row):
 
 
 def _held_here(reel):
-    """#165 (REG-2472) - did THIS PC ever hold this reel? -> (True | False | None, why)
+    """#165 (REG-2472) - do THIS PC's own stores name this reel? -> (True | False | None, why)
 
     True when any of this PC's own stores names it: the reel dir under the footage root, the sweep memory, or the
     reel tombstones - every one resolved at call time, so a fixture's world answers for the fixture. False only when
     every store answered and none names it. A store that will not read, with no positive answer elsewhere, is
     UNKNOWN (None) - never "another PC's" and never "this PC's". A page naming no reel cannot be attributed at all.
     [[unknown-stays-unknown]] [[feedback-per-pc-personal-data]]
+
+    ⚠⚠ REG-2474 - FALSE IS "NO STORE NAMES IT", NEVER "THIS PC NEVER HELD IT". Every one of these stores can be
+    emptied by an ordinary control: control_app.chronicle_forget_swept() ("re-read everything") writes {} to the sweep
+    memory, and a prune releases the footage. MEASURED on the Mac: the page's reel has no footage dir and is in none of
+    its 762 tombstones - only the sweep memory names it - so one click would make the PC that filmed the page read it
+    as another install's. The sentence says what was measured, and a page this PC filmed is kept for good through the
+    adoption door (adopt_page), which pins what a store shows while it still shows it.
     """
     ids = _reel_ids(reel)
     if not ids:  # NO-REEL
@@ -177,21 +241,38 @@ def _held_here(reel):
             return True, "this PC's sweep memory (chronicle_swept.json) holds its reel"
     elif st != "absent":
         unread.append("this PC's chronicle_swept.json would not read")
-    tp, twhy = _tombstone_path()
-    if tp is None:
+    rows, twhy = _tombstone_rows()
+    if rows is None:
         unread.append(twhy)
-    else:
-        blob, st = _read_store(tp)
-        rows = (blob.get("reels") if isinstance(blob, dict) else blob) if st == "ok" else None
-        if st == "ok" and isinstance(rows, list):
-            if any(_names_of(x) & set(ids) for x in rows):  # TOMBSTONE-ARM
-                return True, "this PC's reel_tombstones.json records its reel"
-        elif st != "absent":
-            unread.append("this PC's reel_tombstones.json would not read")
+    elif any(_names_of(x) & set(ids) for x in rows):  # TOMBSTONE-ARM
+        return True, "this PC's reel_tombstones.json records its reel"
     if unread:  # UNREAD-IS-UNKNOWN
-        return None, ("whether THIS PC ever held its reel is UNKNOWN (%s) - so the page is UNKNOWN here, not "
-                      "evidence about this board" % "; ".join(sorted(set(unread))))
-    return False, "its reel is in none of this PC's stores (footage, sweep memory, tombstones)"
+        return None, ("whether any of this PC's stores names its reel is UNKNOWN (%s) - so the page is UNKNOWN here, "
+                      "not evidence about this board" % "; ".join(sorted(set(unread))))
+    return False, "none of this PC's stores name its reel (%s)" % _STORES_ASKED  # NONE-NAME-IT
+
+
+#: what _held_here asked - said in every "not this PC's" sentence, so the claim never outruns the measurement
+_STORES_ASKED = "its footage tree, its sweep memory, its reel tombstones"
+
+
+def _say_elsewhere(n=1, saved=False):
+    """#165 (REG-2474) - the sentence for a page (or a saved reading) that none of this PC's stores can place. -> str
+
+    WHAT WAS MEASURED, AND BOTH THINGS IT CAN MEAN: another install's page, or one whose reel this PC no longer
+    remembers (a cleared sweep memory, released footage). Never "this PC never held it" - an emptied store is not
+    proof of absence. Either way it is UNKNOWN here, not evidence about this board."""
+    if saved:
+        return ("the saved Remaining reading was read off a reel none of this PC's stores name (%s) - another "
+                "install's page, or one whose reel this PC no longer remembers - so it is UNKNOWN here, not evidence "
+                "about this board" % _STORES_ASKED)
+    if n == 1:
+        return ("the only Remaining page on file was read off a reel none of this PC's stores name (%s) - another "
+                "install's page, or one whose reel this PC no longer remembers - so it is UNKNOWN here, not evidence "
+                "about this board" % _STORES_ASKED)
+    return ("all %d Remaining pages on file were read off reels none of this PC's stores name (%s) - other installs' "
+            "pages, or ones whose reels this PC no longer remembers - so they are UNKNOWN here, not evidence about "
+            "this board" % (n, _STORES_ASKED))
 
 
 def _norm_piece(s):
@@ -272,30 +353,38 @@ def _pages(ledger="sets"):
     -> list, newest first. `origin` on each:
 
         world      a TV_REMAINING_DIR world's own page - a fixture names its world outright; no provenance asked
-        here       filmed on THIS PC: in its own per-PC dir, or a shipped page whose reel this PC held
-        elsewhere  a shipped page whose reel is in none of this PC's stores - another install's
+        here       THIS PC's: in its own per-PC dir (filmed here, or kept by adopt_page), or a shipped page one of
+                   this PC's stores names the reel of
+        elsewhere  a shipped page whose reel none of this PC's stores name - another install's, or forgotten here
         unknown    a shipped page whose reel could not be checked (a store would not read) or that names none
 
-    Decided at READ time, on every call: a sweep that lands the reel tomorrow makes the page this PC's tomorrow.
+    Decided at READ time, on every call: a sweep that lands the reel tomorrow makes the page this PC's tomorrow. A
+    shipped page this PC KEPT (adopt_page) is listed once - as the kept copy, which no cleared store can unmake.
     """
     out = []
-    if os.environ.get("TV_REMAINING_DIR"):  # WORLD-OWN
-        for p in _pages_in(_dir(), ledger):
-            p["origin"], p["originWhy"] = "world", "a TV_REMAINING_DIR world's own page"
-            out.append(p)
-    else:
-        for p in _pages_in(_dir(), ledger):
-            held, why = _held_here(p.get("reel"))  # PROVENANCE
-            p["origin"] = "here" if held is True else ("elsewhere" if held is False else "unknown")
-            p["originWhy"] = why
-            out.append(p)
+    mine = []
     hd = _here_dir()
     if hd:
         for p in _pages_in(hd, ledger):
-            p["origin"] = "here"  # PER-PC-DIR
-            p["originWhy"] = "filmed on this PC (its own Remaining pages)"
+            p["origin"], p["shelf"] = "here", "per-pc"  # PER-PC-DIR
+            _ad = p.get("adopted") or {}
+            p["originWhy"] = (("kept on this PC by adopt_page (%s; %s)" % (_ad.get("reason"), _ad.get("vouchedBy")))
+                              if _ad else "filmed on this PC (its own Remaining pages)")
+            mine.append(p)
+    kept = set((p.get("reel"), p.get("readAt")) for p in mine)
+    if os.environ.get("TV_REMAINING_DIR"):  # WORLD-OWN
+        for p in _pages_in(_dir(), ledger):
+            p["origin"], p["originWhy"], p["shelf"] = "world", "a TV_REMAINING_DIR world's own page", "shipped"
             out.append(p)
-    return _newest_first(out)
+    else:
+        for p in _pages_in(_dir(), ledger):
+            if (p.get("reel"), p.get("readAt")) in kept:  # KEPT-ONCE
+                continue  # this PC kept its own copy, and that copy speaks for it
+            held, why = _held_here(p.get("reel"))  # PROVENANCE
+            p["origin"] = "here" if held is True else ("elsewhere" if held is False else "unknown")
+            p["originWhy"], p["shelf"] = why, "shipped"
+            out.append(p)
+    return _newest_first(out + mine)
 
 
 def readings(ledger="sets"):
@@ -332,11 +421,7 @@ def provenance(ledger="sets"):
         return {"state": "unknown", "pages": brief,
                 "why": ("a Remaining page is on file, but %s" % unk[0].get("originWhy"))}
     if far:
-        return {"state": "elsewhere", "pages": brief,
-                "why": (("the only Remaining page on file was read off a reel this PC never held - another "
-                         "install's page is UNKNOWN here, not evidence about this board") if len(far) == 1 else
-                        ("all %d Remaining pages on file were read off reels this PC never held - another "
-                         "install's pages are UNKNOWN here, not evidence about this board" % len(far)))}
+        return {"state": "elsewhere", "pages": brief, "why": _say_elsewhere(len(far))}  # SAY-MEASURED
     return {"state": "none", "pages": brief, "why": "no Remaining page has ever been recorded"}
 
 
@@ -385,6 +470,8 @@ def _pages_in(folder, ledger="sets"):
             "readBy": d.get("readBy"),
             "source": os.path.basename(p),
             "ageDays": _age_days(d.get("readAt")),
+            # REG-2474 - a page this PC KEPT through adopt_page carries who kept it, why, and which store vouched
+            "adopted": d.get("adopted") if isinstance(d.get("adopted"), dict) else None,
         })
     out.sort(key=lambda r: (str(r.get("readAt") or ""), r["source"]), reverse=True)
     return out
@@ -397,11 +484,41 @@ def load(ledger="sets"):
     empty list would mean "the game says he is missing nothing" — a strong claim — and that is not
     what "nobody has taken a reading" means.
 
-    #165 (REG-2472) - "the game has never been asked" is per PC: a shipped page read off a reel this PC never held is
-    another player's answer, so this is None there too, and provenance() says which of the two it is.
+    #165 (REG-2472) - "the game has never been asked" is per PC: a shipped page whose reel none of this PC's stores
+    name is not this board's answer, so this is None there too, and provenance() says which of the two it is.
     """
     rs = readings(ledger)
     return rs[0] if rs else None
+
+
+def whose(reading, ledger="sets"):
+    """#165 (REG-2474) - may THIS PC judge with a reading handed back from a SAVED result? -> {"held", "state", "why"}
+
+    A judge asked through load() is asked at read time. A comparison SAVED by an earlier sweep is not: the chronicle
+    sweep's calibration (chron_last_result.json) carries `exact.reading` {readAt, reel, ...} and the doctor's row and
+    the console card print it as long as the file lives - so a page judged on one install, or a saved file carried to
+    another, would keep speaking for a board it does not describe. A reader of a saved reading asks this, every time:
+
+        held True   this PC's: a page in its own per-PC dir with that reel and stamp, a store that names the reel, or
+                    a TV_REMAINING_DIR world's own
+        held False  none of this PC's stores name its reel - UNKNOWN here (`why` says what was measured)
+        held None   UNKNOWN: a store would not read, or the reading names no usable reel
+    """
+    r = reading if isinstance(reading, dict) else {}
+    if os.environ.get("TV_REMAINING_DIR"):
+        return {"held": True, "state": "world", "why": "a TV_REMAINING_DIR world's own page"}
+    hd = _here_dir()
+    if hd:
+        for p in _pages_in(hd, ledger):
+            if p.get("reel") == r.get("reel") and p.get("readAt") == r.get("readAt"):  # SAVED-KEPT
+                return {"held": True, "state": "here",
+                        "why": "this PC's own Remaining page (%s, in its per-PC dir)" % p.get("source")}
+    held, why = _held_here(r.get("reel"))  # SAVED-PROVENANCE
+    if held is True:
+        return {"held": True, "state": "here", "why": why}
+    if held is False:
+        return {"held": False, "state": "elsewhere", "why": _say_elsewhere(saved=True)}
+    return {"held": None, "state": "unknown", "why": why}
 
 
 def missing_names(ledger="sets", reading=None, roster=None):
@@ -968,8 +1085,118 @@ def audit(evidence=None):
     return out
 
 
+def adopt_page(name, reason, confirm=False):
+    """#165 (REG-2474) - THE DOOR FOR A PAGE THIS PC FILMED: keep it as THIS PC's own, for good. -> dict
+
+    A shipped page counts here only while one of this PC's stores names its reel, and every one of those stores can be
+    emptied by an ordinary control: chronicle_forget_swept() ("re-read everything") writes {} to the sweep memory, and
+    a prune releases the footage. MEASURED on the Mac: its own 2026-08-21 page is placed by the sweep memory ALONE (no
+    footage dir, in none of 762 tombstones). So a person, on the PC that filmed the page, keeps it:
+
+        python3 tv/counter_ledger.py --adopt-page sets_2026-08-21.json --reason "<why>" --confirm
+
+    It copies the shipped page into THIS PC's per-PC dir (git's common dir: one per PC, shared by every checkout),
+    marked `adopted` {by, reason, at, from, vouchedBy}, and from then on no cleared store can unmake it.
+    ⚠ IT ONLY PINS WHAT THIS PC'S STORES ALREADY SHOW. It REFUSES unless one of them names the page's reel right now,
+    so a reason - a person's word - can never make another install's page judge this board: on Dean's PC it refuses,
+    and in a linked worktree (whose stores are empty) it refuses and names the checkout it asked. No reason ->
+    REFUSED. No --confirm -> a DRY RUN that writes nothing. A page already kept is never written twice, a different
+    file of the same name is never overwritten, and the shipped file is never touched. Nothing calls this on its own.
+    [[unknown-stays-unknown]] [[feedback-per-pc-personal-data]]
+    """
+    why = str(reason or "").strip()
+    if why.startswith("--"):
+        why = ""                 # a flag swallowed as the reason is no reason
+    hd, scope, swhy = _here_where()
+    base = {"ok": False, "refused": True, "dryRun": not confirm, "wrote": 0, "dest": None, "scope": scope,
+            "checkout": REPO}
+    if not why:  # PAGE-REASON
+        return dict(base, say=("REFUSED: keeping a Remaining page as this PC's own needs --reason \"<why this PC "
+                               "filmed it>\" - nothing written."))
+    nm = str(name or "").strip()
+    src = os.path.join(_dir(), nm)
+    if not nm or os.path.basename(nm) != nm or not nm.endswith(".json") or not os.path.isfile(src):
+        return dict(base, say=("REFUSED: %r is not a shipped Remaining page (shipped: %s) - nothing written."
+                               % (nm, ", ".join(p["source"] for p in _pages_in(_dir(), "sets")) or "none")))
+    if not hd:
+        return dict(base, say="REFUSED: this PC's per-PC dir is %s - nothing written." % _where_say(scope, swhy))
+    try:
+        with open(src, encoding="utf-8") as fh:
+            page = json.load(fh)
+    except Exception as e:
+        return dict(base, say="REFUSED: %s would not read (%s) - nothing written." % (nm, type(e).__name__))
+    if not isinstance(page, dict):
+        return dict(base, say="REFUSED: %s is not a Remaining page - nothing written." % nm)
+    held, vouch = _held_here(page.get("reel"))  # PAGE-VOUCHED
+    if held is not True:
+        return dict(base, say=("REFUSED: %s. Nothing on this PC shows it filmed %s, and a reason alone may not make a "
+                               "page judge this board (%s) - nothing written." % (vouch, nm, _stores_where())))
+    dest = os.path.join(hd, nm)
+    base["dest"] = dest
+    where = "%s - %s" % (dest, _where_say(scope, swhy))
+    if os.path.exists(dest):  # PAGE-NEVER-OVERWRITE
+        try:
+            with open(dest, encoding="utf-8") as fh:
+                cur = json.load(fh)
+        except Exception:
+            cur = None
+        same = isinstance(cur, dict) and (cur.get("reel"), cur.get("readAt")) == (page.get("reel"), page.get("readAt"))
+        if same:  # PAGE-ONCE
+            return dict(base, ok=True, refused=False,
+                        say="%s is already kept as THIS PC's own page in %s - nothing written." % (nm, where))
+        return dict(base, say=("REFUSED: %s already holds a different file of that name, and a kept page is never "
+                               "overwritten - nothing written." % where))
+    if not confirm:  # PAGE-DRY
+        return dict(base, ok=True, refused=False,
+                    say=("DRY RUN - nothing written. %s would be kept as THIS PC's own Remaining page in %s. Vouched for "
+                         "by: %s (%s). Pass --confirm to write it." % (nm, where, vouch, _stores_where())))
+    stamp = {"by": "--adopt-page", "reason": why[:400], "at": int(time.time() * 1000), "vouchedBy": vouch,
+             "from": ("tv/remaining/" if not os.environ.get("TV_REMAINING_DIR") else "TV_REMAINING_DIR/") + nm}
+    os.makedirs(hd, exist_ok=True)
+    tmp = "%s.tmp-%d" % (dest, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:  # a fresh name, never `dest` itself: open-for-write empties first
+        json.dump(dict(page, adopted=stamp), fh, ensure_ascii=False, indent=1)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, dest)  # PAGE-WRITE
+    return dict(base, ok=True, refused=False, wrote=1,
+                say=("kept %s as THIS PC's own Remaining page: %s. Vouched for by: %s (%s). No cleared store can unmake "
+                     "it now; the shipped file was not touched." % (nm, where, vouch, _stores_where())))
+
+
+def _stores_where():
+    """The stores _held_here asks, as PATHS, for the door's sentence on his terminal (never a report). -> str
+
+    "asked from the checkout at X" is only half the answer: an env seam (TV_HIST, TV_CHRON_SWEPT) moves a store out of
+    the checkout, and a door that names the checkout but not the store can still be read wrong."""
+    try:
+        import reel_retention as _rr
+        tp = _rr._tombstone_path()
+    except Exception as e:
+        tp = "UNKNOWN (%s)" % type(e).__name__
+    return ("run from the checkout at %s; stores asked: footage tree %s, sweep memory %s, reel tombstones %s"
+            % (REPO, _hist_root(), _swept_path(), tp))
+
+
+def _adopt_page_cli(argv):
+    """`--adopt-page NAME --reason WHY [--confirm]` -> exit code: 0 done or dry run, 2 refused"""
+    i = argv.index("--adopt-page")
+    name = argv[i + 1] if i + 1 < len(argv) and not argv[i + 1].startswith("--") else ""
+    reason = ""
+    for j, a in enumerate(argv):
+        if a == "--reason":
+            reason = argv[j + 1] if j + 1 < len(argv) else ""
+        elif a.startswith("--reason="):
+            reason = a[len("--reason="):]
+    res = adopt_page(name, reason, confirm="--confirm" in argv)
+    print(res["say"])
+    return 0 if res.get("ok") else 2
+
+
 def main(argv=None):
     argv = list(argv if argv is not None else sys.argv[1:])
+    if "--adopt-page" in argv:
+        return _adopt_page_cli(argv)   # REG-2474 - the only writer this command line has, and it asks first
     ledger = "sets"
     if "--ledger" in argv:
         ledger = argv[argv.index("--ledger") + 1]
@@ -1043,6 +1270,12 @@ def main(argv=None):
     print("  read at %s  from %s  (%s)"
           % (r.get("readAt"), r.get("reel"),
              ("%.1f days ago" % age) if age is not None else "AGE UNKNOWN"))
+    print("  whose: %s" % r.get("originWhy"))
+    if r.get("shelf") == "shipped" and r.get("origin") == "here":
+        # REG-2474 - placed by a store that one click can empty; the door keeps it, and only a person runs it
+        print("  ⚠ a shipped page is THIS PC's only while a store names its reel. Keep it for good:")
+        print("    python3 tv/counter_ledger.py --adopt-page %s --reason \"<why this PC filmed it>\" --confirm"
+              % r.get("source"))
     print("  the game says you are missing %d piece(s)" % r["count"])
     owned, meta = owned_by_subtraction(roster, ledger, reading=r)
     print()
