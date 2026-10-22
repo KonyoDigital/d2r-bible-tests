@@ -11,8 +11,8 @@ returns a status word and does not claim a post.
 
 One send runs at a time. A submit that was clicked and not receipted is
 maybe-sent, never "nothing was posted", and the same draft is not sent again
-for 30 minutes after it was posted or may have been. Every answer's reason is
-one of SEND_REASONS.
+for 30 minutes after it was posted or may have been, unless a later send
+changed that topic. Every answer's reason is one of SEND_REASONS.
 
 Windows has no reader here. A public page has no route. Those stay unposted.
 Linux reads the Chrome profile on that machine.
@@ -969,6 +969,14 @@ _SNAPSHOT_JS = (
 )
 
 
+class _ErrorReply(OSError):
+    """DevTools answered a script with a protocol error in place of a result.
+
+    REG-2496: Chrome answers "Execution context was destroyed" when the page navigates away while
+    the call is in flight, which a submit's own navigation can do. The script may have run, so this
+    is no answer, never an empty one."""
+
+
 class _Page(object):
     """The one tab of a scratch Chrome, driven over its DevTools socket. Nothing sent or read is logged.
 
@@ -989,9 +997,14 @@ class _Page(object):
     def act(self, name, script):
         """Run one of the flow's scripts. -> its string answer, '' when the script threw
 
-        Raises when the browser does not answer, which is not the same as answering nothing."""
+        Raises when the browser does not answer, which is not the same as answering nothing, and
+        raises _ErrorReply when it answers with a protocol error: a fill answered that way may have
+        clicked (REG-2496 - it used to read '', no click, and a post the board took read
+        form-unknown)."""
         got = self.call("Runtime.evaluate", {"expression": script, "returnByValue": True}, wait=8)
-        res = got.get("result") or {}
+        if not isinstance(got.get("result"), dict):
+            raise _ErrorReply(str(name))
+        res = got["result"]
         if res.get("exceptionDetails"):
             return ""
         val = (res.get("result") or {}).get("value")
@@ -1001,7 +1014,7 @@ class _Page(object):
         """-> {href, ready, mark, html}; None when the page answered something else"""
         try:
             snap = json.loads(self.act("snapshot", _SNAPSHOT_JS) or "")
-        except ValueError:
+        except (ValueError, _ErrorReply):
             return None
         if not isinstance(snap, dict):
             return None
@@ -1445,9 +1458,11 @@ def _chrome_search(item, cookie, chrome=None, clock=None, nap=None):
             if not sent and "search.php" in html and "stext" in html:
                 try:
                     page.act("search", submit)
-                    sent = True
+                except _ErrorReply:
+                    pass        # an error in place of a result: the search may have gone out
                 except Exception:
                     continue
+                sent = True
             if sent and "Search Results" in html and not _challenge_page(html):
                 return html
         if sent and html and not _challenge_page(html):
@@ -1694,7 +1709,9 @@ def _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum=N
 
 
 _SEND_LOCK = threading.Lock()
-_SENT = {}              # (board, subject, sha256 of the body) -> {reason, t, at, topic?}; this process only
+# (board, subject, sha256 of the body) -> {reason, t, at, topic, on}; this process only. `on` holds the
+# topics the send changed or made (_topic_ref); a maybe-sent new post holds none, since its topic is unknown.
+_SENT = {}
 _RESEND_S = 30 * 60
 
 
@@ -1708,26 +1725,51 @@ def _sent_key(board, subject, text):
     return (int(board), str(subject), hashlib.sha256(str(text).encode("utf-8")).hexdigest())
 
 
-def _sent_before(key, t):
+def _topic_ref(url):
+    """The topic a URL names, as one value two links to it share: its t= id, else the public URL.
+    None for no topic."""
+    public = _public_topic(url)
+    if not public:
+        return None
+    tid = _topic_id(public)
+    return public if tid is None else tid
+
+
+def _sent_before(key, t, target=""):
     """The answer to an identical re-send inside 30 minutes, or None. -> dict | None
 
-    REG-2490. The record lives in this process: a console restart forgets it."""
+    REG-2490. The record lives in this process: a console restart forgets it. A new post (no
+    target) is answered by any record of the same draft, since posting it again would make a
+    second topic. An edit is answered only by a record of the topic it edits (REG-2495): another
+    topic's record says nothing about what this one shows, and an edit never makes a second topic."""
     for old in [k for k, v in _SENT.items() if t - v["t"] >= _RESEND_S]:
         del _SENT[old]
     prior = _SENT.get(key)
     if not prior:
+        return None
+    ref = _topic_ref(target)
+    if ref is not None and ref not in prior["on"]:
         return None
     if prior["reason"] == "submitted":
         return {"ok": False, "reason": "already-posted", "topic": prior["topic"], "at": prior["at"]}
     return {"ok": False, "reason": "maybe-sent-recently", "at": prior["at"]}
 
 
-def _remember_send(key, out, t, at):
+def _remember_send(key, out, t, at, target=""):
+    """Record a send that went up or may have, under its draft.
+
+    REG-2495 (A, B, A): the record was keyed on the draft alone, so a shop list posted as A, edited
+    to B and edited back to A inside 30 minutes answered the third send already-posted with A's old
+    receipt: the edit never ran and the board still showed B. A send that changed or made a topic
+    now drops every other draft's record on that topic, because the topic no longer shows them."""
     reason = out.get("reason")
-    if reason == "submitted":
-        _SENT[key] = {"reason": "submitted", "t": t, "at": at, "topic": str(out.get("topic") or "")}
-    elif reason == "maybe-sent":
-        _SENT[key] = {"reason": "maybe-sent", "t": t, "at": at}
+    if reason not in ("submitted", "maybe-sent"):
+        return
+    topic = str(out.get("topic") or "") if reason == "submitted" else ""
+    on = set(ref for ref in (_topic_ref(target), _topic_ref(topic)) if ref is not None)
+    for gone in [k for k, v in _SENT.items() if k != key and v["on"] & on]:
+        del _SENT[gone]
+    _SENT[key] = {"reason": reason, "t": t, "at": at, "topic": topic, "on": on}
 
 
 def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None, edit_post=None, sec_fetch_site=None, now=None):
@@ -1768,21 +1810,26 @@ def _send_locked(body, forum, subject, text, cookie_get, transport, open_login, 
 
     REG-2490. The same draft (board, subject and body) within 30 minutes of a submit is
     already-posted, and within 30 minutes of a maybe-sent is maybe-sent-recently; neither reads the
-    cookie or starts Chrome."""
+    cookie or starts Chrome. An edit is held back only by a record of its own topic, and a send that
+    changes a topic retires the other drafts' records on it (REG-2495)."""
     t = time.time() if now is None else float(now)
     at = _stamp(t)
+    target = _public_topic(str(body.get("topic") or ""))
+    if target and not _topic_on_board(target, forum):
+        target = ""
     key = _sent_key(forum, subject, text)
-    prior = _sent_before(key, t)
+    prior = _sent_before(key, t, target)
     if prior is not None:
         return 200, prior
-    code, out = _send_route(body, forum, subject, text, cookie_get, transport, open_login,
+    code, out = _send_route(forum, subject, text, target, cookie_get, transport, open_login,
                             chrome_post, edit_post, at)
-    _remember_send(key, out, t, at)
+    _remember_send(key, out, t, at, target)
     return code, out
 
 
-def _send_route(body, forum, subject, text, cookie_get, transport, open_login, chrome_post, edit_post, at):
-    """Read the cookie, then edit the saved topic, post through Chrome, or (a law's seam) post through urllib."""
+def _send_route(forum, subject, text, target, cookie_get, transport, open_login, chrome_post, edit_post, at):
+    """Read the cookie, then edit the saved topic (target), post through Chrome, or (a law's seam)
+    post through urllib."""
     get_cookie = cookie_get or live_cookie_header
     try:
         cookie, cookie_reason = get_cookie()
@@ -1792,14 +1839,11 @@ def _send_route(body, forum, subject, text, cookie_get, transport, open_login, c
         if cookie_reason == "need-login":
             return 200, {"ok": False, "reason": "need-login", "opened": _open_door(open_login)}
         return 200, {"ok": False, "reason": "chrome-unread"}
-    topic = _public_topic(str(body.get("topic") or ""))
-    if topic and not _topic_on_board(topic, forum):
-        topic = ""
-    if topic:
+    if target:
         opener = edit_post
         if opener is None and chrome_post is False:
             opener = lambda *args: "no-edit"
-        return _send_edit(subject, text, cookie, topic, opener, open_login, forum, at)
+        return _send_edit(subject, text, cookie, target, opener, open_login, forum, at)
     if transport is None and chrome_post is not False:
         return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum, at)
     fetch = transport or _transport
