@@ -185,7 +185,22 @@ def _boot():
     root = os.environ.get("TV_GATE_TRACE_ROOT") or ""
     if not out or not root:
         return
-    is_root, root_env = _root_env(out)
+    # REG-2448 - ONCE PER PROCESS AND TRACE: whose environment this process's E facts are held to, and the N block. A
+    # second boot of this hook in one process (two copies chaining into each other - the boot TRACE-CHAIN-ONCE stops)
+    # re-read the whole trace and wrote the N block again each time, and stacked one environment layer per boot: the
+    # ~160 boots of test_a_killed_run_is_never_a_red's chain sabotage ran past its 120 s timeout instead of failing in
+    # ~1 s, so that red-proof could only ever read UNPROVABLE. Its B line is still written per boot.
+    booted = getattr(sys, "_tv_gate_env_boot", None)
+    if not isinstance(booted, dict):
+        booted = {}
+        try:
+            sys._tv_gate_env_boot = booted
+        except Exception:
+            pass
+    first_env = out not in booted  # TRACE-ENV-ONCE
+    if first_env:
+        booted[out] = _root_env(out)
+    is_root, root_env = booted[out]
     try:
         fd = os.open(out, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
     except OSError:
@@ -661,8 +676,8 @@ def _boot():
         and .values() read from collections.abc's own views. Mapping.get and __contains__ reach __getitem__, so
         .get(X), X in os.environ and os.getenv(X) are single-name reads too."""
         cls = getattr(os, "_Environ", None)
-        if cls is None:
-            return
+        if cls is None or getattr(cls.__getitem__, "_tv_gate_env", False):  # TRACE-ENV-ARMED-ONCE
+            return  # REG-2448 - armed once per process: a second boot of this hook would stack a layer per boot
         import _collections_abc as _abc
         views = frozenset(f.__code__ for f in (_abc.ItemsView.__iter__, _abc.ValuesView.__iter__,
                                                  _abc.ValuesView.__contains__))
@@ -712,6 +727,7 @@ def _boot():
             return real_del(self, key)
         for fn, real in ((getitem, real_get), (keys, real_keys), (setitem, real_set), (delitem, real_del)):
             fn.__wrapped__, fn.__name__, fn.__doc__ = real, real.__name__, real.__doc__
+        getitem._tv_gate_env = True
         cls.__getitem__, cls.keys, cls.__setitem__, cls.__delitem__ = getitem, keys, setitem, delitem
 
     def after_fork():
@@ -721,7 +737,7 @@ def _boot():
         emit("B", "%d" % parent)
 
     emit("B", "%d" % os.getppid())
-    if is_root:
+    if is_root and first_env:
         # REG-2442 - the run's environment, once, before any child can start: what a child's E facts are held to
         for _k, _v in list(os.environ.items()):
             if not _plumbing(_k):

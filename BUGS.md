@@ -10,6 +10,12 @@
 ### REG-2633 - NOTHING PUBLISHED THE PROOF BANK THE PCs READ (proof-bank publisher, GB-box, 2026-10-24)
 REG-2632 taught self_prove to fetch `origin/proof-bank:<HEAD>.<class>.json`, but no workflow wrote that branch, so every
 PC imported nothing and a Windows PC could never meet a Linux key anyway (the class is in every key; CRLF bytes).
+### REG-2448 - THE TRACE FACTS MADE A RED-PROOF UNPROVABLE: EVERY BOOT OF THE HOOK IN ONE PROCESS RE-READ THE TRACE AND STACKED AN ENVIRONMENT LAYER (#147 R1, M2 track trace-facts, 2026-10-22)
+
+Measured on this branch before the fix: heart2 --prove filed test_a_killed_run_is_never_a_red[15] UNPROVABLE ("tampered run: timed out after 120s"). That proof sabotages TRACE-CHAIN-ONCE so two copies of gate_trace chain into each other (~160 boots in one process); at 7285e7efc the law then fails in 1.3 s on its boot count. REG-2442's facts made every boot re-read the whole trace (_root_env), write the root's N block again and patch os._Environ once more, so each environment read went through one layer per boot and each layer wrote its own E lines: the sabotaged run took 120.1 s and ended on the law's own subprocess timeout - a timeout heart2 rightly never counts as red, so the proof could never be PROVEN again.
+FIX: whose environment a process's E facts are held to, and the N block, are worked out once per process and trace (sys._tv_gate_env_boot); os._Environ is armed once per process (a marker on its __getitem__). Every boot still writes its own B line - the line that law counts. Measured: the sabotaged run fails in 2.2 s on its boot count again.
+GUARD: tv/test_a_trace_names_every_read_a_key_needs.py ASecondBootArmsTheEnvironmentOnce - the hook booted a second time in one traced process (runpy) writes one N line and one E line per read, and two B lines. 2 RED_PROOFs.
+
 ### REG-2447 - A STAT OF A PATH UNDER A FILE (ENOTDIR) WROTE NO TRACE FACT, SO os.path.exists() SAID FALSE AND NO KEY HELD IT (#147 R1, M2 track trace-facts, 2026-10-22)
 
 gate_trace's stat wrapper noted an absence only for FileNotFoundError. On POSIX `os.stat("tv/data.txt/x")` raises NotADirectoryError (ENOTDIR) when tv/data.txt is a file, so `os.path.exists()` / `isfile()` / `isdir()` of such a path returned False and the trace wrote nothing: a tree that turned tv/data.txt into a folder holding x changed what the run decided, while no A line (the ledger's) or absence fact (facts_hold's) named it. Any other OSError of a stat (a link loop, no permission) wrote nothing either.

@@ -445,6 +445,37 @@ class TheTrackedSetAndTheGitignoresAreFacts(unittest.TestCase):
         self.assertIn(".gitignore", why or "")
 
 
+# ── a second boot in one process (REG-2448) ────────────────────────────────────────────────────────────────────────────
+class ASecondBootArmsTheEnvironmentOnce(unittest.TestCase):
+    """REG-2448 - two copies of the hook chaining into each other boot it ~160 times in one process (the boot that
+    TRACE-CHAIN-ONCE stops, and test_a_killed_run_is_never_a_red's sabotage of it). Each boot re-read the whole trace,
+    wrote the N block again and stacked one more environment layer, so that sabotage ran past its 120 s timeout instead
+    of failing in a second - its red-proof could only read UNPROVABLE. A second boot keeps its own B line (the line that
+    law counts) and arms the environment facts no second time."""
+
+    def test_a_second_boot_writes_one_N_block_and_one_E_fact_per_read(self):
+        root = tempfile.mkdtemp(prefix="facts-reboot.")
+        self.addCleanup(shutil.rmtree, root, True)
+        hook = os.path.join(HERE, "gate_trace", "sitecustomize.py")
+        _write(root, "tv/t_reboot.py", "import os, runpy\nrunpy.run_path(%r, run_name='sitecustomize_again')\n"
+                                       "os.environ['TV_KNOB_A']\nprint('ok')\n" % hook)
+        trace = GL.trace_path()
+        self.addCleanup(lambda: os.path.exists(trace) and os.remove(trace))
+        env = GL.trace_env(_git_free(dict(os.environ, TV_KNOB_A="alpha")), root, trace)
+        proc = subprocess.run([sys.executable, os.path.join(root, "tv", "t_reboot.py")], cwd=root, env=env,
+                              capture_output=True, text=True, timeout=120)
+        self.assertEqual(proc.returncode, 0, "PREMISE: the fixture failed: %s" % proc.stderr[-600:])
+        with io.open(trace, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+        self.assertEqual(len([ln for ln in lines if ln.startswith("B\t")]), 2,
+                         "PREMISE: the hook did not boot twice in the fixture's process")
+        n_block = [ln for ln in lines if ln.startswith("N\t") and ln.endswith(" TV_KNOB_A")]
+        e_facts = [ln for ln in lines if ln.startswith("E\t") and ln.endswith(" TV_KNOB_A")]
+        self.assertEqual(len(n_block), 1, "a second boot read the trace again and wrote the N block again")
+        self.assertEqual(len(e_facts), 1, "a second boot stacked an environment layer: one read wrote %d E lines"
+                         % len(e_facts))
+
+
 # ── pathlib (REG-2446) ─────────────────────────────────────────────────────────────────────────────────────────────────
 class APathlibProbeIsAFact(unittest.TestCase):
     """REG-2446 - python 3.9/3.10's pathlib copies os.stat/os.lstat into its accessor when it is imported. On his Mac a
@@ -565,6 +596,14 @@ RED_PROOF = [
     {"why": "the node twin keeps no size", "file": "gate_trace/node_trace.cjs",
      "find": "    emit('Z', sizeOf(st, false) + ' ' + r);  // TRACE-SIZE-FACT\n", "replace": "    // TRACE-SIZE-FACT\n",
      "matches": 1, "needs": "node"},
+    {"why": "REG-2448 - every boot of the hook in one process re-reads the trace and writes the N block again",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "    first_env = out not in booted  # TRACE-ENV-ONCE\n", "replace": "    first_env = True  # TRACE-ENV-ONCE\n",
+     "matches": 1},
+    {"why": "REG-2448 - every boot of the hook in one process stacks another environment layer",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "        if cls is None or getattr(cls.__getitem__, \"_tv_gate_env\", False):  # TRACE-ENV-ARMED-ONCE\n",
+     "replace": "        if cls is None:  # TRACE-ENV-ARMED-ONCE\n", "matches": 1},
     {"why": "REG-2447 - a stat under a file (ENOTDIR) writes no absence", "file": "gate_trace/sitecustomize.py",
      "find": "            except (FileNotFoundError, NotADirectoryError):\n",
      "replace": "            except FileNotFoundError:\n", "matches": 1, "needs": "posix"},
