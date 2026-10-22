@@ -10937,6 +10937,25 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_d2jsp_post_is_sent_once_and_never_called_unsent",
+         [sys.executable, os.path.join(HERE, "test_a_d2jsp_post_is_sent_once_and_never_called_unsent.py")], 60,
+         needs_app=False,
+         why="REG-2490 / REG-2491 (#106, #83) - one 25 s deadline covered the board, the form, the click and the "
+             "redirect, so a slow board that took a post read 'not-posted' (an error after the click 'unread'), the "
+             "page said nothing was posted, and the server had no lock. One send runs at a time (busy, no cookie "
+             "read); a click with no receipt is maybe-sent with the board and the time; the board list is read "
+             "again and only a new topic whose text is the subject is the receipt; the same draft is not sent "
+             "again for 30 min; a Chrome that cannot start is chrome-start. The real flow drives a board made of "
+             "strings, no Chrome."),
+    Gate("test_no_d2jsp_cookie_copy_or_window_outlives_a_read",
+         [sys.executable, os.path.join(HERE, "test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py")], 60,
+         needs_app=False,
+         why="REG-2491 / REG-2492 / REG-2493 (#112, #83) - a cookie read copied his whole Chrome cookie database "
+             "into $TMPDIR (removed only in a finally); pgrep read the sweep's pattern as an option, so no stale "
+             "Chrome was ever killed; a need-login price read brought his Chrome to the front with no click. The "
+             "read is in memory, the sweep removes and counts cookie copies and kills only an exact profile, the "
+             "room's login check sweeps, a price read opens nothing, and a scratch Chrome in flight at exit is "
+             "ended."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
