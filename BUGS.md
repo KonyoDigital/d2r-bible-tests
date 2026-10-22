@@ -70,8 +70,8 @@ the poll, the Last-scan card); the next Scan with nothing new offers them as '�
 what it means - New registers what it reads, Latest N and Skip register the new files as v224 always did, '♻ Read again' leaves them
 new (and says so). A mark is merged into the ledger as it is at that moment (_seenRegister), never the scan's stale snapshot written
 back over reads that landed meanwhile, and never over a record. The poll still never reads a gone file on its own.
-GUARD: tv/test_a_scan_reads_what_it_marks.py (5 cases, 6 RED proofs) runs the shipped scan code in node over a stubbed folder - on
-the pre-fix page 4 of its 5 cases are red. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+GUARD: tv/test_a_scan_reads_what_it_marks.py (5 cases, 6 RED proofs, heart2 6/6 PROVEN) runs the shipped scan code in node over a
+stubbed folder - on the pre-fix page 4 of its 5 cases are red. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
 
 ### REG-2404 - A MAGIC & RARE TOSS CAME BACK AS "1 ITEM YOU OWN" FOR GOOD (review of REG-2400)
 
@@ -86,7 +86,8 @@ carries the Magic & Rare record (batch.magic) and vaultRestoreLast puts it back,
 name; a keeper Magic & Rare held alone gets the per-name removal note, so his ✕ is on record either way and a frame that read it is
 'removed', never read again over it. Swept the other doors that clear a Magic & Rare record (the vault audit's fixes, _vpDrop, the
 runeword migration): each keeps the item in another home or takes the owned name too - only the ✕ left a leftover.
-GUARD: tv/test_every_removal_door_leaves_his_word.py (toss, toss-alone, toss -> reload -> not kept, undo whole; 9 RED proofs in all).
+GUARD: tv/test_every_removal_door_leaves_his_word.py (toss, toss-alone, toss -> reload -> not kept, undo whole; 10 RED proofs in all,
+heart2 10/10 PROVEN).
 Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
 
 ### REG-2405 - HIS UN-TICK AND HIS SOCKET-COUNT FIX WERE NOT ON RECORD, SO A RE-READ BROUGHT THE ITEM BACK (review of REG-2401)
@@ -110,8 +111,9 @@ reads an 'unknown' file, M4 the base-copy branch counts a second copy off the sa
 prev: null, M7 the card no longer says a file was read again - each now turns a node law red (re-run of the reviewer's M1-M8 against
 all six V1a laws: 8 of 8 caught).
 GUARD: tv/test_every_removal_door_leaves_his_word.py (6 cases, the real toggleOwned / vaultFixSockets / vaultThrowFind / _vpDrop /
-vaultRemove / vaultRestoreLast cut from the page; 9 RED proofs) and tv/test_a_reread_is_the_same_file.py (6 cases: vaultIntake's
-filter, per-file line, data.items loop, base-copy branch and Last-scan note cut from the page; 11 RED proofs). Browser half (CI):
+vaultRemove / vaultRestoreLast cut from the page; 10 RED proofs) and tv/test_a_reread_is_the_same_file.py (6 cases: vaultIntake's
+filter, per-file line, data.items loop, base-copy branch and Last-scan note cut from the page; 11 RED proofs) - heart2 21/21 PROVEN.
+Browser half (CI):
 tests/reg2400_reload_keeps_what_he_owns.spec.ts.
 LEFT: a no-proof TV unvault (lane 'tv-unvault' without a frame) and the seed-cleanse / backfill-undo lanes are not his word by
 doctrine (H-1, M-3), so a frame that read such a name still reads 'gone' and is re-read - the doctrine's choice, not changed here. The
