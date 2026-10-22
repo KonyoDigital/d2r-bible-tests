@@ -10937,6 +10937,41 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_maybe_sent_post_is_never_shown_as_unsent",
+         [sys.executable, os.path.join(HERE, "test_a_maybe_sent_post_is_never_shown_as_unsent.py")], 60,
+         needs_app=False,
+         why="REG-2500 (#106 page side) - both d2jsp send paths kept their own reason map and fell back to 'nothing was "
+             "posted' for every reason they did not name, the console's maybe-sent included, which is what sends the "
+             "second click and the duplicate topic. One map (sendWords) now gives every reason in the console's contract "
+             "its own words; a maybe is headed Maybe sent, links the board and never says nothing was posted. Runs the "
+             "room's own click handler in node for both paths."),
+    Gate("test_a_price_read_on_another_board_is_not_the_post_price",
+         [sys.executable, os.path.join(HERE, "test_a_price_read_on_another_board_is_not_the_post_price.py")], 60,
+         needs_app=False,
+         why="REG-2501 (#113) - prices are read on board 243 and posts go to 268 / 271, two economies; with no typed "
+             "price the four post callers used the board-243 median as his asking price. A reading is the post price only "
+             "when read on the post board (d2jspQuotedForBoard); the price line names its board. Node, the room's own code."),
+    Gate("test_the_d2jsp_desk_forks_with_the_profile",
+         [sys.executable, os.path.join(HERE, "test_the_d2jsp_desk_forks_with_the_profile.py")], 60,
+         needs_app=False,
+         why="REG-2502 (#114) - the six desk stores were shared by main (268) and ladder (271), so a ladder post overwrote "
+             "the saved topic and the next main post started a second one. They fork per profile now; the real router "
+             "and the real room run in node and the raw store is read key by key; a guest main keeps its pre-fork values."),
+    Gate("test_a_good_mf_never_turns_odds_into_a_percent",
+         [sys.executable, os.path.join(HERE, "test_a_good_mf_never_turns_odds_into_a_percent.py")], 60,
+         needs_app=False,
+         why="REG-2503 (#63) - one number carried two units split at 50, so a good MF printed Nagelring's 1:49 as '49%' "
+             "and dropped its 1:70 from the ranking. An event drop is a probability in (0,1], every other chance odds "
+             ">= 1 (isEventP); keys sit on Hell only with their card's band, Annihilus is 100%. The drop engine, BOSSES and "
+             "renderDetail itself run in node; the expected odds are computed in Python from PLAYER_Q."),
+    Gate("test_no_codex_number_contradicts_its_own_table",
+         [sys.executable, os.path.join(HERE, "test_no_codex_number_contradicts_its_own_table.py")], 60,
+         needs_app=False,
+         why="REG-2504..REG-2506 (#62 #68 #69, his 10-22 vanilla ruling) - Level-0 procs, notes whose absorb or "
+             "skill-count claim is not their own table's (56 rewritten or trimmed, both copies), three essence rates, "
+             "'Colossal Ancient Jewels' shown where the game says Colossal Jewels, the Summoner's two Hell levels, "
+             "Pindleskin's two ceilings, Bone Ash's unheld TC, Uber Duriel's 'Cold immune' beside a 75 resist. Swept, "
+             "not pinned: every codex proc level against its hover card, every note claim against its table."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
