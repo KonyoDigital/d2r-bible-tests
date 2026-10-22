@@ -13,7 +13,8 @@ pointer absolute and one relative - and runs the module itself in a subprocess i
   3. every checkout's rows are folded: a worktree's extra row arrives, a row one checkout holds twice is held twice, a
      row with no newline is closed, no source is written, and a second fold adds nothing; a row old code appends to a
      checkout's file later is folded the next time;
-  4. the first import in a process folds (the module run in the fixture, its env seam unset);
+  4. the first READ in a process folds (the module run in the fixture, its env seam unset) - and importing
+     alone writes nothing under git's dir;
   5. `--gate` reads the machine's ledger and ignores TV_SECOND_EYE_LEDGER, which still names a fixture without it.
 Nothing of his is read or written: every path is under this law's scratch, and every git variable a hook could leak is
 scrubbed from the subprocesses. RED_PROOF below.
@@ -182,20 +183,27 @@ class TheSecondEyeLedgerIsOnePerMachine(unittest.TestCase):
         self.assertIn(later, _lines(self.m.ledger))
 
     # 4 ---------------------------------------------------------------------------------------------------------------
-    def test_the_first_import_in_a_process_folds_every_checkout(self):
+    def test_the_first_read_in_a_process_folds_every_checkout(self):
         a, extra = _row("v0011", 1000), _row("v0012", 2000)
         _write(self.m.own(self.m.main), [a])
         _write(self.m.own(self.m.wt2), [a, extra])
         self.m.install(self.m.wt1)
-        out = subprocess.run([sys.executable, "-c", "import second_eye_ledger as L; print(L.LEDGER_PATH)"],
-                             cwd=os.path.join(self.m.wt1, "tv"), env=_clean_env(), capture_output=True,
-                             text=True, encoding="utf-8", errors="replace", timeout=60)
+        prog = ("import os, second_eye_ledger as L\n"
+                "print(L.LEDGER_PATH)\n"
+                "print('AFTER-IMPORT', os.path.exists(L.LEDGER_PATH))\n"
+                "print('ROWS', len(L._rows()))\n")
+        out = subprocess.run([sys.executable, "-c", prog], cwd=os.path.join(self.m.wt1, "tv"), env=_clean_env(),
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
         self.assertEqual(out.returncode, 0, out.stderr[-800:])
-        self.assertEqual(os.path.realpath(out.stdout.strip()), os.path.realpath(self.m.ledger),
+        said = out.stdout.splitlines()
+        self.assertEqual(os.path.realpath(said[0]), os.path.realpath(self.m.ledger),
                          "the module run in a worktree did not resolve the machine's ledger: %r" % out.stdout)
-        self.assertTrue(os.path.isfile(self.m.ledger), "importing the module folded nothing into the machine's ledger")
+        self.assertEqual(said[1], "AFTER-IMPORT False",
+                         "importing the module already wrote under git's dir - the gate ledger never carries a law "
+                         "that reads git's own files, and ~36 laws import this module only for fixtures")
+        self.assertEqual(said[2], "ROWS 2", "the first read did not see every checkout's rows: %r" % said)
         self.assertEqual(sorted(_lines(self.m.ledger)), sorted([a, extra]),
-                         "the first resolution in a process did not fold every checkout's rows in")
+                         "the first read in a process did not fold every checkout's rows in")
 
     # 5 ---------------------------------------------------------------------------------------------------------------
     def test_the_gate_reads_the_machine_ledger_and_ignores_the_variable(self):
