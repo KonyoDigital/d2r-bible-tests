@@ -46,8 +46,13 @@ test('v1812 — a scrollable strip fades the side that has more tabs', async ({ 
   }, null, { timeout: 15000 });
 
   // scrolled to the very start: tabs exist to the RIGHT only
-  await page.evaluate(() => { (document.querySelector('.tabs') as HTMLElement).scrollLeft = 0; });
-  await page.waitForTimeout(300);
+  // a deferred load step scrolls the ACTIVE tab into view (left ~274) and can land after our reset,
+  // which made this test flaky (CI run 39807016744). Re-park at 0 until the strip stays there.
+  for (let i = 0; i < 10; i++) {
+    await page.evaluate(() => { (document.querySelector('.tabs') as HTMLElement).scrollLeft = 0; });
+    await page.waitForTimeout(300);
+    if ((await edge(page)).left === 0) break;
+  }
   let e = await edge(page);
   expect(e.max, 'the 375px row must actually be scrollable, or this test proves nothing').toBeGreaterThan(1);
   expect(e.edge).toBe('start');

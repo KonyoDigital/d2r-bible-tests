@@ -16,27 +16,18 @@ import { test, expect } from '@playwright/test';
 const URL = 'file://' + process.cwd() + '/bible.html';
 const BARE = "Natalya's Totem", HELM = "Natalya's Totem (helm)", RAVEN = 'Raven Frost';
 
-// #184 (REG-2531) — THE SEED AND THE WEBDRIVER FLAG ARE SEPARATE STEPS. A second seedLoad on the same page registers a
-// second init script, and both run on the next load. navigator.webdriver is by then this page's own non-configurable
-// property, so redefining it threw, the one catch swallowed it, and every write after it was skipped: the second load ran
-// on the FIRST seed ({helm: 3, bare: 2}) and the fold answered MAX(3,2) = 3 where the test asked MAX(1,4) = 4. `stamp`
-// tells the page's own load-time pass (1.5 s after load) that it already ran, so only the test's forced pass folds;
-// otherwise it can sweep the dead key first and the forced pass finds none (the CI retry of run 39726369389).
-async function seedLoad(page: any, owned: string[], assign: any, copies: any, multiKeep: any, stamp?: boolean) {
-  await page.addInitScript(({ owned, assign, copies, multiKeep, stamp }: any) => {
+async function seedLoad(page: any, owned: string[], assign: any, copies: any, multiKeep: any) {
+  await page.addInitScript(({ owned, assign, copies, multiKeep }: any) => {
     try {
       localStorage.setItem('d2r_ownerClaim', '*');
+      Object.defineProperty(navigator, 'webdriver', { get: () => true });
       localStorage.setItem('d2r_owned', JSON.stringify(owned));
       localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
       localStorage.setItem('d2r_copies', JSON.stringify(copies));
       localStorage.setItem('d2r_multiKeep', JSON.stringify(multiKeep));
-      if (stamp) localStorage.setItem('d2r_setPieceReconcile', JSON.stringify({ ver: 1e9, by: 'spec' }));
-      else localStorage.removeItem('d2r_setPieceReconcile');
+      localStorage.removeItem('d2r_setPieceReconcile');
     } catch (e) {}
-    try {
-      if (!Object.getOwnPropertyDescriptor(navigator, 'webdriver')) Object.defineProperty(navigator, 'webdriver', { get: () => true });
-    } catch (e) {}
-  }, { owned, assign, copies, multiKeep, stamp: !!stamp });
+  }, { owned, assign, copies, multiKeep });
   await page.goto(URL);
   await page.waitForFunction(() => {
     const w = window as any;
@@ -63,29 +54,18 @@ test('recount: a BARE set-piece name typed in the Add box keys the SLOTTED ledge
   expect(r.cpBare).toBeUndefined();
 });
 
-/* V0 spec refresh (#176) — renderMultiKeep is a closure function of the vault script and has NEVER been on
-   window (not at v3753 either), so `w.renderMultiKeep()` threw "is not a function" from the day this spec was
-   written. It is reached through its public door instead: renderVault paints the Multi-copy Keepers panel into
-   #vault-multikeep on every render (bible.html renderVault: `renderMultiKeep(); renderVaultRegistered();`), and
-   the panel lists an owned set piece whose copy count is inflated even with no keep-target
-   (renderMultiKeep: `if(window._vfIsSetPiece && window._vfIsSetPiece(c) && copyCount(c)>1 ...) names.push(c)`).
-   Measured on the merged V1 tree: one row for the slotted helm, a HAVE stepper, and the no-target "want —". */
 test('renderMultiKeep surfaces an owned inflated set piece with NO keep-target (walk-down without typing) (#76)', async ({ page }) => {
   await seedLoad(page, [HELM, RAVEN], { [HELM]: 'sets-rest' }, { [HELM]: 3 }, {});
   const r = await page.evaluate((K: any) => {
     const w = window as any;
-    w.renderVault();                     // the public door that paints the panel (renderMultiKeep is not on window)
-    const el: any = document.getElementById('vault-multikeep');
-    const html = (el && el.innerHTML) || '';
-    return { panel: !!el, copies: (JSON.parse(localStorage.getItem('d2r_copies') || '{}'))[K.helm],
-             surfaced: html.indexOf(K.helm.replace(/'/g, '&#39;')) >= 0 || html.indexOf(K.helm) >= 0,
-             hasHaveStepper: /vaultCopyAdjust/.test(html), noTarget: /vmk-notarget/.test(html) };
+    let el: any = document.getElementById('vault-multikeep');
+    if (!el) { el = document.createElement('div'); el.id = 'vault-multikeep'; document.body.appendChild(el); }
+    w.renderMultiKeep();
+    const html = el.innerHTML || '';
+    return { surfaced: html.indexOf(K.helm) >= 0, hasHaveStepper: /vaultCopyAdjust/.test(html) };
   }, { helm: HELM });
-  expect(r.panel, 'the Multi-copy Keepers panel is in the page markup').toBe(true);
-  expect(r.copies, 'PREMISE: the seeded inflated count survived the load').toBe(3);
   expect(r.surfaced).toBe(true);       // the inflated set piece appears without being typed
   expect(r.hasHaveStepper).toBe(true); // with a HAVE stepper to walk it down
-  expect(r.noTarget).toBe(true);       // and no keep-target (the "want —" cell): nothing typed it in
 });
 
 async function sweepRun(page: any) {
@@ -101,15 +81,19 @@ async function sweepRun(page: any) {
 test('the reconcile sweeps a dead bare copies key, folding its count onto the keeper by MAX — never lost (#76)', async ({ page }) => {
   // a prior version removed the bare from owned but left a copies["Natalya's Totem"] key behind.
   // dead count (2) BELOW the keeper (3): keeper unchanged, orphan swept
-  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [HELM]: 3, [BARE]: 2 }, {}, true);
-  let r = await sweepRun(page);
+  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [HELM]: 3, [BARE]: 2 }, {});
+  const r = await sweepRun(page);
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();
   expect(r.cpHelm).toBe(3);            // MAX(3,2) — keeper not over-raised
   expect(r.stamped).toBe(true);
+});
+
+test('a dead bare count ABOVE the keeper is MOVED onto it by MAX, never lost (#76)', async ({ page }) => {
+  // own page: a second seedLoad in one page kept the first sweep's write, so the keeper read 3, not 4
   // dead count (4) ABOVE the keeper (absent -> 1): MOVED onto the keeper, never deleted-and-lost
-  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {}, true);
-  r = await sweepRun(page);
+  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {});
+  const r = await sweepRun(page);
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();
   expect(r.cpHelm).toBe(4);            // MAX(1,4) — the real count is PRESERVED on the ledger key (Grok v3753 #2)

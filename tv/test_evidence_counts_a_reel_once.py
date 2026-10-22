@@ -76,10 +76,17 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # REG-2371 - RE-AIMED (Dean diff 02). REG-2036 put `r = _evidence_reel_id(...)` in front of this key, and it
+        # already spells a bare "s_..." as "reel_s_...", so dropping _rk() alone changed nothing: this proof stayed GREEN
+        # on every PC (BLIND on his Mac's census and on Dean's), and under the one-blind-shuts-all rule that one record
+        # shut every lock on both. The tamper now restores the whole defect - the raw spelling, unnormalised, as the
+        # key - which is what the law exists to catch.
         "why": "the reel list keys on the raw spelling, so one reel is listed and witnessed twice",
         "file": "control_app.py",
-        "find": "            if r and _rk(r) not in _reel_keys:\n                _reel_keys.add(_rk(r))\n",
-        "replace": "            if r and r not in _reel_keys:\n                _reel_keys.add(r)\n",
+        "find": "            r = _evidence_reel_id(sg.get(\"reel\"))\n"
+                "            if r and _rk(r) not in _reel_keys:\n                _reel_keys.add(_rk(r))\n",
+        "replace": "            r = sg.get(\"reel\")\n"
+                   "            if r and r not in _reel_keys:\n                _reel_keys.add(r)\n",
         "matches": 1,
     },
 ]

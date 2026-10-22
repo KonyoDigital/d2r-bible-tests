@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3784",
+  "ver": "v3788",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3784: T1 REG-2340, 2341, 2342 and T2 REG-2350, 2351, 2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359 (Push A1)",
+  "note": "v3788: REG-2556 to 2558 from the Grok CLI look on v3787, REG-2559 a triage law never launches claude (189)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

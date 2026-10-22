@@ -112,14 +112,18 @@ RED_PROOF = [
      "find": "    try { return typeof magicFinds === 'object' && !!magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n); }\n",
      "replace": "    try { return false; }\n",
      "matches": 1},
+    # REG-2376 - RE-AIMED at the branch this law reaches. v3767 homes an auto-sorted item through the records seam
+    # and writes no `assign` (test_his_auto_sort_click_fills_the_mules asserts it), so after the hand auto-sort
+    # _vaultWhereIs answers Grief and Obedience from its "would" branch, which packs the cell itself. Both proofs
+    # deleted the FILED branch's cell lines, which no case here reaches: each stayed green, BLIND on his census.
     {"why": "REG-2020 - the finder names no shared-tab cell",
      "file": "bible.html",
-     "find": "            pk.placed.forEach(function(p){ if (!out.cell && p.n === nm) out.cell = pages[i].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });\n",
+     "find": "            pkW.placed.forEach(function(p){ if (!outW.cell && p.n === nm) outW.cell = pagesW[iw].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-2020 - the finder names no mule-stash cell",
      "file": "bible.html",
-     "find": "            (mu.stash || []).forEach(function(p){ if (!out.cell && p.n === nm) out.cell = tag + 'Personal stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });\n",
+     "find": "            (mu.stash || []).forEach(function(p){ if (!outW.cell && p.n === nm) outW.cell = tagW + 'Personal stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-2020 - armour his MAIN wears is offered a mule in the finder",

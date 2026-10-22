@@ -332,6 +332,13 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
     A real edit still blocks. A history that cannot fast-forward is not reset.
     """
 
+    def setUp(self):
+        # REG-2360 - inside a git hook GIT_DIR points at the REAL repo and beats cwd= and -C: `_repo` and
+        # `_fresh` committed into his push branch, and test_an_unreadable_tree_is_not_called_clean read the real repo
+        # where it expects no repo at all. Dropped for THIS class's tests only; addCleanup puts them back.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
+
     def test_the_byte_rule_matches_the_console(self):
         import launcher_pull as lp
         pairs = [(b"a\n", b"a\r\n"), (b"a\nb", b"a\r\nb"), (b"a\n", b"b\n"), (b"", b"")]

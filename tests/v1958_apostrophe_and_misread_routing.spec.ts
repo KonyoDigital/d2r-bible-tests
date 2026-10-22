@@ -34,29 +34,24 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * SEEN RED: with the v1958 changes reverted, the first test fails on 158 of 206 names.
  */
 
-test('★★★ Gheed’s Fortune goes to its charm mule whichever apostrophe reads it', async ({ page }) => {
+test('★★★ Gheed’s Fortune is muled the same whichever apostrophe reads it', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);
 
   /* The single highest-consequence member of the 39, and it deserves its own assertion because the
-     sweep above would still pass if this one rule broke in some other way. With a curly apostrophe it
-     once routed `uni-weap` while the straight read went elsewhere — one byte moved the charm, and
-     nothing on his screen would say so.
-
-     V0 spec refresh (#176) — WHERE it goes is his ruling, and it changed. REG-2241, 2026-10-15
-     (verbatim): "torches and anni stay in shared. gheeds gets muled." suggestMule's shared branch
-     names only Annihilus and Hellfire Torch, so Gheed's Fortune falls through to its grand-charm mule:
-     uni-small, "jewelry/charm — base: Grand Charm" (measured on the merged V1 tree for BOTH bytes). It
-     no longer parks on MAIN as __keep. The law this test exists for is unchanged: the curly read lands
-     exactly where the straight read lands. */
+     sweep above would still pass if this one rule broke in some other way. KEEP_IN_INVENTORY exists
+     because the charm only works on the character actively playing. With a curly apostrophe it
+     routed `uni-weap` instead of `__keep` — muling it is not an untidy filing, it is moving the item
+     somewhere it does nothing, and nothing on his screen would say so. */
   const r = await page.evaluate(() => {
     const w: any = window;
     const p = (n: string) => { try { return w.suggestMule(n); } catch (e) { return null; } };
     return { straight: p("Gheed's Fortune"), curly: p('Gheed’s Fortune') };
   });
 
-  expect(r.straight?.id, "his ruling: Gheed's gets muled — to its charm mule (REG-2241)").toBe('uni-small');
-  expect(r.curly?.id, 'a curly apostrophe must route the charm exactly where the straight one does').toBe(r.straight?.id);
+  // REG-2241 (Elad): "gheeds gets muled" - both apostrophes reach the same small-charm mule
+  expect(r.straight?.id).toBe('uni-small');
+  expect(r.curly?.id, 'a curly apostrophe must route like the straight one').toBe('uni-small');
 });
 
 test('★★★ a curly apostrophe routes to the same mule as a straight one', async ({ page }) => {

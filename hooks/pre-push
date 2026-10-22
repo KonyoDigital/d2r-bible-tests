@@ -36,6 +36,52 @@ REPO="$(git rev-parse --show-toplevel)" || exit 1
 _PP_T0=$SECONDS
 _pp_el() { local s=$((SECONDS - _PP_T0)); printf '%dm%02ds' $((s / 60)) $((s % 60)); }
 
+# REG-2395 - WHAT THIS PUSH SHIPS IS ASKED ONCE, HERE, BEFORE THE SCRUB BELOW, AND HANDED ON BY VALUE. The tv-suites lane
+# asked `git diff @{push}..` itself, with no fallback and no word when it failed. MEASURED on speed/push-a2 (upstream
+# origin/main, pushed as HEAD:main, push.default unset): `@{push}` -> "cannot resolve 'simple' push to a single
+# destination", so test_agent, test_control, test_folder_scans, test_tz_art and both chronicle suites were skipped
+# without a line. The base comes in the changed-law block's order - @{push}, else origin/main - with every `git -c` the
+# push was given still in force: TV_PUSH_BASE (a commit; EMPTY = UNKNOWN) and TV_PUSH_RANGE (the words a line prints).
+# Law: test_a_leaked_git_dir_never_writes_the_real_repo (TheTvLaneReadsAKnownRangeOrRuns).
+# >>> push-range
+TV_PUSH_BASE=""
+if _pr_b="$(git rev-parse --verify --quiet '@{push}' 2>/dev/null)" && [ -n "$_pr_b" ]; then
+  TV_PUSH_BASE="$_pr_b"
+  TV_PUSH_RANGE="@{push}..HEAD (@{push} = $(git rev-parse --abbrev-ref '@{push}' 2>/dev/null))"
+elif _pr_b="$(git rev-parse --verify --quiet 'origin/main' 2>/dev/null)" && [ -n "$_pr_b" ]; then
+  TV_PUSH_BASE="$_pr_b"
+  TV_PUSH_RANGE="origin/main..HEAD (@{push} does not resolve)"
+else
+  TV_PUSH_RANGE="UNKNOWN - neither @{push} nor origin/main resolves"
+fi
+export TV_PUSH_BASE TV_PUSH_RANGE
+# <<< push-range
+
+# REG-2360 - NO STAGE OF THIS HOOK INHERITS GIT'S POINTER AT THE REAL REPO. Git runs a pre-push hook with
+# GIT_DIR exported (absolute, `<main>/.git/worktrees/<name>`, when the push comes from a linked worktree), and GIT_DIR
+# beats cwd= in every git child. MEASURED on the v3783 pushes: a law that `git init`s a temp repo committed two fixture
+# commits onto the push branch (pushes #10 and #11 refused), and a `git init --bare` in another rewrote his live
+# checkout's common config to core.bare=true - every git command in his main tree dead for 2.5 h. The hook reads the
+# one thing it needs from that pointer (the git dir, handed to the commit-stamps law by name), then unsets every
+# variable git itself calls local to a repository (`git rev-parse --local-env-vars`) before any stage runs. Its own
+# git calls lose nothing: git starts a hook at the top of the work tree, and discovery from there finds the same repo.
+# ⚠ REG-2394 - EXCEPT THE PUSH'S OWN OPTIONS. `git -c k=v push` reaches this hook in GIT_CONFIG_PARAMETERS (and
+# `GIT_CONFIG_COUNT=n GIT_CONFIG_KEY_i/VALUE_i` in COUNT), and git's list names both, so the first cut unset them:
+# MEASURED on a throwaway repo, `git -c push.default=upstream push origin HEAD:main` had @{push} = origin/main before the
+# loop and "cannot resolve" after it, and every later stage ran without the caller's -c. They carry options, never a
+# pointer at a repository, so they stay (KEY_i/VALUE_i are not on git's list and were only orphaned by losing COUNT).
+# A suite this hook runs itself keeps the push's options and never a pointer; a law heart2, run_gates, suite_verdict or
+# shard_suite starts loses every GIT_* whoever started it (REG-2396).
+# Law: test_a_leaked_git_dir_never_writes_the_real_repo.
+# >>> scrub-git-env
+TV_PUSHED_GIT_DIR="$(git rev-parse --absolute-git-dir 2>/dev/null)"
+export TV_PUSHED_GIT_DIR
+for _pp_v in $(git rev-parse --local-env-vars 2>/dev/null) GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; do
+  case "$_pp_v" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) continue ;; esac
+  unset "$_pp_v"
+done
+# <<< scrub-git-env
+
 # REG-1258 — THE GATE'S BROWSER PORT IS CHOSEN, NEVER ADOPTED. Everything below (the render block,
 # render_check._chrome_up(), crest_loudness, every suite that renders) asked "does something answer
 # on :9224?" and, if so, USED it. MEASURED 2026-09-24 before a push: another Claude session's
@@ -232,7 +278,10 @@ fi
 # possible moment to discover a missing one-line import — and the crash it prevents happens WHILE
 # REPORTING a failure, so on his cp1255 Windows console a clean tree exits non-zero for a reason
 # that has nothing to do with what was being checked.
-# It is the same definition (console_safe.audit), not a copy: test_control calls it too.
+# It is the same definition (console_safe.audit), not a copy: tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py
+# calls it too. REG-2362 moved that case out of test_control; it lists tv/ for its denominator, so no stage of this
+# hook runs it, and THIS step is the audit's push-time run. The enable()-never-raises case stayed in test_control,
+# which the tv suites stage below runs.
 if ! python3 "$REPO/tv/console_safe.py"; then
   echo "pre-push: [$(_pp_el)] ❌ a script prints non-ASCII and never makes stdout encoding-safe — push blocked."
   echo "          Reproduce: python3 tv/console_safe.py"
@@ -272,6 +321,22 @@ fi
 # this file documents at the top: with the lines in a variable, nothing a gate child does to stdin
 # can leave the loop at EOF.
 _PUSH_REFS="$(cat)"
+# REG-2360 - THE PUSHED COMMIT, BY NAME. TestTheStampsAgreeInTheCOMMITNotJustTheWorktree asks what the bytes
+# being PUSHED say. In heart2's sandbox from a worktree (then a copy with no .git) it reached that commit only through
+# the GIT_DIR this hook now unsets; the sandbox's own history (REG-2364) holds HEAD, and the pushed commit need not be
+# HEAD. So it is handed the commit instead: the local sha pushed to main, else the first ref that ships bytes,
+# else HEAD. A deletion ships nothing. With TV_PUSHED_GIT_DIR it is read by `git --git-dir=... show <sha>:<path>`.
+# >>> pushed-commit
+TV_PUSHED_COMMIT=""
+while read -r _pc_lr _pc_ls _pc_rr _pc_rs; do
+  [ -n "$_pc_ls" ] || continue
+  [ "$_pc_ls" = "0000000000000000000000000000000000000000" ] && continue
+  if [ "$_pc_rr" = "refs/heads/main" ]; then TV_PUSHED_COMMIT="$_pc_ls"; break; fi
+  [ -n "$TV_PUSHED_COMMIT" ] || TV_PUSHED_COMMIT="$_pc_ls"
+done <<< "$_PUSH_REFS"
+[ -n "$TV_PUSHED_COMMIT" ] || TV_PUSHED_COMMIT="$(git rev-parse --verify -q HEAD 2>/dev/null)"
+export TV_PUSHED_COMMIT
+# <<< pushed-commit
 # >>> ci-only lane (#182, his go 2026-10-06) — A PUSH WHOSE EVERY REF IS refs/heads/ci/* IS GRADED ON GITHUB.
 # tv/push_lane.py reads the refs being PUSHED (never the current branch) and fails toward the FULL gate: one
 # ref that is not ci/* - main above all, even a deletion of main - runs everything below exactly as before.
@@ -750,6 +815,217 @@ else:
   fi
 
 
+# ══ REG-2361 — FAIL FAST: EVERY STAGE THAT CAN REFUSE IN MINUTES RUNS BEFORE THE PROVING STAGE ═══════════════════
+# MEASURED on the v3783 series (2026-10-21): push 10 proved for 65.7 min, then the sharded test_control suite (126.9 s)
+# refused it at 72m37s on a duplicate REG number; push 11 was refused by the same suite at 10m28s. Two of six attempts
+# paid the whole proving stage to learn what a two-minute suite already knew. The argument that moved the render gate
+# (#42 P5) moves these too: the red-proof anchors, review-lite, visual-lock, the boss portraits and the tv suites with
+# their carry now run right after the console demos, and the changed laws are proved LAST. ⚠ A MOVE, NOT A CHANGE:
+# each block below is byte for byte what it was - its trigger, its bound, its verdict and its `exit 1` - and the
+# proving stage keeps its own. Law: test_the_render_gate_runs_before_the_proving_stage (the order case).
+
+# ══ v3469 — EVERY PUSH CHECKS EVERY RED-PROOF ANCHOR, NOT ONLY THE CHANGED LAWS' ════════════════
+# The changed-law block below re-proves a law only when its TEST file is in the push. A proof lives in one test
+# file and anchors on a line in ANOTHER, so an ordinary edit to that line never names the proof —
+# and it silently changes nothing while the law reads as proven. FOUR on 2026-09-24 (v3455, v3456,
+# v3462, v3464 — REG-1163). The census case knew every one; it never ran here. ~5s.
+# ⚠ Its reach: an anchor that matches NOTHING (INVALID). A proof that still matches and no longer
+# turns red (BLIND) needs a full `heart2 --prove`. ⚠ TOP LEVEL ON PURPOSE — inside the changed-
+# tests block it would skip exactly the pushes that edit only the code a proof pins.
+if ! gate_run "red-proof anchors" "python3 tv/test_the_heart_can_see_its_own_instruments.py TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed" 120 -- \
+     python3 "$REPO/tv/test_the_heart_can_see_its_own_instruments.py" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed; then
+  echo "          ↑ a red-proof's anchor no longer matches the file it tampers — usually an ordinary"
+  echo "            edit to a line ANOTHER gate's proof pins (REG-1163). Re-anchor it to the SAME"
+  echo "            property; never delete the proof to get green."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ every declared red-proof still matches its anchor."
+
+if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
+  echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
+  echo "            actually does. Fix it, or say why it is now correct, then push again."
+  exit 1
+fi
+
+if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" 120 -- \
+     python3 "$REPO/visual_lock_invariant.py"; then
+  echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ visual-lock intact."
+
+# v1643 — BOSS-PORTRAIT gate (instant, pure stdlib): the twelve boss thumbnails must still be the
+# BYTES A HUMAN OPENED (art/boss_portraits.manifest.json pins each sha256 next to a sentence saying
+# what that human saw), and bible.html's BOSS_PORTRAIT map must serve exactly those files. Mephisto
+# shipped as a blue soulstone and Diablo as a leather book for seven weeks (v269 → v1636) with every
+# automated check green — the path resolved, naturalWidth was > 0 — so this gate exists because "it
+# loads" was never evidence that it is the right picture.
+#
+# It is here because REG-130: the script had ZERO callers. It passed its own tests and guarded
+# nothing. A checker nobody has watched fail from its wired path is not known to be a gate.
+if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list to see what each depicts)" 120 -- \
+     python3 "$REPO/art/verify_boss_portraits.py"; then
+  echo "          ↑ a boss thumbnail is not the picture a human blessed, or bible.html and the"
+  echo "            manifest disagree. OPEN the image before re-blessing any hash."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
+
+# v3768 — a stored PASS carries when its commit is an ancestor of HEAD and git says none of
+# its inputs moved. A miss, a missing ledger and a corrupt ledger all fall through and the gate runs.
+# FAIL is never stored. --record stores a PASS only when suite_verdict already proved these bytes,
+# and (REG-2293 r5) only with a trace of what the run read. REG-2293 r6: a suite this hook runs
+# fresh runs traced (`gate_ledger.py --trace-env`) and is recorded with `--trace`; a reused verdict
+# had no run here, so it has no trace and stores nothing (it prints why).
+ledger_carry() {
+  python3 "$REPO/tv/gate_ledger.py" --carry "$1"
+}
+
+# v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
+# no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
+# REG-2395 - AND IT IS NEVER SKIPPED ON AN UNKNOWN, NOR IN SILENCE. Its trigger was `git diff --name-only @{push}..`
+# alone: where @{push} did not resolve the diff failed, grep matched nothing, and every suite in this lane was skipped
+# with no line (the changed-law block below already fell back and said so; this lane did neither). It reads the range
+# the push-range block resolved at the top (@{push}, else origin/main..HEAD). A range that cannot be read RUNS the
+# lane, and every outcome names the range it read. Law: test_a_leaked_git_dir_never_writes_the_real_repo.
+# >>> tv-lane
+_tv_lane=""
+if [ -z "${TV_PUSH_BASE:-}" ]; then
+  _tv_lane="unknown"
+elif _tv_files="$(git diff --name-only "${TV_PUSH_BASE}..HEAD" 2>/dev/null)"; then
+  printf '%s\n' "$_tv_files" | grep -qE '^tv/.*\.py$' && _tv_lane="touched"
+else
+  _tv_lane="unknown"
+fi
+if [ "$_tv_lane" = "touched" ]; then
+  echo "pre-push: [$(_pp_el)] tv/ python touched in ${TV_PUSH_RANGE:-?} — running the agent+control suites…"
+elif [ "$_tv_lane" = "unknown" ]; then
+  echo "pre-push: [$(_pp_el)] ⚠ what this push changes cannot be read (${TV_PUSH_RANGE:-no range}), so the tv suites"
+  echo "          RUN - an UNKNOWN range is never a skip (REG-2395)."
+else
+  echo "pre-push: [$(_pp_el)] ⏭  no tv/*.py changed in ${TV_PUSH_RANGE:-?} - the tv suites do not run."
+fi
+# <<< tv-lane
+if [ -n "$_tv_lane" ]; then
+  # #42 lever 2 (REG-1720) — A GREEN SUITE RUN IS REUSED ONLY ON IDENTICAL BYTES. MEASURED on v3556's push: these two
+  # suites were 10m26s of 17m16s, re-running a commit that had already passed them. tv/suite_verdict.py reuses a green
+  # run keyed on the commit's git tree (every tracked file unchanged, same python/platform, younger than 6 h) - one made
+  # when the commit was (`suite_verdict.py --run`) or by an earlier push of the same bytes; a run of these bytes still in
+  # flight is waited for. Anything else runs the suite here, as before. CI still runs both suites in full after the push.
+  # SUITE_VERDICT_REUSE=0 git push closes it for one push.
+  _carry_line="$(ledger_carry test_agent)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_agent carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if python3 "$REPO/tv/suite_verdict.py" --check test_agent --wait 900; then
+      echo "pre-push: [$(_pp_el)] ✅ test_agent: a green run of these exact bytes was reused (the line above names it)."
+      python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
+    else
+      # REG-2293 r6 - the run is traced, so --record can store what it read (a reuse above has no run, so no trace).
+      _tr="$(python3 "$REPO/tv/gate_ledger.py" --trace-path)"
+      if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py" ); then
+        rm -f "$_tr"
+        exit 1
+      fi
+      python3 "$REPO/tv/suite_verdict.py" --record test_agent || true
+      python3 "$REPO/tv/gate_ledger.py" --record test_agent --trace "$_tr" || true
+      rm -f "$_tr"
+    fi
+  fi
+  # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
+  # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
+  # those two numbers does not catch a hung suite - it blocks every push he makes while he
+  # is playing, which is most of them, and the message says HUNG when nothing hung.
+  # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
+  # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
+  _carry_line="$(ledger_carry test_control)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_control carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if python3 "$REPO/tv/suite_verdict.py" --check test_control --wait 1500; then
+      echo "pre-push: [$(_pp_el)] ✅ test_control: a green run of these exact bytes was reused (the line above names it)."
+      python3 "$REPO/tv/gate_ledger.py" --record test_control || true
+    else
+      # #42 lever 4 (2026-10-02) - AS PARALLEL SHARDS. Measured per class: one case was 271.6 s of 435.6 s (fixed in the
+      # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
+      # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
+      # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
+      _tr="$(python3 "$REPO/tv/gate_ledger.py" --trace-path)"
+      if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control ); then
+        rm -f "$_tr"
+        exit 1
+      fi
+      python3 "$REPO/tv/suite_verdict.py" --record test_control || true
+      python3 "$REPO/tv/gate_ledger.py" --record test_control --trace "$_tr" || true
+      rm -f "$_tr"
+    fi
+  fi
+  # REG-2362 - THE CASES THAT LEFT test_control TO LET IT BE KEYED STILL STOP A PUSH. test_control listed folders at
+  # 40 sites, so heart2 could never save one of its proofs; the cases that genuinely read what a folder holds (an
+  # unregistered suite, an import CI lacks, a pkill, a paid lane, the art corpus, the footage detectors) moved to
+  # tv/test_folder_scans.py, byte for byte. They ran here inside test_control, so they run here still - same lane,
+  # same refusal. ~10 s. No --record: like test_tz_art below, run_gates stores what it actually runs.
+  _carry_line="$(ledger_carry test_folder_scans)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_folder_scans carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_folder_scans" "python3 tv/test_folder_scans.py" 600 -- python3 "$REPO/tv/test_folder_scans.py"; then
+      exit 1
+    fi
+  fi
+  # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
+  # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
+  # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.
+  _carry_line="$(ledger_carry test_tz_art)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_tz_art carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
+      exit 1
+    fi
+    # No --record here. These three have no suite_verdict, and --record must not mint a PASS
+    # the hook merely claims it ran. run_gates stores them after it actually runs them.
+  fi
+  # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
+  # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
+  # straight out of control_app.py and execs it, so v1830 adding the reader stamp to a seal broke it
+  # instantly — and nothing local said a word, because tv-tests.yml is the only thing that runs it.
+  # v1830..v1838 all shipped over a red gate nobody was looking at.
+  # Both suites are pure stdlib and finish in well under a second together, so the fast lane stays
+  # fast. [[feedback-ci-verdict-before-seal]]
+  _carry_line="$(ledger_carry test_chronicle_retro)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_chronicle_retro carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
+         python3 "$REPO/tv/test_chronicle_retro.py"; then
+      exit 1
+    fi
+  fi
+  _carry_line="$(ledger_carry test_chronicle_seal)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_chronicle_seal carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
+         python3 "$REPO/tv/test_chronicle_seal.py"; then
+      exit 1
+    fi
+  fi
+  echo "pre-push: [$(_pp_el)] ✅ tv suites green."
+fi
+
 # ══ v3292 — A CHANGED LAW MUST DEMONSTRATE IT CAN STILL GO RED ════════════════════════════════
 # A red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause
 # it targeted, and the law stayed GREEN — it had been asserting phrases that occur three times
@@ -809,6 +1085,27 @@ PYGATE
     echo "          exercised. THIS IS A SKIP, NOT A PASS."
   else
     _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
+    # REG-2361 — WHAT THE PROVING STAGE IS ABOUT TO COST, SAID BEFORE IT STARTS. `heart2 --forecast` reads the keys and
+    # the red memory and prints, per gate, what will hit, narrow, run in full or cannot be keyed - and runs nothing. It
+    # is a preview, never a verdict: bounded at 120 s, and any exit but 0 (a tree whose heart2 predates the flag says
+    # "unrecognized arguments" and exits 2) is ONE line and the proving goes on. Nothing in this block may refuse a push.
+    # >>> forecast
+    _fc_log="${TMPDIR:-/tmp}/d2r-forecast.$$.log"
+    perl -e 'my $t = shift; my $p = fork; die "fork: $!" unless defined $p;
+             if (!$p) { exec @ARGV; exit 127 }
+             $SIG{ALRM} = sub { kill "TERM", $p; waitpid($p, 0); exit 142 };
+             alarm $t; my $r; do { $r = waitpid($p, 0) } while ($r == -1 && $!{EINTR}); my $st = $?; alarm 0;
+             exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));' 120 \
+         python3 "$REPO/tv/heart2.py" --forecast $_gates </dev/null >"$_fc_log" 2>&1
+    _fc_rc=$?
+    if [ "$_fc_rc" -eq 0 ]; then
+      echo "pre-push: [$(_pp_el)] forecast for the proving stage (tv/heart2.py --forecast):"
+      sed 's/^/          /' "$_fc_log"
+    else
+      echo "pre-push: [$(_pp_el)] ⚠ no forecast (tv/heart2.py --forecast exit ${_fc_rc}: $(tail -1 "$_fc_log" 2>/dev/null | cut -c1-120)) - not a refusal; proving goes on."
+    fi
+    rm -f "$_fc_log"
+    # <<< forecast
     # #42 — --push, and ONLY on this call: a red-proof that declares the widths its defect shows at runs its clean and
     # tampered runs only there (one that declares none runs at every width); the proofs likeliest to fail run first
     # and the run STOPS at the first BLIND / INVALID / clean-run red; a gate that starts a browser is proved one at a
@@ -830,171 +1127,6 @@ PYGATE
       exit 1
     fi
   fi
-fi
-
-# ══ v3469 — EVERY PUSH CHECKS EVERY RED-PROOF ANCHOR, NOT ONLY THE CHANGED LAWS' ════════════════
-# The block above re-proves a law only when its TEST file is in the push. A proof lives in one test
-# file and anchors on a line in ANOTHER, so an ordinary edit to that line never names the proof —
-# and it silently changes nothing while the law reads as proven. FOUR on 2026-09-24 (v3455, v3456,
-# v3462, v3464 — REG-1163). The census case knew every one; it never ran here. ~5s.
-# ⚠ Its reach: an anchor that matches NOTHING (INVALID). A proof that still matches and no longer
-# turns red (BLIND) needs a full `heart2 --prove`. ⚠ TOP LEVEL ON PURPOSE — inside the changed-
-# tests block it would skip exactly the pushes that edit only the code a proof pins.
-if ! gate_run "red-proof anchors" "python3 tv/test_the_heart_can_see_its_own_instruments.py TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed" 120 -- \
-     python3 "$REPO/tv/test_the_heart_can_see_its_own_instruments.py" TestHeartSeesItsInstruments.test_every_declared_red_proof_is_well_formed; then
-  echo "          ↑ a red-proof's anchor no longer matches the file it tampers — usually an ordinary"
-  echo "            edit to a line ANOTHER gate's proof pins (REG-1163). Re-anchor it to the SAME"
-  echo "            property; never delete the proof to get green."
-  exit 1
-fi
-echo "pre-push: [$(_pp_el)] ✅ every declared red-proof still matches its anchor."
-
-if ! gate_run "review-lite" "python3 tv/review_lite.py" 120 -- python3 "$REPO/tv/review_lite.py"; then
-  echo "          ↑ a live-state path, tolerance, cap or reader guard drifted from what the code"
-  echo "            actually does. Fix it, or say why it is now correct, then push again."
-  exit 1
-fi
-
-if ! gate_run "visual-lock" "python3 visual_lock_invariant.py   (see LOCKED_TYPE_SYSTEM.md)" 120 -- \
-     python3 "$REPO/visual_lock_invariant.py"; then
-  echo "          ↑ a raw font-weight/spacing literal crept in (or a token went missing)."
-  exit 1
-fi
-echo "pre-push: [$(_pp_el)] ✅ visual-lock intact."
-
-# v1643 — BOSS-PORTRAIT gate (instant, pure stdlib): the twelve boss thumbnails must still be the
-# BYTES A HUMAN OPENED (art/boss_portraits.manifest.json pins each sha256 next to a sentence saying
-# what that human saw), and bible.html's BOSS_PORTRAIT map must serve exactly those files. Mephisto
-# shipped as a blue soulstone and Diablo as a leather book for seven weeks (v269 → v1636) with every
-# automated check green — the path resolved, naturalWidth was > 0 — so this gate exists because "it
-# loads" was never evidence that it is the right picture.
-#
-# It is here because REG-130: the script had ZERO callers. It passed its own tests and guarded
-# nothing. A checker nobody has watched fail from its wired path is not known to be a gate.
-if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list to see what each depicts)" 120 -- \
-     python3 "$REPO/art/verify_boss_portraits.py"; then
-  echo "          ↑ a boss thumbnail is not the picture a human blessed, or bible.html and the"
-  echo "            manifest disagree. OPEN the image before re-blessing any hash."
-  exit 1
-fi
-echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
-
-# v3768 — a stored PASS carries when its commit is an ancestor of HEAD and git says none of
-# its inputs moved. A miss, a missing ledger and a corrupt ledger all fall through and the gate runs.
-# FAIL is never stored. --record stores a PASS only when suite_verdict already proved these bytes,
-# and (REG-2293 r5) only with a trace of what the run read. REG-2293 r6: a suite this hook runs
-# fresh runs traced (`gate_ledger.py --trace-env`) and is recorded with `--trace`; a reused verdict
-# had no run here, so it has no trace and stores nothing (it prints why).
-ledger_carry() {
-  python3 "$REPO/tv/gate_ledger.py" --carry "$1"
-}
-
-# v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
-# no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
-if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
-  echo "pre-push: [$(_pp_el)] tv/ python touched — running the agent+control suites…"
-  # #42 lever 2 (REG-1720) — A GREEN SUITE RUN IS REUSED ONLY ON IDENTICAL BYTES. MEASURED on v3556's push: these two
-  # suites were 10m26s of 17m16s, re-running a commit that had already passed them. tv/suite_verdict.py reuses a green
-  # run keyed on the commit's git tree (every tracked file unchanged, same python/platform, younger than 6 h) - one made
-  # when the commit was (`suite_verdict.py --run`) or by an earlier push of the same bytes; a run of these bytes still in
-  # flight is waited for. Anything else runs the suite here, as before. CI still runs both suites in full after the push.
-  # SUITE_VERDICT_REUSE=0 git push closes it for one push.
-  _carry_line="$(ledger_carry test_agent)"
-  _carry_rc=$?
-  if [ "$_carry_rc" -eq 0 ]; then
-    echo "pre-push: [$(_pp_el)] test_agent carried: $_carry_line"
-  else
-    echo "pre-push: [$(_pp_el)] $_carry_line"
-    if python3 "$REPO/tv/suite_verdict.py" --check test_agent --wait 900; then
-      echo "pre-push: [$(_pp_el)] ✅ test_agent: a green run of these exact bytes was reused (the line above names it)."
-      python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
-    else
-      # REG-2293 r6 - the run is traced, so --record can store what it read (a reuse above has no run, so no trace).
-      _tr="$(python3 "$REPO/tv/gate_ledger.py" --trace-path)"
-      if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py" ); then
-        rm -f "$_tr"
-        exit 1
-      fi
-      python3 "$REPO/tv/suite_verdict.py" --record test_agent || true
-      python3 "$REPO/tv/gate_ledger.py" --record test_agent --trace "$_tr" || true
-      rm -f "$_tr"
-    fi
-  fi
-  # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
-  # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
-  # those two numbers does not catch a hung suite - it blocks every push he makes while he
-  # is playing, which is most of them, and the message says HUNG when nothing hung.
-  # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
-  # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
-  _carry_line="$(ledger_carry test_control)"
-  _carry_rc=$?
-  if [ "$_carry_rc" -eq 0 ]; then
-    echo "pre-push: [$(_pp_el)] test_control carried: $_carry_line"
-  else
-    echo "pre-push: [$(_pp_el)] $_carry_line"
-    if python3 "$REPO/tv/suite_verdict.py" --check test_control --wait 1500; then
-      echo "pre-push: [$(_pp_el)] ✅ test_control: a green run of these exact bytes was reused (the line above names it)."
-      python3 "$REPO/tv/gate_ledger.py" --record test_control || true
-    else
-      # #42 lever 4 (2026-10-02) - AS PARALLEL SHARDS. Measured per class: one case was 271.6 s of 435.6 s (fixed in the
-      # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
-      # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
-      # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
-      _tr="$(python3 "$REPO/tv/gate_ledger.py" --trace-path)"
-      if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control ); then
-        rm -f "$_tr"
-        exit 1
-      fi
-      python3 "$REPO/tv/suite_verdict.py" --record test_control || true
-      python3 "$REPO/tv/gate_ledger.py" --record test_control --trace "$_tr" || true
-      rm -f "$_tr"
-    fi
-  fi
-  # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
-  # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
-  # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.
-  _carry_line="$(ledger_carry test_tz_art)"
-  _carry_rc=$?
-  if [ "$_carry_rc" -eq 0 ]; then
-    echo "pre-push: [$(_pp_el)] test_tz_art carried: $_carry_line"
-  else
-    echo "pre-push: [$(_pp_el)] $_carry_line"
-    if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
-      exit 1
-    fi
-    # No --record here. These three have no suite_verdict, and --record must not mint a PASS
-    # the hook merely claims it ran. run_gates stores them after it actually runs them.
-  fi
-  # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
-  # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
-  # straight out of control_app.py and execs it, so v1830 adding the reader stamp to a seal broke it
-  # instantly — and nothing local said a word, because tv-tests.yml is the only thing that runs it.
-  # v1830..v1838 all shipped over a red gate nobody was looking at.
-  # Both suites are pure stdlib and finish in well under a second together, so the fast lane stays
-  # fast. [[feedback-ci-verdict-before-seal]]
-  _carry_line="$(ledger_carry test_chronicle_retro)"
-  _carry_rc=$?
-  if [ "$_carry_rc" -eq 0 ]; then
-    echo "pre-push: [$(_pp_el)] test_chronicle_retro carried: $_carry_line"
-  else
-    echo "pre-push: [$(_pp_el)] $_carry_line"
-    if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
-         python3 "$REPO/tv/test_chronicle_retro.py"; then
-      exit 1
-    fi
-  fi
-  _carry_line="$(ledger_carry test_chronicle_seal)"
-  _carry_rc=$?
-  if [ "$_carry_rc" -eq 0 ]; then
-    echo "pre-push: [$(_pp_el)] test_chronicle_seal carried: $_carry_line"
-  else
-    echo "pre-push: [$(_pp_el)] $_carry_line"
-    if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
-         python3 "$REPO/tv/test_chronicle_seal.py"; then
-      exit 1
-    fi
-  fi
-  echo "pre-push: [$(_pp_el)] ✅ tv suites green."
 fi
 cd "$REPO" || exit 1
 

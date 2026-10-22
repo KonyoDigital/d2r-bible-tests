@@ -24,10 +24,8 @@ test('high-value items auto-route to SHARED, laid on the tab for their slot (#26
   await page.evaluate(() => (window as any).switchTab('tools'));
   const r = await page.evaluate(() => {
     const w = window as any;
-    // The "high value auto-routes to SHARED" rule is verified with a genuine high-value SHARED item (Arachnid Mesh).
-    // V0 spec refresh (#176) — REG-2241, his ruling 2026-10-15 (verbatim): "torches and anni stay in shared. gheeds
-    // gets muled." Annihilus is no longer a v409 MAIN keeper (__keep): suggestMule's explicit branch
-    // (`/^(Annihilus|Hellfire Torch)$/` → {id:'shared'}) puts it in the shared stash, on the charm tab below.
+    // v409: Annihilus / Torch / Gheed's are NEVER-MULE keepers (__keep — kept on your active character), so the
+    // "high value auto-routes to SHARED" rule is verified with a genuine high-value SHARED item (Arachnid Mesh).
     const routes = { anni: w.suggestMule('Annihilus').id, arachnid: w.suggestMule('Arachnid Mesh').id, wf: w.suggestMule('Windforce').id };
     w.openMuleCard('shared');
     const counts: number[] = [];
@@ -35,7 +33,7 @@ test('high-value items auto-route to SHARED, laid on the tab for their slot (#26
     return { routes, counts };
   });
   expect(errs).toEqual([]);
-  expect(r.routes.anni, 'REG-2241: Annihilus stays in the shared stash').toBe('shared');
+  expect(r.routes.anni).toBe('shared');        // REG-2241: torches and anni stay in shared
   expect(r.routes.arachnid).toBe('shared');    // high trade value → auto-routes to SHARED
   expect(r.routes.wf).not.toBe('shared');
   // #264 (REG-2019) — the 5 tabs are laid out BY SLOT: Crown of Ages (a helm) on tab 2, Arachnid Mesh (a belt) on

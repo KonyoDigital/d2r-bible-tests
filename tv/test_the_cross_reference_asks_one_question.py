@@ -48,6 +48,7 @@ import os
 import re
 import sys
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -77,6 +78,28 @@ def _js_code(src):
 
 
 class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
+
+    def _constructed_roster(self, n=12):
+        """REG-2375 - THE UNIVERSE CASES DRIVE A ROSTER THEY BUILT, NEVER ONE THEY FIND.
+
+        They asked surface_pairs() for the uniques roster size and SKIPPED when it answered nothing. On his census
+        (2026-10-21, 2 of 18 cases SKIPPED) the roster read nothing in that proving sandbox - a lane its neighbours had
+        already run in - so the one case that catches proof [4] never ran, the other 16 stayed green, and the proof
+        read BLIND: a skip filed as a law that cannot go red, and one BLIND held every lock. The subject is the
+        exclusion's reason, not his roster, so the roster is constructed here and fed through the one reader both
+        surface_pairs() and mask_cross_check() use (fleet_mask.load_roster_for). -> its length"""
+        names = ["law roster name %02d" % i for i in range(n)]
+        real = FM.load_roster_for
+
+        def _fake(ledger):
+            return (list(names), "law-roster") if str(ledger or "").strip().lower() == "uniques" else real(ledger)
+        patch = mock.patch.object(FM, "load_roster_for", _fake)
+        patch.start()
+        self.addCleanup(patch.stop)
+        got = [p.get("maskRosterN") for p in (LA.surface_pairs() or []) if p.get("ledger") == "uniques"]
+        self.assertEqual([n], got, "PREMISE: surface_pairs() did not read the constructed roster, so the live path "
+                                   "below would not be the one this law grades: %r" % got)
+        return n
 
     # ── ⚠⚠ THE LAW: ONE QUESTION, PROVEN BY THE REPO'S OWN DETECTOR ───────────────────────────
     def test_every_ledger_reads_the_SAME_store_on_both_sides(self):
@@ -304,12 +327,7 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
         It now DRIVES the live path with a constructed fleet rather than waiting for his data to
         produce a disagreement, and asserts both numbers.
         [[gate-blind-to-unexercised-input]] [[zero-needs-a-denominator]] [[the-unjoined-end]]"""
-        roster_n = None
-        for p in (LA.surface_pairs() or []):
-            if p.get("ledger") == "uniques" and isinstance(p.get("maskRosterN"), int):
-                roster_n = p["maskRosterN"]
-        if roster_n is None:
-            self.skipTest("no uniques roster size on this venue, so the live path cannot be driven")
+        roster_n = self._constructed_roster()          # REG-2375 - never a skip
 
         #: a machine posting a total that disagrees with the roster — the ONE state that must
         #: produce an auditable exemption. The mask is irrelevant here: the row is excluded before
@@ -341,12 +359,7 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
         """⚠ THE OTHER SIDE. A law that only ever sees the exclusion cannot tell a working gate
         from one that excludes everything — and excluding everything is exactly how the cross-check
         went DARK before v2947. [[feedback-blind-fixture-green-gate]]"""
-        roster_n = None
-        for p in (LA.surface_pairs() or []):
-            if p.get("ledger") == "uniques" and isinstance(p.get("maskRosterN"), int):
-                roster_n = p["maskRosterN"]
-        if roster_n is None:
-            self.skipTest("no uniques roster size on this venue")
+        roster_n = self._constructed_roster()          # REG-2375 - never a skip
         fleet = {"online": [{"machine": "testbox", "nickname": "testbox",
                              "tally": {"uniques": {"have": 7, "total": roster_n}},
                              #: ⚠ the mask must be a DICT — mask_cross_check skips the row before the universe
@@ -468,8 +481,14 @@ RED_PROOF = [
         #: hardcoded `_tot = None` — so the proof could never go red and heart2 called the whole
         #: gate BLIND, which closed all ten self-arming locks. The universe question moved per-ROW
         #: into mask_cross_check; this now tampers the reason that actually gets built.
-        "find": '"%s posts %s out of %d while the %s mask can only represent %d roster names, "',
-        "replace": '"%s posts %s while the %s mask can only represent %d roster names, "',
+        #: ⚠ REG-2398 — AND IT WENT RED BY CRASHING. It dropped ` out of %d` and left `_rowTot` in the argument tuple, so
+        #: the `%` raised TypeError (measured by the cross-family review: 0 failures, 2 ERRORS) and the assertion this
+        #: proof exists for - the reason names BOTH numbers - never ran. The tamper now drops the placeholder AND its
+        #: argument together, the way a real edit would: the reason is built, and the law fails on it.
+        "find": '"%s posts %s out of %d while the %s mask can only represent %d roster names, "\n'
+                '                    "so their counts are not comparable" % (who, t.get("have"), _rowTot, led,\n',
+        "replace": '"%s posts %s while the %s mask can only represent %d roster names, "\n'
+                   '                    "so their counts are not comparable" % (who, t.get("have"), led,\n',
         "matches": 1,
     },
 ]

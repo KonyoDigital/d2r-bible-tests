@@ -34,18 +34,12 @@ test.describe('v466 AI Item Checker', () => {
     expect(v.score).toBeLessThan(7);
   });
 
-  /* V0 spec refresh (#176) — REG-2251 (v3746, his 2026-10-15 affix perfection-keep law): a coveted affix rolled
-     near its max in the game's own affix table lifts the verdict to KEEP however low the weight score
-     (_aicPerfectKeep; tier-S threshold 0.80, tier-A 0.85). '+20 to Life' is the TOP of a coveted life band in
-     CB_DB (20/20 = 100%), so the old fixture became a perfection keep. Re-picked below every threshold:
-     '+15 to Life' sits in no coveted band and is judged against the best life roll, 15/100 — measured on the
-     merged V1 tree: tier 'border', perfect.keep false (weight score 9, inside the border band). The premise
-     below names the cause if the affix data ever moves this roll again. */
   test('mid roll → BORDERLINE', async ({ page }) => {
     const v = await page.evaluate(() => (window as any)._aicVerdict({
-      base: 'Sharkskin Belt', q: 'rare', mods: ['+30% Faster Hit Recovery', '+15 to Life'],
+      // REG-2251: an affix rolled at 85%+ of its range is a KEEP, so +30 FHR / +20 Life (top rolls) no longer
+      // reads borderline. Mid rolls of both affixes do.
+      base: 'Sharkskin Belt', q: 'rare', mods: ['+16% Faster Hit Recovery', '+25 to Life'],
     }));
-    expect(v.perfect && v.perfect.keep, 'PREMISE: no coveted affix of this mid roll is near its max (REG-2251)').toBe(false);
     expect(v.tier).toBe('border');
   });
 

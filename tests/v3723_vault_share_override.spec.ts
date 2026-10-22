@@ -40,14 +40,10 @@ test('unchecking a default-shared item removes it from the shared stash', async 
 });
 
 // A default-mule item, force-checked, BECOMES shared.
-// V0 spec refresh (#176) — REG-2242, his ruling (mercenary gear lives in the shared stash): Andariel's Visage is
-// MERC_GEAR, so its rule default is now 'shared' and it can no longer be the default-mule case. Re-anchored on a
-// med-tier helm that is NOT merc gear and still mules by default: Nightwing's Veil (rules → uni-armor, measured on
-// the merged V1 tree). Shako, the triage's suggestion, is HIGH trade value and already shared by default.
 test('force-checking a default-mule item puts it in the shared stash', async ({ page }) => {
-  const M = "Nightwing's Veil";
+  const M = "Arreat's Face";   // REG-2242 made merc gear (Andariel's Visage) shared by rule; a med-tier helm stays mule
   const def = await page.evaluate((n: string) => (window as any)._shareDefault(n), M);
-  expect(def, 'precondition: the rules do NOT share this (med tier, not merc gear)').toBe('mule');
+  expect(def, 'precondition: the rules do NOT share this (med tier)').toBe('mule');
   expect(await routeOf(M)(page), 'default route is not shared').not.toBe('shared');
 
   const eff = await page.evaluate((n: string) => (window as any)._setShareOverride(n, 'shared'), M);

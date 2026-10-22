@@ -135,8 +135,18 @@ def _prove(book, gate):
         os.remove(trace)
 
 
+def _drop_git_env(case):
+    """REG-2360 / REG-2392 - a push from a LINKED WORKTREE runs the hook with GIT_DIR exported (absolute,
+    <main>/.git/worktrees/<name>), and GIT_DIR beats cwd= and -C: `_tree`'s throwaway `git init` / `config` / `add` /
+    `commit` would re-initialise the REAL repo's common config (core.bare=true) and write its index and push branch, and
+    the ledger's own git calls would answer for the real repo. Dropped for THIS case only; addCleanup puts them back."""
+    _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+    case.addCleanup(os.environ.update, _gitenv)
+
+
 class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def setUp(self):
+        _drop_git_env(self)
         self.held = _Env(GITHUB_ACTIONS=None, GATE_LEDGER=None,
                          TV_SELF_ARMING_LEDGER=os.path.join(tempfile.mkdtemp(prefix="gledger-arm."), "arm.json"))
         self.held.__enter__()
@@ -763,6 +773,7 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
     against are the ones its passing run read (stored with the PASS) together with today's walk."""
 
     def setUp(self):
+        _drop_git_env(self)
         self.held = _Env(GITHUB_ACTIONS=None, GATE_LEDGER=None)
         self.held.__enter__()
         self.addCleanup(self.held.__exit__, None, None, None)
@@ -814,16 +825,31 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertIn("maybe_gl.py", why or "")
 
     def test_a_submodule_served_from_a_cached_pyc_is_an_input(self):
-        """r5 B: with __pycache__ warm, importlib opens only the .pyc, so the .py read was never seen."""
+        """r5 B: with the bytecode cache warm, importlib opens only the .pyc, so the .py read was never seen.
+
+        The cache is warmed under a prefix this case owns, set for the whole case, so a trace run that lost
+        LEDGER-TRACE-NOPYC reads exactly the cache warmed here. It was `__pycache__`, and his Mac's python3 has a
+        BUILT-IN pycache_prefix (~/Library/Caches/com.apple.python; an empty PYTHONPYCACHEPREFIX does not clear it):
+        there `__pycache__` is never written, so this premise failed on every run on his Mac."""
         law = ("import importlib, os\n"
                "m = importlib.import_module('pkg_gl.sub' + '_gl')\n"
                "os._exit(0 if m.OK else 1)\n")
         root, led = self._tree({"t_pyc.py": law}, {"tv/pkg_gl/__init__.py": "", "tv/pkg_gl/sub_gl.py": "OK = True\n"})
         gate = _gate(root, "t_pyc.py")
+        prefix = tempfile.mkdtemp(prefix="gl-pyc.")
+        self.addCleanup(shutil.rmtree, prefix, True)
+        held = _Env(PYTHONPYCACHEPREFIX=prefix)
+        held.__enter__()
+        self.addCleanup(held.__exit__, None, None, None)
         warm = subprocess.run(list(gate.argv), cwd=root, capture_output=True,
-                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE="", PYTHONPYCACHEPREFIX=""))
+                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE=""))
         self.assertEqual(warm.returncode, 0, "PREMISE: the gate is not green")
-        self.assertTrue(os.path.isdir(os.path.join(root, "tv", "pkg_gl", "__pycache__")), "PREMISE: no .pyc cache")
+        # realpath: python puts a script's own folder on sys.path resolved (/var is /private/var on his Mac)
+        pyc = subprocess.run([sys.executable, "-c", "import importlib.util, sys; "
+                              "print(importlib.util.cache_from_source(sys.argv[1]))",
+                              os.path.realpath(os.path.join(root, "tv", "pkg_gl", "sub_gl.py"))],
+                             capture_output=True, encoding="utf-8", errors="replace", env=dict(os.environ)).stdout.strip()
+        self.assertTrue(pyc.startswith(prefix) and os.path.isfile(pyc), "PREMISE: no .pyc cache (%s)" % pyc)
         self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
         _write(root, "tv/pkg_gl/sub_gl.py", "OK = False\n")
         _commit(root, "break the submodule")
@@ -1122,6 +1148,9 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
 
 
 class TheRunnerSeparatesFreshFromCarried(unittest.TestCase):
+    def setUp(self):
+        _drop_git_env(self)
+
     def test_the_ledger_file_is_not_blamed_as_live_state(self):
         import run_gates as rg
         root = tempfile.mkdtemp(prefix="gledger-watch.")

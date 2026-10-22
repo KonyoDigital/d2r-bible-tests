@@ -273,11 +273,14 @@ class TheLockDerivesFromTheHeart(unittest.TestCase):
         checkout, CI and the Windows machine all stamp fresh mtimes, so every gate read as newer
         than the census, every lock closed, and --prove reported this very gate UNPROVABLE because
         it was already red in its own copy. A rule that only holds in the tree that wrote it is not
-        a rule. The bar is a CONTENT fingerprint, which survives copying. [[stale-reading]]"""
-        real = _real_census()
-        if real is None:
-            self.skipTest("no census on this machine")
-        st = json.loads(real)
+        a rule. The bar is a CONTENT fingerprint, which survives copying. [[stale-reading]]
+
+        ⚠⚠ REG-2365 — BUILT HERE, NEVER READ FROM HIS CENSUS, FOR v2866's REASON. This case read the live census and
+        skipped without one, and it is the ONE catcher of red-proof [2]. A heart2 sandbox carried his census only by
+        accident (safe_copy copies gitignored files); once make_sandbox stopped carrying live run records, the case
+        skipped in both runs and [2] read BLIND (MEASURED on the REG-2365 branch). The census below is current by
+        construction and then made stale - the only variable this law changes is its own."""
+        st = _census_the_heart_would_call_CURRENT()
         st["gatesFingerprint"] = "0" * 32          # a census proved against DIFFERENT instruments
         with _Census(json.dumps(st)):
             ok, why = SA._heart_says_watched()

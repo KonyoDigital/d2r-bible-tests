@@ -9893,6 +9893,13 @@ window._lockMark = function(isOpen, px, label){
          pointer, so the card hides, exactly as it always has on scroll. [[copy-drift]] [[the-unjoined-end]] */
       reglue: function(){
         if (!sayHost || !el) return this.hide();
+        /* REG-2554 (v3787) - a scroll inside the ~380ms warm-up (prose tip asked for, not painted yet) took the
+           item-card exit below and killed the tip before it opened. A pending prose tip has no rect to go stale:
+           keep it if its host is still on the page, and the timer paints it anchored to the CURRENT rect. */
+        if (sayTimer && !el.classList.contains('tip-say')){
+          if (!sayHost.isConnected) return this.hide();
+          return;
+        }
         if (el.classList.contains('tip-say')){
           if (!sayHost.isConnected || sayHost.offsetParent === null) return this.hide();
           var r = sayHost.getBoundingClientRect();

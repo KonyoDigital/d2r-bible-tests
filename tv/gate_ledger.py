@@ -448,7 +448,7 @@ def head_sha(root):
         try:
             proc = subprocess.run(
                 ["git", "-C", cwd, "rev-parse", "HEAD"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15)
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, env=_git_free_env())
         except Exception:
             continue
         sha = (proc.stdout or "").strip()
@@ -457,11 +457,20 @@ def head_sha(root):
     return None
 
 
+def _git_free_env():
+    """REG-2396 - the environment of every process this file starts: run_gates.git_free_env, the one definition (no
+    GIT_* variable). `git -C <tree>` loses to a leaked GIT_DIR, and a carry decided on another checkout's history is a
+    PASS carried over bytes nobody proved. -> dict"""
+    import run_gates as _rg
+    return _rg.git_free_env()
+
+
 def _git(root, args):
     """One git invocation. -> CompletedProcess | None"""
     try:
         return subprocess.run(["git", "-C", root] + list(args),
-                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                              env=_git_free_env())
     except Exception:
         return None
 
@@ -1583,7 +1592,7 @@ def first_hit(inputs, listed, imports, changed, churn):
 def _node_version():
     try:
         proc = subprocess.run(["node", "--version"], capture_output=True, text=True,
-                              encoding="utf-8", errors="replace", timeout=10)
+                              encoding="utf-8", errors="replace", timeout=10, env=_git_free_env())
     except Exception:
         return None
     if proc.returncode != 0:

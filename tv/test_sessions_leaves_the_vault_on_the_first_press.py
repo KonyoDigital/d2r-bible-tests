@@ -87,8 +87,11 @@ def _ask(src):
         "    b.closest = function(sel){ return sel === '.ht' ? b : null; };\n"
         "    return b;\n"
         "  }\n"
+        # REG-2374 - A PRIMARY PRESS. #142 made the handler drop any pointerdown whose button is not 0, and this event
+        # carried no `button`, so every press here was dropped: one press + its click left once only because the
+        # press never counted, and deleting the click's `return` (proof [1]) changed nothing - BLIND on his census.
         "  function fire(type, b, ts){\n"
-        "    var e = { type: type, target: b, timeStamp: ts,\n"
+        "    var e = { type: type, target: b, timeStamp: ts, button: 0, ctrlKey: false,\n"
         "      preventDefault: function(){}, stopPropagation: function(){} };\n"
         "    (_ht.ls[type] || []).forEach(function(fn){ fn(e); });\n"
         "  }\n"
@@ -96,6 +99,9 @@ def _ask(src):
         "}\n"
         "var out = {};\n"
         "var h = boot();\n"
+        "h.fire('pointerdown', h.button('session'), 1000);\n"
+        "out.pressAlone = h.calls.slice();\n"
+        "h = boot();\n"
         "var s = h.button('session');\n"
         "h.fire('pointerdown', s, 1000);\n"
         "h.fire('click', s, 1200);\n"
@@ -146,6 +152,11 @@ class SessionsLeavesTheVaultOnTheFirstPress(unittest.TestCase):
         Two clicks on two tabs in the same instant both leave. A later click on the same tab leaves again."""
         got, err = _ask(_page())
         self.assertIsNotNone(got, err)
+        # REG-2374 - THE PREMISE: the press itself leaves. If the harness's press is ever dropped again, every case
+        # below passes for the wrong reason and proof [1] goes BLIND - so this is asserted first.
+        self.assertEqual(["session"], got["pressAlone"],
+                         "the harness's pointerdown did not leave on its own - the handler is not hearing it as a "
+                         "primary press, so the press-then-click case measures nothing: %r" % got["pressAlone"])
         self.assertEqual(["click", "pointerdown"], got["bound"],
                          "the header must hear the press and the click: %r" % got["bound"])
         self.assertEqual(["session"], got["pressThenClick"],

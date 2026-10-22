@@ -264,7 +264,15 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
           eval(%(owned_js)s); await wait(400); snap('the console owned_restore script');
           eval(%(rw_js)s); await wait(400); snap('the console rw_restore script');
           eval(%(sort_js)s); await wait(200); snap('the console vault_autosort script');
-          window.tvVaultRegister('Stormshield'); snap('the TV registrar with no witness');
+          /* REG-2372 - THE REGISTRAR RUNS ONLY WITH AUTO INTAKE ON. v3767 put an intake stop in front of it, so with
+             intake off (this world's default) a bare register returned 'auto-intake-off' before the registrar ever
+             ran: proof [1] tampered code this press could not reach and read BLIND on his census. Pressed here the
+             way his console runs it - intake on - and put back as it was. */
+          var _aiWas = window.LSR.getItem('d2r_vaultAutoIntake');
+          window.LSR.setItem('d2r_vaultAutoIntake', 'on');
+          OUT.reg = window.tvVaultRegister('Stormshield');
+          if (_aiWas == null) window.LSR.removeItem('d2r_vaultAutoIntake'); else window.LSR.setItem('d2r_vaultAutoIntake', _aiWas);
+          snap('the TV registrar with no witness');
           eval(%(tick_js)s); snap('the console LEDGER REPAIR register-as-owned press (board_tick owned)');
           try { window.kaiChroniclePropose([{ name: 'Nagelring', tier: 'grail', loc: 'stash', frameId: 'f_one.jpg',
                                               sessionId: 's_one', source: 'law' }]); } catch (e) {}
@@ -285,6 +293,12 @@ class FoundEverNeverFilesToAMule(unittest.TestCase):
         bad = [r for r in out["T"] if r["filed"] or r["prov"]]
         self.assertEqual([], bad, "A FOUND-EVER NAME REACHED A MULE — first trigger that filed: %s -> %s"
                          % ((bad[0]["trigger"], bad[0]["filed"][:6]) if bad else ("", "")))
+        # REG-2372 - the registrar was REACHED and refused for the witness, never stopped at the intake gate: a press
+        # that never reaches the door is the green that lies, and it is what left proof [1] BLIND.
+        reg = out.get("reg") or {}
+        self.assertEqual("witness", reg.get("refused"),
+                         "PREMISE: the TV registrar did not reach its own door with no witness - it answered %r, so "
+                         "the no-witness case measures nothing" % (reg,))
 
     def test_3_a_set_piece_restored_as_a_unique_goes_to_the_set_door(self):
         """L3 (board half). The 15:28:34 shape: every foundLog key sent as a unique, set pieces included."""
@@ -374,6 +388,7 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # REG-2372 - reachable again: the case presses the registrar with AUTO INTAKE on (the v3767 stop sat in front)
         "why": "#246 W1 - the TV registrar files with no witness again (the v2193 door that filed 112 Chronicle names)",
         "file": "bible.html",
         "find": "        _vf = witness ? window.vaultFile(name, _wG || witness, { mule: sg.id })\n",

@@ -74,6 +74,13 @@ import frame_authority as FA  # noqa: E402
 import retro_triage as RT  # noqa: E402
 import tv_diablo as TVD  # noqa: E402
 
+# #189 REG-2559 - NO LAW IN THIS FILE MAY REACH THE REAL CLAUDE CLI. farmgate_payload's d2r_window row asks the agent
+# probe, which ran `claude auth status` and then `claude -p "reply with only: ok"` on his plan (Opus), once per run of
+# test_a_cloud_route_pc_is_never_told_to_launch_d2r. Every case here sees "no Claude CLI on this machine"; a case
+# that needs one patches its own. Measured by TheClaudeCliIsNeverLaunched below.
+_NO_CLAUDE = mock.patch.object(ca, "_find_claude_bin", lambda *a, **k: None)
+_NO_CLAUDE.start()
+
 HOUR = 3600.0
 
 
@@ -1483,7 +1490,41 @@ class TheFarmGateAsksTheSameProbe(_Base):
         self.assertEqual(c["severity"], "warn")
 
 
+class TheClaudeCliIsNeverLaunched(unittest.TestCase):
+    """#189 REG-2559 - the farm-gate law runs with a tripwire `claude` first on PATH (and as ~/.local/bin/claude) and
+    the tripwire must never be called. Before the fix it logged `auth status --json` and `-p reply with only: ok`."""
+
+    def test_the_cloud_route_law_never_runs_claude(self):
+        if os.environ.get("TV_CLAUDE_TRIPWIRE"):
+            self.skipTest("inside the tripwire run")
+        import subprocess
+        root = tempfile.mkdtemp(prefix="claude_tripwire_")
+        self.addCleanup(shutil.rmtree, root, True)
+        log = os.path.join(root, "calls")
+        for d in (os.path.join(root, "bin"), os.path.join(root, "home", ".local", "bin")):
+            os.makedirs(d)
+            exe = os.path.join(d, "claude")
+            with open(exe, "w") as fh:
+                fh.write('#!/bin/sh\necho "$@" >> "%s"\necho "{}"\n' % log)
+            os.chmod(exe, 0o755)
+        env = dict(os.environ, PATH=os.path.join(root, "bin") + os.pathsep + os.environ.get("PATH", ""),
+                   HOME=os.path.join(root, "home"), TV_CLAUDE_TRIPWIRE="1")
+        name = "test_triage_runs_beside_a_shadow_reel.ReviewRoundTwo.test_a_cloud_route_pc_is_never_told_to_launch_d2r"
+        r = subprocess.run([sys.executable, "-m", "unittest", "-q", name], cwd=HERE, env=env,
+                           capture_output=True, text=True, timeout=600)
+        self.assertEqual(r.returncode, 0, "PREMISE: the cloud-route law itself failed:\n%s" % r.stderr[-1500:])
+        calls = open(log).read() if os.path.exists(log) else ""
+        self.assertEqual(calls, "", "a law in this file launched the real Claude CLI (his plan): %r" % calls[:300])
+
+
 RED_PROOF = [
+    {
+        "why": "#189 REG-2559 - the file stops hiding the Claude CLI: the cloud-route law runs the real `claude -p` again",
+        "file": "tv/test_triage_runs_beside_a_shadow_reel.py",
+        "find": "_NO_CLAUDE.start()\n",
+        "replace": "pass\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1949 - caught up stops resetting the relaunch count in memory: the next backlog inherits the old one's",
         "file": "tv/control_app.py",

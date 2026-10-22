@@ -674,20 +674,327 @@ GUARDS: NEW tv/test_the_vault_memo_changes_no_answer.py (4 cases; 8 RED_PROOFs -
 NOT FIXED HERE (it would change a result): _itemCells stores its final answer under the bare name even when the key carried a stored base, so a planner pick whose base _cbFoot cannot size leaves a guess cached under the bare name after the record is gone.
 
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
+### REG-2559 - A LAW SPENT HIS PLAN ON OPUS: THE CLOUD-ROUTE CASE RAN THE REAL `claude -p` (#189, GB-L, 2026-10-22, v3788)
 
-2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
-edited it, so for the first time its case test_a_named_file_git_does_not_track_is_not_a_key_input ran INSIDE the pre-push hook. Its
-throwaway repo ran `git init -q` and `git add kept.txt` with cwd= only; the hook's exported GIT_DIR/GIT_WORK_TREE override cwd= and -C,
-so `git init` re-initialised his main checkout's common config with core.bare=true (every git command there then refused: "this
-operation must be run in a work tree") and `git add` staged kept.txt into the push worktree's index. heart2's clean wave read the law
-ALREADY RED (git answered for the real repo, not the throwaway) and refused the push before any tamper. The integration pre-flight had
-passed because it ran outside a hook. The case existed on origin/main; it had simply never run in a push.
+test_triage_runs_beside_a_shadow_reel's test_a_cloud_route_pc_is_never_told_to_launch_d2r calls farmgate_payload,
+whose d2r_window row asks the agent probe. Nothing stubbed `_find_claude_bin`, so each run launched the real CLI:
+`claude auth status --json`, then `claude -p "reply with only: ok"` (measured with a tripwire binary). Fix: the file
+patches `_find_claude_bin` to None at import, and a case that needs a CLI patches its own. Law:
+TheClaudeCliIsNeverLaunched runs the cloud-route case with a tripwire `claude` first on PATH and in ~/.local/bin and
+asserts it was never called. RED_PROOF "#189 REG-2559" drops the patch and the tripwire logs both calls.
+
+### REG-2558 - A PERFECT BASE FILED FROM THE PLANNER RETURNED BEFORE IT WAS SAVED OR DRAWN (GB-L, 2026-10-22, v3788)
+
+Found by the Grok CLI second eye on v3787. The REG-2250 perfect-base branch of vaultPlannerFile returned early,
+before the tail every other filing runs: persistOwned, saveA, and `_vaultPlannerDirty = true` (the planner close
+draws the vault from that flag). A 4os Monarch filed in an open planner left the flag false. Fix: the branch owns
+the name, saves owned and assign, and marks the planner dirty (or draws the vault when no planner is open). _vpDrop
+still takes a fresh one back. Law: tests/v3746_perfect_base_auto_mules.spec.ts "a perfect base filed in an open
+planner is saved and marks the planner dirty". It is red with the 8 added lines removed.
+
+### REG-2557 - THE SCRUB READER BOUND A POINTER FIRST-WINS AND FROM A QUOTED MENTION (GB-L, 2026-10-22, v3788)
+
+Found by the Grok CLI second eye on v3787. REG-2552's variable follower kept the FIRST `v=NAME` anywhere in the hook,
+read it on the dequoted text, and counted any line naming `env` or `eval`. So `_n=GIT_DIR; _n=PATH; export "$_n=.."`
+and `echo '_n=GIT_DIR'; export "$_n=.."` reported a GIT_DIR export bash never makes, and `env echo "$_n"` was a hit.
+Fix: bindings are positional (the latest before the use wins) and only count at a statement start, and env counts
+only when the held name is assigned. Law: 5 new `_REACH` cases, 2 RED_PROOFs "REG-2557" (first-wins, any position).
+
+### REG-2556 - THE SCRUB READER KEPT THE $ OF A $'..' QUOTE, SO export $'GIT_DIR=..' READ CLEAN (GB-L, 2026-10-22, v3788)
+
+Found by the Grok CLI second eye on v3787. REG-2552's dequoted view dropped ' and " but left the $ that opens an
+ANSI-C or locale quote, so `export $'GIT_DIR=/tmp/x'`, `declare -x $"GIT_WORK_TREE=.."`, `env $'GIT_INDEX_FILE=..'`
+and the empty join `GIT_D$''IR` all read `$GIT_DIR` and the lookbehind rejected the name. Bash removes that $ with
+the quotes. Fix: the reader drops a $ that is directly followed by a quote. Law: 5 new `_REACH` cases in
+test_a_leaked_git_dir_never_writes_the_real_repo.py, RED_PROOF "REG-2556" puts the $ back and goes red.
+
+### REG-2555 - MAIN CI RED AT v3785: 20 SPECS STILL ASSERTED RETIRED RULES, ONE FLAKED ON A LATE SCROLL (GB-L, 2026-10-22, v3787)
+
+CI run 39807016744 (v3785) failed 30 Playwright tests across shards 1-8. The triage on #230 sorted them. This
+entry covers the STALE ones. Each spec now asserts the ruling that replaced the one it was written for:
+- REG-2241 (torches and anni stay in shared, gheeds gets muled): v1958, v203 taxonomy, v363, v3721, v3724, v3726 keeper.
+- REG-2242 (merc gear goes to shared): v203 Vampire Gaze, v3724 Visage. v3723 and v3726 now use Arreat's Face as
+  the med-tier mule precondition.
+- REG-2267 (a different pick in one planner open is a SWAP and takes back the swapped-away copy) supersedes the
+  REG-2227 expectation in v3740 and v3742 reroll. The python twin is griefAfterSwap in test_a_hand_added_item_stays_his.
+- L1 war cap (2026-10-20) and the 10-22 war-gear ruling retire "every copy on the war stash": v3737, v3738.
+- REG-2251 (an affix at 85% or more is KEEP): v466 borderline now uses mid rolls.
+- #76 slotted ledger keys: v203 intake reads "Tal Rasha's Lidless Eye (orb)". v3751 and v3752 pre-stamp the load-time
+  folds, so the forced run is the one under test. v3752's tripwires follow v3767 (a re-read is a witness, not a bump)
+  and the v3753 nested set-piece guard. v3753 splits the MAX(1,4) case into its own page, because the second seed
+  in one page kept the first sweep's write. `renderMultiKeep` is published on window again.
+- UI wording: v347 (copy 1/3), v403 ("2 items total · 4 copies"). v3742 overflow registers its dummies through
+  the TV door, because the load-time prune drops unknown seeded names.
+- FLAKY v1812: a deferred step scrolls the active tab into view (scrollLeft 274) after the spec reset it to 0.
+  It failed 6 of 12 locally. The spec now re-parks the strip until it stays at 0: 16 of 16 passed.
+
+### REG-2554 - A SCROLL IN THE TIP'S WARM-UP KILLED THE PROSE TIP BEFORE IT OPENED (v3746 tip specs red, v3787)
+
+tv/control_ui.html `_itemTip.reglue`: a scroll inside the ~380ms warm-up (say() asked, timer pending, not yet
+`tip-say`) fell through to the item-card exit and hid the tip. The REG-2252 re-glue promise ("a scroll re-glues,
+never blanks") broke for any scroll that landed in the warm-up. FIX: if a prose tip is pending and its host is
+connected, reglue leaves it pending. The timer then paints it at the host's current rect. GUARD:
+tests/v3746_itemtip_position_tracks_anchor.spec.ts, unchanged. Both cases are RED without the fix and 6 of 6 GREEN with it.
+
+### REG-2553 - A PERFECT BASE CAME BACK UNFILED: THE ROUTER'S VENDOR ADVICE BEAT HIS REG-2250 RULING (v3787)
+
+`_cbPerfectBaseMule` named the keeper correctly ("Monarch (4os)"), but `_vpRoute` asked suggestMule. A socketed base
+whose runewords are all forged reads `__throwout` ("nothing left for it ... vendor it"), so vaultPlannerFile fell
+to "stays unfiled". FIX (bible.html, the REG-2250 branch): when the router does not file a perfect base, file it
+to the SOCKETED base mule (`bases`) through vaultFile. A plain 0-socket white still stays unfiled. GUARD:
+tests/v3746_perfect_base_auto_mules.spec.ts. 4 cases were RED in CI. Now 12 of 12 GREEN (repeat-each 2).
+
+### REG-2552 - THE SCRUB LAW MISSED A QUOTE-SPLIT NAME AND A NAME HELD IN A VARIABLE (GB-L, 2026-10-22, v3787)
+
+The A2 re-review left two misses in test_a_leaked_git_dir_never_writes_the_real_repo `_reexports`:
+`export GIT_D''IR=...` (the shell joins the quoted parts into GIT_DIR) and `_n=GIT_DIR; export "$_n=..."`.
+FIX: the forms now match on a dequoted view of the code, and line numbers map back through the kept positions.
+Variables that hold a pointer name (`v=NAME`, `for v in ... NAME`) are tracked. Any export, declare, typeset,
+local, readonly, read, printf -v, mapfile, readarray, eval or env of `$v`/`${v}` counts as a re-export.
+Stated reach: a name assembled from parts (`a=GIT_; export "${a}DIR"`) is NOT covered. Eight new _REACH cases,
+six positive and two negative. Two new RED_PROOFs: the dequote dropped, and the variable map emptied.
+`heart2 --prove`: 16/16 PROVEN.
+
+### REG-2551 - THE SCRUB LAW READ ONLY THE SCRUB BLOCK: A POINTER RE-EXPORTED AFTER IT KEPT EVERY CASE GREEN (the Grok CLI review of Push A2, MEDIUM M2)
+
+test_a_leaked_git_dir_never_writes_the_real_repo's scrub cases (TheHookUnsetsThePointerBeforeAnyStage,
+ThePushsOwnOptionsSurviveTheScrub) run ONLY the hook's `# >>> scrub-git-env` block in bash. An `export GIT_DIR=...` - or a
+`GIT_DIR=... cmd` prefix, or the same for GIT_WORK_TREE / GIT_INDEX_FILE / GIT_OBJECT_DIRECTORY / GIT_COMMON_DIR - written
+anywhere in hooks/pre-push after `# <<< scrub-git-env` would hand every later stage the pointer back while each case stayed
+green. Found by the Grok CLI review of Push A2.
+FIX: class NoStageAfterTheScrubPointsGitBack reads the WHOLE hook after the block as bash reads it: comments out (a `#` opens
+one only at a word start, outside quotes), quotes followed the way bash nests them ('...', $'...', "...", and $(...) and `...`
+inside "..."), backslash-newline joined, and every heredoc body read whole - none is excluded, so none has to be shown to be
+data (under an unquoted delimiter bash expands its $(...); a quoted one costs nothing to read). It fails on any assignment or
+export of a pointer - git's own --local-env-vars list less the two option carriers (REG-2394), plus those five by name - in
+the forms bash has: NAME= / NAME+= / ${NAME:=...} (a plain assignment, a `NAME=... cmd` prefix, env), export / declare /
+typeset / local / readonly, read / printf -v / mapfile; strings are read too (`env "GIT_DIR=$x" cmd`, `eval "export ..."`).
+Its reach is DRIVEN before its verdict counts: 37 texts whose answer is known (30 it must find, 7 it must not - a comment, a
+use of the value, an unset, TV_PUSHED_GIT_DIR, `git --git-dir=`); and on the real hook a canary re-export planted where the
+reader could lose its place (the first line after the block, after each heredoc, the end) must be found there, or the verdict
+is UNKNOWN, not passing. Its reach, stated: a name built at run time (`v=GIT_DIR; export "$v=..."`) and a `case` pattern's `)`
+inside $(...) (the hook has none) are not read.
+MEASURED: on the hook today 0 re-exports, its one heredoc (PYGATE) closed, nothing left open. Bash's own parse of the same text
+(`declare -f` of it as a function body - comments dropped by bash itself) holds the same GIT_* tokens as the reader's code view:
+none on the hook, one GIT_DIR on each tampered hook below. 25 single-point mutants of the reader (each quote kind, the comment
+rule, the continuation, each heredoc spelling, the $(...) close, each assignment / export / read form) - each red BY ASSERTION
+against the real hook.
+GUARD: RED proofs [12] (`export GIT_DIR=/tmp/x` on the line after the block) and [13] (a `GIT_DIR="$TV_PUSHED_GIT_DIR" git
+diff` prefix inside $(...) in a string, past the heredoc 1,100 lines on) - each red BY ASSERTION in
+test_no_line_after_the_scrub_points_git_at_a_repo_again (failures=1, errors=0; clean 10/10 OK). No `needs`: the reader is
+Python and git, so a PC without bash proves them too. heart2 --prove (one worker): 14/14 PROVEN.
+
+### REG-2550 - THE SELF-PROVER WAITED FOR AN IDLE HIS MAC NEVER HAS: ITS START BAR IS 75, NOT 45 (his order, 2026-10-22)
+
+His order, 2026-10-22: "raise the cap to 75% so it proves now". tv/self_prove.py's MAX_BUSY_TO_START was 45.0 - busier than
+that and a proof does not START. On macOS "busy" is control_app._cpu_busy_pct: the one-minute load average over the core count,
+so every agent fleet, push gate and build on his Mac counts against it - it read 93% and 64% while fleets ran. MEASURED on his
+console that afternoon (10 cores): no game on screen, 4-5 GB free, his census stale (2 gates owed, 5 BLIND), and the lane said
+"the machine is 46% busy", then "58% busy - a proof starts only when it is idle (busy for 7 min ...)".
+FIX: MAX_BUSY_TO_START = 75.0, its comment saying why. Unchanged: what decide() asks BEFORE the bar (is he playing, is memory
+free), guard()'s stand-aside of a running proof within 10 s of either, REG-1905's 6-hour escape (BUSY_STARVE_S), and Windows'
+measure (GetSystemTimes over a short sample) - the same bar applies there.
+GUARD: the laws read the bar by name - test_every_pc_proves_itself refuses `busy=SP.MAX_BUSY_TO_START`, and its RED_PROOF anchor
+`if busy_pct >= MAX_BUSY_TO_START:` is unchanged (1 match). No law pins 45: the busy readings the laws hand in are 77 and 80
+(test_a_prover_never_waits_forever_for_idle) and 90 (test_a_proof_yields_the_moment_the_game_starts), all above the new bar,
+and 0, 3 and 5, below both. The 16 non-browser laws that import self_prove: 16/16 OK plain on the new bar (373 tests);
+test_control runs in the push's suites.
+RE-PROVES NOTHING IN HIS HEART: heart2.gates_fingerprint digests the gate files and heart2.py only, and slice_owed compares each
+gate file's own digest - self_prove.py is neither. MEASURED on the trees' own bytes: the fingerprint is the same before and after
+this change and 0 of the 1,039 gate digests differ (self_prove.py is never read). Only the proof CACHE's keys of the laws that
+import it move, so the next --prove of one of them runs it instead of reusing its last proof.
+
+### REG-2399 - THE VAULT FINDER'S FILED BRANCH HAS NO CASE AND NO PROOF: A KNOWN, UNGUARDED GAP (Push A2 review, REG-2376's other half)
+
+Said plainly so nobody reads REG-2020's guard as covering it. REG-2376 re-aimed test_the_vault_finder_names_the_mule_and_the_cell's
+red-proofs [1] and [2] at `_vaultWhereIs`'s "would" branch (bible.html, the `outW` cell lines), because since v3767 the hand
+auto-sort homes items through the records seam and writes no `assign`, so every case in that law answers from "would". That left
+the FILED branch - the `mid != null` half, reached only for an item with a real `assign` entry or one in Magic & Rare: its
+shared-stash cell line (`pk.placed.forEach(... out.cell = pages[i].label + ' tab · col ' ...)`) and its mule-stash cell line
+(`(mu.stash || []).forEach(... out.cell = tag + 'Personal stash · col ' ...)`) - with no case that reaches it and no proof that
+tampers it. A hand-filed item's cell could vanish from the finder and every gate would stay green.
+NOT COVERED: REG-2020's subject ("the finder prints the mule AND the cell") is guarded for an item the router WOULD place, not for
+one he has FILED. REG-2020's "Guard: ... (5 PROVEN)" line predates v3767 and does not cover this branch.
+LEFT: a browser case that files an item by hand (vaultFile with his hand as the witness) and asks the finder for its cell, plus two
+red-proofs on the filed branch's cell lines. Not added on this Mac (browser laws run on CI - test-venue); filed for the next batch.
+
+### REG-2398 - THE CROSS-REFERENCE LAW'S PROOF [4] WENT RED BY CRASHING, SO THE CHECK IT EXISTS FOR NEVER RAN (Push A2 review)
+
+test_the_cross_reference_asks_one_question's red-proof [4] ("a pair ruled not-comparable names BOTH numbers") removed ` out of %d`
+from the reason's format string in ledger_authority.mask_cross_check and left `_rowTot` in its argument tuple: five arguments for
+four placeholders, so the `%` raised TypeError before any reason was built. Found by the cross-family review (GrokBot, #230) and
+reproduced here in a heart2 sandbox: the old tamper reads `FAILED (errors=2)` (test_a_pair_ruled_NOT_comparable_NAMES_BOTH_NUMBERS
+and test_the_cross_check_EXCLUDES_with_a_REASON_at_both_levels, both crashing) - heart2 filed it PROVEN, but the assertion the proof
+names never ran, and ANY edit to that line would crash the same way.
+FIX: the tamper is a two-line find/replace that drops the placeholder AND its argument together, as a real edit would. MEASURED in a
+sandbox: clean 18/18 OK; tampered `FAILED (failures=1)`, the one red case test_a_pair_ruled_NOT_comparable_NAMES_BOTH_NUMBERS (the
+reason names the roster size but not the posted total). heart2 --prove: 5/5 PROVEN.
+
+### REG-2397 - ON THE MAC, A SANDBOX OF THE MAIN CHECKOUT KEPT HIS REMOTES: A `git push` A LAW MADE THERE WOULD HAVE GONE TO GITHUB (Push A2 review)
+
+REG-2364 shut the push of the private clone a worktree's sandbox gets. A sandbox built from the MAIN checkout on the Mac takes a
+different road: `_bring_across` copies the whole `.git` with `cp -c -R` (an APFS clone), config and remotes included - and his
+main checkout's origin is the PUBLIC GitHub repo, with no push url. A `git push` any law ran inside such a sandbox would have used
+his credential helper and pushed for real. Named in REG-2364's LEFT; the reviewer of Push A2 asked for it closed.
+FIX: heart2._shut_push - ONE routine, now also the clone's (REG-2364): every remote of the sandbox's history (`remote.<name>.url`
+or `.pushurl`, any scope) gets `remote.<name>.pushurl` replaced by a path inside the sandbox's own git dir that is never a
+repository (a push url beats the url, and a remote with one ignores url.*.pushInsteadOf), asked through --git-dir with no GIT_*
+variable. A history whose push cannot be shut is not kept (the gates that read it stay UNPROVABLE). MEASURED on a fixture main
+checkout with two stand-in remotes (`origin`, `mirror`): a commit and a push to each from its sandbox both fail, both remotes and
+the fixture repo unchanged; with the darwin branch's `_shut_push` call removed (red-proof, macOS only) the push reaches the remote.
+GUARD: tv/test_a_worktree_sandbox_carries_its_own_history.py, test_a_push_from_a_main_checkout_sandbox_reaches_no_remote; RED
+proofs [1] (re-anchored on _shut_push) and [9] (`"needs": "macos"` - off the Mac the history is a clone, whose push [1] covers).
+LEFT: a push to an explicit URL (`git push <url>`) cannot be shut by configuration; no law does that.
+LEFT (the Grok CLI review of Push A2, MEDIUM M1): only the PUSH is shut. A sandbox clone's `remote.origin.url` still names the
+checkout it was cloned from (and a Mac copy of the main checkout's .git keeps his GitHub url); every remote's pushurl is the
+no-repo path. MEASURED on a fixture, both roads: `git push origin` exits 128, `git fetch origin` exits 0 and reads the source,
+and neither the source's refs nor its remote's moved. Nothing in tv/ or hooks/ reads that url: over the 1,281 tracked code files
+there, a search for every way to read it (`get-url`, `remote -v` / `show`, `ls-remote`, `remote.<name>.url` / `pushurl`, a
+config listing, a git library) matches 5 lines and 0 read its value - heart2._shut_push's 3 (it lists the remote NAMES and
+writes each pushurl), a red-proof anchor in test_a_worktree_sandbox_carries_its_own_history, a list of git verbs in tree_busy;
+the one read of a .git/config hashes a fixture's file. What USES the url is a fetch: control_app's fleet status kicks `git fetch
+origin main` in REPO and its pull lane fetches and merges, so a law that asks the console's status in a sandbox holding a
+history fetches from the source - a read, into the sandbox's own refs. Pointing the url at a non-repo too is left for Push B:
+the fix edits heart2.py, which is in every proof's cache key (heart2.py and law_widths.py are inputs of every key), so made here
+it would re-key every proof this push banks.
+
+### REG-2396 - HEART2 DROPPED GIT_* IN ONLY 2 ROUTINES: A LAW RUN INHERITED THE CALLER'S GIT_DIR WHOEVER STARTED IT (Push A2 review)
+
+Found by the cross-family review of Push A2 (GrokBot, #230: "2 of its 11 places") and by our own reviewer. REG-2360 made the HOOK
+unset git's pointer before its stages, and heart2 built clean environments in two routines (_share_history, _drop_run_records):
+5 of its 9 spawn calls. The other 4 inherited the caller's environment whole: _run_gate_once (`env = dict(os.environ)` ->
+run_gates.law_env, no filter) - every law heart2 proves, at push and by hand; heart2's own key questions, `git -C REPO ls-files`
+(_tracked_files, the key's named-file half) and `_git` (the push base, the changed files), where a leaked GIT_DIR beats -C; and
+the APFS `cp` (harmless - cp reads no GIT_* - and given the clean environment anyway). run_gates.law_env, the door every gate
+run passes on CI and by hand, had no filter either; nor did suite_verdict (its suite runs and tree key), shard_suite (every shard
+of test_control, and the plan import) or gate_ledger (its carry questions). So heart2 was safe only while the hook scrubbed first -
+and a push runs the hook file in his MAIN checkout (core.hooksPath), the one origin/main has, so Push A2's own push runs v3784's
+hook, which scrubs nothing.
+FIX: ONE helper, run_gates.git_free_env(base, **extra): EVERY GIT_* variable removed (not git's --local-env-vars list -
+GIT_NAMESPACE, a push's GIT_CONFIG_PARAMETERS and the rest change what a law's git sees too; case-blind, as Windows' environment
+is); TV_PUSHED_GIT_DIR / TV_PUSHED_COMMIT, the commit-stamps law's handle on the pushed commit, are not GIT_* and pass. law_env
+applies it to every gate run; heart2 (_git_free_env: the cp, the clone, read-tree, the push shut, ls-tree, checkout, the law run,
+ls-files, _git), suite_verdict, shard_suite and gate_ledger take every child's environment from it. This also closes GrokBot's LOW
+(the hook clears fewer GIT_* than heart2: GIT_EXEC_PATH, GIT_NAMESPACE, ...): whatever the hook leaves, no law those four start
+gets it. It also
+covers REG-2360's LEFT for every run heart2, run_gates, suite_verdict or shard_suite starts: the 14 temp-repo laws with no scope
+scrub of their own are now safe there, hook or no hook.
+MEASURED on fixtures with the caller's GIT_DIR, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS and GIT_NAMESPACE in the prover's own
+environment: a fixture law run by _run_gate_once in a worktree's sandbox sees no GIT_* variable, answers `git rev-parse
+--absolute-git-dir` with the sandbox's own .git and HEAD with the worktree's, and its commit and `core.bare true` land in the
+sandbox - the fixture repo byte-identical; heart2._git answers the main checkout's HEAD (not the worktree's) and _tracked_files
+lists the main checkout's index (not the worktree's staged entry).
+GUARD: tv/test_a_worktree_sandbox_carries_its_own_history.py, class ALawRunNeverInheritsTheCallersGitDir (4 cases: the law run;
+heart2's own git questions; law_env drops every GIT_* and keeps TV_PUSHED_*; every subprocess call in heart2, suite_verdict,
+shard_suite and gate_ledger passes env= and none builds an environment from os.environ by hand). RED proofs [4]-[8]: the helper
+keeps GIT_*; law_env copies its base whole; ls-files, and `_git`, under the caller's GIT_DIR; the law run built from os.environ.
+The law: 9/9 OK plain; heart2 --prove 10/10 PROVEN. Every one of the 92 non-browser laws that read the changed files was run plain:
+91 green at once, the 92nd is the fold law below. ⚠ The fixture law is held as TEXT inside the law and is a plain script: its first
+cut was a unittest module, and the column-0 main guard in that text made test_folder_scans (which reads every tv/test_*.py, and
+which heart2 classes as a browser gate, so the plain sweep had skipped it) report every class below it as "defined after
+unittest.main()" - the push-context pre-flight's clean wave refused on it before a single tamper, and before any push.
+ALSO FIXED, found by running every law that reads the changed files (92 non-browser, plain): the spy in
+tv/test_a_gate_crash_still_folds_the_banked_rows.py told a GATE run by "the defer variable is in its environment". gate_ledger's git
+questions now carry a (GIT_*-free) copy of the run's environment, defer variable included, so the spy counted them as gates and
+fired its "crash" before the first gate ran - its banked row was never written: 1 failure on the new tree, green on HEAD's code
+(measured both ways). It now tells a gate run by its argv; 6/6 OK on the new tree and on HEAD's; heart2 --prove 10/10 PROVEN.
+LEFT: a law run by hand as `python3 tv/test_x.py` from a shell that holds GIT_DIR still inherits it - nothing sits between that
+shell and the law. The suites the hook runs itself (test_agent, test_folder_scans, test_tz_art, the two chronicle suites; test_control
+goes through shard_suite) inherit what the scrub leaves - the push's `git -c` options and variables like GIT_EXEC_PATH, never a
+pointer. heart2's push base (an ORDERING hint for --push, never the proving set) is asked of git without the push's
+`git -c` options; the hook's own base is TV_PUSH_BASE (REG-2395).
+
+### REG-2395 - A PUSH WHOSE @{push} DID NOT RESOLVE SKIPPED ALL SIX TV SUITES WITHOUT A WORD (Push A2 review)
+
+hooks/pre-push's tv-suites lane (test_agent, test_control, test_folder_scans, test_tz_art, test_chronicle_retro,
+test_chronicle_seal) ran on `if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'` - no fallback, no else.
+Where @{push} does not resolve the diff fails, grep matches nothing, and the lane is skipped with no line at all. That is the
+shape of every push branch now: MEASURED on speed/push-a2 (upstream origin/main, pushed as HEAD:main, push.default unset) -
+`@{push}` -> "cannot resolve 'simple' push to a single destination". The changed-law block 120 lines below already fell back to
+origin/main and announced its skip; this lane did neither. (REG-2394's scrub made it likelier still: a `git -c push.default=...`
+that WOULD have resolved @{push} was unset before the lane asked.) Found by both reviews of Push A2; listed as a T3 minor earlier.
+FIX: a `push-range` block at the top of the hook, BEFORE the scrub, asks the base once in the changed-law block's order - @{push},
+else origin/main - and hands it on by value: TV_PUSH_BASE (a commit; empty = UNKNOWN) and TV_PUSH_RANGE (the words). The lane
+(`tv-lane` block) diffs `TV_PUSH_BASE..HEAD`; a range that cannot be read RUNS the lane (an UNKNOWN is never a skip) and says so;
+a known range with no tv/*.py says "no tv/*.py changed in <range> - the tv suites do not run"; a run names its range.
+MEASURED on fixture branches shaped like his: @{push} unresolvable + a tv/*.py change -> runs, "tv/ python touched in
+origin/main..HEAD"; no remote at all -> runs, UNKNOWN said; push.default=upstream with only docs changed -> skip said with
+"@{push}..HEAD (@{push} = origin/main)", then a tv/*.py change -> runs.
+GUARD: tv/test_a_leaked_git_dir_never_writes_the_real_repo.py, class TheTvLaneReadsAKnownRangeOrRuns (3 cases, the hook's own
+marked blocks driven in bash; the first asserts the old trigger's premise - `git diff @{push}..` fails on that fixture). RED proofs
+[9]-[11] (`"needs": "bash"`): an UNKNOWN range skips again; the origin/main fallback gone; the skip silent again. PROVEN with the
+rest of the law (12/12).
+⚠ NOT FOR THIS PUSH: core.hooksPath runs the hook file in his main checkout, so Push A2's own push runs v3784's hook, whose lane
+still asks the bare @{push} - on speed/push-a2 it skips the six suites in silence. Its pre-flight ran test_agent and test_control
+by hand in the push context; the fix guards every push after his main tree pulls it.
+
+### REG-2394 - THE HOOK'S GIT_* SCRUB WIPED THE PUSH'S OWN `git -c` OPTIONS (Push A2 review)
+
+REG-2360's scrub unset every name `git rev-parse --local-env-vars` prints. That list includes GIT_CONFIG_PARAMETERS and
+GIT_CONFIG_COUNT - the variables `git -c k=v push` (and `GIT_CONFIG_COUNT=n GIT_CONFIG_KEY_i/VALUE_i`) hand the hook - so every
+stage after the scrub ran without the options the push was given, and the env form was left half-set (KEY_i/VALUE_i are not on
+the list and stayed, orphaned without COUNT). Found by the cross-family review (GrokBot, #230: `git -c foo.bar=KEEP push` read
+KEEP before the loop, empty after). MEASURED here on a throwaway repo with a linked worktree on git 2.50.1: `git -c
+push.default=upstream push origin HEAD:main` - @{push} = origin/main before the loop, "cannot resolve 'simple' push to a single
+destination" after it.
+FIX: the loop passes over GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT - options, never a pointer at a repository - and still
+unsets every pointer (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_COMMON_DIR, the object dirs, ...). A suite the hook runs itself
+keeps them (options, never a pointer); every law heart2, run_gates, suite_verdict or shard_suite starts drops every GIT_* (REG-2396).
+MEASURED after the fix, a REAL `git -c push.default=upstream -c tv.probe=kept push origin HEAD:main` (plus GIT_CONFIG_COUNT=1
+tv.counted=yes) from a linked worktree through a hook made of the hook's own push-range and scrub blocks: after the scrub `git
+config` answers both options, @{push} = origin/main, TV_PUSH_BASE = origin/main's commit, no pointer left; the fixture hook
+refuses, so nothing reached the remote.
+GUARD: tv/test_a_leaked_git_dir_never_writes_the_real_repo.py, class ThePushsOwnOptionsSurviveTheScrub (the scrub block in bash
+with the carriers and the pointers; the real `git -c` push). RED proof [8] (`"needs": "bash"`); [0] and [1], whose only catchers
+drive the hook in bash, now declare `"needs": "bash"` too (a PC without bash reads them ELSEWHERE, never BLIND). The law: 11/11 OK
+plain; heart2 --prove 12/12 PROVEN.
+
+### REG-2393 - THE CARRIED-PROOF LAW COULD NEVER PASS ON HIS MAC: ITS .pyc PREMISE LOOKED FOR __pycache__, WHICH HIS PYTHON NEVER WRITES (Push A2)
+
+test_a_gate_proven_on_these_bytes_is_carried's case test_a_submodule_served_from_a_cached_pyc_is_an_input (REG-2293 r6 B, 2026-10-19)
+warmed a bytecode cache with PYTHONPYCACHEPREFIX="" and asserted `tv/pkg_gl/__pycache__` existed. His Mac's python3 (the Command Line
+Tools 3.9) has a BUILT-IN pycache_prefix, ~/Library/Caches/com.apple.python, and an empty PYTHONPYCACHEPREFIX does not clear it: the
+.pyc went there, `__pycache__` was never written, and the case failed "PREMISE: no .pyc cache" on every run on his Mac - measured on
+origin/main's own bytes (59 of 60 OK). The whole law read RED here, so none of its 70 red-proofs could ever be proved on this Mac, and
+each run left a stray .pyc under his ~/Library/Caches. Found because Push A2 scrubs GIT_* in this law (REG-2392), which puts it in the
+push's proving set: its clean run would have read ALREADY RED and refused the push.
+FIX: the case warms the cache under a PYTHONPYCACHEPREFIX of its own (a scratch dir), set for the whole case, and asks python where
+the cache is (importlib.util.cache_from_source of the source's realpath - python resolves a script's folder; /var is /private/var).
+A trace run that lost LEDGER-TRACE-NOPYC inherits that prefix and reads the warm .pyc, exactly as it read __pycache__ on Linux.
+MEASURED on his Mac: 60/60 OK plain and under a leaked GIT_DIR; with red-proof [62] (the NOPYC tamper) applied to a scratch copy the
+case fails "a module imported from its .pyc carried a red gate" (stored inputs: tv/t_pyc.py only) - the bite the proof needs.
+Each run of the old case left its two pkg_gl .pyc under ~/Library/Caches/com.apple.python (four measured today; 240 such fixture
+mirrors sit there); a full run of the fixed law adds none (240 before, 240 after).
+
+### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push from a linked worktree, GIT_DIR leak)
+
+2026-10-22 07:48, the first v3784 push, made from a LINKED WORKTREE (the integration worktree). Only a push from a linked worktree
+exports GIT_DIR into the hook: absolute, <main>/.git/worktrees/<name>. A push from the main checkout exports no GIT_DIR, and git
+exports no GIT_WORK_TREE from either (corrected by the post-ship review; re-measured on git 2.50.1 with a hook that dumps its
+environment). test_a_proven_verdict_is_reused_only_on_identical_bytes was in the push scope because Push A1 edited it, so its case
+test_a_named_file_git_does_not_track_is_not_a_key_input ran under that GIT_DIR. Its throwaway repo ran `git init -q` and
+`git add kept.txt` with cwd= only; GIT_DIR beats cwd= and -C, so `git init` re-initialised the real repo's COMMON config - his main
+checkout's - with core.bare=true (every git command there then refused: "this operation must be run in a work tree") and `git add`
+staged kept.txt into the push worktree's index. heart2's clean wave read the law ALREADY RED (git answered for the real repo, not the
+throwaway) and refused the push before any tamper. The integration pre-flight had passed because it ran with no GIT_DIR at all. The
+case was not new; what was new is pushes made from worktrees.
 FIX: the case pops GIT_* for its own scope and restores them after (addCleanup), like test_control's grok-seat case (011d9d144).
-MEASURED in a simulated hook environment (GIT_DIR + GIT_WORK_TREE exported at the push worktree): 26 tests OK, core.bare stayed false,
-nothing staged. Repaired by hand: `git config core.bare false` in his main checkout; kept.txt unstaged.
+MEASURED in a simulated hook environment: 26 tests OK, core.bare stayed false, nothing staged. ⚠ CORRECTED: that simulation exported
+GIT_DIR AND GIT_WORK_TREE, which is not what a hook gets. Measured on throwaway repos with a linked worktree: under GIT_DIR alone an
+unscrubbed `git init` + `git add` set core.bare=true in the common config and stage the file in the worktree (this incident's shape);
+under GIT_DIR + GIT_WORK_TREE they write core.worktree into the common config instead and core.bare stays false - so that simulation
+could not have reproduced this failure. A pre-flight in the push context exports GIT_DIR ONLY. Repaired by hand: `git config core.bare
+false` in his main checkout; kept.txt unstaged.
 LEFT: the class fix - the hook unsetting GIT_* for every test stage and handing the stamps law the pushed commit by its own variable -
-ships with track T3 (REG-2360); the hook file runs from his main checkout, so it takes effect only after that lands. Until then any law
-that enters a push's scope and runs git must scrub GIT_* itself. GUARD: this case, run under the hook.
+ships with track T3 (REG-2360, v3785); the hook file runs from his main checkout (core.hooksPath), so it takes effect only after that
+lands AND his main tree pulls. Until then any law that enters a push's scope and runs git must scrub GIT_* itself. GUARD: this case,
+run under the hook.
+ALSO SCRUBBED (Push A2): test_a_gate_proven_on_these_bytes_is_carried - its three classes that build throwaway repos (`_tree`'s
+`git init` / `config user.*` / `add -A` / `commit`, and the ledger's own git calls on them). MEASURED on a sacrificial --shared clone
+with a linked worktree, GIT_DIR alone aimed at that worktree: the unscrubbed law set core.bare=true and user.email=ledger@example.com
+in the clone's common config, committed onto the worktree's HEAD and left 1461 status lines; scrubbed, 60/60 OK and the clone
+byte-identical. T3 already scrubbed test_a_landed_update_is_not_an_edit, test_the_author_is_read_from_the_stamp and
+test_a_stale_git_lock_is_cleared_and_said.
 
 ### REG-2359 - THE NODE RULE READ ONLY SKIP COUNTS, SO A LAW THAT SKIPPED FOR ANY REASON WAS EXCUSED ON A PC WITHOUT NODE (round-3 review of REG-2354, push-proof track T2)
 
@@ -867,6 +1174,123 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+### REG-2365 - A SUITE THE HOOK NOW RUNS FIRST WROTE A FIXTURE RENDER VERDICT INTO THE TREE HEART2 COPIES, AND EVERY SANDBOX CARRIED THE LIVE RUN RECORDS (unversioned)
+
+Found by the round-2 review of REG-2361, 2026-10-22. REG-2361 moved the hook's tv suites ahead of the proving stage, so they run in the tree heart2 copies minutes later. test_control's TestV2414 (the render gate's transport handler) drives render_check.main(), which writes .render_verdict.json beside render_check.HERE, and the class never moved HERE. MEASURED in this branch's worktree: tv/.render_verdict.json held the class's fixture verdict (abortedAt "state-panel", renderFailures 1, chromeUpSeconds 0.0, written 04:02) in place of the last real render's. And every heart2 sandbox carried every live run record anyway: safe_copy copies gitignored files, so the census, the render verdict, the proposals and the red memory rode into each law's copy, and the tracked proof ledger (tv/.self_arming.jsonl) as the working tree had it. heart2's key leaves those names out (_SELF_RECORDS) and keys only tracked files, so a law that read one was proved on a live value no key held - while CI, which checks out none of the untracked ones, never ran a law that way.
+
+FIX: (1) TestV2414 points render_check.HERE at a temp dir of its own and hands it back. (2) heart2.make_sandbox drops every live run record from the copy (_drop_run_records): heart2's _SELF_RECORDS plus suite_verdict.RUN_RECORDS, one definition each. One HEAD does not track is removed; one it tracks is restored to HEAD's blob by the sandbox's own private history (`git checkout HEAD -- <path>` with no GIT_* variable and hooks off - nothing reaches the real repo); one a gate declares in PROOF_NEEDS stays (its key then holds it); one that cannot be handled stays and is SAID. (3) The one law this blinded: test_the_lock_derives_from_the_heart's red-proof [2] (the staleness refusal) had one catcher, which read the live census and skipped without one - MEASURED BLIND in a census-free sandbox. The case now builds its census itself, current by construction and then made stale (v2866's own fix for its sibling case); 4/4 PROVEN.
+
+SWEPT, not sampled: all 961 registered non-browser gates were run (clean, through heart2._run_gate_once) in two sandboxes of this tree - one built by the new make_sandbox, one with the records put back (his main checkout's render verdict, proposals and red memory, and a census that reads CURRENT: blind [] and this tree's gate fingerprint, so every case that runs only with a healthy census ran) - comparing each gate's verdict, cases run and cases skipped. 4 differ: the lock law (5 more skips without the census, one of them [2]'s catcher - fixed above), test_the_heart_can_see_the_surfaces (its live-verdict case skips; its 14 proofs are PROVEN without it), test_heart_surface (one FEWER skip without records) and test_roundtrip_sim (red only WITH the records, a 60 s timing fallback under the sweep's load). The 7 gates red in both sandboxes are red with or without records (the blueprint map this push's integration regenerates, the two known CI-only reds, a pre-existing red in test_a_gate_proven_on_these_bytes_is_carried, two declared-skip gates, and the bump-parse law, green when run directly). A static scan of every law file found no other skip that waits on a census, render verdict, proposals or red memory.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_sandbox_never_carries_a_run_record.py - drives make_sandbox on a fixture repo holding every record live (the tracked ledger edited past HEAD): the untracked records are gone, the ledger is HEAD's blob, the fixture's own bytes are untouched; the dropped set is exactly the two lists; a PROOF_NEEDS-declared record stays; with no history the ledger stays and is said; and TestV2414, run whole in a child whose render_check.HERE points at a trap, leaves the trap empty and HERE handed back. 7 RED proofs (no drop; the tracked record left live; RUN_RECORDS not read; the drop acting on the tree it copies; PROOF_NEEDS ignored; a kept record not said; TestV2414's redirect gone), heart2 7/7 PROVEN.
+
+LEFT: tv/.status_worst.json (self_prove.CONSOLE_OWN_RECORDS, tracked, rewritten by his live console) still travels as the working tree has it - a console record, not a run record. The sweep measured the non-browser gates on the Mac; the 72 browser gates (test_control among them) were covered by the static scan only.
+
+### REG-2366 - THE SCRATCH-LISTING LAW'S REALPATH PROOF WAS CAUGHT ONLY BY A SYMLINK, AND HIS WINDOWS PCS CANNOT MAKE ONE (unversioned)
+
+Found by the round-2 review of REG-2362, 2026-10-22. Red-proof [2] of tv/test_a_scratch_listing_reads_only_its_own_scratch.py (fixture_tmp's realpath turned into abspath) had one catcher: a case that makes a symlink inside the scratch pointing at the tree and skipped when os.symlink raised. Windows refuses os.symlink without a privilege his ALT and Dean's PC do not hold (REG-1668), so on them the case skipped in the clean run and the tampered run alike - green with a skip, which the heart files BLIND, and one BLIND record shuts every lock on that PC (REG-1677). MEASURED by driving HEAD's law with that sabotage applied, os.symlink refused and a temp dir with no link in its path (Windows' shape; on the Mac /var -> /private/var catches it by accident): `OK (skipped=1)`, with symlinks allowed `FAILED (failures=1)`.
+
+FIX: (1) fixture_tmp.link_dir makes the escape the way the PC can - a symlink, else on Windows a directory JUNCTION (`_winapi.CreateJunction`, then `mklink /J`; no privilege, and realpath resolves it on CPython 3.8+), the way REG-1668 fixed the frame-index law; unlink_dir_link removes only the link. (2) Proof [2] declares `"needs": "dir-link"`, a new heart2 PROOF_NEEDS_HOST capability whose probe, fixture_tmp.can_link_a_directory, links two directories of its own with the same link_dir and asks realpath to resolve it: a PC that can make neither link reads [2] ELSEWHERE (proven where one can be made), never BLIND. (3) Where the probe says the PC CAN link but the case could not, the case FAILS instead of skipping - a skip there would be judged and filed BLIND. MEASURED after the fix: on the Mac 8/8 PROVEN; with os.symlink refused in the prover and every law run (sitecustomize) and a link-free temp dir, [2] ELSEWHERE and the other 7 PROVEN, the gate PROVEN.
+
+GUARD: tv/test_a_scratch_listing_reads_only_its_own_scratch.py, 3 new cases and 3 new RED proofs (the junction fallback gone; the probe answering yes with no link; heart2 forgetting the capability) - every new case runs on every OS, none needs a link the PC must be able to make.
+
+LEFT: the junction branch has never executed on a real Windows box from this branch - its control flow is driven on the Mac with `_winapi` stubbed (the target-first argument order pinned). If it fails there, the probe and the case use the same routine, so [2] reads ELSEWHERE on that PC, not BLIND.
+
+### REG-2364 - FROM A WORKTREE, HEART2'S SANDBOX HAD NO GIT HISTORY; LAWS READ HEAD THERE ONLY THROUGH THE GIT_DIR THE HOOK LEAKED (unversioned)
+
+Found by the adversarial review of REG-2360, 2026-10-22. make_sandbox brings `../.git` into every sandbox (two gates declare it). From his main checkout `.git` is a directory and arrives as a private clone; from a linked worktree - where every push now starts - it is a one-line pointer into the real repo, and make_sandbox refuses to copy a pointer (a door), so the sandbox had no history at all. Nobody saw it: git exports GIT_DIR into a pre-push hook run from a worktree (MEASURED on git 2.50: GIT_DIR=<main>/.git/worktrees/<name>; from the main checkout, none), the hook passed it to heart2, and every git call a law made in the sandbox answered from - and could write - the real worktree through it. Once REG-2360 unset it, MEASURED on that branch: a sandbox from the worktree answered `git rev-parse HEAD` with "not a git repository"; test_control's TestV2153 relaunch case ERRORED (a red clean run refuses the push at --push); the version-stamp law's red-proof [7] went BLIND (its only catcher, RoutineIOnRealHistory, skips without history). The main checkout's absolute core.hooksPath runs the old hook until this lands, so the landing push itself could not have shown it.
+
+FIX: heart2._share_history gives the sandbox a PRIVATE `git clone --shared --no-checkout` of that checkout: HEAD is the worktree's HEAD, the objects are borrowed read-only through alternates, the refs, index and config are the sandbox's own. make_sandbox uses it for a worktree's `.git` pointer on every platform (the pointer itself is still never copied); _bring_across's off-Mac branch for a `.git` directory now calls the same routine (one copy). Its git calls run with no GIT_* variable - MEASURED on a fixture worktree, the old routine's `read-tree HEAD` under a leaked GIT_DIR rewrote the REAL worktree's index (the staged entry gone), and a leaked GIT_WORK_TREE makes the clone refuse. The clone's origin IS the real checkout, so its push url points at a path that is no repository, and a history whose push cannot be shut is not kept. After the fix, a sandbox from this worktree answers HEAD = the worktree's HEAD, TestV2153 is 4/4 and the version-stamp law 32/32 with nothing skipped. SWEPT, not sampled: all 960 non-browser gates were run in the new worktree-shaped sandbox with every git call logged. 43 read the sandbox's history; those 43 and every gate that was not green (49 in all) give the same verdict and the same ran/skipped counts as in a sandbox shaped like the main checkout's. test_control, which heart2 classes as a browser gate, ran whole: 2272 OK, 21 skipped. The same 49 in the no-history shape show how far the blocker reached: test_a_ci_push_skips_the_mac_and_never_main goes red (2 cases); test_eye_declares_reach and test_no_footage_tracked skip every case, so every proof of theirs goes BLIND; test_a_stamp_is_not_a_blind_spot skips 3 more cases; and test_atomic_write_keeps_the_mode, test_live_version_is_not_the_working_tree and the version-stamp law skip one case each.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_worktree_sandbox_carries_its_own_history.py - drives make_sandbox on a fixture main repo + linked worktree (a staged entry in its index) under GIT_DIR=<the worktree's git dir>, with the registered gates' own `../.git` declarations: the sandbox reads the worktree's HEAD and an old commit through a git dir of its own; building it, then a commit, a push to origin and core.bare=true made inside it, leave the fixture repo identical (refs, objects, both HEADs, both indexes, the common config) and the push fails; a main checkout's sandbox still carries its history; and some registered gate still declares `../.git`, the premise TestV2153 and RoutineIOnRealHistory stand on. 4 RED proofs (no history for a pointer; the push door left open; the GIT_* scrub dropped; the pointer copied), heart2 4/4 PROVEN.
+
+LEFT: a Mac main-checkout sandbox is still an APFS copy of the whole `.git`, so its origin is GitHub and its core.hooksPath his real hooks - unchanged here. A worktree sandbox's origin/* refs are the real repo's local branches (a clone's), not its remote-tracking refs.
+
+### REG-2363 - A LAW HEART2 CANNOT KEY NEVER HAS A PROOF SAVED, AND NOTHING SAID WHEN ONE BECAME UNKEYABLE (unversioned)
+
+Measured 2026-10-21: 85 of 1,001 laws were unkeyable (heart2.law_inputs: "the law lists a directory itself ... no byte key can name it", or a PROOF_NEEDS directory), so each of their proofs re-runs on every push that has them in scope. test_control was one of them: 27 proofs at ~4 min each, never once saved across the v3783 series. No gate watched the count; the only symptom was a slower push.
+
+FIX: tv/unkeyable_laws.json lists every registered gate whose proofs can never be saved, with heart2's reason (line numbers dropped). tv/test_the_unkeyable_laws_only_get_fewer.py asks heart2's own law_inputs over heart2.gate_files (no second copy of the rule), plus one venue-independent fact: a PROOF_NEEDS under a directory safe_copy never carries (.git, frames) can never be keyed - in the sandbox it is a directory whether the push starts from the main checkout or from a worktree (a private clone since REG-2364), while law_inputs over a worktree reads the pointer FILE. A law unkeyable now and not listed fails, naming why; a listed law that is keyable again must leave; and the list may not exceed CEILING (91) written in the law, so growing it is a deliberate edit that re-proves the law.
+
+GUARD (registered in tv/run_gates.py): tv/test_the_unkeyable_laws_only_get_fewer.py, 4 RED proofs (an extra listing law; a keyable law slipped into the list; a blind census; the .git/footage rule naming nothing).
+
+LEFT: 91 laws stay unkeyable (88 list a directory in the law file; 2 need ../.git; 1 needs a footage reel). The ratchet runs in run_gates and CI, and at push only when its own file is in the push - a new unkeyable law is caught after the push that adds it, not before. Each run costs ~45 s (law_inputs over 1,031 gates).
+
+### REG-2362 - test_control AND test_agent LISTED THEIR OWN TEMP DIRS, SO HEART2 COULD NEVER KEY THEM (unversioned)
+
+heart2 scans only the LAW FILE for a directory listing and refuses to key any law that has one. test_control had 40 listing sites and test_agent 6. 29 of the 46 listed a temp dir the test had made a line earlier (a reel fixture, a corrupt-ledger copy, a settle queue), which no other process writes; one was a `_scripts()` glob nothing called; one took a probe image from his live footage when it existed.
+
+FIX: (1) tv/fixture_tmp.py gains `list_own` / `match_own`, which list a directory only when it lies strictly inside the scratch parent contain() made for THIS process (symlinks resolved; never the parent, the temp root, the tree, or any path in an uncontained process). The 29 temp-dir sites use them. (2) The probe image is always generated (no read of his footage). (3) The cases that genuinely read what a folder holds moved byte for byte, under their old class names, to tv/test_folder_scans.py (orphan suites, a class below unittest.main(), CI imports, unbound names, pkill, paid lanes, the art corpus, sleep-then-read specs, the footage detectors); constants and helpers are borrowed from test_control's classes, never copied, and hooks/pre-push runs the file right after test_control. (4) TestToolsCanReportTheirVerdict's AUDIT case moved to tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py, where the old `_scripts()` glob is now the audit's denominator. That law lists tv/, so no hook stage runs it (the hook's `python3 tv/console_safe.py` step is the audit's push-time run); the class's other case, enable() never raises, lists nothing and stays in test_control, which the hook's tv suites stage runs - a broken enable() contract still stops a push (round-2 review). heart2.law_inputs now returns a key for test_control (1,265 inputs) and test_agent (1,231).
+
+GUARDS (registered in tv/run_gates.py): tv/test_a_scratch_listing_reads_only_its_own_scratch.py (8 RED proofs since REG-2366), tv/test_folder_scans.py (5), tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py (2); tv/test_the_encoding_rule_has_one_definition.py now reads the moved case.
+
+LEFT: test_control's own 27 RED proofs were not re-proved here (each full run is minutes; the push proves them). Its static key is still wide (run_gates names every test file, and BUGS.md is a literal), so a retry whose fix touches a test file or BUGS.md still re-proves it - REG-2296's traced keys are the fix for that, not this entry.
+
+### REG-2361 - A TWO-MINUTE SUITE REFUSAL WAITED BEHIND AN HOUR OF PROVING (unversioned)
+
+v3783 series, 2026-10-21: push 10 proved for 65.7 min, then the sharded test_control suite (126.9 s) refused it at 72m37s on a duplicate REG number; push 11 was refused by the same suite at 10m28s. hooks/pre-push ran heart2 --prove before the red-proof anchors, review-lite, visual-lock, the boss portraits and every tv suite - the same shape #42 P5 already fixed for the render gate.
+
+FIX: those stages now run right after the console demos, byte for byte (trigger, bound, verdict and `exit 1` unchanged), and the changed laws are proved last. Just before the prove call the hook runs `heart2 --forecast $_gates` as a read-only preview, bounded at 120 s; any exit but 0 (a heart2 without the flag says "unrecognized arguments") prints one line and proving goes on - nothing in that block can refuse a push.
+
+GUARDS: tv/test_the_render_gate_runs_before_the_proving_stage.py gains the fail-fast order case and the forecast case (2 new RED proofs: a suite put back after the prove call; a forecast that learns to exit). tv/test_a_push_proof_runs_only_where_its_defect_shows.py now allows exactly one other heart2 call, the forecast, which never carries --push.
+
+LEFT: the forecast itself is track T2's; on a tree without it the line says so.
+
+### REG-2360 - INSIDE THE HOOK, GIT_DIR POINTED EVERY TEST'S GIT AT HIS REAL REPO: FIXTURE COMMITS ON THE PUSH BRANCH, core.bare=true ON HIS CHECKOUT (unversioned)
+
+v3783 pushes #10 and #11, 2026-10-21: git exports GIT_DIR to a pre-push hook (absolute `<main>/.git/worktrees/<name>` from a linked worktree), and GIT_DIR beats cwd= and -C in every git child. A law that `git init`s a temp repo committed "v0001 claude seat" / "v0002 grok backs up claude" onto the push branch, the commit-stamps law read the half-bumped HEAD and refused both pushes, and a `git init` in a temp dir re-initialised the common config to core.bare=true - his main checkout refused every git command for 2.5 h. Measured again on a fixture repo standing in for his: each of test_the_author_is_read_from_the_stamp, TheLauncherUsesTheSameRule, the P3 tracked-files case, TheTreeIsToldApart and test_a_stale_git_lock_is_cleared_and_said, unscrubbed, moved the worktree branch or set core.bare=true (or both).
+
+FIX: (1) hooks/pre-push records the git dir and then unsets every variable `git rev-parse --local-env-vars` names (plus GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE) before any stage; its own git calls find the repo from the work tree it starts in. (2) The commit-stamps law reached the pushed commit only through that leak inside heart2's no-.git sandbox, so the hook now hands it over by name: TV_PUSHED_GIT_DIR + TV_PUSHED_COMMIT (the sha pushed to main, else the first ref that ships bytes, else HEAD); `_at_head` reads `git --git-dir=... show <sha>:<path>`, and a named commit git cannot read FAILS rather than skips. (3) Each of the five laws scrubs GIT_* for its own test only, restored by addCleanup.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_leaked_git_dir_never_writes_the_real_repo.py - every temp-repo law run whole under GIT_DIR=<a fixture worktree's git dir> must be green and leave the fixture byte-identical (refs, objects, both indexes, config, core.bare false); the hook's two marked blocks are driven in bash; the commit-stamps law passes a named coherent commit and refuses a named half-bump. 8 RED proofs, heart2 8/8 PROVEN.
+
+LEFT: 14 other laws `git init` a temp dir without a scope scrub of their own (test_a_suite_run_is_reused_only_on_identical_bytes, test_a_version_bump_carries_the_gates_that_ignore_the_version, test_the_eye_reads_the_commit_read_only and others); at push the hook's unset covers them, outside a hook they are not swept.
+
+### REG-2371 - THE EVIDENCE LAW'S REEL-KEY PROOF TAMPERED A KEY REG-2036 HAD ALREADY NORMALISED (Dean diff 02)
+
+test_evidence_counts_a_reel_once[1] dropped `_rk()` from the reel-list key, but REG-2036 put
+`r = _evidence_reel_id(...)` in front of it, which already spells a bare "s_..." as "reel_s_...", so the tamper changed
+nothing and the proof stayed green on every PC - BLIND on his Mac's census and on Dean's, and under the old rule that
+one record shut every lock on both. The tamper now restores the whole defect (the raw spelling, unnormalised, as the
+key). Diff from Dean's PC; PROVEN here.
+
+### REG-2372 - THE FOUND-EVER LAW PRESSED THE TV REGISTRAR WHERE THE INTAKE STOP RETURNS FIRST
+
+test_found_ever_never_files_to_a_mule[1] tampers the registrar's no-witness branch, and the law pressed
+`tvVaultRegister('Stormshield')` with AUTO INTAKE off - v3767's stop returns 'auto-intake-off' before the registrar
+runs, so the tamper was unreachable and the proof read BLIND on his census. The press now runs with intake on (as his
+console runs the registrar) and puts the key back, and the law asserts the registrar answered 'witness' (reached and
+refused), so a press stopped short can never pass again. Browser law: re-aimed by reading, proved at push.
+
+### REG-2373 - A LAW COMPARED BYTES, AND THE TAMPERED SAVE WROTE THE SAME BYTES BACK
+
+test_importing_a_suite_isolates_his_stores[0] removes the REG-2150 guard on the vault lane store. Where the store
+already exists (his Mac's main checkout, where the census runs) the save first loads it - replacing the fixture's
+reason with the file's own - and writes those same bytes back, so a byte comparison saw nothing: BLIND on his census,
+PROVEN in any tree without the store. Reproduced here by planting a store (BLIND), then fixed: the law also compares the
+file's identity (inode, mtime_ns, size), which os.replace always moves. PROVEN with and without a store.
+
+### REG-2374 - THE SESSIONS LAW'S PRESS WAS NOT A PRIMARY PRESS
+
+test_sessions_leaves_the_vault_on_the_first_press[1] deletes the `return` that swallows the click after a press. The
+harness's fake pointerdown carried no `button`, and #142 drops every press whose button is not 0, so the press never
+counted and "one press leaves once" held whether the return was there or not - BLIND here and on his census. The
+harness now sends a primary press (button 0) and the law first asserts that a press alone leaves.
+
+### REG-2375 - THE CROSS-REFERENCE LAW'S CATCHING CASES SKIPPED, AND A SKIP READ AS BLIND
+
+test_the_cross_reference_asks_one_question[4] is caught only by the two universe cases, and both SKIPPED when
+surface_pairs() reported no uniques roster size - which it did in his census's proving sandbox ("2 of 18 law(s)
+SKIPPED"), so the proof read BLIND while PROVEN in a fresh sandbox. The cases now build their own roster through the
+one reader both surface_pairs() and mask_cross_check() use (fleet_mask.load_roster_for) and never skip.
+
+### REG-2376 - THE VAULT FINDER'S CELL PROOFS DELETED A BRANCH THE LAW NEVER REACHES
+
+test_the_vault_finder_names_the_mule_and_the_cell[1] and [2] deleted the cell lines of `_vaultWhereIs`'s FILED branch.
+Since v3767 the hand auto-sort homes items through the records seam and writes no `assign`, so the finder answers
+Grief and Obedience from its "would" branch, which packs the cell itself: both proofs stayed green (BLIND on his
+census). They now delete the "would" branch's shared-tab and personal-stash cell lines. Browser law: re-aimed by
+reading, proved at push. The filed branch's cell lines (a hand-filed item) are not reached by any case here.
 
 ### REG-2335 - AFTER A RESET HIS BOARD STILL HELD A TORCH IN SHARED STASH, A TORCH IN UNI-SMALL AND SIX CHARMS IN MAGIC & RARE (v3782)
 
