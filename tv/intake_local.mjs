@@ -87,29 +87,45 @@ function _retryS(window, used, max, now, span) {
   return Number.isFinite(t) ? Math.max(1, Math.ceil((t + span - now) / 1000)) : null;
 }
 
+function _full(window, rows, limit, span, now, words) {
+  /** One window at or over its limit -> {window, used, limit, source, retryS, lim, words}; null while it has room. */
+  if (rows.length < limit.value) return null;
+  return { window, used: rows.length, limit: limit.value, source: limit.source, lim: limit, words,
+    retryS: _retryS(rows, rows.length, limit.value, now, span) };
+}
+
+function _late(w) {
+  /** REG-2390 - how late a full window lets the next read through: an unknown retry is later than any known one. */
+  return w.retryS === null ? Infinity : w.retryS;
+}
+
+// REG-2390 - WHEN BOTH WINDOWS ARE FULL, THE REFUSAL IS THE ONE THAT BINDS. The hour was asked first and answered alone:
+// with 80 reads today, 20 of them this hour, the refusal said '(20/20 ...) — intake paused this hour' with a retry_s of
+// 120 - a read promised two minutes on - while the day cap refused for 20 hours more (reproduced on a fixture), and
+// it named the hour's source when the day's limit came from another layer. Every full window is found now. The refusal
+// is the one whose retry is LATEST, with that window's own limit, source and retry_s, so the read it promises is one
+// every window admits; its message says the other window is full too. An unknown retry binds over a known one, so no
+// time is promised while one window's cannot be known. With both switches at 0, the circuit names both.
 function budgetCheck() {
-  /** Returns null if allowed, else the refusal {window, used, limit, source, retryS, msg} (REG-2383). */
+  /** Returns null if allowed, else the refusal {window, used, limit, source, retryS, msg} (REG-2383, REG-2390). */
   if (HOURLY_MAX <= 0 || DAILY_MAX <= 0) {
-    const off = HOURLY_MAX <= 0 ? HOURLY : DAILY;
-    const name = HOURLY_MAX <= 0 ? 'TV_INTAKE_HOURLY_MAX' : 'TV_INTAKE_DAILY_MAX';
-    return { window: 'circuit', used: null, limit: 0, source: off.source, retryS: null,
-      msg: `subscription circuit open (${name}=0, ${_said(off)}) — intake is switched off on this PC` };
+    const off = [['TV_INTAKE_HOURLY_MAX', HOURLY], ['TV_INTAKE_DAILY_MAX', DAILY]].filter(([, l]) => l.value <= 0);
+    return { window: 'circuit', used: null, limit: 0, source: off[0][1].source, retryS: null,
+      msg: `subscription circuit open (${off.map(([n, l]) => n + '=0, ' + _said(l)).join('; ')}) — intake is switched off on this PC` };
   }
   const now = Date.now();
   const state = _budgetLoad();
   const calls = (state.calls || []).filter((t) => now - t < DAY_MS);
   const hour = calls.filter((t) => now - t < HOUR_MS);
-  if (hour.length >= HOURLY_MAX) {
-    return { window: 'hour', used: hour.length, limit: HOURLY_MAX, source: HOURLY.source,
-      retryS: _retryS(hour, hour.length, HOURLY_MAX, now, HOUR_MS),
-      msg: `subscription hourly cap hit (${hour.length}/${HOURLY_MAX}, ${_said(HOURLY)}) — intake paused this hour` };
-  }
-  if (calls.length >= DAILY_MAX) {
-    return { window: 'day', used: calls.length, limit: DAILY_MAX, source: DAILY.source,
-      retryS: _retryS(calls, calls.length, DAILY_MAX, now, DAY_MS),
-      msg: `subscription daily cap hit (${calls.length}/${DAILY_MAX}, ${_said(DAILY)}) — intake paused today` };
-  }
-  return null;
+  const full = [_full('hour', hour, HOURLY, HOUR_MS, now, ['hourly', 'this hour']),
+    _full('day', calls, DAILY, DAY_MS, now, ['daily', 'today'])].filter(Boolean);
+  if (!full.length) return null;
+  const bind = full.reduce((a, b) => (_late(b) >= _late(a) ? b : a));
+  const others = full.filter((w) => w !== bind);
+  const pause = bind.retryS === null && others.length ? 'intake paused' : 'intake paused ' + bind.words[1];
+  return { window: bind.window, used: bind.used, limit: bind.limit, source: bind.source, retryS: bind.retryS,
+    msg: `subscription ${bind.words[0]} cap hit (${bind.used}/${bind.limit}, ${_said(bind.lim)}) — ${pause}`
+      + others.map((w) => `; the ${w.words[0]} cap is full too (${w.used}/${w.limit}, ${_said(w.lim)})`).join('') };
 }
 
 // REG-2385 - TWO WRITERS, TWO CLOCKS, ONE LEDGER. This file is also tv_diablo's vision meter (_sub_budget_record writes
