@@ -27,6 +27,13 @@ skipped in silence. The hook now asks the range once, at the top (@{push}, else 
 range is unknown and names the range it read. Both are driven here: a REAL `git -c` push through a hook built from the
 hook's own marked blocks, and the lane's three outcomes on fixture branches shaped like his.
 
+REG-2551 (the Grok CLI review of Push A2, MEDIUM M2). The scrub cases run ONLY the marked block, so an `export
+GIT_DIR=...` - or a `GIT_DIR=... cmd` prefix, or the same for GIT_WORK_TREE / GIT_INDEX_FILE / GIT_OBJECT_DIRECTORY /
+GIT_COMMON_DIR - written anywhere in the hook AFTER `# <<< scrub-git-env` kept every one of them green while each stage
+after it got the pointer back. NoStageAfterTheScrubPointsGitBack reads the WHOLE hook after the block as code: comments
+out, quotes followed the way bash nests them, and every heredoc body read whole - none is excluded, so none has to be
+shown to be data. Its reader is driven on every form, and on the shapes that must stay quiet, before its verdict counts.
+
 These cases DRIVE all three halves against a FIXTURE repo with a linked worktree, leaked exactly the way git leaks it:
 the hook's marked blocks in a real bash, the commit-stamps law on a named fixture commit, and every temp-repo law
 run whole under GIT_DIR=<the fixture worktree's git dir>, after which the fixture must be byte-for-byte what it was.
@@ -79,6 +86,13 @@ TEMP_REPO_LAWS = (
 POINTERS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")
 #: REG-2394 - on git's list, but they carry the push's own `git -c` options, never a pointer: the scrub keeps them
 CARRIERS = ("GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT")
+#: REG-2551 - the pointers no line after the scrub may assign or export again: git's own list is asked at run time (less
+#: CARRIERS), and these five are named so the law keeps them whatever a git version lists
+REEXPORTED = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR")
+#: REG-2551 - planted in a copy of the REAL hook where the reader could lose its place (the first line after the scrub,
+#: after each heredoc, the end): a quoted `#` comes first, so a reader that took it for a comment would miss the export
+#: behind it and read the hook clean
+CANARY = 'echo "a #b"; export GIT_DIR=/tmp/canary\n'
 #: the fixture's git never reads his global or system config (a push.default there would decide @{push} for it)
 _HERMETIC = {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_TERMINAL_PROMPT": "0"}
 _IDENT = ["-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
@@ -184,6 +198,158 @@ def _block(name):
     i = src.index("# >>> %s\n" % name)
     j = src.index("# <<< %s\n" % name, i)
     return src[i:j], src[:i].count("\n")
+
+
+#: REG-2551 - where a `#` starts a WORD in bash (and so a comment): after a blank, a line start or an operator
+_WORD_START = " \t\n;&|()<>"
+_HEREDOC = re.compile(r"<<(-?)[ \t]*(?:'([^'\n]*)'|\"([^\"\n]*)\"|\\?([A-Za-z_][A-Za-z0-9_]*))")
+
+
+def _shell_code(src):
+    """REG-2551 - bash source as bash reads it: every comment out, every heredoc body kept WHOLE.
+    -> (code, pos, heredocs, open) - pos[k] is the index in `src` of code[k], heredocs [(delimiter, closed, the index
+    just past its last line)], and open the quote / substitution frames still open at the end (anything but [] means
+    this reader lost bash's place).
+
+    A `#` opens a comment only at the start of a word and outside quotes, so "#42", $#, ${#a} and ${x#y} stay code.
+    Quotes are followed the way bash nests them: '...' is literal; $'...' takes backslash escapes, an escaped quote
+    included; "..." takes backslash escapes and opens $(...) and `...`; $(...) is a fresh command context, where quotes
+    and comments start again. A backslash-newline joins its two lines, as bash does. A heredoc body (the lines after its
+    opener's line, up to its delimiter) is NOT stripped: under an unquoted delimiter bash expands every $(...) in it,
+    and a quoted one is data whose text costs nothing to read. Its reach, stated: a `case` pattern's `)` inside $(...)
+    is read as that $(...)'s close (the hook has none)."""
+    out, pos, heredocs, pending = [], [], [], []
+    stack = [["top", 0]]
+    i, n = 0, len(src)
+
+    def put(text, at):
+        for k, ch in enumerate(text):
+            out.append(ch)
+            pos.append(at + k)
+
+    while i < n:
+        c, kind = src[i], stack[-1][0]
+        if kind == "sq":
+            put(c, i)
+            i += 1
+            if c == "'":
+                stack.pop()
+            continue
+        if kind == "ansi":                               # $'...': a backslash escapes the next character, \' too
+            step = 2 if c == "\\" else 1
+            put(src[i:i + step], i)
+            i += step
+            if c == "'":
+                stack.pop()
+            continue
+        if c == "\n":
+            put(c, i)
+            i += 1
+            if pending and kind in ("top", "cmd"):      # the opener's line has ended: its bodies follow, in order
+                for delim, tabs in pending:
+                    closed = False
+                    while i < n and not closed:
+                        j = src.find("\n", i)
+                        nxt = n if j < 0 else j + 1
+                        line = src[i:nxt].rstrip("\n")
+                        put(src[i:nxt], i)
+                        i = nxt
+                        closed = (line.lstrip("\t") if tabs else line) == delim
+                    heredocs.append((delim, closed, i))
+                pending = []
+            continue
+        if c == "\\":
+            if src[i + 1:i + 2] == "\n":
+                put(" ", i)                              # a line continuation: one logical line, as bash reads it
+            else:
+                put(src[i:i + 2], i)
+            i += 2
+            continue
+        if kind == "bq":
+            put(c, i)
+            i += 1
+            if c == "`":
+                stack.pop()
+            continue
+        if kind == "dq":
+            if src.startswith("$(", i):
+                stack.append(["cmd", 0])
+                put("$(", i)
+                i += 2
+                continue
+            if c == '"':
+                stack.pop()
+            elif c == "`":
+                stack.append(["bq", 0])
+            put(c, i)
+            i += 1
+            continue
+        # a command context: the top level, or inside $(...)
+        if c == "#" and (i == 0 or src[i - 1] in _WORD_START):
+            j = src.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        if src.startswith("$(", i):
+            stack.append(["cmd", 0])
+            put("$(", i)
+            i += 2
+            continue
+        if src.startswith("$'", i):
+            stack.append(["ansi", 0])
+            put("$'", i)
+            i += 2
+            continue
+        if src.startswith("<<", i) and not src.startswith("<<<", i) and (i == 0 or src[i - 1] != "<"):
+            m = _HEREDOC.match(src, i)
+            if m:
+                pending.append((next(g for g in m.groups()[1:] if g is not None), bool(m.group(1))))
+                put(m.group(0), i)
+                i = m.end()
+                continue
+        if c == "'":
+            stack.append(["sq", 0])
+        elif c == '"':
+            stack.append(["dq", 0])
+        elif c == "`":
+            stack.append(["bq", 0])
+        elif c == "(" and kind == "cmd":
+            stack[-1][1] += 1
+        elif c == ")" and kind == "cmd":
+            if stack[-1][1]:
+                stack[-1][1] -= 1
+            else:
+                stack.pop()
+        put(c, i)
+        i += 1
+    return "".join(out), pos, heredocs, [f[0] for f in stack[1:]]
+
+
+def _pointer_names():
+    """REG-2551 - every variable that points git at a repository: git's own list, REEXPORTED by name, less CARRIERS"""
+    return (set(_git("rev-parse", "--local-env-vars").split()) | set(POINTERS) | set(REEXPORTED)) - set(CARRIERS)
+
+
+def _reexports(src, first_line, names):
+    """REG-2551 - every place `src` (bash, whose first line is hook line `first_line`) assigns or exports a pointer.
+    -> (hits, code, heredocs, open); a hit is (hook line, form, name, that line's text)
+
+    The forms bash itself assigns or exports with: NAME= / NAME+= (a plain assignment, a `NAME=... cmd` prefix, `env
+    NAME=...`, `${NAME=...}` / `${NAME:=...}`); export / declare / typeset / local / readonly naming it; read /
+    printf -v / mapfile naming it. Strings are read too - `env "GIT_DIR=$x" cmd` and `eval "export GIT_DIR=..."` are
+    real re-exports. Its reach, stated: a name built at run time (`v=GIT_DIR; export "$v=..."`) is not seen."""
+    alt = "|".join(re.escape(x) for x in sorted(names, key=len, reverse=True))
+    forms = (("assigns", re.compile(r"(?<![\w$])(%s)[+:]?=" % alt)),
+             ("exports", re.compile(r"\b(?:export|declare|typeset|local|readonly)\b[^\n;&|]*?(?<![\w${])(%s)\b" % alt)),
+             ("reads into", re.compile(r"\b(?:read|printf[ \t]+-v|mapfile|readarray)\b[^\n;&|]*?(?<![\w${])(%s)\b"
+                                       % alt)))
+    code, pos, heredocs, still_open = _shell_code(src)
+    lines = src.split("\n")
+    hits = set()
+    for form, rx in forms:
+        for m in rx.finditer(code):
+            at = src.count("\n", 0, pos[m.start(1)])
+            hits.add((first_line + at, form, m.group(1), lines[at].strip()[:160]))
+    return sorted(hits), code, heredocs, still_open
 
 
 class _Case(unittest.TestCase):
@@ -346,6 +512,92 @@ class ThePushsOwnOptionsSurviveTheScrub(_Case):
         local = (set(_git("rev-parse", "--local-env-vars").split()) | set(POINTERS)) - set(CARRIERS)
         self.assertEqual(sorted(left & local), [], "a pointer at the real repo outlived the scrub: %s" % sorted(left))
         self.assertEqual(_git("-C", fx.remote, "rev-parse", "main"), on_remote, "the fixture push reached its remote")
+
+
+#: REG-2551 - the reader's reach, DRIVEN: (a hook's text after the scrub, does it point git at a repository again?)
+_REACH = (
+    ("export GIT_DIR=/tmp/x\n", True),
+    ("GIT_WORK_TREE=/tmp/x git status\n", True),
+    ("x=1 GIT_INDEX_FILE=/tmp/i git add -A\n", True),
+    ("env GIT_OBJECT_DIRECTORY=/tmp/o git fsck\n", True),
+    ("declare -x GIT_COMMON_DIR=/tmp/c\n", True),
+    ("export GIT_COMMON_DIR\n", True),
+    ("typeset -x GIT_INDEX_FILE\n", True),
+    ("readonly GIT_OBJECT_DIRECTORY\n", True),
+    ("local GIT_DIR\n", True),
+    ("GIT_INDEX_FILE+=.lock git add -A\n", True),
+    ('read -r GIT_DIR < "$_f"\n', True),
+    ("printf -v GIT_WORK_TREE '%s' /tmp/x\n", True),
+    ("mapfile -t GIT_INDEX_FILE < /tmp/f\n", True),
+    ('git log "${GIT_DIR:=/tmp/x}"\n', True),
+    ("export \\\n  GIT_WORK_TREE\n", True),
+    ("# don't\nexport GIT_DIR=/tmp/x\n", True),
+    ("echo \"it's #1\"; export GIT_DIR=/tmp/x\n", True),
+    ("echo 'a #b'; export GIT_DIR=/tmp/x\n", True),
+    ("echo $'it\\'s'; export GIT_DIR=/tmp/x\n", True),                  # $'...' escapes its own quote
+    ("echo `echo a #b`; export GIT_DIR=/tmp/x\n", True),                # a '#' inside `...` ends nothing past it
+    ('_v="$(echo "# x"; GIT_DIR=/tmp/x git rev-parse HEAD)"\n', True),
+    ('_v="$(printf \'%s\' "a #b"; GIT_DIR=/tmp/x git log)"\n', True),      # quotes nest inside $(...) inside "..."
+    ("cat <<EOF\n$(GIT_DIR=/tmp/x git log)\nEOF\n", True),
+    ("cat <<EOF\n# $(GIT_DIR=/tmp/x git log)\nEOF\n", True),          # no comment in a heredoc: bash runs that $(...)
+    ("echo $# ${_f#stale|} a#b; export GIT_DIR=/tmp/x\n", True),       # a '#' inside a word opens no comment
+    ("python3 - <<'PY' 2>/dev/null\nimport os\nPY\nexport GIT_INDEX_FILE=/tmp/i\n", True),
+    # each delimiter spelling, over a body whose lone ' would hold a reader that missed the heredoc inside a quote
+    ("cat <<'EOF'\nit's data\nEOF\nexport GIT_DIR=/tmp/x\n", True),
+    ('cat <<"EOF"\nit\'s data\nEOF\nexport GIT_DIR=/tmp/x\n', True),
+    ("cat <<\\EOF\nit's data\nEOF\nexport GIT_DIR=/tmp/x\n", True),
+    ("cat <<-EOF\n\tit's data\n\tEOF\nexport GIT_DIR=/tmp/x\n", True),        # <<- : the delimiter line is tab-indented
+    ("# export GIT_DIR=/tmp/x\n", False),
+    ("echo ok  # GIT_DIR=/tmp/x is what git hands a hook\n", False),
+    ('echo "TV_PUSHED_GIT_DIR=$TV_PUSHED_GIT_DIR"\nexport TV_PUSHED_GIT_DIR\n', False),
+    ('git --git-dir="$TV_PUSHED_GIT_DIR" show HEAD:bible.html\n', False),
+    ('[ -n "${GIT_DIR:-}" ] && echo "a pointer leaked"\n', False),
+    ('echo "$#" "${#_a}" "${_f#stale|}"\n', False),
+    ("unset GIT_DIR GIT_WORK_TREE\n", False),
+)
+
+
+class NoStageAfterTheScrubPointsGitBack(_Case):
+    """REG-2551 (the Grok CLI review of Push A2, MEDIUM M2) - the scrub cases run only the marked block, so a re-export
+    of a pointer anywhere AFTER it kept them green while every later stage got the pointer back."""
+
+    def test_the_reader_finds_every_form_and_no_comment(self):
+        """its reach first, on text whose answer is known: each re-export form is found, and a comment, a use of the
+        value (`${GIT_DIR:-}`), an unset, TV_PUSHED_GIT_DIR and `git --git-dir=` are not - a reader that misses here
+        would read the hook clean"""
+        names = _pointer_names()
+        for text, want in _REACH:
+            with self.subTest(text=text):
+                hits, _code, heredocs, still_open = _reexports(text, 1, names)
+                self.assertEqual(still_open, [], "the reader lost bash's place in %r" % text)
+                self.assertTrue(all(h[1] for h in heredocs), "the reader found no end to a heredoc in %r" % text)
+                self.assertEqual(bool(hits), want, "%r - the reader says %s" % (text, hits or "nothing"))
+
+    def test_no_line_after_the_scrub_points_git_at_a_repo_again(self):
+        """★ the WHOLE hook after `# <<< scrub-git-env`, comments out and heredoc bodies in: no line assigns or exports
+        GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_OBJECT_DIRECTORY, GIT_COMMON_DIR or any pointer on git's list"""
+        with io.open(HOOK, encoding="utf-8") as fh:
+            src = fh.read()
+        for marker in ("# >>> scrub-git-env\n", "# <<< scrub-git-env\n"):
+            self.assertEqual(src.count(marker), 1, "PREMISE: %r is not in the hook exactly once" % marker)
+        end = src.index("# <<< scrub-git-env\n") + len("# <<< scrub-git-env\n")
+        tail, first, names = src[end:], src[:end].count("\n") + 1, _pointer_names()
+        hits, _code, heredocs, still_open = _reexports(tail, first, names)
+        self.assertEqual(still_open, [], "this reader lost bash's place in the hook (%s still open at the end) - its "
+                                         "verdict is UNKNOWN, not passing" % still_open)
+        self.assertTrue(all(h[1] for h in heredocs), "the reader found no end to a heredoc in the hook (%s) - its "
+                                                     "verdict is UNKNOWN, not passing" % [h[0] for h in heredocs])
+        # the reader's place, checked on the REAL text: a canary planted where it could be lost must be found there
+        for at in [0] + [h[2] for h in heredocs] + [len(tail)]:
+            sep = "" if at == 0 or tail[at - 1] == "\n" else "\n"
+            planted = tail[:at] + sep + CANARY + tail[at:]
+            got = _reexports(planted, first, names)[0]
+            self.assertIn((first + planted.count("\n", 0, at + len(sep)), "GIT_DIR"), set((h[0], h[2]) for h in got),
+                          "PREMISE: a canary re-export planted at hook offset %d was not found - the reader has lost "
+                          "bash's place there, so its verdict is UNKNOWN: %s" % (end + at, got))
+        self.assertEqual(hits, [], "a line after the scrub points git at a repository AGAIN - every stage after it "
+                                   "inherits the pointer the scrub removed (REG-2360):\n%s"
+                         % "\n".join("  hooks/pre-push:%d  %s %s  | %s" % h for h in hits))
 
 
 class TheTvLaneReadsAKnownRangeOrRuns(_Case):
@@ -576,5 +828,22 @@ RED_PROOF = [
         "replace": "  :\n",
         "matches": 1,
         "needs": "bash",
+    },
+    {
+        "why": "REG-2551 - the line after the scrub exports GIT_DIR again: every stage inherits a pointer at a repository, "
+               "and the cases that run only the scrub block stay green",
+        "file": "hooks/pre-push",
+        "find": "# <<< scrub-git-env\n",
+        "replace": "# <<< scrub-git-env\nexport GIT_DIR=/tmp/x\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2551 - a stage far past the scrub (after the hook's heredoc, inside $(...) in a string) hands its git "
+               "the pushed git dir as a `GIT_DIR=... cmd` prefix",
+        "file": "hooks/pre-push",
+        "find": "    changed=\"$(git diff --name-only \"$remote_sha\"..\"$local_sha\" 2>/dev/null)\"\n",
+        "replace": "    changed=\"$(GIT_DIR=\"$TV_PUSHED_GIT_DIR\" git diff --name-only \"$remote_sha\"..\"$local_sha\" "
+                   "2>/dev/null)\"\n",
+        "matches": 1,
     },
 ]

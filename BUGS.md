@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2551 - THE SCRUB LAW READ ONLY THE SCRUB BLOCK: A POINTER RE-EXPORTED AFTER IT KEPT EVERY CASE GREEN (the Grok CLI review of Push A2, MEDIUM M2)
+
+test_a_leaked_git_dir_never_writes_the_real_repo's scrub cases (TheHookUnsetsThePointerBeforeAnyStage,
+ThePushsOwnOptionsSurviveTheScrub) run ONLY the hook's `# >>> scrub-git-env` block in bash. An `export GIT_DIR=...` - or a
+`GIT_DIR=... cmd` prefix, or the same for GIT_WORK_TREE / GIT_INDEX_FILE / GIT_OBJECT_DIRECTORY / GIT_COMMON_DIR - written
+anywhere in hooks/pre-push after `# <<< scrub-git-env` would hand every later stage the pointer back while each case stayed
+green. Found by the Grok CLI review of Push A2.
+FIX: class NoStageAfterTheScrubPointsGitBack reads the WHOLE hook after the block as bash reads it: comments out (a `#` opens
+one only at a word start, outside quotes), quotes followed the way bash nests them ('...', $'...', "...", and $(...) and `...`
+inside "..."), backslash-newline joined, and every heredoc body read whole - none is excluded, so none has to be shown to be
+data (under an unquoted delimiter bash expands its $(...); a quoted one costs nothing to read). It fails on any assignment or
+export of a pointer - git's own --local-env-vars list less the two option carriers (REG-2394), plus those five by name - in
+the forms bash has: NAME= / NAME+= / ${NAME:=...} (a plain assignment, a `NAME=... cmd` prefix, env), export / declare /
+typeset / local / readonly, read / printf -v / mapfile; strings are read too (`env "GIT_DIR=$x" cmd`, `eval "export ..."`).
+Its reach is DRIVEN before its verdict counts: 37 texts whose answer is known (30 it must find, 7 it must not - a comment, a
+use of the value, an unset, TV_PUSHED_GIT_DIR, `git --git-dir=`); and on the real hook a canary re-export planted where the
+reader could lose its place (the first line after the block, after each heredoc, the end) must be found there, or the verdict
+is UNKNOWN, not passing. Its reach, stated: a name built at run time (`v=GIT_DIR; export "$v=..."`) and a `case` pattern's `)`
+inside $(...) (the hook has none) are not read.
+MEASURED: on the hook today 0 re-exports, its one heredoc (PYGATE) closed, nothing left open. Bash's own parse of the same text
+(`declare -f` of it as a function body - comments dropped by bash itself) holds the same GIT_* tokens as the reader's code view:
+none on the hook, one GIT_DIR on each tampered hook below. 25 single-point mutants of the reader (each quote kind, the comment
+rule, the continuation, each heredoc spelling, the $(...) close, each assignment / export / read form) - each red BY ASSERTION
+against the real hook.
+GUARD: RED proofs [12] (`export GIT_DIR=/tmp/x` on the line after the block) and [13] (a `GIT_DIR="$TV_PUSHED_GIT_DIR" git
+diff` prefix inside $(...) in a string, past the heredoc 1,100 lines on) - each red BY ASSERTION in
+test_no_line_after_the_scrub_points_git_at_a_repo_again (failures=1, errors=0; clean 10/10 OK). No `needs`: the reader is
+Python and git, so a PC without bash proves them too. heart2 --prove (one worker): 14/14 PROVEN.
+
 ### REG-2550 - THE SELF-PROVER WAITED FOR AN IDLE HIS MAC NEVER HAS: ITS START BAR IS 75, NOT 45 (his order, 2026-10-22)
 
 His order, 2026-10-22: "raise the cap to 75% so it proves now". tv/self_prove.py's MAX_BUSY_TO_START was 45.0 - busier than
