@@ -44,9 +44,15 @@ _console_safe_enable()
 
 
 def build(ledger="sets"):
-    """{baseLower: {"base":…, "pieces":[…]}} plus the reading's own stamp, or None if never read."""
+    """{baseLower: {"base":…, "pieces":[…]}} plus the reading's own stamp, or None if never read.
+
+    ⚠ #165 (REG-2472) - THE SHIPPED PAGE, ON EVERY PC. Which base the game prints for which set piece is GAME DATA,
+    true for every player, and bible.html embeds this index as _SET_BASE_INDEX. counter_ledger.load() now answers
+    only with a page THIS PC filmed (another install's page is UNKNOWN there), so reading through it would make the
+    index vanish on every PC but the one that filmed the page. reference() is the shipped page as data, never as
+    evidence about a board - this module asks nothing about which pieces anyone owns."""
     import counter_ledger as _cl
-    r = _cl.load(ledger)
+    r = _cl.reference(ledger)  # REFERENCE-PAGE
     if not r:
         return None
     path = os.path.join(_cl._dir(), r["source"])
