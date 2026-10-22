@@ -2237,6 +2237,30 @@
     "purpose": "Scores stash_eye.classify_stash_grid against the hand-labelled frames in stash_grid_truth.json, with a ratchet against the last score.",
     "territory": "capture-vision"
   },
+  "store_door_harness.py": {
+    "entryPoints": [
+      "page",
+      "src",
+      "between",
+      "fn",
+      "window_fn",
+      "stage",
+      "store_read",
+      "store_notice",
+      "tab_sync",
+      "vault_head",
+      "vault_door",
+      "say_line",
+      "vault_page",
+      "boot",
+      "loaders",
+      "NODE",
+      "PRELUDE"
+    ],
+    "gotcha": "Every piece is CUT from bible.html by its own anchors (an anchor that moved raises, never skips), so a law asks the shipped code. page() seeds a localStorage stand-in (RAW) and runs the real window.LSR door, so a quarantine really copies bytes aside (aside() lists them) and fire() delivers a storage event the way the browser does. NODE is shutil.which('node'): an absent node skips the laws (UNMEASURED); a node that runs and fails is an AssertionError, never a skip. vault_page's door is the whole ⟦#246 VAULTFILE⟧ block with VAULT_DOOR_STUBS standing in for the router, the lane locks and the paints.",
+    "purpose": "REG-2410..2417 - the store door's node stand-in: the forked-name sets and window.LSR (its quarantine, hold and release), the shape-aware boot readers and the store notice, ⟦TAB SYNC⟧, the vault module's head and its filing door, cut out of bible.html and run in ONE node process per law - for the eight laws that hold a store that will not read as named, kept aside and never written over, and another tab's write or removal as merged, never clobbered.",
+    "territory": "gates-proofs"
+  },
   "store_owners.py": {
     "entryPoints": [
       "STORES",
