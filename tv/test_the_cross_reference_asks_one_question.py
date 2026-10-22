@@ -481,8 +481,14 @@ RED_PROOF = [
         #: hardcoded `_tot = None` — so the proof could never go red and heart2 called the whole
         #: gate BLIND, which closed all ten self-arming locks. The universe question moved per-ROW
         #: into mask_cross_check; this now tampers the reason that actually gets built.
-        "find": '"%s posts %s out of %d while the %s mask can only represent %d roster names, "',
-        "replace": '"%s posts %s while the %s mask can only represent %d roster names, "',
+        #: ⚠ REG-2398 — AND IT WENT RED BY CRASHING. It dropped ` out of %d` and left `_rowTot` in the argument tuple, so
+        #: the `%` raised TypeError (measured by the cross-family review: 0 failures, 2 ERRORS) and the assertion this
+        #: proof exists for - the reason names BOTH numbers - never ran. The tamper now drops the placeholder AND its
+        #: argument together, the way a real edit would: the reason is built, and the law fails on it.
+        "find": '"%s posts %s out of %d while the %s mask can only represent %d roster names, "\n'
+                '                    "so their counts are not comparable" % (who, t.get("have"), _rowTot, led,\n',
+        "replace": '"%s posts %s while the %s mask can only represent %d roster names, "\n'
+                   '                    "so their counts are not comparable" % (who, t.get("have"), led,\n',
         "matches": 1,
     },
 ]

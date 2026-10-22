@@ -7,6 +7,32 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2399 - THE VAULT FINDER'S FILED BRANCH HAS NO CASE AND NO PROOF: A KNOWN, UNGUARDED GAP (Push A2 review, REG-2376's other half)
+
+Said plainly so nobody reads REG-2020's guard as covering it. REG-2376 re-aimed test_the_vault_finder_names_the_mule_and_the_cell's
+red-proofs [1] and [2] at `_vaultWhereIs`'s "would" branch (bible.html, the `outW` cell lines), because since v3767 the hand
+auto-sort homes items through the records seam and writes no `assign`, so every case in that law answers from "would". That left
+the FILED branch - the `mid != null` half, reached only for an item with a real `assign` entry or one in Magic & Rare: its
+shared-stash cell line (`pk.placed.forEach(... out.cell = pages[i].label + ' tab · col ' ...)`) and its mule-stash cell line
+(`(mu.stash || []).forEach(... out.cell = tag + 'Personal stash · col ' ...)`) - with no case that reaches it and no proof that
+tampers it. A hand-filed item's cell could vanish from the finder and every gate would stay green.
+NOT COVERED: REG-2020's subject ("the finder prints the mule AND the cell") is guarded for an item the router WOULD place, not for
+one he has FILED. REG-2020's "Guard: ... (5 PROVEN)" line predates v3767 and does not cover this branch.
+LEFT: a browser case that files an item by hand (vaultFile with his hand as the witness) and asks the finder for its cell, plus two
+red-proofs on the filed branch's cell lines. Not added on this Mac (browser laws run on CI - test-venue); filed for the next batch.
+
+### REG-2398 - THE CROSS-REFERENCE LAW'S PROOF [4] WENT RED BY CRASHING, SO THE CHECK IT EXISTS FOR NEVER RAN (Push A2 review)
+
+test_the_cross_reference_asks_one_question's red-proof [4] ("a pair ruled not-comparable names BOTH numbers") removed ` out of %d`
+from the reason's format string in ledger_authority.mask_cross_check and left `_rowTot` in its argument tuple: five arguments for
+four placeholders, so the `%` raised TypeError before any reason was built. Found by the cross-family review (GrokBot, #230) and
+reproduced here in a heart2 sandbox: the old tamper reads `FAILED (errors=2)` (test_a_pair_ruled_NOT_comparable_NAMES_BOTH_NUMBERS
+and test_the_cross_check_EXCLUDES_with_a_REASON_at_both_levels, both crashing) - heart2 filed it PROVEN, but the assertion the proof
+names never ran, and ANY edit to that line would crash the same way.
+FIX: the tamper is a two-line find/replace that drops the placeholder AND its argument together, as a real edit would. MEASURED in a
+sandbox: clean 18/18 OK; tampered `FAILED (failures=1)`, the one red case test_a_pair_ruled_NOT_comparable_NAMES_BOTH_NUMBERS (the
+reason names the roster size but not the posted total). heart2 --prove: 5/5 PROVEN.
+
 ### REG-2397 - ON THE MAC, A SANDBOX OF THE MAIN CHECKOUT KEPT HIS REMOTES: A `git push` A LAW MADE THERE WOULD HAVE GONE TO GITHUB (Push A2 review)
 
 REG-2364 shut the push of the private clone a worktree's sandbox gets. A sandbox built from the MAIN checkout on the Mac takes a
