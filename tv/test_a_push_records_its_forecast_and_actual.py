@@ -445,7 +445,9 @@ RED_PROOF = [
      "file": "prove_record.py",
      "find": "        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)\n",
      "replace": "        pass\n",
-     "matches": 1},
+     # REG-2357 - its one catching case is POSIX-only (flock): on Windows the case skips in both runs and this proof
+     # filed BLIND there. Judged where POSIX is.
+     "matches": 1, "needs": "posix"},
 ]
 
 

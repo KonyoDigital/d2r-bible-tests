@@ -204,11 +204,14 @@ RED_PROOF = [
     {"why": "REG-1642 - the hook's syntax check runs a bare `bash` again (the WSL launcher on the ALT)",
      "file": "test_the_render_gate_runs_before_the_proving_stage.py",
      "find": "        r = subprocess.run([_bash, \"-n\", HOOK]", "replace": "        r = subprocess.run([\"bash\", \"-n\", HOOK]",
-     "matches": 1},
+     # REG-2357 - its only catching case is ALauncherNamedBashIsNeverRun's, which skips on Windows: BLIND there
+     "matches": 1, "needs": "posix"},
     {"why": "REG-1642 - the launcher guard in test_control runs a bare `bash` again",
      "file": "test_control.py",
      "find": "        r = subprocess.run([_bash, sh, str(port), str(grace)]",
-     "replace": "        r = subprocess.run([\"bash\", sh, str(port), str(grace)]", "matches": 1},
+     "replace": "        r = subprocess.run([\"bash\", sh, str(port), str(grace)]",
+     # REG-2357 - its only catching case is ALauncherNamedBashIsNeverRun's, which skips on Windows: BLIND there
+     "matches": 1, "needs": "posix"},
 ]
 
 

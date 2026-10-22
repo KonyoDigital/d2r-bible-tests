@@ -252,6 +252,9 @@ RED_PROOF = [
         "find": "            obj.stop()\n            done.append(\"%s.%s stopped\" % (modname, name))\n",
         "replace": "            done.append(\"%s.%s stopped\" % (modname, name))\n",
         "matches": 1,
+        # REG-2357 - its only catching cases are AnExecLeavesNoCorpse's, which skip off POSIX (os.execv replaces the
+        # image only there): on Windows this proof files BLIND. Judged where POSIX is.
+        "needs": "posix",
     },
     {
         "why": "#224 - the new image never collects what it inherited: a child that dies after exec stays <defunct> for the life of the console",
@@ -259,6 +262,9 @@ RED_PROOF = [
         "find": "            got, _st = os.waitpid(int(p), os.WNOHANG)\n",
         "replace": "            got, _st = 0, 0\n",
         "matches": 1,
+        # REG-2357 - its only catching cases are AnExecLeavesNoCorpse's, which skip off POSIX (os.execv replaces the
+        # image only there): on Windows this proof files BLIND. Judged where POSIX is.
+        "needs": "posix",
     },
     {
         "why": "#224 - the reaper thread never collects a child that was still alive at the exec and died later (the warm worker's own shape)",
@@ -266,6 +272,9 @@ RED_PROOF = [
         "find": "                        got, _st = os.waitpid(p, os.WNOHANG)\n",
         "replace": "                        got, _st = 0, 0\n",
         "matches": 1,
+        # REG-2357 - its only catching cases are AnExecLeavesNoCorpse's, which skip off POSIX (os.execv replaces the
+        # image only there): on Windows this proof files BLIND. Judged where POSIX is.
+        "needs": "posix",
     },
     {
         "why": "#224 - the drift watcher's auto-relaunch execs without quiescing (the path that fired all 35 times)",

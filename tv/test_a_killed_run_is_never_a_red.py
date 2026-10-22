@@ -28,6 +28,11 @@ DRIVEN, real code and real signals:
      group. The review's BLIND law banks nothing. The same teardown on a LIVE helper is still the law's own kill
      (PROVEN). The hook marks `dead=1` / `gone=` from real zombies and never reaps one to do it, and the reader is
      driven one rule at a time.
+  9. REG-2358 (round 3): a signal explains only the FIRST death of each pid it reached - by pid, by group, to every
+     process. The next death of that pid is a recycled pid's, and a signal sent before the first death never ended it.
+ 10. REG-2357 (round 3): every case of 1-8 skips off POSIX, so on Windows a proof that declared no need filed BLIND and
+     shut every lock there. Every proof declares "posix-signals": on Windows each one is ELSEWHERE and never run (a
+     class that runs everywhere checks both).
 Every scenario that kills on purpose runs in a DRIVER subprocess whose environment holds no watch of its own, so the
 watch heart2 arms over THIS law's run is never fed by them. RED_PROOF below. [[unknown-stays-unknown]]
 """
@@ -40,6 +45,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -518,6 +524,25 @@ class TheKillWatchSaysWhoSentIt(unittest.TestCase):
                          ["j"], "a group member that was already dead when its group was signalled was explained "
                                 "(or a live one, or the leader, was not)")
 
+    def test_a_signal_explains_only_the_first_death_of_each_pid_it_reached(self):
+        """REG-2358 - a pid that died once is a NEW process the next time it dies (the pid was recycled): no signal sent
+        before the first death explains the second, by pid, by group or to every process."""
+        self.assertEqual(self._read("X\t1\tpid=1100 sig=9\nK\t1\tpid=1100 pgid=- sig=9 head=m\n"
+                                    "K\t1\tpid=1100 pgid=- sig=9 head=n\n"), ["n"],
+                         "a signal the law sent its own helper explained a later death of whatever got that pid next")
+        self.assertEqual(self._read("X\t1\tpgid=1200 sig=9\nK\t1\tpid=1201 pgid=1200 sig=9 head=o\n"
+                                    "K\t1\tpid=1200 pgid=1200 sig=9 head=o2\nK\t1\tpid=1201 pgid=1200 sig=9 head=p\n"),
+                         ["p"], "a group signal explained a second death of one of its members")
+        self.assertEqual(self._read("X\t1\tall sig=9\nK\t1\tpid=1300 pgid=- sig=9 head=q\n"
+                                    "K\t1\tpid=1300 pgid=- sig=9 head=r\n"), ["r"],
+                         "a signal to every process explained a second death of the same pid")
+        self.assertEqual(self._read("X\t1\tpid=1400 sig=9\nK\t1\tpid=1400 pgid=- sig=13 head=s0\n"
+                                    "K\t1\tpid=1400 pgid=- sig=9 head=s\n"), ["s"],
+                         "a death by a closed pipe left the X's one chance at that pid for the next process")
+        self.assertEqual(self._read("X\t1\tpid=1500 sig=9\nK\t1\tpid=1500 pgid=- sig=9 head=t\n"
+                                    "X\t1\tpid=1500 sig=9\nK\t1\tpid=1500 pgid=- sig=9 head=u\n"), [],
+                         "PREMISE: the law killing the recycled pid AGAIN is its own kill again, each X its own death")
+
     def test_a_signal_to_a_child_already_dead_says_so(self):
         """REG-2356 - the hook marks an X before its signal leaves, from real zombies, and never reaps one to do it."""
         (a, lead, mem, b, me), text, left = self._watched(ZOMBIES)
@@ -581,141 +606,183 @@ print("NOT ENDED", flush=True)
         self.assertFalse(os.path.exists(root), "a Ctrl-C'd prover left its sandbox behind")
 
 
+class OnWindowsEveryProofIsElsewhere(unittest.TestCase):
+    """REG-2357 (the round-3 review) - every case above skips off POSIX, so on Windows the clean run and the tampered
+    run both skip everything: a proof that declared no need filed BLIND there, and one BLIND shuts every lock on that
+    PC. Each proof declares "posix-signals", so REG-1686 files it ELSEWHERE there and never runs it. This class runs
+    everywhere, Windows included."""
+
+    def test_every_proof_declares_it_needs_posix_signals(self):
+        bare = [i for i, pr in enumerate(RED_PROOF) if str(pr.get("needs") or "") not in H._OFF_POSIX_NEEDS]
+        self.assertEqual(bare, [], "red-proof(s) %s declare no POSIX need: on Windows every case here skips, so each of "
+                                   "them files BLIND there and shuts every lock on that PC" % bare)
+
+    def test_on_windows_each_proof_is_elsewhere_and_never_run(self):
+        d = tempfile.mkdtemp(prefix="h2win.")
+        self.addCleanup(shutil.rmtree, d, True)
+        runs, said = [], []
+        with mock.patch.object(H.sys, "platform", "win32"), \
+                mock.patch.object(H, "_run_gate", lambda *a, **k: runs.append(a) or (True, "Ran 17 tests | OK")):
+            got = [H._prove_one(d, "test_a_killed_run_is_never_a_red", "test_a_killed_run_is_never_a_red.py", pr, i,
+                                said.append) for i, pr in enumerate(RED_PROOF)]
+        self.assertEqual(sorted(set(got)), [H.ELSEWHERE], "on Windows a proof of this law was filed %s" % got)
+        self.assertEqual(runs, [], "on Windows this law was run for a proof it can never judge there")
+
+
 RED_PROOF = [
     {"why": "REG-2350 - a law killed by a signal is read as a red again: a killed tampered run is banked PROVEN",
      "file": "heart2.py",
      "find": "    if rc < 0:\n        return -rc, \"the law was killed by %s\" % _signal_words(-rc)\n",
      "replace": "    if rc < -999:\n        return -rc, \"the law was killed by %s\" % _signal_words(-rc)\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a shell's 128+N (a child killed by signal N) is read as a red again",
      "file": "heart2.py",
      "find": "    if rc - 128 in _SHELL_SIGNALS:\n",
      "replace": "    if False:\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - the kill watch is armed and never read: a helper killed from outside makes the law red, PROVEN",
      "file": "heart2.py",
      "find": "        _killed = _kills_in(_watch) if _watch else []\n",
      "replace": "        _killed = []\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - the run is never given the watch file, so no child's kill is ever written",
      "file": "heart2.py",
      "find": "    env[\"TV_GATE_KILLS\"] = path\n",
      "replace": "    env[\"TV_GATE_KILLS_OFF\"] = path\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - the hook is never put on the run's path, so nothing in the run watches its children",
      "file": "heart2.py",
      "find": "        env[\"PYTHONPATH\"] = hook_dir + (os.pathsep + old if old else \"\")  # KILL-WATCH-ARM\n",
      "replace": "        pass  # KILL-WATCH-ARM\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a kill the law sent itself by pid is no longer explained: every law that ends its helper is "
             "UNKNOWN",
      "file": "heart2.py",
-     "find": "               and (x[\"all\"] or (\"pid\" in x and x[\"pid\"] == k.get(\"pid\"))\n",
-     "replace": "               and (x[\"all\"] or False\n",
-     "matches": 1},
+     "find": "                 and (x[\"all\"] or (\"pid\" in x and x[\"pid\"] == p)\n",
+     "replace": "                 and (x[\"all\"] or False\n",
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a group kill of a leader whose group was never read is not explained",
      "file": "heart2.py",
-     "find": "                    or (\"pgid\" in x and x[\"pgid\"] in (k.get(\"pid\"), k.get(\"pgid\"))))\n",
-     "replace": "                    or (\"pgid\" in x and x[\"pgid\"] == k.get(\"pgid\")))\n",
-     "matches": 1},
+     "find": "                      or (\"pgid\" in x and x[\"pgid\"] in (p, k.get(\"pgid\"))))]\n",
+     "replace": "                      or (\"pgid\" in x and x[\"pgid\"] == k.get(\"pgid\")))]\n",
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a closed pipe (SIGPIPE) is read as a kill from outside",
      "file": "heart2.py",
      "find": "        if k[\"n\"] == _pipe:\n            continue\n",
      "replace": "        if k[\"n\"] == -1:\n            continue\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a Ctrl-C leaves the prover's lanes and sandboxes running behind a KeyboardInterrupt",
      "file": "heart2.py",
      "find": "    for name in (\"SIGTERM\", \"SIGALRM\", \"SIGHUP\", \"SIGINT\"):  # REG-2350 - SIGINT\n",
      "replace": "    for name in (\"SIGTERM\", \"SIGALRM\", \"SIGHUP\"):  # REG-2350 - SIGINT\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - the narrow path credits a tampered subset that a signal ended",
      "file": "heart2.py",
      "find": "    if ok_t is False:\n        say(",
      "replace": "    if ok_t is not True:\n        say(",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a child a signal ended is never written when it is waited on",
      "file": "gate_trace/sitecustomize.py",
      "find": "                judged(self)  # KILL-WATCH-WAIT\n",
      "replace": "                pass  # KILL-WATCH-WAIT\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a child a signal ended is never written when it is polled (Chrome's teardown polls)",
      "file": "gate_trace/sitecustomize.py",
      "find": "                judged(self)  # KILL-WATCH-POLL\n",
      "replace": "                pass  # KILL-WATCH-POLL\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a child nobody waited on (a jetsam'd Chrome) is never swept at exit",
      "file": "gate_trace/sitecustomize.py",
      "find": "                p.poll() if p.returncode is None else judged(p)  # KILL-WATCH-SWEEP\n",
      "replace": "                pass  # KILL-WATCH-SWEEP\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a kill the run sent is never written, so a law that ends its own helper is UNKNOWN for ever",
      "file": "gate_trace/sitecustomize.py",
      "find": "            emit(\"X\", \"%s sig=%d%s\" % (who, sig, tail))  # KILL-WATCH-SENT\n",
      "replace": "            pass  # KILL-WATCH-SENT\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a 0 probe is written as a kill and explains away a real outside kill of the same pid",
      "file": "gate_trace/sitecustomize.py",
      "find": "            if not sig:\n                return  # a probe (signal 0) ends nothing\n",
      "replace": "            if False:\n                return  # a probe (signal 0) ends nothing\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - two copies of the trace hook on sys.path chain into each other (~160 boots in one process)",
      "file": "gate_trace/sitecustomize.py",
      "find": "and not _is_trace_dir(p)]  # TRACE-CHAIN-ONCE\n",
      "replace": "]  # TRACE-CHAIN-ONCE\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2350 - a member of a group the law killed is not explained, only its leader",
      "file": "heart2.py",
-     "find": "                    or (\"pgid\" in x and x[\"pgid\"] in (k.get(\"pid\"), k.get(\"pgid\"))))\n",
-     "replace": "                    or (\"pgid\" in x and x[\"pgid\"] == k.get(\"pid\")))\n",
-     "matches": 1},
+     "find": "                      or (\"pgid\" in x and x[\"pgid\"] in (p, k.get(\"pgid\"))))]\n",
+     "replace": "                      or (\"pgid\" in x and x[\"pgid\"] == p))]\n",
+     "matches": 1, "needs": "posix-signals"},
     # REG-2356 - the review's finding: a teardown signal explained a kill from outside, and a BLIND law banked PROVEN
     {"why": "REG-2356 - a death reaped BEFORE the law's signal was sent is explained by it",
      "file": "heart2.py",
-     "find": "        if any(x[\"at\"] < k[\"at\"]  # KILL-WATCH-ORDER\n",
-     "replace": "        if any(True  # KILL-WATCH-ORDER\n",
-     "matches": 1},
+     "find": "                 if x[\"at\"] < k[\"at\"]  # KILL-WATCH-ORDER\n",
+     "replace": "                 if True  # KILL-WATCH-ORDER\n",
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - a signal of another number explains a death (a SIGTERM the helper ignored explains a SIGKILL)",
      "file": "heart2.py",
-     "find": "               and x[\"n\"] == k[\"n\"]  # KILL-WATCH-SAME-SIGNAL\n",
-     "replace": "               and True  # KILL-WATCH-SAME-SIGNAL\n",
-     "matches": 1},
+     "find": "        if any(x[\"n\"] == k[\"n\"]  # KILL-WATCH-SAME-SIGNAL\n",
+     "replace": "        if any(True  # KILL-WATCH-SAME-SIGNAL\n",
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - a group member already dead when its group was signalled is explained by that signal",
      "file": "heart2.py",
-     "find": "               and k.get(\"pid\") not in x[\"gone\"]  # KILL-WATCH-GONE-PID\n",
+     "find": "               and p not in x[\"gone\"]  # KILL-WATCH-GONE-PID\n",
      "replace": "               and True  # KILL-WATCH-GONE-PID\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - the reader ignores `dead=1`: a teardown signal to a helper killed from outside explains it",
      "file": "heart2.py",
      "find": "        if f.get(\"dead\") == \"1\":\n            continue  # KILL-WATCH-DEAD-X",
      "replace": "        if False:\n            continue  # KILL-WATCH-DEAD-X",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - the hook never asks whether a signal's target is already dead: the review's BLIND is PROVEN",
      "file": "gate_trace/sitecustomize.py",
      "find": "            dead = unreachable(kind, n)  # KILL-WATCH-DEAD\n",
      "replace": "            dead = False  # KILL-WATCH-DEAD\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - on macOS a zombie's ESRCH is read as alive, so a signal to it explains the kill from outside",
      "file": "gate_trace/sitecustomize.py",
      "find": "        except ProcessLookupError:\n            return True  # macOS: a zombie and a missing pid",
      "replace": "        except ProcessLookupError:\n            return False  # macOS: a zombie and a missing pid",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - a killpg of a pid that leads no group (it reached no one) explains that pid's later death",
      "file": "gate_trace/sitecustomize.py",
      "find": "        if kind == \"pgid\" and g != n:\n            return True",
      "replace": "        if False:\n            return True",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - a group's members already dead are never named, so the group signal explains their deaths",
      "file": "gate_trace/sitecustomize.py",
      "find": "                        late.append(\"%d\" % p.pid)  # KILL-WATCH-GONE\n",
      "replace": "                        pass  # KILL-WATCH-GONE\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-2356 - the watch REAPS a dead child before its X (the poll-first fix): the law's own os.kill on that "
             "zombie then raises ESRCH where it succeeded, so the watch changes what the law does",
      "file": "gate_trace/sitecustomize.py",
      "find": "            dead = unreachable(kind, n)  # KILL-WATCH-DEAD\n",
      "replace": "            [p.poll() for p in list(st[\"live\"] or ()) if p.pid == n]\n"
                 "            dead = unreachable(kind, n)  # KILL-WATCH-DEAD\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
+    # REG-2358 - the round-3 review: a signal the law sent to its own helper explained the next death of that pid
+    {"why": "REG-2358 - an X explains every later death of its pid: a recycled pid killed from outside reads as the "
+            "law's own kill, and the run reads red",
+     "file": "heart2.py",
+     "find": "                 and p not in x[\"spent\"]  # KILL-WATCH-FIRST-K\n",
+     "replace": "                 and True  # KILL-WATCH-FIRST-K\n",
+     "matches": 1, "needs": "posix-signals"},
+    # REG-2357 - the round-3 review: every case here skips off POSIX, and no proof said so, so Windows filed all of them BLIND
+    {"why": "REG-2357 - the first proof declares no need: on Windows every case skips and it files BLIND, shutting every "
+            "lock there",
+     "file": "test_a_killed_run_is_never_a_red.py",
+     "find": "     \"matches\": 1, \"needs\": \"posix-signals\"},\n    {\"why\": \"REG-2350 - a shell's 128+N",
+     "replace": "     \"matches\": 1},\n    {\"why\": \"REG-2350 - a shell's 128+N",
+     "matches": 1, "needs": "posix-signals"},
+    {"why": "REG-2358 - the first death of a pid an X reached is never marked, so the X explains the second one too",
+     "file": "heart2.py",
+     "find": "            x[\"spent\"].add(p)  # KILL-WATCH-SPENT\n",
+     "replace": "            pass  # KILL-WATCH-SPENT\n",
+     "matches": 1, "needs": "posix-signals"},
 ]
 
 

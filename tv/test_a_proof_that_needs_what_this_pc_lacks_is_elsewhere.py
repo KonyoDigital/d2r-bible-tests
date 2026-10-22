@@ -21,6 +21,10 @@ Driven through the REAL heart2._prove_one / _prove_gate (only the law runs and t
   7. "node" and "bash" answer from PATH, the question the laws' own skips ask;
   8. a BLIND filed under an older BLIND_RULE is owed again though its file is unchanged, a slice takes it off the list
      whatever it finds, and self_prove reads a census that still carries one as stale.
+ 10. REG-2357 (round 3) - a proof of a law whose every case skips off POSIX, declaring no need, is INVALID where it can
+     be judged (it files BLIND on Windows); declared, it is judged on POSIX and ELSEWHERE on Windows; a law with one
+     case that runs on Windows is judged as before; a proof caught only by off-POSIX cases is said, never refused. The
+     off-POSIX reader is driven over every skip shape it must tell apart.
 RED_PROOF below.
 """
 import io
@@ -29,6 +33,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import types
 import unittest
 from unittest import mock
@@ -150,6 +155,119 @@ class AnAllSkippedProofOnAPcWithNoNode(_Sandbox):
     def test_laws_that_ran_and_stayed_green_are_still_blind(self):
         self.assertEqual(self.skipping(node=False, tail=self.SOME), H.BLIND,
                          "laws that RAN and stayed green were excused because others skipped")
+
+
+#: REG-2357 - every skip shape the off-POSIX reader must tell apart, one case each
+SHAPES = r'''
+import os, shutil, signal, sys, unittest
+_POSIX = os.name == "posix" and hasattr(signal, "SIGKILL")
+posix_only = unittest.skipUnless(os.name == "posix", "a named decorator")
+
+
+@unittest.skipUnless(_POSIX, "a module-level name")
+class ByName(unittest.TestCase):
+    def test_a(self): pass
+    def test_b(self): pass
+
+
+class ByMethod(unittest.TestCase):
+    @unittest.skipIf(sys.platform.startswith("win"), "startswith")
+    def test_win_prefix(self): pass
+
+    @unittest.skipIf(os.name == "nt", "os.name")
+    def test_nt(self): pass
+
+    @unittest.skipUnless(hasattr(os, "killpg"), "an os attribute Windows lacks")
+    def test_killpg(self): pass
+
+    @posix_only
+    def test_named(self): pass
+
+    @unittest.skipIf(sys.platform == "darwin", "skips on the Mac, runs on Windows")
+    def test_not_mac(self): pass
+
+    @unittest.skip("skips everywhere")
+    def test_everywhere(self): pass
+
+    @unittest.skipUnless(shutil.which("bash"), "a condition no reader can evaluate")
+    def test_unknown(self): pass
+
+    def test_plain(self): pass
+'''
+
+ALL_POSIX = (
+    "import os, unittest\n"
+    "@unittest.skipUnless(os.name == 'posix', 'POSIX signals')\n"
+    "class A(unittest.TestCase):\n"
+    "    def test_a(self): pass\n"
+    "    def test_b(self): pass\n")
+SOME_POSIX = ALL_POSIX + "class B(unittest.TestCase):\n    def test_c(self): pass\n"
+
+
+class ALawWhoseEveryCaseSkipsOffPosixSaysSo(_Sandbox):
+    """REG-2357 (the round-3 review) - test_a_killed_run_is_never_a_red held its 17 cases in three classes, each
+    skipUnless(_POSIX), and declared no need on its 26 proofs: on Windows every case skipped in both runs and all 26
+    filed BLIND, and one BLIND shuts every lock on that PC. Such a proof is refused where it CAN be judged."""
+
+    def gate(self, src):
+        with io.open(os.path.join(self.tv, "test_law.py"), "w", encoding="utf-8") as fh:
+            fh.write(src)
+
+    def judge_on(self, platform, pr, caught=None, tampered_red=True):
+        def run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
+            with io.open(os.path.join(sandbox_tv, "subject.py"), encoding="utf-8") as fh:
+                tampered = "ANCHOR = 2" in fh.read()
+            self.runs.append("tampered" if tampered else "clean")
+            if tampered and caught is not None:
+                H._LAST_RED[threading.get_ident()] = list(caught)
+            if tampered:
+                return (not tampered_red), ("Ran 3 tests\nFAILED" if tampered_red else "Ran 3 tests\nOK")
+            return True, "Ran 3 tests\nOK"
+        with mock.patch.object(H, "_run_gate", run_gate), mock.patch.object(H.sys, "platform", platform):
+            return H._prove_one(self.tv, "test_law", "test_law.py", pr, 0, _say)
+
+    def test_the_reader_tells_each_skip_shape_apart(self):
+        off, every = H.posix_only_cases(SHAPES)
+        self.assertEqual(len(every), 10, "PREMISE: every case is counted: %s" % sorted(every))
+        self.assertEqual(sorted(off), ["ByMethod.test_killpg", "ByMethod.test_named", "ByMethod.test_nt",
+                                       "ByMethod.test_win_prefix", "ByName.test_a", "ByName.test_b"],
+                         "the off-POSIX cases are wrong (a skip on the Mac, a skip everywhere or an unknown condition "
+                         "is never off-POSIX)")
+        self.assertIsNone(H.posix_only_cases("def broken(:\n"), "a source that will not parse was read as one")
+
+    def test_a_proof_of_such_a_law_that_declares_nothing_is_invalid(self):
+        self.gate(ALL_POSIX)
+        v = self.judge_on("darwin", self.proof())
+        self.assertEqual(v, H.INVALID, "a proof of a law whose every case skips off POSIX, declaring no need, was "
+                                       "filed %s - on Windows it files BLIND and shuts every lock there" % v)
+        self.assertEqual(self.runs, [], "the law was run for a proof refused on its declaration")
+        self.assertTrue(any("skips off POSIX" in l and "posix-signals" in l for l in LINES), LINES)
+
+    def test_declared_it_is_judged_on_posix_and_elsewhere_on_windows(self):
+        self.gate(ALL_POSIX)
+        for need in ("posix-signals", "posix", "macos"):
+            del self.runs[:]
+            self.assertEqual(self.judge_on("darwin", self.proof(need)), H.PROVEN, need)
+            self.assertIn("tampered", self.runs, need)
+        del self.runs[:]
+        self.assertEqual(self.judge_on("win32", self.proof("posix-signals")), H.ELSEWHERE)
+        self.assertEqual(self.runs, [], "Windows ran a proof it can never judge")
+
+    def test_a_law_with_a_case_that_runs_on_windows_is_judged_as_before(self):
+        self.gate(SOME_POSIX)
+        self.assertEqual(self.judge_on("darwin", self.proof()), H.PROVEN)
+
+    def test_a_proof_caught_only_by_off_posix_cases_is_said(self):
+        self.gate(SOME_POSIX)
+        self.assertEqual(self.judge_on("darwin", self.proof(), caught=["A.test_a"]), H.PROVEN,
+                         "the note changed the verdict - it is said, never a refusal")
+        self.assertTrue(any("REG-2357" in l and "A.test_a" in l and "skips off POSIX" in l for l in LINES),
+                        "a proof whose only catching case skips off POSIX was not said: %s" % LINES)
+        del LINES[:]
+        self.judge_on("darwin", self.proof(), caught=["A.test_a", "B.test_c"])
+        self.judge_on("darwin", self.proof("posix"), caught=["A.test_a"])
+        self.assertFalse(any("REG-2357" in l for l in LINES), "said with a catching case that runs on Windows, or with "
+                                                              "the need declared: %s" % LINES)
 
 
 class NodeAndBashAnswerFromPath(unittest.TestCase):
@@ -407,6 +525,33 @@ RED_PROOF = [
      "file": "self_prove.py",
      "find": "    elif _rule_owed(_h2, st):\n",
      "replace": "    elif False:\n",
+     "matches": 1},
+    # REG-2357 (the round-3 review) - a law whose every case skips off POSIX, with proofs that declared no need, filed
+    # BLIND on Windows (test_a_killed_run_is_never_a_red, all 26)
+    {"why": "REG-2357 - a proof of a law whose every case skips off POSIX may declare nothing, and files BLIND on Windows",
+     "file": "heart2.py",
+     "find": "        if _po and _po[1] and _po[0] == _po[1]:  # POSIX-ONLY-LAW\n",
+     "replace": "        if False:  # POSIX-ONLY-LAW\n",
+     "matches": 1},
+    {"why": "REG-2357 - the reader evaluates os.name as POSIX on Windows too, so nothing ever skips off POSIX",
+     "file": "heart2.py",
+     "find": "            return \"nt\" if win else \"posix\"\n",
+     "replace": "            return \"posix\"\n",
+     "matches": 1},
+    {"why": "REG-2357 - a case that skips on the Mac too (everywhere) is called off-POSIX",
+     "file": "heart2.py",
+     "find": "                    and not any(_skips_under(d, \"darwin\", names) is True for d in decos):  # POSIX-ONLY-CASE\n",
+     "replace": "                    and True:  # POSIX-ONLY-CASE\n",
+     "matches": 1},
+    {"why": "REG-2357 - \"posix-signals\" is not taken as a POSIX need, so the declaration the killed-run law makes is refused",
+     "file": "heart2.py",
+     "find": "_OFF_POSIX_NEEDS = frozenset((\"posix\", \"posix-signals\", \"macos\"))\n",
+     "replace": "_OFF_POSIX_NEEDS = frozenset((\"posix\", \"macos\"))\n",
+     "matches": 1},
+    {"why": "REG-2357 - a proof caught only by off-POSIX cases is never said, so the next one ships BLIND on Windows",
+     "file": "heart2.py",
+     "find": "        if not got or not all(i in got[0] for i in ids):  # POSIX-ONLY-CATCH\n",
+     "replace": "        if True:  # POSIX-ONLY-CATCH\n",
      "matches": 1},
 ]
 

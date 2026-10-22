@@ -1282,6 +1282,168 @@ def _gate_reaches_for_node(sandbox, filename):
     return False
 
 
+# ══ REG-2357 — A LAW WHOSE CASES ALL SKIP OFF POSIX SAYS SO ON EVERY PROOF, OR WINDOWS FILES IT BLIND ═══════════════════
+# test_a_killed_run_is_never_a_red holds its 17 cases in three classes, each `skipUnless(_POSIX)`, and declared no need on
+# any of its 26 red-proofs. On Windows every case skips in the clean run AND the tampered one, so all 26 file BLIND there,
+# and one BLIND shuts every lock on that PC (REG-1677). Such a law can be judged only where POSIX is, so each of its proofs
+# must declare it (`"needs": "posix-signals"`, "posix" or "macos"); REG-1686 then files it ELSEWHERE on Windows. A proof
+# that does not is INVALID here, on the PC that CAN judge it, before it ever reaches a Windows census. A proof whose
+# CATCHING cases (the ones that went red) all skip off POSIX, in a law with other cases, is said, never refused: that
+# shape is known only from a run, and a refusal there would land on proofs this PC has already banked.
+# The skip decorators are read from the gate's source WITHOUT importing it. Each condition is evaluated twice, as Windows
+# and as macOS would compute it: os.name, sys.platform, hasattr(signal | os, ...), module-level names, and/or/not,
+# comparisons, str.startswith. A case is off-POSIX only when it skips on the first and not on the second. A condition this
+# reader cannot evaluate counts as "it may run there", so no proof is refused on a guess. [[unknown-stays-unknown]]
+_OFF_POSIX_NEEDS = frozenset(("posix", "posix-signals", "macos"))
+_WIN_SIGNALS = frozenset(("SIGABRT", "SIGBREAK", "SIGFPE", "SIGILL", "SIGINT", "SIGSEGV", "SIGTERM", "CTRL_C_EVENT",
+                          "CTRL_BREAK_EVENT"))
+_POSIX_ONLY_OS = frozenset(("fork", "forkpty", "killpg", "getpgid", "getpgrp", "setpgid", "setpgrp", "setsid", "getuid",
+                            "geteuid", "getgid", "getegid", "WNOHANG", "mkfifo", "statvfs", "getloadavg"))
+_WIN_ONLY_OS = frozenset(("startfile", "add_dll_directory", "O_BINARY"))
+_UNKNOWN_V = object()
+_POSIX_ONLY_MEMO = {}
+
+
+def _as_platform(node, plat, names, depth=0):
+    """REG-2357 — a skip condition's value as `plat` ("win32" | "darwin") would compute it. -> value | _UNKNOWN_V"""
+    unk = _UNKNOWN_V
+    if node is None or depth > 8:
+        return unk
+    win = plat == "win32"
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, (ast.Tuple, ast.List)):
+        vals = [_as_platform(e, plat, names, depth + 1) for e in node.elts]
+        return unk if any(v is unk for v in vals) else tuple(vals)
+    if isinstance(node, ast.Name):
+        return _as_platform(names[node.id], plat, names, depth + 1) if node.id in names else unk
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        if (node.value.id, node.attr) == ("os", "name"):
+            return "nt" if win else "posix"
+        if (node.value.id, node.attr) == ("sys", "platform"):
+            return plat
+        return unk
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        v = _as_platform(node.operand, plat, names, depth + 1)
+        return unk if v is unk else (not v)
+    if isinstance(node, ast.BoolOp):
+        vals = [_as_platform(v, plat, names, depth + 1) for v in node.values]
+        conj = isinstance(node.op, ast.And)
+        if any(v is not unk and bool(v) != conj for v in vals):
+            return not conj                     # one known falsy operand decides an `and`, one truthy an `or`
+        return unk if any(v is unk for v in vals) else conj
+    if isinstance(node, ast.Compare) and len(node.ops) == 1:
+        a = _as_platform(node.left, plat, names, depth + 1)
+        b = _as_platform(node.comparators[0], plat, names, depth + 1)
+        if a is unk or b is unk:
+            return unk
+        ops = {ast.Eq: lambda x, y: x == y, ast.NotEq: lambda x, y: x != y, ast.In: lambda x, y: x in y,
+               ast.NotIn: lambda x, y: x not in y, ast.Is: lambda x, y: x is y, ast.IsNot: lambda x, y: x is not y}
+        fn = ops.get(type(node.ops[0]))
+        try:
+            return fn(a, b) if fn else unk
+        except TypeError:
+            return unk
+    if isinstance(node, ast.Call) and not node.keywords:
+        f = node.func
+        if isinstance(f, ast.Name) and f.id == "hasattr" and len(node.args) == 2 \
+                and isinstance(node.args[0], ast.Name) and isinstance(node.args[1], ast.Constant):
+            mod, attr = node.args[0].id, str(node.args[1].value)
+            if mod == "signal" and attr.startswith(("SIG", "CTRL_")):
+                return (attr in _WIN_SIGNALS) if win else (attr not in ("SIGBREAK", "CTRL_C_EVENT", "CTRL_BREAK_EVENT"))
+            if mod == "os" and attr in _POSIX_ONLY_OS:
+                return not win
+            if mod == "os" and attr in _WIN_ONLY_OS:
+                return win
+            return unk
+        if isinstance(f, ast.Attribute) and f.attr == "startswith" and len(node.args) == 1:
+            s = _as_platform(f.value, plat, names, depth + 1)
+            pre = _as_platform(node.args[0], plat, names, depth + 1)
+            if isinstance(s, str) and (isinstance(pre, str) or (isinstance(pre, tuple) and pre
+                                                                and all(isinstance(x, str) for x in pre))):
+                return s.startswith(pre)
+        return unk
+    return unk
+
+
+def _skips_under(deco, plat, names, depth=0):
+    """REG-2357 — does this decorator skip its case under `plat`? -> True | False (not a skip, or it runs) | _UNKNOWN_V"""
+    if isinstance(deco, ast.Name) and deco.id in names and depth < 3:
+        return _skips_under(names[deco.id], plat, names, depth + 1)     # `posix_only = unittest.skipUnless(...)`
+    if not isinstance(deco, ast.Call):
+        return False
+    fn = deco.func
+    which = fn.attr if isinstance(fn, ast.Attribute) else (fn.id if isinstance(fn, ast.Name) else "")
+    if which == "skip":
+        return True
+    if which not in ("skipIf", "skipUnless") or not deco.args:
+        return False
+    v = _as_platform(deco.args[0], plat, names)
+    if v is _UNKNOWN_V:
+        return _UNKNOWN_V
+    return bool(v) if which == "skipIf" else (not v)
+
+
+def posix_only_cases(src):
+    """REG-2357 — the test cases of a gate's source that skip on Windows and not on macOS, read without importing it.
+    -> (off-POSIX case ids, every case id), sets of "Class.test_x" | None when the source will not parse"""
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return None
+    names = dict((st.targets[0].id, st.value) for st in tree.body
+                 if isinstance(st, ast.Assign) and len(st.targets) == 1 and isinstance(st.targets[0], ast.Name))
+    off, every = set(), set()
+    for cls in tree.body:
+        if not isinstance(cls, ast.ClassDef):
+            continue
+        for m in cls.body:
+            if not (isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)) and m.name.startswith("test")):
+                continue
+            cid = "%s.%s" % (cls.name, m.name)
+            every.add(cid)
+            decos = list(cls.decorator_list) + list(m.decorator_list)
+            if any(_skips_under(d, "win32", names) is True for d in decos) \
+                    and not any(_skips_under(d, "darwin", names) is True for d in decos):  # POSIX-ONLY-CASE
+                off.add(cid)
+    return off, every
+
+
+def _posix_only_of(sandbox, filename):
+    """REG-2357 — posix_only_cases() of this gate's file: the sandbox copy first, then the repo's. Parsed once per
+    content (test_control.py is 2.7 MB). -> (off, every) | None (it will not read or parse: nothing is refused on it)"""
+    for _p in (os.path.join(sandbox, filename), os.path.join(REPO, "tv", filename)):
+        try:
+            with io.open(_p, encoding="utf-8", errors="replace") as fh:
+                src = fh.read()
+        except OSError:
+            continue
+        key = hashlib.sha1(src.encode("utf-8", "replace")).hexdigest()
+        if key not in _POSIX_ONLY_MEMO:
+            _POSIX_ONLY_MEMO[key] = posix_only_cases(src)
+        return _POSIX_ONLY_MEMO[key]
+    return None
+
+
+def _say_posix_only_catch(sandbox, filename, label, need, ids, say):
+    """REG-2357 — said (never a verdict) when every case that caught a PROVEN proof skips off POSIX and the proof declares
+    no need Windows lacks: there it can never be judged, and it files BLIND. -> the ids said | []"""
+    try:
+        if not ids or str(need or "") in _OFF_POSIX_NEEDS:
+            return []
+        got = _posix_only_of(sandbox, filename)
+        ids = sorted(set(str(i) for i in ids))
+        if not got or not all(i in got[0] for i in ids):  # POSIX-ONLY-CATCH
+            return []
+        say("     %-52s   ↳ REG-2357: every case that caught it skips off POSIX (%s), so on Windows it is never judged "
+            "and files BLIND (one BLIND shuts every lock on that PC) - declare \"needs\": \"posix\" (or "
+            "\"posix-signals\" / \"macos\")" % (label, ", ".join(ids[:4]) + (" +%d" % (len(ids) - 4) if len(ids) > 4
+                                                                            else "")))
+        return ids
+    except Exception:
+        return []                       # a check that cannot be made says nothing; the verdict above stands
+
+
 def blind_reason(why, matches, tail, widths=None):
     """The sentence a BLIND verdict prints. -> str
 
@@ -1423,8 +1585,9 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
 # A law that kills its own LIVE child (terminate, kill, killpg - the X line) is judged exactly as before. REG-2356: a
 # signal sent to a child that was already dead explains nothing. That is a teardown signalling a helper a kill from
 # outside had already ended, which once banked a BLIND law PROVEN. Nor does a signal sent after the death was reaped,
-# or one of another number (see _kills_in). UNKNOWN is never banked, never a stop, and the narrow path and the closing
-# run both fall through on it. Counted for the push record. The law: test_a_killed_run_is_never_a_red.
+# one of another number, or one that already met a death of that pid (REG-2358: the pid was recycled) - see _kills_in.
+# UNKNOWN is never banked, never a stop, and the narrow path and the closing run both fall through on it. Counted for
+# the push record. The law: test_a_killed_run_is_never_a_red.
 # [[unknown-stays-unknown]]
 _SHELL_SIGNALS = (1, 2, 6, 9, 14, 15)
 _SIGNAL_RUNS = {"n": 0}
@@ -1485,7 +1648,13 @@ def _kills_in(path):
         so a death reaped before the signal was sent was never that signal's doing;
       · the SAME signal: a SIGTERM never explains a SIGKILL death;
       · the X is not `dead=1` (its target was already dead, or a group that pid does not lead), and it does not name
-        this pid in `gone=` (a member of the signalled group that was already dead)."""
+        this pid in `gone=` (a member of the signalled group that was already dead).
+
+    REG-2358 — and only ONCE per pid it reached. An X explains at most the FIRST K of each pid it reaches below it (its
+    target pid; each member of its group; every pid for `all`), whether or not it explains that one. A pid that died is
+    a NEW process the next time it dies - the pid was recycled - and no signal sent before its first death ended the
+    second. Before, an X sent to a helper the law killed itself also explained a later death from outside of whatever
+    process got that pid next, so that run was read red."""
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.read().splitlines()
@@ -1513,17 +1682,24 @@ def _kills_in(path):
             continue  # KILL-WATCH-DEAD-X: it could end nothing, so it explains nothing
         f["all"] = m.group(2).startswith("all")
         f["gone"] = set((f.get("gone") or "").split(","))
+        f["spent"] = set()  # REG-2358: the pids whose first K below this X has been read
         sent.append(f)
     out = []
-    for k in ks:
+    for k in ks:                                         # in the order the watch wrote them
+        p = k.get("pid")
+        # every X above this K that reaches its pid and has met no K of that pid yet meets its FIRST one here
+        reach = [x for x in sent
+                 if x["at"] < k["at"]  # KILL-WATCH-ORDER
+                 and p not in x["spent"]  # KILL-WATCH-FIRST-K
+                 and (x["all"] or ("pid" in x and x["pid"] == p)
+                      or ("pgid" in x and x["pgid"] in (p, k.get("pgid"))))]
+        for x in reach:
+            x["spent"].add(p)  # KILL-WATCH-SPENT
         if k["n"] == _pipe:
             continue
-        if any(x["at"] < k["at"]  # KILL-WATCH-ORDER
-               and x["n"] == k["n"]  # KILL-WATCH-SAME-SIGNAL
-               and k.get("pid") not in x["gone"]  # KILL-WATCH-GONE-PID
-               and (x["all"] or ("pid" in x and x["pid"] == k.get("pid"))
-                    or ("pgid" in x and x["pgid"] in (k.get("pid"), k.get("pgid"))))
-               for x in sent):
+        if any(x["n"] == k["n"]  # KILL-WATCH-SAME-SIGNAL
+               and p not in x["gone"]  # KILL-WATCH-GONE-PID
+               for x in reach):
             continue  # KILL-WATCH-EXPLAINED
         out.append(dict((key, v) for key, v in k.items() if key not in ("at", "n")))
     return out
@@ -3993,6 +4169,16 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
             say("     %-52s %s — it needs %s, which this PC does not have; it is proven on a PC that does"
                 % ("%s[%d]" % (name, idx), ELSEWHERE, _words))
             return ELSEWHERE
+    # REG-2357 — a law whose every case skips off POSIX is judged only where POSIX is. A proof of it that declares no need
+    # Windows lacks files BLIND there, so it is refused HERE, where it can be judged (see _OFF_POSIX_NEEDS)
+    if str(_need or "") not in _OFF_POSIX_NEEDS:
+        _po = _posix_only_of(sandbox, filename)
+        if _po and _po[1] and _po[0] == _po[1]:  # POSIX-ONLY-LAW
+            say("     %-52s %s — every one of its %d case(s) skips off POSIX, so on Windows its tamper is never judged "
+                "and it files BLIND there (one BLIND shuts every lock on that PC): declare \"needs\": \"posix-signals\" "
+                "(or \"posix\" / \"macos\") and it is judged where POSIX is" % ("%s[%d]" % (name, idx), INVALID,
+                                                                              len(_po[1])))
+            return INVALID
     # #42 — `widths` (a push-time proof's own declaration, from _prove_push_one) reaches BOTH runs below, so the clean
     # run and the tampered run measure the same viewports; None = every width, all this function ever did. `why`, when
     # a caller hands one in, learns whether an UNPROVABLE was a law ALREADY RED untampered (the push-time run stops on
@@ -4098,6 +4284,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
     if _rids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _rids, widths,
                                say) == PROVEN:
         _mark(a="narrow")                                # REG-2353 - and the path it took
+        _say_posix_only_catch(sandbox, filename, label, _need, _rids, say)       # REG-2357 - its catching cases
         return PROVEN
     if _rids:
         _mark(fellThrough=True)                          # REG-2353 - the narrowed pair did not decide it; the full proof does
@@ -4191,6 +4378,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(original)
+    _caught = list(_LAST_RED.get(threading.get_ident()) or []) if ok_tampered is False else []  # REG-2357 - who caught it
     if ok_tampered is False and _rk:
         _red_remember(_rk, name, idx, _LAST_RED.pop(threading.get_ident(), None))   # #42 lever 1 — learn what caught it
 
@@ -4217,6 +4405,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
                 % ("", _at_widths(widths).strip()))
         return BLIND
     say("     %-52s %s (%d match(es) tampered → red)%s" % (label, PROVEN, got, _at_widths(widths)))
+    _say_posix_only_catch(sandbox, filename, label, _need, _caught, say)          # REG-2357 - its catching cases
     return PROVEN
 
 
