@@ -1622,14 +1622,15 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
 # A law that kills its own LIVE child (terminate, kill, killpg - the X line) is judged exactly as before. REG-2356: a
 # signal sent to a child that was already dead explains nothing. That is a teardown signalling a helper a kill from
 # outside had already ended, which once banked a BLIND law PROVEN. Nor does a signal sent after the death was reaped,
-# one of another number, or one that already met a death of that pid (REG-2358: the pid was recycled) - see _kills_in.
+# one of another number, or one sent before an earlier END of that pid - a death or any exit, or the pid left to init
+# when its parent exited (REG-2358: the pid was recycled, so it is a new process) - see _kills_in.
 # UNKNOWN is never banked, never a stop, and the narrow path and the closing run both fall through on it. Counted for
 # the push record. The law: test_a_killed_run_is_never_a_red.
 # [[unknown-stays-unknown]]
 _SHELL_SIGNALS = (1, 2, 6, 9, 14, 15)
 _SIGNAL_RUNS = {"n": 0}
 _SIGNAL_LOCK = threading.Lock()
-_KILL_LINE = re.compile(r"^([KX])\t\d+\t(.*)$")
+_KILL_LINE = re.compile(r"^([KXE])\t\d+\t(.*)$")
 _KILL_FIELD = re.compile(r"(\w+)=(\S+)")
 #: REG-2359 — the skip watch's line (gate_trace/sitecustomize.py): one per case the run's own process skipped
 _SKIP_LINE = re.compile(r"^O\t\d+\tcase=(\S*) reason=(.*)$")
@@ -1693,11 +1694,14 @@ def _kills_in(path):
       · the X is not `dead=1` (its target was already dead, or a group that pid does not lead), and it does not name
         this pid in `gone=` (a member of the signalled group that was already dead).
 
-    REG-2358 — and only ONCE per pid it reached. An X explains at most the FIRST K of each pid it reaches below it (its
-    target pid; each member of its group; every pid for `all`), whether or not it explains that one. A pid that died is
-    a NEW process the next time it dies - the pid was recycled - and no signal sent before its first death ended the
-    second. Before, an X sent to a helper the law killed itself also explained a later death from outside of whatever
-    process got that pid next, so that run was read red."""
+    REG-2358 — and only by an X written after that pid's previous END. A pid that ended is a NEW process the next time it
+    dies - the pid was recycled - and no signal sent before that end ended the next one, by pid, by group or to every
+    process. An end is a K (whether or not anything explains it: a pipe, another signal) or an E: the hook writes E for
+    a child that ended WITHOUT a signal - any exit code, reaped by wait, by poll or by Popen's own finalizer when it was
+    dropped unwaited - and `rc=left` for a child still running when the process that started it exited (init reaps it,
+    so no line of the run will ever say its death). Round 3 let only the first K use up an X's chance at a pid, so a
+    helper that handled the law's SIGTERM and exited 0 left that chance open, and the next process to get its pid,
+    killed from outside, read as the law's own kill: the run read red, and a tampered run red that way is PROVEN."""
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.read().splitlines()
@@ -1708,36 +1712,42 @@ def _kills_in(path):
         _pipe = int(getattr(_sg, "SIGPIPE", 13))
     except Exception:
         _pipe = 13
-    sent, ks = [], []
+    sent, ends = [], []
     for at, ln in enumerate(lines):
         m = _KILL_LINE.match(ln)
         if not m:
             continue
         f = dict(_KILL_FIELD.findall(m.group(2)))
+        if m.group(1) == "E":
+            f["at"], f["n"] = at, None   # REG-2358: its pid ENDED with no signal - it closes that pid, and is no kill
+            ends.append(f)
+            continue
         try:
             f["at"], f["n"] = at, int(f.get("sig"))
         except (TypeError, ValueError):
             continue  # a line with no signal number explains nothing and is no kill
         if m.group(1) == "K":
-            ks.append(f)
+            ends.append(f)
             continue
         if f.get("dead") == "1":
             continue  # KILL-WATCH-DEAD-X: it could end nothing, so it explains nothing
         f["all"] = m.group(2).startswith("all")
         f["gone"] = set((f.get("gone") or "").split(","))
-        f["spent"] = set()  # REG-2358: the pids whose first K below this X has been read
         sent.append(f)
     out = []
-    for k in ks:                                         # in the order the watch wrote them
+    last = {}                                            # REG-2358: pid -> the line of its latest END read so far
+    for k in ends:                                       # in the order the watch wrote them
         p = k.get("pid")
-        # every X above this K that reaches its pid and has met no K of that pid yet meets its FIRST one here
+        before = last.get(p, -1)
+        last[p] = k["at"]  # KILL-WATCH-ENDED
+        if k["n"] is None:
+            continue                                     # an E: nothing ended it, so there is nothing to explain
+        # every X above this death that reaches its pid, written after that pid's previous end (sent to THIS process)
         reach = [x for x in sent
                  if x["at"] < k["at"]  # KILL-WATCH-ORDER
-                 and p not in x["spent"]  # KILL-WATCH-FIRST-K
+                 and x["at"] > before  # KILL-WATCH-FIRST-END
                  and (x["all"] or ("pid" in x and x["pid"] == p)
                       or ("pgid" in x and x["pgid"] in (p, k.get("pgid"))))]
-        for x in reach:
-            x["spent"].add(p)  # KILL-WATCH-SPENT
         if k["n"] == _pipe:
             continue
         if any(x["n"] == k["n"]  # KILL-WATCH-SAME-SIGNAL

@@ -30,6 +30,12 @@ DRIVEN, real code and real signals:
      driven one rule at a time.
   9. REG-2358 (round 3): a signal explains only the FIRST death of each pid it reached - by pid, by group, to every
      process. The next death of that pid is a recycled pid's, and a signal sent before the first death never ended it.
+     Round 4: and only a death before any other END of that pid. The review's shapes end a helper without a K - one
+     that handles the law's SIGTERM and exits 0, one killed and dropped unwaited, one still running when its parent
+     exits - and the next process to get its pid, killed from outside, read as the law's own kill. The hook says each
+     of those ends (E), from the real hook; a forked copy says nothing about its parent's children; and through the
+     real prover such a run is UNKNOWN and banks nothing. The OS cannot be asked to hand a pid out again, so that next
+     process's death is written as the hook writes one.
  10. REG-2357 (round 3): every case of 1-8 skips off POSIX, so on Windows a proof that declared no need filed BLIND and
      shut every lock there. Every proof declares "posix-signals": on Windows each one is ELSEWHERE and never run (a
      class that runs everywhere checks both).
@@ -59,21 +65,37 @@ import heart2 as H  # noqa: E402
 _POSIX = os.name == "posix" and hasattr(signal, "SIGKILL")
 
 PROBE = r'''
-import os, signal, subprocess, sys, time, unittest
+import gc, io, os, signal, subprocess, sys, time, unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import subject
 
+#: REG-2358 (round 4) - a helper that handles SIGTERM by exiting 0: its end is no death by a signal
+GRACEFUL = ("import signal, sys, time; signal.signal(signal.SIGTERM, lambda *a: sys.exit(0)); print('ready', flush=True);"
+            " time.sleep(30)")
 
-def outside(pid):
-    """killed from OUTSIDE the run (a shell sends it, so no X line - jetsam and a by-pid reap write none either), and
-    waited on until it is a ZOMBIE: dead, and not yet reaped by this law"""
-    subprocess.run(["/bin/sh", "-c", "kill -9 %d" % pid])
+
+def zombie(pid):
+    """until `pid` is a ZOMBIE (dead, not yet reaped by this law) or gone"""
     for _ in range(400):
         st = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], stdout=subprocess.PIPE,
                             universal_newlines=True).stdout.strip()
         if not st or st.startswith("Z"):
             return
         time.sleep(0.05)
+
+
+def outside(pid):
+    """killed from OUTSIDE the run (a shell sends it, so no X line - jetsam and a by-pid reap write none either), and
+    waited on until it is a ZOMBIE: dead, and not yet reaped by this law"""
+    subprocess.run(["/bin/sh", "-c", "kill -9 %d" % pid])
+    zombie(pid)
+
+
+def recycled(pid, sig):
+    """REG-2358 (round 4) - the NEXT process to get `pid` (a child of this run), killed from OUTSIDE by `sig`. The OS
+    cannot be asked to hand a pid out again, so its death is written exactly as the hook writes one"""
+    with io.open(os.environ["TV_GATE_KILLS"], "a", encoding="utf-8") as fh:
+        fh.write("K\t%d\tpid=%d pgid=- sig=%d head=sleep\n" % (os.getpid(), pid, sig))
 
 
 def teardown(p):
@@ -165,11 +187,41 @@ class T(unittest.TestCase):
             p = subprocess.Popen(["sleep", "30"], start_new_session=True)
             teardown(p)
             self.fail("caught - this law ended its own helper on the way")
+        # REG-2358 (round 4) - the law's signal ends a helper WITHOUT a K line, and the next process to get that pid is
+        # killed from outside: red only because of that outside kill. The plain modes are the controls.
+        if m in ("graceful", "graceful_recycled"):    # it handles the law's SIGTERM and exits 0
+            p = subprocess.Popen([sys.executable, "-c", GRACEFUL], stdout=subprocess.PIPE)
+            p.stdout.readline()
+            p.terminate()
+            p.wait()
+            p.stdout.close()
+            if m == "graceful_recycled":
+                recycled(p.pid, signal.SIGTERM)
+                self.fail("red only because the next process to get its helper's pid was killed from outside")
+            self.fail("caught - this law ended its own helper on the way")
+        if m in ("dropped", "dropped_recycled"):      # killed and dropped unwaited: Popen's own finalizer reaps it
+            p = subprocess.Popen(["sleep", "30"])
+            pid = p.pid
+            p.kill()
+            zombie(pid)
+            del p
+            gc.collect()
+            if m == "dropped_recycled":
+                recycled(pid, signal.SIGKILL)
+                self.fail("red only because the next process to get its helper's pid was killed from outside")
+            self.fail("caught - this law ended its own helper on the way")
 
 
 if __name__ == "__main__":
     unittest.main()
 '''
+
+#: REG-2358 (round 4) - every probe mode that ends a helper without a K and then has its pid's next process killed from
+#: outside, and its control (the same end, no outside kill: judged as before)
+ENDED_THEN_RECYCLED = (
+    ("graceful_recycled", "graceful", "a helper that handled the law's SIGTERM and exited 0"),
+    ("dropped_recycled", "dropped", "a helper the law killed and dropped unwaited (reaped by Popen's own finalizer)"),
+)
 
 #: REG-2356 - every probe mode that is red only because of a kill from outside, and the rule that makes each UNKNOWN
 OUTSIDE_THEN_SIGNALLED = (
@@ -203,7 +255,7 @@ def proof(m):
 
 once = {}
 for m in ("ok", "red", "selfkill", "exit137", "exit2", "grandchild", "greenkill", "ownkill", "groupkill",
-          "pipe") + %(outside)r + ("ownteardown",):
+          "pipe") + %(outside)r + ("ownteardown",) + %(ended)r:
     mode(m)
     ok, tail = H._run_gate_once(TV, "probe_gate.py", timeout=60)
     once[m] = [ok, str(tail)[:300]]
@@ -212,7 +264,7 @@ OUT["once"] = once
 mode("ok")
 OUT["prove_one"] = dict((m, H._prove_one(TV, "probe", "probe_gate.py", proof(m), 0, say))
                         for m in ("red", "selfkill", "exit137", "grandchild", "greenkill", "ownkill", "groupkill",
-                                  "zombie_killpg", "ownteardown"))
+                                  "zombie_killpg", "ownteardown", "graceful", "graceful_recycled"))
 
 cache = H._VerdictCache(path=os.path.join(%(tmp)r, ".heart2_cache.json"), say=say)
 H._PUSH = H._PushRun(order={}, browser=(), cache=cache)
@@ -223,6 +275,8 @@ try:
     OUT["push_red_banked"] = len(cache.entries)
     OUT["push_zombie"] = H._prove_push_one(TV, "probe", "probe_gate.py", proof("zombie_killpg"), 4, say, {})
     OUT["push_zombie_banked"] = len(cache.entries)
+    OUT["push_recycled"] = H._prove_push_one(TV, "probe", "probe_gate.py", proof("graceful_recycled"), 5, say, {})
+    OUT["push_recycled_banked"] = len(cache.entries)
     learned = []
     H._red_recall = lambda key: ["T.test_x"]
     H._red_remember = lambda *a, **k: learned.append(a)
@@ -326,6 +380,66 @@ sys.stdout.flush()
 os._exit(0)
 '''
 
+#: REG-2358 (round 4) - the review's three ways a child the law signalled ENDS WITHOUT A K, each of which must now say
+#: that its pid ended: g handles SIGTERM and exits 0; d is killed and dropped unwaited (Popen's own finalizer reaps it);
+#: l ignores SIGTERM and is still running when this process exits normally (its exit sweep leaves it to init).
+ENDS = r'''
+import gc, os, signal, subprocess, sys, time
+g = subprocess.Popen([sys.executable, "-c", "import signal, sys, time; signal.signal(signal.SIGTERM, lambda *a: "
+                      "sys.exit(0)); print('ready', flush=True); time.sleep(30)"], stdout=subprocess.PIPE)
+g.stdout.readline()
+g.terminate()
+g.wait()
+g.stdout.close()
+d = subprocess.Popen(["sleep", "30"])
+dpid = d.pid
+d.kill()
+for _ in range(400):                  # until it is a zombie: the finalizer then reaps it at once
+    st = subprocess.run(["ps", "-o", "stat=", "-p", str(dpid)], stdout=subprocess.PIPE,
+                        universal_newlines=True).stdout.strip()
+    if not st or st.startswith("Z"):
+        break
+    time.sleep(0.05)
+del d
+gc.collect()
+l = subprocess.Popen(["/bin/sh", "-c", "trap '' TERM; echo ready; exec sleep 30"], stdout=subprocess.PIPE,
+                     stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL)    # it outlives this process: no pipe of ours
+l.stdout.readline()
+os.kill(l.pid, signal.SIGTERM)        # ignored: it is still running when this process exits
+print("WATCHED-DONE %d %d %d %d" % (g.pid, dpid, l.pid, os.getpid()))
+sys.stdout.flush()
+'''
+
+#: REG-2358 (round 4) - a forked copy of a process inherits its Popen objects. There a wait answers ECHILD, which Popen
+#: reads as an exit 0, and the copy's exit sweep runs over them too: the copy must say nothing of a child it never
+#: started. Its line would land between the parent's own kill of e and e's death, and close the parent's own signal.
+FORKED = r'''
+import os, subprocess, sys
+e = subprocess.Popen(["sleep", "30"])
+r, w = os.pipe()
+f = os.fork()
+if f == 0:
+    os.close(w)
+    os.read(r, 1)                     # until the parent has signalled e
+    e.wait()                          # not its child: ECHILD, read as an exit 0
+    sys.exit(0)                       # a normal exit: the copy's exit sweep runs
+os.close(r)
+e.kill()
+os.write(w, b"x")
+os.waitpid(f, 0)
+e.wait()
+print("WATCHED-DONE %d %d %d" % (e.pid, f, os.getpid()))
+sys.stdout.flush()
+os._exit(0)
+'''
+
+
+def _kill_quietly(pid):
+    try:
+        os.kill(int(pid), signal.SIGKILL)
+    except (OSError, ValueError):
+        pass
+
 
 def _quiet(*a, **k):
     pass
@@ -354,7 +468,8 @@ class ARunASignalEndedIsUnknown(unittest.TestCase):
         with io.open(os.path.join(tv, "subject.py"), "w", encoding="utf-8") as fh:
             fh.write('MODE = "ok"\n')
         drv = DRIVER % {"here": HERE, "tv": tv, "tmp": cls.tmp,
-                        "outside": tuple(m for m, _why in OUTSIDE_THEN_SIGNALLED)}
+                        "outside": tuple(m for m, _why in OUTSIDE_THEN_SIGNALLED),
+                        "ended": tuple(m for pair in ENDED_THEN_RECYCLED for m in pair[:2])}
         r = subprocess.run([sys.executable, "-c", drv], capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=600, env=_env_without_watch(), cwd=cls.tmp)
         line = [ln for ln in (r.stdout or "").splitlines() if ln.startswith("DRIVER-RESULT ")]
@@ -438,6 +553,25 @@ class ARunASignalEndedIsUnknown(unittest.TestCase):
             self.assertIn("nothing in the run sent", o[m][1], "%s: not said as an outside kill: %s" % (shape, o[m]))
         self.assertIs(o["ownteardown"][0], False, "PREMISE: the same teardown on a LIVE helper is still the law's own "
                                                   "kill, judged as before: %s" % o["ownteardown"])
+
+    def test_a_signal_never_explains_a_death_after_its_target_ended(self):
+        """REG-2358 (round 4) - the review's shapes: the law's signal ends its helper WITHOUT a K (it exits 0, or it is
+        dropped unwaited and Popen's finalizer reaps it), and the next process to get that pid is killed from outside.
+        The run is UNKNOWN, never a red, and it banks nothing; the same end with no outside kill is judged as before."""
+        o = self.out["once"]
+        for m, control, shape in ENDED_THEN_RECYCLED:
+            self.assertIs(o[control][0], False, "PREMISE: %s, with no kill from outside, is judged as before: %s"
+                          % (shape, o[control]))
+            self.assertIsNone(o[m][0], "%s, then the next process to get its pid killed from outside: the law's old "
+                                       "signal explained that kill and the run read as a verdict: %s" % (shape, o[m]))
+            self.assertIn("nothing in the run sent", o[m][1], "%s: not said as an outside kill: %s" % (shape, o[m]))
+        p = self.out["prove_one"]
+        self.assertEqual(p["graceful"], H.PROVEN, "PREMISE: a law that ends its graceful helper can still be proven")
+        self.assertEqual(p["graceful_recycled"], H.UNPROVABLE, "a tamper red only because a recycled pid was killed from "
+                                                               "outside was filed %s" % p["graceful_recycled"])
+        self.assertEqual(self.out["push_recycled"], H.UNPROVABLE)
+        self.assertEqual(self.out["push_recycled_banked"], self.out["push_red_banked"],
+                         "a tampered run red only because a recycled pid was killed from outside was banked")
 
     def test_a_blind_law_whose_helper_was_killed_from_outside_banks_nothing(self):
         p = self.out["prove_one"]
@@ -542,6 +676,55 @@ class TheKillWatchSaysWhoSentIt(unittest.TestCase):
         self.assertEqual(self._read("X\t1\tpid=1500 sig=9\nK\t1\tpid=1500 pgid=- sig=9 head=t\n"
                                     "X\t1\tpid=1500 sig=9\nK\t1\tpid=1500 pgid=- sig=9 head=u\n"), [],
                          "PREMISE: the law killing the recycled pid AGAIN is its own kill again, each X its own death")
+        self.assertEqual(self._read("X\t1\tpgid=1550 sig=9\nK\t1\tpid=1551 pgid=- sig=9 head=t2\n"
+                                    "K\t1\tpid=1551 pgid=1550 sig=9 head=u2\n"), ["t2", "u2"],
+                         "a death the group signal never reached still left it a chance at that pid's next process")
+
+    def test_a_pid_that_ended_without_a_signal_is_a_new_process_next_time(self):
+        """REG-2358 (round 4) - an E line (the pid ended with an exit code, or was left to init when the process that
+        started it exited) closes every chance an X above it had at that pid, exactly as a death does."""
+        self.assertEqual(self._read("X\t1\tpid=1600 sig=15\nE\t1\tpid=1600 rc=0 head=python3\n"
+                                    "K\t1\tpid=1600 pgid=- sig=15 head=v\n"), ["v"],
+                         "a helper that handled the law's SIGTERM and exited 0 left the X's chance at its pid open")
+        self.assertEqual(self._read("X\t1\tpgid=1700 sig=9\nE\t1\tpid=1701 rc=1 head=a\n"
+                                    "K\t1\tpid=1701 pgid=1700 sig=9 head=w\n"), ["w"],
+                         "a group member that ended with an exit code left the group signal a chance at its pid")
+        self.assertEqual(self._read("X\t1\tall sig=9\nE\t1\tpid=1800 rc=0 head=a\n"
+                                    "K\t1\tpid=1800 pgid=- sig=9 head=x\n"), ["x"],
+                         "a pid that ended with an exit code left a signal to every process a chance at it")
+        self.assertEqual(self._read("X\t1\tpid=1900 sig=15\nE\t1\tpid=1900 rc=left head=sleep\n"
+                                    "K\t1\tpid=1900 pgid=- sig=15 head=y\n"), ["y"],
+                         "a child left to init when its parent exited kept the X's chance at its pid")
+        self.assertEqual(self._read("X\t1\tpid=2000 sig=9\nE\t1\tpid=2001 rc=0 head=a\n"
+                                    "K\t1\tpid=2000 pgid=- sig=9 head=z\n"
+                                    "E\t1\tpid=2100 rc=0 head=a\nX\t1\tpid=2100 sig=9\n"
+                                    "K\t1\tpid=2100 pgid=- sig=9 head=z2\n"), [],
+                         "PREMISE: an end closes only its own pid, and an X sent after it is the next process's own kill")
+
+    def test_a_child_that_ends_without_a_signal_says_its_pid_ended(self):
+        """REG-2358 (round 4) - the review's script, through the real hook: each of the three ends is said, the law's own
+        signals stay explained, and the next process to get any of those pids, killed from outside, is unexplained."""
+        (gp, dp, lp, me), text, left = self._watched(ENDS)
+        self.addCleanup(_kill_quietly, lp)            # still running (it ignores SIGTERM), now init's child
+        for line, why in (("E\t%s\tpid=%s rc=0 " % (me, gp), "a helper that handled SIGTERM and exited 0"),
+                          ("K\t%s\tpid=%s pgid=" % (me, dp), "a helper killed and dropped unwaited"),
+                          ("E\t%s\tpid=%s rc=left " % (me, lp), "a helper still running when this process exited")):
+            self.assertIn(line, text, "%s left no line saying its pid ended:\n%s" % (why, text))
+        self.assertEqual(left, [], "PREMISE: the run's own signals are explained:\n%s" % text)
+        nxt = "".join("K\t%s\tpid=%s pgid=- sig=%d head=next-%s\n" % (me, p, s, h)
+                      for p, s, h in ((gp, 15, "g"), (dp, 9, "d"), (lp, 15, "l")))
+        self.assertEqual(self._read(text + nxt), ["next-g", "next-d", "next-l"],
+                         "the next process to get a pid the law had signalled, killed from outside, read as the law's "
+                         "own kill:\n%s" % (text + nxt))
+
+    def test_a_forked_copy_says_nothing_of_its_parents_children(self):
+        """REG-2358 (round 4) - a forked copy inherits the Popen objects; their waitpid there answers ECHILD, which Popen
+        reads as an exit 0. Said, that end would close the parent's own kill of the same child."""
+        (ep, fp, me), text, left = self._watched(FORKED)
+        self.assertEqual([ln for ln in text.splitlines() if ln.split("\t")[1:2] == [fp]], [],
+                         "a forked copy wrote a line about a child it never started:\n%s" % text)
+        self.assertIn("K\t%s\tpid=%s " % (me, ep), text, "PREMISE: the parent's own kill of its child was said")
+        self.assertEqual(left, [], "the parent's own kill of its child read as a kill from outside:\n%s" % text)
 
     def test_a_signal_to_a_child_already_dead_says_so(self):
         """REG-2356 - the hook marks an X before its signal leaves, from real zombies, and never reaps one to do it."""
@@ -686,7 +869,8 @@ RED_PROOF = [
      "find": "                judged(self)  # KILL-WATCH-WAIT\n",
      "replace": "                pass  # KILL-WATCH-WAIT\n",
      "matches": 1, "needs": "posix-signals"},
-    {"why": "REG-2350 - a child a signal ended is never written when it is polled (Chrome's teardown polls)",
+    {"why": "REG-2350 - a child a signal ended is never written when it is polled (Chrome's teardown polls) - nor, since "
+            "REG-2358 round 4, when Popen's own finalizer reaps it (dropped unwaited)",
      "file": "gate_trace/sitecustomize.py",
      "find": "                judged(self)  # KILL-WATCH-POLL\n",
      "replace": "                pass  # KILL-WATCH-POLL\n",
@@ -768,8 +952,8 @@ RED_PROOF = [
     {"why": "REG-2358 - an X explains every later death of its pid: a recycled pid killed from outside reads as the "
             "law's own kill, and the run reads red",
      "file": "heart2.py",
-     "find": "                 and p not in x[\"spent\"]  # KILL-WATCH-FIRST-K\n",
-     "replace": "                 and True  # KILL-WATCH-FIRST-K\n",
+     "find": "                 and x[\"at\"] > before  # KILL-WATCH-FIRST-END\n",
+     "replace": "                 and True  # KILL-WATCH-FIRST-END\n",
      "matches": 1, "needs": "posix-signals"},
     # REG-2357 - the round-3 review: every case here skips off POSIX, and no proof said so, so Windows filed all of them BLIND
     {"why": "REG-2357 - the first proof declares no need: on Windows every case skips and it files BLIND, shutting every "
@@ -778,10 +962,40 @@ RED_PROOF = [
      "find": "     \"matches\": 1, \"needs\": \"posix-signals\"},\n    {\"why\": \"REG-2350 - a shell's 128+N",
      "replace": "     \"matches\": 1},\n    {\"why\": \"REG-2350 - a shell's 128+N",
      "matches": 1, "needs": "posix-signals"},
-    {"why": "REG-2358 - the first death of a pid an X reached is never marked, so the X explains the second one too",
+    {"why": "REG-2358 - no end of a pid is remembered, so an X explains the second death of its pid too",
      "file": "heart2.py",
-     "find": "            x[\"spent\"].add(p)  # KILL-WATCH-SPENT\n",
-     "replace": "            pass  # KILL-WATCH-SPENT\n",
+     "find": "        last[p] = k[\"at\"]  # KILL-WATCH-ENDED\n",
+     "replace": "        pass  # KILL-WATCH-ENDED\n",
+     "matches": 1, "needs": "posix-signals"},
+    # REG-2358 (round 4) - the review: an X's chance at a pid closed only on a K, so a target that ended any other way
+    # left it open for the next process to get that pid
+    {"why": "REG-2358 - the reader drops E lines: a helper that exited 0 on the law's SIGTERM leaves the X's chance at "
+            "its pid open, and the next process to get it, killed from outside, reads as the law's own kill",
+     "file": "heart2.py",
+     "find": "_KILL_LINE = re.compile(r\"^([KXE])\\t\\d+\\t(.*)$\")\n",
+     "replace": "_KILL_LINE = re.compile(r\"^([KX])\\t\\d+\\t(.*)$\")\n",
+     "matches": 1, "needs": "posix-signals"},
+    {"why": "REG-2358 - the hook writes no line for a child that ends with an exit code (a helper that handles SIGTERM)",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                    emit(\"E\", \"pid=%s rc=%d head=%s\" % (p.pid, rc, headof(p)))  # KILL-WATCH-END\n",
+     "replace": "                    pass  # KILL-WATCH-END\n",
+     "matches": 1, "needs": "posix-signals"},
+    {"why": "REG-2358 - a child still running when its parent exits is left to init unsaid, so a signal the parent sent "
+            "it explains the death of the next process to get its pid",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                    emit(\"E\", \"pid=%s rc=left head=%s\" % (p.pid, headof(p)))  # KILL-WATCH-LEFT\n",
+     "replace": "                    pass  # KILL-WATCH-LEFT\n",
+     "matches": 1, "needs": "posix-signals"},
+    {"why": "REG-2358 - a forked copy says the end of its parent's child (ECHILD, read as exit 0), which closes the "
+            "parent's own kill of it: a law that ends its helper after a fork reads UNKNOWN for ever",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "        return p.__dict__.get(\"_tv_owner\", getpid()) == getpid()  # KILL-WATCH-OWNER\n",
+     "replace": "        return True  # KILL-WATCH-OWNER\n",
+     "matches": 1, "needs": "posix-signals"},
+    {"why": "REG-2358 - nobody records which process started a child, so a forked copy says its parent's children's ends",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                        me.__dict__[\"_tv_owner\"] = getpid()  # KILL-WATCH-OWNED",
+     "replace": "                        pass  # KILL-WATCH-OWNED",
      "matches": 1, "needs": "posix-signals"},
 ]
 

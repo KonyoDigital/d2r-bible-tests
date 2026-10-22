@@ -29,6 +29,8 @@ REG-2350 (#42 R5) - THE KILL WATCH, armed by TV_GATE_KILLS alone (heart2 arms it
 own file, in the same line shape:
 
     K  a child this process waited on or polled ENDED BY A SIGNAL (TEXT: pid, pgid when known, sig, argv0 name)
+    E  a child of this process that ENDED WITHOUT ONE (REG-2358): `pid=N rc=R head=H`, R its exit code - or `rc=left`,
+       still running when this process exited, so init reaps it and no line of the run will ever say its death
     X  this process SENT a signal (os.kill / os.killpg; a 0 probe is not one): `pid=N`, `pgid=N` or `all`, then `sig=S`,
        `dead=1` when the signal can end nothing at its target number, and `gone=a,b` naming the members of a signalled
        group (children of this process) that were already dead. Written BEFORE the signal leaves.
@@ -44,6 +46,13 @@ is already dead (a zombie or no process: macOS getpgid answers ESRCH for both; L
 or, for a group, when that pid leads no group (killpg then reaches no one: ESRCH, measured). It also names in `gone=`
 every member it can see already dead. Nothing is reaped here: kill() on a zombie succeeds, and on a reaped pid it
 raises ESRCH (measured), so a reap would change what the law's own os.kill returns.
+REG-2358 (round 4) - every child's END is said, not only a death by signal: an X may explain only a death of the
+process it was sent to, and a pid that ended is a new process the next time it dies. Before, a helper that handled the
+law's SIGTERM and exited 0, or one killed and dropped unwaited (Popen's own finalizer reaps it through _internal_poll,
+which nothing watched), ended without a line, and the next process to get its pid, killed from outside, read as the
+law's own kill. So the E line, Popen._internal_poll is watched too, and at this process's exit every child it started
+that is still running is said `rc=left`. Only the process that started a child says its end: a forked copy of this
+process inherits its Popen objects, and their waitpid there answers ECHILD, which Popen reads as an exit 0.
 Two copies of this folder on sys.path (heart2 arms its own, and a law arms its sandbox's for a fixture gate) boot
 ONCE: the chain below skips every gate_trace folder - before, they chained into each other 160 times.
 
@@ -438,20 +447,40 @@ def _boot_kills():
                 g = None  # a zombie on macOS: its K says pgid=-, which no group X can explain
         return g
 
+    def headof(p):
+        try:
+            a = p.args
+            head = os.path.basename(str(a[0] if isinstance(a, (list, tuple)) and a else a))[:40]
+        except Exception:
+            head = ""
+        return head.replace(" ", "_") or "-"
+
+    def mine(p):
+        """REG-2358 - did THIS process start p? A forked copy of a process inherits its Popen objects, and a wait or
+        poll there answers ECHILD, which Popen reads as an exit 0: that copy must say nothing about a child it never
+        started. -> bool (True when nobody recorded who started it, as before)"""
+        return p.__dict__.get("_tv_owner", getpid()) == getpid()  # KILL-WATCH-OWNER
+
     def judged(p):
+        """One line per child, from the process that started it, once it has ENDED: K when a signal ended it, and
+        (REG-2358) E for any other end - an exit code, whatever it is - so a pid that ended is never read as alive."""
         try:
             rc = p.returncode
-            if isinstance(rc, int) and not isinstance(rc, bool) and rc < 0 and not p.__dict__.get("_tv_k"):
+            if isinstance(rc, int) and not isinstance(rc, bool) and not p.__dict__.get("_tv_k") and mine(p):
                 p.__dict__["_tv_k"] = True
-                a = p.args
-                head = os.path.basename(str(a[0] if isinstance(a, (list, tuple)) and a else a))[:40]
-                emit("K", "pid=%s pgid=%s sig=%d head=%s" % (p.pid, p.__dict__.get("_tv_pgid", "-"), -rc,
-                                                             head.replace(" ", "_") or "-"))
+                if rc < 0:
+                    emit("K", "pid=%s pgid=%s sig=%d head=%s" % (p.pid, p.__dict__.get("_tv_pgid", "-"), -rc,
+                                                                 headof(p)))
+                else:
+                    emit("E", "pid=%s rc=%d head=%s" % (p.pid, rc, headof(p)))  # KILL-WATCH-END
         except Exception:
             pass
 
     def patch(cls):
         real_wait, real_poll = cls.wait, cls.poll
+        # REG-2358 - Popen's own reap: poll() calls it, and so do __del__ and subprocess._cleanup for a child dropped
+        # without a wait. Watched here, so a dropped child's end is said too (before, nothing saw it).
+        real_ipoll = getattr(cls, "_internal_poll", None)
 
         def wait(self, *a, **k):
             noted(self)
@@ -465,16 +494,35 @@ def _boot_kills():
             try:
                 return real_poll(self, *a, **k)
             finally:
+                if real_ipoll is None:
+                    judged(self)  # a Python whose poll() has no _internal_poll to be judged in
+
+        def ipoll(self, *a, **k):
+            try:
+                return real_ipoll(self, *a, **k)
+            finally:
                 judged(self)  # KILL-WATCH-POLL
-        for f, r in ((wait, real_wait), (poll, real_poll)):
+        pairs = ((wait, real_wait), (poll, real_poll)) + (((ipoll, real_ipoll),) if real_ipoll is not None else ())
+        for f, r in pairs:
             f.__wrapped__, f.__name__, f.__doc__ = r, r.__name__, r.__doc__
         cls.wait, cls.poll = wait, poll
+        if real_ipoll is not None:
+            cls._internal_poll = ipoll
 
     def sweep():
-        """at exit: a child nobody waited on that a signal ended is said too (a jetsam'd Chrome a test never polled)"""
+        """at exit (this process's run ends): a child nobody waited on that a signal ended is said too (a jetsam'd
+        Chrome a test never polled), and one that ended otherwise is said E. REG-2358 - a child STILL RUNNING is left
+        to init, which writes no line: its pid is closed here (`rc=left`), since no line of the run can say its death
+        and the next process to get that pid is a new one. Only this process's own children: a forked copy's are not
+        its to say."""
         for p in list(st["live"] or ()):
             try:
+                if not mine(p):
+                    continue
                 p.poll() if p.returncode is None else judged(p)  # KILL-WATCH-SWEEP
+                if p.returncode is None and not p.__dict__.get("_tv_k"):
+                    p.__dict__["_tv_k"] = True
+                    emit("E", "pid=%s rc=left head=%s" % (p.pid, headof(p)))  # KILL-WATCH-LEFT
             except Exception:
                 pass
 
@@ -523,6 +571,7 @@ def _boot_kills():
                         break
                     me = f.f_locals.get("self")
                     if isinstance(me, sp.Popen):
+                        me.__dict__["_tv_owner"] = getpid()  # KILL-WATCH-OWNED - REG-2358: the process that started it
                         st["live"].add(me)
                         break
                     f = f.f_back
