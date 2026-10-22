@@ -9448,8 +9448,10 @@ def _win_tint_caption():
 # so it would write those fixture verdicts into his REAL retro_triage.json. A gate run
 # would then teach the live store that his reels hold no panels.
 # [[feedback-fixtures-never-touch-live-data]]
+# REG-2463 — and the orphan fold: a harness's loose frames are its fixture, and folding them on a timer would
+# change the footage a render or a demo is reading while it reads it.
 _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
-                      "tvd-retro-triage")
+                      "tvd-retro-triage", "tvd-orphan-fold")
 
 #: v3297 — lanes the roster SKIPPED at boot (TV_STUB harness), kept module-readable so a doctor
 #: row can say "stood down by design" instead of grading a deliberate absence as a dead loop.
@@ -9617,6 +9619,9 @@ def start_background_watchers(why):
         # #41 rank 16 (REG-1560) — their planner's tooltip rows against the SHIPPED composition, on this
         # console's cadence, receipted per row. Reads bible.html, writes only its own receipt. No node = UNKNOWN.
         ("tvd-tooltip-oracle", _tooltip_oracle_loop),
+        # REG-2463 (#168) — his ruling 2026-10-21, "FOLD + LANE": loose frames of a session that died before it
+        # sealed fold into a reel of their own on every PC. Moves frames only; asks what is in flight first.
+        ("tvd-orphan-fold", _orphan_fold_loop),
         # v2072 — say it out loud when the process is behind the disk. ANNOUNCES ONLY unless
         # TV_AUTO_RELAUNCH=1, and even then refuses while the agent is alive: a restart mid-film
         # orphans the frames of the session it kills.
@@ -28652,6 +28657,41 @@ def _tooltip_oracle_loop():
             if r.get("measured") and (r.get("owed") or r.get("ok") is not True):
                 # a row that is not theirs, or a run that could not judge, speaks once per measurement
                 print("   ⚠ tooltip oracle: %s" % str(r.get("why"))[:200], flush=True)
+        except Exception:
+            pass
+
+
+#: REG-2463 (#168) — the orphan-fold lane's first look after boot, and its period (orphan_fold.FIRST_S / EVERY_S)
+_ORPHAN_FOLD_FIRST_S = 300.0
+_ORPHAN_FOLD_EVERY_S = 1800.0
+
+
+def _orphan_fold_loop():
+    """REG-2463 (#168) — LOOSE FRAMES FOLD ON THEIR OWN LANE, on every PC. His ruling 2026-10-21: "FOLD + LANE".
+
+    A session that dies before it seals leaves its frames loose in hist/, where no lane and no deleter can see them
+    (Dean: 67,925 frames, 2.53 GB). Nothing folded them on its own: the healer remedy runs only with TV_AUTO_HEAL=1,
+    and armed it would disarm itself after one fold. The whole of the work is orphan_fold.run_once: it asks
+    nothing_in_flight first, folds only the clusters apply_plan calls eligible, and names what it leaves loose - a
+    window a reel already covers, and one that may still be filming. This loop keeps the cadence, stamps its beat
+    and leaves its trace. ⚠ IT ONLY MOVES FRAMES into the reel their own stamps name - it deletes nothing. A first
+    look a few minutes after boot, then every half hour.
+    """
+    _first = True
+    while True:
+        try:
+            time.sleep(_ORPHAN_FOLD_FIRST_S if _first else _ORPHAN_FOLD_EVERY_S)
+            _first = False
+            _lane_tick('tvd-orphan-fold', _ORPHAN_FOLD_EVERY_S)
+            import orphan_fold as _of
+            r = _of.run_once(HIST_DIR, in_flight=lambda: nothing_in_flight(
+                "folding now would move frames out from under it"))
+            import lane_trace as _lt
+            _lt.note('tvd-orphan-fold', worked=r.get("worked"), owed=r.get("owed"), folded=r.get("folded"),
+                     reels=len(r.get("reels") or []), refused=len(r.get("refused") or []),
+                     why=str(r.get("why") or "")[:200])
+            if r.get("folded"):
+                print("   \U0001f9f5 orphan fold: %s" % str(r.get("why"))[:200], flush=True)
         except Exception:
             pass
 
