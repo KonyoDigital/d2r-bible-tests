@@ -2320,6 +2320,24 @@ def _board_tally_path():
     return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "board_tally.json")
 
 
+#: REG-2460 - every read-modify-write of board_tally.json holds this lock. The console answers on a
+#: ThreadingHTTPServer: a tally the board posted while his ruled re-base ran would load the file before
+#: the re-base, save after it, and put the old mark back - the door would have said "re-based" of a mark
+#: that came straight back. Two tally posts at once also shared one fixed .tmp name.
+_BOARD_TALLY_LOCK = threading.RLock()
+
+
+def _board_tally_locked(fn):
+    """REG-2460 - run a board_tally.json read-modify-write under _BOARD_TALLY_LOCK."""
+    import functools as _functools
+
+    @_functools.wraps(fn)
+    def _run(*a, **k):
+        with _BOARD_TALLY_LOCK:
+            return fn(*a, **k)
+    return _run
+
+
 def board_tally_save(t):
     """Bank what the BOARD says its counts are. -> True when it landed.
 
@@ -2697,6 +2715,7 @@ def _route_key(who):
 _TALLY_DROP_STORE = {"sets": "setPieces", "uniques": "foundLog", "runewords": "rwMade"}
 
 
+@_board_tally_locked
 def board_tally_merge(t):
     """Bank a posted tally WITHOUT letting one world overwrite another's numbers.
 
@@ -30272,6 +30291,63 @@ def ledger_drop_accept(store, reason, confirm=False, now_ms=None, path=None):
             "why": "accepted %d drop(s) of %s (%s)" % (len(closed), store, why_reason[:120])}
 
 
+_TALLY_LANES = ("sets", "uniques", "runewords")
+
+
+@_board_tally_locked
+def board_tally_rebase(world, lane, reason, confirm=False, now_ms=None):
+    """REG-2460 — A HIGH-WATER MARK SET BY DATA THAT WAS NEVER THIS WORLD'S IS RE-BASED BY HIS RULING. -> dict
+
+    board_tally_merge's mark only ever rises (its rule 3) and a fall is never auto-healed - right for HIS data. It is
+    wrong when the mark itself came from data that was never this world's, and nothing could undo it: MEASURED on
+    Dean's PC 2026-10-21, both of his worlds held uniques 261 (main, 08-28: sets 116 / uniques 261 = Konyo's own
+    board that week; v2692 records his board showing Konyo's seed), his ladder world has read 0 since 09-26, and the
+    doctor's "progress number" row has said "BELOW its own high-water mark" ever since. ledger_drop_accept cannot
+    reach it: it closes .ledger_drops.json episodes, and his holds none ("no open drop for foundLog").
+
+    Only with confirm AND a reason, one world and one lane at a time, and only DOWN to the world's own current
+    reading. Nothing is restored and nothing is hidden: the old mark stays beside the new one in `rebasedFrom`, and
+    the ruling is appended to `rebases`, which no later tally removes. The next tally ratchets up from here."""
+    lane = str(lane or "")
+    if lane not in _TALLY_LANES:
+        return {"ok": False, "applied": False, "why": "lane must be one of %s" % ", ".join(_TALLY_LANES)}
+    why_reason = str(reason or "").strip()
+    if not why_reason:
+        return {"ok": False, "applied": False, "why": "a re-base needs his reason - it is a ruling, not a reset"}
+    doc = board_tally_load()
+    if not isinstance(doc, dict) or not isinstance(doc.get("high"), dict):
+        return {"ok": False, "applied": False, "why": "this machine has no board tally with a high-water mark"}
+    key = str(world or "")
+    hi = doc["high"].get(key)
+    row = (doc.get("byRoute") or {}).get(key) if isinstance(doc.get("byRoute"), dict) else None
+    if not isinstance(hi, dict) or not isinstance(row, dict):
+        return {"ok": False, "applied": False,
+                "why": "no world %r in the board tally - its worlds are: %s" % (key, ", ".join(sorted(doc["high"])))}
+    old = (hi.get(lane) or {}).get("have") if isinstance(hi.get(lane), dict) else None
+    cur = row.get(lane) if isinstance(row.get(lane), dict) else {}
+    now = cur.get("have")
+    if isinstance(now, bool) or not isinstance(now, int):
+        return {"ok": False, "applied": False,
+                "why": "this world's current %s reading cannot be read - nothing is re-based on a guess" % lane}
+    if isinstance(old, bool) or not isinstance(old, int) or old <= now:
+        return {"ok": False, "applied": False,
+                "why": "the %s mark (%s) is not above this world's current reading (%d) - nothing to re-base"
+                       % (lane, old, now)}
+    if not confirm:
+        return {"ok": True, "applied": False, "would": {"world": key, "lane": lane, "from": old, "to": now},
+                "why": ("this would re-base %s's %s mark from %d to its current %d. Nothing has been written; "
+                        "call again with confirm." % (key, lane, old, now))}
+    at = int(now_ms if now_ms is not None else time.time() * 1000)
+    hi[lane] = {"have": now, "total": cur.get("total"), "at": at, "rebasedFrom": dict(hi[lane]),
+                "rebasedBy": why_reason[:300]}
+    doc.setdefault("rebases", []).append({"world": key, "lane": lane, "from": old, "to": now, "at": at,
+                                          "by": why_reason[:300]})
+    if not board_tally_save(doc):
+        return {"ok": False, "applied": False, "why": "the board tally could not be written - nothing changed"}
+    return {"ok": True, "applied": True, "world": key, "lane": lane, "from": old, "to": now,
+            "why": "re-based %s's %s mark from %d to %d (%s)" % (key, lane, old, now, why_reason[:120])}
+
+
 def ledger_restore_plan(file=None):
     """What the backups FOR THIS PROFILE would put back. Reads only; writes nothing.
 
@@ -47297,6 +47373,12 @@ class Handler(BaseHTTPRequestHandler):
             # A planned clear (a vault reset he asked for) must be able to close the drop the
             # watcher opened for it. confirm and a reason are both required. Nothing is restored.
             self._json(200, ledger_drop_accept(body.get("store"), body.get("reason"),
+                                               confirm=_confirmed(body.get("confirm"))))
+            return
+        if path == "/api/board_tally_rebase":
+            # REG-2460 - the one door for a high-water mark that came from data that was never this world's
+            # (Dean's uniques 261, Konyo's seed). His ruling and confirm are both required. Nothing is restored.
+            self._json(200, board_tally_rebase(body.get("world"), body.get("lane"), body.get("reason"),
                                                confirm=_confirmed(body.get("confirm"))))
             return
         if path == "/api/ledger_restore_apply":

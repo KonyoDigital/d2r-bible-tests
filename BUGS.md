@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2460 - A HIGH-WATER MARK SET BY ANOTHER BOARD'S SEED COULD NEVER COME DOWN, AND THE RULED DOOR COULD NOT REACH IT (Dean's 261, #169)
+
+Measured on Dean's PC 2026-10-21/22 by the agent, through his console's own state: both of his worlds held a uniques high-water mark of 261, set 08-28 by Konyo's seed (sets 116 / uniques 261 was Konyo's own board that week; v2692 recorded his board showing Konyo's seed). His ladder world has read 0 since 09-26, and console_doctor's progress row has said "BELOW its own high-water mark" (uniques 0, best 261) ever since. board_tally_merge's mark only ever RISES (its rule 3, Konyo's 08-28 ask), and the door Konyo ruled for this on 10-21, `/api/ledger_drop_accept`, closes `.ledger_drops.json` EPISODES - Dean has none, so it answered "no open drop for foundLog" and wrote nothing.
+
+FIX: `board_tally_rebase(world, lane, reason, confirm)` + `POST /api/board_tally_rebase` - one world and one lane at a time, DOWN only, and only to that world's own current reading. A reason is required (it is a ruling, not a reset) and so is confirm: without it the answer says what it would do and writes nothing. The old mark stays beside the new one in `rebasedFrom`, the ruling is appended to a permanent `rebases` list that no later tally removes, and the next tally ratchets up from the new mark. Found while building the door: the console answers on a ThreadingHTTPServer, so a tally the board posted while a re-base ran would load the file before it, save after it and put the seeded mark back while the door said "re-based" (two tally posts at once also shared one fixed .tmp name). Every read-modify-write of board_tally.json - the merge and the re-base - now holds one lock (`_board_tally_locked`).
+
+GUARD: tv/test_a_drop_is_an_episode.py `AMarkSetByDataThatWasNeverHisIsRebasedByRuling` (registered) on a fixture board_tally.json: no reason moves nothing; the dry run writes nothing; confirm brings the mark down and keeps the old one; it never raises a mark and names only real lanes and worlds; the next tally ratchets from the new mark and the ruling survives; the doctor's row stops saying BELOW; and a tally held between its load and its save while the re-base runs never puts the old mark back. 6 RED proofs (reason, dry run, rebasedFrom, a mark at its reading, the re-base's lock, the merge's lock).
+
+LEFT: the re-base itself on Dean's PC (his ladder world, lane uniques, his ruling as the reason; the dry run first) is a step on that PC after this lands.
+
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
 2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
