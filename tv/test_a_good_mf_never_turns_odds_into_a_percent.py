@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""#63 (REG-2503) - A GOOD MF NEVER TURNS 1:N ODDS INTO A PERCENT, AND AN EVENT DROP IS A PROBABILITY.
+"""#63 (REG-2503, REG-2508) - A GOOD MF NEVER TURNS 1:N ODDS INTO A PERCENT, AN EVENT DROP IS A PROBABILITY, AND THE
+MF CURVE IS THE GAME'S.
 
 One number carried two units and its SIZE decided which: a chance at or below EVENT_PCT_MAX (50) was an event
 percent, anything above was 1:N odds. That holds for raw data only if no real 1:N is ever 50 or better - and the
-drop math reads ADJUSTED values. Measured on the shipped arithmetic, Nagelring from Normal Andariel (raw 1:79):
-  * at his MF 699 /players 1 it adjusts to 1:70, and renderDetail kept only adjustedChance >= 100, so the item's
+drop math reads ADJUSTED values. On the code as it shipped, Nagelring from Normal Andariel (raw 1:79):
+  * at his MF 699 /players 1 it adjusted to 1:70, and renderDetail kept only adjustedChance >= 100, so the item's
     best source fell out of its own ranking;
-  * at MF 1000 /players 8 it adjusts to 1:49 and fmt printed "49%";
+  * at MF 1000 /players 8 it adjusted to 1:49 and fmt printed "49%";
   * effChance skipped /players for any MF-adjusted value <= 50; runsFor / hoursFor / runHoursFor answered null.
 And the silospen pull had already put REAL odds under 50 in the raw rows (Isenhart's Case 1:32 from Normal
 Mephisto), which printed as percents too. Meanwhile the four real events were stored as 12 / 36 / 36 / 42 on every
@@ -17,10 +18,22 @@ ODDS >= 1. They meet only at exactly 1, where 1:1 and 100% are the same quantity
 misread a 1:N however far MF and /players push it. An event drop is not timed and adds no rate; its per-run chance
 is p itself. Keys sit on Hell only and print their card's sourced band; Annihilus is 100% (vanilla D2R, labelled).
 
+THE 1:70 WAS ITSELF WRONG (REG-2508). His note was "i see it not 66 i se 70": the screen said 1:70 where the game
+says 1:66. effMF read (MF x 100) / (MF + 250) - the game's curve divided by 2.5 - while the MF card on the same page
+states MF x 250 / (MF + 250) ("699% = 184% effective"); the dock printed "eff unique: 73.66%". The first version of
+this law re-typed the code's own formula and pinned (70, 49) as a "premise", so it would have gone red on the fix.
+The expected figures are now the SOURCE's: silospen's calculator, the one every stored 1:N comes from, queried live
+on 2026-10-22 (dropcalc.php?type=monsterProbabilities&version=D2R_ROW_3_0&itemQuality=UNIQUE&players=1&party=1 and
+type=atomicTcProbabilities for the keys) - see SILOSPEN below. The page's curve must reproduce them.
+
+What this law does NOT certify: the /players factor. effChance divides by the page's PLAYER_Q model, and silospen
+disagrees with that model (Nagelring, Normal Andariel, MF 1000: silospen 1:35 at /players 8, the model 1:44; the
+model steps at /p2, /p4, /p6, /p8 where silospen steps at /p3, /p5, /p7). That is REG-2509, OPEN. Here /players is
+checked only for its UNIT (a 1:N stays a 1:N and still ranks) and for being applied at all.
+
 Driven in node over code CUT from bible.html between its own boundaries: the drop engine (effMF .. fmtHours), the
 BOSSES table, SPECIAL_DROPS, and renderDetail itself with a stub panel, so the ranking is read from the HTML it
-paints. The expected odds are computed here, in Python, from PLAYER_Q and the MF formula - never read back from
-the code under test.
+paints.
 """
 from __future__ import annotations
 
@@ -73,9 +86,29 @@ def _node(prog):
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
+# silospen RotW 3.0, measured 2026-10-22 (UNIQUE, /players 1, party 1): (item, boss, stored base at MF 300) -> {MF: N}
+SILOSPEN = {
+    ("Nagelring", "Normal Andariel", 79): {0: 186, 300: 79, 699: 66, 1000: 62},
+    ("Crushflange", "Normal Andariel", 84): {0: 199, 300: 84, 699: 70, 1000: 66},
+    ("Harlequin Crest", "Hell Mephisto", 836): {0: 1974, 300: 836, 699: 695},
+}
+# silospen RotW 3.0 atomic TC, Hell, party 1, decimal mode: /players 1-2, 3-4, 5-6, 7-8
+KEY_SILOSPEN = {
+    "Key of Terror": (0.07139835223, 0.09084617514, 0.0960792032, 0.09796001985),
+    "Key of Hate": (0.0861533746, 0.11614571239, 0.12483359662, 0.12802530147),
+    "Key of Destruction": (0.07932346012, 0.10407137931, 0.11099506033, 0.11351206024),
+}
+KEY_BAND_LABEL = "silospen RotW 3.0, /players 1-8"
+
+
+def _band(ps):
+    lo, hi = min(ps) * 100, max(ps) * 100
+    return "%.1f-%.1f%%" % (math.floor(lo * 10 + 0.5) / 10, math.floor(hi * 10 + 0.5) / 10)
+
+
 def _adjust(base, mf):
-    """The MF formula, re-typed from its definition (uniques factor 250, reference MF 300)."""
-    eff = lambda g: (g * 100.0) / (g + 250.0)
+    """The game's curve (uniques factor 250, the stored base read at MF 300) - the one the page's MF card states."""
+    eff = lambda g: (g * 250.0) / (g + 250.0)
     return max(1, int(math.floor(base * (1 + eff(300) / 100.0) / (1 + eff(mf) / 100.0) + 0.5)))
 
 
@@ -117,6 +150,12 @@ out.destFmt = fmtDrop(0.0793, 'Key of Destruction');
 out.anniDrop = fmtDrop(1, 'Annihilus');
 out.oddsDrop = fmtDrop(49, 'Nagelring');
 out.cards = SPECIAL_DROPS.key.items.map(function(x){ return [x.n, x.rate]; });
+out.keyNote = SPECIAL_DROPS.key.important;
+out.curve = {};
+[[79, 0], [79, 300], [79, 699], [79, 1000], [84, 0], [84, 699], [84, 1000], [836, 0], [836, 699]].forEach(function(p){
+  out.curve[p[0] + '@' + p[1]] = adjustChance(p[0], p[1]);
+});
+out.eff699 = effMF(699, 250).toFixed(2);
 // the item ranking, read from the HTML renderDetail paints
 var PANEL = { _h: '', classList: { add: function(){}, remove: function(){} } };
 Object.defineProperty(PANEL, 'innerHTML', { get: function(){ return this._h; }, set: function(v){ this._h = String(v); } });
@@ -185,18 +224,47 @@ class AGoodMfNeverTurnsOddsIntoAPercent(unittest.TestCase):
         summ = [b for b in self.bosses if b["id"] == "summoner"][0]
         self.assertEqual([d["tc"] for d in summ["diffs"][:4]], ["no Key of Hate (Hell only)"] * 4)
 
+    def test_the_mf_curve_is_the_one_silospen_measures(self):
+        """REG-2508 - every stored 1:N is silospen's at MF 300; moved to another MF it must land on silospen's figure."""
+        self.assertEqual(_adjust(79, 699), SILOSPEN[("Nagelring", "Normal Andariel", 79)][699],
+                         "premise: the game's curve reproduces silospen's 1:66")
+        for (item, boss, base), at in SILOSPEN.items():
+            for mf, want in at.items():
+                got = self.o["curve"].get("%d@%d" % (base, mf))
+                if got is None:
+                    continue
+                # the stored base is itself rounded, so a far MF may land one count off; the old cap-share line
+                # was 6-35% off (Nagelring 1:70 at 699, 1:122 at 0)
+                self.assertLessEqual(abs(got - want), max(1, round(want * 0.002)),
+                                     "%s from %s at MF %d: the page says 1:%s, silospen 1:%d" % (item, boss, mf, got, want))
+        self.assertEqual(self.o["eff699"], "184.14", "the dock's eff unique at MF 699 is not the game's 184%")
+
+    def test_every_surface_states_the_same_curve(self):
+        s = self.src
+        self.assertIn('eff unique: <strong id="eff-mf">184.14%</strong>', s, "the dock's first paint says another MF")
+        self.assertIn("<code>Effective MF = (Gear MF × Factor) / (Gear MF + Factor)</code>", s)
+        stats = re.findall(r'<div class="stat-label">(\d+)% (?:MF|\(ref\)|\(you\)|\(max\))</div><div class="stat-value">'
+                           r'([\d.]+)%</div><div class="stat-sub">effective unique</div>', s)
+        self.assertEqual(len(stats), 4, "premise: the MF math section's four stats (%r)" % stats)
+        for mf, shown in stats:
+            want = int(mf) * 250.0 / (int(mf) + 250.0)
+            self.assertEqual(shown, "%.1f" % want, "the MF math section says %s%% at MF %s, the curve %.1f%%" % (shown, mf, want))
+        self.assertIn("effMF = MF × 250 / (MF + 250)", s, "the MF card no longer states the curve")
+        self.assertNotIn("(Gear MF × 100)", s)
+
     def test_nagelring_keeps_its_odds_at_his_mf_and_at_a_full_game(self):
         o = self.o
-        want699 = _adjust(79, 699)
-        q = self.player_q["andariel"]["norm"]
-        want1000 = max(1, int(math.floor(_adjust(79, 1000) / _player_mult(q, 8) + 0.5)))
-        self.assertEqual((want699, want1000), (70, 49), "premise: the brief's measured figures")
-        self.assertEqual(o["nag699"], want699)
-        self.assertEqual(o["nag699fmt"], "1:70")
+        want699 = SILOSPEN[("Nagelring", "Normal Andariel", 79)][699]
+        self.assertEqual(o["nag699"], want699, "Nagelring at MF 699 /players 1 is not silospen's 1:66")
+        self.assertEqual(o["nag699fmt"], "1:66")
         self.assertIsNotNone(o["nag699hours"])
         self.assertIsNotNone(o["nag699runs"])
-        self.assertEqual(o["nag1000"], want1000)
-        self.assertEqual(o["nag1000fmt"], "1:49", "a 1:49 printed as a percent")
+        # /players 8: the page's PLAYER_Q model (REG-2509 OPEN - silospen says 1:35); only the unit is certified here
+        q = self.player_q["andariel"]["norm"]
+        model = max(1, int(math.floor(_adjust(79, 1000) / _player_mult(q, 8) + 0.5)))
+        self.assertEqual(o["nag1000"], model, "effChance did not apply the MF curve and the /players model it states")
+        self.assertLess(o["nag1000"], SILOSPEN[("Nagelring", "Normal Andariel", 79)][1000], "/players 8 did not move 1:N")
+        self.assertEqual(o["nag1000fmt"], "1:%d" % model, "a 1:N at MF 1000 /players 8 printed as a percent")
         self.assertIsNotNone(o["nag1000hours"])
         self.assertEqual(o["nag1000runHours"], o["nag1000hours"])
 
@@ -222,18 +290,34 @@ class AGoodMfNeverTurnsOddsIntoAPercent(unittest.TestCase):
         self.assertIsNone(o["keyHours"])
         self.assertIsNone(o["keyRunHours"])
 
-    def test_a_key_prints_its_own_cards_figure(self):
-        cards = {n: re.sub(r"\s*\(Hell only\)\s*$", "", r) for n, r in self.o["cards"]}
-        self.assertEqual(self.o["keyFmt"], cards["Key of Hate"])
-        self.assertEqual(self.o["terrorFmt"], cards["Key of Terror"])
-        self.assertEqual(self.o["destFmt"], cards["Key of Destruction"])
-        self.assertEqual(self.o["keyFmt"], "~9-13%")
+    def test_a_key_prints_the_sourced_band(self):
+        """REG-2503 - each key prints silospen's band for /players 1-8, labelled; never a single picked figure."""
+        bands = {n: _band(ps) for n, ps in KEY_SILOSPEN.items()}
+        self.assertEqual(bands, {"Key of Terror": "7.1-9.8%", "Key of Hate": "8.6-12.8%", "Key of Destruction": "7.9-11.4%"},
+                         "premise: the measured bands")
+        self.assertEqual(self.o["terrorFmt"], bands["Key of Terror"])
+        self.assertEqual(self.o["keyFmt"], bands["Key of Hate"])
+        self.assertEqual(self.o["destFmt"], bands["Key of Destruction"])
+        cards = dict((n, r) for n, r in self.o["cards"])
+        for n, band in bands.items():
+            self.assertEqual(cards[n], "%s (Hell only · %s)" % (band, KEY_BAND_LABEL), "%s card: %r" % (n, cards[n]))
+        for n, ps in KEY_SILOSPEN.items():
+            row = [d for b in self.bosses for d in b["dropTable"] if d["n"] == n][0]
+            self.assertEqual(row["hell"], round(ps[0], 4), "%s Hell holds %r, silospen /players 1 is %.4f" % (n, row["hell"], ps[0]))
+        note = self.o["keyNote"]
+        for n, band in bands.items():
+            lo, hi = band[:-1].split("-")
+            self.assertIn("%s %s%% to %s%%" % (n.split()[-1], lo, hi), note)
+        self.assertNotIn("d2runewizard", note, "the key note quotes a second, different /players 1 figure again")
+        self.assertNotRegex(self.src, r"~(?:8-9|9-13|10)% \(Hell only\)", "a key card prints a picked figure again")
         self.assertEqual(self.o["anniDrop"], "100%")
         self.assertEqual(self.o["oddsDrop"], "1:49")
 
     def test_render_detail_ranks_and_prints_the_good_mf_source(self):
         d699, d1000 = self.o["detail699"], self.o["detail1000"]
-        for html, odds in ((d699, "1:70"), (d1000, "1:49")):
+        q = self.player_q["andariel"]["norm"]
+        model = max(1, int(math.floor(_adjust(79, 1000) / _player_mult(q, 8) + 0.5)))
+        for html, odds in ((d699, "1:66"), (d1000, "1:%d" % model)):
             # the ranked row is the best cell, and the deep dive is built for it - both only when it ranks
             self.assertIn('<td class="diff-col best-cell ">%s</td>' % odds, html,
                           "the source fell out of its own ranking at " + odds)
@@ -241,7 +325,7 @@ class AGoodMfNeverTurnsOddsIntoAPercent(unittest.TestCase):
             self.assertNotRegex(html, r'<td class="diff-col[^"]*">\s*\d+(?:\.\d+)?%\s*</td>',
                                 "a 1:N printed as a percent in the item ranking")
         key = self.o["detailKey"]
-        self.assertIn(">~9-13%<", key, "the key's row does not print its card's figure")
+        self.assertIn(">8.6-12.8%<", key, "the key's row does not print its sourced band")
         self.assertNotIn("puv-deep-dive", key, "an event drop was timed as the fastest farm")
 
     def test_no_site_reads_a_unit_from_a_magnitude(self):
@@ -255,6 +339,36 @@ class AGoodMfNeverTurnsOddsIntoAPercent(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2508 - the MF curve is the cap share again (MF x 100), so MF 699 prints Nagelring 1:70 against silospen 1:66",
+     "file": "bible.html",
+     "find": "const effMF = (gMF, factor) => (gMF*factor)/(gMF+factor);",
+     "replace": "const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);",
+     "matches": 1},
+    {"why": "REG-2508 - the dock's first paint says eff unique 73.66% again",
+     "file": "bible.html",
+     "find": "eff unique: <strong id=\"eff-mf\">184.14%</strong>",
+     "replace": "eff unique: <strong id=\"eff-mf\">73.66%</strong>",
+     "matches": 1},
+    {"why": "REG-2508 - the MF math section states the cap-share formula again",
+     "file": "bible.html",
+     "find": "<code>Effective MF = (Gear MF × Factor) / (Gear MF + Factor)</code>",
+     "replace": "<code>Effective MF = (Gear MF × 100) / (Gear MF + Factor)</code>",
+     "matches": 1},
+    {"why": "REG-2508 - the MF math section says 73.7% effective at MF 699 again",
+     "file": "bible.html",
+     "find": "<div class=\"stat-label\">699% (you)</div><div class=\"stat-value\">184.1%</div>",
+     "replace": "<div class=\"stat-label\">699% (you)</div><div class=\"stat-value\">73.7%</div>",
+     "matches": 1},
+    {"why": "REG-2503 - the Key of Destruction card prints a single picked ~10% again",
+     "file": "bible.html",
+     "find": "rate: \"7.9-11.4% (Hell only · silospen RotW 3.0, /players 1-8)\",",
+     "replace": "rate: \"~10% (Hell only)\",",
+     "matches": 1},
+    {"why": "REG-2503 - the key note quotes the d2runewizard ~8% beside silospen's 7.1% again",
+     "file": "bible.html",
+     "find": "important: \"Keys drop on Hell only, at any /players, and the chance rises with /players (it steps at /players 3, 5 and 7).",
+     "replace": "important: \"Keys drop on Hell only, at any /players - the chance rises a little at higher /players (d2runewizard: the Countess ~8% at /players 1).",
+     "matches": 1},
     {"why": "#63 - the unit rule is a magnitude sentinel again, so MF 1000 /players 8 prints Nagelring as 49%",
      "file": "bible.html",
      "find": "const isEventP = c => typeof c === 'number' && c > 0 && c <= 1;",

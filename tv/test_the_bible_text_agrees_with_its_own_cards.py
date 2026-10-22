@@ -242,7 +242,7 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         got = _json.loads(r.stdout.strip().splitlines()[-1])
         for rate in ("crafted — 1 per full essence set", "100% per recipe", "1 per character (pinnacle reward)", "common"):
             self.assertEqual(got.get(rate), "how it comes", "a rate in words is labelled %r: %r" % (got.get(rate), rate))
-        for rate in ("~8-9% (Hell only)", "~1:500-1500", "100% per kill"):
+        for rate in ("7.1-9.8% (Hell only · silospen RotW 3.0, /players 1-8)", "~1:500-1500", "100% per kill"):
             self.assertEqual(got.get(rate), "per-kill rate", "a per-kill rate lost its label: %r -> %r" % (rate, got.get(rate)))
         self.assertNotIn("Per-kill figures above are the canonical community estimates", s,
                          "the footer calls every rate a community per-kill estimate again")
@@ -334,13 +334,17 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
     def test_every_key_mention_prints_its_own_cards_rate(self):
         """REG-2117 - REG-2107 gave each key card its sourced rate (Terror ~8-9%, Hate ~9-13%, Destruction ~10%) and the sweep
         stopped at the cards: the Uber Step 1 table, the Summoner card and the uber-path nodes still printed ~10% for Terror
-        and Hate (5 sites). Every "~N%" printed after a key's name, up to the next key's name, must be that key's card rate."""
+        and Hate (5 sites). Every "~N%" printed after a key's name, up to the next key's name, must be that key's card rate.
+        REG-2503 (M6 T2 fix round) - the cards now carry silospen's RotW 3.0 band for /players 1-8 (Terror 7.1-9.8%, Hate
+        8.6-12.8%, Destruction 7.9-11.4%; test_a_good_mf_never_turns_odds_into_a_percent pins the cards to those measured
+        bands), so a figure is read with or without its tilde and with its decimals."""
         s = _src()
         i = s.find("const SPECIAL_DROPS"); j = s.find("\n};", i)
         card = {m.group(1): m.group(2) for m in re.finditer(
-            r'\{n: "(Key of (?:Terror|Hate|Destruction))"[^}]*?rate: "(~[0-9]+(?:-[0-9]+)?%)', s[i:j])}
+            r'\{n: "(Key of (?:Terror|Hate|Destruction))"[^}]*?rate: "(~?[0-9]+(?:\.[0-9]+)?(?:-[0-9]+(?:\.[0-9]+)?)?%)', s[i:j])}
         self.assertEqual(len(card), 3, "premise: the three key cards carry a sourced rate (%r)" % card)
-        key, rate = re.compile(r"Key of (?:Terror|Hate|Destruction)"), re.compile(r"~\s?[0-9]+(?:[-\u2013][0-9]+)?\s?%")
+        key = re.compile(r"Key of (?:Terror|Hate|Destruction)")
+        rate = re.compile(r"~?\s?[0-9]+(?:\.[0-9]+)?(?:\s?[-\u2013]\s?[0-9]+(?:\.[0-9]+)?)?\s?%")
         seen, bad = 0, []
         for ln, line in enumerate(s.split("\n"), 1):
             ms = list(key.finditer(line))
@@ -828,9 +832,9 @@ RED_PROOF = [
      "find": "cube 1 of each \\u2192 a mini-uber portal \\u2192 its organ; 3 organs \\u2192 Uber Tristram.",
      "replace": "cube all 3 \\u2192 red portal \\u2192 Pandemonium Run.",
      "matches": 1},
-    {"why": "REG-2107 - the Key of Terror card's rate disagrees with the sourced ~8% beside it again",
+    {"why": "REG-2107 - the Key of Terror card's rate disagrees with the sourced band beside it again",
      "file": "bible.html",
-     "find": "rate: \"~8-9% (Hell only)\"",
+     "find": "rate: \"7.1-9.8% (Hell only · silospen RotW 3.0, /players 1-8)\"",
      "replace": "rate: \"~1:10 (Hell only)\"",
      "matches": 1},
     {"why": "REG-2108 - a rune card's cube recipe drifts from the cube section again",
@@ -855,7 +859,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2117 - the Uber Step 1 table prints the Key of Terror at ~10% again, under its card's ~8-9%",
      "file": "bible.html",
-     "find": "<td>~8-9% drop · Hell only",
+     "find": "<td>7.1-9.8% a kill (silospen RotW 3.0, /players 1-8) · Hell only",
      "replace": "<td>~10% drop · Hell only",
      "matches": 1},
     {"why": "REG-2119 - one cube row the law can no longer read (the v3630 eye: the comparison silently ran on fewer runes)",
@@ -870,7 +874,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2117 - the uber-path node prints the Key of Hate at ~10% again, under its card's ~9-13%",
      "file": "bible.html",
-     "find": "'Hell Summoner · Arcane Sanctuary','~9-13% · Hell only'",
+     "find": "'Hell Summoner · Arcane Sanctuary','8.6-12.8% · Hell only'",
      "replace": "'Hell Summoner · Arcane Sanctuary','~10% · Hell only'",
      "matches": 1},
     {"why": "REG-2120 - the Colossal note promises skill damage to every jewel again",

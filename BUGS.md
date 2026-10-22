@@ -105,8 +105,22 @@ SOURCES: silospen RotW 3.0 drop calculator, https://dropcalc.silospen.com (atomi
 Key of Terror 7.1% -> 9.8%, Key of Hate 8.6% -> 12.8%, Key of Destruction 7.9% -> 11.4%, none on Normal or Nightmare);
 d2emu https://d2emu.com/db/misc/key-of-terror , https://d2emu.com/db/misc/key-of-hate , https://d2emu.com/db/misc/key-of-destruction
 (7.4-10.2%, 8.9-13.5%, 8.2-11.9%); Annihilus: https://d2runewizard.com/quests/diablo-clone ("always drops the Annihilus").
-GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py drives the drop engine, BOSSES and renderDetail itself in node; the
-expected odds are computed in Python from PLAYER_Q and the MF formula (11 red-proofs). Specs v44_event_boss_audit and
+FIX ROUND (the adversarial review): the key cards still printed picked figures - Terror "~8-9%" (it excludes silospen's own
+/players 1 value, 7.1%) and Destruction "~10%" (a single pick) - and fmtDrop now carried them into every boss drop cell, the
+top-12, the aid card and the active bar; the key note quoted a second /players 1 figure for Terror (d2runewizard ~8% beside
+silospen 7.1%); and the same picked "~10%", "~8-9%" or "~9-13%" sat in every other copy (the Halls zone card and its TZ
+row, the Uber Step 1 table, the Summoner card and his two Hell diff rows, the zone chip, the Pindleskin card, Nihlathak's
+super-unique card, the Pandemonium hub's tiles, rate stat and footnote, the endgame road). Measured again on silospen (atomicTcProbabilities, D2R_ROW_3_0, Hell, party 1, decimal mode):
+Terror 0.0714 / 0.0908 / 0.0961 / 0.0980, Hate 0.0862 / 0.1161 / 0.1248 / 0.1280, Destruction 0.0793 / 0.1041 / 0.1110 /
+0.1135 at /players 1-2, 3-4, 5-6, 7-8 (it steps at /players 3, 5 and 7). Every surface now prints the band - Terror 7.1-9.8%,
+Hate 8.6-12.8%, Destruction 7.9-11.4% - labelled "silospen RotW 3.0, /players 1-8"; the d2runewizard figure is gone. The
+Summoner's Hell TZ row says the band is the unterrorized one (silospen does not model a terrorized Summoner).
+GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py drives the drop engine, BOSSES and renderDetail itself in node.
+Its expected figures are silospen's measured values written into the law (SILOSPEN, KEY_SILOSPEN), never the code's own
+formula re-typed: the first version of this law re-typed the page's MF line and pinned 1:70 / 1:49 as "premise" figures,
+and this entry called that independent - it was not (REG-2508). The key cards must equal the measured bands and every
+drop cell prints them (17 red-proofs). test_the_bible_text_agrees_with_its_own_cards (REG-2117) reads every key figure
+after a key's name - 21 sites - against the card, with or without a tilde. Specs v44_event_boss_audit and
 routing_and_data_integrity move to the new unit.
 OPEN: d2runewizard and d2emu both say Diablo Clone is met in Hell games only; BOSSES still lists him on all six difficulties
 ("Any difficulty"). Not changed here - its own sourcing pass.
@@ -177,6 +191,40 @@ NOT DONE: the optional floating tip on the card art and name (window.d2Tip / win
 already floats a card for a .d2art-wrap[aria-label] anchor, and only the vault lane's D2TIP_OWNS / D2TIP_SEL decide which lane owns
 a hover - so a second box would open beside the first unless that lane learned the desk's anchors, which is an edit to the lane.
 "Base not recorded" stays (an honest UNKNOWN after a66f08dfe's catalogBase).
+
+### REG-2508 - EVERY 1:N MOVED OFF ITS MF-300 BASE BY THE WRONG CURVE; HIS SCREEN SAID 1:70 WHERE THE GAME SAYS 1:66 (#63 review, M6 T2)
+
+His note: "i see it not 66 i se 70". The page's effMF was (MF x 100) / (MF + 250) - the game's diminishing-returns curve divided
+by 2.5, a share of the 250 cap rather than an effective MF - while the MF card on the same page states the game's curve, "effMF =
+MF x 250 / (MF + 250) ... 699% = 184% effective", and so does the drop-calc explainer. The dock printed "eff unique: 73.66%" at MF
+699 and the MF math section said 28.6% / 54.5% / 73.7% / 85.7% at MF 100 / 300 / 699 / 1500. adjustChance moves every stored 1:N
+(silospen RotW 3.0 at MF 300) by (1 + effMF(300)/100) / (1 + effMF(mf)/100), so the error was in every odds cell at every MF but
+300. Two surfaces disagreeing was the finding; silospen's own calculator settled it - the source of every stored 1:N, queried
+live on 2026-10-22 (dropcalc.php type=monsterProbabilities, version D2R_ROW_3_0, UNIQUE, /players 1, party 1): Nagelring from
+Normal Andariel MF 0 / 300 / 699 / 1000 = 1:186 / 79 / 66 / 62, Crushflange 1:199 / 84 / 70 / 66, Shako from Hell Mephisto MF 0
+/ 300 / 699 = 1:1974 / 836 / 695. The game's curve gives 187 / 79 / 66 / 62 and 1976 / 836 / 695 (the stored base is itself
+rounded); the old line gave 122 / 79 / 70 / 68 and 1292 / 836 / 744. So the 1:70 on his screen was the old line, and the game's
+figure at his MF is 1:66.
+FIX: effMF = MF x factor / (MF + factor). The dock's first paint reads 184.14% and the MF math section states the curve, with
+71.4% / 136.4% / 184.1% / 214.3% at MF 100 / 300 / 699 / 1500. The #63 law's first version re-typed the old line in Python and
+pinned (70, 49) as its "premise" - it would have gone red on this fix, and its claim to compute the figure independently was
+false; it now pins silospen's measured figures. Specs 01_smoke (184.14%) and bug110_149 (136.36) move with it; bug110_149 read
+`window.effMF`, which never existed, so it skipped itself on every run - it now reads the bare name and a miss is red.
+SOURCES: https://dropcalc.silospen.com (the queries above); the page's own MF card and drop-calc explainer.
+GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py - the page's adjustChance reproduces silospen at MF 0 / 300 / 699 /
+1000 for three items, and every surface states one curve (4 red-proofs for this entry).
+
+### REG-2509 - THE /PLAYERS MODEL UNDER-SCALES AND STEPS ON THE WRONG COUNTS (OPEN, found in the M6 T2 fix round)
+
+Measured while settling REG-2508, not fixed: effChance divides by playerMult, which models one top-level NoDrop per boss
+(PLAYER_Q) with k = 1 + floor(players / 2). silospen (same queries, /players 1-8) differs twice. The steps: silospen's
+/players 1 = 2, 3 = 4, 5 = 6, 7 = 8 (Nagelring from Normal Andariel at MF 300: 1:79, 79, 54, 54, 46, 46, 44, 44; the keys step the
+same way), while the model steps at /players 2, 4, 6 and 8 - and the page's "What the P# slider actually does" section says so.
+The size, at /players 8 (MF 300, uniques): Hell Mephisto agrees (silospen x1.22, the model x1.22), Normal and Hell Andariel do
+not (silospen x1.79, the model x1.39 - so at MF 1000 /players 8 Nagelring prints 1:44 where silospen says 1:35), and Hell
+Duriel, which the model holds at x1.00 as a q = 0 "guaranteed dropper", moves x1.37 on silospen.
+The default /players 1 is right in both. A fix means silospen's per-boss, per-difficulty, per-/players factors (a data pull) and
+a new model, so it is its own track; the #63 law certifies only that a 1:N stays a 1:N under /players, never this factor.
 
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
