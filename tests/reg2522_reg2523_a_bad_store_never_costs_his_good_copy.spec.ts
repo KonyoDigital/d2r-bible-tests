@@ -1,8 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 import { boardReady } from './_board_ready';
 
-// REG-2522 + REG-2523 (V1 round 3) — A ROSTER WITHOUT ITS CORE LOCKERS IS UNKNOWN, AND ANOTHER PAGE'S BAD WRITE NEVER COSTS
-// THIS PAGE'S GOOD COPY.
+// REG-2522 + REG-2523 (V1 round 3) — A ROSTER SAVED AS "[]" IS UNKNOWN, AND ANOTHER PAGE'S BAD WRITE NEVER COSTS THIS PAGE'S
+// GOOD COPY. (Fix round: a roster that only lacks a core locker it had deleted before REG-2195 reads, and gets it back -
+// tv/test_a_roster_this_board_wrote_is_read_and_keeps_his_mules.py; "[]" stays held, as here.)
 //
 // The node laws (tv/test_a_roster_without_its_core_lockers_is_unknown.py, tv/test_this_tabs_last_good_copy_can_be_kept.py)
 // drive the shipped pieces one by one. What only a browser can show is the WHOLE page booting over a roster saved as "[]"
@@ -45,7 +46,7 @@ test('a roster saved as "[]" is quarantined, the vault is held, and the paint dr
              stored: JSON.parse(localStorage.getItem(w.LSR.key('d2r_muleAssign')) || '{}'),
              notice: (document.getElementById('store-quarantine') || {} as any).innerHTML || '' };
   });
-  expect(got.reason || '', 'a roster with none of the core lockers was read as a roster').toContain('core lockers');
+  expect(got.reason || '', 'a roster that holds no mules was read as a roster').toContain('holds no mules at all');
   expect(got.kept, 'the roster bytes are kept aside').toBe('[]');
   expect(got.held || '', 'the vault is not held while its roster is UNKNOWN').toContain('d2r_muleRoster');
   expect(got.raw, 'a roster was saved over the bytes that would not read').toBe('[]');

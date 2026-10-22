@@ -11114,9 +11114,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_roster_without_its_core_lockers_is_unknown.py")], 120,
          needs_app=False,
          why="REG-2522 (review of REG-2411, rv6) - a roster saved as \"[]\" (the REG-2414 bytes) passed the shape check, the "
-             "migrations saved three lockers over it and the W6 prune dropped every filing on the other eight. A saved "
-             "roster that lacks any core locker is now quarantined at load and refused from another tab (one shape rule), "
-             "the vault held, the prune drops nothing; his real roster (11 core lockers + his own mules) reads as before."),
+             "migrations saved three lockers over it and the W6 prune dropped every filing on the other eight. An empty "
+             "roster, or one that lacks a mule its map still files to, is now quarantined at load (another tab's write is "
+             "held to every core locker too), the vault held, the prune drops nothing; his real roster (11 core lockers + "
+             "his own mules) reads as before. (Fix round: a roster that only lacks a core locker reads - the next law.)"),
     Gate("test_this_tabs_last_good_copy_can_be_kept",
          [sys.executable, os.path.join(HERE, "test_this_tabs_last_good_copy_can_be_kept.py")], 120,
          needs_app=False,
@@ -11170,8 +11171,50 @@ GATES = [
          why="REG-2529 (review of REG-2405 r4 + REG-2401) - a re-read of a renamed item that had itself left added the "
              "MISREAD label back over his socket-count fix and dropped the rename from the record; the Nothing-new card "
              "claimed every file is read again once its item leaves, false for the bare marks written before records "
-             "existed. Now his label comes back and `as` is kept; the card and the scan menu count and say the pre-record "
-             "files."),
+             "existed. Now his label comes back and `as` is kept; the card and the scan menu count and say the files "
+             "registered without a record of what they read."),
+    Gate("test_a_roster_this_board_wrote_is_read_and_keeps_his_mules",
+         [sys.executable, os.path.join(HERE, "test_a_roster_this_board_wrote_is_read_and_keeps_his_mules.py")], 120,
+         needs_app=False,
+         why="REG-2522 fix round (review of REG-2522, major) - every roster lacking a core locker was quarantined as 'did "
+             "not come from this board', false: until REG-2195 (2026-10-14) every locker but SHARED STASH had a delete "
+             "button. A pre-10-14 roster held the whole vault on upgrade and Start it fresh renamed his mules to their "
+             "ids. Now a missing core locker comes back (the v404/v342.5/v360 way), a roster is held only when its map "
+             "still files items to a mule it lacks, the held page shows his mules, and Start it fresh rebuilds over the "
+             "bytes kept aside. The shipped vault head, migrations, prune and notice run in node."),
+    Gate("test_the_socket_doors_wait_for_a_held_vault",
+         [sys.executable, os.path.join(HERE, "test_the_socket_doors_wait_for_a_held_vault.py")], 120,
+         needs_app=False,
+         why="REG-2521 fix round (review of REG-2521, major + minor) - the socket fix dropped the old label's filing and "
+             "its 2-look witness row FIRST, then vaultFile refused at its top (the vault held by d2r_magicFinds / "
+             "d2r_copies): the row was gone for good and the status said 'fixed'. The socket doors, the cell X and the "
+             "mule window now ask the hold first and say it; the fix refiles the new label before the old one lets go "
+             "(a refusal leaves everything as it was), and no door answers ok over a refused map write. In node, per "
+             "held store."),
+    Gate("test_a_refused_removal_is_never_walked_around_or_stamped",
+         [sys.executable, os.path.join(HERE, "test_a_refused_removal_is_never_walked_around_or_stamped.py")], 120,
+         needs_app=False,
+         why="REG-2521 fix round (review of REG-2521, S1-S5 + the reconcile) - five REG-2520/2521 behaviours no law could "
+             "see (the TV unvault's hold and refused-batch return, Delete unsorted's refusal, vaultFile's not-written "
+             "rollbacks, the seed cleanse's no-stamp, the re-tick redo's UNKNOWN journal), and the one-time set-piece "
+             "reconcile stamped itself done over a refused removal (the pair double-counted for good). Each now has a "
+             "red-proofed case; the reconcile and the seed cleanse neither stamp over a refusal nor run while held."),
+    Gate("test_a_cleared_storage_keeps_this_tabs_only_copy",
+         [sys.executable, os.path.join(HERE, "test_a_cleared_storage_keeps_this_tabs_only_copy.py")], 120,
+         needs_app=False,
+         why="REG-2523 fix round (review of REG-2523, minor) - after another tab cleared the storage the headline still "
+             "said 'reload before you change anything here' and every row carried an unasked 'Reload this tab': the one "
+             "click that drops the only copy of every store. Now the headline says this tab holds the only copy and to "
+             "keep it first, no row offers the reload, and 'Keep all of this tab's copies' asks once and keeps each. In "
+             "node, firing the storage events another document would."),
+    Gate("test_a_read_in_another_tab_is_not_offered_again",
+         [sys.executable, os.path.join(HERE, "test_a_read_in_another_tab_is_not_offered_again.py")], 120,
+         needs_app=False,
+         why="REG-2524 fix round (review of REG-2524, minor b) - the 'reading' mark was judged by this tab's "
+             "_vIntakeBusy alone, so tab B called tab A's read in flight 'a read that never finished' and its ⏯ Finish "
+             "re-read and re-billed A's files. The mark now carries its time and tab ('reading@<ms>@<tab>'): another "
+             "tab's recent mark is in flight (said, never offered), an old one never finished, and ⏯ Finish re-stamps "
+             "what it reads. The shipped scan runs in node over a stubbed folder."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

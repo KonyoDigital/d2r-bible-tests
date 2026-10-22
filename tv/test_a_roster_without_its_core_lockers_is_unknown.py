@@ -10,11 +10,16 @@ one core locker did the same to that locker's filings. Reviewer, on the shipped 
 {Grief:uni-weap, Shako:uni-armor, Enigma:runewords} + roster "[]" -> quarantined [], held null, prune -> {Enigma:runewords},
 saveA() true.
 
-NOW every DEFAULT_ROSTER locker is a core locker in the shape rule (_muleShapeWhy) the one reader asks at load and the
-tab sync asks of another tab's write: a saved roster that lacks one did not come from this board's own writes, so it is
-quarantined (its bytes kept aside), the vault is held, the prune drops nothing against it, and the notice says which
-lockers are missing. His real roster - every core locker, his notes, his own mules - reads as before (measured on every
-ledger snapshot that holds a roster: all hold the 11 core lockers).
+NOW (as narrowed by the REG-2522 fix round - "a roster without a core locker did not come from this board" was false:
+until REG-2195 every locker but SHARED STASH had a delete button, so a pre-10-14 roster may lack WIP and must read; that
+half is tv/test_a_roster_this_board_wrote_is_read_and_keeps_his_mules.py):
+  * an EMPTY roster ("[]") is the wrong shape at the one reader (_muleShapeWhy): quarantined, bytes kept aside, vault held;
+  * a roster that lacks a mule its MAP still files items to - uni-weap here, with Grief filed to it - is quarantined once
+    both stores are read (_rosterMapWhy): the delete door takes a mule's filings with it, so the two disagree, and the
+    prune drops nothing against them;
+  * another tab's write is held to every core locker as well (_rosterCoreWhy) - no tab of this board saves one without.
+His real roster - every core locker, his notes, his own mules - reads as before (measured on every ledger snapshot that
+holds a roster: all hold the 11 core lockers, and no map names a mule its roster lacks).
 
 WHAT IS DRIVEN: the store door, the boot, the tab sync, the vault module's head (load, the migrations, the hold), the
 shipped saveA / saveR and the W6 prune, cut from bible.html, in node. RED_PROOF below. A missing node is the only skip.
@@ -103,25 +108,28 @@ class ARosterWithoutItsCoreLockersIsUnknown(unittest.TestCase):
     def test_an_empty_roster_is_unknown_and_drops_no_filing(self):
         o = _run(PROBE, _seed("[]"))
         self._assert_held_and_kept(o, "[]", '"[]"')
-        self.assertIn("none of the core lockers", o["q"]["reason"])
+        self.assertIn("holds no mules at all", o["q"]["reason"])
+        self.assertNotIn("did not come from it", o["q"]["reason"], "the notice still claims what this board cannot know")
 
     def test_a_roster_missing_one_core_locker_is_unknown_and_its_filings_stay(self):
         raw = json.dumps(_roster([i for i in CORE if i != "uni-weap"]))
         o = _run(PROBE, _seed(raw))
         self._assert_held_and_kept(o, raw, "missing uni-weap")
         self.assertIn("uni-weap", o["q"]["reason"], "the notice does not say which locker is missing: %r" % o["q"]["reason"])
+        self.assertIn("your mule map still files 1 item", o["q"]["reason"], "the notice does not say why: %r" % o["q"]["reason"])
 
     def test_his_roster_with_every_core_locker_and_his_own_mules_reads_as_before(self):
         raw = json.dumps(_roster(CORE, [{"id": "m1k9zq2x", "name": "WAR-1", "icon": "x", "note": "", "added": True,
                                          "boundChar": "Konyo"}]))
-        filed = dict(FILED, **{"Call to Arms": "m1k9zq2x", "ghost item": "no-such-mule"})
+        # 'ghost item' is filed to a real mule, owned by no one and witnessed by nothing: the prune's premise case
+        filed = dict(FILED, **{"Call to Arms": "m1k9zq2x", "ghost item": "uni-armor"})
         seed = {"d2r_owned": json.dumps(sorted(filed)), "d2r_muleAssign": json.dumps(filed), "d2r_muleRoster": raw}
         o = _run(PROBE, seed)
         self.assertIsNone(o["q"], "his real roster shape was quarantined: %r" % o["q"])
         self.assertIsNone(o["held"])
         self.assertIn("m1k9zq2x", o["ids"], "his own mule is gone from the roster")
         self.assertEqual(o["map"].get("Call to Arms"), "m1k9zq2x", "a filing on his own mule was dropped")
-        self.assertNotIn("ghost item", o["map"], "PREMISE: the prune no longer drops a filing on a mule that is not there")
+        self.assertNotIn("ghost item", o["map"], "PREMISE: the prune no longer drops an unowned, unwitnessed filing")
         self.assertTrue(o["saveA"])
 
     def test_another_tab_writing_a_roster_without_its_core_lockers_is_never_adopted(self):
@@ -138,19 +146,26 @@ class ARosterWithoutItsCoreLockersIsUnknown(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2522 - a saved roster that lacks a core locker reads as a roster again (\"[]\" -> three lockers -> the "
-            "prune drops every filing)",
+    {"why": "REG-2522 - an empty roster (\"[]\") reads as a roster again (three lockers -> the prune drops every filing)",
      "file": "bible.html", "matches": 1,
-     "find": "    if (!miss.length) return null;\n",
-     "replace": "    return null;\n"},
+     "find": "    if (!v.length)\n      return 'holds no mules at all",
+     "replace": "    if (false)\n      return 'holds no mules at all"},
     {"why": "REG-2522 - another tab's roster is merged without the roster's shape rule (\"[]\" adopted)",
      "file": "bible.html", "matches": 1,
-     "find": "                             shape: function(v){ return _muleShapeWhy(RK, v); },\n",
+     "find": "                             shape: function(v){ return _muleShapeWhy(RK, v) || _rosterCoreWhy(v); },\n",
      "replace": ""},
     {"why": "REG-2522 - the load reads the roster without the module's shape rule (the one reader asks no shape)",
      "file": "bible.html", "matches": 1,
      "find": "      var v0 = D.read(k, function(v){ return _muleShapeWhy(k, v); }, _LOAD_ABSENT);\n",
      "replace": "      var v0 = D.read(k, function(v){ return null; }, _LOAD_ABSENT);\n"},
+    {"why": "REG-2522 fix round - a roster that lacks a mule its map still files items to is not held (the prune drops them)",
+     "file": "bible.html", "matches": 1,
+     "find": "    var why = _rosterMapWhy(roster, assign);\n    if (!why) return;\n",
+     "replace": "    var why = null;\n    if (!why) return;\n"},
+    {"why": "REG-2522 fix round - another tab's roster that lacks a core locker is adopted (its filings pruned)",
+     "file": "bible.html", "matches": 1,
+     "find": "shape: function(v){ return _muleShapeWhy(RK, v) || _rosterCoreWhy(v); },",
+     "replace": "shape: function(v){ return _muleShapeWhy(RK, v); },"},
 ]
 
 

@@ -142,9 +142,9 @@ OUT.readAgain = CALLS.slice();
         self.assertTrue(any("♻ 1 already-read screenshot" in m for m in got["status"]),
                         "the gone screenshot was not said: %r" % got["status"])
         # REG-2524 - a file handed to a read is marked 'reading' (the read's own end-of-batch mark replaces it), never
-        # the bare 1 that read 'seen' for ever when the read never closed
-        self.assertEqual(got["ledger"].get("new_1.jpg"), "reading")
-        self.assertEqual(got["ledger"].get("new_2.jpg"), "reading")
+        # the bare 1 that read 'seen' for ever when the read never closed; fix round - stamped 'reading@<ms>@<tab>'
+        self.assertRegex(got["ledger"].get("new_1.jpg") or "", r"^reading@\d+@.+$")
+        self.assertRegex(got["ledger"].get("new_2.jpg") or "", r"^reading@\d+@.+$")
         self.assertTrue(got["goneUntouched"], "the scan rewrote the gone screenshot's record")
         self.assertEqual(got["pollReads"], [], "the 12 s poll read something on its own: %r" % got["pollReads"])
         self.assertTrue(any("1 already-read screenshot" in m for m in got["pollStatus"]),
@@ -200,8 +200,9 @@ mid['other.jpg'] = { held: ['Grief'], unr: [], at: 8, world: 'main' };
 RAW[SEEN_KEY] = JSON.stringify(mid);
 window.vaultReadBatch(20);                               /* 🕐 Latest 20: reads 20, registers all 25 (v224) */
 OUT.latest = CALLS.slice(); var L = ledger();
-OUT.latestMarked = pile.filter(function(n){ return L[n] === 1 || L[n] === 'reading'; }).length;
-OUT.latestReading = pile.filter(function(n){ return L[n] === 'reading'; }).length;
+function isReading(v){ return typeof v === 'string' && /^reading(@\d+@.+)?$/.test(v); }   /* REG-2524 fix round: stamped */
+OUT.latestMarked = pile.filter(function(n){ return L[n] === 1 || isReading(L[n]); }).length;
+OUT.latestReading = pile.filter(function(n){ return isReading(L[n]); }).length;
 OUT.kept = [L['s01.jpg'], L['other.jpg']];
 reset(); RAW[SEEN_KEY] = JSON.stringify({});
 await window.vaultScanFolder(false); window.vaultReadBatch(0);   /* Skip — just register */

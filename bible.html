@@ -21542,9 +21542,22 @@ window._storeQuarantineHtml = function(list){
   var held = (list || []).filter(function(q){ return q && q.key; });
   if (!held.length) return '';
   var nq = held.filter(function(q){ return q.kind !== 'stale'; }).length;
+  /* REG-2523 fix round (review of REG-2523, minor) — AFTER ANOTHER TAB CLEARED THE STORAGE, THIS TAB HOLDS THE ONLY COPY.
+     The headline still said "reload before you change anything here", and every cleared row carried an unasked "Reload
+     this tab" - the one click that drops the only copy of every store he had. Now the headline says this tab holds the
+     only copy and to keep it before reloading, a cleared row offers no reload, and one action keeps every copy the
+     notice offers (window._storeKeepAllThisTab: asked once, then each store kept the one store's way). */
+  var nc = held.filter(function(q){ return q.kind === 'stale' && q.cleared; }).length;
+  var nKeep = held.filter(function(q){ return q.cleared || q.lastGood; }).length;
+  var clearedSay = nc ? 'Another tab cleared this browser’s saved data — this tab now holds the only copy of ' + nc + ' store' + (nc === 1 ? '' : 's')
+                        + '. Keep ' + (nc === 1 ? 'it' : 'them') + ' before you reload: a reload reads the cleared storage, and '
+                        + (nc === 1 ? 'that copy is' : 'those copies are') + ' gone from this browser' : '';
   var head = nq
     ? '⚠ ' + nq + ' saved store' + (nq === 1 ? '' : 's') + ' would not read — kept aside, and nothing writes over ' + (nq === 1 ? 'it' : 'them')
-    : '⚠ Another tab changed what this tab holds — reload before you change anything here';
+      + (nc ? ' · ' + clearedSay : '')
+    : (nc ? '⚠ ' + clearedSay : '⚠ Another tab changed what this tab holds — reload before you change anything here');
+  if (nKeep > 1)
+    head += ' <button type="button" class="sq-btn sq-keep-all" onclick="window._storeKeepAllThisTab()">Keep all of this tab’s copies (' + nKeep + ')</button>';
   /* REG-2523 — a store whose last good copy is still in THIS tab says so and offers to keep it; REG-2526 (review of
      REG-2410, storage full) — a store whose bytes could not be copied aside has no way out in the page (Start it fresh and
      a restore both refuse it, rightly), so it says that, and what to do: download its bytes, or free space and reload */
@@ -21553,12 +21566,19 @@ window._storeQuarantineHtml = function(list){
   var rows = held.map(function(q){
     var say = (window._STORE_SAY && window._STORE_SAY[q.key]) || '';
     var k = esc(q.key);
+    /* REG-2523 fix round — a cleared row keeps its copy or nothing: no reload button (a reload reads the cleared storage) */
+    if (q.kind === 'stale' && q.cleared)
+      return '<li data-store="' + k + '" data-kind="stale" data-last-good="1"><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
+        + ' changed in another tab: ' + esc(q.reason) + '. This tab still holds your last good copy - the only one left in this browser'
+        + (q.refused ? ' (' + refusedSay(q) + ' until it is kept)' : '') + ', and nothing is written to it until you keep it.'
+        + keepBtn(k) + '</li>';
+    /* a reload is the whole page: while any row holds the only copy, no row offers one */
     if (q.kind === 'stale')
-      return '<li data-store="' + k + '" data-kind="stale"' + (q.cleared ? ' data-last-good="1"' : '') + '><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
+      return '<li data-store="' + k + '" data-kind="stale"><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
         + ' changed in another tab: ' + esc(q.reason) + '. This tab writes nothing to it until it reloads'
         + (q.refused ? ' (' + refusedSay(q) + ')' : '') + '.'
-        + (q.cleared ? ' This tab still holds your last good copy.' + keepBtn(k) : '')
-        + ' <button type="button" class="sq-btn" onclick="location.reload()">Reload this tab</button></li>';
+        + (nc ? ' Keep this tab’s copies first - a reload drops them.'
+              : ' <button type="button" class="sq-btn" onclick="location.reload()">Reload this tab</button>') + '</li>';
     var tail = q.lastGood
       ? 'This tab still holds your last good copy' + (q.refused ? ' (' + refusedSay(q) + ' while it is held)' : '') + '.' + keepBtn(k)
       : 'Until it is fixed the page runs on a default in its place' + (q.refused ? ', and ' + refusedSay(q) : '') + '.';
@@ -21610,7 +21630,8 @@ window._storeQuarantinePaint = function(){
    so nothing in memory outlives the store it came from. The records store goes through its own undo. */
 /* what starting each store fresh costs, said in the question before it is asked */
 var _FRESH_SAY = {
-  d2r_muleRoster: ' Every mule your mule map names is kept.',
+  /* REG-2522 fix round — rebuilt from the bytes kept aside when they list mules, never from the map's ids alone */
+  d2r_muleRoster: ' Every mule the kept bytes list keeps its name, note and icon, every core locker comes back, and every mule your mule map names is kept.',
   d2r_owned: ' A mule filing stays only where a sighting witnessed it - if you have a backup, restore it instead (Backup & Share).',
   /* REG-2415 — starting the witness rows fresh is not free, so the question says what it costs */
   d2r_vaultProv: ' Every filing then reads NO WITNESS until a stash look or your hand witnesses it again, and a filing whose item'
@@ -21629,7 +21650,7 @@ window._storeStartFresh = function(k, skipAsk){
   var ask = skipAsk ? Promise.resolve(true)
     : (typeof window.uiConfirm === 'function'
         ? window.uiConfirm('Start ' + k + ' (' + say + ') fresh?\n\nIt ' + q.reason + '. Its exact bytes stay kept aside as '
-            + q.aside + ', and the page reloads with this store empty.' + (_FRESH_SAY[k] || '')
+            + q.aside + ', and the page reloads with this store ' + (k === 'd2r_muleRoster' ? 'rebuilt' : 'empty') + '.' + (_FRESH_SAY[k] || '')
             /* REG-2523 — starting fresh drops the good copy this tab still holds; the question says so, and names the other exit */
             + (q.lastGood ? '\n\nThis tab still holds your last good copy - it is lost if you start fresh. "Keep this tab’s copy" writes it back instead.' : ''),
             { ok: 'Start it fresh', cancel: 'Keep it held' })
@@ -21643,7 +21664,13 @@ window._storeStartFresh = function(k, skipAsk){
     } else {
       var rel = window.LSR.release(k);
       if (!rel || !rel.ok) return { ok: false, why: (rel && rel.why) || 'the door kept it' };
-      var fresh = (k === 'd2r_muleRoster' && typeof window._vaultRosterFresh === 'function') ? window._vaultRosterFresh() : null;
+      /* REG-2522 fix round — the roster is rebuilt over the bytes kept aside (his mules' names, notes, icons, boundChar) */
+      var fresh = null;
+      if (k === 'd2r_muleRoster' && typeof window._vaultRosterFresh === 'function'){
+        var _keptRaw = null;
+        try { _keptRaw = rel.aside ? window.LSR.raw.getItem(rel.aside) : null; } catch (eK) { _keptRaw = null; }
+        fresh = window._vaultRosterFresh(_keptRaw);
+      }
       try {
         if (fresh) window.LSR.setItem(k, JSON.stringify(fresh));
         else window.LSR.removeItem(k);
@@ -22785,6 +22812,10 @@ try {
     var done = _bfJson(_SC_KEY, null);
     if (done === undefined) return { ran: false, why: 'the cleanse stamp would not read — whether it already ran is UNKNOWN, so nothing was removed' };
     if (done && typeof done === 'object' && done.ver >= _SC_VER && !opts.force) return { ran: false, already: true, receipt: done };
+    /* REG-2521 fix round — while the vault is held it does not run at all: `owned` in memory is a stand-in for a held store
+       then, so a run would take nothing and stamp itself done over the residue it exists to clear */
+    var _hSc = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (_hSc) return { ran: false, why: _hSc.why + ' — nothing was removed or stamped; it asks again next load' };
     if (opts.mainLedger === 'unanswered' || opts.mainLedger === 'UNKNOWN')
       return { ran: false, why: 'the MAIN ledger did not answer — which of these names are his worn gear is UNKNOWN, so nothing was removed; it asks again next load' };
     if (typeof window.vaultRemove !== 'function' || typeof window._laneLockWhy !== 'function')
@@ -22875,6 +22906,10 @@ try {
     var done = _bfJson(_SPR_KEY, null);
     if (done === undefined) return { ran: false, why: 'the reconcile stamp would not read — UNKNOWN, nothing folded' };
     if (done && typeof done === 'object' && done.ver >= _SPR_VER && !opts.force) return { ran: false, already: true, receipt: done };
+    /* REG-2521 fix round — and while the vault is held it does not run at all: `owned` and the copies in memory are a
+       stand-in for a held store then, so a run would find no pair and stamp itself done over his real duplicates */
+    var _hSpr = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (_hSpr) return { ran: false, why: _hSpr.why + ' — nothing was folded or stamped; it asks again next load' };
     if (typeof window.vaultRemove !== 'function' || typeof window._vfCanon !== 'function')
       return { ran: false, why: 'the removal door or the canonicaliser is not on this page — nothing folded; it asks again next load' };
     var amap = _assignMap();
@@ -22899,6 +22934,10 @@ try {
               why: 'set-piece name reconcile — a bare form duplicating its slotted roster name, folded into one item' }); }
       catch (eR) { return { ran: false, why: 'the removal door threw (' + String(eR && eR.message || eR) + ') — nothing stamped; it asks again next load' }; }
     }
+    /* REG-2521 fix round (review of REG-2521, minor) — a removal door that REFUSED (the vault held, its journal UNKNOWN) is
+       not a fold that ran: it folded nothing and stamped itself done, so the pair stayed double-counted for good, and the
+       run armed the records. Nothing is folded or stamped; it asks again next load (the seed cleanse's rule). */
+    if (vr && vr.refused) return { ran: false, why: 'the removal door refused (' + String(vr.why || vr.refused) + ') — nothing was folded or stamped; it asks again next load' };
     var removed = (vr && vr.removed) || [];
     /* #76 v3753 (REG-2243 owned-confirm, defect #2) — vaultRemove persists owned through persistOwned, which
        SWALLOWS a quota/private throw, so `removed` is not proof the name-fold reached disk. Re-persist d2r_owned
@@ -23861,6 +23900,36 @@ window._storeKeepThisTab = function(k, skipAsk){
     return { ok: true, wrote: n, aside: (rel && rel.aside) || q.aside || null };
   });
 };
+/* REG-2523 fix round — KEEP ALL OF THIS TAB'S COPIES. After another tab clears the storage, about 20 stores each offer
+   Keep this tab's copy with a question of its own. One question names them all; each is then kept the one store's way
+   (_storeKeepThisTab, which keeps aside anything written there since), one after another, and what could not be kept
+   stays held and is said. -> Promise {ok, kept:[keys], failed:[{key, why}]} */
+window._storeKeepAllThisTab = function(skipAsk){
+  var LSR = window.LSR;
+  var keys = ((LSR && typeof LSR.quarantined === 'function') ? LSR.quarantined() : [])
+    .filter(function(q){ return q && (q.cleared || q.lastGood); }).map(function(q){ return q.key; });
+  if (!keys.length) return Promise.resolve({ ok: false, kept: [], failed: [], why: 'no store in this tab has a copy to keep' });
+  var ask = skipAsk ? Promise.resolve(true)
+    : (typeof window.uiConfirm === 'function'
+        ? window.uiConfirm('Keep all of this tab’s copies - ' + keys.length + ' store' + (keys.length === 1 ? '' : 's') + '?\n\n' + keys.join(', ')
+            + '\n\nThis tab still holds your last good copy of each, and each is written back in its place. Anything another tab'
+            + ' wrote there since is kept aside first.', { ok: 'Keep all of this tab’s copies', cancel: 'Leave them held' })
+        : Promise.resolve(false));
+  return ask.then(function(yes){
+    if (!yes) return { ok: false, kept: [], failed: [], why: 'left held' };
+    var kept = [], failed = [];
+    return keys.reduce(function(p, k){
+      return p.then(function(){
+        return Promise.resolve(window._storeKeepThisTab(k, true)).then(function(r){
+          if (r && r.ok) kept.push(k); else failed.push({ key: k, why: (r && r.why) || 'not kept' });
+        }, function(e){ failed.push({ key: k, why: String((e && e.message) || e) }); });
+      });
+    }, Promise.resolve()).then(function(){
+      try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP) {}
+      return { ok: failed.length === 0, kept: kept, failed: failed };
+    });
+  });
+};
 (function(){
   var REG = window._TAB_SYNC, _paintT = null;
   function vaultAfter(wrote){
@@ -23920,7 +23989,12 @@ window._storeKeepThisTab = function(k, skipAsk){
             try {
               var _was = window.LSR.quarantined(x);
               var _h = window.LSR.hold(x, 'another tab cleared this browser’s saved data');
-              if (!_was && _h && _h.kind === 'stale' && REG[x] && REG[x].kind !== 'store' && typeof REG[x].get === 'function') _h.cleared = true;
+              /* REG-2523 fix round — and only when this tab really holds it: a store it never loaded offers no copy */
+              var _lv = null;
+              if (!_was && _h && _h.kind === 'stale' && REG[x] && REG[x].kind !== 'store' && typeof REG[x].get === 'function'){
+                try { _lv = REG[x].get(); } catch (eG) { _lv = null; }
+                if (_lv != null) _h.cleared = true;
+              }
             } catch (eH) {}
           });
           try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP1) {}
@@ -41458,26 +41532,80 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      render prune does not drop filings against it, and + Add an item refuses in words (_vhPrepare). Nothing here
      deletes, repairs or guesses: the notice offers the way out (a backup restore, or starting that one store fresh
      with its bytes kept aside). [[unknown-stays-unknown]] [[heart-first]] */
-  /* REG-2522 (review of REG-2411, rv6) — A ROSTER WITHOUT ITS CORE LOCKERS IS THE WRONG SHAPE. "[]" passed the old check
-     (every element of nothing is a mule), the migrations then saved a three-locker roster over it, and the paint's prune
-     dropped every filing on uni-weap, uni-armor, sets, dupes and the rest - "[]" is exactly the bytes REG-2414's merge bug
-     stored. Every DEFAULT_ROSTER locker is a core locker (REG-2195: only a mule he added can be deleted), and every roster
-     this board saves holds them all, so a saved roster that lacks one did not come from this board's own writes: it is
-     quarantined like bytes that will not parse, which holds the vault, and the prune drops nothing against it. One rule
-     for the shape, asked by the reader at load, by the tab sync (another tab's write) and by the harness path below.
+  /* REG-2522 (review of REG-2411, rv6) — A ROSTER "[]" IS NOT A ROSTER, AND NO FILING IS EVER PRUNED AGAINST A ROSTER THAT
+     LOST ITS MULE. "[]" passed the old check (every element of nothing is a mule), the migrations then saved a three-locker
+     roster over it, and the paint's prune dropped every filing on uni-weap, uni-armor, sets, dupes and the rest - "[]" is
+     exactly the bytes REG-2414's merge bug stored.
+     ⚠ REG-2522 FIX ROUND (review of REG-2522, major) — "A ROSTER WITHOUT A CORE LOCKER DID NOT COME FROM THIS BOARD" WAS
+     FALSE. Until REG-2195 (2026-10-14, b32f373f2) every locker but SHARED STASH had a 🗑, and vaultDeleteMule saved the
+     roster without it; quarantining every roster that lacks one held the whole vault on his upgrade, drew the 11 default
+     lockers in place of his own mules, and Start it fresh renamed them to their ids. So, by what this board CAN have
+     written (measured on his 29 ledger snapshots that hold a roster: every one holds all 11 core lockers, and no map
+     names a mule its roster lacks):
+       · not a list of mules, or EMPTY                 -> wrong shape, quarantined at the read (this rule). No roster this
+                                                         board saves is empty: SHARED STASH was never deletable and every
+                                                         load since v360 puts it back - and "[]" is the merge bug's bytes.
+       · a core locker missing, the map files nothing   -> it comes back (_rosterPutCore below), the v404 / v342.5 / v360
+         to it                                           way: his mules kept, the roster saved. A pre-REG-2195 delete.
+       · a mule the MAP STILL FILES ITEMS TO missing    -> quarantined after both stores are read (_rosterMapWhy): the
+                                                         delete door has taken a mule's filings with it since v203, so
+                                                         the two disagree, and the prune would drop those filings.
+     Another tab's write is held to the core lockers as well (_rosterCoreWhy): no tab of this board saves a roster without
+     one today, while an added mule another tab deletes is a write it makes (its filings follow in the map's own event).
      -> null when it reads | the words for why it does not */
   function _muleShapeWhy(k, v){
     if (k !== RK) return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? null : 'is not a map of names to mules';
     if (!Array.isArray(v) || !v.every(function(m){ return !!m && typeof m === 'object' && !Array.isArray(m) && typeof m.id === 'string' && m.id !== ''; }))
       return 'is not a list of mules';
-    var have = {};
-    v.forEach(function(m){ have[m.id] = 1; });
-    var miss = DEFAULT_ROSTER.map(function(m){ return m.id; }).filter(function(id){ return !have[id]; });
-    if (!miss.length) return null;
-    return (miss.length === DEFAULT_ROSTER.length ? 'holds none of the core lockers' : 'is missing the core locker' + (miss.length === 1 ? ' ' : 's ') + miss.join(', '))
-      + ' - every roster this board saves holds them, so these bytes did not come from it';
+    if (!v.length)
+      return 'holds no mules at all - no roster this board saves is empty (SHARED STASH cannot be deleted, and every load puts it back), and "[]" is the bytes a merge bug once wrote over a roster';
+    return null;
   }
   try { window._vaultRosterWhy = function(v){ return _muleShapeWhy(RK, v); }; } catch (eRw) {}
+  /* the core lockers a roster lacks, in DEFAULT_ROSTER order */
+  function _rosterCoreMissing(v){
+    var have = {};
+    (Array.isArray(v) ? v : []).forEach(function(m){ if (m && typeof m.id === 'string') have[m.id] = 1; });
+    return DEFAULT_ROSTER.map(function(m){ return m.id; }).filter(function(id){ return !have[id]; });
+  }
+  /* another tab's roster write: no tab of this board saves one without every core locker (REG-2195; a load puts one back) */
+  function _rosterCoreWhy(v){
+    var miss = _rosterCoreMissing(v);
+    if (!Array.isArray(v) || !miss.length) return null;
+    return 'is missing the core locker' + (miss.length === 1 ? ' ' : 's ') + miss.join(', ')
+      + ' - no tab of this board saves a roster without them (a core locker cannot be deleted since REG-2195, and every load puts one back)';
+  }
+  /* -> the words when the mule map files an item to a mule the roster does not list (the prune would drop that filing),
+     else null. '__keep' and the other '__' homes are not mules. */
+  function _rosterMapWhy(v, map){
+    if (!Array.isArray(v) || !map || typeof map !== 'object' || Array.isArray(map)) return null;
+    var have = {}, miss = {}, n = 0;
+    v.forEach(function(m){ if (m && typeof m.id === 'string') have[m.id] = 1; });
+    Object.keys(map).forEach(function(nm){
+      var id = map[nm];
+      if (typeof id !== 'string' || id === '' || /^__/.test(id) || have[id]) return;   /* a sentinel home is no mule */
+      miss[id] = 1; n++;
+    });
+    var ids = Object.keys(miss);
+    if (!ids.length) return null;
+    return 'is missing the mule' + (ids.length === 1 ? ' ' : 's ') + ids.join(', ') + ' that your mule map still files ' + n + ' item' + (n === 1 ? '' : 's')
+      + ' to - a mule this board deletes takes its filings with it, so the roster and the map disagree, and nothing is pruned against them';
+  }
+  /* put every core locker a roster lacks back at its default place (after the nearest earlier core locker it holds).
+     -> the ids put back */
+  function _rosterPutCore(list){
+    var back = [];
+    _rosterCoreMissing(list).forEach(function(id){
+      var i = DEFAULT_ROSTER.findIndex(function(d){ return d.id === id; }), at = -1;
+      for (var j = i - 1; j >= 0 && at < 0; j--){
+        var pid = DEFAULT_ROSTER[j].id;
+        at = list.findIndex(function(m){ return m && m.id === pid; });
+      }
+      list.splice(at + 1, 0, Object.assign({}, DEFAULT_ROSTER[i]));
+      back.push(id);
+    });
+    return back;
+  }
   function _muleShape(k, v, f){
     var why = _muleUnread[k] || null;
     if (!why && v != null && v !== f){
@@ -41546,21 +41674,41 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (window.LSR && typeof window.LSR.read === 'function') window.LSR.read(k, VAULT_STORE_SHAPE[k], null); } catch (eVr) {}
   });
   var _vrRecFollowLive = false;   /* #76 — a refused records refresh follows the live model, not a stale stamp */
-  var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
+  var _rosterSaved = load(RK, null);   /* null: nothing saved yet, or UNKNOWN (_muleUnread says which) */
+  var roster = _rosterSaved || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
-  /* the roster "Start it fresh" writes: the default lockers plus one mule for every mule id his map still names, so no
-     filing is orphaned and pruned by the next paint. Their names and notes are in the quarantined bytes, kept aside. */
-  window._vaultRosterFresh = function(){
-    var fresh = DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }), have = {};
-    fresh.forEach(function(m){ have[m.id] = 1; });
+  /* a roster rebuilt from a list of mules, keeping every filing: each mule the list holds VERBATIM (his name, note, icon,
+     boundChar, added), each core locker it lacks at its default place, and a stand-in for each mule id the mule map
+     still files items to that the list does not hold. REG-2522 fix round — Start it fresh rebuilt from the map's ids
+     alone, so his mule 'WAR-1' came back as 'M1K9ZQ2X' (name, icon, note, boundChar gone) and an added mule with no
+     filing (its gear only in d2r_muleEquip) was dropped; the bytes kept aside parse, so they are the list. */
+  function _rosterRebuilt(list){
+    var out = [], have = {};
+    (Array.isArray(list) ? list : []).forEach(function(m){
+      if (!m || typeof m !== 'object' || Array.isArray(m) || typeof m.id !== 'string' || !m.id || have[m.id]) return;
+      have[m.id] = 1;
+      out.push(JSON.parse(JSON.stringify(m)));
+    });
+    _rosterPutCore(out).forEach(function(id){ have[id] = 1; });
     Object.keys(assign || {}).sort().forEach(function(n){
       var id = assign[n];
       if (typeof id !== 'string' || !id || id.indexOf('__') === 0 || have[id]) return;
       have[id] = 1;
-      fresh.push({ id: id, name: id.toUpperCase().slice(0, 15), icon: '📦', added: true,
-                   note: 'kept from your mule map when the roster started fresh - its own name and note are in the roster kept aside' });
+      out.push({ id: id, name: id.toUpperCase().slice(0, 15), icon: '📦', added: true,
+                 note: 'your mule map files items to this mule, and the roster did not list it - its own name and note are not known (rename it)' });
     });
-    return fresh;
+    return out;
+  }
+  /* the roster "Start it fresh" writes: _rosterRebuilt over the bytes kept aside when they are a list (a roster held
+     because its map disagrees, or one with a stray element), else over nothing - the core lockers and a mule for every
+     mule id his map still names. `raw` = those bytes; omitted, they are read from the quarantine slot. */
+  window._vaultRosterFresh = function(raw){
+    if (raw === undefined){
+      try { var q0 = window.LSR.quarantined(RK); raw = (q0 && q0.aside) ? window.LSR.raw.getItem(q0.aside) : null; } catch (eQ0) { raw = null; }
+    }
+    var list = null;
+    if (typeof raw === 'string' && raw){ try { var v0 = JSON.parse(raw); if (Array.isArray(v0)) list = v0; } catch (eP0) { list = null; } }
+    return _rosterRebuilt(list);
   };
   /* #153 item 11 (REG-2413) — the mule map and the roster join the page's tab sync (⟦TAB SYNC⟧): another tab's write is
      merged into these two, never written over by this tab's boot-time copy. A store this tab had quarantined lifts
@@ -41573,12 +41721,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       _vaultTabPaintT = setTimeout(function(){ _vaultTabPaintT = null; try { renderVault(); } catch (eR) {} }, 40);
     };
     /* REG-2522 — another tab's write is judged by the SAME shape rule as a load (a roster "[]" from another tab was a list,
-       so the merge adopted it and the prune dropped every filing): `shape` answers null or the words for why not */
+       so the merge adopted it and the prune dropped every filing): `shape` answers null or the words for why not. A
+       roster from another tab must also hold every core locker (_rosterCoreWhy): a load puts one back, a merge cannot,
+       and no tab of this board saves one without them. A missing ADDED mule is not asked here - another tab's delete
+       writes the roster first and the map (its filings gone) right after. */
     window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; }, after: _vaultTabAfter,
                              shape: function(v){ return _muleShapeWhy(AK, v); },
                              adopted: function(){ delete _muleUnread[AK]; } };
     window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; }, after: _vaultTabAfter,
-                             shape: function(v){ return _muleShapeWhy(RK, v); },
+                             shape: function(v){ return _muleShapeWhy(RK, v) || _rosterCoreWhy(v); },
                              absent: function(){ return DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }); },
                              adopted: function(){ delete _muleUnread[RK]; } };
     /* REG-2415..2417 — the witness rows, his hand spots and the mule equipment are read from storage on every use, so another
@@ -41616,6 +41767,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (had){ try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){} }
     if (prunedAssign){ try{ _guardedSet(AK, JSON.stringify(assign)); }catch(e){} }
   })();
+  /* REG-2522 fix round — THE ROSTER AND THE MAP AGREE, OR THE ROSTER IS HELD (_rosterMapWhy). A saved roster that lacks a
+     mule the mule map still files items to did not come from this board's delete door, which has taken a mule's filings
+     with it since v203 - and the paint's prune would drop every one of them. It is quarantined (its bytes kept aside, the
+     vault held, the notice says which mule), and while it is held the page shows his mules: the roster rebuilt over its
+     own bytes (_rosterRebuilt), written nowhere. A roster with NOTHING saved yet has no bytes to keep: it gets a stand-in
+     for each such mule instead, saved, so no filing is pruned. Asked once both stores read and the v230 migration has run
+     (it drops the retired lockers' filings on purpose); a map or roster that would not read already holds the vault. */
+  (function(){
+    if (_muleUnread[RK] || _muleUnread[AK]) return;
+    var why = _rosterMapWhy(roster, assign);
+    if (!why) return;
+    if (!_rosterSaved){
+      roster = _rosterRebuilt(roster);
+      try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
+      try { console.info('[vault] no roster was saved, and the mule map files items to mules it does not list - a stand-in for each was kept'); } catch (eI) {}
+      return;
+    }
+    _muleUnread[RK] = why;
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(RK, why); } catch (eQ) {}
+    roster = _rosterRebuilt(roster);
+  })();
   // v404 migration — inject the RUNEWORDS mule into rosters saved before it existed (Konyo: "just a
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
   (function(){
@@ -41649,6 +41821,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _retired = false;
     roster.forEach(function(m){ var r = RETIRED_NOTES[m.id]; if (r && m.note === r[0]){ m.note = r[1]; _retired = true; } });
     if (_retired){ try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){} }
+  })();
+  /* REG-2522 fix round — A CORE LOCKER HIS ROSTER LACKS COMES BACK, the v404 / v342.5 / v360 way. Until REG-2195
+     (2026-10-14) every locker but SHARED STASH had a 🗑, so a roster this board saved may lack WIP or GRAIL-DUPES: each
+     missing core locker is put back at its default place, his own mules and notes kept, and the roster saved. Nothing is
+     filed to it (the delete door took its filings with it). A held roster is not touched - _guardedSet refuses it. */
+  (function(){
+    if (_muleUnread[RK]) return;
+    var back = _rosterPutCore(roster);
+    if (!back.length) return;
+    try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
+    try { console.info('[vault] the roster lacked the core locker' + (back.length === 1 ? ' ' : 's ') + back.join(', ')
+                       + ' (deleted before REG-2195) - put back, his own mules kept'); } catch (eI) {}
   })();
   function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }
   function saveA(){ var _w = _guardedSet(AK, JSON.stringify(assign)); if (_w && typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); return _w; }
@@ -45428,12 +45612,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (lkM && assign[nm] !== to && !_hardUnlock(nm, 'moved by ' + String(opts.by || 'hand') + ' to ' + _vHomeName(to)))
         return { ok: false, refused: 'release-failed', lock: lkM, why: nm + ' is locked and the release could not be written - nothing moved' };
       var pm = _provAll();
+      var _rowM0 = pm[nm] ? JSON.parse(JSON.stringify(pm[nm])) : null;   /* the row as it stood, for a map the door refuses */
       if (pm[nm]){ pm[nm].mule = to; pm[nm].holder = _vHomeName(to); pm[nm].movedAt = new Date().toISOString();
                    pm[nm].movedBy = String(opts.by || 'hand'); _provWrite(pm); }
       var _fromM = assign[nm];
       assign[nm] = to;
-      /* REG-2521 — a map the door refused is never answered as moved */
-      if (saveA() === false){ assign[nm] = _fromM; return { ok: false, refused: 'not-written', why: nm + ' was not moved - the mule map could not be written' }; }
+      /* REG-2521 — a map the door refused is never answered as moved; fix round — and the row goes back to the home the
+         saved map still files it to, so the two never split */
+      if (saveA() === false){ assign[nm] = _fromM;
+        if (_rowM0){ try { var pmB = _provAll(); if (pmB){ pmB[nm] = _rowM0; _provWrite(pmB); } } catch (eRb) {} }
+        return { ok: false, refused: 'not-written', why: nm + ' was not moved - the mule map could not be written' }; }
       return { ok: true, mode: 'moved', mule: to, witnessed: !!(pm[nm] && pm[nm].kind !== 'owned') };
     }
     /* #246 review — A RESTORE IS NOT A NEW CLAIM, SO IT MINTS NO WITNESS. An undo (vaultRestoreLast) and a rename
@@ -46781,6 +46969,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   window.vaultUnassign = function(name, opts){
     opts = opts || {};
+    /* REG-2521 fix round (review of REG-2521, minor) — THE CELL ✕ ASKS THE HOLD FIRST. It had no hold check: with a store
+       the vault stands on held it demoted the witness row (written), saveA() was refused, and it answered {ok:true} -
+       the row said "sent back to the dock" while the saved map kept the filing. It waits now, said where he clicked. */
+    var _bhU = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (_bhU){
+      var whyH = String(name == null ? '' : name) + ' stays in its locker - ' + _bhU + ' (see the notice at the top)';
+      _vaultLockSay(name, '⚠ ' + whyH, true);
+      return { ok: false, refused: 'held', why: whyH };
+    }
     /* #41 rank 17 (REG-1562) — THE CELL ✕ IS A HAND DOOR, AND A HARDENED ROW IS LOCKED: refused, and said, until Shift+✕
        carries the release (opts.unlock). An unreadable witness store is UNKNOWN, and UNKNOWN refuses too. */
     var lkU = _hardLock(name);
@@ -46800,7 +46997,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return { ok: false, refused: 'release-failed', lock: lkU, why: whyUF };
       }
     }
-    delete assign[name]; try { if (owned.has(name)) _provDemote(name); else _provDrop(name); } catch(e){} saveA(); renderVault(); refreshOpenCard();
+    /* REG-2521 fix round — the map is written FIRST, and a map the door refuses is never answered ok: the witness row is
+       demoted only once the filing it describes has really left the saved map */
+    delete assign[name];
+    if (saveA() === false){
+      var whyW = String(name == null ? '' : name) + ' was not sent back to the dock - the mule map could not be written, so the saved map still files it'
+               + ' (its witness row is untouched; a reload shows it in its locker)';
+      _vaultLockSay(name, '⚠ ' + whyW, true);
+      return { ok: false, refused: 'not-written', why: whyW };
+    }
+    try { if (owned.has(name)) _provDemote(name); else _provDrop(name); } catch(e){} renderVault(); refreshOpenCard();
     return { ok: true, unlocked: didU };
   };
   // v226: erase an AI misread in one click — removes the ✓ owned mark itself
@@ -47198,9 +47404,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   // v397.2 — manual socket fix for a name-only base the AI missed sockets on: register "<Base> (Nos)" as a
   // socketed runeword/craft base (own card + exact-count runewords) + auto-mule it, and drop the name-only read.
+  /* REG-2521 FIX ROUND (review of REG-2521, major + minor) — THE SOCKET DOORS ASK THE HOLD BEFORE ANYTHING IS DROPPED OR
+     WRITTEN, AND NEVER SAY "REGISTERED" OVER A FILING THE DOOR REFUSED. vaultFile refuses at its top while a store the
+     vault stands on is held (REG-2521), and these three doors walked past that refusal: the socket fix (vaultFixSockets)
+     dropped the old label's filing and its witness row FIRST and then asked vaultFile to put them back - refused - so with
+     d2r_magicFinds or d2r_copies cut short his 2-look stash row was gone for good and the status said "fixed"; the
+     throw-out review's socket count and "keep unsocketed" said "registered" over a filing that never happened. Now each
+     asks window._vaultBasisHeld() first and waits, in words; and the socket fix refiles the NEW label before it lets go
+     of the old one, so a refile the door refuses for any reason leaves the old label, its filing and its row as they were. */
+  function _socketDoorHeld(){
+    var why = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (!why) return null;
+    status('⚠ the socket fix waits - ' + why + ' (see the notice at the top)');
+    return { ok: false, refused: 'held', why: why };
+  }
+  /* the words a socket door adds when the vault door did not file the label (a refusal is never said as registered) */
+  function _socketFiledSay(vf){
+    return (vf && !vf.ok) ? ' · not filed to a mule - ' + String(vf.why || vf.refused || 'the vault door refused') : '';
+  }
   window.vaultSetSockets = function(name, n){
     try {
       n = parseInt(n, 10); if (!(n >= 1 && n <= 6)) return;
+      var _hS = _socketDoorHeld(); if (_hS) return _hS;   /* REG-2521 fix round — nothing is touched while the vault is held */
       var clean = (typeof _throwClean === 'function') ? _throwClean(name) : name;
       // v582.1 — strip ANY existing socket/Larzuk suffixes (repeatedly) so re-registering an already-
       // labelled read can't produce "Flail (5os) (5os)" (live incident during the Flail rescue).
@@ -47209,10 +47434,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
       window._ownedAdd(label, { source: 'hand', by: 'socket fix', where: 'the socket fix (throw-out review)' });
+      var _vfS = null;
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
-        window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'the socket fix (throw-out review)' }, { mule: sg.id });
+        _vfS = window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'the socket fix (throw-out review)' }, { mule: sg.id });
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
-      status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base');
+      status('🔩 ' + clean + ' → ' + n + ' sockets — registered as a runeword/craft base' + _socketFiledSay(_vfS));
+      return { ok: true, label: label, filed: _vfS };
     } catch(e){}
   };
   // v575 — keep an UNSOCKETED base from the throw-out review as a Larzuk/cube-gamble candidate (Konyo's
@@ -47220,16 +47447,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // the Forge picks it up (Larzuk-to-max words + the v575 ideal-base cube gamble).
   window.vaultKeepAsBase = function(name){
     try {
+      var _hK = _socketDoorHeld(); if (_hK) return _hK;   /* REG-2521 fix round — nothing is touched while the vault is held */
       var clean = (typeof _throwClean === 'function') ? _throwClean(name) : name;
       while (/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i.test(clean)) clean = clean.replace(/\s*\((?:Larzuk base|\d+\s*os(?:\s+low base)?|low base)\)\s*$/i, '').trim();   // v582.1
       var label = clean + ' (Larzuk base)';
       if (typeof unknownReads !== 'undefined') unknownReads.delete(name);
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(label);
       window._ownedAdd(label, { source: 'hand', by: 'keep as a Larzuk base', where: 'keep as a Larzuk base (throw-out review)' });
+      var _vfK = null;
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
-        window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'keep as a Larzuk base (throw-out review)' }, { mule: sg.id });
+        _vfK = window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'keep as a Larzuk base (throw-out review)' }, { mule: sg.id });
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
-      status('⚒ ' + clean + ' kept UNSOCKETED — Larzuk / cube-gamble base, the Forge will plan around it');
+      status('⚒ ' + clean + ' kept UNSOCKETED — Larzuk / cube-gamble base, the Forge will plan around it' + _socketFiledSay(_vfK));
+      return { ok: true, label: label, filed: _vfK };
     } catch(e){}
   };
   // v462 — FIX the socket count of an ALREADY-REGISTERED socketed / Larzuk base (Konyo's Superior Champion Axe
@@ -47251,20 +47481,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          no row to carry and none can be dropped, so the fix waits, in words (it was a silent catch) */
       var _pvFix = (typeof window._vaultProvHeld === 'function') ? window._vaultProvHeld() : null;
       if (_pvFix){ status('⚠ the socket fix waits - ' + _pvFix); return; }
+      /* REG-2521 fix round (review of REG-2521, major) — AND WHILE ANY STORE THE VAULT STANDS ON IS HELD (owned, the
+         roster, the mule map, the copies, Magic & Rare): vaultFile refuses at its top then, and this click used to drop
+         the old label's filing and its witness row FIRST and ask vaultFile to put them back after - so the row was gone
+         for good, the item unfiled, and the status said "fixed". It waits now, in words, before anything is touched.
+         (Inline, not the helper above: a law cuts this door on its own.) */
+      var _bhFix = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+      if (_bhFix){ status('⚠ the socket fix waits - ' + _bhFix + ' (see the notice at the top)'); return { ok: false, refused: 'held', why: _bhFix }; }
       /* #246 — the renamed label inherits the old label's witness row VERBATIM (a restore); a filing that had none
          keeps none. The click fixes a socket COUNT — it is not a sighting, so it never mints a hand. */
       var _pvF = _provAll()[name] || null;
+      var _hadNew = owned.has(newLabel);
+      if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
+      /* 2026-09-28 — a renamed label keeps the RECEIPT the old one carried; a filing's row comes back through the door;
+         a label that carried nothing carries nothing — a socket COUNT fix is not a sighting and never mints one */
+      window._ownedAdd(newLabel, (_pvF && _pvF.kind === 'owned') ? { restoreRow: Object.assign({}, _pvF, { renamedFrom: name }) } : null);
+      /* REG-2521 fix round — THE NEW LABEL IS REFILED FIRST, AND THE OLD ONE LETS GO ONLY WHEN THAT ANSWERS OK. A refile
+         the door refuses (a MAIN lock on the new label, a witness it will not take) puts back what this click added and
+         leaves the old label, its filing and its witness row exactly as they were - said, never "fixed". */
+      var _rfF = null;
+      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) _rfF = window.vaultFile(newLabel, null, { restore: true, mule: oldMule, prov: _pvF });
+      else if (_pvF && _pvF.kind !== 'owned') { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) _rfF = window.vaultFile(newLabel, _provAsWitness(_pvF), { mule: sg.id }); }
+      if (_rfF && !_rfF.ok){
+        if (!_hadNew){ try { owned.delete(newLabel); } catch(e){} try { window._ownedProvForget(newLabel); } catch(e){} }
+        try { persistOwned(); } catch(e){}
+        renderVault(); refreshOpenCard();
+        status('⚠ the socket fix did not land - ' + String(_rfF.why || _rfF.refused || 'the vault door refused the new label')
+               + ' — ' + name + ' stays as it was');
+        return { ok: false, refused: _rfF.refused || 'refused', why: _rfF.why || null };
+      }
       try { owned.delete(name); } catch(e){}
       delete assign[name];
       try { _provDrop(name); } catch(e){}
       try { if (typeof etherealItems !== 'undefined') { etherealItems.delete(name); if (wasEth) etherealItems.add(newLabel); } } catch(e){}
       try { if (typeof superiorBases !== 'undefined' && superiorBases.has(name)) { superiorBases.delete(name); superiorBases.add(newLabel); } } catch(e){}
+      /* the base entry is built again now that the flags have moved: it reads them (a Superior flag with no "Superior" in
+         the name), and the one built before the refile, for its routing, could not see them yet */
       if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(newLabel, true);
-      /* 2026-09-28 — a renamed label keeps the RECEIPT the old one carried; a filing's row comes back through the door;
-         a label that carried nothing carries nothing — a socket COUNT fix is not a sighting and never mints one */
-      window._ownedAdd(newLabel, (_pvF && _pvF.kind === 'owned') ? { restoreRow: Object.assign({}, _pvF, { renamedFrom: name }) } : null);
-      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) window.vaultFile(newLabel, null, { restore: true, mule: oldMule, prov: _pvF });
-      else if (_pvF) { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) window.vaultFile(newLabel, _provAsWitness(_pvF), { mule: sg.id }); }
       /* REG-2405 — HIS RENAME IS NOT A LOSS. A frame that read the old label holds it in d2r_intakeSeen; with the old label
          gone from owned and nothing on record, REG-2401's verdict called that frame 'gone' and a re-read put the misread
          label back beside the fixed one. The ledger learns the new name, and keeps the old as what that frame read. */
@@ -47275,6 +47528,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       persistOwned(); saveA(); renderVault(); refreshOpenCard();
       status('🔩 ' + stem + ' → ' + (n >= 1 ? n + ' sockets' : 'Larzuk base') + ' — fixed'
              + ((_rnS && _rnS.unknown) ? ' · ' + _rnS.unknown + ' — a screenshot that read the old label may be offered to read again' : ''));
+      return { ok: true, label: newLabel, filed: _rfF };
     } catch(e){}
   };
   // ============================================================================================
@@ -52812,6 +53066,10 @@ window.vaultAutoAssign = function(){
             if (_vfM && !_vfM.ok && (_vfM.refused === 'hardened' || _vfM.refused === 'prov-unreadable') && window._vaultLockSay)
               window._vaultLockSay(e.name, '🔒 ' + _vfM.why + ' The mule window shows it on ' + ((muleById(mid) || {}).name || mid)
                 + '; the vault keeps it where the evidence locked it.', true);
+            /* REG-2521 fix round — a held vault (or a map the door would not write) is said too, never a silent no-filing */
+            else if (_vfM && !_vfM.ok && (_vfM.refused === 'held' || _vfM.refused === 'not-written') && window._vaultLockSay)
+              window._vaultLockSay(e.name, '⚠ ' + _vfM.why + ' The mule window shows it on ' + ((muleById(mid) || {}).name || mid)
+                + ', but the vault did not file it there.', true);
           });
         });
       });
@@ -55482,9 +55740,11 @@ function renderJournal(){
           + (_seenRemoved ? '<span class="vir-rc"><b>' + _seenRemoved + '</b> of them read an item you removed since — your removal stands</span>' : '')
           + (_seenUnknown ? '<span class="vir-rc"><b>' + _seenUnknown + '</b> of them read an item that is gone, and whether you removed it could not be read — not read again</span>' : '')
           /* REG-2529 (review of REG-2401, minor) — the card said every file is read again once its item leaves; a file marked
-             before records existed carries no record of what it read, so that was false for it - now it is said */
-          + (_seenLegacy ? '<span class="vir-rc"><b>' + _seenLegacy + '</b> of them were read before this board kept a record of what each file read — they are never read again on their own</span>' : '')
-          + '<span class="vir-rc-note">these exact files were scanned before, so nothing was sent to the AI. A file with a record is read again once what it read has left your vault with no removal on record; a file read before records existed is not. Drop NEW screenshots, or use 🕐 Latest N (Scan folder) or 🧽 Clear scan history to force a re-read.</span></div></div>';
+             with no record of what it read is not, so that was false for it - now it is said. Fix round (review of
+             REG-2529, minor a): a bare mark is also what Skip and 🕐 Latest N write for a file they leave UNREAD today, so
+             the words say what is known - registered without a record - never "read before records existed" */
+          + (_seenLegacy ? '<span class="vir-rc"><b>' + _seenLegacy + '</b> of them were registered without a record of what each read (read before records existed, or registered unread by Skip / 🕐 Latest N) — they are never read again on their own</span>' : '')
+          + '<span class="vir-rc-note">these exact files are in the scan ledger already, so nothing was sent to the AI. A file with a record is read again once what it read has left your vault with no removal on record; a file registered without a record is not. Drop NEW screenshots, or use 🕐 Latest N (Scan folder) or 🧽 Clear scan history to force a re-read.</span></div></div>';
         return;
       }
     }
@@ -56150,8 +56410,10 @@ function renderJournal(){
        · whether he removed it, or what is owned, cannot be read -> 'unknown'  skipped and SAID, never guessed
        · a 1, a number or a name|mtime key from before this record -> 'seen'   what it read is UNKNOWN, so it is not re-billed
        · 'retry' (read nothing)                                  -> 'retry'    unchanged (v567)
-       · 'reading' (REG-2524: handed to a read that never closed) -> 'reading'  the page closed mid-read: a manual Scan
-                                                                    offers it as its own choice, the poll never reads it
+       · 'reading@<ms>@<tab>' (REG-2524: handed to a read)       -> 'reading'  {at, tab}: a read that never closed (the
+                                                                    page closed mid-read) is offered by a manual Scan as
+                                                                    its own choice; one a live tab may still be running
+                                                                    is not (_readingInFlight); the poll never reads it
      A file read again is the SAME file: a name it read last time is the same item, never a second copy (_intakeSameItem).
      The folder watch never re-reads a 'gone' file on its own (v567's money loop): the 12 s poll SAYS how many, and a
      manual Scan offers them as their own button (REG-2403: new files are read first, and the offer marks nothing).
@@ -56162,6 +56424,13 @@ function renderJournal(){
      main's whole history); main's items are not ladder's, so a record whose `world` is another world's reads 'seen' there,
      never 'gone'. [[unknown-stays-unknown]] [[the-unjoined-end]]
      Law: tv/test_a_frame_is_read_again_when_its_item_is_gone.py drives this block in node. */
+  /* REG-2524 fix round (review of REG-2524, minor b) — a 'reading' mark says WHEN and WHICH TAB handed the file to its read:
+     'reading@<ms>@<tab>'. A bare 'reading' carries neither (its age is UNKNOWN). -> {at, tab} | null when v is no such mark */
+  function _readingOf(v){
+    if (v === 'reading') return { at: null, tab: null };
+    var m = (typeof v === 'string') ? /^reading@(\d+)@(.*)$/.exec(v) : null;
+    return m ? { at: +m[1], tab: m[2] || null } : null;
+  }
   function _intakeSeenVerdict(seen, f, ask){
     var nm = (f && f.name) ? String(f.name) : '';
     if (!nm) return { state: 'fresh', gone: [], prev: null };
@@ -56169,7 +56438,8 @@ function renderJournal(){
     if (v === undefined || v === null || v === '' || v === 0)
       return { state: (seen && seen[nm + '|' + (f && f.lastModified)]) ? 'seen' : 'fresh', gone: [], prev: null };
     if (v === 'retry') return { state: 'retry', gone: [], prev: null };
-    if (v === 'reading') return { state: 'reading', gone: [], prev: null };   /* REG-2524 — handed to a read that has not closed */
+    var _rdV = _readingOf(v);
+    if (_rdV) return { state: 'reading', gone: [], prev: null, at: _rdV.at, tab: _rdV.tab };   /* REG-2524 — handed to a read that has not closed */
     if (typeof v !== 'object' || Array.isArray(v) || !Array.isArray(v.held)) return { state: 'seen', gone: [], prev: null, legacy: true };
     if (v.world != null && ask && ask.world != null && v.world !== ask.world)
       return { state: 'seen', gone: [], prev: null, otherWorld: v.world };
@@ -56332,18 +56602,46 @@ function renderJournal(){
     return String((g && g.why) || 'the read is refused') + ' — ' + what + '; nothing was read or marked';
   }
   /* the states a scan leaves for his choice or his eye, as one tail for its status line */
-  function _scanMoreSay(waiting, unknownN){
-    var w = waiting || 0, u = unknownN || 0, out = '';
+  function _scanMoreSay(waiting, unknownN, inFlightN){
+    var w = waiting || 0, u = unknownN || 0, r = inFlightN || 0, out = '';
     if (w) out += ' · ⏯ ' + w + ' screenshot' + (w===1?' was':'s were') + ' handed to a read that never finished (the page closed or reloaded) — 🔄 Scan folder offers ' + (w===1?'it':'them');
+    if (r) out += ' · ' + r + ' screenshot' + (r===1?' is':'s are') + ' being read in another tab right now — not read here';
     if (u) out += ' · ' + u + ' screenshot' + (u===1?'':'s') + ' read items whose status could not be read — not read again';
     return out;
   }
+  /* REG-2524 fix round (review of REG-2524, minor b) — A READ ANOTHER TAB IS RUNNING IS NOT "A READ THAT NEVER FINISHED".
+     window._vIntakeBusy is this tab's alone, so while tab A read a batch, tab B's poll said "⏯ handed to a read that never
+     finished" and its manual Scan offered ⏯ Finish - re-reading and re-billing what A was still reading (and a re-read
+     low base can bump d2r_copies). The mark now carries when and which tab handed the file over ('reading@<ms>@<tab>';
+     the tab is this browser tab's own id, kept in sessionStorage so a reload of the SAME tab knows its old marks):
+       · this tab's mark          in flight while this tab's read runs (_vIntakeBusy); after a reload it never finished
+       · another tab's mark        in flight while it is younger than _READING_FRESH_MS (15 min: 40 files x a 75 s AI
+                                   ceiling over the read's workers); older, that read never finished
+       · a bare 'reading'          names no tab: in flight while this tab's read runs, as before the stamp
+     ⏯ Finish re-stamps what it hands to the read, so the files it takes are this tab's, now. */
+  var _READING_FRESH_MS = 15 * 60 * 1000;
+  var _SCAN_TAB = (function(){
+    var t = null;
+    try { t = window.sessionStorage ? window.sessionStorage.getItem('d2r_scanTab') : null; } catch (eT) { t = null; }
+    if (!t){
+      t = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      try { if (window.sessionStorage) window.sessionStorage.setItem('d2r_scanTab', t); } catch (eT2) {}
+    }
+    return t;
+  })();
+  function _readingMark(){ return 'reading@' + Date.now() + '@' + _SCAN_TAB; }
+  /* sv = a 'reading' verdict ({at, tab}) -> true while a live read may still be taking that file */
+  function _readingInFlight(sv){
+    if (!sv || sv.state !== 'reading') return false;
+    if (!sv.tab || sv.tab === _SCAN_TAB) return !!window._vIntakeBusy;
+    return (typeof sv.at === 'number' && isFinite(sv.at)) ? (Date.now() - sv.at) < _READING_FRESH_MS : false;
+  }
   /* register files by NAME in the CURRENT ledger — a merge, never the scan's stale snapshot written back over reads that
-     landed meanwhile. Only a file a pick named, or one handed to the read in the same breath, is marked: 'reading' for a
+     landed meanwhile. Only a file a pick named, or one handed to the read in the same breath, is marked: 'reading@…' for a
      file handed to the read, 1 for one a pick registers unread. -> how many were marked | -1 when the ledger will not
      read or the door refused the write (UNKNOWN: nothing marked over it) */
   function _seenRegister(files, mark){
-    var s = seenLedger(), n = 0, m = (mark === 'reading') ? 'reading' : 1;
+    var s = seenLedger(), n = 0, m = (mark === 'reading') ? _readingMark() : 1;
     if (s === null) return -1;
     (files || []).forEach(function(f){
       if (!f || !f.name) return;
@@ -56381,8 +56679,11 @@ function renderJournal(){
     if (gone.length) html += '♻ <strong>' + gone.length + '</strong> already-read screenshot' + (gone.length===1?' read an item that is':'s read items that are') + ' no longer in your vault, with no removal on record.<br>';
     /* REG-2524 — a read that never closed is its own choice too; 'unknown' and records-less files are said, not hidden */
     if (waiting.length) html += '⏯ <strong>' + waiting.length + '</strong> screenshot' + (waiting.length===1?' was':'s were') + ' handed to a read that never finished (the page closed or reloaded).<br>';
+    if (more.inFlight) html += '<strong>' + more.inFlight + '</strong> screenshot' + (more.inFlight===1?' is':'s are') + ' being read in another tab right now — not offered here.<br>';
     if (more.unknown) html += '<strong>' + more.unknown + '</strong> already-read screenshot' + (more.unknown===1?' read items whose':'s read items whose') + ' status could not be read — not read again.<br>';
-    if (more.legacy) html += '<strong>' + more.legacy + '</strong> screenshot' + (more.legacy===1?' was':'s were') + ' read before this board kept a record of what each file read — never read again on their own (🕐 Latest N reads past the ledger).<br>';
+    /* REG-2529 fix round (review of REG-2529, minor a) — a bare 1 is also what Skip and 🕐 Latest N write for a file they
+       leave unread today: "read before this board kept a record" was false for those, so the words say what is known */
+    if (more.legacy) html += '<strong>' + more.legacy + '</strong> screenshot' + (more.legacy===1?' was':'s were') + ' registered without a record of what ' + (more.legacy===1?'it':'each') + ' read (read before records existed, or registered unread by Skip / 🕐 Latest N) — never read again on their own (🕐 Latest N reads past the ledger).<br>';
     if (fresh.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'new\')" style="border-color:rgba(102,255,136,.5);color:var(--best,#66ff88)">✨ New ' + fresh.length + '</button> ';
     if (gone.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'gone\')">♻ Read again ' + gone.length + '</button> ';
     if (waiting.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'waiting\')">⏯ Finish ' + waiting.length + '</button> ';
@@ -56414,6 +56715,9 @@ function renderJournal(){
       var _r1 = _seenRegister(fresh.filter(function(f){ return f && _inPick[f.name]; }), 'reading');
       var _r2 = _seenRegister(fresh.filter(function(f){ return f && !_inPick[f.name]; }));
       _marked = (_r1 < 0 || _r2 < 0) ? -1 : 0;
+    } else if (k === 'waiting'){
+      /* REG-2524 fix round — ⏯ Finish re-stamps what it hands to the read (this tab, now): another tab never calls it unfinished */
+      _marked = (_seenRegister(pick, 'reading') < 0) ? -1 : 0;
     }
     if (_marked < 0){
       if (rep){ rep.innerHTML = ''; rep.hidden = true; }
@@ -56459,7 +56763,7 @@ function renderJournal(){
         perm = await handle.requestPermission({ mode:'read' });
         if (perm !== 'granted') { status('folder access declined'); return; }
       }
-      var seen = seenLedger(), fresh = [], all = [], retriable = 0, regone = [], waiting = [], unknownN = 0, legacyN = 0, _sAsk = _intakeSeenAsk();
+      var seen = seenLedger(), fresh = [], all = [], retriable = 0, regone = [], waiting = [], unknownN = 0, legacyN = 0, inFlightN = 0, _sAsk = _intakeSeenAsk();
       /* REG-2520 — UNKNOWN is said and nothing is read or marked: a ledger read as {} made every screenshot 'fresh' */
       if (seen === null){ status('📂 ' + _seenUnknownSay()); return; }
       var firstConnect = Object.keys(seen).length === 0;
@@ -56477,9 +56781,9 @@ function renderJournal(){
         if (_sv.state === 'fresh') { seen[f.name] = 1; fresh.push(f); }
         else if (_sv.state === 'retry'){ retriable++; if (!quiet){ seen[f.name] = 1; fresh.push(f); } }
         else if (_sv.state === 'gone') regone.push(f);   /* offered for his choice — the poll never reads it */
-        /* REG-2524 — a read that never closed waits for his choice (never while a read is in flight in this tab: that read
-           is taking it now); a file whose items' status could not be read is counted and said */
-        else if (_sv.state === 'reading'){ if (!window._vIntakeBusy) waiting.push(f); }
+        /* REG-2524 — a read that never closed waits for his choice (never while a live read - this tab's or another's - may
+           be taking it now: counted and said); a file whose items' status could not be read is counted and said */
+        else if (_sv.state === 'reading'){ if (_readingInFlight(_sv)) inFlightN++; else waiting.push(f); }
         else if (_sv.state === 'unknown') unknownN++;
         else if (_sv.legacy) legacyN++;
       }
@@ -56493,7 +56797,7 @@ function renderJournal(){
       }
       if (quiet){
         if (!fresh.length){
-          var _moreQ = _scanMoreSay(waiting.length, unknownN);
+          var _moreQ = _scanMoreSay(waiting.length, unknownN, inFlightN);
           if (regone.length) status('📂 '+(retriable ? retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time · ' : '')
             + regone.length+' already-read screenshot'+(regone.length===1?'':'s')+' read an item no longer in your vault, with no removal on record — hit 🔄 Scan folder to choose' + _moreQ);
           else if (retriable) status('📂 '+retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time — hit 🔄 Scan folder to retry them' + _moreQ);
@@ -56505,9 +56809,9 @@ function renderJournal(){
              'reading', so a read that never closes leaves it offered, never 'seen' */
           if (_seenRegister(fresh, 'reading') < 0){ status('📂 ' + _seenUnknownSay()); return; }
           fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
-          status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN));
+          status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN, inFlightN));
           window.vaultIntake(fresh, {fromFolder:true, goneWaiting: regone.length});
-        } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN));
+        } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN, inFlightN));
         return;
       }
       // v584.1 — MANUAL scan with a small fresh batch reads IMMEDIATELY, exactly like the auto-watch
@@ -56520,11 +56824,11 @@ function renderJournal(){
       if (fresh.length > 0 && fresh.length <= 12){
         if (_seenRegister(fresh, 'reading') < 0){ status('📂 ' + _seenUnknownSay()); return; }   /* REG-2524 */
         fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
-        status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN));
+        status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN, inFlightN));
         window.vaultIntake(fresh, {fromFolder:true, goneWaiting: regone.length});
         return;
       }
-      vaultOfferMenu(all, fresh, seen, regone, { waiting: waiting, unknown: unknownN, legacy: legacyN });   /* REG-2401 — a 'gone' file is his choice: offered as its own button (REG-2403: the menu marks nothing) */
+      vaultOfferMenu(all, fresh, seen, regone, { waiting: waiting, unknown: unknownN, legacy: legacyN, inFlight: inFlightN });   /* REG-2401 — a 'gone' file is his choice: offered as its own button (REG-2403: the menu marks nothing) */
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
     finally { _vScanBusy = false; }
   };
@@ -56534,7 +56838,7 @@ function renderJournal(){
   // protects the token budget. NEVER hide the feature silently again (REG-011).
   window.vaultScanFolderLegacy = function(fileList){
     try {
-      var seen = seenLedger(), fresh = [], all = [], regone = [], waiting = [], unknownN = 0, legacyN = 0, _sAsk = _intakeSeenAsk();
+      var seen = seenLedger(), fresh = [], all = [], regone = [], waiting = [], unknownN = 0, legacyN = 0, inFlightN = 0, _sAsk = _intakeSeenAsk();
       if (seen === null){ status('📂 ' + _seenUnknownSay()); return; }   /* REG-2520 */
       var firstConnect = Object.keys(seen).length === 0;
       Array.prototype.forEach.call(fileList, function(f){
@@ -56546,14 +56850,14 @@ function renderJournal(){
         if (_sv.state === 'fresh') { seen[f.name] = 1; fresh.push(f); }
         else if (_sv.state === 'retry'){ seen[f.name] = 1; fresh.push(f); }   // v567 — legacy picker is manual → retry-able
         else if (_sv.state === 'gone') regone.push(f);
-        else if (_sv.state === 'reading'){ if (!window._vIntakeBusy) waiting.push(f); }   /* REG-2524 */
+        else if (_sv.state === 'reading'){ if (_readingInFlight(_sv)) inFlightN++; else waiting.push(f); }   /* REG-2524 */
         else if (_sv.state === 'unknown') unknownN++;
         else if (_sv.legacy) legacyN++;
       });
       /* REG-2524 — the picker's menu marks nothing; the pick asks the gate (vaultReadBatch). Said here when it would refuse */
       var _gL = (fresh.length || regone.length || waiting.length) ? _scanGate() : null;
       if (_gL){ status('📂 ' + _gateWaitSay(_gL, fresh.length, regone.length + waiting.length)); return; }
-      vaultOfferMenu(all, fresh, seen, regone, { waiting: waiting, unknown: unknownN, legacy: legacyN });
+      vaultOfferMenu(all, fresh, seen, regone, { waiting: waiting, unknown: unknownN, legacy: legacyN, inFlight: inFlightN });
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
   };
   // v235: toggle the folder UI between "connect me" and the live animated watcher.

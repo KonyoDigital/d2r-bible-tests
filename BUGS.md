@@ -46,6 +46,25 @@ the one-time provenance backfill waits instead of stamping itself done over refu
 GUARD: tv/test_the_vault_hold_refuses_at_the_one_door.py (6 cases: every door per held basis store, the removal door and undo, the
 callers' words, toggleOwned, the backfill; 11 RED proofs, heart2 11/11 PROVEN).
 
+FIX ROUND (review of REG-2521: 1 major + 3 minors, each re-run on the track head b0b64ba73 first). MAJOR - the socket fix
+(vaultFixSockets) dropped the old label's filing and its witness row FIRST, then asked vaultFile - which refuses at its top while
+the vault is held - to put them back. MEASURED (p3, d2r_magicFinds or d2r_copies cut short): d2r_vaultProv went {} (his 2-look
+stash row gone for good), d2r_owned ["Grief","Monarch (4os)"], the map in memory {Grief:uni-weap}, status "🔩 Monarch → 4 sockets
+— fixed"; the merge base carried the row. MINORS - vaultSetSockets / vaultKeepAsBase said "registered" / "kept" over a refused
+filing, the cell ✕ (vaultUnassign) demoted the row and answered {ok:true} over a refused saveA, the mule window said only a
+'hardened' / 'prov-unreadable' refusal; the one-time set-piece reconcile stamped itself done over a refused removal (p4:
+stamped:true, removed:[], next load 'already'); and five REG-2520/2521 behaviours had no law (sabotage S1-S5: 16 laws green).
+FIX: the socket doors ask _vaultBasisHeld() first and wait, in words; the socket fix refiles the new label before the old one
+lets go, and a refile the door refuses for any reason puts back what the click added (old label, filing and row untouched,
+"did not land"); the throw-out doors say a refused filing; the ✕ asks the hold, writes the map before it demotes the row and
+answers 'not-written' over a refused map; the mule window says 'held' / 'not-written'; a refused vaultFile move puts the row
+back too; the reconcile and the seed cleanse neither stamp over a refused removal nor run while the vault is held.
+MEASURED after (p3): held by either store, the row stays under 'Monarch (Larzuk base)', owned and the map unchanged, status
+"⚠ the socket fix waits - the vault is held - d2r_magicFinds will not parse"; p4: ran:false, no stamp, it asks again.
+GUARD: tv/test_the_socket_doors_wait_for_a_held_vault.py (6 cases, every basis store held; 7 RED proofs) and
+tv/test_a_refused_removal_is_never_walked_around_or_stamped.py (7 cases: S1-S5, the reconcile, the held one-time runs; 11 RED
+proofs).
+
 ### REG-2522 - A MULE ROSTER SAVED AS "[]" WAS READ AS A ROSTER, AND THE PRUNE DROPPED EVERY FILING ON THE EIGHT LOCKERS IT LACKED (review of REG-2411, rv6)
 
 REG-2411's shape check asked only that every element is a mule, and every element of "[]" is - "[]" is exactly what REG-2414's merge
@@ -60,6 +79,24 @@ all 11 core lockers, so nothing of his is held by it.
 GUARD: tv/test_a_roster_without_its_core_lockers_is_unknown.py (4 cases incl. his real shape with his own mule and another tab's
 "[]"; 3 RED proofs, heart2 3/3 PROVEN); browser half (CI): tests/reg2522_reg2523_a_bad_store_never_costs_his_good_copy.spec.ts.
 
+FIX ROUND (review of REG-2522, major) - "every roster this board saves holds them, so these bytes did not come from it" was
+FALSE: until REG-2195 (b32f373f2, 2026-10-14) every locker but SHARED STASH had a 🗑 and vaultDeleteMule saved the roster without
+it. MEASURED on the track head (p1 / p1b): the ten core lockers without 'wip' + his WAR-1 -> quarantined, _vaultHeld()
+{keys:[d2r_muleRoster]}, the page drew the 11 defaults (WAR-1 gone), and Start it fresh wrote WAR-1 as 'M1K9ZQ2X' and dropped
+PVP-2 (an added mule with no filing). His 29 ledger snapshots that hold a roster (read-only): all 11 core lockers, no added
+mule, and no map names a mule its roster lacks.
+FIX: a roster is held only when this board could not have written it - not a list of mules, EMPTY ("[]"), or (_rosterMapWhy,
+asked once both stores read) its map still files items to a mule it lacks: the delete door has taken a mule's filings with it
+since v203, and the prune would drop them. A missing core locker the map files nothing to comes back at its default place,
+the v404 / v342.5 / v360 way, his mules kept, the roster saved. Another tab's write is still held to every core locker
+(_rosterCoreWhy); an added mule another tab deletes is a write it makes. While held the page shows the roster rebuilt over its
+own bytes; Start it fresh rebuilds over the bytes kept aside (every mule verbatim, every core locker, a stand-in for each mule
+the map names); nothing saved + a map filing to an added mule keeps a stand-in. The "did not come from it" sentence is gone.
+MEASURED after (p1 / p1b): not quarantined, not held, WIP back after GRAIL-DUPES, WAR-1 and PVP-2 verbatim in the saved roster.
+GUARD: tv/test_a_roster_this_board_wrote_is_read_and_keeps_his_mules.py (5 cases; 4 RED proofs);
+tv/test_a_roster_without_its_core_lockers_is_unknown.py re-pointed ("[]" and a map-named missing locker stay held; 5 RED
+proofs); the CI spec's "[]" reason re-pointed.
+
 ### REG-2523 - ANOTHER TAB'S BAD WRITE LEFT THIS TAB'S GOOD COPY WITH NO WAY OUT (review of REG-2413, r4 - reproduced twice)
 
 _tabSyncMerge quarantined the key, but the copy kept aside was the other tab's bad bytes; both exits on the notice dropped this tab's
@@ -73,6 +110,13 @@ kept aside yet (a second bad write, bytes written after a clear) goes aside firs
 then is his copy written, read back and the hold lifted. Start it fresh's question says the good copy is lost that way.
 GUARD: tv/test_this_tabs_last_good_copy_can_be_kept.py (5 cases; 5 RED proofs, heart2 5/5 PROVEN); browser half (CI):
 tests/reg2522_reg2523_a_bad_store_never_costs_his_good_copy.spec.ts (a real storage event between two pages).
+
+FIX ROUND (review of REG-2523, minor) - after another tab cleared the storage the headline still said "reload before you change
+anything here" and every cleared row carried an unasked "Reload this tab" - the one click that drops the only copy of every store
+(p6). FIX: the headline says this tab holds the only copy of N stores and to keep them before reloading; no row offers the
+whole-page reload while any row holds the only copy; "Keep all of this tab's copies (N)" asks once and keeps each store the one
+store's way; a store this tab never loaded is not offered as its "last good copy".
+GUARD: tv/test_a_cleared_storage_keeps_this_tabs_only_copy.py (4 cases; 6 RED proofs).
 
 ### REG-2524 - A FOLDER SCAN MARKED SCREENSHOTS READ AND THE AUTO INTAKE GATE THEN REFUSED TO READ THEM: "SEEN" FOR EVER (review of REG-2403, r1)
 
@@ -89,6 +133,14 @@ nothing, said. 'unknown' files are counted and said on the poll's line and in th
 GUARD: tv/test_a_scan_asks_the_gate_before_it_marks.py (8 cases incl. the pre-record files of REG-2529 and an unreadable switch
 said as UNKNOWN, never 'off'; 8 RED proofs, heart2 8/8 PROVEN);
 tv/test_a_scan_reads_what_it_marks.py re-pointed (the hand-off mark is now 'reading').
+
+FIX ROUND (review of REG-2524, minor b) - the 'reading' mark was judged by this tab's _vIntakeBusy alone, so tab B's poll called tab
+A's read in flight "a read that never finished" and B's ⏯ Finish re-read and re-billed A's files. FIX: the mark carries when and
+which tab handed the file over ('reading@<ms>@<tab>', the tab id kept in sessionStorage across reloads of the same tab):
+another tab's mark younger than 15 minutes is in flight - counted and said ("being read in another tab right now"), never
+offered; an older one never finished; this tab's own is in flight while this tab reads; ⏯ Finish re-stamps what it reads.
+GUARD: tv/test_a_read_in_another_tab_is_not_offered_again.py (3 cases; 5 RED proofs);
+tv/test_a_scan_asks_the_gate_before_it_marks.py re-pointed (the stamped mark).
 
 ### REG-2525 - THE GRAIL UNIQUE RAVEN CLAW WAS READ AS A ROLLED RARE ON THE CONSOLE AND JOURNALED AS TOSS (review of REG-2402)
 
@@ -147,6 +199,11 @@ tv/test_a_scan_asks_the_gate_before_it_marks.py.
 LEFT: offering the pre-record files as their own "read again" choice, or seeding their records from the Recently-registered log's
 per-shot breakdown (last 20 sessions) - a fresh read never asks his removals, so a re-read of such a file could bring back an item he
 removed; not built.
+
+FIX ROUND (review of REG-2529, minor a) - a bare 1 is also what Skip and 🕐 Latest N write today for a file they leave unread, so
+"read before this board kept a record" was false for those: the Nothing-new card and the Scan menu now say "registered without
+a record of what it read". GUARD: tv/test_a_renamed_item_comes_back_as_his_fix.py and the scan-menu case in
+tv/test_a_scan_asks_the_gate_before_it_marks.py, re-pointed.
 
 ### REG-2400 - A RELOAD SILENTLY DELETED ~55% OF THE ITEMS FRAMES HAD READ, FOR GOOD (#162 item 1 + #144 item 6, vault batch V1)
 

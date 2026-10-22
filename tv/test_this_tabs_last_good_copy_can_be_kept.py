@@ -165,7 +165,7 @@ RED_PROOF = [
      "replace": "    if (false){\n"},
     {"why": "REG-2523 - a storage another tab cleared is not marked as 'this tab holds the copy'",
      "file": "bible.html", "matches": 1,
-     "find": "if (!_was && _h && _h.kind === 'stale' && REG[x] && REG[x].kind !== 'store' && typeof REG[x].get === 'function') _h.cleared = true;",
+     "find": "                if (_lv != null) _h.cleared = true;\n",
      "replace": ""},
     {"why": "REG-2523 - Keep this tab's copy writes without asking him",
      "file": "bible.html", "matches": 1,

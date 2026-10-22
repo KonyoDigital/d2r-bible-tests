@@ -29,6 +29,7 @@ vaultScanFolderLegacy), in node over a stubbed folder. RED_PROOF below. A missin
 """
 import json
 import os
+import re
 import sys
 import unittest
 
@@ -137,8 +138,11 @@ OUT.on = { read: READ.slice(), handed: HANDED.slice(), ledger: JSON.parse(ledger
         self.assertNotIn("read which", o["picker"]["menu"], "the picker offered picks the gate would refuse")
         self.assertEqual(o["on"]["read"], [["new_1.jpg", "new_2.jpg", "new_3.jpg"]],
                          "after AUTO INTAKE is on the screenshots were never read: %r" % o["on"]["read"])
-        self.assertEqual(o["on"]["handed"], [["reading", "reading", "reading"]],
-                         "a file handed to a read must be marked 'reading', never the bare 1 that reads 'seen' for ever")
+        # REG-2524 fix round - the hand-off mark carries when and which tab: 'reading@<ms>@<tab>'
+        self.assertEqual(len(o["on"]["handed"]), 1)
+        self.assertTrue(all(isinstance(m, str) and re.match(r"^reading@\d+@.+$", m) for m in o["on"]["handed"][0]),
+                        "a file handed to a read must be marked 'reading@<ms>@<tab>', never the bare 1 that reads 'seen' "
+                        "for ever: %r" % o["on"]["handed"])
 
     def test_a_read_that_never_closed_is_offered_as_its_own_choice_and_never_read_by_the_poll(self):
         o = _run(r"""
@@ -193,8 +197,10 @@ await window.vaultScanFolder(false);
 OUT.menu = menuText(); OUT.read = READ.slice();
 """)
         self.assertEqual(o["read"], [])
-        self.assertIn("<strong>1</strong> screenshot was read before this board kept a record", o["menu"],
-                      "the menu hides the screenshots read before records existed: %r" % o["menu"])
+        # REG-2529 fix round - a bare mark is said as what is known: registered without a record of what it read
+        self.assertIn("<strong>1</strong> screenshot was registered without a record of what it read", o["menu"],
+                      "the menu hides the screenshots registered without a record: %r" % o["menu"])
+        self.assertNotIn("read before this board kept a record", o["menu"])
 
     def test_a_ledger_that_will_not_read_is_unknown_and_nothing_is_read_or_marked_over_it(self):
         o = _run(r"""
@@ -268,11 +274,11 @@ RED_PROOF = [
      "replace": "      var _gS = null;\n"},
     {"why": "REG-2524 - a file handed to a read is marked with the bare 1 again ('seen' for ever if the read never closes)",
      "file": "bible.html", "matches": 1,
-     "find": "    var s = seenLedger(), n = 0, m = (mark === 'reading') ? 'reading' : 1;\n",
+     "find": "    var s = seenLedger(), n = 0, m = (mark === 'reading') ? _readingMark() : 1;\n",
      "replace": "    var s = seenLedger(), n = 0, m = 1;\n"},
     {"why": "REG-2524 - the 12 s poll reads a file whose read never closed, on its own",
      "file": "bible.html", "matches": 1,
-     "find": "        else if (_sv.state === 'reading'){ if (!window._vIntakeBusy) waiting.push(f); }\n",
+     "find": "        else if (_sv.state === 'reading'){ if (_readingInFlight(_sv)) inFlightN++; else waiting.push(f); }\n",
      "replace": "        else if (_sv.state === 'reading'){ seen[f.name] = 1; fresh.push(f); }\n"},
     {"why": "REG-2524 (review S8) - a file whose status could not be read is skipped in silence on the poll",
      "file": "bible.html", "matches": 1,
@@ -292,7 +298,7 @@ RED_PROOF = [
      "replace": "    if (false) html += "},
     {"why": "REG-2524 - the verdict reads an unfinished read as 'seen' (never offered again)",
      "file": "bible.html", "matches": 1,
-     "find": "    if (v === 'reading') return { state: 'reading', gone: [], prev: null };   /* REG-2524 — handed to a read that has not closed */\n",
+     "find": "    if (_rdV) return { state: 'reading', gone: [], prev: null, at: _rdV.at, tab: _rdV.tab };   /* REG-2524 — handed to a read that has not closed */\n",
      "replace": ""},
 ]
 

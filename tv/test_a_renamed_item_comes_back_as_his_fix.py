@@ -109,13 +109,16 @@ process.stdout.write(JSON.stringify(OUT));
             raise AssertionError("the shipped filter would not run in node: %s" % (r.stderr or r.stdout)[-1500:])
         o = json.loads(r.stdout)
         self.assertIn("Nothing new to read", o["legacy"], "PREMISE: the card did not show")
-        self.assertIn("<b>2</b> of them were read before this board kept a record", o["legacy"],
-                      "the card does not say the files read before records existed: %r" % o["legacy"][-500:])
+        # REG-2529 fix round - a bare mark is also Skip's / Latest N's unread registration: said as what is known
+        self.assertIn("<b>2</b> of them were registered without a record of what each read", o["legacy"],
+                      "the card does not say the files registered without a record: %r" % o["legacy"][-500:])
+        self.assertNotIn("were read before this board kept a record", o["legacy"],
+                         "the card still says files Skip registered unread were read")
         self.assertIn("never read again on their own", o["legacy"])
-        self.assertIn("a file read before records existed is not", o["legacy"],
+        self.assertIn("a file registered without a record is not", o["legacy"],
                       "the note still claims every file is read again once its item leaves")
-        self.assertNotIn("before this board kept a record", o["recorded"],
-                         "a file with a record was counted as one read before records existed")
+        self.assertNotIn("registered without a record of what each read", o["recorded"],
+                         "a file with a record was counted as one registered without a record")
 
 
 RED_PROOF = [
@@ -125,7 +128,7 @@ RED_PROOF = [
      "replace": ""},
     {"why": "REG-2529 - the Nothing-new card hides the files read before records existed",
      "file": "bible.html", "matches": 1,
-     "find": "          + (_seenLegacy ? '<span class=\"vir-rc\"><b>' + _seenLegacy + '</b> of them were read before this board kept a record of what each file read — they are never read again on their own</span>' : '')\n",
+     "find": "          + (_seenLegacy ? '<span class=\"vir-rc\"><b>' + _seenLegacy + '</b> of them were registered without a record of what each read (read before records existed, or registered unread by Skip / 🕐 Latest N) — they are never read again on their own</span>' : '')\n",
      "replace": ""},
     {"why": "REG-2529 - the filter no longer counts a legacy mark",
      "file": "bible.html", "matches": 1,

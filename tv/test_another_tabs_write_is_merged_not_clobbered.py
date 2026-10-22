@@ -160,7 +160,11 @@ class AnotherTabsWriteIsMergedNotClobbered(unittest.TestCase):
         self.assertGreaterEqual(len(o["held"]), 15, "every store this tab holds must be held after a clear")
         self.assertEqual(set(o["held"]), {"stale"})
         self.assertTrue(o["same"], "a tab whose storage was cleared elsewhere must not write its old copy back")
-        self.assertIn("Reload this tab", o["notice"])
+        # REG-2523 fix round - after a clear this tab holds the only copy: the notice says so and offers Keep, never an
+        # unasked reload (it reads the cleared storage and drops every copy)
+        self.assertIn("this tab now holds the only copy", o["notice"])
+        self.assertIn("_storeKeepThisTab", o["notice"])
+        self.assertNotIn("location.reload()", o["notice"])
 
     def test_only_this_worlds_key_is_merged(self):
         o = _run("fire('d2r_owned', '[\"A\"]', '[\"A\",\"MAIN-ONLY\"]'); OUT.a = Array.from(owned).sort();"
