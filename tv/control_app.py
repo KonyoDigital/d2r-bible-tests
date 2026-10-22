@@ -31486,7 +31486,11 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
                    # from them instead of re-reading from 0%. { sid: {"frames": [...], "state": {...},
                    # "promptVer", "agentVer", "ts"} }. Written by the sweep's checkpoint, CLEARED when
                    # a reel completes, ignored when stale. The sibling of chron_autoread["resume"].
-                   "resume": {}}
+                   "resume": {},
+                   # #188 REG-2553 — a reel the prune holds as panels-never-banked whose read came back
+                   # barren: { rid: {"until": ms, "at": ms, "barren": n, "promptVer": str} }. Not read
+                   # again before `until` unless the vault reader changes. See _vault_cool.
+                   "cooldown": {}}
 
 #: ⚠⚠⚠ v2901 (#60) — WHAT THE LANE LEARNS MUST SURVIVE THE PROCESS. MEASURED 2026-09-10: the dict
 #: above had **14 write sites and ZERO persistence sites** — no save, no load, no json anywhere.
@@ -31825,6 +31829,10 @@ def _vault_autoread_load():
         for k in ("retired", "tries", "lastWhy", "reextract", "rejudged", "resume"):   # #130 — resume added
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
+        # #188 REG-2553 — a restart must not hand a cooling reel its read back. Not a dict -> ignored, and a bad
+        # entry inside it reads as "not cooling" in _vault_cooling, never as an exception.
+        if isinstance(d.get("cooldown"), dict):
+            _VAULT_AUTOREAD["cooldown"] = dict(d["cooldown"])
         if isinstance(d.get("latticeTried"), dict):
             _VAULT_AUTOREAD["latticeTried"] = dict(d["latticeTried"])
         if isinstance(d.get("joinQueued"), dict):
@@ -31916,6 +31924,9 @@ def _vault_autoread_save():
                "latticeTried": _VAULT_AUTOREAD.get("latticeTried") or {},
                "joinQueued": _VAULT_AUTOREAD.get("joinQueued") or {},
                "joinTried": _VAULT_AUTOREAD.get("joinTried") or {},
+               # #188 REG-2553 — lost here, every relaunch would re-read each cooling reel at once
+               "cooldown": (_VAULT_AUTOREAD.get("cooldown")
+                            if isinstance(_VAULT_AUTOREAD.get("cooldown"), dict) else {}),
                # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
                # the cursor, so every save it added wrote everything EXCEPT the thing it was for, and
                # each relaunch restarted the rotation at the head of the owed list.
@@ -33643,6 +33654,8 @@ def _vault_autoread_state():
                                   else _vault_no_tick_why() if (owed and not _lt) else None)),   # REG-1646
                 "lastTick": _lt,
                 "triageRuledEmpty": _TRIAGE_RULED_EMPTY.get("vault"),            # REG-1751
+                # #188 REG-2553 - every owed reel that is cooling, with its until-time and why, in words
+                "cooling": _vault_cooling_board(owed),
                 "retired": sorted(d.get("retired") or {}),
                 "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
                 "tries": {k: v for k, v in list((d.get("tries") or {}).items())[:6]}}
