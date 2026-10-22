@@ -2172,11 +2172,13 @@ class _PushRun(object):
 
 
 def _servable_keys(cache):
-    """REG-2353 — the keys a verdict cache would serve right now (lookup's own rule). -> frozenset; empty with no cache"""
+    """REG-2353 — the keys a verdict cache would serve right now, asked of its side-effect-free peek() (lookup's own
+    predicate). -> frozenset; empty with no cache. Never through lookup(): a serving read marks an entry USED, and this
+    set is taken over every entry at push start, before one proof ran."""
     if cache is None:
         return frozenset()
     try:
-        return frozenset(k for k in list(cache.entries) if cache.lookup(k) is not None)
+        return frozenset(k for k in list(cache.entries) if cache.peek(k) is not None)  # SERVABLE-BY-PEEK
     except Exception:
         return frozenset()
 
@@ -2361,12 +2363,23 @@ def _red_load():
     return d if isinstance(d, dict) else {}
 
 
-def _red_recall(key):
+def _red_peek(key):
+    """REG-2353 — the case ids that caught this sabotage before, read WITHOUT marking anything. -> [case id] | None
+
+    The one read of the memory: the forecast asks it directly, and _red_recall - the push's own narrowing, the only
+    reader that may mark an entry USED (R2 evicts by use) - answers with it. Asked through _red_recall, the forecast
+    stamped every proof it forecast as used before a single one ran, and eviction by use kept nothing it meant."""
     d = _red_load()
     e = (d or {}).get(key) if key else None
     ids = e.get("ids") if isinstance(e, dict) else None
     ids = [str(i) for i in ids if _RED_CASE_RX.match(str(i))] if isinstance(ids, list) else []
     return ids[:RED_IDS_MAX] or None
+
+
+def _red_recall(key):
+    """The case ids that caught this sabotage before, or None: the push's narrowing (_prove_one), answered by _red_peek.
+    The one place a recall may be marked USED - never the forecast, never the push record."""
+    return _red_peek(key)
 
 
 def _red_remember(key, name, idx, ids):
@@ -2718,15 +2731,25 @@ class _VerdictCache(object):
         with self.lock:
             self.reused[(name, idx)] = ms
 
-    def lookup(self, key):
-        """The stored entry for `key`, only when it says PROVEN and carries a readable provedAt; anything else in the
-        file is not a shortcut. A verdict nobody can date cannot keep its age in the census, so it is re-proved."""
+    def peek(self, key):
+        """REG-2353 — the entry lookup() would serve for `key`, with NO side effect. -> the PROVEN entry | None
+
+        THE ONE PREDICATE a banked verdict passes to be reused: lookup() answers with it, and lookup() is the only reader
+        that marks an entry USED (R4's usedAt: the store evicts by use). The push record's servable set and the forecast
+        ask peek(): through lookup() they stamped EVERY entry as used at push start, before one proof ran, and eviction
+        by use kept nothing it meant. Only a PROVEN that carries a readable provedAt is a shortcut; a verdict nobody can
+        date cannot keep its age in the census, so it is re-proved."""
         with self.lock:
             e = self.entries.get(key)
         if not (isinstance(e, dict) and isinstance(e.get("provedAt"), (int, float))
                 and not isinstance(e.get("provedAt"), bool)):
             return None
         return e if isinstance(e, dict) and e.get("verdict") == PROVEN else None
+
+    def lookup(self, key):
+        """The stored entry for `key` when it may be served (peek's answer, exactly); anything else in the file is not
+        a shortcut. The serving read: a hit here is a proof the push reuses."""
+        return self.peek(key)
 
     def store(self, key, entry):
         """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run)."""
@@ -3365,21 +3388,22 @@ def _proof_path(cache, sandbox, name, filename, pr, idx):
     """REG-2353 — the path one push-time proof will take, judged with the run's own primitives before any run of it.
     -> (path: "hit" | "narrow" | "full", why it cannot be banked | None)
 
-    hit: the verdict cache would serve its key (key_for + lookup, as _prove_push_one asks); narrow: the red memory
-    names the cases that caught it and the gate takes case ids (no argv tail, no -c script - _prove_one's rule); full:
-    anything else. With the cache off nothing is a hit and nothing is called unkeyable."""
+    hit: the verdict cache would serve its key (key_for + peek - lookup's own predicate, as _prove_push_one asks it);
+    narrow: the red memory names the cases that caught it and the gate takes case ids (no argv tail, no -c script -
+    _prove_one's rule); full: anything else. With the cache off nothing is a hit and nothing is called unkeyable. A
+    forecast MARKS NOTHING: peek and _red_peek, never lookup or _red_recall, which record a use."""
     why = None
     if cache is not None:
         try:
             key, _rels, why = cache.key_for(sandbox, name, filename, pr)
         except Exception as _ke:
             key, why = None, "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
-        if key is not None and cache.lookup(key) is not None:
+        if key is not None and cache.peek(key) is not None:
             return "hit", None
         if key is None and not why:
             why = "no key could be taken"
     _extra, _to, _script = gate_spec(name)
-    if not _extra and not _script and _red_recall(_red_key(name, idx, pr)):
+    if not _extra and not _script and _red_peek(_red_key(name, idx, pr)):
         return "narrow", why
     return "full", why
 
@@ -3390,7 +3414,8 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
     One block headed "#42 FORECAST": per law in scope, how many proofs the verdict cache will serve (hit), the red
     memory will narrow, and will run in full; how many can never be banked and why (UNKEYABLE); the runs that costs and,
     where gate_costs.json measured the gate, the seconds. Judged on a sandbox of the tree with the run's own key and
-    lookup, so a forecast hit is exactly what the push will reuse. `sandbox` and `cache` are a caller's (a law's
+    lookup's own predicate (peek), so a forecast hit is exactly what the push will reuse - and nothing it asks is marked
+    used, in the verdict cache or the red memory (_proof_path). `sandbox` and `cache` are a caller's (a law's
     fixture); left None, a sandbox is built here and dropped, and the cache is opened read-only (HEART2_PROVE_CACHE=0
     honoured). Anything that goes wrong prints UNKNOWN and returns - a forecast never refuses a push."""
     out = {"proofs": sum(len(p or []) for _n, _f, p in have), "hit": 0, "narrow": 0, "full": 0, "unkeyable": 0,

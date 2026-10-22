@@ -22,6 +22,10 @@ DRIVEN:
   4. main() writes the record with its exit through prove_record, and `--pushes` reads it back after; the writer
      refuses a file not named like its own, trims past its cap, skips a line it cannot parse, resolves a worktree to
      git's common dir, and holds a lock another writer waits on.
+  5. ROUND 3 (the review of T2): prove(), the forecast and unmatched_names select gates by ONE predicate, so a root-level
+     gate (`--prove visual_lock_invariant.py`) is proven, never silently skipped; and nothing the forecast or the
+     run's servable set asks marks an entry used - they ask peek() / _red_peek(), the predicates the serving reads
+     lookup() / _red_recall() answer with, never the serving reads themselves (under R4 those stamp usedAt).
 RED_PROOF below. [[unknown-stays-unknown]] [[stale-reading]]
 """
 import contextlib
@@ -123,6 +127,19 @@ class NoSilentProveNothing(unittest.TestCase):
         self.assertEqual(asked, [(["visual-lock"], [])], "the forecast selected another set than prove(): %s" % asked)
 
 
+class _MarkingCache(H._VerdictCache):
+    """A verdict cache whose SERVING read (lookup) records every key it is asked for: under R4 that read stamps the entry
+    used (usedAt), and the store evicts by use. Everything else is the real cache."""
+
+    def __init__(self, *a, **k):
+        super(_MarkingCache, self).__init__(*a, **k)
+        self.marked = []
+
+    def lookup(self, key):
+        self.marked.append(key)
+        return super(_MarkingCache, self).lookup(key)
+
+
 class _Fixture(unittest.TestCase):
     """A sandbox-shaped tree: one gate with three proofs (A, B, C) over subject.py, and one law that lists a directory."""
 
@@ -139,10 +156,11 @@ class _Fixture(unittest.TestCase):
                 fh.write(body)
         self.proofs = [{"file": "subject.py", "find": '%s = "GOOD"' % k, "replace": '%s = "BAD"' % k,
                         "matches": 1, "why": k} for k in ("A", "B", "C")]
-        self.cache = H._VerdictCache(path=os.path.join(self.root, ".heart2_cache.json"), say=_say)
-        # the red memory remembers proof B only - keyed by the proof's own why, whatever _red_key's signature becomes
+        self.cache = _MarkingCache(path=os.path.join(self.root, ".heart2_cache.json"), say=_say)
+        # the red memory remembers proof B only - keyed by the proof's own why, whatever _red_key's signature becomes.
+        # _red_peek is the one read: the forecast asks it, and the push's _red_recall answers with it
         for name, value in (("_red_key", lambda *a, **k: "|".join(str(x.get("why")) for x in a if isinstance(x, dict))),
-                            ("_red_recall", lambda key: ["T.test_x"] if key == "B" else None),
+                            ("_red_peek", lambda key: ["T.test_x"] if key == "B" else None),
                             ("_red_remember", lambda *a, **k: None)):
             p = mock.patch.object(H, name, value)
             p.start()
@@ -180,7 +198,7 @@ class TheForecastSaysWhatThePushWillDo(_Fixture):
     def test_a_law_it_cannot_judge_is_unknown_never_a_raise(self):
         bad = mock.Mock(wraps=self.cache)
         bad.key_for.side_effect = lambda *a, **k: ("k", [], None)
-        bad.lookup.side_effect = RuntimeError("the store went away")
+        bad.peek.side_effect = RuntimeError("the store went away")
         fc = H.forecast([(GATE, "fake_gate.py", self.proofs)], say=_say, sandbox=self.tv, cache=bad)
         self.assertIn("unknown", fc["laws"][0], "a law the forecast could not judge was given numbers: %s" % fc)
         self.assertTrue(any("UNKNOWN" in ln and GATE in ln for ln in LINES), LINES)
@@ -188,6 +206,33 @@ class TheForecastSaysWhatThePushWillDo(_Fixture):
             fc = H.forecast([(GATE, "fake_gate.py", self.proofs)], say=_say, cache=self.cache)
         self.assertIn("OSError", fc["why"] or "", "a forecast that could not build its sandbox raised or said nothing")
         self.assertTrue(any(ln.lstrip().startswith("#42 FORECAST: UNKNOWN") for ln in LINES), LINES)
+
+    def test_the_forecast_and_the_servable_set_mark_nothing(self):
+        """REG-2353 (round 3) - asked through lookup() and _red_recall(), the serving reads that record a use, the forecast
+        and the push record's servable set stamped every entry they looked at as used at push start, before one proof
+        ran: eviction by use then kept nothing it meant. They ask peek() and _red_peek(), which mark nothing."""
+        k0 = self.bank(0)
+        recalled = []
+        with mock.patch.object(H, "_red_recall", lambda key: recalled.append(key) or ["T.test_x"]):
+            self.assertIn(k0, H._servable_keys(self.cache), "PREMISE: the banked proof is servable")
+            fc = H.forecast([(GATE, "fake_gate.py", self.proofs)], say=_say, sandbox=self.tv, cache=self.cache)
+        self.assertEqual((fc["hit"], fc["narrow"], fc["full"]), (1, 1, 1), "the forecast no longer tells the banked, the "
+                                                                          "remembered and the rest apart: %s" % fc)
+        self.assertEqual(self.cache.marked, [], "the servable set or the forecast asked the cache's SERVING read, which "
+                                                "marks an entry used: %s" % self.cache.marked)
+        self.assertEqual(recalled, [], "the forecast asked the red memory's recall, which marks a sabotage used")
+
+    def test_lookup_answers_with_peek_the_one_predicate(self):
+        """REG-2353 (round 3) - peek() is the predicate a banked verdict passes to be served; lookup() answers with it."""
+        now = int(time.time() * 1000)
+        shapes = {"proven": {"verdict": H.PROVEN, "provedAt": now}, "undated": {"verdict": H.PROVEN},
+                  "dated-by-a-bool": {"verdict": H.PROVEN, "provedAt": True}, "blind": {"verdict": H.BLIND, "provedAt": now},
+                  "not-a-dict": "PROVEN"}
+        self.cache.entries.update(shapes)
+        for k in list(shapes) + ["absent"]:
+            self.assertIs(self.cache.lookup(k), self.cache.peek(k), "lookup() and peek() disagree on %r" % k)
+        self.assertEqual([k for k in sorted(shapes) if self.cache.peek(k) is not None], ["proven"])
+        self.assertEqual(H._servable_keys(self.cache), frozenset(["proven"]))
 
     def test_the_cli_always_exits_0(self):
         code, out = _run_main(["--forecast", "NOPE"], gate_files=lambda say=print: [])
@@ -266,6 +311,15 @@ class ThePushRecordsWhatItDid(_Fixture):
         self.assertEqual([(v["g"], v["i"]) for v in rec["proveOnceViolations"]], [(GATE, 2)],
                          "a proof banked for the same bytes was re-run and the record called it clean: %s" % rec)
         self.assertIn("PROVE-ONCE VIOLATION", rows[2]["missWhy"])
+
+    def test_the_push_marks_only_what_it_served(self):
+        """REG-2353 (round 3) - PREMISE of the two above: the push's own serving read is still lookup(), so the hit it
+        reused is asked there (and marked used under R4); the run's servable set, taken at its start, asked nothing."""
+        k0 = self.bank(0)
+        rec, per = self.push()
+        self.assertEqual(per, [H.PROVEN] * 3)
+        self.assertIn(k0, self.cache.marked, "the push reused a banked proof without asking the serving read")
+        self.assertEqual(rec["proveOnceViolations"], [])
 
     def test_a_proof_banked_under_other_bytes_says_so(self):
         self.cache.store("an-older-key", {"verdict": H.PROVEN, "gate": GATE, "proof": 2, "why": "C",
@@ -386,12 +440,12 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2353 - the forecast never calls a banked proof a hit",
      "file": "heart2.py",
-     "find": "        if key is not None and cache.lookup(key) is not None:\n            return \"hit\", None\n",
+     "find": "        if key is not None and cache.peek(key) is not None:\n            return \"hit\", None\n",
      "replace": "        if False:\n            return \"hit\", None\n",
      "matches": 1},
     {"why": "REG-2353 - the forecast never calls a remembered proof narrow",
      "file": "heart2.py",
-     "find": "    if not _extra and not _script and _red_recall(_red_key(name, idx, pr)):\n",
+     "find": "    if not _extra and not _script and _red_peek(_red_key(name, idx, pr)):\n",
      "replace": "    if False:\n",
      "matches": 1},
     {"why": "REG-2353 - the forecast stops counting what can never be banked",
@@ -492,6 +546,27 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        if any(gate_named(n, gn, gf) for gn, gf in gates):  # UNMATCHED-BY-THE-ONE-PREDICATE\n",
      "replace": "        if any(n in (gn, gf) for gn, gf in gates):  # UNMATCHED-BY-THE-ONE-PREDICATE\n",
+     "matches": 1},
+    # REG-2353 (round 3) - nothing the forecast or the servable set asks marks an entry used
+    {"why": "REG-2353 - the push record's servable set asks the serving read: every entry reads used at push start",
+     "file": "heart2.py",
+     "find": "        return frozenset(k for k in list(cache.entries) if cache.peek(k) is not None)  # SERVABLE-BY-PEEK\n",
+     "replace": "        return frozenset(k for k in list(cache.entries) if cache.lookup(k) is not None)  # SERVABLE-BY-PEEK\n",
+     "matches": 1},
+    {"why": "REG-2353 - the forecast asks the cache's serving read, marking every proof it forecasts as used",
+     "file": "heart2.py",
+     "find": "        if key is not None and cache.peek(key) is not None:\n            return \"hit\", None\n",
+     "replace": "        if key is not None and cache.lookup(key) is not None:\n            return \"hit\", None\n",
+     "matches": 1},
+    {"why": "REG-2353 - the forecast asks the red memory's recall, marking every sabotage it forecasts as used",
+     "file": "heart2.py",
+     "find": "    if not _extra and not _script and _red_peek(_red_key(name, idx, pr)):\n",
+     "replace": "    if not _extra and not _script and _red_recall(_red_key(name, idx, pr)):\n",
+     "matches": 1},
+    {"why": "REG-2353 - lookup() stops answering with peek(): what the forecast calls a hit and what the push serves part",
+     "file": "heart2.py",
+     "find": "        return self.peek(key)\n",
+     "replace": "        return self.entries.get(key)\n",
      "matches": 1},
 ]
 
