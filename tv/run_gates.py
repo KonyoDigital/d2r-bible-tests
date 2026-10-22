@@ -4634,7 +4634,10 @@ GATES = [
              "NONE PUBLISHED) and pinned here. It also pins the mirror-image lie - an unarmed lane "
              "refuses nothing and must never read as capped - and that UNKNOWN is a VALUE rather "
              "than a missing field, since the honest-absent grok shape used to omit capWindow and "
-             "capText entirely."),
+             "capText entirely. REG-2389 - console_doctor's subscription row still hand-filtered the "
+             "raw rows, so every millisecond intake row of the day read as a read 'this hour' (a "
+             "fixture said 32 where the cap counts 2); it counts through _sub_budget_calls now, "
+             "pinned against the counts _sub_budget_check itself refuses at."),
     Gate("test_the_render_fixture_can_reach_the_card_branch",
          [sys.executable, os.path.join(HERE, "test_the_render_fixture_can_reach_the_card_branch.py")], 120,
          why="A FIXTURE THAT CANNOT EXERCISE THE BRANCH DOES NOT GO QUIETLY GREEN - IT GOES LOUDLY "

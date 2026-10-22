@@ -23,6 +23,14 @@ LEFT: the class fix - the hook unsetting GIT_* for every test stage and handing 
 ships with track T3 (REG-2360); the hook file runs from his main checkout, so it takes effect only after that lands. Until then any law
 that enters a push's scope and runs git must scrub GIT_* itself. GUARD: this case, run under the hook.
 
+### REG-2389 - THE DOCTOR'S SUBSCRIPTION ROW COUNTED EVERY INTAKE READ OF THE DAY AS A READ THIS HOUR
+
+console_doctor's `_check_subscription_burn` counted `now - c <= 3600` over the raw rows of tv/.subscription_budget.json. That ledger is shared with tv/intake_local.mjs, whose rows are MILLISECONDS, and for those `now - c` is hugely negative - so every intake row still in the ledger, up to a day old, read as a read "this hour". MEASURED on a fixture 2026-10-22: 30 intake rows 5-20 h old and 2 vision reads in the last 10 min -> `32 read(s) this hour of 4000`, where the cap (`_sub_budget_check`) counts 2. control_app's meter learned this in v3099 (THE SAME OPERANDS THE REFUSAL USES); the doctor's row kept the same hand filter (on origin/main too) and was never swept. REG-2387 made it worse: the intake rows now stay in milliseconds for a day instead of being rescaled by the next vision read. Found sweeping the ledger's readers for REG-2387.
+
+FIX: the row counts through `tv._sub_budget_calls` - the call `_sub_budget_check` counts - with the refusal's `< 3600`, and closes the file it opens.
+
+GUARD: tv/test_the_cap_names_the_window_that_tripped.py `test_the_doctors_burn_row_counts_what_the_refusal_counts` (registered) - a two-unit fixture ledger; the hour and day the refusal sees are found by asking `_sub_budget_check` at every ceiling (its window is never re-implemented), and the doctor's row must say the same. 1 RED proof (the raw rows read again).
+
 ### REG-2359 - THE NODE RULE READ ONLY SKIP COUNTS, SO A LAW THAT SKIPPED FOR ANY REASON WAS EXCUSED ON A PC WITHOUT NODE (round-3 review of REG-2354, push-proof track T2)
 
 The round-3 review of REG-2354, 2026-10-22. That rule filed a tamper ELSEWHERE when both runs skipped every case (the counts in their tails), the PC had no node, and the gate's source mentioned node. It never asked WHY the cases skipped. A law that mentions node and skips everything for want of his D2R install or his footage was excused on a PC without node: a BLIND turned into an ELSEWHERE. Its comment and its line also claimed more than was measured. They said every law skipped "no node on PATH", but only 2 laws in the tree print that message (109 distinct skip reasons name node: "node is absent", "node unavailable", ...). They also said "it is proven on a PC that has it", though nothing was proven.
