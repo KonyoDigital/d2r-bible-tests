@@ -1698,6 +1698,9 @@ def make_sandbox(say=print):
     except Exception as _e:
         say("  ⚠ the run records could not be taken out of the sandbox (%s) - a law that reads one reads a live value"
             % type(_e).__name__)
+    # REG-2438 (#71) — EVERY FILE OF THE SANDBOX IS FRESH TO THE TEMP CLEANER: after safe_copy and every PROOF_NEEDS
+    # clone, the last step before any law runs. See _fresh_atimes.
+    _fresh_atimes(root, say)
     tv = os.path.join(dest, "tv")
     if not os.path.isfile(os.path.join(tv, "control_app.py")):
         say("  the sandbox is missing control_app.py — refusing to report verdicts about it")
@@ -1705,6 +1708,37 @@ def make_sandbox(say=print):
         return None, None
     return tv, root
 
+
+def _fresh_atimes(root, say=print):
+    """REG-2438 (#71) — set every file of a sandbox to "read just now" (atime = now; mtime KEPT; links themselves, never
+    followed). -> how many entries were stamped (None: the walk failed - said)
+
+    ⚠⚠ A SANDBOX COPY KEEPS THE SOURCE'S ACCESS TIME, AND macOS DELETES TEMP FILES BY IT. MEASURED 2026-10-22: shutil's
+    copy2 (safe_copy's copytree) and the APFS `cp -c -R` clone (_bring_across) both keep the SOURCE atime - a file last
+    read on 10-01 copies with atime 10-01. macOS's dirhelper (/System/Library/LaunchDaemons/com.apple.bsd.dirhelper.plist:
+    CLEAN_FILES_OLDER_THAN_DAYS=3, StartCalendarInterval 03:35, RunAtLoad) removes $TMPDIR files whose atime is older than
+    3 days - every heart2 sandbox lives there (tempfile.mkdtemp). EVIDENCE: the v3631 push log proved 02:52:32-03:51:36 and
+    its #144 vanish (line 119) is mid-run; tv/.self_prove.json.log holds 30 vanish events, two at once in two lanes, each
+    listing every long-unread root .md / skill file - an outside deleter, not one law's cleanup. UNVERIFIED until a 03:35
+    passes with a live sandbox and nothing vanishes: the #144 line now carries its wall-clock time so that can be read.
+    The mtime is kept on purpose: laws and keys read mtimes (law_inputs memoises on them)."""
+    now = time.time_ns()
+    n = 0
+    try:
+        for dp, dns, fns in os.walk(root):
+            for x in dns + fns:
+                p = os.path.join(dp, x)
+                try:
+                    st = os.lstat(p)
+                    os.utime(p, ns=(now, st.st_mtime_ns), follow_symlinks=False)  # FRESH-ATIME
+                    n += 1
+                except (OSError, NotImplementedError):
+                    pass                          # one entry it cannot stamp is left as it was: the rest still are
+    except OSError as _we:
+        say("  ⚠ the sandbox's files could not all be marked as read just now (%s) - the temp cleaner may take an old one"
+            % type(_we).__name__)
+        return None
+    return n
 
 
 def _skipped_every_law(tail):
@@ -2095,8 +2129,10 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     note = " [#144: %s vanished from this sandbox during the run - %s]" % (
         ", ".join(gone), "restored from the real tree" if len(restored) == len(gone) else "NOT all restorable")
     note = note[:-1] + " - " + _witness + "]"
-    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s) [%s]\n"
-                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None), _witness))
+    # REG-2438 - and WHEN: the suspect is the temp cleaner at 03:35 (_fresh_atimes), and only a time can clear or name it
+    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s, at %s) [%s]\n"
+                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None),
+                        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), _witness))
     if res[0] is True or len(restored) != len(gone):
         return res[0], str(res[1]) + note
     again = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)

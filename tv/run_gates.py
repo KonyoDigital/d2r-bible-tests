@@ -11948,6 +11948,12 @@ GATES = [
              "over the proofs since the last checkpoint: green banks and flushes them now and seals them, red makes the "
              "batch and every unrun proof UNPROVABLE. The real CLI SIGKILLed after 'checkpoint banked' keeps the prefix; "
              "a graceful fail-fast stop banks its bracketed prefix."),
+    Gate("test_a_sandbox_outlives_the_temp_cleaner",
+         [sys.executable, os.path.join(HERE, "test_a_sandbox_outlives_the_temp_cleaner.py")], 60,
+         needs_app=False,
+         why="REG-2438 (#71/#144) - a sandbox copy (copy2, the APFS clone) keeps each source file's access time, and "
+             "macOS's dirhelper removes $TMPDIR files whose atime is over 3 days old (03:35): tracked files vanished "
+             "mid-run. make_sandbox marks every file as read just now, mtime kept; the #144 line carries its time."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
