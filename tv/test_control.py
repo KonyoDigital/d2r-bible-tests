@@ -4866,6 +4866,29 @@ class TestForkedKeysAreRouted(unittest.TestCase):
                                      "drop them? The gate would now be untested against real raw code.")
 
 
+class TestToolsCanReportTheirVerdict(unittest.TestCase):
+    """v1480 — a tool whose verdict is its exit code must not die reporting it: the helper every CLI calls to make its
+    stdout encoding-safe must never become a crash of its own.
+
+    REG-2362 moved this class's AUDIT case to tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py, beside the
+    folder glob that is now its denominator (that law lists tv/, so it is unkeyable on purpose and no hook stage runs
+    it; the hook's `python3 tv/console_safe.py` step runs the same audit first). This case lists nothing, so it never
+    made test_control unkeyable, and it stays HERE - where the hook's tv suites stage still runs it on every push that
+    touches tv/*.py. A broken enable() contract still stops a push."""
+
+    def test_console_safe_never_raises(self):
+        """The helper's whole job is to stop crashes, so it must not become a new source of them —
+        including on stream objects that cannot be reconfigured at all."""
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import console_safe
+        import io as _io
+        self.assertTrue(console_safe.enable(_io.TextIOWrapper(_io.BytesIO())))
+        # a stream with no reconfigure(): reports False, raises nothing
+        class Dumb:
+            pass
+        self.assertFalse(console_safe.enable(Dumb()))
+        self.assertFalse(console_safe.enable(_io.StringIO()))
+        console_safe.enable(None)          # tolerated, no exception
 
 
 class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):

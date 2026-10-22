@@ -249,7 +249,10 @@ fi
 # possible moment to discover a missing one-line import — and the crash it prevents happens WHILE
 # REPORTING a failure, so on his cp1255 Windows console a clean tree exits non-zero for a reason
 # that has nothing to do with what was being checked.
-# It is the same definition (console_safe.audit), not a copy: test_control calls it too.
+# It is the same definition (console_safe.audit), not a copy: tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py
+# calls it too. REG-2362 moved that case out of test_control; it lists tv/ for its denominator, so no stage of this
+# hook runs it, and THIS step is the audit's push-time run. The enable()-never-raises case stayed in test_control,
+# which the tv suites stage below runs.
 if ! python3 "$REPO/tv/console_safe.py"; then
   echo "pre-push: [$(_pp_el)] ❌ a script prints non-ASCII and never makes stdout encoding-safe — push blocked."
   echo "          Reproduce: python3 tv/console_safe.py"

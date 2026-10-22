@@ -6,8 +6,10 @@ hooks/pre-push runs it before anything expensive). This case lived inside test_c
 glob nobody called - and that glob alone made the whole of test_control a law that LISTS A DIRECTORY ITSELF, which
 heart2 cannot key, so none of test_control's 27 proofs was ever saved (~4 min each, every push of the v3783 series).
 Here the glob has a job: it is the denominator the audit cannot supply for itself. This law lists tv/ on purpose, so it
-is unkeyable on purpose - in tv/unkeyable_laws.json, cheap, and run at the top of every push by the hook's own
-`python3 tv/console_safe.py` step. [[copy-drift]] [[zero-needs-a-denominator]]
+is unkeyable on purpose - in tv/unkeyable_laws.json and cheap. No hook stage runs this file: the audit's push-time run
+is the hook's own `python3 tv/console_safe.py` step (the same function), and the class's other case - enable() never
+raises, which lists nothing - stayed in test_control, where the hook's tv suites stage runs it. [[copy-drift]]
+[[zero-needs-a-denominator]]
 """
 import os
 import re
@@ -81,20 +83,6 @@ class TestToolsCanReportTheirVerdict(unittest.TestCase):
             "these print non-ASCII but never make stdout encoding-safe, so on a non-UTF-8 console "
             "they crash while REPORTING and a clean tree exits non-zero:\n  " + "\n  ".join(unsafe)
             + "\nAdd `from console_safe import enable; enable()` (see tv/console_safe.py).")
-
-    def test_console_safe_never_raises(self):
-        """The helper's whole job is to stop crashes, so it must not become a new source of them —
-        including on stream objects that cannot be reconfigured at all."""
-        sys.path.insert(0, self.TV)
-        import console_safe
-        import io as _io
-        self.assertTrue(console_safe.enable(_io.TextIOWrapper(_io.BytesIO())))
-        # a stream with no reconfigure(): reports False, raises nothing
-        class Dumb:
-            pass
-        self.assertFalse(console_safe.enable(Dumb()))
-        self.assertFalse(console_safe.enable(_io.StringIO()))
-        console_safe.enable(None)          # tolerated, no exception
 
 
 if __name__ == "__main__":
