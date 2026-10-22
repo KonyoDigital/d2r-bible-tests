@@ -384,10 +384,11 @@ _MACHINE_LEDGER = os.path.abspath(_MACHINE_LEDGER)
 # untracked runtime record of decisions, one per machine; TV_SECOND_EYE_LEDGER names a fixture (bound here, at import)
 LEDGER_PATH = os.environ.get("TV_SECOND_EYE_LEDGER") or os.path.abspath(_MACHINE_LEDGER)
 # ⚠ NOT FOLDED AT IMPORT. The first READ or WRITE of this machine's ledger in a process folds (_ledger_state, record,
-# --gate). Importing alone reads no file under .git: run_gates' gate ledger refuses to carry a gate that read git's own
-# files, and ~36 laws import this module only to drive fixtures - folding here would have re-run every one of them on
-# every main-checkout push. console_doctor's direct readers open LEDGER_PATH after the push gate (or any earlier read)
-# has already folded it.
+# --gate). Importing alone opens no file under the checkout's own .git/ (audit hook: a main checkout only stats .git; a
+# linked worktree reads its .git pointer and its gitdir's commondir, which lie outside its work tree): run_gates' gate
+# ledger refuses to carry a gate that read git's own files, and ~36 laws import this module only to drive fixtures -
+# folding here would have re-run every one of them on every main-checkout push. console_doctor's direct readers open
+# LEDGER_PATH after the push gate (or any earlier read) has already folded it.
 
 # The families that count as a SECOND eye for work authored by Claude. Derived from the model id
 # rather than trusted from a caller, because "which family looked at this" is the whole question.
@@ -516,7 +517,9 @@ def _parse_ledger(p):
 # process, a row appended is a new signature and is seen on the next read, and a file written in the last SETTLE_S is
 # never memoised (its signature cannot yet stand for its bytes). The census is kept per (state, recent) - and only while
 # the readers it is built from are this module's own (a law that swaps _rows or agreement gets a fresh census). Every
-# caller gets COPIES: a reader that edits a row can never edit the memo.
+# caller gets COPIES: a census deep-copied, each row a shallow copy - so a reader that sets a row's key can never edit
+# the memo, and one that edited a NESTED value (a findings list in place) would. None does: every public reader here and
+# 22 console_doctor rows (every one named for the eye or a ledger) left a kept parse deep-equal (measured 2026-10-22).
 # The law: test_the_second_eye_row_reads_the_ledger_once.
 _PARSED = {}               # abspath -> {"sig": signature, "rows": [row]}
 _CENSUS = {}               # (abspath, recent) -> (signature, census)
