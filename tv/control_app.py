@@ -42319,8 +42319,9 @@ def _status_worst_path():
     tv/.status_worst.json, so every update shipped one console's slowest request to every PC: a fresh
     install loaded the committed record (v3404, 1,773,092 ms, fleetOrigin - his Mac's) as ITS OWN
     worst and published it as worstRequest until something there beat 29.5 minutes. The record is
-    now `.status_worst.here.json`, gitignored: written only by this PC's console, read only from
-    here, and absent means None - nothing measured here yet, never a number from elsewhere. The
+    now `.status_worst.here.json`, gitignored: read and written only by this PC's console or a
+    fixture world (`_status_worst_ours()` says which process that is), and absent means None -
+    nothing measured here yet, never a number from elsewhere. The
     tracked file stays as it is and nothing writes it again: deleting it in a commit would make
     `git pull --ff-only` refuse forever on a PC where it is locally modified (the ALT's ` M`,
     REG-1837). [[unknown-stays-unknown]] [[feedback-per-pc-personal-data]]
@@ -42331,6 +42332,47 @@ def _status_worst_path():
 #: kept so existing readers of the module attribute resolve; the CALLABLE is the source
 #: of truth and every read/write goes through it. REG-2461: the per-PC name, never the tracked one.
 _STATUS_WORST_PATH = os.path.join(_fixture_root_for_state(), ".status_worst.here.json")
+
+
+def _status_worst_ours():
+    """May THIS process read or write this PC's slowest-request record? -> bool
+
+    ⚠⚠ REG-2461, review (major): THE RECORD IS THE CONSOLE'S, NOT EVERY IMPORTER'S. status_payload()
+    runs in every process that imports this module: every law that asks for a status, the pre-push
+    suites (run from his own checkout, REG-1650), any CLI. The first cut of REG-2461 let all of them
+    load and save the per-PC record, and with the tracked 1,773,092 ms bar gone, the first test
+    request over 750 ms became "this PC's slowest request". The review reproduced it:
+    test_a_dead_journal_reader_says_so (TV_HIST unset) left a 1,141 ms record in the tree, and the live
+    console then loaded it as its own worst, published it and kept it as the bar. Measured again for
+    this fix with a law-shaped process (TV_HIST unset, not the console, the agent probe held 0.8 s):
+    it wrote a 2,468.9 ms record. A fixture banked as his console's record is the lie REG-2461 removes,
+    in a new form.
+
+    Two kinds of process may hold the record:
+      · this PC's console: main() booted it (frame_ref.on_console_path), on the primary port, and not
+        a TV_STUB harness. This is the rule this PC's sign-in start already keeps (_sign_in_setup_once);
+      · a fixture world: TV_HIST names a root outside this tree (the canonical rule that
+        _fixture_root_for_state applies), so the record there belongs to the fixture.
+    Any other process keeps its slowest request in memory only. It never reads this PC's record as its
+    bar, never publishes it as its own, and never writes it. A law that repoints the state root
+    without TV_HIST is still a law. When this cannot tell, the answer is False: main() marks the console
+    path before it asks for its first status. [[feedback-fixtures-never-touch-live-data]]
+    [[unknown-stays-unknown]]
+    """
+    if (os.environ.get("TV_HIST") or "").strip():
+        try:
+            _root = os.path.normcase(os.path.realpath(_fixture_root_for_state()))
+            if _root != os.path.normcase(os.path.realpath(HERE)):
+                return True     # a fixture world: its record is the fixture's own
+        except Exception:
+            pass
+    if os.environ.get("TV_STUB"):
+        return False            # a harness console never holds this PC's record
+    try:
+        import frame_ref as _fr_sw
+        return bool(_fr_sw.on_console_path()) and _is_primary_console()
+    except Exception:
+        return False
 
 
 def _status_worst_load():
@@ -42350,8 +42392,11 @@ def _status_worst_load():
 
     REG-2461 - only THIS PC's record (_status_worst_path). No per-PC file is None - nothing has
     crossed the bar here yet - and the tracked tv/.status_worst.json, another PC's request, is never
-    read in its place.
+    read in its place. A process that is neither this PC's console nor a fixture world gets None too
+    (_status_worst_ours): the record is never a law's bar, and a law never publishes it as its own.
     """
+    if not _status_worst_ours():
+        return None             # REG-2461 review - not this PC's console: its own requests only, in memory
     try:
         with io.open(_status_worst_path(), encoding="utf-8") as fh:
             d = json.load(fh)
@@ -42363,7 +42408,12 @@ def _status_worst_load():
 
 
 def _status_worst_save(rec):
-    """Persist THIS PC's slowest request (REG-2461: the per-PC file only). Never raises into the request path."""
+    """Persist THIS PC's slowest request (REG-2461: the per-PC file only). Never raises into the request path.
+
+    Only this PC's console or a fixture world writes it (_status_worst_ours). Any other process keeps
+    `worstRequest` in memory and writes nothing."""
+    if not _status_worst_ours():
+        return None             # REG-2461 review - a law, a suite or a CLI never banks its request here
     try:
         dest = _status_worst_path()
         tmp = dest + ".tmp"

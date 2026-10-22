@@ -11019,7 +11019,10 @@ GATES = [
              "- nothing measured here - and the tracked copies are never written again. Driven in a fixture world: "
              "another PC's record is never this PC's, a slow status request is kept and published here only, git's "
              "own matcher ignores the names the code writes, and an epoch that cannot be serialised leaves the last "
-             "one whole."),
+             "one whole. And the record is held only by this PC's console or a fixture world (the review reproduced "
+             "a law's 1,141 ms request banked in the tree as his console's worst): with TV_HIST unset and the console "
+             "path unmarked, a slow status request writes nothing, a record already there is neither the bar nor "
+             "published, the console still keeps its own, and a private-port or TV_STUB console writes nothing."),
     Gate("test_loose_frames_fold_on_their_own_lane",
          [sys.executable, os.path.join(HERE, "test_loose_frames_fold_on_their_own_lane.py")], 120,
          needs_app=False,
