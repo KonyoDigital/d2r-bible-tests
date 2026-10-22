@@ -212,8 +212,9 @@ class T(unittest.TestCase):
             self.fail("caught - this law ended its own helper on the way")
 
 
-if __name__ == "__main__":
-    unittest.main()
+# only ever run as a script. Unguarded on purpose: a main guard at the start of a line in this string read, to
+# test_control's TestNoOrphanSuite, as THIS file's guard with every class below it orphaned (Push A1 integration)
+unittest.main()
 '''
 
 #: REG-2358 (round 4) - every probe mode that ends a helper without a K and then has its pid's next process killed from
