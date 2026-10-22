@@ -23,6 +23,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 import unittest
 
@@ -245,6 +246,53 @@ class APushIsRefusedOnItsAudit(_Case):
         self.assertEqual(H.prove_exit_code(results)[0], 1)
 
 
+class _SpyLock(object):
+    """A browser lock that knows whether it is held right now (one holder at a time)."""
+
+    def __init__(self):
+        self.held, self._l = False, threading.Lock()
+
+    def acquire(self, blocking=True, timeout=-1):
+        ok = self._l.acquire(blocking, timeout)
+        if ok:
+            self.held = True
+        return ok
+
+    def release(self):
+        self.held = False
+        self._l.release()
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *_e):
+        self.release()
+        return False
+
+
+class AnAuditedBrowserGateHoldsABrowserSlot(_Case):
+
+    def test_an_audited_browser_gate_takes_the_runs_browser_slot(self):
+        """★ #160 (REG-2439) - the audit runs with no push or census set, so a gate's own slot rule would hold nothing
+        there: an audited gate that reaches a browser takes the run's browser slot (the machine's K in heart2's own
+        process) - or the audit is a third Chrome beside two provers' two"""
+        self.plant([SOUND])
+        lock, seen, real = _SpyLock(), [], H._audit_one
+
+        def audit_one(*a, **k):
+            seen.append(lock.held)
+            return real(*a, **k)
+
+        with _Patch(browser_gates=lambda *a, **k: {_GATE}, _machine_browser_lock=lambda *a, **k: lock,
+                    _audit_one=audit_one):
+            results, cache, said, rec = self.census([SOUND])
+        self.assertEqual(results, {_GATE: H.PROVEN}, "\n".join(said))
+        self.assertEqual(seen, [True], "the audited browser gate ran without the run's browser slot (held per audit: %s)"
+                         % seen)
+        self.assertFalse(lock.held, "the audit kept the browser slot after it finished")
+
+
 RED_PROOF = [
     {"why": "REG-2434 - no served PROVEN is ever re-proved: a wrongly banked verdict stands for as long as its bytes",
      "file": "heart2.py",
@@ -270,6 +318,11 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "                for _cn, _ci, _cv in audit_served(cache, results, per_proof, say, run=run):\n",
      "replace": "                for _cn, _ci, _cv in []:\n",
+     "matches": 1},
+    {"why": "#160 (REG-2439) - an audited browser gate runs with no browser slot: a third Chrome beside two provers'",
+     "file": "heart2.py",
+     "find": "name in _audit_browser)    # AUDIT-BROWSER-SLOT\n",
+     "replace": "name in ())    # AUDIT-BROWSER-SLOT\n",
      "matches": 1},
     {"why": "REG-2434 - an audit over bytes that moved since the serve is counted as an audit",
      "file": "heart2.py",

@@ -2029,9 +2029,146 @@ _LANE_LOCAL = threading.local()
 
 
 def _stamp_lane_ports(env, lane):
-    """#144 — write this prove lane's port base into the gate's environment."""
+    """#144 — write this prove lane's port base into the gate's environment. #160 (REG-2439): from this process's
+    machine-wide prover slot, so two provers' lanes never bind one port."""
     import lane_ports as _lp
-    return _lp.stamp(env, lane)
+    return _lp.stamp(env, lane, _SLOT["n"] or 0)
+
+
+# ══ #160 (REG-2439) — TWO PROVERS ON ONE MACHINE: OWN PORTS, AT MOST K CHROMES, PRIVATE TEMP, AND NO SIBLING'S RED ═══════
+# MEASURED at 7285e7efc: lane ports were a pure function of the lane number, so his census and a push (or a worktree's
+# pre-flight) bound the SAME 21001+ ports - and lane_ports' own docstring names a request from another sandbox on a shared
+# listener as a tracked-file deleter (#144). _PushRun.browser_lock was a threading.Lock - one per PROCESS - and the census
+# held no browser lock at all, so self_prove's 4 lanes plus any push could run 4+ Chromes at once; his ruling is at most
+# two. Every law run inherited the prover's TMPDIR and board_sync's default REPO (the real checkout). So:
+#   · prove() claims the process's machine-wide prover SLOT (lane_ports.claim_slot) and every lane stamps from it;
+#   · a browser gate - push or census - is proved under the machine's K browser slots (lane_ports.BrowserSemaphore,
+#     K = min(HEART2_BROWSER_SLOTS, 2)), not a per-process lock;
+#   · each law run gets a private TMPDIR/TEMP/TMP inside its sandbox (removed after the run) and D2R_REPO = the sandbox;
+#   · under concurrency - another prover holds a slot, or this browser gate shares the machine with K > 1 - a tampered
+#     red is a verdict only when its named FAIL cases go red AGAIN on a second tampered run (critic R3): one sibling's
+#     write cannot turn a blind law PROVEN.
+# Only heart2's own CLI process - or a law that named a slot dir of its own (use_law_slots) - touches slot files; a law
+# driving the prover in-process keeps slot 0 and a per-process lock, as before, whatever HEART2_LANES_DIR it inherited.
+# MEASURED: every law run inherits its prover's environment, so a prover seamed with HEART2_LANES_DIR flipped the laws it
+# proved onto that dir - test_a_lane_never_waits_on_the_browser_while_work_waits read ALREADY RED untampered in its
+# sandbox (its in-process _PushRun took the machine's semaphore, which a thread may hold once). _run_gate_once drops it
+# from every law run too. The laws: test_the_machine_runs_at_most_two_browsers, test_a_sibling_cannot_turn_a_law_red.
+_SLOT = {"n": None}
+_SLOTS_LAW = {"dir": None}                 # use_law_slots: the slot dir a law's own prover opted into
+
+
+def use_law_slots(lanes_dir):
+    """#160 — a law's own prover (driven in-process, or a script the law runs) takes machine-wide slots - in `lanes_dir`,
+    the law's scratch, never the machine's. Exported as HEART2_LANES_DIR, where lane_ports looks. -> lanes_dir"""
+    os.environ["HEART2_LANES_DIR"] = lanes_dir
+    _SLOTS_LAW["dir"] = lanes_dir
+    return lanes_dir
+
+
+def _slots_in_play():
+    """#160 — may this process take machine-wide slots? heart2's own CLI, or a law that opted in with a slot dir of its
+    own (use_law_slots) - an inherited HEART2_LANES_DIR alone opts nothing in. -> bool"""
+    if _is_prover_process():
+        return True
+    d = _SLOTS_LAW["dir"]
+    return bool(d) and os.environ.get("HEART2_LANES_DIR") == d               # LAW-OPTS-IN
+
+
+def _prover_slot(say=print):
+    """#160 (REG-2439) — this process's machine-wide prover slot, claimed at its first prove() and held for its life
+    (a holder that dies frees it). A law driving prove() in-process keeps slot 0, the numbering before #160. -> int"""
+    if _SLOT["n"] is not None:
+        return _SLOT["n"]
+    if not _slots_in_play():
+        return 0
+    try:
+        import lane_ports as _lp
+        n = _lp.claim_slot(say=say, wait_s=600)
+    except Exception as _se:
+        say("  ⚠ #160: no prover slot could be claimed (%s) - slot 0, as before #160; this run's lanes may share ports "
+            "with another prover's" % type(_se).__name__)
+        n = 0
+    if n is None:
+        say("  ⚠ #160: every prover slot stayed held for 10 minutes - slot 0, as before #160; this run's lanes may share "
+            "ports with another prover's")
+        n = 0
+    _SLOT["n"] = n
+    say("  #160 PROVER SLOT %d: this run's lanes bind ports no other prover on this machine binds" % n)
+    return n
+
+
+def _machine_browser_lock(say=print):
+    """#160 (REG-2439) — the lock a browser gate is proved under: the machine's K browser slots across every prover
+    (lane_ports.BrowserSemaphore) where slots are in play; a per-process lock for a law driving the prover in-process."""
+    if _slots_in_play():
+        try:
+            import lane_ports as _lp
+            return _lp.BrowserSemaphore(say=say)
+        except Exception as _be:
+            say("  ⚠ #160: the machine's browser slots are not reachable (%s) - this run counts its own Chromes only"
+                % type(_be).__name__)
+    return threading.Lock()
+
+
+def _browser_cap():
+    """K - how many browser gates may run at once on this machine (lane_ports.browser_cap; 1 where slots are not in
+    play: a per-process lock)."""
+    if not _slots_in_play():
+        return 1
+    try:
+        import lane_ports as _lp
+        return int(_lp.browser_cap())
+    except Exception:
+        return 2                                  # UNKNOWN: the ruling's cap, so a red is confirmed rather than trusted
+
+
+def _others_proving():
+    """#160 — the prover slots another process holds on this machine. -> [slot] | None (cannot tell: UNKNOWN)"""
+    if _SLOT["n"] is None or not _slots_in_play():
+        return []
+    try:
+        import lane_ports as _lp
+        d, _why = _lp.lanes_dir()
+        held = []
+        for n in range(int(_lp.SLOTS)):
+            if n == _SLOT["n"]:
+                continue
+            fh, how = _lp._try_lock(os.path.join(d, "slot-%d.lock" % n))
+            if fh is not None:
+                fh.close()                        # free: nobody holds it (the probe gives it straight back)
+            elif how is not None:
+                held.append(n)
+        return held
+    except Exception:
+        return None
+
+
+def _concurrent(name):
+    """#160 critic R3 — may a sibling's run have reached this law's run? -> why (words) | None
+
+    Another prover holding a slot on this machine shares its disk and its listeners; a browser gate shares the machine
+    with up to K Chromes. UNKNOWN (the slots cannot be read) counts as concurrent: a red is then confirmed, never trusted."""
+    if _SLOT["n"] is None:
+        return None                               # no slot in play: a lone in-process run, as before #160
+    others = _others_proving()
+    if others is None:
+        return "whether another prover holds a slot is UNKNOWN"
+    if others:
+        return "another prover holds slot(s) %s" % ", ".join(str(x) for x in others)
+    run = _PUSH if _PUSH is not None else _CENSUS
+    if run is not None and name in (getattr(run, "browser", None) or ()) and _browser_cap() > 1:
+        return "browser gates run %d at once on this machine" % _browser_cap()
+    return None
+
+
+def _box_of(sandbox_tv):
+    """The tracked sandbox root a law's tv/ lies inside, or None (a law's own fixture tree, never registered)."""
+    p = os.path.abspath(sandbox_tv)
+    for root in list(_SANDBOXES):
+        if _inside(root, p):
+            return root
+    return None
 
 
 _VANISHED = []     # REG-1876 - (gate, file, lane) for every sandbox file seen gone after a run; read by vanished()
@@ -2340,6 +2477,25 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     if widths:
         import law_widths as _LW
         env[_LW.ENV] = _LW.label(widths)
+    # #160 (REG-2439) — A LAW RUN'S TEMP FILES AND ITS REPO ARE ITS SANDBOX'S. It inherited the prover's TMPDIR (shared by
+    # every lane and every prover on the machine, and by a sibling's writes) and board_sync's default REPO (the real
+    # checkout). In a sandbox heart2 built, each run gets a temp dir of its own inside the sandbox, removed after it.
+    # ⚠ MEASURED: that dir is ~81 characters on his Mac, and macOS caps an AF_UNIX path at 104 - a Python 3.9
+    # multiprocessing Manager's listener under it (113) or a socket a law binds there will not bind. No law does today
+    # (searched tv/ hooks/ tests/); Chromium on macOS never reads TMPDIR for its singleton socket (crbug 698759).
+    # #160 — and never the prover's own slot dir: a prover the law starts finds its own (beside its sandbox), so it never
+    # counts this prover as a sibling, and a law driving heart2 in-process is never flipped onto it.
+    env.pop("HEART2_LANES_DIR", None)                                        # NO-INHERITED-SLOTS
+    _box = _box_of(sandbox_tv)
+    _run_tmp = None
+    if _box:
+        try:
+            os.makedirs(os.path.join(_box, "tmp"), exist_ok=True)
+            _run_tmp = tempfile.mkdtemp(prefix="run.", dir=os.path.join(_box, "tmp"))
+            env["TMPDIR"] = env["TEMP"] = env["TMP"] = _run_tmp          # PRIVATE-TMPDIR
+        except OSError:
+            _run_tmp = None                       # the shared temp dir, as before: a sibling's red is still confirmed
+        env["D2R_REPO"] = os.path.dirname(os.path.abspath(sandbox_tv))
     # ⚠⚠ v2888 — AN ABSOLUTE ARGUMENT POINTS AT THE REAL TREE, WHICH THE TAMPER NEVER TOUCHED.
     # A gate handed /Users/.../tv/x.py reads the ORIGINAL x.py no matter what this sandbox says,
     # so its proof can only ever come back green. Re-root every repo-absolute argument onto the
@@ -2365,6 +2521,8 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
                 os.unlink(_watch)
             except OSError:
                 pass
+        if _run_tmp:
+            shutil.rmtree(_run_tmp, ignore_errors=True)     # #160 - the run's own temp dir leaves with it
     _sig = _ended_by_signal(r.returncode)
     if _sig is not None or _killed:
         # REG-2350 — NOT A VERDICT, before any line of it is read: a signal from outside ended the law or a child of it
@@ -2645,7 +2803,9 @@ class _LaneSay(object):
 #   3. ONE BROWSER AT A TIME: a gate that starts a browser (its import graph reaches render_check / playwright through
 #      any number of helpers - browser_gates(), not pixel_gates()' one file - or it declares widths) holds ONE lock
 #      while it is proved, whatever the lane count - four parallel Chrome lanes drove his Mac to load 100 on 2026-09-28.
-#      Every other gate keeps its lane.
+#      Every other gate keeps its lane. #160 (REG-2439): in heart2's own process that lock is the MACHINE's K browser
+#      slots (K = min(HEART2_BROWSER_SLOTS, 2), counted across every prover - his ruling is two Chromes at most); a law
+#      driving the prover in-process keeps one per-process lock.
 # The law: test_a_push_proof_runs_only_where_its_defect_shows. [[regression-guard]] [[unknown-stays-unknown]]
 NOT_RUN = "NOT RUN"     # a push-time proof the run STOPPED before reaching - never a verdict, never banked
 CLEAN = "CLEAN"         # REG-1992: a clean-only run came back green - the wave's answer, never a verdict, never banked
@@ -2669,7 +2829,7 @@ class _PushRun(object):
         self.keep_going = bool(keep_going)
         self.failures = []                      # REG-2591: every (gate, index, verdict, reason), in the order found
         self.browser = set(browser or ())       # the gates proved one at a time: they start a browser
-        self.browser_lock = threading.Lock()
+        self.browser_lock = _machine_browser_lock()   # #160 (REG-2439) - the machine's K browser slots, not this process's
         self.stop = threading.Event()
         self.first = None                       # (gate, index, verdict, reason): the failure that stopped the run
         self._lock = threading.Lock()
@@ -3647,11 +3807,31 @@ def _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, time
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(_orig)
+    _gname = label.split("[", 1)[0]
+    if ok_t is False and _concurrent(_gname) and _confirm_red(sandbox, filename, tgt, _orig, tampered, timeout, w, args,
+                                                               (), None) is not False:
+        return None                                # #160 R3 - an unconfirmed red under concurrency decides nothing
     if ok_t is False:
         say("     %-52s %s (%d match(es) tampered → red in the %d case(s) that caught it before, %.0f s)%s"
             % (label, PROVEN, got, len(ids), time.time() - t0, _at_widths(widths)))
         return PROVEN
     return None
+
+
+def _confirm_red(sandbox, filename, tgt, clean_text, tampered, timeout, w, ids, extra, script):
+    """#160 critic R3 (REG-2439) — the tampered run asked once more: the named red cases when there are any (and the
+    gate takes case ids), else the whole run. -> False (red again: confirmed) | True (green: not confirmed) | None"""
+    with io.open(tgt, "w", encoding="utf-8") as fh:
+        fh.write(tampered)
+    try:
+        if ids and not extra and not script:
+            ok2, _t2 = _run_gate(sandbox, filename, timeout=timeout, extra=list(ids), script=None, **w)
+        else:
+            ok2, _t2 = _run_gate(sandbox, filename, timeout=timeout, extra=extra, script=script, **w)
+    finally:
+        with io.open(tgt, "w", encoding="utf-8") as _rf:
+            _rf.write(clean_text)               # the clean bytes back, whatever the run did
+    return ok2
 
 
 def _sha_file(path, memo=None):
@@ -4702,9 +4882,14 @@ def _push_facts(have, say):
 
 
 def _browser_slot(name):
-    """#42 — the lock a gate is proved under at push time (a browser gate's), or a context that holds nothing."""
+    """#42 — the lock a gate is proved under at push time (a browser gate's), or a context that holds nothing.
+    #160 (REG-2439) — and in a census with the memory, a browser gate takes one of the machine's browser slots too."""
     import contextlib
-    return _PUSH.browser_slot(name) if _PUSH is not None else contextlib.nullcontext()
+    if _PUSH is not None:
+        return _PUSH.browser_slot(name)
+    if _CENSUS is not None and name in (getattr(_CENSUS, "browser", None) or ()):
+        return _CENSUS.browser_lock                          # CENSUS-BROWSER-SLOT
+    return contextlib.nullcontext()
 
 
 def _bankable(verdict):
@@ -5142,6 +5327,8 @@ class _CensusRun(object):
         self.wave_s = None
         self.stop = threading.Event()           # never set: a census proves every gate it was handed
         self._lock = threading.Lock()
+        self.browser = set()                    # #160 - the gates that reach a browser (set at census start)
+        self.browser_lock = None
 
 
 def _scaled_deadline(t):
@@ -5422,6 +5609,9 @@ def audit_served(cache, results, per_proof, say, run=None, k=None):
         return out
     global _CENSUS, _PUSH
     _prev = (_CENSUS, _PUSH)
+    import contextlib
+    _audit_browser = set(getattr(run, "browser", None) or ())
+    _audit_block = getattr(run, "browser_lock", None)
     _CENSUS, _PUSH = None, None              # an audit runs the plain proof: no serving, no narrowing inside, no learning
     _CLEAN.runs = None
     try:
@@ -5437,7 +5627,10 @@ def audit_served(cache, results, per_proof, say, run=None, k=None):
                 say("     %-52s   ↳ REG-2434 AUDIT: its bytes moved since it was served - not audited" % label)
                 continue
             try:
-                with _browser_slot(name):
+                # #160 (REG-2439) - the audit runs with no push or census set, so _browser_slot would hold nothing: an
+                # audited browser gate takes the run's own browser slot (the machine's K, in heart2's own process)
+                with (_audit_block if (_audit_block is not None and name in _audit_browser)    # AUDIT-BROWSER-SLOT
+                      else contextlib.nullcontext()):
                     v, how = _audit_one(sandbox, name, filename, pr, idx, say)
             except Exception as _ae:
                 v, how = None, "raised %s" % type(_ae).__name__
@@ -5838,8 +6031,9 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
     _unk = []
     browser = _push_browser(have, _unk)
     if browser:
-        say("  #42 ONE BROWSER AT A TIME: %d gate(s) reach a browser through their imports (any depth) and are proved "
-            "one after another: %s" % (len(browser), ", ".join(sorted(browser)[:6]) + (" …" if len(browser) > 6 else "")))
+        say("  #42 BROWSER SLOTS (#160): %d gate(s) reach a browser through their imports (any depth) and are proved at "
+            "most %d at once across this machine: %s" % (len(browser), _browser_cap(), ", ".join(sorted(browser)[:6])
+                                                        + (" …" if len(browser) > 6 else "")))
     if _unk:
         say("  #42 ⚠ %d gate(s) import a file nobody could read or parse, so whether they start a browser is UNKNOWN - "
             "they hold the lock too: %s" % (len(_unk), ", ".join(sorted(_unk)[:6])))
@@ -6440,6 +6634,7 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
 
 def _prove(only, say, detail, push, stopped, stamp, stores):
     global _CENSUS
+    _prover_slot(say)                                    # #160 (REG-2439) - this process's ports are its own, both paths
     gates = gate_files()
     todo = gates_named(only, gates)                      # REG-2352 - the one predicate unmatched_names asks too
     # REG-2352 (#42 R11) — NO SILENT PROVE-NOTHING: every name that matches no gate is said here, and main() exits 2 on it
@@ -6502,6 +6697,17 @@ def _prove(only, say, detail, push, stopped, stamp, stores):
         _RUN_SNAP["snap"] = _census_snapshot(gates)
         _crun = census_memory(say, stores)               # REG-2430 (a) - None in a law's process unless it handed stores
         _cc = _crun.cache if _crun is not None else None
+        if _crun is not None:
+            # #160 (REG-2439) - the census's browser gates take one of the machine's K browser slots each (the push's
+            # own rule: a gate whose import closure reaches a browser), never a free run beside a push's Chromes
+            _bunk = []
+            _crun.browser = browser_gates([(n, f) for n, f, _p in have], unclassified=_bunk)
+            _crun.browser_lock = _machine_browser_lock(say)
+            if _crun.browser:
+                say("  #160 BROWSER SLOTS: %d gate(s) of this census reach a browser and are proved under the machine's "
+                    "%d browser slot(s): %s" % (len(_crun.browser), _browser_cap(),
+                                                ", ".join(sorted(_crun.browser)[:6]) + (" ..." if len(_crun.browser) > 6
+                                                                                         else "")))
         _GATE_HOOK["fn"] = _slice_banker(_blank, say, measured=(lambda res: _reused_ages(_cc, res)) if _cc else None)
         _prev_census, _CENSUS = _CENSUS, _crun
         _served, _sages = {}, {}
@@ -7071,6 +7277,16 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
             fh.write(original)
     _caught = list(_LAST_RED.get(threading.get_ident()) or []) if ok_tampered is False else []  # REG-2357 - who caught it
     _skips = _LAST_SKIPS.pop(threading.get_ident(), None)                    # REG-2359 - why each of its cases skipped
+    _cw = _concurrent(name) if ok_tampered is False else None
+    if _cw:
+        # #160 critic R3 (REG-2439) — A RED UNDER CONCURRENCY IS A VERDICT ONLY WHEN IT GOES RED AGAIN: the cases it named
+        # (or, with no case to name, the whole run), tampered once more. A sibling's one write cannot turn a blind law PROVEN.
+        _again = _confirm_red(sandbox, filename, tgt, original, _tampered, _to, _w, _caught, _extra, _script)
+        if _again is not False:                  # CONFIRM-RED
+            say("     %-52s %s — its tampered run went red under concurrency (%s) and %s, so the red is not this law's: "
+                "nothing is banked" % (label, UNPROVABLE, _cw, "stayed green asked again" if _again else
+                                       "could not be asked again"))
+            return UNPROVABLE
     if ok_tampered is False and _rk:
         _red_remember(_rk, name, idx, _LAST_RED.pop(threading.get_ident(), None))   # #42 lever 1 — learn what caught it
 

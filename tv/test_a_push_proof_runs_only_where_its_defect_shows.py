@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""#42 — A PUSH PROVES EACH RED-PROOF WHERE ITS DEFECT SHOWS, THE LIKELIEST FAILURE FIRST, ONE BROWSER AT A TIME -
+"""#42 — A PUSH PROVES EACH RED-PROOF WHERE ITS DEFECT SHOWS, THE LIKELIEST FAILURE FIRST, AT MOST TWO BROWSERS AT ONCE -
 AND A WRONG DECLARATION CAN NEVER READ PROVEN.
 
 His order, 2026-09-28: "do #42 right after v3522 lands" - pushes take too long. MEASURED on the v3522 push: heart2 gives
@@ -16,8 +16,10 @@ Attempt 1 of the same push ran 159 min and was refused on ONE blind proof that a
   · proves the likeliest failures FIRST (an anchor that no longer matches, an entry new or changed since @{push} /
     origin/main, a proof whose tampered file changed) and STOPS at the first BLIND / INVALID / clean-run red, printing
     it at once - every proof it did not reach is NOT RUN, never banked, and the exit is 1;
-  · proves a gate that starts a browser ONE AT A TIME whatever the lane count (four parallel Chrome lanes drove his Mac
-    to load 100 on 2026-09-28) - and "starts a browser" is its IMPORT CLOSURE (REG-1442): a gate that reaches
+  · proves gates that start a browser AT MOST K AT ONCE whatever the lane count (four parallel Chrome lanes drove his
+    Mac to load 100 on 2026-09-28): K is the machine's browser slots in heart2's own process - min(HEART2_BROWSER_SLOTS,
+    2) across every prover, his ruling (#160) - and one in a law's own process; "starts a browser" is its IMPORT
+    CLOSURE (REG-1442): a gate that reaches
     render_check / playwright through any number of helpers holds the lock, as test_the_rails_fold_is_a_chevron_not_a_dot
     does through the builder's width law; a helper nobody can parse puts its gates under the lock, named;
   · names a declared-restriction skip in a BLIND line as the declaration's, never as the law opting out (REG-1443).
@@ -400,6 +402,38 @@ class OneBrowserAtATime(unittest.TestCase):
         self.assertTrue(overlaps(stub.spans, "gate-0", "gate-1"),
                         "PREMISE: two plain gates did not overlap in two lanes, so the case above measured nothing")
 
+    def test_with_the_machines_two_slots_two_browser_gates_overlap_never_three(self):
+        """★ #160 (REG-2439) - in heart2's own process the lock is the machine's K = 2 browser slots: three lanes, three
+        width-law gates - two DO run at once, never three. Driven over this law's own slot dir (use_law_slots), never
+        the machine's"""
+        import shutil
+        d = tempfile.mkdtemp(prefix="h42slots.")
+        saved = (os.environ.get("HEART2_LANES_DIR"), os.environ.get("HEART2_BROWSER_SLOTS"), dict(H._SLOTS_LAW))
+
+        def restore():
+            for k, v in (("HEART2_LANES_DIR", saved[0]), ("HEART2_BROWSER_SLOTS", saved[1])):
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+            H._SLOTS_LAW.clear()
+            H._SLOTS_LAW.update(saved[2])
+            shutil.rmtree(d, ignore_errors=True)
+        self.addCleanup(restore)
+        os.environ.pop("HEART2_BROWSER_SLOTS", None)
+        H.use_law_slots(os.path.join(d, "lanes"))
+        stub = _Stub(dwell=0.6)
+        _stub_run(_have(3, 1, widths=True), stub, lanes=3)
+        self.assertEqual(len(stub.calls), 3)
+        now = peak = 0
+        for _t, step in sorted([(t0, 1) for _n, t0, _t1 in stub.spans] + [(t1, -1) for _n, _t0, t1 in stub.spans],
+                               key=lambda e: (e[0], e[1])):
+            now += step
+            peak = max(peak, now)
+        self.assertLessEqual(peak, 2, "%d browser gates ran at once - his ruling is two: %s" % (peak, stub.spans))
+        self.assertEqual(peak, 2, "two browser gates never ran at once on the machine's two slots - the lanes still "
+                                  "wait on one browser: %s" % stub.spans)
+
     #: fixture tv/ for the closure: name -> source. render_check here is a stub; nothing in it ever runs.
     _TREE = {
         "render_check.py": "CHROME = '/nowhere'\n",
@@ -607,6 +641,11 @@ class TheRestrictionIsAProvingDeviceNeverAVerdict(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "#160 - the machine's browser cap is three: three width-law gates run at once in three lanes",
+     "file": "lane_ports.py",
+     "find": "BROWSER_CAP = 2 ",
+     "replace": "BROWSER_CAP = 3 ",
+     "matches": 1},
     {"why": "the gate loop walks a `_queue` that is not the gate set - the scrub law must not read it as the gate loop",
      "file": "run_gates.py",
      "find": "    _queue = list(GATES)\n    _red_last = {}\n",
