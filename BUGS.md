@@ -112,8 +112,8 @@ FIX (tv/d2jsp_chrome.py; the reasons are exported as SEND_REASONS, and T2 shows 
   receipt.
 - Two budgets: 25 s to reach the form and click, then 35 s for the receipt. With no receipt, the board list is loaded
   again (20 s). A topic whose link text is exactly the subject, that was not listed before the click, and whose id is
-  newer than every topic listed then, is the receipt. An older same-subject topic never is, and two new ones are
-  maybe-sent.
+  newer than every topic listed then, is the receipt. An older same-subject topic never is, a same-title link that
+  names another board (a sidebar) never is, and two new ones are maybe-sent.
 - The same draft (board, subject, sha256 of the body) inside 30 minutes of a submit is already-posted (topic, at),
   and inside 30 minutes of a maybe-sent is maybe-sent-recently (at). Neither reads the cookie or starts Chrome.
 - The urllib seam never posts twice. After its POST, a lost answer or an unknown page is maybe-sent. Only the compose
@@ -121,7 +121,7 @@ FIX (tv/d2jsp_chrome.py; the reasons are exported as SEND_REASONS, and T2 shows 
 - The three copies of the scratch-Chrome start are one `_scratch_chrome`. The flow's decisions are `_flow_step`, a
   pure function over page snapshots, so a law drives the real flow with a page made of strings and no Chrome.
 GUARD: tv/test_a_d2jsp_post_is_sent_once_and_never_called_unsent.py (two threads and an Event for the lock, the fake
-board for the flow, a fake clock), 8 RED proofs, plus the restored law's maybe-sent proof. heart2 --prove: 8/8 PROVEN.
+board for the flow, a fake clock), 9 RED proofs, plus the restored law's maybe-sent proof. heart2 --prove: 9/9 PROVEN.
 LEFT:
 - The re-send record lives in the console process. A restart (or an os.execv relaunch) forgets it, so the same
   draft sent right after a restart runs again.

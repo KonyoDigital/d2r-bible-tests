@@ -85,8 +85,9 @@ class Board(object):
     once the fill was sent; the click still happened)."""
 
     def __init__(self, clock, listed=LISTED, then="stay", listed_after=None, new_id=0,
-                 form_after=0.0, land_after=0.0, loads=True, trade_link=True):
+                 form_after=0.0, land_after=0.0, loads=True, trade_link=True, aside_after=()):
         self.clock = clock
+        self.aside_after = list(aside_after)    # [(topic id, title, board)] a sidebar shows after the click
         self.listed = list(listed)
         self.listed_after = listed_after
         self.then = then
@@ -157,6 +158,9 @@ class Board(object):
                 rows = self.listed_after
             links = "".join('<tr><td><a href="topic.php?t=%d&amp;f=268">%s</a></td></tr>' % row
                             for row in rows)
+            if self.clicked_at is not None:
+                links += "".join('<li><a href="topic.php?t=%d&amp;f=%d">%s</a></li>' % (t, f, title)
+                                 for t, title, f in self.aside_after)
             trade = '<a href="post.php?mode=newtrade&amp;f=268">New Trade</a>' if self.trade_link else ""
             return ('<html><body><a href="login.php?mode=logout">Log Out</a>%s<table>%s</table>'
                     '</body></html>' % (trade, links))
@@ -422,6 +426,14 @@ class APostIsSentOnceAndNeverCalledUnsent(unittest.TestCase):
         got = self.post(board, clock)
         self.assertEqual(self.verdict(got)["reason"], "not-posted")
 
+        # a new topic with this very title on ANOTHER board (a sidebar link to board 271) is not his post
+        clock = Clock()
+        board = Board(clock, then="stay", aside_after=[(990, SUBJECT, 271)])
+        got = self.post(board, clock)
+        out = self.verdict(got)
+        self.assertEqual(out["reason"], "maybe-sent", "a same-title topic on another board was taken as the receipt")
+        self.assertNotIn("topic", out)
+
     def test_an_identical_resend_inside_30_minutes_starts_no_chrome(self):
         clock = Clock()
         seat = Seat(Board(clock, then="stay"), clock)
@@ -533,6 +545,13 @@ RED_PROOF = [
         "file": "tv/d2jsp_chrome.py",
         "find": '                         if tid not in before and st["top"] is not None and tid > st["top"])\n',
         "replace": "                         if True)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2490 - a same-title topic on another board (a sidebar link) is taken as the receipt",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "        if board is not None and fid is not None and fid != int(board):\n            continue\n",
+        "replace": "        pass\n",
         "matches": 1,
     },
     {

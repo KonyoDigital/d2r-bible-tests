@@ -1229,9 +1229,12 @@ class _Links(HTMLParser):
             self._at = None
 
 
-def _board_read(html, base, subject):
+def _board_read(html, base, subject, board=None):
     """One read of a board's topic list.
-    -> (the newest topic id it lists or None, {topic id: topic url} for links whose text is exactly subject)"""
+    -> (the newest topic id it lists or None, {topic id: topic url} for links whose text is exactly subject)
+
+    A same-subject link that names another board (a sidebar, a cross-link) is never a candidate;
+    every topic link still counts toward the newest id, since all of them existed before the click."""
     links = _Links()
     try:
         links.feed(str(html or ""))
@@ -1247,6 +1250,12 @@ def _board_read(html, base, subject):
         if tid is None:
             continue
         top = tid if top is None else max(top, tid)
+        try:
+            fid = int((urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("f") or [""])[0])
+        except (TypeError, ValueError):
+            fid = None
+        if board is not None and fid is not None and fid != int(board):
+            continue
         if " ".join(text.split()) == want and tid not in same:
             same[tid] = url
     return top, same
@@ -1333,7 +1342,7 @@ def _flow_step(st, snap, now, said=None):
             return st, ("wait",)
         if st["kind"] == "post" and _on_board(href, st["board"]) and "New Trade" in html:
             if st["before"] is None:
-                st["top"], st["before"] = _board_read(html, href, st["subject"])
+                st["top"], st["before"] = _board_read(html, href, st["subject"], st["board"])
             st["asked"] = True
             return st, ("run", "open-trade")
         if st["kind"] == "edit" and _topic(href):
@@ -1358,7 +1367,7 @@ def _flow_step(st, snap, now, said=None):
 
     if st["phase"] == "check":
         if readable and ready and _on_board(href, st["board"]):
-            _newest, same = _board_read(html, href, st["subject"])
+            _newest, same = _board_read(html, href, st["subject"], st["board"])
             before = st["before"] or {}
             new = sorted(url for tid, url in same.items()
                          if tid not in before and st["top"] is not None and tid > st["top"])
