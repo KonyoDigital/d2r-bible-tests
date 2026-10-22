@@ -47826,12 +47826,19 @@ class Handler(BaseHTTPRequestHandler):
                                 except Exception:
                                     pass
                                 if _ok_body or (_lane_lab == _runners[-1][0] and _cap_answer is None):
-                                    self.send_response(int(_out.get("status") or 200))
-                                    self.send_header("Content-Type", "application/json")
-                                    self.send_header("X-Intake-Lane", _lane_lab)
-                                    self.send_header("Content-Length", str(len(_pl)))
-                                    self.end_headers()
-                                    self.wfile.write(_pl)
+                                    _st_lane = int(_out.get("status") or 200)
+                                    # REG-2388 - THE READ HAPPENED. A board that hung up while it was being written is
+                                    # not this lane failing: the except below sent the console on to the next lane and
+                                    # then the website proxy (the site's API key) for a read that was already made.
+                                    try:
+                                        self.send_response(_st_lane)
+                                        self.send_header("Content-Type", "application/json")
+                                        self.send_header("X-Intake-Lane", _lane_lab)
+                                        self.send_header("Content-Length", str(len(_pl)))
+                                        self.end_headers()
+                                        self.wfile.write(_pl)
+                                    except Exception:   # REG-2388 - the board hung up on an answer: the read is over
+                                        self.close_connection = True
                                     return
                             else:
                                 _last_err = (_pr.stderr or b"").decode("utf-8", "replace")[-300:]
@@ -47839,12 +47846,17 @@ class Handler(BaseHTTPRequestHandler):
                             _last_err = str(_lane_ex)[:200]
                             continue
                     if _cap_answer is not None:
-                        self.send_response(429)
-                        self.send_header("Content-Type", "application/json")
-                        self.send_header("X-Intake-Lane", _cap_answer[0])
-                        self.send_header("Content-Length", str(len(_cap_answer[1])))
-                        self.end_headers()
-                        self.wfile.write(_cap_answer[1])
+                        # REG-2388 - the cap is the answer whatever becomes of its write: inside the outer try, a
+                        # board that hung up on the 429 fell through to the website proxy, the spend the cap stops.
+                        try:
+                            self.send_response(429)
+                            self.send_header("Content-Type", "application/json")
+                            self.send_header("X-Intake-Lane", _cap_answer[0])
+                            self.send_header("Content-Length", str(len(_cap_answer[1])))
+                            self.end_headers()
+                            self.wfile.write(_cap_answer[1])
+                        except Exception:   # REG-2388 - the board hung up on the cap: it is still the answer
+                            self.close_connection = True
                         return
                     if _strict:
                         self._json(502, {"ok": False, "lane": "subscription-failed",

@@ -9,6 +9,9 @@ test_the_reader_cap_comes_from_this_pcs_settings), and control_app's /api/intake
   · forwards it as HTTP 429 with the runner's body (limit, source, retry_s) and X-Intake-Lane;
   · in shadow mode still lets the Grok failover read, and answers the 429 when no lane does;
   · never calls the website proxy after a cap.
+REG-2388 - and a board that hangs up while the answer is being written (BrokenPipe) ends the read there: the 429's
+write sat inside the handler's outer try, whose except falls through to the website proxy, and a hang-up on a lane's
+answer sent the console on to the next lane and then the website - for a read that was already made.
 DRIVEN on a private ThreadingHTTPServer with control_app.Handler (never :17772), with the node runners stubbed, so
 every case runs on any PC - node or none; the website proxy is always stubbed, so no case can reach the network. The
 join - the REAL runner at its cap, through this handler - is test_a_capped_runner_reaches_the_board_as_429, node-only
@@ -118,6 +121,25 @@ class _Console(unittest.TestCase):
     def assertNoWebsite(self):
         self.assertEqual(self.web.call_count, 0, "the console read on the website's API key after a cap")
 
+    def board_hangs_up(self):
+        """REG-2388 - the board is gone before any answer reaches it: every write of headers to /api/intake raises
+        BrokenPipeError, the way a socket the board closed does (its fetch timed out, the tab closed)."""
+        def end_headers(handler):
+            if getattr(handler, "path", "") in ("/api/intake", "/api/ask"):
+                raise BrokenPipeError(32, "Broken pipe")
+            return orig(handler)
+        orig = ca.Handler.end_headers
+        p = mock.patch.object(ca.Handler, "end_headers", end_headers)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def post_to_a_board_that_hung_up(self):
+        """-> the status the board got, or None when the console closed the connection without an answer."""
+        try:
+            return self.post()[0]
+        except (http.client.HTTPException, OSError):
+            return None
+
 
 class AnOffModeCapIs429(_Console):
 
@@ -175,6 +197,30 @@ class AShadowModeCapStillLetsTheFailoverRead(_Console):
         self.assertNoWebsite()
 
 
+class ABoardThatHangsUpEndsTheRead(_Console):
+    """REG-2388 - the board hung up while its answer was being written. Nothing more is read for it anywhere."""
+
+    def test_a_hang_up_on_the_cap_never_reaches_the_website(self):
+        self.g5("off")
+        seen = self.runners({"intake_local.mjs": _PR(out={"status": 429, "body": CAPPED, "lane": "subscription"})})
+        self.board_hangs_up()
+        self.assertIsNone(self.post_to_a_board_that_hung_up(), "premise: the hang-up did not happen")
+        self.assertEqual(seen, ["intake_local.mjs"])
+        self.assertEqual(self.web.call_count, 0, "a board that hung up on the cap was read on the website's API key")
+
+    def test_a_hang_up_on_an_answer_is_not_read_again(self):
+        self.g5("shadow")
+        seen = self.runners({
+            "intake_local.mjs": _PR(out={"status": 200, "body": '{"found":false,"box":[0,0,0,0]}',
+                                         "lane": "subscription"}),
+            "intake_grok_sub.mjs": _PR(out={"status": 200, "body": '{"found":false,"box":[0,0,0,0]}',
+                                            "lane": "grok-subscription"})})
+        self.board_hangs_up()
+        self.assertIsNone(self.post_to_a_board_that_hung_up(), "premise: the hang-up did not happen")
+        self.assertEqual(seen, ["intake_local.mjs"], "a read that was already made was made again on another lane")
+        self.assertEqual(self.web.call_count, 0, "a read that was already made was made again on the website")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -183,8 +229,8 @@ RED_PROOF = [
     {
         "why": "REG-2383 - after a cap the console falls through to the website proxy (the API key) when no lane reads",
         "file": "control_app.py",
-        "find": "                    if _cap_answer is not None:\n                        self.send_response(429)\n",
-        "replace": "                    if False:\n                        self.send_response(429)\n",
+        "find": "                    if _cap_answer is not None:\n",
+        "replace": "                    if False:\n",
         "matches": 1,
     },
     {
@@ -199,6 +245,23 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "(_lane_lab == _runners[-1][0] and _cap_answer is None)",
         "replace": "_lane_lab == _runners[-1][0]",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2388 - a board that hangs up on the cap's 429 sends the console on to the website proxy (the API key)",
+        "file": "control_app.py",
+        "find": "                        except Exception:   # REG-2388 - the board hung up on the cap: it is still the answer\n"
+                "                            self.close_connection = True\n",
+        "replace": "                        except Exception:\n                            raise\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2388 - a board that hangs up on a lane's answer sends the console on to the next lane and the website "
+               "for a read that was already made",
+        "file": "control_app.py",
+        "find": "                                    except Exception:   # REG-2388 - the board hung up on an answer: the read is over\n"
+                "                                        self.close_connection = True\n",
+        "replace": "                                    except Exception:\n                                        raise\n",
         "matches": 1,
     },
 ]

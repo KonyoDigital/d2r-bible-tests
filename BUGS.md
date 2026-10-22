@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2388 - A BOARD THAT HUNG UP MID-ANSWER WAS READ AGAIN: ON THE NEXT LANE, AND ON THE WEBSITE'S API KEY
+
+control_app's /api/intake handler wrote its answers inside trys that read any exception as a lane failing. The cap's 429 (REG-2383) was written inside the handler's outer try, whose except falls through to the website proxy: a board that hung up as the 429 went out (BrokenPipeError - its fetch gave up, the vault batch waits 75 s against a runner allowed 150 s; or the tab closed) sent the console on to read on the site's ANTHROPIC_API_KEY, the spend the cap exists to stop. A lane's answer was written inside the per-lane try: a hang-up there sent the console on to the next lane (Grok, in shadow mode) and then to the website, for a read already made. Reproduced with stub runners 2026-10-22: a BrokenPipe on the 429 -> one website call; on an answer, off mode -> one website call; shadow mode -> Grok read again, then one website call. The 429 site was found by the round-2 review of REG-2383; the answer site is its sibling, on origin/main as well.
+
+FIX: each of the two writes has its own try - whatever happens to it, the handler returns, and a failed write closes the connection (`close_connection`) so nothing more is said on a socket the board left. A lane's unreadable status is still that lane's failure: it is read before the write.
+
+GUARD: tv/test_a_capped_read_is_answered_429.py `ABoardThatHangsUpEndsTheRead` (registered) - every header write to /api/intake raises BrokenPipeError: a capped read reaches no website, and an answered read in shadow mode runs no second lane and no website. 2 RED proofs (each write's except re-raising). Node-free, stub runners.
+
 ### REG-2387 - ONE VISION READ RESET THE INTAKE CAP: TV_DIABLO WROTE THE INTAKE LANE'S ROWS BACK AS SECONDS
 
 tv/.subscription_budget.json has two writers on two clocks (REG-2385): tv_diablo's vision lane (`_sub_budget_record`, `time.time()` SECONDS) and tv/intake_local.mjs (`Date.now()` MILLISECONDS), whose cap counts only millisecond rows. `_sub_budget_record` ran every row through `_sub_budget_calls` - which divides a millisecond row by 1000 so the vision lane can window it (REG-217, v1868, "normalised on write as well as read") - and wrote the result back, so one vision read turned every intake row into a seconds row the intake cap does not count, and that cap restarted from zero. Reproduced on a fixture 2026-10-22: 20 intake rows, the 21st intake read refused 429; one vision read recorded by tv_diablo's own writer; the ledger then held 21 rows, all in seconds, and the 21st intake read was admitted. The same writer and the same count are on origin/main (read, not run). Found by the round-2 review of REG-2382..2386.
