@@ -46510,7 +46510,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           /* REG-2558 (second eye on v3787) - this early return skipped the tail every other filing runs: own the
              name, save owned and assign, and mark the planner dirty so its close draws the vault. A fresh one is
              still taken back by _vpDrop (owned.delete + vaultUnassign). */
-          try { if (typeof owned !== 'undefined' && owned && owned.add && !owned.has(_pb.name)) owned.add(_pb.name); } catch (ePo) {}
+          try { if (typeof owned !== 'undefined' && owned && !owned.has(_pb.name)) window._ownedAdd(_pb.name, { source: 'hand', by: 'perfect base filed', where: 'the vault planner' }); } catch (ePo) {}
           try { persistOwned(); } catch (ePp) {}
           try { saveA(); } catch (ePa) {}
           if (window._vaultPlannerOn){ window._vaultPlannerDirty = true; }

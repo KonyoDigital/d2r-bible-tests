@@ -7,6 +7,11 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2562 - REG-2558'S OWN-THE-NAME LINE WAS A BARE owned.add, OUTSIDE THE DOOR (CI census on v3788, GB-L, 2026-10-23, v3789)
+test_every_owned_door_writes_provenance went red in CI on ab7065bb: the perfect-base early return added to `owned`
+without a provenance row. It now goes through window._ownedAdd with source 'hand' / 'perfect base filed'. The
+census passes (45 OK) and the v3746 spec passes (7/7).
+
 ### REG-2561 - THE COOLDOWN TREATED AN UNANSWERED QUESTION AS AN ANSWER (#188 second eye, GB-L, 2026-10-22, v3789)
 If the reader version could not be read, it compared as a new reader and cancelled every cooldown, and the next
 cooldown was stamped with an empty reader. If the hold lookup raised, that counted as a barren round. Now an
