@@ -393,6 +393,11 @@ class AReadNoKeyCanNameIsUntraced(unittest.TestCase):
 @unittest.skipUnless(_HAVE_GIT, "no git on PATH - the tracked-set cases cannot run here")
 class TheTrackedSetAndTheGitignoresAreFacts(unittest.TestCase):
     def setUp(self):
+        # facts_of / facts_hold ask git in THIS process: no GIT_* of a hook may point them at another repository
+        held = dict((k, v) for k, v in os.environ.items() if str(k).upper().startswith("GIT_"))
+        for k in held:
+            os.environ.pop(k, None)
+        self.addCleanup(os.environ.update, held)
         self.root = tempfile.mkdtemp(prefix="facts-git.")
         self.addCleanup(shutil.rmtree, self.root, True)
         _write(self.root, "tv/a.txt", "a\n")

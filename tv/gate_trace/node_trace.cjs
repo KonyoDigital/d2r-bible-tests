@@ -55,7 +55,7 @@
   try {
     const parent = new Map();
     const block = new Map();
-    for (const line of fs.readFileSync(out, 'utf8').split('\n')) {
+    for (const line of fs.readFileSync(out, 'utf8').split(/\r?\n/)) {
       if (!(line.startsWith('B\t') || line.startsWith('N\t'))) continue;
       const i = line.indexOf('\t', 2);
       if (i < 0) continue;

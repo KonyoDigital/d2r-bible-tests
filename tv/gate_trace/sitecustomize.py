@@ -138,7 +138,7 @@ def _root_env(out):
     A trace that cannot be read makes this process a root of its own subtree, the same over-wide direction.
     Read before any hook is armed, so this read is never a fact of the run."""
     try:
-        rfd = os.open(out, os.O_RDONLY)
+        rfd = os.open(out, os.O_RDONLY | getattr(os, "O_BINARY", 0))  # Windows' C runtime reads text mode otherwise
     except OSError:
         return True, None
     chunks = []
@@ -158,7 +158,8 @@ def _root_env(out):
         i = data.find(tag)
         while i >= 0:
             j = data.find(b"\n", i + 1)
-            parts = data[i + 1:(j if j >= 0 else len(data))].split(b"\t", 2)
+            # a trace written on Windows ends its lines \r\n: the line is the text before both
+            parts = data[i + 1:(j if j >= 0 else len(data))].rstrip(b"\r").split(b"\t", 2)
             i = data.find(tag, i + 1)
             if len(parts) != 3:
                 continue
@@ -498,7 +499,7 @@ def _boot():
     def file_sha(full):
         h = hashlib.sha256()
         try:
-            rfd = os.open(full, os.O_RDONLY)
+            rfd = os.open(full, os.O_RDONLY | getattr(os, "O_BINARY", 0))  # the bytes, never a text-mode translation
         except OSError:
             return "?"
         try:
