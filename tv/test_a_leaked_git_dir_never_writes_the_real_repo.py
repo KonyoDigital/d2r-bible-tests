@@ -205,7 +205,7 @@ _WORD_START = " \t\n;&|()<>"
 _HEREDOC = re.compile(r"<<(-?)[ \t]*(?:'([^'\n]*)'|\"([^\"\n]*)\"|\\?([A-Za-z_][A-Za-z0-9_]*))")
 
 
-def _shell_code(src):
+def _shell_code(src, kinds=None):
     """REG-2551 - bash source as bash reads it: every comment out, every heredoc body kept WHOLE.
     -> (code, pos, heredocs, open) - pos[k] is the index in `src` of code[k], heredocs [(delimiter, closed, the index
     just past its last line)], and open the quote / substitution frames still open at the end (anything but [] means
@@ -217,7 +217,10 @@ def _shell_code(src):
     and comments start again. A backslash-newline joins its two lines, as bash does. A heredoc body (the lines after its
     opener's line, up to its delimiter) is NOT stripped: under an unquoted delimiter bash expands every $(...) in it,
     and a quoted one is data whose text costs nothing to read. Its reach, stated: a `case` pattern's `)` inside $(...)
-    is read as that $(...)'s close (the hook has none)."""
+    is read as that $(...)'s close (the hook has none).
+
+    REG-2454 - `kinds`, when a list, gets the frame each code character was read in (top, cmd, sq, dq, ansi,
+    bq), so a reader can tell a word bash RUNS from a word inside quotes."""
     out, pos, heredocs, pending = [], [], [], []
     stack = [["top", 0]]
     i, n = 0, len(src)
@@ -226,6 +229,8 @@ def _shell_code(src):
         for k, ch in enumerate(text):
             out.append(ch)
             pos.append(at + k)
+            if kinds is not None:
+                kinds.append(stack[-1][0])
 
     while i < n:
         c, kind = src[i], stack[-1][0]
@@ -322,6 +327,36 @@ def _shell_code(src):
         put(c, i)
         i += 1
     return "".join(out), pos, heredocs, [f[0] for f in stack[1:]]
+
+
+#: REG-2454 (A2's Grok low 1) - THE HOOK'S STAGE GRAMMAR. The first cut counted a line as a stage only when it held
+#: `gate_run "` or `python3 "$REPO/`, so a stage spelled any other way - `node tv/x.mjs`, `npx playwright test`,
+#: `bash tools/x.sh`, `python3 -m unittest`, `$(python tv/y.py)` - could run before the scrub while the law stayed green.
+#: A stage is any of these programs run as a command word, read the way _shell_code reads bash: comments out, quotes,
+#: $(...) and heredoc bodies followed as bash nests them, and a word inside quotes is data. Its reach, stated: a program
+#: named through a variable ("$PY" -c ...) is not seen, and a word in a heredoc body is read as code (as the re-export
+#: reader reads it) - such a word before the scrub reads RED, never green.
+STAGE_PROGRAMS = ("gate_run", "python3", "python", "node", "bash", "npx")
+#: the frames whose words bash never runs: '...', "..." outside its $(...) and `...`, and $'...'
+QUOTED = ("sq", "dq", "ansi")
+
+
+def _stages(src, first_line=1):
+    """REG-2454 - every place `src` (bash, whose first line is hook line `first_line`) runs a stage, in order.
+    -> (hits, open); a hit is (hook line, program, that line's text), and open is _shell_code's (anything but [] means
+    this reader lost bash's place, so its answer is UNKNOWN)"""
+    rx = re.compile(r"(?:^|(?<=[\s;&|(`{]))(%s)(?=[\s;&|)`}]|$)" % "|".join(re.escape(x) for x in STAGE_PROGRAMS),
+                    re.M)
+    kinds = []
+    code, pos, _heredocs, still_open = _shell_code(src, kinds)
+    lines = src.split("\n")
+    hits = []
+    for m in rx.finditer(code):
+        if kinds[m.start(1)] in QUOTED:
+            continue                                     # a word inside quotes is data: bash runs nothing there
+        at = src.count("\n", 0, pos[m.start(1)])
+        hits.append((first_line + at, m.group(1), lines[at].strip()[:160]))
+    return hits, still_open
 
 
 def _pointer_names():
@@ -474,12 +509,38 @@ class TheHookUnsetsThePointerBeforeAnyStage(_Case):
 
     def test_the_scrub_comes_before_the_first_stage(self):
         with io.open(HOOK, encoding="utf-8") as fh:
-            lines = fh.read().split("\n")
+            src = fh.read()
         _b, at = _block("scrub-git-env")
-        first = next(i for i, l in enumerate(lines)
-                     if not l.lstrip().startswith("#") and ("gate_run \"" in l or 'python3 "$REPO/' in l))
-        self.assertLess(at, first, "a stage (line %d) runs before the hook unsets git's pointer (line %d)"
-                        % (first + 1, at + 1))
+        hits, still_open = _stages(src)
+        self.assertEqual(still_open, [], "the stage reader lost bash's place in the hook (%s still open at the end) - "
+                                         "its verdict is UNKNOWN, not passing" % still_open)
+        self.assertTrue(hits, "the stage grammar finds no stage in the hook at all - it is blind, not passing")
+        line, prog, text = hits[0]
+        self.assertLess(at + 1, line, "a stage (hooks/pre-push:%d, %s: %r) runs before the hook unsets git's pointer "
+                                      "(line %d)" % (line, prog, text, at + 1))
+
+    def test_a_stage_spelled_any_way_before_the_scrub_is_found(self):
+        """REG-2454 - a fixture hook whose first stage is spelled otherwise than `gate_run "` / `python3 "$REPO/` must
+        read red, and a comment, a function's definition, a quoted word or a plain git line before the scrub must not"""
+        scrub = "# >>> scrub-git-env\nunset GIT_DIR\n# <<< scrub-git-env\ngate_run \"late\" \"late\" 30 -- true\n"
+        head = "#!/usr/bin/env bash\nset -u\n"
+        for early in ('node "$REPO/tv/demo_console.mjs"', "npx playwright test tests/x.spec.ts", "bash tools/x.sh",
+                      "python3 -m unittest test_x", '  _out="$(python tv/y.py 2>/dev/null)"', "cd tv && python3 x.py",
+                      "_v=`node -e 1`", "{ npx tsc; }", "python3 - <<'PY'\nprint(1)\nPY",
+                      'gate_run "early" "x" 30 -- true'):
+            with self.subTest(early=early):
+                hits, still_open = _stages(head + early + "\n" + scrub)
+                self.assertEqual(still_open, [])
+                self.assertTrue(hits and hits[0][0] == 3, "a stage spelled %r before the scrub was not found first: %s"
+                                % (early, hits))
+        quiet = (head + "# node, npx, bash and python3 named in a comment\n"
+                 'REPO="$(git rev-parse --show-toplevel)" || exit 1  # not a stage either: bash, node\n'
+                 "gate_run() { \"$@\"; }\n"
+                 'echo "run node later"; _python3_ok=1; cd node_modules\n' + scrub)
+        hits, still_open = _stages(quiet)
+        self.assertEqual(still_open, [])
+        self.assertEqual([h[2] for h in hits], ['gate_run "late" "late" 30 -- true'],
+                         "a comment, a definition, a quoted word or a plain git line was read as a stage: %s" % hits)
 
 
 class ThePushsOwnOptionsSurviveTheScrub(_Case):
@@ -716,18 +777,43 @@ class TheTvLaneReadsAKnownRangeOrRuns(_Case):
 
 class ThePushedCommitIsHandedOverByName(_Case):
 
-    def _pushed(self, refs, cwd):
+    def _pushed(self, refs, cwd, out=None):
         bash = _bash()
         if bash is None:
             self.skipTest("no real POSIX bash on this PC - the hook's pushed-commit block is UNMEASURED, not passing")
         block, _line = _block("pushed-commit")
-        script = "_PUSH_REFS=%s\n%s\necho \"TV_PUSHED_COMMIT=$TV_PUSHED_COMMIT\"\n" % (_sq(refs), block)
+        script = ("_pp_el() { printf '0m00s'; }\n_PUSH_REFS=%s\n%s\necho \"TV_PUSHED_COMMIT=$TV_PUSHED_COMMIT\"\n"
+                  % (_sq(refs), block))
         r = subprocess.run([bash, "-c", "set -u\n" + script], cwd=cwd, capture_output=True, text=True, timeout=60,
-                           env=_clean_env())
+                           encoding="utf-8", errors="replace", env=_clean_env())
         self.assertEqual(r.returncode, 0, "the hook's pushed-commit block did not run: %s" % r.stderr)
         m = re.search(r"^TV_PUSHED_COMMIT=(.*)$", r.stdout, re.M)
         self.assertIsNotNone(m, "the block exported nothing: %r" % r.stdout)
+        if out is not None:
+            out.append(r.stdout)
         return m.group(1)
+
+    def test_every_ref_the_stamps_law_does_not_read_is_named(self):
+        """REG-2456 (A2's Grok low 4) - the stamps law reads ONE commit; a push of several refs with no main ref handed it
+        the first ref's sha and said nothing of the rest. The block now names, in the hook's own output, every ref that
+        ships bytes and is not the commit the law reads - beside main too."""
+        fx = _Fixture(self.root)
+        z = "0" * 40
+        a, b, c = "a" * 40, "b" * 40, "c" * 40
+        said = []
+        got = self._pushed("refs/heads/x %s refs/heads/x %s\nrefs/heads/y %s refs/heads/y %s\n"
+                           "refs/heads/w %s refs/heads/w %s\n" % (a, z, b, z, c, z), fx.wt, said)
+        self.assertEqual(got, a)
+        self.assertIn("NOT read by it", said[-1], "two refs the stamps law never reads went unnamed:\n%s" % said[-1])
+        for ref in ("refs/heads/y@bbbbbbbbb", "refs/heads/w@ccccccccc"):
+            self.assertIn(ref, said[-1], "%s ships bytes the stamps law never reads, and the hook did not say so" % ref)
+        self.assertNotIn("refs/heads/x@", said[-1], "the ref the law DOES read was named as unread")
+        self._pushed("refs/heads/x %s refs/heads/x %s\nrefs/heads/v %s refs/heads/v %s\n" % (a, z, a, z), fx.wt, said)
+        self.assertNotIn("NOT read by it", said[-1], "a ref pushing the very commit the law reads was named as unread")
+        self._pushed("refs/heads/x %s refs/heads/x %s\n" % (a, z), fx.wt, said)
+        self.assertNotIn("NOT read by it", said[-1], "a one-ref push was told a ref went unread")
+        self._pushed("refs/heads/x %s refs/heads/x %s\nrefs/heads/y %s refs/heads/main %s\n" % (a, z, b, z), fx.wt, said)
+        self.assertIn("refs/heads/x@aaaaaaaaa", said[-1], "beside main, a ref the stamps law does not read went unnamed")
 
     def test_main_wins_then_the_first_ref_that_ships_then_head(self):
         fx = _Fixture(self.root)
@@ -939,6 +1025,29 @@ RED_PROOF = [
         "find": "    changed=\"$(git diff --name-only \"$remote_sha\"..\"$local_sha\" 2>/dev/null)\"\n",
         "replace": "    changed=\"$(GIT_DIR=\"$TV_PUSHED_GIT_DIR\" git diff --name-only \"$remote_sha\"..\"$local_sha\" "
                    "2>/dev/null)\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2454 - the stage grammar narrows back to one spelling: a stage spelled `node ...` / `npx ...` / "
+               "`bash ...` / `python3 -m ...` before the scrub passes again",
+        "file": "test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "STAGE_PROGRAMS = (\"gate_run\", \"python3\", \"python\", \"node\", \"bash\", \"npx\")\n",
+        "replace": "STAGE_PROGRAMS = (\"gate_run\",)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2454 - a word inside quotes is read as a stage: an `echo \"... node ...\"` before the scrub "
+               "reads red with no stage there, and a spurious red costs a whole push",
+        "file": "test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "        if kinds[m.start(1)] in QUOTED:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2456 - a multi-ref push says nothing of the refs the commit-stamps law never reads",
+        "file": "hooks/pre-push",
+        "find": "  echo \"          only ${TV_PUSHED_COMMIT:-?}; NOT read by it:$_pc_unseen\"\n",
+        "replace": "  true\n",
         "matches": 1,
     },
 ]
