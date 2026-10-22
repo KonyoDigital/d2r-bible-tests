@@ -348,7 +348,10 @@ def _reexports(src, first_line, names):
                                        % alt)))
     code, pos, heredocs, still_open = _shell_code(src)
     # REG-2552 - the code as bash sees a WORD after quote removal: every ' and " dropped, so GIT_D''IR reads GIT_DIR
-    keep = [k for k, ch in enumerate(code) if ch not in "'\""]
+    # REG-2556 (second eye on v3787) - and a $ that opens a quote ($'..' / $"..") goes with it: quote removal deletes
+    # the marker too, so `export $'GIT_DIR=..'` and `GIT_D$''IR` are GIT_DIR to bash
+    keep = [k for k, ch in enumerate(code)
+            if ch not in "'\"" and not (ch == "$" and code[k + 1:k + 2] in ("'", '"'))]
     bare = "".join(code[k] for k in keep)
     bpos = [pos[k] for k in keep]
     lines = src.split("\n")
@@ -573,6 +576,11 @@ _REACH = (
     ("cat <<-EOF\n\tit's data\n\tEOF\nexport GIT_DIR=/tmp/x\n", True),        # <<- : the delimiter line is tab-indented
     # REG-2552 - a name split by quotes, and a name held in a variable
     ("export GIT_D''IR=/tmp/x\n", True),
+    ("export $'GIT_DIR=/tmp/x'\n", True),
+    ('declare -x $"GIT_WORK_TREE=/tmp"\n', True),
+    ("env $'GIT_INDEX_FILE=/tmp/i' git add\n", True),
+    ("export GIT_D$''IR=/tmp/x\n", True),
+    ("_n=$'GIT_DIR'; export \"$_n=/tmp/x\"\n", True),
     ('env "GIT_D"IR=/tmp/x git log\n', True),
     ("declare -x 'GIT_WORK'_TREE=/tmp/x\n", True),
     ('_n=GIT_DIR; export "$_n=/tmp/x"\n', True),
@@ -874,8 +882,15 @@ RED_PROOF = [
         "why": "REG-2552 - the reader stops dropping quote characters: `export GIT_D''IR=...` (bash joins it into GIT_DIR) "
                "reads clean again",
         "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
-        "find": "    keep = [k for k, ch in enumerate(code) if ch not in \"'\\\"\"]\n",
-        "replace": "    keep = list(range(len(code)))\n",
+        "find": "            if ch not in \"'\\\"\" and not (ch == \"$\" and code[k + 1:k + 2] in (\"'\", '\"'))]\n",
+        "replace": "            if ch == ch]\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2556 - the reader keeps the $ of a $'..' quote: `export $'GIT_DIR=...'` reads clean again",
+        "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "            if ch not in \"'\\\"\" and not (ch == \"$\" and code[k + 1:k + 2] in (\"'\", '\"'))]\n",
+        "replace": "            if ch not in \"'\\\"\"]\n",
         "matches": 1,
     },
     {

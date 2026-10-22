@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2556 - THE SCRUB READER KEPT THE $ OF A $'..' QUOTE, SO export $'GIT_DIR=..' READ CLEAN (GB-L, 2026-10-22, v3788)
+
+Found by the Grok CLI second eye on v3787. REG-2552's dequoted view dropped ' and " but left the $ that opens an
+ANSI-C or locale quote, so `export $'GIT_DIR=/tmp/x'`, `declare -x $"GIT_WORK_TREE=.."`, `env $'GIT_INDEX_FILE=..'`
+and the empty join `GIT_D$''IR` all read `$GIT_DIR` and the lookbehind rejected the name. Bash removes that $ with
+the quotes. Fix: the reader drops a $ that is directly followed by a quote. Law: 5 new `_REACH` cases in
+test_a_leaked_git_dir_never_writes_the_real_repo.py, RED_PROOF "REG-2556" puts the $ back and goes red.
+
 ### REG-2555 - MAIN CI RED AT v3785: 20 SPECS STILL ASSERTED RETIRED RULES, ONE FLAKED ON A LATE SCROLL (GB-L, 2026-10-22, v3787)
 
 CI run 39807016744 (v3785) failed 30 Playwright tests across shards 1-8. The triage on #230 sorted them. This
