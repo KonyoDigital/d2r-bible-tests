@@ -23,9 +23,10 @@ _fixture_root_for_state() honours it at every call, so his tv/ is never read or 
 REVIEW (major) - THE RECORD IS THE CONSOLE'S, NOT EVERY IMPORTER'S. The first cut let any process that called
 status_payload() with TV_HIST unset load and save the record: every law, the pre-push suites, any CLI. With the
 tracked 1,773,092 ms bar gone, the first test request over 750 ms became "this PC's slowest request" - the review
-reproduced test_a_dead_journal_reader_says_so leaving a 1,141 ms record that the live console then loaded, published
-and kept as its bar. So, with TV_HIST unset, the state root repointed at this law's scratch (a law that repoints it is
-still a law) and the console path unmarked:
+reproduced test_a_dead_journal_reader_says_so leaving a 1,141 ms record in the tree, which a fresh import published as
+worstRequest; read from the code, the live console loads that file whenever its own in-memory record is None. So,
+with TV_HIST unset, the state root repointed at this law's scratch (a law that repoints it is still a law) and the
+console path unmarked:
   · a slow status_payload() leaves no record behind - the request is kept in this process's memory only;
   · a record already there (his console's) is not this process's bar and is not published as its own, and its
     bytes stay identical;

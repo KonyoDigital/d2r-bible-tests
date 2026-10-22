@@ -42471,11 +42471,12 @@ def _status_worst_ours():
     suites (run from his own checkout, REG-1650), any CLI. The first cut of REG-2461 let all of them
     load and save the per-PC record, and with the tracked 1,773,092 ms bar gone, the first test
     request over 750 ms became "this PC's slowest request". The review reproduced it:
-    test_a_dead_journal_reader_says_so (TV_HIST unset) left a 1,141 ms record in the tree, and the live
-    console then loaded it as its own worst, published it and kept it as the bar. Measured again for
-    this fix with a law-shaped process (TV_HIST unset, not the console, the agent probe held 0.8 s):
-    it wrote a 2,468.9 ms record. A fixture banked as his console's record is the lie REG-2461 removes,
-    in a new form.
+    test_a_dead_journal_reader_says_so (TV_HIST unset) left a 1,141 ms record in the tree, and a fresh
+    import of this module published it as worstRequest. Read from the code, not measured: the live
+    console loads that file whenever its own in-memory record is None, so it would publish a test's
+    request as its worst and keep it as the bar. Measured again for this fix with a law-shaped process
+    (TV_HIST unset, not the console, the agent probe held 0.8 s): it wrote a 2,468.9 ms record. A
+    fixture banked as his console's record is the lie REG-2461 removes, in a new form.
 
     Two kinds of process may hold the record:
       · this PC's console: main() booted it (frame_ref.on_console_path), on the primary port, and not
