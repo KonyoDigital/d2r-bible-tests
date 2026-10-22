@@ -8,8 +8,16 @@ owner label, not an install id, a hostname, or a path.
 
 A section that was not read is left out. An empty list is not a stand-in
 for that. Pictures and frame bytes are dropped before the post. The post
-itself is change-only, at most once an hour, plus one at boot when the
-body actually changed. The server, not this file, enforces the daily cap.
+itself is change-only, at most once an hour, plus one at boot. The boot post
+goes even when nothing changed here (#95): the server skips the write when
+its stored hash matches, and overwrites a row someone else wrote in this PC's
+name. The server, not this file, enforces the daily cap.
+
+#95 - every row the server returns carries intentVerified: true (signed by the
+owner's registered key), false (published without a signature that key made),
+or no field at all (published before signing), which every view here shows as
+UNKNOWN and never as either answer. tv/roster_sign.py signs; this file carries
+what the server said to every view, the panel's payload and the doctor.
 """
 
 import html
@@ -470,9 +478,16 @@ def packed(obj):
 
 
 def hash_of(text):
+    """FNV-1a over UTF-16 code units, the units functions/api/roster.js hashOf walks (charCodeAt).
+
+    REG-2511 (#95): this walked code POINTS. A character outside the BMP (an emoji) was one unit
+    here and a surrogate pair in the worker, so 'Ber 🧿 rune' hashed a8b9dc5d here and 83534eb3
+    there, and view_one marked that owner CORRUPT for every viewer. ASCII and BMP text hash exactly
+    as before. surrogatepass keeps a lone surrogate as the one unit JavaScript sees."""
     h = 2166136261
-    for ch in text:
-        h ^= ord(ch)
+    data = text.encode("utf-16-le", "surrogatepass")
+    for i in range(0, len(data), 2):
+        h ^= data[i] | (data[i + 1] << 8)
         h = (h * 16777619) & 0xFFFFFFFF
     return "%x" % h
 
@@ -480,8 +495,11 @@ def hash_of(text):
 def due(state, owner, sections, now_ms, boot):
     """-> (body or None, why). Unchanged and inside the hour do not post.
 
-    Boot may post a changed body inside the hour. It does not post an
-    unchanged body, and it does not retry a refusal inside the hour.
+    Boot posts, changed or not, inside the hour or not. REG-2512 (#95): 'unchanged' was answered
+    before boot was asked, so a row someone else wrote in this PC's name was never re-published
+    over: the PC's digest still matched its own last post. The server skips the write when its
+    stored hash matches, so an honest boot costs no write. A refusal is still not retried inside
+    the hour. signedAt is the clock the signature covers.
     """
     state = state if isinstance(state, dict) else {}
     if not roster_key(owner):
@@ -492,19 +510,98 @@ def due(state, owner, sections, now_ms, boot):
     refused = state.get("refuseAt")
     if isinstance(refused, int) and not isinstance(refused, bool) and now_ms - refused < HOUR_MS:
         return None, state.get("why") or "the roster refused the last publish"
-    if state.get("hash") == digest:
+    if state.get("hash") == digest and not boot:
         return None, "unchanged"
     last = state.get("at")
     if (not boot and isinstance(last, int) and not isinstance(last, bool)
             and now_ms - last < HOUR_MS):
         return None, "within the hour"
-    return {"owner": owner, "boot": True if boot else False, "sections": sections}, "post"
+    return {"owner": owner, "boot": True if boot else False, "signedAt": now_ms,
+            "sections": sections}, "post"
+
+
+#: What one POST did, in the receipt's own words. A transport failure is not a refusal.
+OUTCOMES = ("stored", "skipped", "refused", "unreached")
+
+
+def _words(v, n=200):
+    if not isinstance(v, str):
+        return None
+    s = " ".join(v.split())
+    return s[:n] if s else None
+
+
+def short_key_id(v):
+    """A key id as roster.js and roster_sign.key_id write it (12 hex), or None."""
+    if not isinstance(v, str) or len(v) != 12:
+        return None
+    if any(c not in "0123456789abcdef" for c in v):
+        return None
+    return v
+
+
+def verified_of(row):
+    """True, False, or None. None is UNKNOWN: a row published before signing carries no field."""
+    if not isinstance(row, dict):
+        return None
+    v = row.get("intentVerified")
+    return v if isinstance(v, bool) else None
+
+
+def post_record(reply, now_ms):
+    """#95 - what this PC's last POST did, kept whole: the server's verdict and this PC's signing.
+
+    `reply["signing"]` is written by the console's _roster_post, never by the server. It carries a
+    key id and words only; no seed reaches it. -> dict"""
+    reply = reply if isinstance(reply, dict) else {}
+    signing = reply.get("signing") if isinstance(reply.get("signing"), dict) else {}
+    stored = reply.get("stored") or []
+    if reply.get("ok") is True and "roster" in stored:
+        outcome, why = "stored", "published"
+    elif reply.get("ok") is True:
+        skipped = [s for s in (reply.get("skipped") or []) if isinstance(s, str)]
+        outcome, why = "skipped", "skipped: " + ",".join(skipped)
+    elif isinstance(reply.get("hint"), str):
+        outcome, why = "refused", _words(reply.get("why")) or "refused, with no reason given"
+    else:
+        outcome = "unreached"
+        why = _words(reply.get("why")) or "the roster could not be reached"
+        code = reply.get("code")
+        if isinstance(code, int) and not isinstance(code, bool):
+            why = "%s (HTTP %d)" % (why, code)
+    rec = {"at": now_ms, "outcome": outcome, "why": why[:200], "signed": signing.get("signed") is True}
+    if not rec["signed"]:
+        rec["sigWhy"] = _words(signing.get("why")) or "this publish carried no signature"
+    kid = short_key_id(signing.get("keyId"))
+    if kid:
+        rec["keyId"] = kid
+    signer = _words(signing.get("signer"), 60)
+    if signer:
+        rec["signer"] = signer
+    agree = signing.get("agree")
+    rec["agree"] = agree if isinstance(agree, bool) else None
+    if signing.get("made") is True:
+        rec["made"] = True
+    iv = reply.get("intentVerified")
+    rec["intentVerified"] = iv if isinstance(iv, bool) else None
+    server_kid = short_key_id(reply.get("keyId"))
+    if server_kid:
+        rec["serverKeyId"] = server_kid
+    if isinstance(reply.get("sig"), str):
+        rec["serverSig"] = reply["sig"][:12]
+    said = _words(reply.get("sigWhy"))
+    if said:
+        rec["serverSigWhy"] = said
+    if reply.get("registered") is True:
+        rec["registered"] = True
+    return rec
 
 
 def apply_reply(state, sections, reply, now_ms):
     """What the client remembers after the server answers. A skip is not a publish."""
     state = dict(state or {})
     reply = reply if isinstance(reply, dict) else {}
+    state["post"] = post_record(reply, now_ms)
     digest = hash_of(packed(for_hash(sections or {})))
     stored = reply.get("stored") or []
     if reply.get("ok") is True and "roster" in stored:
@@ -524,6 +621,177 @@ def apply_reply(state, sections, reply, now_ms):
     why = reply.get("why")
     state["why"] = str(why)[:200] if isinstance(why, str) and why else "refused"
     return state
+
+
+def publish_outcome(state, now_ms=None):
+    """#95 - this PC's own last publish, from its own receipt (.tvd_roster.json). -> dict
+
+    state is one of: signed (the site verified it), unverified (signed here, NOT verified there),
+    unsigned (with why), refused (with why), unreached (with why), unknown. A receipt with no post
+    record was written before signing shipped, or nothing has been posted since: UNKNOWN, never
+    'signed'."""
+    if not isinstance(state, dict):
+        return {"state": "unknown", "why": "this PC has no publish receipt"}
+    post = state.get("post")
+    if not isinstance(post, dict) or post.get("outcome") not in OUTCOMES:
+        last = _words(state.get("why"))
+        return {"state": "unknown",
+                "why": "no publish recorded since signing shipped" + ((" (last: %s)" % last) if last else "")}
+    out = {"outcome": post["outcome"], "signed": post.get("signed") is True,
+           "why": _words(post.get("why")) or post["outcome"]}
+    at = post.get("at")
+    if isinstance(at, int) and not isinstance(at, bool):
+        out["at"] = at
+        _state, words = _ago(at, now_ms)
+        out["ago"] = words
+    for k in ("keyId", "serverKeyId"):
+        kid = short_key_id(post.get(k))
+        if kid:
+            out[k] = kid
+    signer = _words(post.get("signer"), 60)
+    if signer:
+        out["signer"] = signer
+    agree = post.get("agree")
+    out["agree"] = agree if isinstance(agree, bool) else None
+    iv = post.get("intentVerified")
+    out["intentVerified"] = iv if isinstance(iv, bool) else None
+    if post["outcome"] == "refused":
+        out["state"] = "refused"
+    elif post["outcome"] == "unreached":
+        out["state"] = "unreached"
+    elif not out["signed"]:
+        out["state"] = "unsigned"
+        out["why"] = _words(post.get("sigWhy")) or "this publish carried no signature"
+    elif out["intentVerified"] is False:
+        out["state"] = "unverified"
+        out["why"] = _words(post.get("serverSigWhy")) or "the site did not verify the signature"
+    else:
+        out["state"] = "signed"
+    return out
+
+
+def _me_line(me):
+    """The one line about THIS PC's own last publish. -> (css class, words) or None."""
+    if not isinstance(me, dict):
+        return None
+    st = me.get("state")
+    when = (" (%s)" % me["ago"]) if isinstance(me.get("ago"), str) else ""
+    why = _words(me.get("why")) or ""
+    if st == "signed":
+        kid = me.get("keyId") or "?"
+        if me.get("intentVerified") is True:
+            said = "the site verified it"
+        else:
+            said = "the site did not say whether it verified it"
+        tail = "; its two signers DISAGREE" if me.get("agree") is False else ""
+        return "roster-me", "this PC's last publish%s: signed with key %s, %s, %s%s" % (when, kid, why, said, tail)
+    if st == "unverified":
+        return "roster-me roster-unverified", "this PC's last publish%s was signed but NOT verified by the site: %s" % (when, why)
+    if st == "unsigned":
+        return "roster-me roster-unverified", "this PC's last publish%s went UNSIGNED: %s" % (when, why)
+    if st == "refused":
+        return "roster-me roster-refused", "this PC's last publish%s was REFUSED: %s" % (when, why)
+    if st == "unreached":
+        return "roster-me roster-unknown", "this PC's last publish%s did not reach the site: %s" % (when, why)
+    return "roster-me roster-unknown", "this PC's last publish: UNKNOWN (%s)" % (why or "no receipt")
+
+
+def signature_words(row):
+    """One published row's signature, in words. -> (css class, words). None stays UNKNOWN."""
+    v = verified_of(row)
+    kid = short_key_id((row or {}).get("keyId")) if isinstance(row, dict) else None
+    if v is True:
+        return "roster-verified", "signature verified" + ((" (key %s)" % kid) if kid else "")
+    if v is False:
+        return ("roster-unverified",
+                "NOT signature-verified: published without a signature its owner's key made")
+    return "roster-unknown", "signature UNKNOWN: published before signing"
+
+
+def signing_verdict(payload, me, owner=None, own_key_id=None):
+    """#95 doctor row: every published owner is signature-verified, and this PC's last publish was
+    not refused. -> (state, why), state "ok" | "missing" | "unknown".
+
+    MISSING names the PC or the owner and what is wrong. UNKNOWN is a row published before signing,
+    a corrupt row, a roster this PC has not fetched, or no receipt yet - never OK. `owner` is this
+    PC's roster label (None: this PC publishes nothing, so only the other owners are asked);
+    `own_key_id` is the id of the key in this PC's own key file, compared with the id the roster
+    names for that owner."""
+    problems, unknown = [], []
+    me = me if isinstance(me, dict) else {}
+    st = me.get("state")
+    if owner:
+        why = _words(me.get("why")) or "no reason recorded"
+        if st == "refused":
+            problems.append("this PC's last publish was REFUSED (%s)" % why)
+        elif st == "unsigned":
+            problems.append("this PC's last publish went UNSIGNED (%s)" % why)
+        elif st == "unverified":
+            problems.append("this PC's last publish was signed but the site did NOT verify it (%s)" % why)
+        elif st == "unreached":
+            unknown.append("this PC's last publish did not reach the site (%s)" % why)
+        elif st == "signed" and me.get("intentVerified") is not True:
+            unknown.append("the site did not say whether it verified this PC's last publish")
+        elif st != "signed":
+            unknown.append("this PC has no publish on record since signing shipped")
+        if me.get("agree") is False:
+            problems.append("this PC's two signers DISAGREE on the same bytes (cryptography against the "
+                            "RFC 8032 signer) - one of them is wrong")
+    if not isinstance(payload, dict) or payload.get("fetched") is not True:
+        unknown.append("this PC has not fetched the roster, so no owner's signature can be read")
+        rows = []
+    else:
+        rows = payload.get("owners") if isinstance(payload.get("owners"), list) else []
+    verified, unsigned, before, corrupt = [], [], [], []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("owner") not in OWNERS:
+            continue
+        if row.get("published") is not True:
+            continue
+        name = row["owner"]
+        if row.get("corrupt") is not False:       # corrupt, or a row that does not say: unreadable
+            corrupt.append(name)
+            continue
+        v = verified_of(row)
+        if v is True:
+            verified.append(name)
+            kid = short_key_id(row.get("keyId"))
+            if owner and name == owner and own_key_id and kid and kid != own_key_id:
+                problems.append("the roster names key %s for %s but this PC signs with %s - its next "
+                                "publish is refused until Konyo resets that owner's key from the Mac"
+                                % (kid, name, own_key_id))
+        elif v is False:
+            unsigned.append(name)
+        else:
+            before.append(name)
+    if unsigned:
+        problems.append("%d published owner(s) are NOT signature-verified: %s"
+                        % (len(unsigned), ", ".join(unsigned)))
+    if before:
+        unknown.append("published before signing, so UNKNOWN: %s" % ", ".join(before))
+    if corrupt:
+        unknown.append("corrupt, so their signature cannot be read: %s" % ", ".join(corrupt))
+    if problems:
+        return "missing", "; ".join(problems + unknown)
+    if unknown:
+        return "unknown", "; ".join(unknown)
+    if not verified:
+        return "unknown", "the roster holds no published owner yet, so no signature has been read"
+    mine = (" and this PC's last publish was signed with key %s and verified" % me.get("keyId")) if owner else ""
+    return "ok", "all %d published owner(s) are signature-verified%s" % (len(verified), mine)
+
+
+def doctor_row(ca, now_ms):
+    """#95 - the doctor's question, asked of one console module (the control_app that serves). -> (state, why)
+
+    It reads only: this PC's receipt, its fetched roster cache, and the PUBLIC half of its key. It never
+    makes a key, posts, or fetches. console_doctor's row is this call and nothing else."""
+    import roster_sign as _rs
+    receipt = ca._roster_state_load()
+    payload = ca._roster_cache_payload()
+    owner = owner_of(ca._roster_claimed_name(), ca._roster_platform())
+    mine, _why = _rs.public_view(_rs.key_path_in(ca._log_root()))
+    return signing_verdict(payload, publish_outcome(receipt, now_ms), owner, (mine or {}).get("keyId"))
 
 
 def _age_state(as_of, now_ms):
@@ -561,6 +829,11 @@ def view_one(owner, row, now_ms):
         return {"owner": owner, "published": True, "corrupt": True}
     out = {"owner": owner, "published": True, "corrupt": False, "hash": digest,
            "age": _age_state(row.get("t"), now_ms)}
+    # #95 - the signature verdict travels with the row: True, False, or None (published before signing).
+    out["intentVerified"] = verified_of(row)
+    kid = short_key_id(row.get("keyId"))
+    if kid:
+        out["keyId"] = kid
     if isinstance(row.get("t"), int) and not isinstance(row.get("t"), bool):
         out["t"] = row["t"]
     if kept:
@@ -623,7 +896,10 @@ def write_cache(directory, views):
         if not name:
             continue
         if view.get("published") is True and view.get("corrupt") is not True:
-            body = view
+            body = dict(view)
+            # #95 - written every time, null when unknown, so a reader of the file never has to
+            # guess whether an absent field meant "not verified".
+            body["intentVerified"] = verified_of(view)
         elif view.get("corrupt") is True:
             body = {"owner": view.get("owner"), "published": True, "corrupt": True}
         else:
@@ -661,6 +937,10 @@ def refresh_view(view, now_ms):
         kept[name] = one
     out = {"owner": owner, "published": True, "corrupt": False,
            "age": _age_state(view.get("t"), now_ms)}
+    out["intentVerified"] = verified_of(view)
+    kid = short_key_id(view.get("keyId"))
+    if kid:
+        out["keyId"] = kid
     if isinstance(view.get("t"), int) and not isinstance(view.get("t"), bool):
         out["t"] = view["t"]
     if kept:
@@ -783,7 +1063,23 @@ def _row_line(row, now_ms):
 
 
 def roster_html(payload):
-    """Read-only markup. A missing fetch is not five empty rosters."""
+    """Read-only markup. A missing fetch is not five empty rosters.
+
+    #95: when the caller hands over `me` (this PC's own last publish, publish_outcome), that line
+    leads the markup, fetched or not, so a refused or unsigned publish is never left out of it."""
+    lead = _me_html(payload.get("me")) if isinstance(payload, dict) else ""
+    return lead + _owners_html(payload)
+
+
+def _me_html(me):
+    line = _me_line(me)
+    if not line:
+        return ""
+    klass, words = line
+    return '<p class="%s">%s</p>' % (klass, html.escape(words, quote=True))
+
+
+def _owners_html(payload):
     if not isinstance(payload, dict) or payload.get("fetched") is not True:
         return '<div class="roster-none">this PC has not fetched a roster yet</div>'
     by = {}
@@ -826,6 +1122,8 @@ def _published_html(owner, row, now_ms):
     if state == "stale":
         klass += " roster-stale"
     blocks = ['<section class="%s"><h3>%s</h3><p>%s</p>' % (klass, who, html.escape(when, quote=True))]
+    sig_class, sig_said = signature_words(row)
+    blocks.append('<p class="%s">%s</p>' % (sig_class, html.escape(sig_said, quote=True)))
     sections = row.get("sections") if isinstance(row.get("sections"), dict) else {}
     for name in SECTIONS:
         sec = sections.get(name)

@@ -7652,6 +7652,33 @@ def _check_a_fleet_refusal_names_an_action():
                 % (len(below), known, _ca.MASK_WITHOUT_BOARD_SINCE, ", ".join(below[:4]), tail))
 
 
+def _check_every_roster_publish_is_signed():
+    """#95 - EVERY PUBLISHED OWNER IS SIGNATURE-VERIFIED, AND THIS PC'S LAST PUBLISH WAS NOT REFUSED.
+
+    The site's Basic password is public, so a roster row is the owner's only when the owner's key
+    signed it (functions/api/roster.js, tv/roster_sign.py). This row reads THIS PC's own two stores and
+    never the network: its publish receipt (.tvd_roster.json, what the site said to its last POST) and
+    its fetched roster cache (what the site holds for every owner), plus the PUBLIC half of its own key.
+      missing -> this PC's last publish was refused or went unsigned, its two signers disagreed, a
+                 published owner is NOT signature-verified, or the roster names a key for this PC's
+                 owner that is not the key on this PC (refused until Konyo resets that owner's key from
+                 the Mac - the command is in functions/api/roster.js)
+      unknown -> a row published before signing, a corrupt row, no fetch yet, no receipt yet. Never ok.
+    [[unknown-stays-unknown]] [[heart-first]]"""
+    try:
+        import control_app as _ca
+        import roster_publish as _rp
+    except Exception as e:
+        return UNKNOWN, ("control_app or roster_publish will not import (%s), so no roster signature "
+                         "is read" % str(e)[:60])
+    try:
+        state, why = _rp.doctor_row(_serving_console(_ca), int(time.time() * 1000))
+    except Exception as e:
+        return UNKNOWN, ("this PC's roster receipt, cache or key could not be read (%s), so no roster "
+                         "signature is read" % type(e).__name__)
+    return {"ok": OK, "missing": MISSING}.get(state, UNKNOWN), why
+
+
 def _check_a_queue_zero_came_from_a_read_that_WORKED():
     """v3395 — WHEN THE DRAIN SAYS "NOTHING NEW", DID ANYONE ACTUALLY LOOK?
 
@@ -10304,6 +10331,8 @@ CHECKS = [
     ("a presence reading names its door", _check_a_presence_reading_names_its_door),
     ("a fleet row identifies its machine", _check_a_fleet_row_identifies_its_machine),
     ("a fleet refusal names an action", _check_a_fleet_refusal_names_an_action),
+    # #95 - two local reads (the publish receipt and the fetched roster cache), no network: every tick.
+    ("every roster publish is signed", _check_every_roster_publish_is_signed),
     ("a worker read has a deadline", _check_a_worker_read_has_a_deadline),
     ("no browser is launched unreaped", _check_no_browser_is_launched_unreaped),
     ("fleet can name what it counts", _check_the_fleet_can_name_what_it_counts),
@@ -11035,6 +11064,9 @@ WATCHES = {
     "a presence reading names its door": (),
     "a fleet row identifies its machine": (),
     "a fleet refusal names an action": (),
+    # #95 — DECLARED, NOT OMITTED. It reads the publish receipt and the roster cache; the panel
+    # line it supervises is drawn by roster_html, which is no registry surface of its own.
+    "every roster publish is signed": (),
     "a worker read has a deadline": (),
     "no browser is launched unreaped": (),
     "fleet can name what it counts": (),

@@ -7,6 +7,49 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2510 - ANYONE WITH THE PUBLIC SITE PASSWORD COULD OVERWRITE ANY PC'S ROSTER ROW, AND THE SERVER RE-HASHED THE FORGERY CLEAN (#95, M6 track T3)
+
+functions/api/roster.js onRequestPost checked nothing but the site's Basic password, and that password is in this public repo: _roster_post in tv/control_app.py sends it. Any POST naming an owner label overwrote that owner's row. The server re-hashed whatever it stored, so GET read a forged row corrupt:false and every console drew it as that PC's. Rows were stored as sent (shapeSection), up to 80,000 bytes. HIS RULING 2026-10-22: deploy signed publishing once the Python/JS signature test passes, trust-on-first-use, never stop a PC from publishing.
+
+FIX: each PC holds its own Ed25519 key, made by tv/roster_sign.py on its first publish at <log root>/.roster_key.json (follows TV_HIST, mode 0600, gitignored, never replaced). _roster_post signs the EXACT bytes it posts and sends X-Roster-Key and X-Roster-Sig (base64url); neither side re-serialises before the check. It signs with `cryptography` where that is installed and with a pure-Python RFC 8032 signer everywhere else: the installers do not install cryptography, so without the fallback Dean, ALT and Wife PC would never sign. On every signature both run and must write the same 64 bytes (`agree` in the receipt). roster.js reads arrayBuffer(), checks byteLength, and verifies with crypto.subtle (Ed25519, raw public key) before JSON.parse and before any KV write. Per owner, against KV rosterkey:<owner>:
+- no key + valid signature: the key is registered and the row stored intentVerified:true;
+- no key + unsigned: stored intentVerified:false, so a PC that has not updated keeps publishing;
+- no key + a signature that does not verify: stored false and NOT registered, and the reply says why. Anyone could post that row unsigned, and a signer bug must not stop a PC from publishing;
+- registered + same key + valid: stored true;
+- registered + unsigned, another key or a bad signature: refused (200, ok:false) with its own why and hint, and nothing is stored.
+A key changes only when Konyo deletes rosterkey:<owner> from the Mac; the wrangler commands (and the pre-seed form) are in roster.js's header. A row that becomes verified or changes key is written even inside the hour, once. GET passes intentVerified, keyId and signedAt only when the record holds them, so a row stored before signing reads UNKNOWN. When no key can be read or made, or the signer raises, the post goes unsigned and the receipt (.tvd_roster.json `post`) says why.
+
+DEPLOY: the server half is safe first, because it accepts unsigned bodies until an owner registers a key. functions/ ships with the integrator's push. After the deploy, GrokBot checks on #230 that every PC still publishes.
+
+LEFT, said rather than silent:
+- a PC that loses tv/.roster_key.json after registering is refused until Konyo resets its key. The refusal is kept in that PC's receipt, rides /api/roster-cache as `me` ("this PC's last publish was REFUSED: ...") and turns the doctor row MISSING (REG-2514); the roster panel does not draw it yet (REG-2513 LEFT);
+- trust-on-first-use: whoever signs first for an unregistered label holds it until Konyo resets it, or pre-seeds the right key;
+- a captured signed body can be replayed. signedAt is stored, not enforced: a replay is an older true row of that owner, and capturing one needs the TLS session;
+- the Basic password stays, as the gate for reading the site.
+
+GUARD: tv/test_a_roster_publish_is_signed_and_a_forgery_is_refused.py. Python signs with both signers and node runs the real onRequestPost and onRequestGet against a stand-in KV: the acceptance sequence (unsigned stored false; signed registers and stores true; unsigned, another key and one flipped bit each refused with the KV byte-identical), RFC 8032 section 7.1 vectors on both signers and in node, 200 random bodies up to MAX_BODY (signed here, verified in node, byte-identical between the signers), the cut _roster_post against a stand-in urllib, and the seed in no body, header, reply, record, receipt or page. tv/test_a_roster_publish_stays_off_the_presence_beacon.py's harness now sends exact bytes and headers, and its unsigned bodies still store.
+
+### REG-2511 - AN EMOJI IN A ROSTER ROW MADE ITS OWNER READ CORRUPT FOR EVERY VIEWER (#95, M6 track T3)
+
+roster_publish.hash_of walked code points; roster.js hashOf walks UTF-16 units (charCodeAt). For 'Ber 🧿 rune' the worker gives 83534eb3 and Python gave a8b9dc5d (measured in node and python3). view_one therefore marked any owner whose rows held a character outside the BMP CORRUPT, and drew none of its rows. FIX: hash_of encodes UTF-16-LE (surrogatepass, so a lone surrogate is the one unit JavaScript sees) and walks those units. ASCII and BMP digests do not change: 'abc' 1a47e90b and 'Tal Rune ★' b51575f1 on both sides. GUARD: the same law, without node (the worker's measured digest) and with node (an emoji row through the real worker reads corrupt:false).
+
+### REG-2512 - A FORGED ROSTER ROW WAS NEVER HEALED: due() SAID "unchanged" BEFORE IT ASKED ABOUT BOOT (#95, M6 track T3)
+
+roster_publish.due returned "unchanged" whenever this PC's own last digest matched, before it looked at boot. A row someone else wrote in this PC's name stayed until this PC's rows changed. FIX: boot posts even when nothing changed here. The server skips the write when its stored hash matches, so an honest boot costs no KV write, and it overwrites a forged row. A tick still stays quiet when unchanged, and a refusal is still not retried inside the hour. due() also adds signedAt (ms) to the body, the clock the signature covers. The existing roster law asserted "boot does not post an unchanged body", which was the defect itself; it now asserts the opposite. GUARD: the new law, both in Python and through the worker (a forged unsigned row, then the PC's signed boot publish, then the PC's row).
+
+### REG-2513 - WHETHER A ROSTER ROW WAS ITS OWNER'S NOW TRAVELS WITH EVERY ROSTER VIEW, AND THIS PC'S OWN LAST PUBLISH RIDES THE PANEL'S PAYLOAD (#95, M6 track T3)
+
+view_one, refresh_view, write_cache and roster_html carry each owner's intentVerified. The cache file writes the field every time, null when unknown. roster_html says "signature verified (key ...)", "NOT signature-verified" or "signature UNKNOWN: published before signing", never one answer standing in for another. /api/roster-cache adds `me`, read from .tvd_roster.json by publish_outcome: signed, unverified, unsigned, refused, unreached or unknown, each with its why and age, and roster_html leads with that line whether or not a roster was fetched. GUARD: the new law (views, cache file, page, receipt states, and the route handing `me` over before the page is drawn).
+LEFT, MEASURED while building this: the console's roster panel does not draw roster_html. control_ui.html `_rosterOpen` builds its own buttons from data.owners ("<owner> · published") and the shadow bar its own sentence; neither reads data.html, data.me or a row's intentVerified. So the verdict and this PC's own outcome reach the panel's payload, the doctor (REG-2514) and the shadow board's row, and are NOT yet drawn on his screen. The buttons and the bar need the words; control_ui.html is outside this track's files.
+
+### REG-2514 - THE DOCTOR ASKS WHETHER EVERY ROSTER PUBLISH IS SIGNED (#95, M6 track T3)
+
+A new row, "every roster publish is signed", runs every tick: two local reads and the public half of the key, no network. It is roster_publish.doctor_row over the serving console. It reads MISSING when this PC's last publish was refused or went unsigned, when its two signers disagreed, when a published owner is NOT signature-verified, or when the roster names a key for this PC's owner that is not the key on this PC. It reads UNKNOWN for a row published before signing, a corrupt row, no fetch or no receipt, never OK. Registered in CHECKS, WATCHES (declared empty) and corroborate.NO_JOINT_YET (no joint to cite; the signer pair is checked per signature inside roster_sign). GUARD: the new law (the verdict per case, doctor_row over a stand-in console reading real files, and the row present in CHECKS).
+
+### REG-2515 - A CONSOLE KILLED MID d2jsp OP LEFT ITS SCRATCH CHROME AND PROFILE UNTIL THE NEXT OP (#112, M6 track T3)
+
+d2jsp_chrome._sweep_stale_scratch ran only at the top of the next quote or post, so a scratch Chrome holding his decrypted d2jsp session stayed running after a console was killed mid-op until he next used the desk. main() now calls the existing sweep once at boot: synchronously, beside the reel index sweep, before any lane starts, inside a guard that prints the failure (ascii, so a Windows console cannot choke on it) and never raises. Track T1 widens what the sweep removes (the stranded cookie copies). GUARD: the new law (exactly one call to the sweep in control_app.py, a direct statement of main() inside try/except Exception that prints and never re-raises, after the index sweep and before the lanes start).
+
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
 2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1

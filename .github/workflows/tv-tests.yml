@@ -97,8 +97,11 @@ jobs:
       # v2881 — numpy joins them: without it vault_corpus.inventory_lattice refuses every frame
       # with "unreadable: No module named 'numpy'" before any lattice fit is attempted, so the
       # lattice laws graded an import error rather than the refusal wording they were written for.
+      # #95 (REG-2510) — cryptography joins them so the roster-signing law's AGREEMENT half (the
+      # cryptography signer against the pure RFC 8032 one, byte for byte) runs here instead of
+      # declaring a skip. No suite imports it: tv/roster_sign.py asks for it at call time.
       - name: Install Pillow + numpy + websocket-client (a missing import is a skip wearing a failure)
-        run: python3 -m pip install --quiet pillow numpy websocket-client
+        run: python3 -m pip install --quiet pillow numpy websocket-client cryptography
       # ⚠⚠ THIS WORKFLOW HAD NO BROWSER AT ALL, AND ONE GATE MEASURES PIXELS.
       # `overlap_ratchet` catches the class `render_check` cannot see — two labels drawn on top of
       # each other, both fully on screen, neither clipped. With no Chromium here it could only ever
