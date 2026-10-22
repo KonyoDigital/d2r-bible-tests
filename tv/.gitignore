@@ -1,1 +1,4 @@
 .handoff_seen.json
+# #181 (REG-2470) - THIS PC's own proof ledger: the LIVE trials it ran against its own console, shelf, disk history
+# and window. Per machine. The shared ledger beside it stays tracked - it holds only what is a property of the code.
+/.self_arming.here.jsonl

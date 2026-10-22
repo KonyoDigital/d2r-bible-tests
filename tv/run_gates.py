@@ -11585,6 +11585,16 @@ GATES = [
              "sweep's start and left at its end - after a return, a failure the sweep catches, or a crash that "
              "escapes it (not swallowed); with no keep_awake the sweep runs and the record says NOT held. Driven "
              "with a stand-in keep_awake, the sweeps in a fixture world stopped at their first step."),
+    Gate("test_a_pc_shows_only_its_own_live_trials",
+         [sys.executable, os.path.join(HERE, "test_a_pc_shows_only_its_own_live_trials.py")], 120,
+         needs_app=False,
+         why="#181 (REG-2470, REG-2471) - tv/.self_arming.jsonl is TRACKED and held 49 LIVE trials measured on Konyo's "
+             "Mac, so Dean's heart scored them as his own (frame.release 'earned 85/85' = 35 code rows + 50 Mac live "
+             "checks). A live trial now goes to THIS PC's gitignored tv/.self_arming.here.jsonl (bank, record and the "
+             "deferred fold); every other kind stays shared. The shared file's live rows are legacy: counted on no PC, "
+             "reported as legacyLive, and score() carries byOrigin {code, here} with 'nothing measured on this PC yet'. "
+             "`self_arming.py --adopt-legacy-live --reason ... --confirm` moves them to the PC that measured them: no "
+             "reason is refused, no --confirm writes nothing, adopted rows keep their own age and are written once."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
@@ -11690,7 +11700,8 @@ def _measured_cost(name):
 
 
 def _fold_deferred_bank(path):
-    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl and clear the defer env. -> bool"""
+    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl (a live trial: this PC's own
+    tv/.self_arming.here.jsonl, #181) and clear the defer env. -> bool"""
     if not path:
         return True
     if os.environ.get("TV_SELF_ARMING_DEFER") == path:
@@ -11707,8 +11718,11 @@ def _fold_deferred_bank(path):
     except OSError:
         pass
     if _nf or _nr:
-        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s"
-              % (_nf, (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
+        # #181 (REG-2470) - a LIVE row folds into THIS PC's own ledger, so one file name for every row would be false
+        _nh = int((getattr(_SA, "LAST_FOLD", None) or {}).get("here") or 0)
+        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s%s"
+              % (_nf - _nh, (", %d live trial row(s) into this PC's own tv/.self_arming.here.jsonl" % _nh) if _nh else "",
+                 (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
     return True
 
 

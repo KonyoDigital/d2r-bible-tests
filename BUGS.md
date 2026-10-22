@@ -7,6 +7,58 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2470 - THE SHARED PROOF QUEUE CARRIED ONE PC'S LIVE TRIALS TO EVERY PC (#181, M4 track B)
+
+tv/.self_arming.jsonl was commented "untracked" and `git ls-files` lists it: it ships to every PC with every update. At
+7285e7efc it held 657 rows - sabotage 583, cross-family 25, LIVE 49 (vault_live 28, route_lane_live 9, printer_live 3,
+frame_release_live 2, rung_accounting_live 2, disk_report_live 2, sweep_live 2, pixel_witness_live 1) - and every live row
+was measured on Konyo's Mac: his running console, his shelf, his disk history, his window. Dean's heart scored them as his
+own. frame.release read "earned 85/85": 35 code rows plus 50 of the Mac's live checks. MEASURED by scoring the HEAD ledger
+without the live rows: no lock or route changes permission. console.pixel_rescue, frame.release, reel.route, vault.apply,
+vault.sweep_start and chronicle.runeword/set/unique go HARDENED -> OPEN; printer.stream, prune.reports, fleet.* and
+roster.* stay OPEN; miniauto.run stays INCOMPLETE and vault.forget UNPROVEN.
+FIX: a live trial is a property of the PC that ran it. bank(), record() and fold_deferred() send kind 'live' to THIS PC's
+gitignored ledger (tv/.self_arming.here.jsonl, TV_SELF_ARMING_HERE, resolved at call time; a fixture that redirected the
+shared queue gets a sibling of its own, never his real file). Every other kind stays in the shared ledger. _rows() = the
+shared ledger's code rows + this PC's rows. A live row in the shared file is LEGACY: counted on no PC, never edited out of
+the tracked bytes, reported as score()["legacyLive"] and report()["ledger"]["legacyLive"]. A non-live row in the per-PC
+ledger could not have been banked there and fails the read CLOSED. score() carries byOrigin {code: {k, n}, here: {k, n,
+adopted} | None} and hereSay ("nothing measured on this PC yet ..."); the UI label is M5/#180. run_gates' fold line names
+both files (LAST_FOLD). Live rows are never deferred: the per-PC file is gitignored, so it is no gate's input.
+GUARD: tv/test_a_pc_shows_only_its_own_live_trials.py (two PCs in its own scratch; the shared fixture is a copy of the
+tracked ledger; git's own matcher on the ignore line, GIT_* scrubbed), 13 RED_PROOFs.
+RE-AIMED (two laws the split changed the reach of): test_the_pixels_earn_the_right_to_act asserted "OPEN => three
+families" off the real ledger, and the third family was the Mac's one pixel_witness_live row. The table's rule is
+kinds_bar 1.8, which sabotage 1.0 + cross-family 0.8 clears, so on a PC that never ran the live witness
+console.pixel_rescue is OPEN on two families by the arithmetic; the case now pins the rule (OPEN only when the
+arithmetic clears, never on one family, a live family counted on a PC measured on that PC). test_gate_banks' plain-audit
+case read only the shared ledger, so its v2940/L proof went BLIND - MEASURED: with that tamper, vault_wilson's
+`vault.apply / live / vault_live` row landed in the per-PC file (281 bytes) and the case stayed green. It now asks both.
+NOTE: self_arming.py is in many laws' keys, so the push that lands this re-proves a large set. On CI, in a push worktree
+and on any PC with no per-PC file the 8 surfaces above read OPEN, not HARDENED - by the rule, not a regression. Measured
+in the track's worktree on the final bytes: 75 of the 77 non-browser laws that name self_arming, counter_ledger or
+sets_base_index pass with no per-PC file (76 of 77 with the adopted ledger in place, run while the census was still
+stale); the two reds are this Mac's and red identically at 7285e7efc: test_a_gate_proven_on_these_bytes_is_carried ("PREMISE: no .pyc cache" under
+sys.pycache_prefix) and test_the_lock_derives_from_the_heart, which reads the machine's real heart2 census - current,
+with 5 BLIND instruments another prover recorded, so no lock may act there. heart2 --prove: 113 proofs PROVEN across 28
+laws (the 2 new, the 3 re-aimed, and 23 that read the ledger or the page).
+OPEN QUESTION (his, not this fix's - per-lock is parked): console.pixel_rescue replaces the window he is looking at, and on
+a PC that never ran its live witness it is still OPEN on code-only evidence (permission unchanged by this split).
+
+### REG-2471 - THE PC THAT MEASURED THE LEGACY LIVE TRIALS HAD NO WAY TO TAKE THEM BACK (#181, M4 track B)
+
+The split counts the 49 legacy live rows on NO PC - including the Mac that measured them, which would drop from HARDENED
+to OPEN on 8 surfaces. Nothing in the rows says which install ran them, so no code may decide it.
+FIX: an explicit door, run by a person on the PC that measured them:
+`python3 tv/self_arming.py --adopt-legacy-live --reason "<why>" --confirm`. It copies every legacy live row into THIS
+PC's per-PC ledger, each marked `adopted` {by, reason, at, from} and keeping its own `ts` (a trial is as old as what it
+measured). No reason -> REFUSED (exit 2). No --confirm -> a DRY RUN that writes nothing and says what it would take. A
+row already adopted is never written twice. The shared file's bytes are never touched. Nothing calls it on its own.
+After it, that PC scores exactly what it scored before the split (the law asserts k, n and state for every lock).
+POST-LAND: main runs it on Konyo's Mac with a reason; dean-pc-river checks Dean's heart reads the code rows (frame.release
+35/35) with "nothing measured on this PC yet" for live.
+GUARD: the same law's TheAdoptionDoor (function and command line).
+
 ### REG-2466 - NOTHING HELD A PC AWAKE WHILE A SWEEP RAN (#170, the console's half)
 
 Dean's laptop slept in the middle of a proof (2026-10-21). Measured on his PC 2026-10-22 (read-only powercfg): standby never on AC or battery, hibernate after 7,200 s on battery only, and that day's drop was a lid close (Kernel-Power 42 "Button or Lid") - so a hold matters on battery and never overrides a lid. Low value for Dean, ruled anyway: "YES, ONLY WHILE WORKING" (no display hold, no powercfg change).
