@@ -15,6 +15,8 @@ Driven here on fixture trees, each run under the REAL hook (gate_trace/sitecusto
   * E facts for single-name environment reads only (os.environ[X], .get, in, os.getenv); a bulk copy writes none, a
     plumbing name is none, a name the process set first is none, and a child's read of a value its parent MADE is none.
   * Z size facts (S stays presence-only), H bytes as read, D listings as listed, T the tracked set ls-files named.
+  * REG-2446 - a pathlib probe (Path.stat, .exists, .is_symlink) writes its facts on python 3.9/3.10 too, whose pathlib
+    copies os.stat into its accessor: imported before the hook (his Mac's .pth) or after it (`-s`).
   * gate_ledger.facts_of / facts_hold: an identical tree holds; one byte, one size, one listed name, one env value, an
     absent file that appears, a module that would now shadow an import, a kept-bytes (append) file, the tracked set
     and a .gitignore each break it. read_trace() still reads a C line exactly like U by default.
@@ -437,6 +439,33 @@ class TheTrackedSetAndTheGitignoresAreFacts(unittest.TestCase):
         self.assertIn(".gitignore", why or "")
 
 
+# ── pathlib (REG-2446) ─────────────────────────────────────────────────────────────────────────────────────────────────
+class APathlibProbeIsAFact(unittest.TestCase):
+    """REG-2446 - python 3.9/3.10's pathlib copies os.stat/os.lstat into its accessor when it is imported. On his Mac a
+    user site-packages .pth imports pathlib before the hook, so Path.stat()/.exists()/.is_symlink() wrote no S, A or Z;
+    a python that imports pathlib only later (-s: no user site) copied the wrapper, which bound as a method and raised
+    TypeError on every Path.stat(). Both ways are driven; on 3.11+ pathlib asks os.stat at call time and both hold."""
+
+    def _run(self, flags):
+        root = tempfile.mkdtemp(prefix="facts-pathlib.")
+        self.addCleanup(shutil.rmtree, root, True)
+        _write(root, "tv/sized.txt", "four")
+        _write(root, "tv/t_pathlib.py",
+               "import os, pathlib\nH = pathlib.Path(os.path.dirname(os.path.abspath(__file__)))\n"
+               "print((H / 'sized.txt').stat().st_size, (H / 'absent.flag').exists(), (H / 'sized.txt').is_symlink())\n")
+        return _traced(root, "t_pathlib.py", argv0=[sys.executable] + list(flags))
+
+    def test_a_pathlib_stat_exists_and_lstat_are_facts(self):
+        for flags in ((), ("-s",)):
+            proc, facts, why = self._run(flags)
+            self.assertEqual(proc.returncode, 0, "a traced Path.stat() raised (python %s): %s"
+                             % (" ".join(flags) or "with its user site", proc.stderr[-600:]))
+            self.assertIsNone(why, "PREMISE: the pathlib run was untraced: %s" % why)
+            self.assertEqual(facts["Z"].get("tv/sized.txt"), {"f": "4", "F": "4"},
+                             "Path.stat()/.is_symlink() kept no size fact (python %s)" % (" ".join(flags) or "-"))
+            self.assertIn("tv/absent.flag", facts["A"], "Path.exists() of an absent file wrote no A fact")
+
+
 # ── the node twin ──────────────────────────────────────────────────────────────────────────────────────────────────────
 @unittest.skipUnless(_HAVE_NODE, "no node on PATH - the node twin cannot run here")
 class ANodeChildWritesTheSameFacts(unittest.TestCase):
@@ -530,6 +559,16 @@ RED_PROOF = [
     {"why": "the node twin keeps no size", "file": "gate_trace/node_trace.cjs",
      "find": "    emit('Z', sizeOf(st, false) + ' ' + r);  // TRACE-SIZE-FACT\n", "replace": "    // TRACE-SIZE-FACT\n",
      "matches": 1, "needs": "node"},
+    # REG-2446 - judged on macOS: his Mac's python (3.9) is the one host here whose pathlib copies os.stat into its
+    # accessor; a 3.11+ python (CI, the Windows PCs) asks os.stat at call time, so there these change nothing
+    {"why": "REG-2446 - pathlib's accessor keeps the real os.stat, so a Path probe writes no fact",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                setattr(pl_acc, _n, staticmethod(getattr(os, _n)))  # TRACE-PATHLIB-ACCESSOR\n",
+     "replace": "                pass  # TRACE-PATHLIB-ACCESSOR\n", "matches": 1, "needs": "macos"},
+    {"why": "REG-2446 - pathlib is not imported before the wrap, so a python that loads it later copies the wrapper "
+            "and every traced Path.stat() raises", "file": "gate_trace/sitecustomize.py",
+     "find": "            import pathlib as _pl\n", "replace": "            _pl = sys.modules.get(\"pathlib\")\n",
+     "matches": 1, "needs": "macos"},
 ]
 
 if __name__ == "__main__":

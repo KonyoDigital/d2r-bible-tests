@@ -721,10 +721,29 @@ def _boot():
         for _k, _v in list(os.environ.items()):
             if not _plumbing(_k):
                 emit("N", "%s %s" % (env_digest(_v), _k))  # TRACE-ENV-ROOT-BLOCK
+    # REG-2446 - PYTHON 3.9/3.10's pathlib COPIES os.stat and os.lstat (3.10: os.readlink) INTO ITS _NormalAccessor WHEN
+    # IT IS IMPORTED. Measured on his Mac (python 3.9.6): a user site-packages .pth imports pathlib before this file
+    # runs, so Path.exists() / .stat() / .is_file() asked the REAL os.stat and wrote no S, A or Z - a law's pathlib probe
+    # of an ignored file was no fact of its key, for the ledger and the proof memory alike. And where pathlib loads AFTER
+    # this file (a 3.9/3.10 python without that .pth), its class body copied the wrapper - a plain function, which binds
+    # as a method - and every Path.stat() of a traced run raised TypeError. So on 3.9/3.10 pathlib is imported here,
+    # BEFORE the wrap, and its accessor is pointed at the wrappers as static methods (3.11+ asks os.stat at call time).
+    pl_acc, pl_real = None, {}
+    if sys.version_info < (3, 11):
+        try:
+            import pathlib as _pl
+            pl_acc = getattr(_pl, "_NormalAccessor", None)
+        except Exception:
+            pl_acc = None
+        pl_real = dict((n, getattr(os, n, None)) for n in ("stat", "lstat", "readlink"))
     os.stat = stat_wrap(os.stat)
     os.lstat = stat_wrap(os.lstat, False)
     os.access = probe_wrap(os.access)
     os.readlink = probe_wrap(os.readlink)  # LEDGER-TRACE-PROBE
+    if pl_acc is not None:
+        for _n, _real in sorted(pl_real.items()):
+            if _real is not None and vars(pl_acc).get(_n) is _real:
+                setattr(pl_acc, _n, staticmethod(getattr(os, _n)))  # TRACE-PATHLIB-ACCESSOR
     # os.path.realpath needs no wrap: it walks the path through os.lstat, which is wrapped above
     if strict:
         for _name in sorted(_STRICT_MODULES & set(sys.modules)):
