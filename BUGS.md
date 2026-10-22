@@ -81,7 +81,7 @@ Windows msvcrt's byte lock far past the end, so readers are never refused; neith
 writer left without its newline. --gate pins the machine's ledger and still ignores TV_SECOND_EYE_LEDGER; the seam still names a
 fixture otherwise. A tree with no git dir (a heart2 sandbox) keeps its own file, LEDGER_WHY says why, and the CLI prints it.
 second_eye_drain.py / second_eye_run.py go through record() and _rows(), so they move with it; console_doctor's direct readers open
-LEDGER_PATH, which the import already folded.
+LEDGER_PATH: the file the push gate's --check (and every read in his console's own ticks) has already folded.
 MEASURED on a fixture replica of this Mac (copies of main's ledger and of every worktree's, in the same layout): distinct rows after
 the fold = 2,276 = the union of every checkout's distinct rows, in ts order; a second fold adds 0; a fresh process's first fold
 that finds nothing missing costs 0.23 s; --gate there passes v3783 and v3784 (the A2 worktree's looks) and still refuses v3778.
