@@ -134,7 +134,9 @@ def _push_run(tree, proofs, cache_path, env=None, hold=None):
     fd, log = tempfile.mkstemp(prefix="p3log.")
     os.close(fd)
     said, stopped = [], []
-    kw = dict(P3_LOG=log, HEART2_PROVE_WORKERS="1", TV_LAW_WIDTHS=None, P3_MUTATE=None)
+    # HEART2_AUDIT_K=0: these cases pin REUSE (a warm push runs nothing); the audit's re-proofs (REG-2434) have their own
+    # law, test_a_reused_proven_is_audited
+    kw = dict(P3_LOG=log, HEART2_PROVE_WORKERS="1", TV_LAW_WIDTHS=None, P3_MUTATE=None, HEART2_AUDIT_K="0")
     kw.update(env or {})
     try:
         cache = H._VerdictCache(path=cache_path, say=said.append) if cache_path else None
@@ -446,7 +448,10 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
 
     def test_the_plain_prove_path_never_opens_it_and_the_off_switch_is_honoured(self):
         """★ a warm cache and the NON-push path: the proof runs; prove(push=False) never calls _prove_push at all;
-        prove(push=True) opens the cache and hands it over; HEART2_PROVE_CACHE=0 hands None and says so"""
+        prove(push=True) opens the cache and hands it over; HEART2_PROVE_CACHE=0 hands None and says so.
+        REG-2430 (#186): the census (prove(push=False)) opens the cache ONLY in heart2's own CLI process - a law driving
+        it in-process gets none, the CLI census gets the machine's (here: this law's file), and the off switch closes
+        it there too"""
         self.push()
         fd, log = tempfile.mkstemp(prefix="p3log.")
         os.close(fd)
@@ -467,18 +472,26 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
             return {_GATE: H.PROVEN}, {_GATE: [H.PROVEN]}
 
         def fake_gates(have, say=print, workers=None, blank=None):
-            seen.append(("plain", None))
+            _c = getattr(H._CENSUS, "cache", None)
+            seen.append(("plain", type(_c).__name__ if _c is not None else None))
             return {_GATE: H.PROVEN}, {_GATE: [H.PROVEN]}
 
+        _red = os.path.join(self.dir, ".heart2_red.json")
         with _Patch(gate_files=lambda say=None: [(_GATE, _FILE)], red_proofs_in=lambda f: [_proof()],
                     red_proof_unreadable=lambda f: False, _prove_push=fake_push, _prove_gates=fake_gates,
-                    _write_state=lambda r, measured=None, unmeasured=None: None, CACHE=self.cache_path):
-            with _Env(HEART2_PROVE_CACHE=None):
+                    _write_state=lambda r, measured=None, unmeasured=None: None, CACHE=self.cache_path,
+                    RED_MEMORY=_red):
+            with _Env(HEART2_PROVE_CACHE=None, HEART2_RED_PATH=_red):
                 H.prove(only={_GATE}, say=self.said.append, push=True, stopped=[])
                 H.prove(only={_GATE}, say=self.said.append)
-            with _Env(HEART2_PROVE_CACHE="0"):
+                with _Patch(_is_prover_process=lambda: True):      # REG-2430 - heart2's own CLI census
+                    H.prove(only={_GATE}, say=self.said.append)
+            with _Env(HEART2_PROVE_CACHE="0", HEART2_RED_PATH=_red):
                 H.prove(only={_GATE}, say=self.said.append, push=True, stopped=[])
-        self.assertEqual(seen, [("push", "_VerdictCache"), ("plain", None), ("push", None)],
+                with _Patch(_is_prover_process=lambda: True):
+                    H.prove(only={_GATE}, say=self.said.append)
+        self.assertEqual(seen, [("push", "_VerdictCache"), ("plain", None), ("plain", "_VerdictCache"), ("push", None),
+                                ("plain", None)],
                          "prove() opened the cache on the wrong path, or ignored the off switch: %s" % seen)
         self.assertTrue(any("OFF for this run" in l and "HEART2_PROVE_CACHE=0" in l for l in self.said),
                         "the off switch was not said: %s" % self.said[-3:])
@@ -495,7 +508,8 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         ok = H._VerdictCache(path=self.cache_path, say=self.said.append)
         ok.store("k", {"verdict": H.PROVEN})
         self.assertTrue(ok.flush(), "the cache named like itself was not written")
-        self.assertEqual(self.entries(), {"k": {"verdict": H.PROVEN}})
+        _ps, _ef = H.prover_stamp()                       # REG-2432 - what this process banks names its prover
+        self.assertEqual(self.entries(), {"k": {"verdict": H.PROVEN, "proverSha": _ps, "envFp": _ef}})
 
     def test_run_gates_and_ci_never_consult_it_and_it_lives_gitignored_beside_the_census(self):
         """★ the registry passes --push to no gate and names the cache nowhere; no workflow names either; the file is
@@ -574,7 +588,9 @@ class TheStoreKeepsWhatItCanServe(unittest.TestCase):
 
     @staticmethod
     def _e(gate, proof, t, **kw):
-        e = {"verdict": H.PROVEN, "gate": gate, "proof": proof, "target": "s.txt", "at": "", "why": "w", "provedAt": t}
+        _ps, _ef = H.prover_stamp()                       # REG-2432 - an unstamped entry on disk is never served
+        e = {"verdict": H.PROVEN, "gate": gate, "proof": proof, "target": "s.txt", "at": "", "why": "w", "provedAt": t,
+             "proverSha": _ps, "envFp": _ef}
         e.update(kw)
         return e
 
@@ -851,10 +867,24 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "the plain --prove path (run_gates' and CI's verdict of record) opens the cache too",
+        "why": "the plain --prove path (run_gates' and CI's verdict of record) runs as a push, cache and all",
         "file": "heart2.py",
-        "find": "        results, per_proof = _prove_gates(have, say, blank=_blank)\n",
-        "replace": "        results, per_proof = _prove_push(have, say, stopped, cache=open_cache(say), blank=_blank)\n",
+        "find": "            results, per_proof = _prove_gates(have, say, blank=_blank)\n",
+        "replace": "            results, per_proof = _prove_push(have, say, stopped, cache=open_cache(say), blank=_blank)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2430 - a law driving the census in-process opens the machine's verdict cache",
+        "file": "heart2.py",
+        "find": "    if stores is None and not prover:\n        return None",
+        "replace": "    if False:\n        return None",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2430 - heart2's own CLI census never opens the verdict cache: it re-proves what a push banked",
+        "file": "heart2.py",
+        "find": "        cache = open_cache(say)                                  # HEART2_PROVE_CACHE=0: None, said there\n",
+        "replace": "        cache = None\n",
         "matches": 1,
     },
     {

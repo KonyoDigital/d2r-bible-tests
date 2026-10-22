@@ -23,6 +23,11 @@ worktree's push ran test_control's 27 tampered proofs in full (187-227 s each) w
   * at the cap (20,000) an entry no gate file declares leaves first, then the least recently USED or learned;
   * an unreadable memory is kept aside, never written over;
   * a push folds every checkout's own pre-R2 memory in (newest 'at' wins) - and never into a law's fixture memory.
+
+REG-2431 (#186, 2026-10-22) - THE CENSUS ASKS AND TEACHES THE SAME MEMORY. His heart's census never asked it (test_control's
+proof[11] ran all 2,287 cases while the memory named the 1-6 that catch it) and never taught it. One memory serves both
+paths now: what a census proof learns in full, the next push narrows on; what a push learned, the census narrows on -
+after its own full clean run, never before it.
 RED_PROOF below.
 """
 import io
@@ -177,6 +182,26 @@ class ARedMemory(unittest.TestCase):
         self.assertEqual(self.prove(), H.PROVEN)
         self.assertEqual(self.calls, [[], []])
         self.assertEqual(self.memory(), {})
+
+    def test_the_census_and_the_push_share_one_memory(self):
+        """★ REG-2431 - a census proof that goes red in full teaches the machine's memory; the next push narrows on it
+        (the pair before any clean run - the push's wave and closing run bracket it); the next census narrows on it AFTER
+        its full clean run"""
+        saved = H._CENSUS
+        self.addCleanup(setattr, H, "_CENSUS", saved)
+        caught = ["Catches.test_value_is_one"]
+        H._PUSH, H._CENSUS = None, H._CensusRun(cache=None, red=True)
+        self.assertEqual(self.prove(), H.PROVEN)
+        self.assertEqual(self.calls, [[], []], "PREMISE: the census's first proof did not run in full")
+        self.assertEqual([e["ids"] for e in self.memory().values()], [caught],
+                         "a census proof that went red in full did not teach the machine's memory")
+        H._PUSH, H._CENSUS = _Push(), None
+        self.assertEqual(self.prove(), H.PROVEN)
+        self.assertEqual(self.calls, [caught, caught], "the push did not narrow on what the census learned")
+        H._PUSH, H._CENSUS = None, H._CensusRun(cache=None, red=True)
+        self.assertEqual(self.prove(), H.PROVEN)
+        self.assertEqual(self.calls, [[], caught, caught],
+                         "the census did not narrow on the shared memory AFTER its own full clean run")
 
     # ── R2 (REG-2342) — one memory per machine ─────────────────────────────────────────────────────────────────────────
     def test_the_memory_is_the_machines_beside_the_verdict_cache(self):
@@ -405,6 +430,11 @@ RED_PROOF = [
         "replace": "    _rk = _red_key(name, idx, pr) if (not _script and not _extra and not clean_only) else None\n",
         "matches": 1,
     },
+    {"why": "REG-2431 - the census keeps a memory apart from the push's: what it learns never narrows a push",
+     "file": "heart2.py",
+     "find": "    _crk = (_red_key(name, idx, pr) if",
+     "replace": "    _crk = (_red_key(\"census:\" + str(name), idx, pr) if",
+     "matches": 1}
 ]
 
 

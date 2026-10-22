@@ -11912,6 +11912,34 @@ GATES = [
              "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing. "
              "REG-2449 - a path the run found absent and made, bytes it kept, a folder it wrote into and a node child's "
              "listing hold too: real traced runs in a linked worktree never carry into a checkout where the gate fails."),
+    Gate("test_the_census_reuses_what_a_push_proved",
+         [sys.executable, os.path.join(HERE, "test_the_census_reuses_what_a_push_proved.py")], 120,
+         needs_app=False,
+         why="REG-2430/2432/2433 (#186) - his heart's census never read the verdict cache and re-proved in full what a "
+             "push had banked for the same bytes (test_control: 27 x ~4 min). In heart2's own process (or with stores "
+             "handed in) the census serves a PROVEN proven at EVERY width by this prover and environment, owes one clean "
+             "run for a proof banked in another tree, runs a moved byte and banks it by:census; a law's in-process "
+             "prove() opens no store."),
+    Gate("test_the_census_narrows_after_one_green_clean_run",
+         [sys.executable, os.path.join(HERE, "test_the_census_narrows_after_one_green_clean_run.py")], 120,
+         needs_app=False,
+         why="REG-2431 (#186) - the census never asked the red memory (test_control's proof[11]: a full 2,287-case run "
+             "while the memory named the 1-6 cases that catch it) and never taught it. The census now runs the gate's ONE "
+             "full clean run, then each proof's narrowed pair, then the full fallback - which teaches the memory; a law "
+             "red untampered is UNPROVABLE with no narrowed pair run."),
+    Gate("test_a_killed_slice_keeps_every_gate_it_finished",
+         [sys.executable, os.path.join(HERE, "test_a_killed_slice_keeps_every_gate_it_finished.py")], 300,
+         needs_app=False,
+         why="REG-2435 (#186 g) - a census banked at most once a minute (a slice) or only at its end (a full run), so a "
+             "kill lost every gate it had finished. The real heart2 CLI over three fixture gates, SIGKILLed in gate 3: "
+             "gates 1-2 are in the census against their files and in the verdict cache; gate 3 is owed."),
+    Gate("test_a_reused_proven_is_audited",
+         [sys.executable, os.path.join(HERE, "test_a_reused_proven_is_audited.py")], 120,
+         needs_app=False,
+         why="REG-2434 (#186 f) - once the census reuses, nothing re-proves a banked PROVEN. Every run (census and push) "
+             "re-proves the HEART2_AUDIT_K oldest served PROVENs over the same bytes; a BLIND/INVALID evicts the entry "
+             "under the store lock, is said, is the gate's verdict (a push is refused) and is counted; K=0 says NOT "
+             "AUDITED, never clean."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
