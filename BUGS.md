@@ -37,7 +37,7 @@ MEASURED on Dean's PC 2026-10-22: 'test venue' UNKNOWN for 49 days ("this check 
 
 FIX: the venue row on Windows reads Task Scheduler (`schtasks /query /fo CSV /v`, the 'Task To Run' column, through git_quiet's windowless door, at most hourly and saying how old the listing is) and judges every task, and every script it names by an absolute path, with reaches_a_browser_suite - the ONE rule launchd's plists are judged by (widened to the Windows spellings: npx.cmd, a quoted path, node_modules\.bin\playwright.cmd). A listing that cannot be read, has no 'Task To Run' column or lists nothing is UNKNOWN. The painted-whole row stays UNKNOWN off macOS - never OK without a look - and names the Windows witness that has not been built.
 
-GUARD: tv/test_the_venue_check_reads_windows_tasks.py (registered; 4 RED proofs, one of them "the Windows venue answers OK without reading").
+GUARD: tv/test_the_venue_check_reads_windows_tasks.py (registered; 5 RED proofs, one of them "the Windows venue answers OK without reading"). The listing is read at most hourly and carries its age; a listing that could not be taken is asked again only after ten minutes (tasklist hung under his game, REG-1414), so a hang costs one bounded wait per tick.
 
 ### REG-2480 - A PC THAT NEVER SHIPS WAS BILLED THIRTEEN EYE ROWS FOR THE SHIP-TIME INSTRUMENT IT DOES NOT OWN (#171)
 

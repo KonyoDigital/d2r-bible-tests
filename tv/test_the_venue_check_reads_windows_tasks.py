@@ -107,6 +107,45 @@ class TaskSchedulerIsJudgedByTheOneRule(unittest.TestCase):
         self.assertFalse(CD.reaches_a_browser_suite("run `npx playwright install`"))
 
 
+class TheListingIsReadAtMostOnceAnHour(unittest.TestCase):
+    """schtasks costs seconds on a Windows PC, and tasklist HUNG under his game (REG-1414): the every-tick row reads
+    the listing at most hourly and says how old it is; a listing that could not be taken is asked again only after
+    ten minutes, so a hang costs one bounded wait per tick, never one per ask."""
+
+    def setUp(self):
+        saved = dict(CD._TASKS)
+        self.addCleanup(lambda: (CD._TASKS.clear(), CD._TASKS.update(saved)))
+        CD._TASKS.update(at=None, text=None, err=None)
+        self.asked = []
+
+    def _schtasks(self, answer):
+        def fn():
+            self.asked.append(1)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+        return mock.patch.object(CD, "_schtasks_csv", fn)
+
+    def test_a_listing_is_reused_within_the_hour_and_says_its_age(self):
+        with self._schtasks(_listing(_task("\\TVD sweep", "C:\\Python312\\python.exe C:\\r\\run_gates.py"))):
+            st1, why1 = CD._venue_on_windows(now=5000.0)
+            st2, why2 = CD._venue_on_windows(now=5000.0 + 1800)
+            st3, _w3 = CD._venue_on_windows(now=5000.0 + 3601)
+        self.assertEqual((st1, st2, st3), (CD.OK, CD.OK, CD.OK))
+        self.assertIn("read just now", why1)
+        self.assertIn("read 30 min ago", why2, "a reused listing did not carry its age")
+        self.assertEqual(len(self.asked), 2, "Task Scheduler was asked %d times over 61 minutes" % len(self.asked))
+
+    def test_a_failed_listing_is_unknown_and_not_asked_again_at_once(self):
+        with self._schtasks(OSError("schtasks timed out")):
+            st1, _w1 = CD._venue_on_windows(now=9000.0)
+            st2, why2 = CD._venue_on_windows(now=9000.0 + 60)
+            st3, _w3 = CD._venue_on_windows(now=9000.0 + CD._TASKS_FAIL_TTL_S + 1)
+        self.assertEqual((st1, st2, st3), (CD.UNKNOWN, CD.UNKNOWN, CD.UNKNOWN))
+        self.assertIn("asked again", why2)
+        self.assertEqual(len(self.asked), 2, "a failing schtasks was asked again at once - a hang would repeat")
+
+
 class TheRowAsksTheSchedulerThisPcHas(unittest.TestCase):
 
     def test_windows_asks_task_scheduler(self):
@@ -167,6 +206,14 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "    r\"(?:npx(?:\\.cmd|\\.exe)?[\\\"']?\\s+|",
         "replace": "    r\"(?:npx\\s+|",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2481 - a listing that could not be taken is asked again on every call: a schtasks that hangs under "
+               "his game costs a full wait per ask",
+        "file": "console_doctor.py",
+        "find": "        elif _TASKS[\"err\"] is not None and now - _TASKS[\"at\"] < _TASKS_FAIL_TTL_S:\n",
+        "replace": "        elif False:\n",
         "matches": 1,
     },
     {

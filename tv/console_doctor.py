@@ -3543,7 +3543,10 @@ def browser_suites_among(labels, agents_dir=None):
 #: a job, and `schtasks /v` costs seconds on a Windows PC, so the every-tick row reads it at most hourly - and says how
 #: old the listing it judged was. [[stale-reading]]
 _TASKS_TTL_S = 3600
-_TASKS = {"at": None, "text": None}
+#: ...and a listing that could NOT be taken is asked again only after this long: a schtasks that hangs under his game
+#: (tasklist did, REG-1414) must cost one bounded wait per eagle tick, never one per row asked.
+_TASKS_FAIL_TTL_S = 600
+_TASKS = {"at": None, "text": None, "err": None}
 
 
 def _schtasks_csv():
@@ -3551,7 +3554,7 @@ def _schtasks_csv():
     Through git_quiet's door: on Windows the child gets CREATE_NO_WINDOW + SW_HIDE, never a console over his game."""
     import git_quiet as _gq
     r = _gq.run([_spawnable("schtasks"), "/query", "/fo", "CSV", "/v"], close_fds=False,
-                capture_output=True, timeout=30)
+                capture_output=True, timeout=15)
     if r.returncode != 0:
         raise OSError("schtasks exited %s" % r.returncode)
     raw = r.stdout or b""
@@ -3595,9 +3598,17 @@ def _venue_on_windows(query=None, now=None):
             text, age = query(), 0.0
         elif _TASKS["text"] is not None and now - _TASKS["at"] < _TASKS_TTL_S:
             text, age = _TASKS["text"], now - _TASKS["at"]
+        elif _TASKS["err"] is not None and now - _TASKS["at"] < _TASKS_FAIL_TTL_S:
+            return UNKNOWN, ("Task Scheduler could not be read %d min ago (%s) and is asked again within %d min, so "
+                             "whether a browser suite is scheduled on this PC is UNKNOWN"
+                             % (int((now - _TASKS["at"]) // 60), _TASKS["err"], _TASKS_FAIL_TTL_S // 60))
         else:
-            text, age = _schtasks_csv(), 0.0
-            _TASKS.update(at=now, text=text)
+            try:
+                text, age = _schtasks_csv(), 0.0
+            except Exception as e:
+                _TASKS.update(at=now, text=None, err="%s: %s" % (type(e).__name__, str(e)[:90]))
+                raise
+            _TASKS.update(at=now, text=text, err=None)
         tasks = windows_tasks_from_csv(text)
     except Exception as e:
         return UNKNOWN, ("Task Scheduler could not be read (%s: %s), so whether a browser suite is scheduled on "
