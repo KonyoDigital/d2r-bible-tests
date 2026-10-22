@@ -67,12 +67,15 @@ print(helper.pid, flush=True)
 
 
 def _command_of(pid):
-    """The command line of pid, '' when there is no such process."""
+    """The command line of pid: '' when there is no such process, None when ps could not be asked.
+
+    REG-2498: a ps that could not run (or gave no answer in 10 s) read '' as well, which says the
+    process is gone, so the in-flight case passed without asking anything."""
     try:
         return subprocess.run(["ps", "-p", str(int(pid)), "-o", "command="], capture_output=True,
                               text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
     except Exception:
-        return ""
+        return None
 
 
 class NoCookieCopyOrWindowOutlivesARead(unittest.TestCase):
@@ -182,9 +185,11 @@ class NoCookieCopyOrWindowOutlivesARead(unittest.TestCase):
             self.addCleanup(proc.wait)
             self.addCleanup(lambda p=proc: p.poll() is None and p.kill())
         deadline = time.time() + 20
-        while time.time() < deadline and profile not in _command_of(bystander.pid):
+        while time.time() < deadline and profile not in (_command_of(bystander.pid) or ""):
             time.sleep(0.1)
-        self.assertIn(profile, _command_of(holder.pid), "premise: the planted holder never showed its profile")
+        held = _command_of(holder.pid)
+        self.assertIsNotNone(held, "UNKNOWN, not a pass: ps could not be asked about the planted holder")
+        self.assertIn(profile, held, "premise: the planted holder never showed its profile")
         gone = desk._sweep_stale_scratch(now=time.time(), tmp=root)
         try:
             code = holder.wait(timeout=10)
@@ -200,6 +205,14 @@ class NoCookieCopyOrWindowOutlivesARead(unittest.TestCase):
         self.assertTrue(survived, "a process whose profile only starts with the stale one was killed")
         self.assertFalse(os.path.exists(profile))
         self.assertEqual(gone, 1)
+
+    def test_a_pgrep_that_cannot_run_is_unknown_not_no_holder(self):
+        # REG-2498: a pgrep that could not be asked is None. [] would say no Chrome held the profile.
+        def no_pgrep(*args, **kwargs):
+            raise FileNotFoundError("pgrep")
+        self.patch(desk.subprocess, "run", no_pgrep)
+        self.assertIsNone(desk._kill_profile_holders(os.path.join(self.scratch(), "d2jsp-post-unasked")),
+                          "a pgrep that never ran read as 'no Chrome held this profile'")
 
     def test_the_room_login_check_sweeps(self):
         root = self.scratch()
@@ -246,14 +259,16 @@ class NoCookieCopyOrWindowOutlivesARead(unittest.TestCase):
         pid = int(run.stdout.split()[0])
 
         def end_it():
-            if token in _command_of(pid):
+            if token in (_command_of(pid) or ""):
                 try:
                     os.killpg(pid, signal.SIGKILL)
                 except OSError:
                     pass
         self.addCleanup(end_it)
         self.assertFalse(os.path.exists(profile), "a scratch profile in flight at exit was left on disk")
-        self.assertNotIn(token, _command_of(pid), "a scratch Chrome in flight at exit was left running")
+        left = _command_of(pid)
+        self.assertIsNotNone(left, "UNKNOWN, not a pass: ps could not be asked whether the scratch Chrome is gone")
+        self.assertNotIn(token, left, "a scratch Chrome in flight at exit was left running")
 
 
 RED_PROOF = [
@@ -324,6 +339,13 @@ RED_PROOF = [
         "file": "tv/d2jsp_chrome.py",
         "find": "atexit.register(_reap_in_flight)\n",
         "replace": "_ = _reap_in_flight\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2498 - a pgrep that could not be asked reads as 'no Chrome held this profile' again",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "    except Exception:\n        return None\n    hit = []\n",
+        "replace": "    except Exception:\n        return []\n    hit = []\n",
         "matches": 1,
     },
 ]

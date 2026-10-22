@@ -812,20 +812,24 @@ def _ere(text):
 
 
 def _kill_profile_holders(profile):
-    """SIGKILL every process whose command line names exactly this --user-data-dir. -> pids signalled
+    """SIGKILL every process whose command line names exactly this --user-data-dir.
+    -> pids signalled, or None when pgrep could not be asked
 
     REG-2493: the pattern goes after `--`. Without it pgrep read `--user-data-dir=...` as an
     option of its own, printed its usage, exited 2 and listed nothing, so the REG-2190 sweep never
     killed a Chrome. The pattern ends at a space or at the end of the command line, so a profile
     whose path only starts with this one is not a match. Matched by that argument, never by a
-    name, so his real Chrome can never be a target."""
+    name, so his real Chrome can never be a target.
+
+    REG-2498: a pgrep that could not run (none on this PC, or no answer in 5 s) is None, never [].
+    [] says "no Chrome held it", which nobody measured."""
     try:
         out = subprocess.run(
             ["pgrep", "-f", "--", "--user-data-dir=" + _ere(profile) + "( |$)"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5,
         ).stdout
     except Exception:
-        return []
+        return None
     hit = []
     for word in str(out or "").split():
         try:

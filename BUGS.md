@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2498 - TWO NEW SPOTS WHERE A FAILED READ BECAME DATA: A pgrep THAT COULD NOT RUN READ "NO HOLDER", A ps THAT COULD NOT RUN READ "GONE" (2026-10-22, M6 integration)
+
+MEASURED on the M6 merge (T1 onto v3785), `python3 tv/run_gates.py --only swallow_ratchet`: RANK 1 baseline 66, now 68, and
+the two new sites were both T1's. CI runs this gate and the pre-push hook does not, so the push would have gone through and CI
+would have gone red after the publish.
+- tv/d2jsp_chrome.py `_kill_profile_holders`: `except Exception: return []` around its pgrep. [] means "no Chrome held this
+  profile", and a pgrep that never ran measured nothing. Its one caller (`_sweep_stale_scratch`) ignores the value, so nothing
+  read it wrong yet. The return value is still the shape the next caller would trust.
+- tv/test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py `_command_of`: `except Exception: return ""` around its ps.
+  `assertNotIn(token, _command_of(pid))` in test_a_scratch_chrome_in_flight_at_exit_is_ended read "" as "the scratch Chrome is
+  gone". So a ps that could not run, or gave no answer in 10 s, passed the case without asking anything.
+FIX: `_kill_profile_holders` returns None when pgrep could not be asked. `_command_of` returns None when ps could not be asked.
+Both cases that read it assert it is not None first ("UNKNOWN, not a pass"). The wait loop and the cleanup read None as "not
+shown". Nothing else changed: the sweep still kills, removes and counts exactly as before.
+GUARD: the cookie law's new case test_a_pgrep_that_cannot_run_is_unknown_not_no_holder (pgrep raises; the answer must be
+None) with RED proof [9], `return []` put back. Applied by hand to a scratch copy, it fails that one case on its own message
+("[] is not None : a pgrep that never ran read as 'no Chrome held this profile'"). The class is also guarded by swallow_ratchet
+(tv/swallow_census.py --check), which reads baseline 66, now 66 after the fix. The cookie law runs 8 tests OK with none
+skipped. The send-once law runs 13 OK and the desk law 18 OK.
+LEFT: the law's own `_command_of` has no RED proof. It is the law's reader, not the code under test, so the ratchet is the
+only thing that counts it.
+
 ### REG-2497 - THE REG-2490 LAW NEVER RAN THE CLICK MARK OR THE EDIT HALF: DELETING EITHER STAYED GREEN (2026-10-22, M6 T1 review)
 
 The T1 review mutated a scratch copy, and all three d2jsp laws stayed green under each change:
