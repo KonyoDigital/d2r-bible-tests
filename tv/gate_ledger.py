@@ -2909,12 +2909,16 @@ class Ledger(object):
         with _LedgerLock(self.path, machine):
             disk, why = load(self.path)
             if isinstance(disk, dict) and not why:
-                # REG-2445 (b) - what is on disk NOW, under the lock, with only this writer's own rows and drops laid
-                # over it: a row it merely loaded is never written back over another writer's newer drop or PASS
-                mine = dict((n, self.entries[n]) for n in self._own if n in (self.entries or {}))
-                self.entries = dict((n, e) for n, e in disk.items() if n not in self.dropped and isinstance(e, dict)
-                                    and e.get("ok") is True and e.get("gate") == n)
-                self.entries.update(mine)  # LEDGER-OWN-ROWS
+                # REG-2445 (b) - what is on disk NOW, under the lock, with this writer's view laid over ONLY the gates
+                # it touched (recorded or dropped): a row it merely loaded is never written back over another writer's
+                # newer drop or PASS, and a gate it touched is written exactly as this writer holds it
+                touched = self.dropped | self._own
+                entries = dict((n, e) for n, e in disk.items() if n not in touched and isinstance(e, dict)
+                               and e.get("ok") is True and e.get("gate") == n)
+                for n in touched:
+                    if n in (self.entries or {}):
+                        entries[n] = self.entries[n]  # LEDGER-OWN-ROWS
+                self.entries = entries
                 try:
                     with open(self.path, encoding="utf-8") as fh:
                         body = json.load(fh)
@@ -2922,9 +2926,12 @@ class Ledger(object):
                     body = None  # its reds and fold marks could not be read: none are merged, as before
                 body = body if isinstance(body, dict) else {}
                 dreds, dfold = body.get("reds"), body.get("folded")
-                mine = dict((n, self.reds[n]) for n in self._own_reds if n in self.reds)
-                self.reds = self._disk_reds(dreds)
-                self.reds.update(mine)
+                touched = self.reds_dropped | self._own_reds
+                reds = self._disk_reds(dreds, touched)
+                for n in touched:
+                    if n in self.reds:
+                        reds[n] = self.reds[n]
+                self.reds = reds
                 if isinstance(dfold, dict):
                     self.folded = dict(dfold, **self.folded)
             if len(self.entries) > _MAX:
@@ -2940,12 +2947,14 @@ class Ledger(object):
         self.why = None
         return True
 
-    def _disk_reds(self, dreds):
-        """The red rows on disk now, less this writer's red drops and any gate it holds a PASS for. -> dict"""
+    def _disk_reds(self, dreds, touched):
+        """The red rows on disk now, for the gates this writer did not touch (its own red rows and red drops are laid
+        over them by _write). A PASS this writer records drops the gate's red row itself (record's _drop_red): a red row
+        is never left out by inference, only by a drop. -> dict"""
         kept = {}
         if isinstance(dreds, dict):
             for name, entry in dreds.items():
-                if name in self.reds_dropped or name in self.entries:
+                if name in touched:
                     continue
                 if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
                     kept[name] = entry

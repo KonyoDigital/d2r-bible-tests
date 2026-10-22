@@ -299,8 +299,8 @@ RED_PROOF = [
      "find": "            if name and (trace or red):  # LEDGER-NO-TRACE-NO-DROP\n",
      "replace": "            if name:  # LEDGER-NO-TRACE-NO-DROP\n", "matches": 1},
     {"why": "a writer writes back every row it loaded", "file": "gate_ledger.py",
-     "find": "                mine = dict((n, self.entries[n]) for n in self._own if n in (self.entries or {}))\n",
-     "replace": "                mine = dict(self.entries or {})\n", "matches": 1},
+     "find": "                touched = self.dropped | self._own\n",
+     "replace": "                touched = self.dropped | self._own | set(self.entries or {})\n", "matches": 1},
 ]
 
 if __name__ == "__main__":
