@@ -161,7 +161,7 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2423 - d2rItemLookup walks the whole catalogue on every call again",
      "file": "bible.html",
-     "find": "    if (window._vaultMemoOff === true || typeof Map !== 'function' || typeof ITEMS === 'undefined' || !ITEMS) return null;",
+     "find": "    if (window._vaultMemoOff === true || typeof ITEMS === 'undefined' || !ITEMS) return null;",
      "replace": "    if (true) return null;",
      "matches": 1, "needs": "node"},
     {"why": "REG-2421 - the war keeper walks every saved move for every item again",
