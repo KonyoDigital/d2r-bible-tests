@@ -76,7 +76,7 @@ _ROOT = os.path.dirname(HERE)
 #     and every worktree, never in a work tree - never in git status, never copied into a sandbox, never one `git add -A`
 #     from this PUBLIC repo. Found by READING .git (prove_record's walk), never by running git: inside a hook GIT_DIR is
 #     inherited, and git would answer for whichever tree set it. Another PC resolves its OWN common dir.
-#   · THE FIRST RESOLUTION IN A PROCESS FOLDS every checkout's own tv/.second_eye.jsonl in - this checkout's, the main
+#   · THE FIRST READ OR WRITE IN A PROCESS FOLDS every checkout's own tv/.second_eye.jsonl in - this checkout's, the main
 #     checkout's and every live worktree's (<common>/worktrees/*/gitdir) - deduped by EXACT row and never dropping one: a
 #     row a checkout holds N times is held at least N times, and the old files are only READ. After that a checkout's
 #     file is read again only when its (size, mtime_ns, inode) moved, so old code still appending to one is folded too.
@@ -383,8 +383,11 @@ _MACHINE_LEDGER, LEDGER_WHY = machine_ledger()
 _MACHINE_LEDGER = os.path.abspath(_MACHINE_LEDGER)
 # untracked runtime record of decisions, one per machine; TV_SECOND_EYE_LEDGER names a fixture (bound here, at import)
 LEDGER_PATH = os.environ.get("TV_SECOND_EYE_LEDGER") or os.path.abspath(_MACHINE_LEDGER)
-# the first resolution in this process folds every checkout's own ledger in
-_fold_due(LEDGER_PATH)
+# ⚠ NOT FOLDED AT IMPORT. The first READ or WRITE of this machine's ledger in a process folds (_ledger_state, record,
+# --gate). Importing alone reads no file under .git: run_gates' gate ledger refuses to carry a gate that read git's own
+# files, and ~36 laws import this module only to drive fixtures - folding here would have re-run every one of them on
+# every main-checkout push. console_doctor's direct readers open LEDGER_PATH after the push gate (or any earlier read)
+# has already folded it.
 
 # The families that count as a SECOND eye for work authored by Claude. Derived from the model id
 # rather than trusted from a caller, because "which family looked at this" is the whole question.

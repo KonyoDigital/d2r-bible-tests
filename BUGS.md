@@ -71,18 +71,21 @@ worktree held the v3778 look and was removed without carrying the row back. MEAS
 main holds 2,274 rows, one worktree (push A2's) 2 more (v3783's and v3784's looks), and NO checkout holds a v3778 row - that look is
 lost. Same class as the red memory (REG-2342) and the verdict cache (REG-2340).
 FIX: the ledger is <git common dir>/second_eye.jsonl - one per machine, never in a work tree - found by reading .git (prove_record's
-walk; a hook's GIT_DIR never answers). The first resolution in a process folds every checkout's own tv/.second_eye.jsonl in (this
-checkout's, main's, every live worktree's via <common>/worktrees/*/gitdir): exact rows, never dropping one (a row held N times stays
-N times), ordered by their own ts, the sources only read; afterwards a source is read again only when its (size, mtime_ns, inode)
-moved, so old code still appending to one is folded too. Every append (record() and the fold) holds the ledger's lock (flock; on
+walk; a hook's GIT_DIR never answers). The first READ or WRITE of it in a process folds every checkout's own tv/.second_eye.jsonl
+in (this checkout's, main's, every live worktree's via <common>/worktrees/*/gitdir): exact rows, never dropping one (a row held N
+times stays N times), ordered by their own ts, the sources only read; afterwards a source is read again only when its (size,
+mtime_ns, inode) moved, so old code still appending to one is folded too. Importing the module reads nothing under .git (verified
+with an audit hook): run_gates' gate ledger never carries a gate that read git's own files, and ~36 laws import the module only to
+drive fixtures, so an import-time fold would have re-run every one of them on every main-checkout push. Every append (record() and the fold) holds the ledger's lock (flock; on
 Windows msvcrt's byte lock far past the end, so readers are never refused; neither: unlocked and said), and closes a row a killed
 writer left without its newline. --gate pins the machine's ledger and still ignores TV_SECOND_EYE_LEDGER; the seam still names a
 fixture otherwise. A tree with no git dir (a heart2 sandbox) keeps its own file, LEDGER_WHY says why, and the CLI prints it.
 second_eye_drain.py / second_eye_run.py go through record() and _rows(), so they move with it; console_doctor's direct readers open
 LEDGER_PATH, which the import already folded.
 MEASURED on a fixture replica of this Mac (copies of main's ledger and of every worktree's, in the same layout): distinct rows after
-the fold = 2,276 = the union of every checkout's distinct rows, in ts order; a second fold adds 0; a fresh process's import costs
-0.23 s; --gate there passes v3783 and v3784 (the A2 worktree's looks) and still refuses v3778. His real .git was never written.
+the fold = 2,276 = the union of every checkout's distinct rows, in ts order; a second fold adds 0; a fresh process's first fold
+that finds nothing missing costs 0.23 s; --gate there passes v3783 and v3784 (the A2 worktree's looks) and still refuses v3778.
+His real .git was never written.
 GUARD: tv/test_the_second_eye_ledger_is_one_per_machine.py (fixture main + absolute and relative worktree pointers; the module run
 in a subprocess inside the fixture). 4 RED proofs (the HERE path, the worktree fold skipped, a set-dedupe that drops a repeated row,
 --gate honouring the variable), heart2 4/4 PROVEN. The 25 existing ledger laws and test_control's ledger classes stay green.
