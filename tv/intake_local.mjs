@@ -105,7 +105,8 @@ function _late(w) {
 // it named the hour's source when the day's limit came from another layer. Every full window is found now. The refusal
 // is the one whose retry is LATEST, with that window's own limit, source and retry_s, so the read it promises is one
 // every window admits; its message says the other window is full too. An unknown retry binds over a known one, so no
-// time is promised while one window's cannot be known. With both switches at 0, the circuit names both.
+// time is promised while one window's cannot be known; a tie goes to the day, the longer window. With both switches
+// at 0, the circuit names both.
 function budgetCheck() {
   /** Returns null if allowed, else the refusal {window, used, limit, source, retryS, msg} (REG-2383, REG-2390). */
   if (HOURLY_MAX <= 0 || DAILY_MAX <= 0) {

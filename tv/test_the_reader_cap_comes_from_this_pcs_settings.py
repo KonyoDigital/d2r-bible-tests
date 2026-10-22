@@ -278,6 +278,19 @@ class TheRefusalNamesTheWindowThatBinds(_Runner):
         self.assertIn("; the daily cap is full too (80/80, limit from the code default)", j["message"])
         self.assertNotIn("paused this hour", j["message"])
 
+    def test_when_no_full_window_can_say_when_the_day_is_named(self):
+        """Both retries unknown is a tie, and a tie goes to the day - the longer window - with no time and no pause
+        length promised."""
+        now = time.time() * 1000.0
+        hour = [str(int(now - (60.0 + 90.0 * i) * 1000.0)) for i in range(20)]
+        older = [str(int(now - (7200.0 + 1000.0 * k) * 1000.0)) for k in range(60)]
+        self.write(hour + older)
+        j = self.assertCapped(self.ask(), "day", 80, 80, "the code default")
+        self.assertIsNone(j.get("retry_s"))
+        self.assertTrue(j["message"].startswith(
+            "subscription daily cap hit (80/80, limit from the code default) — intake paused;"), j["message"])
+        self.assertIn("; the hourly cap is full too (20/20, limit from the code default)", j["message"])
+
     def test_both_switches_at_zero_are_both_named(self):
         self.calls(0)
         self.settle({"TV_INTAKE_DAILY_MAX": 0})
@@ -474,6 +487,13 @@ RED_PROOF = [
         "file": "intake_local.mjs",
         "find": ".filter(([, l]) => l.value <= 0);\n",
         "replace": ".filter(([, l]) => l.value <= 0).slice(0, 1);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2390 - a tie goes to the hour: with neither full window able to say when, the shorter one is named",
+        "file": "intake_local.mjs",
+        "find": "  const bind = full.reduce((a, b) => (_late(b) >= _late(a) ? b : a));\n",
+        "replace": "  const bind = full.reduce((a, b) => (_late(b) > _late(a) ? b : a));\n",
         "matches": 1,
     },
 ]
