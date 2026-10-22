@@ -10940,6 +10940,30 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_an_eye_row_asks_only_a_pc_that_ships",
+         [sys.executable, os.path.join(HERE, "test_an_eye_row_asks_only_a_pc_that_ships.py")], 120,
+         needs_app=False,
+         why="REG-2480 (#171) - Dean's PC, which has never shipped and whose EYES is Claude-only, read two MISSING eye "
+             "rows (grok.exe absent) and eleven UNKNOWN 'unaskable for 31d' rows over a ledger it never had. "
+             "console_doctor.this_pc_ships() is ONE measured predicate (its second-eye ledger exists, or its eye "
+             "binary exists, or self_prove.tree_state says dev) and run() asks all thirteen SHIP_EYE_ROWS through "
+             "it: measured not-shipping -> OK with one sentence; shipping or unreadable -> the row's own question, "
+             "unchanged. No fifth state word."),
+    Gate("test_the_venue_check_reads_windows_tasks",
+         [sys.executable, os.path.join(HERE, "test_the_venue_check_reads_windows_tasks.py")], 60,
+         needs_app=False,
+         why="REG-2481 (#171) - 'test venue' was UNKNOWN for 49 days on Windows ('only knows launchd'). It now reads "
+             "Task Scheduler (schtasks /query /fo CSV /v, the 'Task To Run' column and the scripts it names) and "
+             "judges every task with reaches_a_browser_suite, the ONE rule launchd plists are judged by; an "
+             "unreadable listing is UNKNOWN. 'console painted whole' stays UNKNOWN off macOS and names the Windows "
+             "witness that does not exist yet - never OK without a look."),
+    Gate("test_stray_processes_are_measured_on_windows",
+         [sys.executable, os.path.join(HERE, "test_stray_processes_are_measured_on_windows.py")], 120,
+         needs_app=False,
+         why="REG-2482 (#171) - 'stray processes' was UNKNOWN for 45 days on Windows: there is no ps. my_orphans "
+             "samples the kernel's own cumulative CPU time (Toolhelp + GetProcessTimes, no spawn) twice, the second "
+             "from the previous call, ages each process by child_guard's birth reader, and an unreadable sample is "
+             "UNMEASURED, never 'nothing busy'. health_engine's OK sentence names the count and the instrument."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
