@@ -299,6 +299,8 @@ _KEPT_LAW = ("p = os.path.join(H, 'log.store')\n"
              "    sys.exit(0 if fh.read().startswith('seed') else 1)\n")
 _INTO_LAW = ("with open(os.path.join(H, 'scratch', 'out.store'), 'w') as fh:\n"
              "    fh.write('written into a folder it found')\n")
+_GLOB_LAW = ("import glob\n"
+             "sys.exit(1 if glob.glob(os.path.join(H, 'footage', '*.jpg')) else 0)\n")
 _NODE_LISTER = ("const fs = require('fs');\n"
                 "process.exit(fs.readdirSync(__dirname).some((n) => n.endsWith('.flag')) ? 1 : 0);\n")
 
@@ -315,7 +317,7 @@ class WhatTheRunMadeCarriesOnlyWhereItWasNot(_ScrubbedGit):
         main = _repo(files)
         self.addCleanup(shutil.rmtree, main, True)
         with io.open(os.path.join(main, ".gitignore"), "a", encoding="utf-8") as fh:
-            fh.write("*.store\nscratch/\n")
+            fh.write("*.store\nscratch/\nfootage/\n")
         _git(main, "commit", "-q", "-am", "ignore the stores")
         wt = os.path.realpath(tempfile.mkdtemp(prefix="ledger-made.")) + "-wt"
         _git(main, "worktree", "add", "-q", "--detach", wt)
@@ -406,6 +408,23 @@ class WhatTheRunMadeCarriesOnlyWhereItWasNot(_ScrubbedGit):
         os.makedirs(os.path.join(main, "tv", "scratch"))
         ok, why = self._carries(main)
         self.assertTrue(ok, "the folder is there and the PASS still did not carry: %s" % why)
+
+    def test_a_pass_that_listed_an_absent_ignored_folder_stays_out_of_a_checkout_that_holds_it(self):
+        """A glob of an ignored folder the proving checkout lacks is a listing (L, D "-"), no R, S or A: before, no
+        per-tree fact held it, so the PASS carried into main where the folder holds a match - and in its own checkout
+        once the folder came."""
+        main, wt = self._world(_GLOB_LAW)
+        facts = self._record(wt)
+        self.assertEqual(facts["D"].get("tv/footage"), "-", "PREMISE: the trace did not list the absent folder")
+        ok, why = self._carries(main)
+        self.assertTrue(ok, "PREMISE: the PASS did not carry into main, which lacks the folder too: %s" % why)
+        for root, where in ((main, "another checkout"), (wt, "its own checkout")):
+            _write(root, "tv/footage/a.jpg", "a frame")
+            self.assertNotEqual(self._runs(root), 0, "PREMISE: the gate passes in %s anyway" % where)
+            ok, why = self._carries(root)
+            self.assertFalse(ok, "a PASS proved where an ignored folder it listed was absent carried into %s, where "
+                                 "it holds a match" % where)
+            self.assertIn("tv/footage exists in this checkout", why or "")
 
     @unittest.skipUnless(_HAVE_NODE, "no node on PATH - the node lister cannot run here")
     def test_a_node_childs_listing_holds_the_folders_ignored_names_across_checkouts(self):
@@ -504,6 +523,9 @@ RED_PROOF = [
      "find": "        for folder in sorted((set(d_facts) | set(p for p in (facts.get(\"L\") or ()) if p)) - made):  "
              "# LEDGER-TREE-L\n",
      "replace": "        for folder in sorted(set(d_facts) - made):  # LEDGER-TREE-L\n", "matches": 1},
+    {"why": "REG-2449 - a folder the run listed and found absent is no per-tree fact", "file": "gate_ledger.py",
+     "find": "                absent.append(folder)  # LEDGER-TREE-LISTED-ABSENT\n",
+     "replace": "                pass  # LEDGER-TREE-LISTED-ABSENT\n", "matches": 1},
     {"why": "REG-2449 - a row of an older tree-facts version carries into another checkout", "file": "gate_ledger.py",
      "find": "        if not isinstance(tf, dict) or tf.get(\"v\") != TREE_FACTS_VERSION:\n",
      "replace": "        if not isinstance(tf, dict):\n", "matches": 1},

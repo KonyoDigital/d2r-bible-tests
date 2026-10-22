@@ -135,6 +135,11 @@ with open(os.path.join(HERE, 'excl.txt'), 'x') as fh:
     fh.write('mine alone\n')
 with open(os.path.join(HERE, 'outbox', 'sent.txt'), 'w') as fh:
     fh.write('into a folder it found\n')
+gone = os.path.join(HERE, 'gone_box')
+with open(os.path.join(gone, 'out.txt'), 'w') as fh:
+    fh.write('into a folder the run then removes\n')
+os.remove(os.path.join(gone, 'out.txt'))
+os.rmdir(gone)
 os.environ['TV_KNOB_A']
 os.environ.get('TV_KNOB_B')
 'TV_KNOB_C' in os.environ
@@ -161,6 +166,7 @@ def _facts_run():
     for rel, text in _PRISTINE.items():
         _write(root, rel, text)
     _write(root, "tv/t_facts.py", _FACTS_LAW)
+    os.makedirs(os.path.join(root, "tv", "gone_box"))  # an empty folder the run writes into and then removes
     env = dict((k, v) for k, v in _KNOBS.items())
     proc, facts, why = _traced(root, "t_facts.py", env_extra=env)
     rec = GL.facts_of(root, facts) if facts is not None else None
@@ -169,6 +175,8 @@ def _facts_run():
                 "tv/outbox/sent.txt"):
         _gone(root, rel)
     _write(root, "tv/log.txt", _PRISTINE["tv/log.txt"])
+    if not os.path.isdir(os.path.join(root, "tv", "gone_box")):
+        os.makedirs(os.path.join(root, "tv", "gone_box"))
     _MEMO["run"] = (root, proc, facts, why, rec)
     return _MEMO["run"]
 
@@ -359,12 +367,17 @@ class ALaterTreeIsHeldToEveryFact(unittest.TestCase):
         self._breaks("tv/excl.txt exists now", "tv/excl.txt", "already here\n")
 
     def test_a_folder_the_run_wrote_into_must_still_be_a_folder(self):
-        here, away = os.path.join(self.root, "tv", "outbox"), os.path.join(self.root, "tv", "outbox.away")
-        os.rename(here, away)
-        self.addCleanup(os.rename, away, here)
-        ok, why = self._holds()
-        self.assertFalse(ok, "the folder the run wrote a file into is gone and the facts still held")
-        self.assertIn("tv/outbox", why or "")
+        for name in ("outbox", "gone_box"):  # gone_box: the run removed it after writing - held as it was then
+            with self.subTest(folder=name):
+                here, away = os.path.join(self.root, "tv", name), os.path.join(self.root, "tv", name + ".away")
+                os.rename(here, away)
+                try:
+                    ok, why = self._holds()
+                finally:
+                    os.rename(away, here)
+                self.assertFalse(ok, "the folder the run wrote a file into (tv/%s) is gone and the facts still held"
+                                 % name)
+                self.assertIn("tv/%s" % name, why or "")
 
     def test_another_version_or_an_attested_chrome_never_holds(self):
         self.assertFalse(GL.facts_hold(self.root, dict(self.rec, v=0), _base_env())[0])
@@ -795,8 +808,13 @@ RED_PROOF = [
              "# TRACE-LOOKED-FIRST\n",
      "replace": "                    pass  # TRACE-LOOKED-FIRST\n", "matches": 1},
     {"why": "REG-2449 - the folder a made file was written into is no fact", "file": "gate_ledger.py",
-     "find": "            rec[\"Z\"].setdefault(folder, {}).setdefault(kind, size)\n", "replace": "            pass\n",
+     "find": "            rec[\"Z\"].setdefault(folder, {}).setdefault(\"d\", \"-\")\n", "replace": "            pass\n",
      "matches": 1},
+    {"why": "REG-2449 - the folder a made file was written into is measured after the run, so a run that removed it "
+            "holds a tree without it", "file": "gate_ledger.py",
+     "find": "            rec[\"Z\"].setdefault(folder, {}).setdefault(\"d\", \"-\")\n",
+     "replace": "            rec[\"Z\"].setdefault(folder, {}).setdefault(\"d\" if os.path.isdir(_fact_path(root, folder)) "
+                "else \"-\", \"-\")\n", "matches": 1},
     {"why": "REG-2449 - the check reads a name gone mid-listing as the folder being absent", "file": "gate_ledger.py",
      "find": "                    return \"?\"  # REG-2449 - a name gone mid-listing is no answer, never \"the folder is "
              "absent\"\n",

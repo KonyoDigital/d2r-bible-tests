@@ -1842,12 +1842,10 @@ def facts_of(root, facts):
     rec["Z"] = dict((p, dict(k)) for p, k in sorted(sizes.items()) if p not in made)
     for p in sorted(made):
         folder = p.rsplit("/", 1)[0] if "/" in p else ""
-        if folder and folder not in made:  # the run wrote INTO it: what it was decided the write  # FACTS-WRITE-FOLDER
-            try:
-                kind, size = _kind_size(os.stat(_fact_path(root, folder)))
-            except OSError:
-                kind, size = "-", "-"  # a write that failed on a missing folder: held missing, as the run had it
-            rec["Z"].setdefault(folder, {}).setdefault(kind, size)
+        if folder and folder not in made:  # the run wrote INTO it, so it was a folder then  # FACTS-WRITE-FOLDER
+            # never measured after the run: a run that removed the folder it wrote into would hold "absent", and a tree
+            # without the folder - where that write fails - would hold every fact (a write that failed costs a re-run)
+            rec["Z"].setdefault(folder, {}).setdefault("d", "-")
     rec["S"] = dict((p, _presence(root, p)) for p in sorted(set(facts.get("S") or ()) - made - set(sizes)))
     rec["A"] = sorted((set(facts.get("A") or ()) - made) | found_absent)
     rec["L"] = dict((p, listed.get(p) or _listing_digest(root, p)) for p in sorted(set(facts.get("L") or ()) - made))
@@ -3061,7 +3059,8 @@ class Ledger(object):
         """REG-2445 (a) - what a run found that git cannot see differ between two checkouts. -> dict | None (unknown)
 
         absent:  every path it looked for outside the tracked set and found absent (an ignored file is never in git
-                 status, so a PASS proved without it would carry into a checkout that has it)
+                 status, so a PASS proved without it would carry into a checkout that has it) - REG-2449: and every
+                 such folder it LISTED and found absent (a listing is no R, S or A)
         folders: every untracked folder it found (an ignored folder only one checkout holds), and (REG-2449) every
                  folder a path it made was written into - a write into a folder another checkout lacks fails there
         listed:  for every TRACKED folder it really listed, the names git does not track there - a listing sees ignored
@@ -3122,6 +3121,20 @@ class Ledger(object):
                 if names is None:
                     return None
                 listed[folder] = names
+                continue
+            if folder in tracked or folder == ".git" or folder.startswith(".git/") or os.path.basename(folder) in _SELF:
+                continue
+            # REG-2449 - a folder outside the tracked set it LISTED and found absent (a glob of a footage folder a fresh
+            # worktree lacks) is an absence like any other; one there now is held by its listing snapshot (snaps); one
+            # it found there and is gone again, or a listing that met a file, holds nothing another checkout can match
+            full = _fact_path(root, folder)
+            if os.path.isdir(full):
+                continue
+            if os.path.lexists(full) or d_facts.get(folder, "-") != "-":
+                return None
+            if folder not in absent:
+                absent.append(folder)  # LEDGER-TREE-LISTED-ABSENT
+        absent.sort()
         return {"v": TREE_FACTS_VERSION, "absent": absent, "folders": folders, "listed": listed,
                 "made_absent": made_absent, "kept": kept}
 
