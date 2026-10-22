@@ -162,7 +162,7 @@ RED_PROOF = [
      "replace": "  var VAULT_STORES = VAULT_BASIS.concat([]);\n"},
     {"why": "REG-2412 - another tab's fresh records store never lifts the quarantine here",
      "file": "bible.html", "matches": 1,
-     "find": "    if (held && held.kind === 'quarantine' && typeof spec.readable === 'function' && spec.readable(theirs.v)){\n",
+     "find": "    if (held && held.kind === 'quarantine'\n        && (theirs.v == null || (typeof spec.readable === 'function' && spec.readable(theirs.v)))){\n",
      "replace": "    if (false){\n"},
 ]
 

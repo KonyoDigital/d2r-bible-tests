@@ -4,12 +4,16 @@
 
 #152 items 2-3 and #153 item 11 (REG-2410..REG-2413) put three things into the page: the quarantine at the one storage
 door (window.LSR), the shape-aware boot reader (_storeRead) with its notice, and the tab sync that merges another tab's
-write. Four laws drive them, and they share this cut so each law asks the SHIPPED code, never a copy of it:
+write. Eight laws drive them, and they share this cut so each law asks the SHIPPED code, never a copy of it:
 
     test_a_store_that_will_not_read_is_kept_aside          the door, the boot readers, persist(), the notice, restore
     test_a_wrong_shaped_mule_store_never_stops_the_vault   the vault module's head, the hold and every door it holds
     test_a_corrupt_records_store_is_said_and_kept          the records store's quarantine, its undo, the task list
     test_another_tabs_write_is_merged_not_clobbered        the storage listener and the merge
+    test_a_store_another_tab_removed_reads_as_its_default  a removal merged as the store's absent value (REG-2414)
+    test_a_witness_store_that_will_not_read_holds_the_vault  d2r_vaultProv: vault_page(), the whole filing door (REG-2415)
+    test_his_hand_spots_that_will_not_read_are_kept_aside  d2r_mulePos and the mule window's spot doors (REG-2416)
+    test_what_a_mule_wears_that_will_not_read_is_kept_aside  d2r_muleEquip and its one writer (REG-2417)
 
 `page(body, seed)` builds one node program: a localStorage stand-in (RAW) seeded with `seed`, the forked-name sets and
 window.LSR exactly as bible.html declares them (cut by cb_node_harness._stage), then whatever pieces the caller adds,
@@ -129,6 +133,54 @@ def vault_head(s):
     if s.count(VAULT_HEAD_A) != 1:
         raise AssertionError("the vault module head anchor is not unique")
     return s[j:s.index(VAULT_HEAD_B, j)]
+
+
+#: REG-2415 - the vault module's one filing door and its witness store, between the block's own markers
+VAULTFILE_BEGIN = "⟦#246 VAULTFILE BEGIN⟧"
+VAULTFILE_END = "⟦#246 VAULTFILE END⟧"
+SAY_START = "  var MP_SRC_SAY = { manual: 'placed by hand'"
+
+
+def vault_door(s):
+    """the ⟦#246 VAULTFILE⟧ block, whole lines: the witness store's reader and writer, the hardened lock,
+    window.vaultFile, the witness tag and the evidence lines. -> str"""
+    if s.count(VAULTFILE_BEGIN) != 1 or s.count(VAULTFILE_END) != 1:
+        raise AssertionError("the vaultFile markers are not unique (%d, %d)" % (s.count(VAULTFILE_BEGIN), s.count(VAULTFILE_END)))
+    i = s.rfind("\n", 0, s.index(VAULTFILE_BEGIN)) + 1
+    j = s.index("\n", s.index(VAULTFILE_END)) + 1
+    return s[i:j]
+
+
+def say_line(s):
+    """MP_SRC_SAY - the words a filing's source is said in (the witness tag reads it). -> str"""
+    if s.count(SAY_START) != 1:
+        raise AssertionError("MP_SRC_SAY is not where the cut looks (%d)" % s.count(SAY_START))
+    i = s.index(SAY_START)
+    return s[i:s.index("};\n", i) + 3]
+
+
+#: what the filing door leans on in the page and the laws stand in for: the owned store's writer, a router that
+#: sends everything to UNI-ARMOR, no lane locks, the status line and the paints recorded, never drawn
+VAULT_DOOR_STUBS = r"""
+window.D2R_BUILD = { id: 'vLAW' };
+var STATUS = []; function status(m){ STATUS.push(String(m)); }
+var renderVault = function(){}; function refreshOpenCard(){}
+window._repaintOwned = function(){};
+function persistOwned(){ window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); }
+function suggestMule(n){ return { id: 'uni-armor', why: 'the law routes everything to UNI-ARMOR' }; }
+function isSharedStash(n){ return false; }
+function ownedPool(){ return Array.from(owned); }
+window._laneLocked = function(){ return ''; };
+window._mainTag = function(){ return 'MAIN'; };
+"""
+
+
+def vault_page(s, extra=""):
+    """the store door, the boot and its notice, the tab sync, and the vault module's head with its filing door - one
+    node program's pieces. `extra` runs inside the vault module's scope, after the door (a law exposes what it asks). -> str"""
+    return (stage(s) + boot(s) + tab_sync(s) + "\n" + VAULT_DOOR_STUBS + "(function(){\n" + vault_head(s) + "\n"
+            + "function muleById(id){ return roster.find(function(m){ return m.id === id; }) || null; }\n"
+            + say_line(s) + vault_door(s) + "\n" + extra + "\n})();\n")
 
 
 #: every boot loader of a store persist() writes back - `let NAME = ..._storeRead(kind, fallback).getItem('d2r_KEY')`

@@ -10973,6 +10973,41 @@ GATES = [
              "writes the merge back once; bytes that will not parse are quarantined here too; a roster both tabs changed "
              "and a cleared storage hold the key until reload; a quarantine here lifts when the other tab's store reads; "
              "only this world's key is merged."),
+    Gate("test_a_store_another_tab_removed_reads_as_its_default",
+         [sys.executable, os.path.join(HERE, "test_a_store_another_tab_removed_reads_as_its_default.py")], 120,
+         needs_app=False,
+         why="REG-2414 (review of REG-2413) - a storage event with newValue null (another tab's 'Erase all saved "
+             "progress', a harness, devtools) was merged as an EMPTY store: the roster became [], the W6 prune dropped "
+             "every filing and the other tab's next filing made this tab write the pruned map back; saveR stored \"[]\" "
+             "and persist() stored multiKeep {}, so a reload never brought the defaults back. A removed store, and an "
+             "absent value it replaced, is now what a reload reads (the default lockers, multiKeep's targets, the "
+             "owner's Chronicle seed or a fresh one, the empty container otherwise) - in the merge, a lifted quarantine "
+             "and the 'same' check - and an erase in another tab leaves this tab as a reload would, writing nothing."),
+    Gate("test_a_witness_store_that_will_not_read_holds_the_vault",
+         [sys.executable, os.path.join(HERE, "test_a_witness_store_that_will_not_read_holds_the_vault.py")], 120,
+         needs_app=False,
+         why="REG-2415 (review of REG-2410, r1) - d2r_vaultProv that would not parse read as {}, and one frame filing "
+             "wrote {its own row} over every witness row he had (Grief's and Shako's gone, ok:true). It is now UNKNOWN "
+             "and quarantined at the door as the vault module loads (kept aside, said on the board), it is in "
+             "VAULT_BASIS so the vault is held (no map write, no prune), every branch of window.vaultFile and the "
+             "removal / TV unvault / sorter / socket fix / mule delete refuse in words, a refused write is never read "
+             "back as saved, the tile and evidence say UNKNOWN, the owned door names it too, another tab's good store "
+             "lifts it."),
+    Gate("test_his_hand_spots_that_will_not_read_are_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_his_hand_spots_that_will_not_read_are_kept_aside.py")], 120,
+         needs_app=False,
+         why="REG-2416 (review of REG-2410, r2) - d2r_mulePos that would not parse read as {}, and one drop wrote {its "
+             "own spot} over every spot he placed (Shako's gone, ok:true). It is now UNKNOWN and quarantined at the "
+             "door (kept aside, said), the drop / unlock / move refuse in their own words, the writer throws on UNKNOWN "
+             "and on a held key, the packer lays every item itself without throwing, another tab's good spots lift it."),
+    Gate("test_what_a_mule_wears_that_will_not_read_is_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_what_a_mule_wears_that_will_not_read_is_kept_aside.py")], 120,
+         needs_app=False,
+         why="REG-2417 (review of REG-2410) - d2r_muleEquip that would not parse read as {}, so the next pick, removal "
+             "or drag wrote {its own entry} over every doll and inventory. It is now UNKNOWN and quarantined at the door "
+             "(kept aside, said), its one writer throws on UNKNOWN and on a held key and files nothing, the picker and "
+             "unequip say 'could not be saved (why)', the doll shows nothing from it and never throws, another tab's "
+             "good store lifts it."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

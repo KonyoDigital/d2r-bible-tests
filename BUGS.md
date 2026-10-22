@@ -7,6 +7,77 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2417 - A MULE'S DOLL AND INVENTORY STORE THAT WOULD NOT PARSE WAS READ AS EMPTY, AND THE NEXT PICK WROTE OVER IT (review of REG-2410, vault batch V1)
+
+The review of REG-2410 measured its sibling d2r_mulePos (REG-2416); d2r_muleEquip (each mule's doll and inventory as he set them in
+the mule window) had the same reader: `JSON.parse(raw || '{}')` with `catch -> {}`. Bytes cut short mid-write, or a store that parsed
+to a list, read as EMPTY, and the next pick, removal or drag wrote {its own entry} over every doll and inventory he had - not
+quarantined, not kept aside, not said.
+FIX: _mpEqAll is whole in itself: {} when nothing is saved, null (UNKNOWN) when the bytes will not read, and the key goes to the door's
+quarantine (REG-2410: kept aside, every write refused, the notice says "what each mule wears and carries"). _mpEqWrite, the store's
+one writer, throws on UNKNOWN and on a key the door holds (and files nothing), so every picker door's existing catch says "the
+equipment could not be saved (why)"; _mpHostWrite refuses before it indexes; the doll's slot reads show nothing and never throw.
+Another tab's store that reads lifts the quarantine (the store joins ⟦TAB SYNC⟧ as a 'store' kind).
+GUARD: tv/test_what_a_mule_wears_that_will_not_read_is_kept_aside.py (9 RED proofs, heart2 9/9 PROVEN).
+
+### REG-2416 - HIS HAND SPOTS THAT WOULD NOT PARSE WERE READ AS EMPTY, AND ONE DROP WROTE OVER EVERY SPOT HE PLACED (review of REG-2410 r2, vault batch V1)
+
+Review of REG-2410 (r2_mulepos_store.py, reproduced): a d2r_mulePos cut short mid-write read as {} in _mulePosAll, window._mpPlace
+returned ok:true and the stored value was only {uni-armor:{Enigma:...}} - Shako's hand spot gone, nothing quarantined, nothing kept
+aside, nothing said. The rule "a store that will not parse is NAMED and QUARANTINED, never read as empty, never overwritten" stopped at
+the stores persist() writes back.
+FIX: _mulePosAll is whole in itself: {} when nothing is saved, null when the bytes will not read, and the key is quarantined at the
+door (kept aside, every write refused, the notice says "your hand spots on the mule grids"). The drop (_mpPlace, also while the door
+holds the key), the unlock and the move refuse in their own words (the move no longer says "no room" after every cell's refusal);
+_mulePosWrite throws on UNKNOWN and on a held key; the packer lays every item itself while the spots are UNKNOWN and never throws on
+them. Another tab's spots that read lift the quarantine.
+GUARD: tv/test_his_hand_spots_that_will_not_read_are_kept_aside.py (11 RED proofs, heart2 11/11 PROVEN); the browser half (the
+whole page booting over spots cut short) is tests/reg2414_a_removed_store_reads_as_its_default.spec.ts on CI.
+
+### REG-2415 - A WITNESS STORE THAT WOULD NOT PARSE WAS READ AS EMPTY: ONE FRAME FILING WROTE OVER EVERY WITNESS ROW, AND THE VAULT WAS NOT HELD (review of REG-2410 r1, vault batch V1)
+
+Review of REG-2410 (r1_witness_store.py, reproduced): d2r_vaultProv holds the witness row beside every mule filing. _provAll read it
+through `JSON.parse(raw || '{}')` with `catch -> {}`, and vaultFile refused an unreadable store only inside `if (hand)`: the reader /
+frame / sorter / rebuild / restore / move paths did `var pa = _provAll(); pa[nm] = row; _provWrite(pa)`, so one frame filing over a
+truncated store (Grief's and Shako's rows) returned ok:true mode:'filed' and the store became {Enigma} alone. The W6 render prune read
+every filing as unwitnessed; nothing was quarantined, kept aside or said; the vault was not held (the store was not in VAULT_BASIS).
+FIX (⟦VAULT STORE READ⟧): _provAll answers {} for nothing saved and null (UNKNOWN) for bytes that will not parse or are not a map,
+quarantining the key at the door (kept aside, every write refused, the notice says "the vault witness rows"); the module asks it once
+as it loads, and the owned door's own reader (_read) quarantines the same key. d2r_vaultProv is in VAULT_BASIS, so the vault is HELD:
+the mule map is not written, the prune drops nothing, + Add an item refuses. window.vaultFile refuses every branch in words while the
+store is UNKNOWN or held; the removal (vaultRemove, unless it keeps the filing), the TV unvault (whose residue loop would otherwise
+un-own names with no journal), the sorter, the socket fix (it was a silent catch) and the mule delete refuse in words; _provDrop /
+_provDemote / _hardUnlock write nothing over it; _provWrite never writes UNKNOWN and answers false for a write the door refused,
+dropping its parse caches so an unsaved row is never read back as saved. The tile, the evidence line and the evidence panel say
+UNKNOWN, never "NO WITNESS" / "No provenance". Another tab's store that reads (or its removal) lifts the quarantine (the store joins
+⟦TAB SYNC⟧ as a 'store' kind - the REG-2413 entry's "LEFT" for it is closed).
+GUARD: tv/test_a_witness_store_that_will_not_read_holds_the_vault.py (20 RED proofs, heart2 20/20 PROVEN), driving the whole
+⟦#246 VAULTFILE⟧ block with the real door in node; the browser half is tests/reg2414_a_removed_store_reads_as_its_default.spec.ts on CI.
+LEFT (measured, not fixed here): 114 sites in bible.html parse a store as `JSON.parse(LS.getItem(k) || '{}')` with a default on a
+throw; 16 are in the vault module, and the ones that write the same key back are the next of this class - the removal journal
+(d2r_vaultRemoved: _vrRead -> [] -> _vrWrite([batch]) drops the undo history), the Recently-registered journal and the scan ledger.
+
+### REG-2414 - A STORE ANOTHER TAB REMOVED WAS MERGED AS AN EMPTY ONE: HIS ROSTER BECAME [], THE PRUNE DROPPED EVERY FILING, THE MAP WAS WIPED (review of REG-2413, vault batch V1)
+
+Review of REG-2413 (r3_roster_removed.py / r3b, reproduced): a storage event whose newValue is null is another document REMOVING the
+key - the footer's "Erase all saved progress" (LSR.wipeProfile) removes every key one by one; a harness or devtools removes one.
+⟦TAB SYNC⟧ merged it as `theirs.v || []`, though the page reads an absent roster as the default lockers (the comment two lines up said
+so). The roster went from 11 to [], the next paint's W6 prune found no mule for any filing and deleted every one, and the other tab's
+next filing ("Arachnid Mesh") made this tab write its pruned map back: stored d2r_muleAssign = {"Arachnid Mesh":"uni-armor"}, Grief,
+Shako and Enigma gone, with no action in this tab. saveR stored "[]" (truthy on reload), so the 8 other default lockers never came
+back; d2r_multiKeep merged a removal to {} and persist() stored "{}", so the 9 MULTI_KEEP_DEFAULT targets were gone for good.
+FIX: a removed store, and an absent value it replaced, is what a reload of this tab reads - spec.absent() where the boot loader has a
+default (the roster's default lockers, multiKeep's targets, the owner's forged-runeword seed or an empty Chronicle on a fresh
+profile, asked at merge time), the empty container otherwise - in the list branch, the three-way merge (both sides, so a first save
+in another tab is merged against this tab's default), a quarantine it lifts, and the "same" check (nothing is written back for it).
+A 'store' kind lifts its quarantine when another tab removes the bad bytes. "Erase all saved progress" in another tab now leaves this
+tab exactly as a reload would and this tab writes nothing.
+GUARD: tv/test_a_store_another_tab_removed_reads_as_its_default.py (10 RED proofs, heart2 10/10 PROVEN); the real cross-page removal
+is tests/reg2414_a_removed_store_reads_as_its_default.spec.ts on CI (not run on the Mac). The REG-2413 law's three anchors moved to
+the new lines (re-proved 11/11), the REG-2412 law's one (re-proved 8/8).
+LEFT: an absent roster with a mule map that names a mule he ADDED orphans that filing at the next paint, on a reload as on a removal
+(the boot's default is DEFAULT_ROSTER); _vaultRosterFresh keeps such mules, but only "Start it fresh" uses it.
+
 ### REG-2413 - ANOTHER TAB'S VAULT WRITE WAS LOST ON THIS TAB'S NEXT ADD: NO STORAGE LISTENER (#153 item 11, vault batch V1)
 
 GrokBot's sweep (#230, 10-21): two browser tabs of the board, an add in one, an add in the other, and the first add was gone. Every

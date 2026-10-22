@@ -21458,7 +21458,22 @@ window._STORE_SAY = {
   d2r_statues: 'Colossal statues', d2r_setPieces: 'set pieces', d2r_runeStash: 'rune counts',
   d2r_rwMade: 'forged runewords', d2r_rwUnmade: 'runeword un-marks', d2r_rwVerify: 'runeword verdicts',
   d2r_materialStash: 'material counts', d2r_gemStash: 'gem counts', d2r_craftStash: 'crafted items',
-  d2r_craftBaseStash: 'craft bases', d2r_bossFilters: 'boss filters', d2r_bossSorts: 'boss sorting'
+  d2r_craftBaseStash: 'craft bases', d2r_bossFilters: 'boss filters', d2r_bossSorts: 'boss sorting',
+  /* REG-2415..2417 — the vault stores read from storage on every use (⟦#246 VAULTFILE⟧ _provAll, the mule window's
+     _mulePosAll / _mpEqAll) go to the same door, so they are named here too */
+  d2r_vaultProv: 'the vault witness rows - who or what filed each item', d2r_mulePos: 'your hand spots on the mule grids',
+  d2r_muleEquip: 'what each mule wears and carries'
+};
+/* REG-2415 — why a store the door holds cannot be written now, in his words; null when nothing holds it. One sentence for
+   every refusal a vault door says, so a refusal and the notice never name a store two ways. */
+window._storeHeldWhy = function(k){
+  var q = null;
+  try { q = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(k) : null; } catch (e) { q = null; }
+  if (!q) return null;
+  var say = (window._STORE_SAY && window._STORE_SAY[k]) ? ' (' + window._STORE_SAY[k] + ')' : '';
+  if (q.kind === 'stale') return k + say + ' changed in another tab - reload this tab before you change it here';
+  return k + say + ' ' + q.reason + ' - ' + (q.asideOk ? 'its bytes are kept aside' : 'its bytes stay where they are')
+    + ', and nothing is written over them (see the notice at the top)';
 };
 window._storeQuarantineHtml = function(list){
   var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
@@ -21509,7 +21524,11 @@ window._storeQuarantinePaint = function(){
 /* what starting each store fresh costs, said in the question before it is asked */
 var _FRESH_SAY = {
   d2r_muleRoster: ' Every mule your mule map names is kept.',
-  d2r_owned: ' A mule filing stays only where a sighting witnessed it - if you have a backup, restore it instead (Backup & Share).'
+  d2r_owned: ' A mule filing stays only where a sighting witnessed it - if you have a backup, restore it instead (Backup & Share).',
+  /* REG-2415 — starting the witness rows fresh is not free, so the question says what it costs */
+  d2r_vaultProv: ' Every filing then reads NO WITNESS until a stash look or your hand witnesses it again, and a filing whose item'
+    + ' is no longer owned leaves its mule on the next paint - if you have a backup, restore it instead (Backup & Share).',
+  d2r_mulePos: ' Every item goes back to where the packer puts it; you place them by hand again.'
 };
 window._storeStartFresh = function(k, skipAsk){
   var q = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(k) : null;
@@ -21635,13 +21654,21 @@ try {
   }
   function _num(v){ var n = (typeof v === 'number') ? v : parseFloat(v); return isFinite(n) ? n : null; }
   function _str(v){ var s = (v == null) ? '' : String(v).trim(); return s || null; }
-  /* null = the store would not parse — never read as {} and never written over */
+  /* null = the store would not parse — never read as {} and never written over.
+     REG-2415 — and it is QUARANTINED at the door here too (the vault module's ⟦VAULT STORE READ⟧ asks the same door for
+     the same key): its bytes kept aside, every write refused, the notice says so - whichever reader meets it first. */
+  function _readQ(why){
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(KEY, why); } catch (eQ) {}
+    return null;
+  }
   function _read(){
     var raw = null;
-    try { raw = window.LSR.getItem(KEY); } catch (e) { return null; }
+    try { raw = window.LSR.getItem(KEY); } catch (e) { return _readQ('could not be read'); }
     if (raw == null || raw === '') return {};
-    try { var v = JSON.parse(raw); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : null; }
-    catch (e) { return null; }
+    var v;
+    try { v = JSON.parse(raw); } catch (e) { return _readQ('will not parse'); }
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v
+      : _readQ('is not a map of witness rows (it holds ' + (v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v) + ')');
   }
   function _write(all){ window.LSR.setItem(KEY, JSON.stringify(all)); }
   window._ownedProvIsFiling = function(row){
@@ -23514,7 +23541,17 @@ let craftBaseStash = _storeRead('map', {}).getItem('d2r_craftBaseStash');
    something the other write lacks (both wrote at once), it writes the merged copy back once, and the other tab applies
    that the same way and stops. Nothing is guessed: bytes that will not parse are quarantined here too, a roster both
    tabs changed and a cleared storage HOLD the key (the door refuses this tab's writes to it), and the notice asks for
-   a reload. [[unknown-stays-unknown]] [[heart-first]] */
+   a reload. [[unknown-stays-unknown]] [[heart-first]]
+   ⚠ REG-2414 (review of REG-2413, reproduced) — A REMOVED STORE IS ITS ABSENT VALUE, NEVER AN EMPTY ONE. A storage
+   event with newValue null is another document REMOVING the key (the footer's "Erase all saved progress" removes every
+   key one by one; a harness or devtools removes one). The merge read that as an empty container: the roster became []
+   though this page runs on the default lockers when no roster is saved, so the next paint's W6 prune found no mule for
+   any filing and dropped every one, and the other tab's next filing made this tab write the pruned map back - his mule
+   map wiped with no action in this tab, and "[]" saved, so a reload never brought the 8 other lockers back. multiKeep's
+   removal merged to {} the same way and persist() kept the 9 default targets away for good. Now a removed store (and an
+   absent value it replaced) is exactly what a reload of this tab would read: spec.absent() where the store has a
+   default (the roster's lockers, multiKeep's targets, the owner's forged-runeword seed), the empty container otherwise -
+   in the merge, in a quarantine it lifts, and in the "same" check, so nothing is written back for it. */
 window._TAB_SYNC = window._TAB_SYNC || {};
 window._tabSyncMerge = function(k, oldRaw, newRaw){
   var spec = window._TAB_SYNC[k], LSR = window.LSR;
@@ -23523,6 +23560,12 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
     if (raw == null || raw === '') return { ok: true, v: null };
     try { return { ok: true, v: JSON.parse(raw) }; } catch (e) { return { ok: false, v: undefined }; }
   };
+  /* REG-2414 — what this tab reads for the store when nothing is saved (a reload's value), a fresh copy on every ask */
+  var absentOf = function(){
+    if (typeof spec.absent === 'function'){ var a = spec.absent(); if (a != null) return a; }
+    return (spec.kind === 'set' || spec.kind === 'list') ? [] : {};
+  };
+  var valOf = function(v){ return (v == null) ? absentOf() : v; };
   var shapeOk = function(v){
     if (v == null || spec.kind === 'store') return true;
     if (spec.kind === 'set' || spec.kind === 'list') return Array.isArray(v);
@@ -23556,8 +23599,11 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
     return { ok: false, quarantined: true };
   }
   if (spec.kind === 'store'){
-    /* read from storage on every use, so there is nothing to merge; a quarantine here lifts once the store reads */
-    if (held && held.kind === 'quarantine' && typeof spec.readable === 'function' && spec.readable(theirs.v)){
+    /* read from storage on every use, so there is nothing to merge; a quarantine here lifts once the store reads - or
+       once another document removed it (REG-2414: the bad bytes are gone from the key, and a reload reads it as never
+       written, which is a store that reads) */
+    if (held && held.kind === 'quarantine'
+        && (theirs.v == null || (typeof spec.readable === 'function' && spec.readable(theirs.v)))){
       var rs = LSR.release(k);
       try { if (spec.adopted) spec.adopted(); } catch (eAd) {}
       after(false);
@@ -23568,9 +23614,11 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
   if (held && held.kind === 'stale') return { ok: false, stale: true };
   var live = spec.get();
   if (live == null) return { ok: false, why: k + ' is not in this tab yet' };
+  /* REG-2414 — the value the other document left (its write, or the store's absent value when it removed the key) */
+  var tv = valOf(theirs.v);
   if (held && held.kind === 'quarantine'){
     /* this tab is running on a default for a store that would not read; the other tab's readable store replaces it */
-    replace(live, theirs.v);
+    replace(live, tv);
     var rl = LSR.release(k);
     try { if (spec.adopted) spec.adopted(); } catch (eAd2) {}
     after(false);
@@ -23578,8 +23626,9 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
   }
   var base = parse(oldRaw);
   if (spec.kind === 'list'){
-    /* an absent store is what this tab runs on when nothing was saved (the roster's default), not an empty list */
-    var tl = theirs.v || [], bl = base.ok ? (base.v == null ? (typeof spec.absent === 'function' ? spec.absent() : []) : base.v) : [];
+    /* an absent store is what this tab runs on when nothing was saved (the roster's default), not an empty list - on
+       either side of the change (REG-2414: a removal adopts the default lockers, never []) */
+    var tl = tv, bl = base.ok ? valOf(base.v) : [];
     if (JSON.stringify(live) === JSON.stringify(tl)) return { ok: true, same: true };
     if (base.ok && JSON.stringify(live) === JSON.stringify(bl)){ replace(live, tl); after(false); return { ok: true, adopted: true }; }
     if (LSR && typeof LSR.hold === 'function') LSR.hold(k, 'it changed here and in another tab at once');
@@ -23587,17 +23636,17 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
   }
   if (!base.ok || !shapeOk(base.v)){
     /* the value it replaced is unknown, so its change cannot be told apart: the newest whole write stands */
-    replace(live, theirs.v);
+    replace(live, tv);
     after(false);
     return { ok: true, adopted: true };
   }
-  var n = 0;
+  var n = 0, bv = valOf(base.v);
   if (spec.kind === 'set'){
-    var bs = new Set(base.v || []), ts = new Set(theirs.v || []);
+    var bs = new Set(bv), ts = new Set(tv);
     bs.forEach(function(x){ if (!ts.has(x) && live.has(x)){ live.delete(x); n++; } });
     ts.forEach(function(x){ if (!bs.has(x) && !live.has(x)){ live.add(x); n++; } });
   } else {
-    var b = base.v || {}, t = theirs.v || {}, seen = {};
+    var b = bv, t = tv, seen = {};
     Object.keys(b).concat(Object.keys(t)).forEach(function(x){
       if (seen[x]) return; seen[x] = 1;
       var tj = JSON.stringify(t[x]);
@@ -23607,7 +23656,7 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
     });
   }
   var wrote = false;
-  if (!same(live, theirs.v))
+  if (!same(live, tv))
     wrote = (LSR.setItem(k, JSON.stringify(spec.kind === 'set' ? Array.from(live) : live)) !== false);
   after(wrote);
   return { ok: true, merged: true, applied: n, wroteBack: wrote };
@@ -23623,11 +23672,20 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
       try { if (typeof window.renderGrailProgress === 'function') window.renderGrailProgress(); } catch (e) {}
     }, 40);
   }
-  /* each store this script holds in memory and writes back whole: its shape, its live copy, what to repaint */
+  /* REG-2414 — a store whose boot loader has a default reads THAT when nothing is saved, and a removal by another
+     document is merged as it (the 4th field); every other store's absent value is its empty container */
+  function multiKeepAbsent(){ return Object.assign({}, MULTI_KEEP_DEFAULT); }
+  function rwMadeAbsent(){
+    /* the boot loader's own rule, asked now: the fresh-profile flag as it stands, the owner's seed only on his ledger */
+    var fresh = false;
+    try { fresh = (window.LSR.getItem('d2r_rwProfile') === 'fresh'); } catch (eF) { fresh = false; }
+    return (fresh || !window._seedsBelongHere) ? {} : Object.assign({}, _RWC_SEED);
+  }
+  /* each store this script holds in memory and writes back whole: its shape, its live copy, what to repaint, its absent value */
   var HELD = {
     d2r_owned:         ['set', function(){ return owned; }, vaultAfter],
     d2r_copies:        ['map', function(){ return copies; }, vaultAfter],
-    d2r_multiKeep:     ['map', function(){ return multiKeep; }, vaultAfter],
+    d2r_multiKeep:     ['map', function(){ return multiKeep; }, vaultAfter, multiKeepAbsent],
     d2r_magicFinds:    ['map', function(){ return magicFinds; }, vaultAfter],
     d2r_unknownReads:  ['set', function(){ return unknownReads; }, vaultAfter],
     d2r_ethereal:      ['set', function(){ return etherealItems; }],
@@ -23636,7 +23694,7 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
     d2r_statues:       ['set', function(){ return statues; }],
     d2r_setPieces:     ['set', function(){ return setPieces; }],
     d2r_runeStash:     ['map', function(){ return runeStash; }],
-    d2r_rwMade:        ['map', function(){ return rwMade; }],
+    d2r_rwMade:        ['map', function(){ return rwMade; }, null, rwMadeAbsent],
     d2r_rwUnmade:      ['map', function(){ return rwUnmade; }],
     d2r_materialStash: ['map', function(){ return materialStash; }],
     d2r_gemStash:      ['map', function(){ return gemStash; }],
@@ -23646,7 +23704,7 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
     d2r_bossSorts:     ['map', function(){ return bossSorts; }]
   };
   Object.keys(HELD).forEach(function(k){
-    if (!REG[k]) REG[k] = { kind: HELD[k][0], get: HELD[k][1], after: HELD[k][2] || null };
+    if (!REG[k]) REG[k] = { kind: HELD[k][0], get: HELD[k][1], after: HELD[k][2] || null, absent: HELD[k][3] || null };
   });
   try {
     window.addEventListener('storage', function(ev){
@@ -41033,8 +41091,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(k, why); } catch (eQ) {}
     return f;
   }
-  /* what the vault stands on (the mule map is judged against it), and what + Add an item writes (those plus the records) */
-  var VAULT_BASIS = Object.keys({ d2r_owned: 1, d2r_muleRoster: 1, d2r_muleAssign: 1, d2r_copies: 1 });
+  /* what the vault stands on (the mule map is judged against it), and what + Add an item writes (those plus the records).
+     REG-2415 — the witness store is one of them: the W6 prune keeps a filing by its witness row, and every filing door
+     writes its row before the filing, so a witness store that will not read holds the vault like the four above. */
+  var VAULT_BASIS = Object.keys({ d2r_owned: 1, d2r_muleRoster: 1, d2r_muleAssign: 1, d2r_copies: 1, d2r_vaultProv: 1 });
   var VAULT_STORES = VAULT_BASIS.concat(Object.keys({ d2r_vaultRecords: 1 }));
   function _vaultHeldBy(keys){
     var out = [];
@@ -41088,6 +41148,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; }, after: _vaultTabAfter,
                              absent: function(){ return DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }); },
                              adopted: function(){ delete _muleUnread[RK]; } };
+    /* REG-2415..2417 — the witness rows, his hand spots and the mule equipment are read from storage on every use, so another
+       tab's write needs no merge; but a quarantine this tab holds on one lifts when another tab writes one that reads (it
+       started it fresh, or restored it) or removes it, and the vault repaints */
+    ['d2r_vaultProv', 'd2r_mulePos', 'd2r_muleEquip'].forEach(function(k){
+      window._TAB_SYNC[k] = { kind: 'store', after: _vaultTabAfter,
+                              readable: function(v){ return !!v && typeof v === 'object' && !Array.isArray(v); } };
+    });
   } catch (eTs) {}
   /* ⟦/VAULT HOLD⟧ */
   /* the SHARED STASH locker, one shape. Load adds it when a saved roster lacks it.
@@ -43333,14 +43400,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        vault is his ruling, backed up first — but it is tagged NO WITNESS on its tile and counted by the
        doctor's 'vault provenance' row. [[unknown-stays-unknown]] */
     var _pvLive = _provAll();
-    var _pvW6 = {};
-    Object.keys(_pvLive).forEach(function(k){
+    /* REG-2415 — null is a witness store that would not read: no row can be told absent, so nothing is pruned below */
+    var _pvW6 = (_pvLive === null) ? null : {};
+    if (_pvLive) Object.keys(_pvLive).forEach(function(k){
       if (_pvLive[k] && _pvLive[k].kind === 'owned') return;   /* a receipt keeps no filing */
       _pvW6[k] = _pvLive[k];
     });
     /* REG-2411 — held: the pool and the roster in memory are the page's default for a quarantined store, not his vault,
        so no filing is dropped against them (the mule map keeps every row, and _guardedSet does not write it anyway) */
-    var _pruneHeld = (typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld();
+    var _pruneHeld = (_pvW6 === null)
+      || ((typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld());
     Object.keys(assign).forEach(function(n){
       if (_pruneHeld) return;
       if (assign[n]!=='__keep' && !muleById(assign[n])) { delete assign[n]; return; }
@@ -43913,27 +43982,74 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     return window.LSR.getItem(PROV_KEY);
   }
-  function _provAll(){
-    try {
-      var raw = _witnessRaw();
-      if (window._provHeld === true && window._provObjReady === true && window._provObjRaw === raw) return window._provObjHold;
-      /* v3773 - FIND ON A MULE parsed the whole witness store once per name per key (12.9 s a key on
-         his data). The same raw string parses to the same object: keep the last parse, keyed on it. */
-      if (typeof raw === 'string' && window._provParseRaw === raw && window._provParseObj) return window._provParseObj;
-      var v = JSON.parse(raw || '{}');
-      v = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
-      if (typeof raw === 'string') { window._provParseRaw = raw; window._provParseObj = v; }
-      if (window._provHeld === true) {
-        window._provObjHold = v;
-        window._provObjRaw = raw;
-        window._provObjReady = true;
-      }
-      return v;
-    } catch (e) { return {}; }
+  /* ⟦VAULT STORE READ⟧ ══ REG-2415..2417 (review of REG-2410, r1/r2 reproduced) — A VAULT STORE READ FROM STORAGE ON EVERY USE IS
+     READ THE STRICT WAY, AND ONE THAT WILL NOT READ IS QUARANTINED AT THE DOOR, NEVER READ AS EMPTY.
+     d2r_vaultProv (the witness rows, here), d2r_mulePos (his hand spots on the mule grids) and d2r_muleEquip (what each
+     mule wears and carries; both in the mule window) were read through `JSON.parse(raw || '{}')` with `catch -> {}`: bytes
+     that would not parse, or parsed to a list, read as an EMPTY store and the next write replaced them - one frame filing
+     left only its own witness row (Grief's and Shako's gone, ok:true mode:'filed'), one drag left only its own spot. Not
+     quarantined, not kept aside, not said. Now: nothing saved yet is {} (a measured nothing); bytes that will not parse or
+     are not a map are UNKNOWN - null - and the key goes to window.LSR.quarantine (the bytes kept aside, every write of the
+     key refused, the notice says which store and why). The witness store also holds the vault (VAULT_BASIS): the W6
+     prune and every filing stand on its rows. A caller that would write from it refuses in words (window._storeHeldWhy's
+     sentence); a caller that only shows it says UNKNOWN. Each reader is whole in itself, so a law that cuts one block
+     runs it as shipped. The owned door's own reader (⟦OWNED PROV⟧ _read) asks the same door. [[unknown-stays-unknown]] */
+  /* the sentence a refusal says while the witness store is UNKNOWN or held */
+  function _provUnknownWhy(){
+    return (typeof window._storeHeldWhy === 'function' && window._storeHeldWhy(PROV_KEY))
+      || ('the witness store (' + PROV_KEY + ') would not read, and nothing is written over it');
   }
+  /* is the witness store's key held at the door (quarantined, or behind another tab)? A write it would refuse is not tried */
+  function _provHeldNow(){
+    try { return !!(window.LSR && typeof window.LSR.quarantined === 'function' && window.LSR.quarantined(PROV_KEY)); }
+    catch (e) { return false; }
+  }
+  /* -> the sentence while the witness store is UNKNOWN or held, else null. Published, so a door outside this block (a removal,
+     the sorter, a rename, a mule delete) asks it before it takes or moves a row - and a law that cuts only that door runs
+     it as before (no publisher, no hold). */
+  window._vaultProvHeld = function(){ return (_provAll() === null || _provHeldNow()) ? _provUnknownWhy() : null; };
+  /* -> the witness rows {name: row} | {} when none was ever saved | null = UNKNOWN (quarantined at the door). The verdict
+     on a given set of bytes is kept beside the parse cache, so a store that will not read is not re-parsed on every ask. */
+  function _provAll(){
+    var raw;
+    var unk = function(why){
+      window._provBadRaw = (typeof raw === 'string') ? raw : null; window._provBadWhy = why;
+      try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(PROV_KEY, why); } catch (eQ) {}
+      return null;
+    };
+    try { raw = _witnessRaw(); }
+    catch (e) { return unk('could not be read'); }
+    if (window._provHeld === true && window._provObjReady === true && window._provObjRaw === raw) return window._provObjHold;
+    /* v3773 - FIND ON A MULE parsed the whole witness store once per name per key (12.9 s a key on
+       his data). The same raw string parses to the same object: keep the last parse, keyed on it. */
+    if (typeof raw === 'string' && window._provParseRaw === raw && window._provParseObj) return window._provParseObj;
+    if (typeof raw === 'string' && window._provBadRaw === raw) return unk(window._provBadWhy || 'will not parse');
+    var v = {};
+    if (raw != null && raw !== ''){
+      var why = null;
+      try { v = JSON.parse(raw); } catch (eP) { why = 'will not parse'; }
+      if (!why && !(v && typeof v === 'object' && !Array.isArray(v)))
+        why = 'is not a map of witness rows (it holds ' + (v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v) + ')';
+      if (why) return unk(why);
+    }
+    if (typeof raw === 'string') { window._provParseRaw = raw; window._provParseObj = v; }
+    if (window._provHeld === true) {
+      window._provObjHold = v;
+      window._provObjRaw = raw;
+      window._provObjReady = true;
+    }
+    return v;
+  }
+  /* -> true when the rows landed; false when there was nothing to write (UNKNOWN) or the door refused the key (REG-2415).
+     A refused write drops the parse caches, so the rows a caller put into the cached object are never read back as saved. */
   function _provWrite(all){
+    if (!all || typeof all !== 'object' || Array.isArray(all)) return false;
     var raw = JSON.stringify(all);
-    window.LSR.setItem(PROV_KEY, raw);
+    if (window.LSR.setItem(PROV_KEY, raw) === false){
+      window._provParseRaw = null; window._provParseObj = null; window._provObjReady = false;
+      try { if (typeof _hlMemo === 'object' && _hlMemo){ _hlMemo.raw = null; _hlMemo.all = null; } } catch (eM0) {}
+      return false;
+    }
     window._provParseRaw = raw; window._provParseObj = (all && typeof all === 'object' && !Array.isArray(all)) ? all : {};
     if (window._provHeld === true) {
       window._provHoldSeen = true;
@@ -43952,24 +44068,30 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* #51 — a witness row can carry a rarity the name colour resolver (_artRarity) reads; its cache is per name and
        would keep a pre-filing '' for ever, so a write here empties it. A store write is rare; a repaint is cheap. */
     try { if (typeof _ARTRARITY_CACHE === 'object' && _ARTRARITY_CACHE) Object.keys(_ARTRARITY_CACHE).forEach(function(k){ delete _ARTRARITY_CACHE[k]; }); } catch (e) {}
+    return true;
   }
-  /* a filing taken OUT takes its witness row with it — a row left behind would re-file what he removed */
+  /* a filing taken OUT takes its witness row with it — a row left behind would re-file what he removed.
+     -> how many rows left; 0 when the store is UNKNOWN (REG-2415: its callers refuse before they get here) */
   function _provDrop(names){
     var all = _provAll(), n = 0;
+    if (!all) return 0;
     (Array.isArray(names) ? names : [names]).forEach(function(k){
       k = String(k == null ? '' : k);
       if (k && Object.prototype.hasOwnProperty.call(all, k)){ delete all[k]; n++; }
     });
-    if (n) _provWrite(all);
+    if (n && !_provWrite(all)) return 0;
     return n;
   }
   window._vaultProvAll = _provAll;
   window._vaultProvDrop = _provDrop;
+  /* REG-2415 — asked once as this module loads, so a witness store that will not read is named on the board and holds the
+     vault BEFORE the first paint's prune or any door files against it */
+  try { _provAll(); } catch (eP0) {}
   /* 2026-09-28 — A FILING SENT BACK TO THE DOCK KEEPS ITS PROVENANCE AS A RECEIPT. It used to be dropped (a witness
      row left behind would re-file what he removed); a receipt cannot file anything, so it can stay and still say
      who put the item in his vault. */
   function _provDemote(name){
-    var all = _provAll(), k = String(name == null ? '' : name), r = all[k];
+    var all = _provAll(), k = String(name == null ? '' : name), r = all ? all[k] : null;   /* REG-2415 — UNKNOWN demotes nothing */
     if (!r || r.kind === 'owned') return false;
     var keep = r.ownedBy && typeof r.ownedBy === 'object' ? r.ownedBy : { kind: 'owned', source: r.source || null, by: r.by || null,
       at: r.at || null, frameId: r.frame || null, frame: r.frame || null, sessionId: r.reel || null, looks: Array.isArray(r.looks) ? r.looks : [],
@@ -43977,7 +44099,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       successes: (typeof r.successes === 'number') ? r.successes : null, trials: (typeof r.trials === 'number') ? r.trials : null };
     keep.kind = 'owned'; keep.demotedFrom = { mule: r.mule || null, at: new Date().toISOString() };
     if (r.unlockedAt) keep.unlocked = { at: r.unlockedAt, why: r.unlockedWhy || null };   /* #41 rank 17 — a released lock rides on the receipt */
-    all[k] = keep; _provWrite(all); return true;
+    all[k] = keep; return _provWrite(all);
   }
   window._vaultProvDemote = _provDemote;
   /* #41 rank 17 (REG-1562) — THE HARDENED LOCK, READ. vault_evidence.rebuild_plan has said "HARDENED is re-filed and
@@ -44028,8 +44150,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   /* the release: the row keeps its evidence and says who opened it and when; locked reads false from here on */
   function _hardUnlock(name, why){
-    var all = _provAll(), nm = String(name == null ? '' : name).trim(), r = all[nm];
+    var all = _provAll(), nm = String(name == null ? '' : name).trim(), r = all ? all[nm] : null;   /* REG-2415 — UNKNOWN releases nothing */
     if (!r || typeof r !== 'object' || r.locked !== true) return false;
+    /* REG-2415 — a release the door would refuse (the key is held) is no release: the callers say "could not be written" */
+    if (_provHeldNow()) return false;
     r.locked = false; r.unlockedAt = new Date().toISOString(); r.unlockedBy = 'hand'; r.unlockedWhy = String(why || 'released by hand');
     all[nm] = r; _provWrite(all); _vaultLockHush(nm); return true;
   }
@@ -44749,6 +44873,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     opts = opts || {};
     var nm = String(name == null ? '' : name).trim();
     if (!nm) return { ok: false, refused: 'no-name', why: 'no name' };
+    /* REG-2415 (review of REG-2410, r1 reproduced) — EVERY BRANCH BELOW WRITES A WITNESS ROW OR DECIDES ON ONE. With the
+       witness store UNKNOWN (it would not read, and the door holds it), the reader / frame / sorter / rebuild / restore /
+       move paths wrote {this row} over every row he had; the hand path alone asked. Now nothing is filed, in words. */
+    var _pv0 = _provAll(), _pvQ0 = null;
+    try { _pvQ0 = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(PROV_KEY) : null; } catch (eQ0) { _pvQ0 = null; }
+    if (_pv0 === null || _pvQ0)
+      return { ok: false, refused: 'prov-unreadable', why: nm + ' was not filed - '
+               + ((typeof window._storeHeldWhy === 'function' && window._storeHeldWhy(PROV_KEY))
+                  || ('the witness store (' + PROV_KEY + ') would not read, and nothing is written over it')) };
     var lk = '';
     try { lk = (window._laneLocked && window._laneLocked(nm)) || ''; } catch (e) { lk = ''; }
     if (opts.move){
@@ -44977,7 +45110,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      the read in hand, one entry per session+frame. The bar itself is still _vaultWitnessCheck's: 2 distinct sessions.
      -> a stash witness {lane, by, sessions, gathered} or null when the receipt holds no stash look */
   function _receiptStashWitness(nm, w){
-    var row = _provAll()[String(nm == null ? '' : nm).trim()];
+    var _pvRS = _provAll();
+    if (_pvRS === null) return null;   /* REG-2415 — a witness store that will not read gathers no witness from it */
+    var row = _pvRS[String(nm == null ? '' : nm).trim()];
     var mine = (row && row.kind === 'owned' && Array.isArray(row.looks)) ? row.looks : [];
     var extra = (w && typeof w === 'object' && _WIT_STASH[String(w.lane || w.loc || '').toLowerCase()])
               ? (w.sessions || w.witnesses || w.looks || []) : [];
@@ -45005,6 +45140,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window._vaultProvSay = function(name){
     var nm = String(name == null ? '' : name).trim();
     if (!nm) return '';
+    /* REG-2415 — a witness store that will not read is UNKNOWN on the tile, never "NO WITNESS" */
+    if (_provAll() === null) return 'witness UNKNOWN - the witness store would not read';
     var r = _provAll()[nm];
     var S = (typeof MP_SRC_SAY === 'object' && MP_SRC_SAY) ? MP_SRC_SAY : {};
     if (!r || r.kind === 'owned'){
@@ -45026,7 +45163,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* ⟦VAULT EVIDENCE LINE BEGIN⟧ The standing line is clickable. It opens the existing frame
      lightbox on this item's looks — no second viewer. A picture that cannot be served says so. */
   window._vaultEvidenceLine = function(name){
-    var r = _provAll()[String(name == null ? '' : name).trim()];
+    /* REG-2415 — UNKNOWN is said on the chip and the panel line, never "no provenance recorded" */
+    var _pvEL = _provAll();
+    if (_pvEL === null) return 'evidence UNKNOWN - the witness store would not read, so who or what filed this cannot be told';
+    var r = _pvEL[String(name == null ? '' : name).trim()];
     if (!r) return '';
     if (r.tier && typeof r.successes === 'number' && typeof r.trials === 'number'){
       var sess = Array.isArray(r.sessions) ? r.sessions.length : 0;
@@ -45075,7 +45215,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   window._vaultEvidenceLooks = function(name){
     var nm = String(name == null ? '' : name).trim();
-    var r = _provAll()[nm];
+    var _pvLk = _provAll();
+    var r = _pvLk ? _pvLk[nm] : null;   /* REG-2415 — UNKNOWN: no look is read from it (the line says why) */
     /* a Magic & Rare keeper carries its own receipt (v1934: frameId · sessionId · at) */
     if (!r && typeof magicFinds === 'object' && magicFinds && magicFinds[nm] && magicFinds[nm].frameId){
       var mf = magicFinds[nm], mfAt = (typeof mf.at === 'number') ? new Date(mf.at).toISOString() : (mf.at || null);
@@ -45111,13 +45252,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._vaultEvidenceOf = function(name){
     var nm = String(name == null ? '' : name).trim();
-    var r = nm ? (_provAll()[nm] || null) : null;
+    var _pvEO = _provAll();
+    var r = (nm && _pvEO) ? (_pvEO[nm] || null) : null;
     var mf = (!r && nm && typeof magicFinds === 'object' && magicFinds && magicFinds[nm]) ? magicFinds[nm] : null;
     var looks = window._vaultEvidenceLooks(nm);
     var say = (typeof window._ownedProvSourceSay === 'function') ? window._ownedProvSourceSay : function(s){ return String(s || 'UNKNOWN'); };
     var m = { name: nm, has: !!(r || mf), kind: r ? (r.kind === 'owned' ? 'owned' : 'filing') : (mf ? 'magic' : 'none'),
               looks: looks, line: window._vaultEvidenceLine(nm), who: null, when: null, at: null, seen: null,
               session: null, frame: null, tally: looks.length, tallySay: null, tierSay: null, holder: null, note: null };
+    if (_pvEO === null) m.unknown = true;   /* REG-2415 — the panel says UNKNOWN, never "No provenance" */
     var first = looks.filter(function(k){ return k && k.frame; })[0] || null;
     if (r){
       if (r.kind === 'owned'){
@@ -45175,7 +45318,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var rows = [];
     var row = function(k, v){ if (v != null && v !== '') rows.push('<dt>' + _evEsc(k) + '</dt><dd>' + _evEsc(v) + '</dd>'); };
     var body = '';
-    if (!m.has){
+    if (m.unknown && !m.has){
+      /* REG-2415 — the witness store would not read: what it holds is UNKNOWN, never "nothing recorded" */
+      body = '<p class="vev-none" data-state="unknown">The witness store (d2r_vaultProv) would not read, so who or what filed <b>'
+           + _evEsc(m.name) + '</b> is UNKNOWN. Its bytes are kept aside and nothing writes over them - see the notice at the top.</p>';
+    } else if (!m.has){
       body = '<p class="vev-none">No provenance — nothing on this board recorded who or what filed <b>' + _evEsc(m.name)
            + '</b>. It came in before every door wrote one, or through a door that did not. UNKNOWN, not guessed.</p>';
     } else {
@@ -45973,6 +46120,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.tvVaultUnregisterMany = function(names, proof){
     var list = (Array.isArray(names) ? names : [names]).map(function(n){ return String(n || '').trim(); }).filter(Boolean);
     if (!list.length) return { ok:false, why:'no names' };
+    /* REG-2415 — the journaled removal refuses while the witness store is UNKNOWN or held; the residue loop below would then
+       take the same names out of owned and the map with no journal, so the whole unvault waits, in words */
+    var _pvTv = (typeof window._vaultProvHeld === 'function') ? window._vaultProvHeld() : null;
+    if (_pvTv){
+      var _stTv = document.getElementById('vault-status');
+      if (_stTv) _stTv.textContent = '⚠ TV unvault waits (' + list.join(', ') + ') - ' + _pvTv;
+      return { ok:false, refused:'prov-unreadable', why: _pvTv, labels: list };
+    }
     var pf = null;
     if (proof && typeof proof === 'object' && proof.frame){
       var at = (typeof proof.at === 'number' && isFinite(proof.at)) ? proof.at : _tvFrameMs(proof.frame);
@@ -46166,6 +46321,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         _vaultSameItemNames(raw, owned).forEach(function(n){ if (wide.indexOf(n) < 0) wide.push(n); });
       });
       req = wide; /* v3767 same item */
+    }
+    /* REG-2415 — A REMOVAL CARRIES EACH FILING'S WITNESS ROW (so the undo files it back on its evidence) AND DROPS IT (a row
+       left behind would re-file what he removed). With the witness store UNKNOWN or held at the door neither can be done,
+       so a removal that takes filings waits, in words; one that keeps the filing (opts.keepFiling) touches no row. */
+    var _whyRm = (!opts.keepFiling && typeof window._vaultProvHeld === 'function') ? window._vaultProvHeld() : null;
+    if (_whyRm){
+      if (!opts.quiet) status('⚠ nothing removed - ' + _whyRm);
+      return { requested: req.length, removed: [], skipped: [], ts: null, batch: null, refused: 'prov-unreadable', why: _whyRm };
     }
     var removed = [], skipped = [], filed = {}, seen = {}, provs = {};
     req.forEach(function(raw){
@@ -46443,6 +46606,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       var wasEth = (typeof etherealItems !== 'undefined') && etherealItems.has(name);
       var oldMule = assign[name];
+      /* REG-2415 — the rename carries the old label's witness row across; with the witness store UNKNOWN or held there is
+         no row to carry and none can be dropped, so the fix waits, in words (it was a silent catch) */
+      var _pvFix = (typeof window._vaultProvHeld === 'function') ? window._vaultProvHeld() : null;
+      if (_pvFix){ status('⚠ the socket fix waits - ' + _pvFix); return; }
       /* #246 — the renamed label inherits the old label's witness row VERBATIM (a restore); a filing that had none
          keeps none. The click fixes a socket COUNT — it is not a sighting, so it never mints a hand. */
       var _pvF = _provAll()[name] || null;
@@ -48053,6 +48220,11 @@ window.vaultAutoAssign = function(){
        lane lock is the door's to enforce now (it refuses a MAIN-locked name), and every refusal is logged
        with its reason — a skip nobody can see is indistinguishable from a rule that stopped working. */
     var _pvS = _provAll();
+    /* REG-2415 — the sorter walks the witness rows; a store that will not read (or that the door holds) is UNKNOWN, so
+       nothing is sorted and nothing is written over it - said, exactly like the unreadable mule map above */
+    var _pvSw = (_pvS === null) ? ((typeof _provUnknownWhy === 'function') ? _provUnknownWhy() : 'the witness store would not read')
+              : ((typeof window._vaultProvHeld === 'function') ? window._vaultProvHeld() : null);
+    if (_pvSw){ status('⚠ nothing was sorted - ' + _pvSw); return { filed: 0, refused: 'prov-unreadable', why: _pvSw }; }
     Object.keys(_pvS).sort().forEach(function(name){
       if (assign[name] != null) return;
       var _row = _pvS[name] || {};
@@ -48410,6 +48582,10 @@ window.vaultAutoAssign = function(){
     if (id === 'shared') return;
     var m=muleById(id); if(!m) return;
     if (!_vmAddedMule(m)) return;   // REG-2195 - a core locker is never deletable
+    /* REG-2415 — a delete sends the mule's filings back to the dock and takes their witness rows off it; with a store the
+       vault stands on held (the witness rows among them) neither can be written, so the delete waits, in words */
+    var _heldDel = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (_heldDel){ try { status('⚠ ' + m.name + ' was not deleted - ' + _heldDel); } catch (eS) {} return; }
     if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
     roster=roster.filter(function(x){return x.id!==id;});
     Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });
@@ -48948,13 +49124,31 @@ window.vaultAutoAssign = function(){
                      runes: [MULE_STASH_W, MULE_STASH_H, 'Runes'], inv: [MULE_INV_W, MULE_INV_H, 'Inventory'] };
   var MULE_STASH_TABS = ['personal', 'shared', 'gems', 'materials', 'runes'];
   var MP_POS_KEY = 'd2r_mulePos';
+  /* REG-2416 (review of REG-2410, r2 reproduced) — HIS SPOTS THAT WILL NOT READ ARE UNKNOWN, NEVER {}. A store cut short
+     mid-write read as {} here and the next drop wrote {its own spot} over it: Shako's hand spot gone, ok:true, nothing
+     kept aside. Now: {} when nothing is saved; null when the bytes will not read, and the key is QUARANTINED at the door
+     (⟦VAULT STORE READ⟧: kept aside, every write refused, said on the board). The packer then lays every item itself
+     and every door that would write a spot refuses in words. Whole in itself, so a law that cuts the mule window runs it. */
   function _mulePosAll(){
-    try {
-      var v = JSON.parse(window.LSR.getItem(MP_POS_KEY) || '{}');
-      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
-    } catch (e) { return {}; }
+    var raw = null, why = null, v = null;
+    try { raw = window.LSR.getItem(MP_POS_KEY); } catch (e) { why = 'could not be read'; }
+    if (!why && (raw == null || raw === '')) return {};
+    if (!why){ try { v = JSON.parse(raw); } catch (eP) { why = 'will not parse'; } }
+    if (!why && !(v && typeof v === 'object' && !Array.isArray(v))) why = 'is not a map of mules to hand spots';
+    if (!why) return v;
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(MP_POS_KEY, why); } catch (eQ) {}
+    return null;
   }
-  function _mulePosWrite(all){ window.LSR.setItem(MP_POS_KEY, JSON.stringify(all)); }
+  /* the sentence a spot door says while his spots are UNKNOWN or held at the door */
+  function _mulePosHeldWhy(){
+    return (typeof window._storeHeldWhy === 'function' && window._storeHeldWhy(MP_POS_KEY))
+      || ('your hand spots (' + MP_POS_KEY + ') would not read - they are kept aside and nothing is written over them');
+  }
+  /* UNKNOWN is never written, and a write the door refuses throws - every caller's catch says it in words */
+  function _mulePosWrite(all){
+    if (!all || typeof all !== 'object' || Array.isArray(all)) throw new Error(_mulePosHeldWhy());
+    if (window.LSR.setItem(MP_POS_KEY, JSON.stringify(all)) === false) throw new Error(_mulePosHeldWhy());
+  }
   function _muleItemKey(n, ci){ return ci ? n + ' #' + (ci + 1) : n; }
   try { window.MULE_AREAS = MULE_AREAS; window._muleItemKey = _muleItemKey; } catch (e) {}
   function _vaultSpread(rem, handAt, maxPage){
@@ -49043,6 +49237,9 @@ window.vaultAutoAssign = function(){
     /* #174 v-B2 — THE HAND-PLACED ONES FIRST. `muleId` names the locker whose spots apply (absent: none — every
        caller that predates the manual placement packs exactly as before); `posAll` lets a caller ask "what if"
        with a store it has not written yet (_mpPlace does, so a drop is judged by this very packer). */
+    /* REG-2416 — his spots UNKNOWN (the store would not read; the door holds it and the notice says so): the packer lays
+       every item itself - nothing is written from this, and every spot door refuses until the store reads */
+    if (muleId != null && !posAll) posAll = _mulePosAll() || {};
     var _pos = (muleId != null) ? ((posAll || _mulePosAll())[muleId] || {}) : {};
     if (!_pos || typeof _pos !== 'object') _pos = {};
     var _hand = [], _auto = [], _bad = [], _handAt = {}, _maxPage = -1, _handN = 0;
@@ -51843,11 +52040,23 @@ window.vaultAutoAssign = function(){
   /* ── THE STORE: d2r_muleEquip = {muleId: {setI: {slot: entry}, setII: {rarm, larm}}},
         entry = {name, source: 'manual'|'import'|'analyzer', at, props?}. Account state, so it forks like
         d2r_muleAssign (_LP_FORKED) and rides Backup & Share with every other d2r_ key. ── */
+  /* REG-2417 — the same rule as his spots (_mulePosAll): {} when nothing is saved; null when the bytes will not read, and
+     the key QUARANTINED at the door (kept aside, every write refused, said on the board). The dolls and the mule's
+     inventory then show nothing from it, and every write below refuses in words - never {} that the next pick writes over. */
   function _mpEqAll(){
-    try {
-      var v = JSON.parse(window.LSR.getItem('d2r_muleEquip') || '{}');
-      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
-    } catch (e) { return {}; }
+    var raw = null, why = null, v = null;
+    try { raw = window.LSR.getItem('d2r_muleEquip'); } catch (e) { why = 'could not be read'; }
+    if (!why && (raw == null || raw === '')) return {};
+    if (!why){ try { v = JSON.parse(raw); } catch (eP) { why = 'will not parse'; } }
+    if (!why && !(v && typeof v === 'object' && !Array.isArray(v))) why = 'is not a map of mules to what they wear and carry';
+    if (!why) return v;
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine('d2r_muleEquip', why); } catch (eQ) {}
+    return null;
+  }
+  /* the sentence an equipment door says while the store is UNKNOWN or held at the door */
+  function _mpEqHeldWhy(){
+    return (typeof window._storeHeldWhy === 'function' && window._storeHeldWhy('d2r_muleEquip'))
+      || ('what each mule wears and carries (d2r_muleEquip) would not read - it is kept aside and nothing is written over it');
   }
   /* #246 — HIS HAND IN THE MULE WINDOW IS A WITNESS FOR THAT MULE. His ruling, 2026-09-26: "from here on if i
      do add an item there manually yes of course.. to either or" — a manual add counts for the section it is
@@ -51858,7 +52067,10 @@ window.vaultAutoAssign = function(){
      is the one store writer it already calls. */
   function _mpEqWrite(all){
     var _prev = _mpEqAll();
-    window.LSR.setItem('d2r_muleEquip', JSON.stringify(all));
+    /* REG-2417 — nothing is written over a store that will not read, nor one the door holds: the throw is every caller's
+       "could not be saved (why)", and nothing below files a placement that was never saved */
+    if (_prev === null || !all || typeof all !== 'object' || Array.isArray(all)) throw new Error(_mpEqHeldWhy());
+    if (window.LSR.setItem('d2r_muleEquip', JSON.stringify(all)) === false) throw new Error(_mpEqHeldWhy());
     try {
       Object.keys(all || {}).forEach(function(mid){
         var m = all[mid] || {};
@@ -52365,7 +52577,7 @@ window.vaultAutoAssign = function(){
   /* #174 v-B5 — the inventory cell the picker is open on ({page, x, y, key: the tile it edits, or null}), and what the
      last render drew on that inventory (the picker's list asks it "does a w x h fit here?" once per size, not per row) */
   var _mpInvAt = null, _mpInvView = null;
-  function _mpEqAt(slot){ var m = _mpEqAll()[openMuleId] || {}; return (m[_mpSetOf(slot, _mpSwap)] || {})[slot] || null; }
+  function _mpEqAt(slot){ var m = (_mpEqAll() || {})[openMuleId] || {}; return (m[_mpSetOf(slot, _mpSwap)] || {})[slot] || null; }   /* REG-2417 — UNKNOWN shows no slot (the notice says why) */
   function _mpRefresh(){
     if (openMuleId) window.openMuleCard(openMuleId);
     try { if (typeof renderVault === 'function') renderVault(); } catch (e) {}   // the shelf gauge frees a worn item's cells
@@ -52392,12 +52604,14 @@ window.vaultAutoAssign = function(){
   window._mpCbEntryAt = function(slot, set){
     if (!openMuleId) return null;
     if (!set) return _mpCbEntry(_mpEqAt(slot));
-    var m = _mpEqAll()[openMuleId] || {};
+    var m = (_mpEqAll() || {})[openMuleId] || {};   /* REG-2417 — UNKNOWN shows no entry */
     return _mpCbEntry((m[MP_WEAPON_SLOT[slot] ? set : 'setI'] || {})[slot] || null);
   };
   function _mpHostWrite(e){
     if (!openMuleId || !_mpPickAt) return { ok: false, why: 'the mule window is not open on a slot' };
     var all = _mpEqAll(), slot = _mpPickAt.slot, set = _mpPickAt.set, r;
+    /* REG-2417 — over a store that will not read nothing is placed or removed: said in the picker */
+    if (all === null){ _mpPickErr = 'the equipment could not be saved (' + _mpEqHeldWhy() + ')'; return { ok: false, why: _mpPickErr }; }
     if (!e) r = { ok: true, all: _mpEqRemove(all, openMuleId, set, slot) };
     else {
       var was = ((all[openMuleId] || {})[MP_WEAPON_SLOT[slot] ? set : 'setI'] || {})[slot] || null;
@@ -52979,7 +53193,7 @@ window.vaultAutoAssign = function(){
     var names = _muleNamesFor(muleId);   // #174 v-B2 fix round — the shelf card's list, magicFinds keepers included
     // #174 v-B — what this locker's doll wears (the active weapon set's hands + the shared eight), and the copies
     // it takes off the grid
-    var _eqAll = _mpEqAll(), _eqM = _eqAll[muleId] || {};
+    var _eqAll = _mpEqAll(), _eqM = (_eqAll || {})[muleId] || {};   /* REG-2417 — UNKNOWN wears nothing on screen (the notice says why) */
     var _eqAt = function(slot){ return (_eqM[_mpSetOf(slot, _mpSwap)] || {})[slot] || null; };
     // #174 v-B review — what the doll REALLY wears: a ghost (reassigned away) or an impossible pair is drawn, flagged
     // with its reason, and never counted (_mpLive)
@@ -53479,6 +53693,10 @@ window.vaultAutoAssign = function(){
     if (!muleId || muleId === 'shared' || !muleById(muleId)) return { ok: false, why: 'that is not a mule of this vault' };
     var A = spot && MULE_AREAS[spot.tab];
     if (!A) return { ok: false, why: 'there is no "' + (spot && spot.tab) + '" to place into' };
+    /* REG-2416 — his spots will not read (or the door holds them): nothing is placed over them */
+    if (_mulePosAll() === null || (window.LSR && typeof window.LSR.quarantined === 'function' && window.LSR.quarantined(MP_POS_KEY)))
+      return { ok: false, refused: 'held', why: 'nothing was placed - '
+               + ((typeof _mulePosHeldWhy === 'function') ? _mulePosHeldWhy() : 'your hand spots (' + MP_POS_KEY + ') would not read') };
     var all = _mulePosAll(), now = _mpLoadNow(muleId, all), it = _mpFind(now, key);
     if (!it) return { ok: false, why: key + ' is not in this locker’s grids (it is worn on the doll, or not assigned here)' };
     var x = spot.x, y = spot.y, pg = spot.page, whole = function(v){ return typeof v === 'number' && v === Math.floor(v); };
@@ -53498,6 +53716,8 @@ window.vaultAutoAssign = function(){
   /* back to auto-pack: his spot is removed, and the packer places the item wherever first-fit puts it */
   window._mpUnlock = function(muleId, key){
     var all = _mulePosAll();
+    /* REG-2416 — whether he placed it is UNKNOWN while his spots will not read: nothing is unlocked over them */
+    if (all === null) return { ok: false, refused: 'held', why: 'nothing was unlocked - ' + _mulePosHeldWhy() };
     if (!all[muleId] || !Object.prototype.hasOwnProperty.call(all[muleId], key)) return { ok: false, why: key + ' is not placed by hand' };
     delete all[muleId][key];
     if (!Object.keys(all[muleId]).length) delete all[muleId];
@@ -53507,6 +53727,8 @@ window.vaultAutoAssign = function(){
   /* a drop on a MULE tab (tab null: Personal, then the inventory) or on a STASH tab: the first cell where nothing
      sits now, else the first one only the packer's own items sit on (they flow on around it) */
   window._mpMoveTo = function(muleId, key, page, tab){
+    /* REG-2416 — said once, in its own words, not as "no room" after every cell's refusal */
+    if (_mulePosAll() === null) return { ok: false, refused: 'held', why: 'nothing was moved - ' + _mulePosHeldWhy() };
     var now = _mpLoadNow(muleId, _mulePosAll()), it = _mpFind(now, key);
     if (!it) return { ok: false, why: key + ' is not in this locker’s grids' };
     var m = now.mules[page];

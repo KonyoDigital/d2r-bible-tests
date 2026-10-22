@@ -189,7 +189,7 @@ RED_PROOF = [
      "replace": ""},
     {"why": "REG-2413 - both tabs wrote at once and nobody writes the merge back (the race keeps one half)",
      "file": "bible.html", "matches": 1,
-     "find": "  if (!same(live, theirs.v))\n",
+     "find": "  if (!same(live, tv))\n",
      "replace": "  if (false)\n"},
     {"why": "REG-2413 - a key the other tab removed from a map stays here",
      "file": "bible.html", "matches": 1,
@@ -209,8 +209,8 @@ RED_PROOF = [
      "replace": ""},
     {"why": "REG-2413 - a roster first saved in another tab is held as a conflict (this tab ran on the default)",
      "file": "bible.html", "matches": 1,
-     "find": "    var tl = theirs.v || [], bl = base.ok ? (base.v == null ? (typeof spec.absent === 'function' ? spec.absent() : []) : base.v) : [];\n",
-     "replace": "    var tl = theirs.v || [], bl = (base.ok && base.v) || [];\n"},
+     "find": "    var tl = tv, bl = base.ok ? valOf(base.v) : [];\n",
+     "replace": "    var tl = tv, bl = (base.ok && base.v) || [];\n"},
     {"why": "REG-2413 - a storage another tab cleared is ignored and this tab writes its old copy back",
      "file": "bible.html", "matches": 1,
      "find": "          Object.keys(REG).forEach(function(x){ try { window.LSR.hold(x, 'another tab cleared this browser\u2019s saved data'); } catch (eH) {} });\n",
@@ -221,7 +221,7 @@ RED_PROOF = [
      "replace": "        for (var i = 0; i < ks.length; i++){ if (String(ev.key).indexOf(ks[i]) >= 0){ k = ks[i]; break; } }\n"},
     {"why": "REG-2413 - a quarantine here never lifts when the other tab writes a store that reads",
      "file": "bible.html", "matches": 1,
-     "find": "    replace(live, theirs.v);\n    var rl = LSR.release(k);\n",
+     "find": "    replace(live, tv);\n    var rl = LSR.release(k);\n",
      "replace": "    return { ok: false };\n    var rl = LSR.release(k);\n"},
 ]
 
