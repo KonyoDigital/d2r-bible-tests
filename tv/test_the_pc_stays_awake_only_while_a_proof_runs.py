@@ -12,7 +12,9 @@ What this pins, each against the code that would break it:
   * a pid hold is idempotent, and a pid that cannot be waited on holds nothing;
   * macOS argv is exactly ['caffeinate', '-i', '-w', str(pid)]: bound to the pid, no -d / -u / -s;
   * self_prove holds a prover it spawns from its first second, and a relaunched console holds an ADOPTED prover again;
-  * a law's stand-in pid is never held for real.
+  * a law's stand-in pid is never held for real - whether the law hands its own spawn_fn or stubs SP.spawn or the
+    process table instead (the REG-1628 chain law's route, which started three real caffeinates a run in the first
+    cut) - while a pid the module's own doors verified still is.
 Windows is driven through a fake kernel on every PC; one REAL macOS case watches caffeinate end within seconds of the
 `sleep` it watches dying, and its red-proof declares "needs": "macos" so other PCs file it ELSEWHERE.
 [[heart-first]] [[i-own-everything-i-start]]
@@ -387,6 +389,139 @@ class SelfProveHoldsTheProofItRuns(_KeepAwakeCase):
         self.assertEqual(seen, [5151], "a REAL prover was not held through keep_awake")
 
 
+class AStandInProverIsNeverHeldForReal(unittest.TestCase):
+    """The review of the first cut, 2026-10-22: self_prove judged a pid REAL from `spawn_fn is None` alone. The REG-1628
+    chain law stubs SP.spawn, pid_alive and proc_birth instead and passes no spawn_fn - so each run of it started three
+    REAL `caffeinate -i -w 5151` through ca._self_prove_guard -> SP.guard -> tick. With any process holding pid 5151,
+    that caffeinate was reparented to launchd and kept the Mac awake after the law had exited, owned by nobody.
+
+    Every route a law takes is driven here with keep_awake's REAL door (hold_for_pid, the one the tick asks when no law
+    door is set) replaced by a recorder: a stubbed SP.spawn, a stubbed process table (pid_alive + proc_birth, or
+    identity alone), and the chain law's own guard() route. A stand-in pid must never reach the door. And a process the
+    REAL doors verify (this law's own pid - alive, its real start time recorded) is still held through it: a guard that
+    held nothing at all would pass the first three cases alone."""
+
+    STAND_IN, ADOPTED = 5151, 6262
+    CENSUS = {"state": "stale", "why": "fixture", "fingerprint": "fp", "owed": 2,
+              "owedGates": [("gate_c", 1), ("gate_d", 1)], "owedWhy": "fixture; 2 owed"}
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="keep_awake_standin_")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.store = os.path.join(self.dir, ".self_prove.json")
+        saved = dict(SP._STARTED)
+        SP._STARTED.update(pid=None, birth=None)
+        self.addCleanup(lambda: (SP._STARTED.clear(), SP._STARTED.update(saved)))
+        self.door, self.caffeinates, self.ended = [], [], []
+
+        def _door(pid, why=""):
+            self.door.append(pid)
+            return {"held": False, "pid": pid, "why": "recorded by the law - nothing is held"}
+
+        def _no_caffeinate(argv):
+            self.caffeinates.append(list(argv))
+            raise OSError("this law starts no caffeinate")
+
+        def _never_end(pid, birth=None, wait_s=None):
+            self.ended.append(pid)
+            return False
+        self._never_end = _never_end
+        for target, name, val in ((SP, "AWAKE_DOOR", None), (KA, "hold_for_pid", _door), (KA, "_spawn", _no_caffeinate),
+                                  (SP, "end_tree", _never_end),
+                                  (SP, "ensure_prover_deps", lambda *a, **k: {"ok": True, "installed": [], "why": "law"}),
+                                  (SP, "sandbox_ready", lambda: (True, "")),
+                                  (SP, "silent_bound_s", lambda *a, **k: 7200),
+                                  (SP, "_gate_costs", lambda path=None: None)):
+            p = mock.patch.object(target, name, val)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def tearDown(self):
+        self.assertEqual(self.caffeinates, [], "a REAL caffeinate was asked for: %r" % self.caffeinates)
+        self.assertEqual(self.ended, [], "PREMISE: the lane tried to end a process: %r" % self.ended)
+
+    def _store(self, **mem):
+        with io.open(self.store, "w", encoding="utf-8") as fh:
+            json.dump(mem, fh)
+
+    def _tick(self, **kw):
+        args = dict(now_s=5000.0, busy=3.0, tree=INSTALLED, census=MISSING, path=self.store, spawn_fn=None, env={},
+                    playing=False, free=8000, sandbox=(True, ""), kill_fn=self._never_end)
+        args.update(kw)
+        return SP.tick(**args)
+
+    def _stand_in_spawn(self, started):
+        return lambda log_path, names=None, **k: started.append(names) or self.STAND_IN
+
+    def test_a_stubbed_spawn_is_never_held_for_real(self):
+        started = []
+        with mock.patch.object(SP, "spawn", self._stand_in_spawn(started)):
+            r = self._tick()
+        self.assertEqual((r.get("key"), started, SP.load(self.store).get("pid")), ("start", [None], self.STAND_IN),
+                         "PREMISE: the tick did not start its stand-in proof through SP.spawn: %r" % (r,))
+        print("   a stubbed SP.spawn started pid %d; the real door was asked for %r" % (self.STAND_IN, self.door))
+        self.assertEqual(self.door, [], "a law's stand-in SP.spawn (no spawn_fn) reached keep_awake's REAL door - pid "
+                                        "%d is whatever process owns that number on this PC" % self.STAND_IN)
+
+    def test_a_stubbed_process_table_never_holds_an_adopted_pid(self):
+        alive = lambda pid: pid == self.ADOPTED                                    # noqa: E731
+        tables = (("pid_alive + proc_birth", {"pid_alive": alive,
+                                              "proc_birth": lambda pid: "b6262" if pid == self.ADOPTED else None}),
+                  ("identity", {"identity": lambda pid, birth: pid == self.ADOPTED}))
+        for label, stubs in tables:
+            self._store(pid=self.ADOPTED, pidBirth="b6262", startedFor="fp")
+            started = []
+            patches = [mock.patch.object(SP, n, f) for n, f in stubs.items()]
+            patches.append(mock.patch.object(SP, "spawn", self._stand_in_spawn(started)))
+            for p in patches:
+                p.start()
+            try:
+                r = self._tick()
+            finally:
+                for p in reversed(patches):
+                    p.stop()
+            self.assertEqual((r.get("key"), started), ("running", []),
+                             "PREMISE (%s): the lane did not adopt the stand-in prover: %r" % (label, r))
+            self.assertEqual(self.door, [], "a stand-in process table (%s) made pid %d a prover, and the REAL door was "
+                                            "asked to hold it" % (label, self.ADOPTED))
+
+    def test_the_chain_laws_guard_route_holds_nothing(self):
+        """REG-1628's own shape: the ended prover 4242, the next slice spawned as 5151 through guard(), then the lane's
+        own tick adopting 5151 - every door stubbed, no spawn_fn anywhere."""
+        self._store(pid=4242, pidBirth=1234.5, startedFor="fp", sliceGates=["gate_a", "gate_b"])
+        started = []
+        for name, fake in (("pid_alive", lambda pid: pid == self.STAND_IN),
+                           ("proc_birth", lambda pid: 77.0 if pid == self.STAND_IN else None),
+                           ("census_state", lambda: dict(self.CENSUS)),
+                           ("tree_state", lambda git=None: INSTALLED),
+                           ("spawn", self._stand_in_spawn(started))):
+            p = mock.patch.object(SP, name, fake)
+            p.start()
+            self.addCleanup(p.stop)
+        r = SP.guard(path=self.store, playing=False, free=8000.0, busy=5.0, kill_fn=self._never_end)
+        self.assertEqual((len(started), SP.load(self.store).get("pid")), (1, self.STAND_IN),
+                         "PREMISE: guard() did not start the next slice: %r" % (r,))
+        r2 = SP.tick(path=self.store, playing=False, free=8000.0, busy=5.0, kill_fn=self._never_end, env={})
+        self.assertEqual(r2.get("key"), "running", "PREMISE: the lane's tick did not adopt the stand-in: %r" % (r2,))
+        print("   guard() then tick() over the chain law's stubs: the real door was asked for %r" % self.door)
+        self.assertEqual(self.door, [], "the chain law's route reached keep_awake's REAL door for its stand-in pid")
+
+    def test_a_process_the_real_doors_verify_is_held_through_the_real_door(self):
+        me = os.getpid()
+        birth = SP.proc_birth(me)
+        self.assertIsNotNone(birth, "PREMISE: this PC cannot read a process's start time, so the lane cannot verify "
+                                    "a prover here at all")
+        self._store(pid=me, pidBirth=birth, startedFor="fp")
+        started = []
+        with mock.patch.object(SP, "spawn", self._stand_in_spawn(started)):   # nothing may start beside it
+            r = self._tick()
+        self.assertEqual((r.get("key"), started), ("running", []), "PREMISE: the lane did not adopt pid %d: %r"
+                                                                   % (me, r))
+        print("   a pid the real doors verified (this law, pid %d): the real door was asked for %r" % (me, self.door))
+        self.assertEqual(self.door, [me], "a prover the module's OWN doors verified was not held through keep_awake "
+                                          "- the guard holds nothing at all, and Dean's laptop sleeps mid-proof")
+
+
 RED_PROOF = [
     {
         "why": "REG-2483 - the display flag joins the hold: his screen never turns off while a proof runs",
@@ -432,16 +567,35 @@ RED_PROOF = [
         "why": "REG-2483 - self_prove starts a proof and never holds the PC awake for it: Dean's laptop sleeps "
                "mid-proof again",
         "file": "self_prove.py",
-        "find": "            _hold_awake(mem[\"pid\"], real=spawn_fn is None)  # REG-2483 - awake from the proof's first "
-                "second\n",
+        "find": "            _hold_awake(mem[\"pid\"], real=_real_prover(spawn_fn, \"spawn\"))  # REG-2483 - awake from its "
+                "first second\n",
         "replace": "",
         "matches": 1,
     },
     {
         "why": "REG-2483 - a relaunched console adopts a running prover and never holds the PC awake for it",
         "file": "self_prove.py",
-        "find": "    if running:\n        _hold_awake(running, real=spawn_fn is None)\n",
-        "replace": "    if False:\n        _hold_awake(running, real=spawn_fn is None)\n",
+        "find": "    if running:\n        _hold_awake(running, real=_real_prover(spawn_fn, \"pid_alive\", \"proc_birth\", "
+                "\"identity\"))\n",
+        "replace": "    if False:\n        _hold_awake(running, real=_real_prover(spawn_fn, \"pid_alive\", \"proc_birth\", "
+                   "\"identity\"))\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2483 (review) - 'real' is judged from spawn_fn alone again: a law that stubs SP.spawn or the process "
+               "table starts a REAL caffeinate for its stand-in pid, and it outlives the law on any PC where that "
+               "number is a live process",
+        "file": "self_prove.py",
+        "find": "        return all(g.get(d) is _REAL_DOORS.get(d) for d in doors) and bool(doors)\n",
+        "replace": "        return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2483 (review) - the guard refuses every pid, a verified prover too: nothing is ever held awake and "
+               "Dean's laptop sleeps mid-proof - the stand-in cases alone cannot tell this from the fix",
+        "file": "self_prove.py",
+        "find": "        return all(g.get(d) is _REAL_DOORS.get(d) for d in doors) and bool(doors)\n",
+        "replace": "        return False\n",
         "matches": 1,
     },
 ]

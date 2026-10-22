@@ -963,6 +963,29 @@ _STARTED = {"pid": None, "birth": None}
 #: there. A law sets its own door here to watch both the spawn and the adopted-prover holds.
 AWAKE_DOOR = None
 
+#: REG-2483 (#170) - THE MACHINE DOORS AS THIS MODULE DEFINED THEM, captured at import. A pid is held awake for real
+#: only when THESE started it or verified it. MEASURED in the review of the first cut, 2026-10-22: "real" was judged
+#: from spawn_fn alone, and the REG-1628 chain law stubs SP.spawn instead (its spawn is "a recorder, never a process") -
+#: every run started three REAL `caffeinate -i -w 5151`, and with any process holding pid 5151 the caffeinate was
+#: reparented to launchd and kept the Mac awake after the law had exited, owned by nobody. A stand-in pid names
+#: whatever process happens to own that number; holding it holds a stranger.
+_REAL_DOORS = {"spawn": spawn, "pid_alive": pid_alive, "proc_birth": proc_birth, "identity": identity}
+
+
+def _real_prover(spawn_fn, *doors):
+    """REG-2483 - did this module's OWN doors start or verify the pid? -> bool. Never raises.
+
+    False when a law handed its own spawn_fn, or put a stand-in on any of `doors` (spawn for a pid it just started;
+    pid_alive, proc_birth and identity for a running prover it adopted) - each is looked up in this module as the tick
+    calls it, so a stand-in is seen exactly where it acts."""
+    try:
+        if spawn_fn is not None:
+            return False
+        g = globals()
+        return all(g.get(d) is _REAL_DOORS.get(d) for d in doors) and bool(doors)
+    except Exception:
+        return False
+
 
 def _hold_awake(pid, real=True):
     """REG-2483 (#170) - his ruling 2026-10-21: keep the PC awake ONLY while a proof runs. -> the door's answer | None
@@ -1244,9 +1267,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                    "killed on a guess, and no second proof starts beside it; asked again next tick" % pid)}
     # REG-2483 (#170) - A PROOF THAT IS STILL RUNNING HOLDS THIS PC AWAKE, ASKED EVERY TICK. The hold is idempotent per
     # pid and ends by itself when the prover ends, so a relaunched console that ADOPTS a prover still running takes it
-    # again on its first tick - the old console's hold died with it. Only a prover whose identity is verified.
+    # again on its first tick - the old console's hold died with it. Only a prover whose identity THIS module's own
+    # doors verified: a law's stand-in process table names a pid that is not a prover at all.
     if running:
-        _hold_awake(running, real=spawn_fn is None)
+        _hold_awake(running, real=_real_prover(spawn_fn, "pid_alive", "proc_birth", "identity"))
     if d["start"]:
         try:
             if spawn_fn is None:                           # a real start, not a law's recording spawn
@@ -1276,7 +1300,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                 mem["pid"] = (spawn_fn or spawn)(log_path)
             mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
             _STARTED.update(pid=mem["pid"], birth=mem["pidBirth"])
-            _hold_awake(mem["pid"], real=spawn_fn is None)  # REG-2483 - awake from the proof's first second
+            _hold_awake(mem["pid"], real=_real_prover(spawn_fn, "spawn"))  # REG-2483 - awake from its first second
             mem["startedFor"] = census.get("fingerprint")
             mem["startedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_s))
             mem["runs"] = _int(mem.get("runs")) + 1
