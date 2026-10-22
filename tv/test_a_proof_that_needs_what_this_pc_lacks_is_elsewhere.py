@@ -210,11 +210,16 @@ class AnAllSkippedProofOnAPcWithNoNode(_Sandbox):
                          "a run with no node skip at all was excused for want of node")
 
     def test_the_line_says_only_what_was_measured(self):
+        """REG-2359 (round 4, the review) - the line said 'every case skipped in BOTH runs, each for what this PC lacks',
+        and only the TAMPERED run's reasons are read. It now says both runs' counts (each from its own tail) and the
+        tampered run's reasons, and claims no reason of the clean run's."""
         self.assertEqual(self.skipping(node=False), H.ELSEWHERE)
         line = [l for l in LINES if "ELSEWHERE" in l][-1]
-        for words in ("BOTH runs", "4 skip reason(s) name node", "node is absent", "no node on PATH",
+        for words in ("both runs skipped every case", "clean run: 4 of 4 skipped", "tampered run: 4 of 4 skipped",
+                      "the tampered run's 4 skip reason(s)", "4 name node", "node is absent", "no node on PATH",
                       "never judged here"):
             self.assertIn(words, line, "the ELSEWHERE line does not say %r: %s" % (words, line))
+        self.assertNotIn("BOTH runs, each for", line, "the line claims the clean run's reasons were read: %s" % line)
         self.assertNotIn("POSIX", line, "the line names POSIX skips the run did not have: %s" % line)
         self.assertNotIn("is proven on", line, "the ELSEWHERE line claims a proof that was never made: %s" % line)
         self.assertNotIn("runs the page's own JavaScript", line, "the line claims what this law runs: %s" % line)
@@ -742,6 +747,16 @@ RED_PROOF = [
      "file": "gate_trace/sitecustomize.py",
      "find": "    skips = os.environ.pop(\"TV_GATE_SKIPS\", None) == \"1\"  # SKIP-WATCH-OWN\n",
      "replace": "    skips = os.environ.get(\"TV_GATE_SKIPS\", None) == \"1\"  # SKIP-WATCH-OWN\n",
+     "matches": 1},
+    {"why": "REG-2359 - the ELSEWHERE line claims both runs' skip reasons were read, when only the tampered run's are",
+     "file": "heart2.py",
+     "find": "the skip watch read the tampered run's %d skip \"\n",
+     "replace": "every case skipped in BOTH runs, each for what this PC lacks: %d skip \"\n",
+     "matches": 1},
+    {"why": "REG-2359 - the ELSEWHERE line drops the clean run's own count, so its 'both runs' is a claim, not a reading",
+     "file": "heart2.py",
+     "find": "                % (label, ELSEWHERE, _skip_count(tail, \"clean\"), _skip_count(tail2, \"tampered\"),\n",
+     "replace": "                % (label, ELSEWHERE, \"\", _skip_count(tail2, \"tampered\"),\n",
      "matches": 1},
     {"why": "REG-2357 - a source the reader cannot parse raises inside _prove_one, and the proof is recorded BLIND",
      "file": "heart2.py",

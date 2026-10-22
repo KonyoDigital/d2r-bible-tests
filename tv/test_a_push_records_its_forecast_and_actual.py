@@ -26,9 +26,16 @@ DRIVEN:
      gate (`--prove visual_lock_invariant.py`) is proven, never silently skipped; and nothing the forecast or the
      run's servable set asks marks an entry used - they ask peek() / _red_peek(), the predicates the serving reads
      lookup() / _red_recall() answer with, never the serving reads themselves (under R4 those stamp usedAt).
+  6. ROUND 4 (the review of round 3): 5 asked WHO was called, and the default merge with track T1 puts T1's usedAt mark
+     INSIDE peek() and _red_peek() with every law green. Now the EFFECT is asserted, over a REAL verdict cache and a
+     REAL red memory (the real _red_key / _red_peek / _red_recall): the servable set, the forecast, the clean wave's
+     all-hit check, peek() and _red_peek() change nothing a use could be recorded in - the cache object's own state,
+     the red memory's module state, and both files once flushed - and, on a tree whose stores evict by use (T1), the
+     serving reads DO mark exactly the entry they served.
 RED_PROOF below. [[unknown-stays-unknown]] [[stale-reading]]
 """
 import contextlib
+import copy
 import io
 import json
 import os
@@ -36,6 +43,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -234,6 +242,35 @@ class TheForecastSaysWhatThePushWillDo(_Fixture):
         self.assertEqual([k for k in sorted(shapes) if self.cache.peek(k) is not None], ["proven"])
         self.assertEqual(H._servable_keys(self.cache), frozenset(["proven"]))
 
+    def test_a_proof_decided_before_any_run_is_never_priced_as_one(self):
+        """REG-2353 (round 4, the review) - the forecast priced every proof that is not a hit or narrow as a full run,
+        though _prove_one decides some before any run: on Windows the killed-run law forecast 29 full proofs and 31 runs,
+        and the push ran none. It asks _prove_one's own doors now, and runs nothing to do it."""
+        runs = []
+        prs = [dict(self.proofs[0], needs="posix-signals"), dict(self.proofs[1], needs="no-such-capability"),
+               self.proofs[2], dict(self.proofs[2], file="not_here.py"), dict(self.proofs[2], widths="nonsense")]
+        with mock.patch.object(H.sys, "platform", "win32"), \
+                mock.patch.object(H, "_run_gate", lambda *a, **k: runs.append(a) or (True, "Ran 1 test | OK")):
+            fc = H.forecast([(GATE, "fake_gate.py", prs)], say=_say, sandbox=self.tv, cache=self.cache)
+        row = fc["laws"][0]
+        self.assertEqual((row["hit"], row["narrow"], row["full"], row["none"]), (0, 0, 1, 4),
+                         "a proof decided before any run was priced as one: %s" % row)
+        self.assertEqual(row["decided"], {H.ELSEWHERE: 1, H.INVALID: 2, H.UNPROVABLE: 1}, row)
+        self.assertEqual(row["runs"], 1 + 2, "a decided proof was counted in the runs: %s" % row)
+        self.assertEqual(runs, [], "the forecast ran a law to decide its doors")
+        self.assertTrue(any("4 decided before any run (1 ELSEWHERE, 2 INVALID, 1 UNPROVABLE)" in ln for ln in LINES),
+                        LINES)
+        # a law whose every case skips off POSIX: a proof declaring nothing is INVALID wherever it is asked, and the
+        # killed-run law's declaration is ELSEWHERE on Windows - nothing of it is priced there
+        with io.open(os.path.join(self.tv, "fake_gate.py"), "w", encoding="utf-8") as fh:
+            fh.write("import os, unittest\nimport subject\n@unittest.skipUnless(os.name == 'posix', 'POSIX signals')\n"
+                     "class A(unittest.TestCase):\n    def test_a(self): pass\n")
+        for plat, pr, want in (("darwin", self.proofs[2], H.INVALID), ("win32", dict(self.proofs[2], needs="posix-signals"),
+                                                                       H.ELSEWHERE)):
+            with mock.patch.object(H.sys, "platform", plat):
+                row = H.forecast([(GATE, "fake_gate.py", [pr])], say=_say, sandbox=self.tv, cache=self.cache)["laws"][0]
+            self.assertEqual((row["none"], row["decided"], row["runs"]), (1, {want: 1}, 0), "%s: %s" % (plat, row))
+
     def test_the_cli_always_exits_0(self):
         code, out = _run_main(["--forecast", "NOPE"], gate_files=lambda say=print: [])
         self.assertEqual(code, 0)
@@ -332,12 +369,172 @@ class ThePushRecordsWhatItDid(_Fixture):
         self.assertIn(k0, self.cache.marked, "the push reused a banked proof without asking the serving read")
         self.assertEqual(rec["proveOnceViolations"], [])
 
+    def test_a_proof_caught_only_off_posix_is_in_the_record(self):
+        """REG-2357 (round 4, the review) - a PROVEN proof whose catching cases all skip off POSIX files BLIND on every
+        Windows census. That was a log line, and hooks/pre-push deletes the log on a pass: nobody saw it. It is in the
+        push record now - per proof, listed, and counted in the record's summary line."""
+        with io.open(os.path.join(self.tv, "fake_gate.py"), "w", encoding="utf-8") as fh:
+            fh.write("import os, unittest\nimport subject\n@unittest.skipUnless(os.name == 'posix', 'POSIX signals')\n"
+                     "class P(unittest.TestCase):\n    def test_p(self): pass\n"
+                     "class W(unittest.TestCase):\n    def test_w(self): pass\n")
+        stand_in = H._run_gate
+
+        def caught_by_p(sandbox_tv, filename, **kw):
+            ok, tail = stand_in(sandbox_tv, filename, **kw)
+            if ok is False and not kw.get("extra"):
+                H._LAST_RED[threading.get_ident()] = ["P.test_p"]      # only the POSIX-only case caught it
+            return ok, tail
+        with mock.patch.object(H, "_run_gate", caught_by_p):
+            rec, per = self.push()
+        self.assertEqual(per, [H.PROVEN] * 3, "PREMISE: the note changes no verdict")
+        rows = dict((r["i"], r) for r in rec["perProof"])
+        self.assertEqual([(v["g"], v["i"], v["ids"]) for v in rec["posixOnlyCatch"]],
+                         [(GATE, 0, ["P.test_p"]), (GATE, 2, ["P.test_p"])],
+                         "a proof caught only by off-POSIX cases is not in the push record: %s" % rec["posixOnlyCatch"])
+        self.assertEqual(rows[0].get("posixOnly"), ["P.test_p"])
+        self.assertNotIn("posixOnly", rows[1], "the narrowed proof (caught by a case that runs on Windows) was listed")
+        self.assertIn("posix-only", PR.table([rec])[0])
+        self.assertTrue(PR.table([rec])[1].endswith("%-10s  %s" % (2, GATE)),
+                        "the --pushes table does not count them: %s" % PR.table([rec]))
+
     def test_a_proof_banked_under_other_bytes_says_so(self):
         self.cache.store("an-older-key", {"verdict": H.PROVEN, "gate": GATE, "proof": 2, "why": "C",
                                           "target": "subject.py", "provedAt": int((time.time() - 7200) * 1000)})
         rec, _per = self.push()
         rows = dict((r["i"], r) for r in rec["perProof"])
         self.assertIn("under other bytes", rows[2]["missWhy"], rows[2])
+
+
+#: REG-2353 (round 4) - what a verdict cache ANSWERS with: its lock, its printer, its store file, and the digests, parsed
+#: imports and closures it memoises for this run. Never where a use is recorded; every other attribute may be.
+_ANSWERS_WITH = frozenset(("lock", "say", "file", "memo", "parsed", "closures", "tracked"))
+
+
+def _recorded(cache):
+    """Everything a USE could be recorded in, deep-copied: every attribute of the cache object but what it answers with,
+    and every container heart2 keeps for the red memory at module level (its _RED* names: none on a tree without R2's
+    eviction by use, the uses themselves on a tree with it). -> (cache state, red memory state)"""
+    own = dict((k, copy.deepcopy(v)) for k, v in vars(cache).items() if k not in _ANSWERS_WITH)
+    red = dict((k, copy.deepcopy(v)) for k, v in vars(H).items()
+               if k.startswith("_RED") and isinstance(v, (dict, list, set)))
+    return own, red
+
+
+def _on_disk(path):
+    """A store file's entries as written. -> {key: entry} ({} when there is no file)"""
+    if not os.path.exists(path):
+        return {}
+    with io.open(path, encoding="utf-8") as fh:
+        d = json.load(fh)
+    ent = d.get("entries") if isinstance(d, dict) and isinstance(d.get("entries"), dict) else d
+    return ent if isinstance(ent, dict) else {}
+
+
+class NothingAskedMarksAnEntryUsed(unittest.TestCase):
+    """6 - ROUND 4: the EFFECT, never the caller. The round-3 guard counted calls to lookup() and _red_recall(), and the
+    default merge with track T1 put T1's usedAt mark inside peek() and _red_peek() with every law green. Here a REAL
+    verdict cache and a REAL red memory (fixture files, written by heart2's own writers) are asked every question the
+    push record, the forecast and the clean wave ask, and nothing a use could be recorded in may move: the cache
+    object, the red memory's module state, and both files once flushed. Proofs A, B and C are banked in this tree; D is
+    remembered by the red memory; E is neither."""
+
+    def setUp(self):
+        del LINES[:]
+        self.root = tempfile.mkdtemp(prefix="h2marks.")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.tv = os.path.join(self.root, "repo", "tv")
+        os.makedirs(self.tv)
+        with io.open(os.path.join(self.tv, "subject.py"), "w", encoding="utf-8") as fh:
+            fh.write("".join('%s = "GOOD"\n' % k for k in "ABCDE"))
+        with io.open(os.path.join(self.tv, "fake_gate.py"), "w", encoding="utf-8") as fh:
+            fh.write("import subject\nimport sys\nsys.exit(0)\n")
+        self.pr = dict((k, {"file": "subject.py", "find": '%s = "GOOD"' % k, "replace": '%s = "BAD"' % k,
+                            "matches": 1, "why": k}) for k in "ABCDE")
+        env = mock.patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("HEART2_RED_MEMORY", None)         # the memory is open: a law's env may have closed it
+        # the red memory is a fixture file, and what heart2 keeps of it in memory starts empty - on a tree that keeps a
+        # store as last read (_RED) or the uses it recorded (_RED_USED), those too; the machine's own is never touched
+        self.red_path = os.path.join(self.root, ".heart2_red.json")
+        for name, value in (("RED_MEMORY", self.red_path), ("_RED_USED", {}),
+                            ("_RED", {"path": None, "sig": None, "entries": None, "folded": True})):
+            if name == "RED_MEMORY" or hasattr(H, name):
+                p = mock.patch.object(H, name, value)
+                p.start()
+                self.addCleanup(p.stop)
+        self.cache_path = os.path.join(self.root, ".heart2_cache.json")
+        banker = H._VerdictCache(path=self.cache_path, say=_say)
+        self.keys = {}
+        for i, k in enumerate("ABC"):
+            key, _r, why = banker.key_for(self.tv, GATE, "fake_gate.py", self.pr[k])
+            self.assertIsNotNone(key, "PREMISE: the fixture proof is keyable: %s" % why)
+            banker.store(key, {"verdict": H.PROVEN, "gate": GATE, "proof": i, "why": k, "target": "subject.py",
+                               "provedAt": int((time.time() - 3600) * 1000), "tree": H.TREE_ID})
+            self.keys[k] = key
+        banker.flush()
+        self.kD = H._red_key(GATE, 1, self.pr["D"])        # D's place in the forecast's list below
+        H._red_remember(self.kD, GATE, 1, ["T.test_x"])
+        self.assertTrue(os.path.exists(self.cache_path) and os.path.exists(self.red_path),
+                        "PREMISE: both stores are on disk, written by heart2's own writers")
+        self.cache = H._VerdictCache(path=self.cache_path, say=_say)    # a push's own cache, opened over that file
+        H._red_load()                                     # the memory as a push holds it, read before any question
+        time.sleep(0.01)                                  # a use marked from here on is stamped later than any above
+
+    def ask(self, what, fn):
+        """Ask one question: nothing a use could be recorded in may change. -> its answer"""
+        before = _recorded(self.cache)
+        got = fn()
+        after = _recorded(self.cache)
+        self.assertEqual(after[0], before[0], "%s changed the verdict cache's own state - a use recorded by a "
+                                              "question:\nbefore %s\nafter  %s" % (what, before[0], after[0]))
+        self.assertEqual(after[1], before[1], "%s changed the red memory's state - a use recorded by a question:\n"
+                                              "before %s\nafter  %s" % (what, before[1], after[1]))
+        return got
+
+    def flushed(self):
+        """Both stores written as a push writes them: the cache's flush, and the red memory's recorded uses on a tree
+        that keeps them (_red_flush). -> (cache entries on disk, red memory entries on disk)"""
+        self.cache.flush()
+        fl = getattr(H, "_red_flush", None)
+        if fl is not None:
+            fl()
+        return _on_disk(self.cache_path), _on_disk(self.red_path)
+
+    def test_no_question_marks_an_entry_used_and_the_serving_reads_do(self):
+        k = self.keys
+        disk0 = (_on_disk(self.cache_path), _on_disk(self.red_path))
+        self.assertEqual(sorted(disk0[0]), sorted(k.values()), "PREMISE: A, B and C are banked on disk")
+        self.assertIn(str(self.kD), disk0[1], "PREMISE: D is remembered on disk")
+        served = self.ask("the push record's servable set (_servable_keys)", lambda: H._servable_keys(self.cache))
+        self.assertEqual(served, frozenset(k.values()), "PREMISE: the cache would serve A, B and C")
+        fc = self.ask("the forecast", lambda: H.forecast([(GATE, "fake_gate.py", [self.pr[x] for x in "ADE"])],
+                                                          say=_say, sandbox=self.tv, cache=self.cache))
+        self.assertEqual((fc["hit"], fc["narrow"], fc["full"]), (1, 1, 1), "PREMISE: over the REAL red memory the "
+                         "forecast tells the banked (A), the remembered (D) and the rest (E) apart: %s" % fc)
+        run = self.ask("a push run's start (its servable set)", lambda: H._PushRun(order={}, browser=(), cache=self.cache))
+        got = self.ask("the clean wave's all-hit check",
+                       lambda: H._wave_gate(self.tv, GATE, "fake_gate.py", [self.pr[x] for x in "ABC"], _say, run))
+        self.assertEqual(got[0], H.NOT_RUN, "PREMISE: a gate whose every proof is banked in this tree is not run")
+        for x in "ABC":
+            self.assertIsNotNone(self.ask("peek(%s)" % x, lambda: self.cache.peek(k[x])), "PREMISE: %s is servable" % x)
+        self.assertEqual(self.ask("_red_peek(D)", lambda: H._red_peek(self.kD)), ["T.test_x"])
+        self.assertEqual(self.flushed(), disk0, "a question changed what the stores hold once written: a use was "
+                                                "recorded before one proof was served")
+        # the PREMISE of every assertion above: the push's serving reads - lookup() of a hit it reuses, _red_recall() of
+        # the narrowing - mark exactly what they served, on a tree whose stores evict by use (R4, R2: track T1)
+        self.assertIsNotNone(self.cache.lookup(k["A"]), "PREMISE: lookup() serves the banked proof")
+        self.assertEqual(H._red_recall(self.kD), ["T.test_x"], "PREMISE: _red_recall() answers with the memory")
+        disk1 = self.flushed()
+        moved = [sorted(x for x in set(a) | set(b) if a.get(x) != b.get(x)) for a, b in zip(disk0, disk1)]
+        self.assertLessEqual(set(moved[0]), {k["A"]}, "serving A marked other entries of the cache: %s" % moved[0])
+        self.assertLessEqual(set(moved[1]), {str(self.kD)}, "recalling D marked other entries: %s" % moved[1])
+        if hasattr(self.cache, "used"):                   # R4: the verdict cache evicts by use
+            self.assertEqual(moved[0], [k["A"]], "the cache evicts by use and the hit lookup() served was not marked "
+                                                 "used - the guard above would read nothing")
+        if hasattr(H, "_RED_USED"):                       # R2: the red memory evicts by use
+            self.assertEqual(moved[1], [str(self.kD)], "the red memory evicts by use and the sabotage _red_recall() "
+                                                       "served was not marked used - the guard above would read nothing")
 
 
 class TheRecordOutlivesTheRun(unittest.TestCase):
@@ -451,8 +648,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2353 - the forecast never calls a banked proof a hit",
      "file": "heart2.py",
-     "find": "        if key is not None and cache.peek(key) is not None:\n            return \"hit\", None\n",
-     "replace": "        if False:\n            return \"hit\", None\n",
+     "find": "        if key is not None and cache.peek(key) is not None:\n            return \"hit\", None, None\n",
+     "replace": "        if False:\n            return \"hit\", None, None\n",
      "matches": 1},
     {"why": "REG-2353 - the forecast never calls a remembered proof narrow",
      "file": "heart2.py",
@@ -566,8 +763,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2353 - the forecast asks the cache's serving read, marking every proof it forecasts as used",
      "file": "heart2.py",
-     "find": "        if key is not None and cache.peek(key) is not None:\n            return \"hit\", None\n",
-     "replace": "        if key is not None and cache.lookup(key) is not None:\n            return \"hit\", None\n",
+     "find": "        if key is not None and cache.peek(key) is not None:\n            return \"hit\", None, None\n",
+     "replace": "        if key is not None and cache.lookup(key) is not None:\n            return \"hit\", None, None\n",
      "matches": 1},
     {"why": "REG-2353 - the forecast asks the red memory's recall, marking every sabotage it forecasts as used",
      "file": "heart2.py",
@@ -576,13 +773,61 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2353 - lookup() stops answering with peek(): what the forecast calls a hit and what the push serves part",
      "file": "heart2.py",
-     "find": "        return self.peek(key)\n",
-     "replace": "        return self.entries.get(key)\n",
+     "find": "        e = self.peek(key)  # LOOKUP-ASKS-PEEK\n",
+     "replace": "        e = self.entries.get(key)  # LOOKUP-ASKS-PEEK\n",
      "matches": 1},
     {"why": "REG-2353 - the clean wave's all-hit check asks the serving read and marks a gate's every proof used",
      "file": "heart2.py",
      "find": "                _hit = cache.peek(key) if key is not None else None   # REG-2353 - asked, not served: marks nothing\n",
      "replace": "                _hit = cache.lookup(key) if key is not None else None   # REG-2353 - asked, not served: marks nothing\n",
+     "matches": 1},
+    # REG-2357 / REG-2353 (round 4) - the off-POSIX catch reaches the record the hook keeps, not only the log it deletes
+    {"why": "REG-2357 - a proof caught only by off-POSIX cases is said in the log alone, which the hook deletes on a pass",
+     "file": "heart2.py",
+     "find": "        _mark(posixOnly=ids[:8])  # POSIX-ONLY-RECORDED",
+     "replace": "        pass  # POSIX-ONLY-RECORDED",
+     "matches": 1},
+    {"why": "REG-2357 - the push record drops the proofs caught only off POSIX from its list and its count",
+     "file": "heart2.py",
+     "find": "                posix_only.append({\"g\": name, \"i\": i, \"ids\": list(m[\"posixOnly\"])})\n",
+     "replace": "                pass\n",
+     "matches": 1},
+    {"why": "REG-2357 - `--pushes` never shows how many proofs a push found caught only off POSIX",
+     "file": "prove_record.py",
+     "find": "            len(po) if isinstance(po, list) else \"?\",\n",
+     "replace": "            \"?\",\n",
+     "matches": 1},
+    # REG-2353 (round 4) - the forecast asks _prove_one's own doors before pricing a proof as a run
+    {"why": "REG-2353 - the forecast prices a proof decided before any run (ELSEWHERE, INVALID, UNPROVABLE) as a full run",
+     "file": "heart2.py",
+     "find": "    _decided = _decided_before_a_run(sandbox, name, filename, pr, idx)  # FORECAST-ASKS-THE-DOORS\n",
+     "replace": "    _decided = None  # FORECAST-ASKS-THE-DOORS\n",
+     "matches": 1},
+    {"why": "REG-2353 - _prove_one ignores `dry`: asking its doors for the forecast runs the law (and asks the red memory)",
+     "file": "heart2.py",
+     "find": "    if dry:\n        return None  # PROVE-ONE-DRY\n",
+     "replace": "    if False:\n        return None  # PROVE-ONE-DRY\n",
+     "matches": 1},
+    {"why": "REG-2353 - the forecast skips the widths door the push asks first: an unreadable declaration is priced a run",
+     "file": "heart2.py",
+     "find": "                _LW.declared(pr)\n",
+     "replace": "                pass\n",
+     "matches": 1},
+    # REG-2353 (round 4) - the EFFECT: a use marked inside the predicate every question asks - where the default merge
+    # with track T1 puts it - with every caller still asking the right read
+    {"why": "REG-2353 - a use is marked inside the cache's predicate peek() (the default merge with track T1 puts R4's "
+            "usedAt there): the servable set marks every entry used at push start, before one proof ran",
+     "file": "heart2.py",
+     "find": "    def peek(self, key):\n",
+     "replace": "    def peek(self, key):\n"
+                "        self.__dict__.setdefault(\"used\", {})[key] = int(time.time() * 1000)  # R4's mark, in the predicate\n",
+     "matches": 1},
+    {"why": "REG-2353 - a use is marked inside the red memory's predicate _red_peek() (the default merge with track T1 "
+            "puts R2's mark there): the forecast marks every sabotage it forecasts as used",
+     "file": "heart2.py",
+     "find": "def _red_peek(key):\n",
+     "replace": "def _red_peek(key):\n"
+                "    globals().setdefault(\"_RED_USED\", {})[(RED_MEMORY, str(key))] = [int(time.time() * 1000), None, None]\n",
      "matches": 1},
 ]
 

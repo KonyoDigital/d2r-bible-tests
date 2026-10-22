@@ -165,12 +165,15 @@ def read(where=None, n=None):
 
 
 def table(records):
-    """One line per record, for `heart2.py --pushes`. -> [str]"""
-    out = ["  when              exit  wall    proofs  forecast h/n/f   actual h/n/f/notrun   violations  killed  gates"]
+    """One line per record, for `heart2.py --pushes`. -> [str]. `posix-only`: proofs caught only by cases that skip off
+    POSIX (REG-2357) - each files BLIND on a Windows census; `?` on a record written before it was counted."""
+    out = ["  when              exit  wall    proofs  forecast h/n/f   actual h/n/f/notrun   violations  killed  "
+           "posix-only  gates"]
     for r in records:
         f, a = r.get("forecast") or {}, r.get("actual") or {}
         v = r.get("proveOnceViolations")
-        out.append("  %-16s  %-4s  %-6s  %-6s  %-15s  %-20s  %-10s  %-6s  %s" % (
+        po = r.get("posixOnlyCatch")
+        out.append("  %-16s  %-4s  %-6s  %-6s  %-15s  %-20s  %-10s  %-6s  %-10s  %s" % (
             time.strftime("%m-%d %H:%M", time.localtime((r.get("at") or 0) / 1000.0)) if r.get("at") else "?",
             r.get("exit", "?"),
             "%dm%02ds" % divmod(int(r.get("wallS") or 0), 60) if r.get("wallS") is not None else "?",
@@ -179,6 +182,7 @@ def table(records):
             "%s/%s/%s/%s" % (a.get("hit", "?"), a.get("narrow", "?"), a.get("full", "?"), a.get("notRun", "?")),
             "UNKNOWN" if v is None else len(v),
             r.get("signalKilled", "?"),
+            len(po) if isinstance(po, list) else "?",
             ",".join((r.get("gates") or [])[:4]) + (" +%d" % (len(r.get("gates")) - 4) if len(r.get("gates") or []) > 4
                                                    else "")))
     return out

@@ -1267,6 +1267,14 @@ def _skipped_every_law(tail):
     return bool(_sk and _rn and int(_rn.group(1)) > 0 and int(_sk.group(1)) >= int(_rn.group(1)))
 
 
+def _skip_count(tail, which):
+    """REG-2359 — what one run's own tail says it skipped: 'clean run: 4 of 4 skipped'. -> str ('?' for a number it
+    did not print)"""
+    _sk = re.search(r"skipped=(\d+)", tail or "")
+    _rn = re.search(r"Ran (\d+) test", tail or "")
+    return "%s run: %s of %s skipped" % (which, _sk.group(1) if _sk else "?", _rn.group(1) if _rn else "?")
+
+
 #: REG-2359 — a skip reason that names node ("node is absent", "no node on PATH", "Node.js ..."; never node_modules)
 _NAMES_NODE = re.compile(r"\bnode(?:\.?js)?\b", re.I)
 
@@ -1464,7 +1472,10 @@ def _posix_only_of(sandbox, filename):
 
 def _say_posix_only_catch(sandbox, filename, label, need, ids, say):
     """REG-2357 — said (never a verdict) when every case that caught a PROVEN proof skips off POSIX and the proof declares
-    no need Windows lacks: there it can never be judged, and it files BLIND. -> the ids said | []"""
+    no need Windows lacks: there it can never be judged, and it files BLIND. -> the ids said | []
+
+    Round 4: and KEPT in the push record (REG-2353) - hooks/pre-push deletes its prove log on a pass, so a line alone
+    reached nobody and the proof shipped to every Windows census. The record counts it in its summary line too."""
     try:
         if not ids or str(need or "") in _OFF_POSIX_NEEDS:
             return []
@@ -1476,6 +1487,7 @@ def _say_posix_only_catch(sandbox, filename, label, need, ids, say):
             "and files BLIND (one BLIND shuts every lock on that PC) - declare \"needs\": \"posix\" (or "
             "\"posix-signals\" / \"macos\")" % (label, ", ".join(ids[:4]) + (" +%d" % (len(ids) - 4) if len(ids) > 4
                                                                             else "")))
+        _mark(posixOnly=ids[:8])  # POSIX-ONLY-RECORDED - the push record keeps it: the hook deletes this log on a pass
         return ids
     except Exception:
         return []                       # a check that cannot be made says nothing; the verdict above stands
@@ -2762,8 +2774,10 @@ class _VerdictCache(object):
 
     def lookup(self, key):
         """The stored entry for `key` when it may be served (peek's answer, exactly); anything else in the file is not
-        a shortcut. The serving read: a hit here is a proof the push reuses."""
-        return self.peek(key)
+        a shortcut. The serving read: a hit here is a proof the push reuses, and the only read that may mark it used
+        (R4, track T1: its usedAt mark goes HERE, between the answer and the return - never inside peek())."""
+        e = self.peek(key)  # LOOKUP-ASKS-PEEK
+        return e
 
     def store(self, key, entry):
         """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run)."""
@@ -3349,7 +3363,7 @@ def _push_record(run, have, cache, n_proofs, results):
                 and e["provedAt"] < t0_ms:
             ident = (str(e.get("gate")), str(e.get("target") or ""), str(e.get("why") or "")[:120])
             before[ident] = max(before.get(ident, 0), e["provedAt"])
-    per, violations, unkeyable, fell = [], [], 0, 0
+    per, violations, unkeyable, fell, posix_only = [], [], 0, 0, []
     for name, _f, proofs in have:
         for i, pr in enumerate(proofs or []):
             m = run.proofs.get((name, i)) or {}
@@ -3367,6 +3381,9 @@ def _push_record(run, have, cache, n_proofs, results):
             if m.get("fellThrough"):
                 row["fell"] = True
                 fell += 1
+            if m.get("posixOnly"):                       # REG-2357 (round 4) - caught only by cases that skip off POSIX
+                row["posixOnly"] = list(m["posixOnly"])
+                posix_only.append({"g": name, "i": i, "ids": list(m["posixOnly"])})
             if a != "hit":
                 key = m.get("key")
                 ident = _proof_ident(name, pr)
@@ -3389,6 +3406,7 @@ def _push_record(run, have, cache, n_proofs, results):
         "gates": sorted(n for n, _f, _p in have), "proofs": n_proofs,
         "forecast": fc, "actual": ac, "unkeyable": unkeyable, "fellThrough": fell,
         "proveOnceViolations": None if cache is None else violations,
+        "posixOnlyCatch": posix_only,                  # REG-2357 - each files BLIND on a Windows census (round 4)
         "signalKilled": _SIGNAL_RUNS["n"] - run.sig0,
         "seams": _heart2_seams(),
         "cache": cache.summary(n_proofs) if cache is not None else "off",
@@ -3398,14 +3416,38 @@ def _push_record(run, have, cache, n_proofs, results):
     }
 
 
+def _decided_before_a_run(sandbox, name, filename, pr, idx):
+    """REG-2353 (round 4) — the verdict a push-time proof reaches before ANY run of it, or None when it will run.
+    -> ELSEWHERE (it needs what this PC lacks) | INVALID (an undeclared need, a law whose every case skips off POSIX
+    with no such need declared, a target outside the sandbox, widths nobody can read) | UNPROVABLE (its target or its
+    PROOF_NEEDS subject is not here, or that declaration cannot be read) | None
+
+    Asked of _prove_one ITSELF (dry: every door before its first run, and nothing after), and of the widths rule
+    _prove_push_one_run applies first - one set of doors, so the forecast and the push cannot part. Never raises: a
+    door that raises here answers None and the proof is priced as the run it may well be."""
+    try:
+        if isinstance(pr, dict) and "widths" in pr:
+            import law_widths as _LW
+            try:
+                _LW.declared(pr)
+            except ValueError:
+                return INVALID
+        return _prove_one(sandbox, name, filename, pr, idx, lambda *a, **k: None, why={}, dry=True)
+    except Exception:
+        return None
+
+
 def _proof_path(cache, sandbox, name, filename, pr, idx):
     """REG-2353 — the path one push-time proof will take, judged with the run's own primitives before any run of it.
-    -> (path: "hit" | "narrow" | "full", why it cannot be banked | None)
+    -> (path: "hit" | "narrow" | "full" | "none", why it cannot be banked | None, the verdict it reaches without a run
+    | None)
 
     hit: the verdict cache would serve its key (key_for + peek - lookup's own predicate, as _prove_push_one asks it);
-    narrow: the red memory names the cases that caught it and the gate takes case ids (no argv tail, no -c script -
-    _prove_one's rule); full: anything else. With the cache off nothing is a hit and nothing is called unkeyable. A
-    forecast MARKS NOTHING: peek and _red_peek, never lookup or _red_recall, which record a use."""
+    none (round 4): it is decided before any run - ELSEWHERE, INVALID or UNPROVABLE, by _prove_one's own doors - so it
+    is never priced as a run (the push record calls that path none too); narrow: the red memory names the cases that
+    caught it and the gate takes case ids (no argv tail, no -c script - _prove_one's rule); full: anything else. With
+    the cache off nothing is a hit and nothing is called unkeyable. A forecast MARKS NOTHING: peek and _red_peek, never
+    lookup or _red_recall, which record a use."""
     why = None
     if cache is not None:
         try:
@@ -3413,27 +3455,31 @@ def _proof_path(cache, sandbox, name, filename, pr, idx):
         except Exception as _ke:
             key, why = None, "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
         if key is not None and cache.peek(key) is not None:
-            return "hit", None
+            return "hit", None, None
         if key is None and not why:
             why = "no key could be taken"
+    _decided = _decided_before_a_run(sandbox, name, filename, pr, idx)  # FORECAST-ASKS-THE-DOORS
+    if _decided is not None:
+        return "none", why, _decided
     _extra, _to, _script = gate_spec(name)
     if not _extra and not _script and _red_peek(_red_key(name, idx, pr)):
-        return "narrow", why
-    return "full", why
+        return "narrow", why, None
+    return "full", why, None
 
 
 def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
     """REG-2353 (#42 R16) — WHAT A --push RUN OVER `have` WILL DO, said BEFORE any proving. -> dict (never raises)
 
     One block headed "#42 FORECAST": per law in scope, how many proofs the verdict cache will serve (hit), the red
-    memory will narrow, and will run in full; how many can never be banked and why (UNKEYABLE); the runs that costs and,
-    where gate_costs.json measured the gate, the seconds. Judged on a sandbox of the tree with the run's own key and
+    memory will narrow, and will run in full; how many are decided before any run (round 4: ELSEWHERE, INVALID or
+    UNPROVABLE by _prove_one's own doors - never priced as a run, and `none` in the push record too); how many can never
+    be banked and why (UNKEYABLE); the runs that costs and, where gate_costs.json measured the gate, the seconds. Judged on a sandbox of the tree with the run's own key and
     lookup's own predicate (peek), so a forecast hit is exactly what the push will reuse - and nothing it asks is marked
     used, in the verdict cache or the red memory (_proof_path). `sandbox` and `cache` are a caller's (a law's
     fixture); left None, a sandbox is built here and dropped, and the cache is opened read-only (HEART2_PROVE_CACHE=0
     honoured). Anything that goes wrong prints UNKNOWN and returns - a forecast never refuses a push."""
-    out = {"proofs": sum(len(p or []) for _n, _f, p in have), "hit": 0, "narrow": 0, "full": 0, "unkeyable": 0,
-           "laws": [], "why": None}
+    out = {"proofs": sum(len(p or []) for _n, _f, p in have), "hit": 0, "narrow": 0, "full": 0, "none": 0,
+           "unkeyable": 0, "laws": [], "why": None}
     for _un, _uwhy in (unmatched or ()):
         say("  #42 FORECAST: %r %s - nothing will be proven for it (REG-2352)" % (_un, _uwhy))
     _own = None
@@ -3457,12 +3503,14 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
         except Exception:
             costs = {}
         for name, filename, proofs in have:
-            row = {"gate": name, "proofs": len(proofs or []), "hit": 0, "narrow": 0, "full": 0, "unkeyable": 0,
-                   "why": None}
+            row = {"gate": name, "proofs": len(proofs or []), "hit": 0, "narrow": 0, "full": 0, "none": 0,
+                   "decided": {}, "unkeyable": 0, "why": None}
             try:
                 for i, pr in enumerate(proofs or []):
-                    path, why = _proof_path(cache, sandbox, name, filename, pr, i)
+                    path, why, decided = _proof_path(cache, sandbox, name, filename, pr, i)
                     row[path] += 1
+                    if decided:                          # REG-2353 (round 4) - decided before any run: never priced
+                        row["decided"][decided] = row["decided"].get(decided, 0) + 1
                     if why:
                         row["unkeyable"] += 1
                         row["why"] = row["why"] or str(why)[:140]
@@ -3470,7 +3518,8 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
                 row["unknown"] = "%s: %s" % (type(_fe).__name__, str(_fe)[:80])
             # runs: a narrowed proof asks its cases twice (untampered, tampered); a full one tampers once, and a gate with
             # any full proof adds its shared clean run and its closing run. Seconds price only the FULL runs, at the
-            # gate's measured cost per run - a narrowed subset's time is not measured anywhere, so it is not guessed.
+            # gate's measured cost per run - a narrowed subset's time is not measured anywhere, so it is not guessed. A
+            # proof decided before any run (none: ELSEWHERE, INVALID, UNPROVABLE) costs no run at all.
             _full_runs = row["full"] + (2 if row["full"] else 0)
             row["runs"] = 2 * row["narrow"] + _full_runs
             try:
@@ -3478,19 +3527,23 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
             except (TypeError, ValueError):
                 row["seconds"] = None
             out["laws"].append(row)
-            for k in ("hit", "narrow", "full", "unkeyable"):
+            for k in ("hit", "narrow", "full", "none", "unkeyable"):
                 out[k] += row[k]
         _secs = [r["seconds"] for r in out["laws"] if r.get("seconds") is not None]
-        say("  #42 FORECAST — %d law(s), %d proof(s) in scope: %d hit · %d narrow · %d full · %d UNKEYABLE (never banked)"
-            " · ~%d run(s)%s%s" % (len(out["laws"]), out["proofs"], out["hit"], out["narrow"], out["full"],
-                                   out["unkeyable"], sum(r["runs"] for r in out["laws"]),
-                                   (", ~%dm of full runs where measured" % (sum(_secs) // 60)) if _secs else "",
-                                   "" if cache is not None else " - the verdict cache is OFF, so nothing is a hit"))
+        say("  #42 FORECAST — %d law(s), %d proof(s) in scope: %d hit · %d narrow · %d full · %d decided before any run"
+            " · %d UNKEYABLE (never banked) · ~%d run(s)%s%s"
+            % (len(out["laws"]), out["proofs"], out["hit"], out["narrow"], out["full"], out["none"], out["unkeyable"],
+               sum(r["runs"] for r in out["laws"]),
+               (", ~%dm of full runs where measured" % (sum(_secs) // 60)) if _secs else "",
+               "" if cache is not None else " - the verdict cache is OFF, so nothing is a hit"))
         for r in out["laws"]:
             if r.get("unknown"):
                 say("     %-52s UNKNOWN - %s" % (r["gate"], r["unknown"]))
                 continue
             parts = ["%d %s" % (r[k], k) for k in ("hit", "narrow", "full") if r[k]]
+            if r["none"]:
+                parts.append("%d decided before any run (%s)" % (r["none"], ", ".join(
+                    "%d %s" % (n, v) for v, n in sorted(r["decided"].items()))))
             say("     %-52s %3d proof(s): %s%s · ~%d run(s)%s" % (
                 r["gate"], r["proofs"], " · ".join(parts) or "none",
                 (" · %d UNKEYABLE - %s" % (r["unkeyable"], r["why"])) if r["unkeyable"] else "", r["runs"],
@@ -3568,14 +3621,18 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
         _PUSH_RECORD["record"] = _push_record(run, have, cache, _np, results)
         _r = _PUSH_RECORD["record"]
         say("  #42 RECORD (REG-2353): forecast %d hit · %d narrow · %d full; actual %d hit · %d narrow · %d full · %d "
-            "not run · %d fell through; %s prove-once violation(s); %d run(s) a signal ended"
+            "not run · %d fell through; %s prove-once violation(s); %d run(s) a signal ended; %d proof(s) caught only "
+            "off POSIX (REG-2357)"
             % (_r["forecast"]["hit"], _r["forecast"]["narrow"], _r["forecast"]["full"], _r["actual"]["hit"],
                _r["actual"]["narrow"], _r["actual"]["full"], _r["actual"]["notRun"], _r["fellThrough"],
                "UNKNOWN (the cache was off)" if _r["proveOnceViolations"] is None else len(_r["proveOnceViolations"]),
-               _r["signalKilled"]))
+               _r["signalKilled"], len(_r["posixOnlyCatch"])))
         for _v in (_r["proveOnceViolations"] or [])[:6]:
             say("     ⚠ PROVE-ONCE VIOLATION: %s[%d] was banked for these exact bytes before this run began and ran "
                 "again (%s)" % (_v["g"], _v["i"], _v["a"]))
+        for _v in _r["posixOnlyCatch"][:6]:
+            say("     ⚠ REG-2357: %s[%d] was caught only by case(s) that skip off POSIX (%s): it files BLIND on every "
+                "Windows census - declare \"needs\": \"posix\"" % (_v["g"], _v["i"], ", ".join(_v["ids"][:3])))
     except Exception as _re:
         _PUSH_RECORD["record"] = None
         say("  #42 RECORD (REG-2353): could not be built (%s: %s) - UNKNOWN, the run's verdicts stand"
@@ -4264,7 +4321,7 @@ def _at_widths(widths):
     return " at %s" % _LW.label(widths)
 
 
-def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, clean_only=False):
+def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, clean_only=False, dry=False):
     # REG-1686 — a proof that declared what this PC must have is judged only where it is (see ELSEWHERE above)
     _need = pr.get("needs") if isinstance(pr, dict) else None
     if _need:
@@ -4376,6 +4433,10 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
             if why is not None:
                 why["absentSubject"] = _gone[0]
             return UNPROVABLE
+    # REG-2353 (round 4) — the forecast asks every door above and stops HERE: before any run, and before the red memory
+    # is asked (a recall marks a use). A proof decided above is never priced as a run (_decided_before_a_run).
+    if dry:
+        return None  # PROVE-ONE-DRY
 
     # 1. CLEAN RUN. A gate that is already red in the sandbox can prove nothing.
     _extra, _to, _script = gate_spec(name)
@@ -4513,11 +4574,14 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
             _want = _skipped_for_want(tail2, _skips, (_posix_only_of(sandbox, filename) or (frozenset(),))[0],
                                       host_lacks("posix")[0] is True)  # REG-2359 - the skips are node's
         if _want:
-            say("     %-52s %s — every case skipped in BOTH runs, each for what this PC lacks: %d skip reason(s) name "
-                "node (%r)%s, and this PC has no node on PATH. The tamper was never judged here; it is judged on a PC "
-                "that has node" % (label, ELSEWHERE, len(_want[0]), str(_want[0][0][1])[:70],
-                                   (", %d case(s) run only on POSIX, which this PC is not" % len(_want[1]))
-                                   if _want[1] else ""))
+            # REG-2359 (round 4) - only what was measured: BOTH runs' counts, and the TAMPERED run's reasons. The clean
+            # run's reasons are not read - its verdict is often one run reused for the gate (REG-1669, REG-1992)
+            say("     %-52s %s — both runs skipped every case (%s; %s); the skip watch read the tampered run's %d skip "
+                "reason(s), each for what this PC lacks: %d name node (%r)%s, and this PC has no node on PATH. The "
+                "tamper was never judged here; it is judged on a PC that has node"
+                % (label, ELSEWHERE, _skip_count(tail, "clean"), _skip_count(tail2, "tampered"),
+                   len(_want[0]) + len(_want[1]), len(_want[0]), str(_want[0][0][1])[:70],
+                   (", %d case(s) run only on POSIX, which this PC is not" % len(_want[1])) if _want[1] else ""))
             return ELSEWHERE
         say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2, widths=widths)))
         if widths:
