@@ -130,6 +130,13 @@ def dead_console_port():
 def law_env(needs_app, base=None):
     """The environment a gate runs in. -> dict (a copy; `base` defaults to os.environ)"""
     env = dict(os.environ if base is None else base)
+    # REG-2563 - A GATE NEVER CALLS THE CLAUDE CLI (Elad 2026-10-22: his plan sits at 98%). test_screen_parity's console
+    # import asked `claude auth status`. Every gate runs with D2R_NO_CLAUDE=1 (claude_signin answers UNKNOWN without
+    # spawning) and a refusing `claude` first on PATH.
+    env["D2R_NO_CLAUDE"] = "1"
+    _ncb = os.path.join(HERE, "no_claude_bin")
+    if not env.get("PATH", "").startswith(_ncb + os.pathsep):
+        env["PATH"] = _ncb + os.pathsep + env.get("PATH", "")
     if not needs_app and env.get("TV_CONTROL_PORT", "") in ("", "17772"):
         env["TV_CONTROL_PORT"] = dead_console_port()
     return env
@@ -11292,6 +11299,12 @@ GATES = [
              "held vault answered 'copy 2 filed to bases' over a refused write. One copy comes off and the name stays "
              "owned and filed; the pick's own single copy leaves through the removal door (journaled, undoable); every "
              "pick asks the hold first. The whole page runs in node, real doors."),
+    Gate("test_no_gate_calls_the_claude_cli",
+         [sys.executable, os.path.join(HERE, "test_no_gate_calls_the_claude_cli.py")], 300,
+         needs_app=False,
+         why="REG-2563 (Elad 2026-10-22, his plan at 98%) - test_screen_parity's console import ran `claude auth status`. "
+             "Every gate now runs with D2R_NO_CLAUDE=1 (claude_signin answers UNKNOWN without spawning) and a refusing, "
+             "logging `claude` first on PATH; the screen-parity gate run in law_env calls no claude."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

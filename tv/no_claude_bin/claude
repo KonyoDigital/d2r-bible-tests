@@ -1,0 +1,6 @@
+#!/bin/sh
+# REG-2563 - a gate never calls the Claude CLI (his plan). run_gates puts this first on every gate's PATH: it says it was
+# called, logs to $D2R_NO_CLAUDE_LOG when set, and fails.
+[ -n "$D2R_NO_CLAUDE_LOG" ] && echo "claude $*" >> "$D2R_NO_CLAUDE_LOG"
+echo "a gate called the Claude CLI (claude $*) - refused (REG-2563)" >&2
+exit 1

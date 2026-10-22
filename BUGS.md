@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2563 - A GATE CALLED THE CLAUDE CLI (test_screen_parity, `claude auth status`) - Elad 2026-10-22: never
+
+A run_gates --changed logged "test_screen_parity not stored - the gate started claude". Traced with a logging fake `claude`
+first on PATH: the gate's console import (control_app._claude_auth_state -> claude_signin.status) ran `claude auth status
+--json`. His ruling: no gate ever calls the Claude CLI (his plan sits at ~98%); a gate that needs a model uses Grok CLI or a stub.
+FIX: law_env (every gate's environment) sets D2R_NO_CLAUDE=1, which claude_signin.status answers as UNKNOWN without spawning,
+and puts tv/no_claude_bin first on PATH: a `claude` that logs to $D2R_NO_CLAUDE_LOG, says so and exits 1.
+LAW: tv/test_no_gate_calls_the_claude_cli.py (3 cases, 2 red-proofs).
+
 ### REG-2560 - A FRESH PLANNER PICK'S UNDO DROPPED THE ITEM OUTRIGHT, WITH A COPY ANOTHER DOOR HAD COUNTED (V1 round-3 review 2 of track B, major)
 
 The review (merged A+B+C tree, the whole page in node): a fresh pick files Monarch (4os) to SOCKETED; this tab's own reader
