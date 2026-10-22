@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2557 - THE SCRUB READER BOUND A POINTER FIRST-WINS AND FROM A QUOTED MENTION (GB-L, 2026-10-22, v3788)
+
+Found by the Grok CLI second eye on v3787. REG-2552's variable follower kept the FIRST `v=NAME` anywhere in the hook,
+read it on the dequoted text, and counted any line naming `env` or `eval`. So `_n=GIT_DIR; _n=PATH; export "$_n=.."`
+and `echo '_n=GIT_DIR'; export "$_n=.."` reported a GIT_DIR export bash never makes, and `env echo "$_n"` was a hit.
+Fix: bindings are positional (the latest before the use wins) and only count at a statement start, and env counts
+only when the held name is assigned. Law: 5 new `_REACH` cases, 2 RED_PROOFs "REG-2557" (first-wins, any position).
+
 ### REG-2556 - THE SCRUB READER KEPT THE $ OF A $'..' QUOTE, SO export $'GIT_DIR=..' READ CLEAN (GB-L, 2026-10-22, v3788)
 
 Found by the Grok CLI second eye on v3787. REG-2552's dequoted view dropped ' and " but left the $ that opens an

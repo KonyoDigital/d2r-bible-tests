@@ -362,20 +362,32 @@ def _reexports(src, first_line, names):
             hits.add((first_line + at, form, m.group(1), lines[at].strip()[:160]))
     # REG-2552 - a pointer named through a variable: bound by `v=NAME` or `for v in ... NAME ...`, then used as the
     # name of an export / declare / read / printf -v / assignment through $v or ${v}
-    held = {}
-    for m in re.finditer(r"(?<![\w$])([A-Za-z_]\w*)=(%s)(?![\w])" % alt, bare):
-        held.setdefault(m.group(1), m.group(2))
-    for m in re.finditer(r"\bfor[ \t]+([A-Za-z_]\w*)[ \t]+in\b([^;\n]*)", bare):
+    # REG-2557 (second eye on v3787) - a binding is POSITIONAL and only at a statement start: the latest `v=...` (or
+    # `for v in ...`) before a use decides what $v names, so `_n=GIT_DIR; _n=PATH` holds PATH and `echo '_n=GIT_DIR'`
+    # binds nothing. `env` / `eval` count only when the held name is ASSIGNED (`env "$_n=.."`), never on a mere value use.
+    binds = []
+    stmt = r"(?:^|(?<=[;&|(\n])|(?<=\bthen)|(?<=\bdo)|(?<=\belse))[ \t]*"
+    for m in re.finditer(stmt + r"(?:(?:local|declare|typeset|readonly|export)(?:[ \t]+-\w+)*[ \t]+)?"
+                         r"([A-Za-z_]\w*)=([^\s;&|)]*)", bare, re.M):
+        binds.append((m.start(1), m.group(1), m.group(2) if m.group(2) in names else None))
+    for m in re.finditer(stmt + r"for[ \t]+([A-Za-z_]\w*)[ \t]+in\b([^;\n]*)", bare, re.M):
         named = [w for w in m.group(2).split() if w in names]
-        if named:
-            held.setdefault(m.group(1), named[0])
-    for var, name in held.items():
+        binds.append((m.start(1), m.group(1), named[0] if named else None))
+    binds.sort()
+    for var in sorted({v for _, v, n in binds if n}):
         ref = r"\$(?:\{%s\}|%s\b)" % (re.escape(var), re.escape(var))
-        rx = re.compile(r"(?:\b(?:export|declare|typeset|local|readonly|read|printf[ \t]+-v|mapfile|readarray|eval|env)\b"
-                        r"[^\n;&|]*?%s|%s[+]?=)" % (ref, ref))
+        rx = re.compile(r"(?:\b(?:export|declare|typeset|local|readonly|read|printf[ \t]+-v|mapfile|readarray)\b"
+                        r"[^\n;&|]*?%s|\benv\b[^\n;&|]*?%s[+]?=|%s[+]?=)" % (ref, ref, ref))
         for m in rx.finditer(bare):
-            at = src.count("\n", 0, bpos[m.start()])
-            hits.add((first_line + at, "exports via $%s" % var, name, lines[at].strip()[:160]))
+            name = None
+            for at_b, v, n in binds:
+                if at_b >= m.start():
+                    break
+                if v == var:
+                    name = n
+            if name:
+                at = src.count("\n", 0, bpos[m.start()])
+                hits.add((first_line + at, "exports via $%s" % var, name, lines[at].strip()[:160]))
     return sorted(hits), code, heredocs, still_open
 
 
@@ -587,6 +599,11 @@ _REACH = (
     ('_n="GIT_INDEX_FILE"\nprintf -v "$_n" %s /tmp/i\n', True),
     ('for _v in GIT_WORK_TREE GIT_DIR; do export "${_v}=/tmp/x"; done\n', True),
     ('_n=GIT_DIR; echo "$_n is what git hands a hook"\n', False),
+    ('_n=GIT_DIR; _n=PATH; export "$_n=/usr/bin"\n', False),
+    ("echo '_n=GIT_DIR'; export \"$_n=/tmp/x\"\n", False),
+    ('_n=GIT_DIR; env echo "$_n"\n', False),
+    ('_n=GIT_DIR; env "$_n=/tmp/x" git log\n', True),
+    ('_n=PATH; _n=GIT_DIR; export "$_n=/tmp/x"\n', True),
     ('for _v in GIT_DIR GIT_WORK_TREE; do unset "$_v"; done\n', False),
     ("# export GIT_DIR=/tmp/x\n", False),
     ("echo ok  # GIT_DIR=/tmp/x is what git hands a hook\n", False),
@@ -894,10 +911,24 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        "why": "REG-2557 - the first binding wins again: `_n=GIT_DIR; _n=PATH; export \"$_n=...\"` reads as GIT_DIR",
+        "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "                if v == var:\n                    name = n\n",
+        "replace": "                if v == var and name is None:\n                    name = n\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2557 - a mention inside a string binds again: `echo '_n=GIT_DIR'; export \"$_n=...\"` reads as GIT_DIR",
+        "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "    stmt = r\"(?:^|(?<=[;&|(\\n])|(?<=\\bthen)|(?<=\\bdo)|(?<=\\belse))[ \\t]*\"\n",
+        "replace": "    stmt = r\"(?<![\\w$])\"\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-2552 - the reader stops following a pointer held in a variable: `_n=GIT_DIR; export \"$_n=...\"` reads "
                "clean again",
         "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
-        "find": "        held.setdefault(m.group(1), m.group(2))\n",
+        "find": "        binds.append((m.start(1), m.group(1), m.group(2) if m.group(2) in names else None))\n",
         "replace": "        pass\n",
         "matches": 1,
     },
