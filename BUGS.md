@@ -97,6 +97,18 @@ the fixture repo unchanged; with the darwin branch's `_shut_push` call removed (
 GUARD: tv/test_a_worktree_sandbox_carries_its_own_history.py, test_a_push_from_a_main_checkout_sandbox_reaches_no_remote; RED
 proofs [1] (re-anchored on _shut_push) and [9] (`"needs": "macos"` - off the Mac the history is a clone, whose push [1] covers).
 LEFT: a push to an explicit URL (`git push <url>`) cannot be shut by configuration; no law does that.
+LEFT (the Grok CLI review of Push A2, MEDIUM M1): only the PUSH is shut. A sandbox clone's `remote.origin.url` still names the
+checkout it was cloned from (and a Mac copy of the main checkout's .git keeps his GitHub url); every remote's pushurl is the
+no-repo path. MEASURED on a fixture, both roads: `git push origin` exits 128, `git fetch origin` exits 0 and reads the source,
+and neither the source's refs nor its remote's moved. Nothing in tv/ or hooks/ reads that url: over the 1,281 tracked code files
+there, a search for every way to read it (`get-url`, `remote -v` / `show`, `ls-remote`, `remote.<name>.url` / `pushurl`, a
+config listing, a git library) matches 5 lines and 0 read its value - heart2._shut_push's 3 (it lists the remote NAMES and
+writes each pushurl), a red-proof anchor in test_a_worktree_sandbox_carries_its_own_history, a list of git verbs in tree_busy;
+the one read of a .git/config hashes a fixture's file. What USES the url is a fetch: control_app's fleet status kicks `git fetch
+origin main` in REPO and its pull lane fetches and merges, so a law that asks the console's status in a sandbox holding a
+history fetches from the source - a read, into the sandbox's own refs. Pointing the url at a non-repo too is left for Push B:
+the fix edits heart2.py, which is in every proof's cache key (heart2.py and law_widths.py are inputs of every key), so made here
+it would re-key every proof this push banks.
 
 ### REG-2396 - HEART2 DROPPED GIT_* IN ONLY 2 ROUTINES: A LAW RUN INHERITED THE CALLER'S GIT_DIR WHOEVER STARTED IT (Push A2 review)
 
