@@ -1823,10 +1823,11 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3779** | `(this commit)` | v3779 — REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250) |
-| **v3782** | `(this commit)` | v3782 — Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335) |
+| **v3784** | `(this commit)` | v3784 — T1 REG-2340, 2341, 2342 and T2 REG-2350, 2351, 2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359 (Push A1) |
+| **v3779** | `79c43f22` | v3779 — REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250) |
+| **v3782** | `be9e5c6b` | v3782 — Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335) |
 | **v3778** | `fb541215` | v3778 — (REG-2321) |
-| **v3783** | `(this commit)` | v3783 — Vault L1 - war stash cap 4 and WAR overflow, one collapsed row per move task, the router files every item (REG-2330) |
+| **v3783** | `1d54af5d` | v3783 — Vault L1 - war stash cap 4 and WAR overflow, one collapsed row per move task, the router files every item (REG-2330) |
 | **v3778** | `fb541215` | v3778 — (REG-2321) |
 | **v3776** | `fb541215` (in the v3778 commit) | v3776 — Vault L1 - MOVE TASKS checklist, every copy its own row, THROW OUT rows drain, war stash then WAR1 (REG-2300 to 2305) |
 | **v3775** | `942d11ff` | v3775 — A bump reruns only what it moved - reds stay red and run last (REG-2296) |
