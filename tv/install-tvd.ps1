@@ -393,6 +393,29 @@ foreach ($rel in $need) {
 }
 Ok "repo at $repoDir (control app present)"
 
+# -- Node.js (REG-2484, #167) - the console's node lanes and its node-only laws need it. ONE door, the same one the
+#    console asks: tv\node_runtime.py resolves node; where it is missing it fetches the pinned portable zip, checks its
+#    SHA-256 before anything is extracted, and places it in %LOCALAPPDATA%\Programs\nodejs - no admin, no PATH or
+#    registry change of his. A failure is said and never stops the install.
+Say "checking Node.js (the console's node lanes)..."
+$oldEapNode = $ErrorActionPreference
+try {
+  if (Test-Path -LiteralPath (Join-Path $repoDir 'tv\node_runtime.py')) {
+    $ErrorActionPreference = 'Continue'
+    $nodeOut = & $py "$repoDir\tv\node_runtime.py" --ensure 2>&1
+    $nodeRc = $LASTEXITCODE
+    $ErrorActionPreference = $oldEapNode
+    $nodeWhy = (($nodeOut | Out-String) -replace '\s+', ' ').Trim()
+    if ($nodeWhy.Length -gt 300) { $nodeWhy = $nodeWhy.Substring(0, 300) }
+    if ($nodeRc -eq 0) { Ok $nodeWhy } else { Warn ("Node.js is not ready ({0}) - the install goes on without it" -f $nodeWhy) }
+  } else {
+    Warn "tv\node_runtime.py is not in this copy yet - Node.js was not checked; the install goes on"
+  }
+} catch {
+  $ErrorActionPreference = $oldEapNode
+  Warn ("the Node.js step failed: {0} - the install goes on without it" -f $_.Exception.Message)
+}
+
 # v1404 - pin Windows ship identity (no Mac mesh)
 $shipPath = Join-Path $repoDir 'tv\WINDOWS_SHIP.json'
 if (-not (Test-Path -LiteralPath $shipPath)) {

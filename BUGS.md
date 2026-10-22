@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2484 - NODE.JS WAS NEVER INSTALLED ON A WINDOWS PC, SO EVERY NODE-ONLY LAW AND LANE WAS BLIND THERE (#167)
+
+tv/install-tvd.ps1 installed Git, Python, Claude Code and the Grok CLI, and no node. MEASURED on Dean's PC 2026-10-21: 53+ node-only laws skipped in both runs of every proof (filed BLIND until REG-2354 made them ELSEWHERE), and the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days - until an agent placed portable node v24.22.1 by hand in %LOCALAPPDATA%\Programs\nodejs, the folder cb_node_harness already looks in. His ruling 2026-10-21: the installer and the console fetch node wherever it is missing. A second gap rode along: cb_node_harness.NODE is resolved once, at import, so a node placed while the console runs stayed invisible to the tooltip-oracle lane until a relaunch.
+
+FIX: tv/node_runtime.py is the one door (`ensure(blocking=False, why="")` -> {ok, node, fetched, onPath, why}, never raises; CLI `--ensure`). Windows only: the zip tv/node_pin.json pins (version, file and SHA-256 copied from nodejs.org's SHASUMS256.txt; the x64 hash is the one verified three times on Dean's PC), its SHA-256 checked BEFORE anything is extracted, the extracted node.exe checked against the pin's exe hash, renamed into %LOCALAPPDATA%\Programs\nodejs, its folder put first on THIS process's PATH only (no setx, no registry, no profile, no admin), then cb_node_harness.refresh(). blocking=False fetches on one background thread per process. macOS and Linux resolve and never fetch. tv/install-tvd.ps1 calls it once, after the clone; a failure Warns and the install goes on. Authenticode is not asked: the pin names the exact bytes, which is stronger.
+
+GUARD: tv/test_node_is_fetched_where_it_is_missing.py (registered; 5 RED proofs: verification skipped, extraction before verification, a persistent PATH write, a fetch off Windows, the installer call removed). Verified offline against the real pinned zip (37,748,064 bytes): hash, extraction, exe hash, rename, PATH. NOTE: a push that touches tv/install-tvd.ps1 runs deploy.sh and publishes the live site.
+
 ### REG-2483 - DEAN'S LAPTOP SLEPT IN THE MIDDLE OF A PROOF; NOTHING HELD IT AWAKE, AND NOTHING MAY HOLD IT LONGER THAN THE WORK (#170)
 
 MEASURED on Dean's PC 2026-10-22 (powercfg, read-only): standby never on AC or DC, hibernate after 7,200 s on battery only; the 15:30 drop that day was Kernel-Power 42 ("Button or Lid"). `git grep SetThreadExecutionState|caffeinate` found nothing: no lane ever asked the OS to stay up while a proof ran. His ruling 2026-10-21: keep the PC awake ONLY while a proof or sweep runs.

@@ -11644,6 +11644,14 @@ GATES = [
              "and `caffeinate -i -w <pid>` on macOS, released when the block or the prover ends (normally or "
              "killed); self_prove holds a prover it spawns and one a relaunched console adopts. A fake kernel on every "
              "PC, plus one real caffeinate case judged on macOS."),
+    Gate("test_node_is_fetched_where_it_is_missing",
+         [sys.executable, os.path.join(HERE, "test_node_is_fetched_where_it_is_missing.py")], 60,
+         needs_app=False,
+         why="REG-2484 (#167) - the Windows installer never installed node, so 53+ node-only laws skipped on Dean's PC "
+             "until an agent placed it by hand. tv/node_runtime.ensure() fetches the pinned zip (tv/node_pin.json), "
+             "checks its SHA-256 BEFORE extracting, renames it into %LOCALAPPDATA%\\Programs\\nodejs and puts it on "
+             "this process's PATH only; never off Windows, never a persistent PATH write. tv/install-tvd.ps1 calls "
+             "the door exactly once, after the clone."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
