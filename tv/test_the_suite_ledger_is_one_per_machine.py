@@ -180,12 +180,14 @@ class APassCarriesOnlyWhereItWasTrue(_ScrubbedGit):
         self.addCleanup(shutil.rmtree, self.root, True)
         self.path = os.path.join(self.root, "ledger", GL.LEDGER_NAME)
 
-    def _gate(self):
+    def _gate(self, root=None):
+        where = root or self.root
+
         class _G(object):
             name = "machine-fixture"
-            argv = [sys.executable, os.path.join(self.root, "tv", "t_law.py")]
+            argv = [sys.executable, os.path.join(where, "tv", "t_law.py")]
             timeout = 30
-            cwd = self.root
+            cwd = where
             needs_app = False
             skip_ok = ()
         return _G()
@@ -207,6 +209,20 @@ class APassCarriesOnlyWhereItWasTrue(_ScrubbedGit):
         _write(self.root, "tv/x.flag", "now here\n")
         entry, why = self._open().lookup(self._gate())
         self.assertIsNone(entry, "a PASS proved without an ignored file carried where the file exists")
+        self.assertIn("tv/x.flag exists in this checkout", why or "")
+
+    def test_a_pass_proved_in_main_carries_into_a_fresh_worktree_only_where_its_facts_hold(self):
+        wt = os.path.realpath(tempfile.mkdtemp(prefix="ledger-carry.")) + "-wt"
+        _git(self.root, "worktree", "add", "-q", "--detach", wt)
+        self.addCleanup(shutil.rmtree, wt, True)
+        book = self._open()
+        self.assertTrue(book.record(self._gate(), True, trace=self._facts()), "PREMISE: %s" % book.last_why)
+        entry, why = self._open().lookup(self._gate(wt))
+        self.assertIsNotNone(entry, "a PASS proved in main did not carry into a fresh worktree of the same bytes: %s"
+                             % why)
+        _write(wt, "tv/x.flag", "only in the worktree\n")
+        entry, why = self._open().lookup(self._gate(wt))
+        self.assertIsNone(entry, "main's PASS carried into a worktree holding an ignored file it was proved without")
         self.assertIn("tv/x.flag exists in this checkout", why or "")
 
     def test_a_row_with_no_per_tree_facts_carries_only_in_its_own_checkout(self):
