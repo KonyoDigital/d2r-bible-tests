@@ -1727,7 +1727,10 @@ def _kills_in(path):
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.read().splitlines()
-    except (OSError, TypeError):
+    except (OSError, TypeError) as _we:
+        # said, never silent: a watch nobody can read shows no kill, so the run is judged by its own code alone (as
+        # before REG-2350) - and a kill from outside it would have seen is the open hole REG-2350 LEFT names
+        print("  ⚠ the kill watch could not be read (%s) - this run is judged without it" % type(_we).__name__)
         return []
     try:
         import signal as _sg
@@ -2641,7 +2644,8 @@ class _StoreFile(object):
 
     def sweep(self):
         """R9 - tmps a DEAD writer left beside the store (its pid no longer runs) are removed; a live writer's never.
-        -> how many. Not on Windows, where asking a pid is not harmless (REG-1725)."""
+        -> how many (None: the store's folder could not be listed). Not on Windows, where asking a pid is not harmless
+        (REG-1725)."""
         if os.name == "nt":
             return 0                                    # REG-1725: os.kill(pid, 0) is a Ctrl-C there, never a probe
         folder, base = os.path.split(os.path.abspath(self.path))
@@ -2651,8 +2655,10 @@ class _StoreFile(object):
         gone = 0
         try:
             names = os.listdir(folder)
+        except FileNotFoundError:
+            return 0                                    # no store folder yet: nothing was ever left in it
         except OSError:
-            return 0
+            return None                                 # it could not be listed: UNKNOWN, never "none swept"
         for n in names:
             m = rx.match(n)
             if not m or int(m.group(1)) == os.getpid():
@@ -2676,7 +2682,7 @@ class _StoreFile(object):
     def sweep_once(self):
         """R9 (Push A1) - sweep() at most once per process for this store file: the red memory has no open of its own
         (the verdict cache sweeps at every open), so before this nothing ever swept a dead writer's tmp beside it.
-        -> how many removed"""
+        -> how many removed (sweep's answer; 0 once this process has swept that file)"""
         p = os.path.abspath(self.path)
         if p in _StoreFile._swept:
             return 0
@@ -2971,7 +2977,11 @@ def _red_v1_sources(repo=None):
         wt = os.path.join(common, "worktrees")
         try:
             names = sorted(os.listdir(wt))
-        except OSError:
+        except FileNotFoundError:
+            names = []                                  # no linked worktree was ever made in this repository
+        except OSError as _le:
+            print("  ⚠ the worktree list could not be read (%s) - no worktree's pre-R2 red memory is folded in"
+                  % type(_le).__name__)
             names = []
         for n in names:
             try:
