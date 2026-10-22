@@ -20,9 +20,9 @@ That the settings file is ignored by git is test_this_pcs_settings_file_never_tr
 runner's 429 to the board is test_a_capped_runner_reaches_the_board_as_429.
 
 EVERY CASE HERE NEEDS NODE, ON PURPOSE. A PC without node (Dean's: tv/install-tvd.ps1 installs none) skips this law
-whole, and a tamper every case skipped on a PC without node is ELSEWHERE there (heart2, REG-2354), never BLIND. When
-two node-free git cases lived here they ran there, so every node-only proof stayed green "with 2 laws run" and was
-filed BLIND - and one BLIND shuts every lock on a PC.
+whole. On this heart2 such a tamper is still filed BLIND there; it is ELSEWHERE once REG-2354 lands, which files
+ELSEWHERE only a tamper EVERY case skipped. When two node-free git cases lived here they ran there, so every node-only
+proof stayed green "with 2 laws run" - BLIND under either rule, and one BLIND shuts every lock on a PC.
 The ledger cases need a POSIX host too (a stand-in CLI script cannot be spawned without a shell on Windows): they
 skip on the question heart2's "posix" capability asks, and the three proofs only they catch declare it, so a Windows
 PC with node files those three ELSEWHERE, never BLIND.
