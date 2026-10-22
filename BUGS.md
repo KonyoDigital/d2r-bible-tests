@@ -14,9 +14,9 @@ link the same way (fixture_tmp.link_dir); on Windows that link is a directory JU
 PC), and whether CPython's realpath resolves a junction there - and whether a directory renames cleanly under a scanner - was
 never run on one of his PCs. The probe to run is fixture_tmp.can_link_a_directory(), then this law, on a Windows PC that has
 pulled the code.
-MEASURED 2026-10-22 over SSH, one read-only call each time (15:2x, 16:4x, 17:5x): the ALT answered every time, but he was
-PLAYING (Boosteroid), 480-579 MB RAM free, its checkout still at v3746 (no list_own, no link_dir); Dean's PC was offline on the
-tailnet (last seen 13-14 h before). Nothing was started on either (a job on his gaming PC goes through alt_job.sh, which refuses
+MEASURED 2026-10-22 over SSH, one read-only call each time (15:2x, 16:4x, 17:5x, 19:0x): the ALT answered every time, but he
+was PLAYING (Boosteroid), 472-579 MB RAM free, its checkout still at v3746 (no list_own, no link_dir); Dean's PC was offline on
+the tailnet (last seen 13-15 h before). Nothing was started on either (a job on his gaming PC goes through alt_job.sh, which refuses
 while he plays and under 2 GB free). UNVERIFIED - not passing, not failing. Meanwhile: every red proof that needs a link
 declares "needs": "dir-link", so a PC whose probe says it cannot make one files it ELSEWHERE, never BLIND; a PC whose probe
 says it can is held to the case (a NOLINK there fails, never skips); the swap fixtures retry a rename Windows refuses for a
