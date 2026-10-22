@@ -10937,6 +10937,65 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_leaked_git_dir_never_writes_the_real_repo",
+         [sys.executable, os.path.join(HERE, "test_a_leaked_git_dir_never_writes_the_real_repo.py")], 300,
+         needs_app=False,
+         why="REG-2360 - inside a git hook GIT_DIR points at the real repo and beats cwd=, so a temp-repo law "
+             "committed onto the push branch and a git init set core.bare=true on his live checkout (v3783). The hook "
+             "now unsets every repo-local git variable before any stage and hands the commit-stamps law the pushed "
+             "commit by name (TV_PUSHED_GIT_DIR + TV_PUSHED_COMMIT); each temp-repo law scrubs GIT_* for its own "
+             "test. Driven on a fixture repo with a linked worktree: every temp-repo law run whole under the leaked "
+             "GIT_DIR leaves it byte-identical with core.bare false."),
+    Gate("test_every_cli_that_prints_non_ascii_is_encoding_safe",
+         [sys.executable, os.path.join(HERE, "test_every_cli_that_prints_non_ascii_is_encoding_safe.py")], 60,
+         needs_app=False,
+         why="v1480 / REG-2362 - a CLI that prints non-ASCII makes its own stdout safe (console_safe.audit, "
+             "one definition). Moved out of test_control with the _scripts() folder glob that left all of "
+             "test_control unkeyable; the glob is now the audit's denominator - console_safe.scripts() must be "
+             "every entry point the folder holds. Unkeyable on purpose and cheap; the hook's console_safe step "
+             "runs the same audit first on every push."),
+    Gate("test_folder_scans",
+         [sys.executable, os.path.join(HERE, "test_folder_scans.py")], 600,
+         needs_app=False,
+         why="REG-2362 - the test_control cases that read what a folder holds when they run (an "
+             "unregistered suite, a class below unittest.main(), an import CI lacks, an unbound name, a pkill, a "
+             "paid lane with no memory, the art corpus, sleep-then-read specs, the stash detectors on whatever "
+             "footage exists), moved byte for byte so test_control can be keyed and its proofs saved. Unkeyable on "
+             "purpose; hooks/pre-push runs it in the tv suites stage right after test_control."),
+    Gate("test_a_scratch_listing_reads_only_its_own_scratch",
+         [sys.executable, os.path.join(HERE, "test_a_scratch_listing_reads_only_its_own_scratch.py")], 60,
+         needs_app=False,
+         why="REG-2362 - fixture_tmp.list_own / match_own list a directory only when it lies strictly "
+             "inside the scratch parent contain() made for this process (symlinks resolved; not the parent, not "
+             "the temp root, not the tree, never in an uncontained process). 29 of test_control's and "
+             "test_agent's 46 listing sites listed their own temp dirs; through these the heart can key both "
+             "suites, and a real read of the tree still has to be os.listdir in the law file, where it is seen."),
+    Gate("test_the_unkeyable_laws_only_get_fewer",
+         [sys.executable, os.path.join(HERE, "test_the_unkeyable_laws_only_get_fewer.py")], 300,
+         needs_app=False,
+         why="REG-2363 - a law heart2 cannot key never has a proof saved, so it is proved from nothing on "
+             "every push it is in (test_control: 27 proofs, ~4 min each, the whole v3783 series). heart2's own "
+             "law_inputs over every registered gate, plus PROOF_NEEDS under .git or frames, is compared with "
+             "tv/unkeyable_laws.json: a new unkeyable law fails naming why, a listed law that is keyable again "
+             "must leave, and the list may not exceed CEILING in the law - it only shrinks."),
+    Gate("test_a_worktree_sandbox_carries_its_own_history",
+         [sys.executable, os.path.join(HERE, "test_a_worktree_sandbox_carries_its_own_history.py")], 120,
+         needs_app=False,
+         why="REG-2364 - from a linked worktree heart2's sandbox had no git history (the .git pointer is never "
+             "copied); laws read HEAD there only through the GIT_DIR the hook leaked, so once REG-2360 unset it "
+             "test_control's relaunch case errored and the version-stamp law's [7] went BLIND. make_sandbox now "
+             "gives it a private git clone --shared of that checkout (HEAD = the worktree's, GIT_*-free, push "
+             "shut). Driven on a fixture worktree under a leaked GIT_DIR: the sandbox reads the worktree's HEAD and "
+             "an old commit, and building it or writing in it leaves the real repo byte-identical."),
+    Gate("test_a_sandbox_never_carries_a_run_record",
+         [sys.executable, os.path.join(HERE, "test_a_sandbox_never_carries_a_run_record.py")], 300,
+         needs_app=False,
+         why="REG-2365 - the hook's tv suites run before the proving stage now (REG-2361), and test_control's "
+             "TestV2414 drove render_check.main() with HERE on the real tv/, writing a fixture render verdict that "
+             "every heart2 sandbox then carried. TestV2414 moves HERE to a dir of its own, and make_sandbox drops "
+             "every live run record (heart2's _SELF_RECORDS + suite_verdict.RUN_RECORDS): untracked ones removed, "
+             "a tracked one restored to HEAD's blob by the sandbox's own history, a PROOF_NEEDS-declared one kept. "
+             "Driven on a fixture repo holding every record live, and TestV2414 run whole against a trap HERE."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -348,6 +348,13 @@ class TheTickEndToEnd(unittest.TestCase):
 
 class TheTreeIsToldApart(unittest.TestCase):
 
+    def setUp(self):
+        # REG-2360 - inside a git hook GIT_DIR points at the REAL repo and beats cwd=: `_repo`'s
+        # `git init --bare` would rewrite the real config to core.bare=true and its commits would land on the push
+        # branch. Dropped for THIS test only; addCleanup puts them back.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
+
     def _repo(self):
         root = tempfile.mkdtemp(prefix="self_prove_git_")
         up, wk = os.path.join(root, "up.git"), os.path.join(root, "wk")

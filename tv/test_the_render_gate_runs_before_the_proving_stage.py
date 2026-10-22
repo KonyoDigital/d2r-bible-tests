@@ -20,6 +20,13 @@ both console-demos call sites (his console, and the console the gate starts when
 the render gate and before the proving stage, byte for byte, at top level - the same move, the same hole closed (inside
 the lane, a push changing only tv/control_ui.html or tv/demo_console.mjs - the files its own trigger names - never ran
 the demos). [[regression-guard]] [[the-unjoined-end]] RED_PROOF below.
+
+REG-2361 (FAIL FAST, 2026-10-21): the same argument, the rest of the way. On the v3783 series push 10 proved for 65.7 min
+and was then refused at 72m37s by the sharded test_control suite (126.9 s) on a duplicate REG number; push 11 was refused
+by the same suite. So every stage that refuses in minutes - the red-proof anchors, review-lite, visual-lock, the boss
+portraits and the five tv suites with their carry - is now called before the heart2 --prove call, and the order case
+below reads that off the hook. The read-only `heart2 --forecast` preview sits just before the prove call and may never
+refuse: no shell `exit` inside its marked block.
 """
 import io
 import os
@@ -38,7 +45,7 @@ try:
 except Exception:
     pass
 # ONE shell walker for the hook, owned by the anchors law - never a second copy of the column-0 grammar. [[copy-drift]]
-from test_every_push_checks_every_proof_anchor import _walk, _code, _call_block  # noqa: E402
+from test_every_push_checks_every_proof_anchor import _walk, _code, _call_block, _scan  # noqa: E402
 
 HOOK = os.path.join(ROOT, "hooks", "pre-push")
 PROVE = 'tv/heart2.py" --prove $_gates'
@@ -49,6 +56,9 @@ STAGES = {"version-stamp": 30, "second-eye": 30, "blueprint": 60, "heart": 60, "
           "review-lite": 120, "visual-lock": 120, "boss-portraits": 120, "test_agent": 600, "test_control": 1500,
           "test_tz_art": 120, "test_chronicle_retro": 120, "test_chronicle_seal": 120, "render": 353,
           "crest-loudness": 180, "console-demos": 180, "smoke": 900}
+#: REG-2361 - every stage that refuses in minutes, called before the proving stage
+FAIL_FAST = ("red-proof anchors", "review-lite", "visual-lock", "boss-portraits", "test_agent", "test_control",
+             "test_folder_scans", "test_tz_art", "test_chronicle_retro", "test_chronicle_seal")
 _GATE_RUN = re.compile(r'gate_run\s+"([^"]+)"\s+"(?:[^"\\]|\\.)*"\s+(\d+)\s+--')
 
 
@@ -132,6 +142,45 @@ class TheRenderGateRunsBeforeTheProvingStage(unittest.TestCase):
                          "the console-demos block sits inside another block (depth %d): a push changing only "
                          "tv/control_ui.html or tv/demo_console.mjs - the files its own trigger names - would never "
                          "run the demos" % _walk(lines, trig[0])[0])
+
+    def test_every_stage_that_refuses_in_minutes_runs_before_the_proving_stage(self):
+        """★ REG-2361 (fail fast): the anchors, review-lite, visual-lock, the boss portraits and all five tv suites are
+        called before heart2 --prove - push 10 proved for 65.7 min and was then refused by a 2-minute suite"""
+        st = _stages(_lines())
+        prove = [s for s in st if s[0] == "heart2 --prove --push"]
+        self.assertEqual(len(prove), 1, "PREMISE: the hook runs heart2 --prove %d times: %s" % (len(prove), st))
+        late = []
+        for label in FAIL_FAST:
+            sites = [s for s in st if s[0] == label]
+            self.assertTrue(sites, "PREMISE: the hook no longer runs %s through gate_run" % label)
+            late += ["%s (line %d)" % (label, s[2] + 1) for s in sites if s[2] > prove[0][2]]
+        self.assertEqual(late, [], "these run AFTER the proving stage (line %d): a refusal they would give in minutes "
+                                   "waits behind the whole proving stage, as push 10's did for 65.7 min: %s"
+                         % (prove[0][2] + 1, late))
+
+    def test_the_forecast_precedes_the_prove_call_and_can_never_refuse(self):
+        """★ REG-2361: the read-only `heart2 --forecast` preview runs just before the prove call, inside the same block,
+        and nothing in its marked block can end the push - an unknown flag or a timeout is one line, never a refusal"""
+        lines = _lines()
+        opens = [i for i, l in enumerate(lines) if l.strip() == "# >>> forecast"]
+        closes = [i for i, l in enumerate(lines) if l.strip() == "# <<< forecast"]
+        self.assertEqual((len(opens), len(closes)), (1, 1), "PREMISE: the forecast block is not marked exactly once")
+        i, j = opens[0], closes[0]
+        prove = [s for s in _stages(lines) if s[0] == "heart2 --prove --push"]
+        self.assertEqual(len(prove), 1, "PREMISE: no single prove call")
+        self.assertLess(j, prove[0][2], "the forecast runs after the proving stage - a preview after the fact")
+        self.assertEqual(_walk(lines, i)[0], _walk(lines, prove[0][2])[0],
+                         "the forecast sits outside the block that runs the prove call, so it can run when nothing "
+                         "is proved or skip when something is")
+        q, stack, code = None, [], []
+        for l in lines[i:j]:
+            c, q, stack = _scan(l, q, stack)
+            code.append(c)
+        self.assertTrue(any('tv/heart2.py" --forecast $_gates' in c for c in code),
+                        "the forecast block does not run heart2 --forecast on the same gate list")
+        # `exit` in COMMAND position (line start, or after ; && || then else do {) - the word inside an echo is prose
+        refusing = [c.strip() for c in code if re.search(r"(^\s*|[;&|]\s*|\b(?:then|else|do)\s+|\{\s*)exit\b", c)]
+        self.assertEqual(refusing, [], "the forecast block can end the push: %s" % refusing)
 
     def test_the_cheap_stages_still_come_first(self):
         """render runs AFTER the cheap stages (version-stamp, second-eye, blueprint, heart) - it does not jump them"""
@@ -228,6 +277,23 @@ RED_PROOF = [
         "file": "test_every_push_checks_every_proof_anchor.py",
         "find": '              or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=\\($", code)):\n',
         "replace": '              or False):\n',
+        "matches": 1,
+    },
+    {
+        "why": "REG-2361 - a tv suite is put back AFTER the proving stage (at the very end): a 2-minute refusal waits "
+               "behind the whole proving stage again, as push 10's did for 65.7 min",
+        "file": "hooks/pre-push",
+        "find": '  echo "          if CI is down, publish by hand: bash deploy.sh"\nfi\n\nexit 0\n',
+        "replace": '  echo "          if CI is down, publish by hand: bash deploy.sh"\nfi\ngate_run "test_control" '
+                   '"python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control || '
+                   'exit 1\n\nexit 0\n',
+        "matches": 1,
+    },
+    {
+        "why": "REG-2361 - the forecast learns to refuse: a tree whose heart2 has no --forecast blocks every push",
+        "file": "hooks/pre-push",
+        "find": '- not a refusal; proving goes on."\n',
+        "replace": '- not a refusal; proving goes on."\n      exit 1\n',
         "matches": 1,
     },
 ]

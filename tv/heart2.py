@@ -130,6 +130,13 @@ ELSEWHERE = "ELSEWHERE"
 #: capability -> (module, probe, his words for it). A name not listed here is INVALID: a typo must never excuse a proof.
 PROOF_NEEDS_HOST = {
     "d2r-install": ("affix_lexicon", "install_present", "the D2R install (its CASC data and the extractor)"),
+    # REG-2366 — a directory link in the temp dir: a symlink, or a junction on Windows (no privilege, REG-1668). The
+    # scratch-listing law's realpath proof has one catcher, a link inside the scratch pointing at the tree; his ALT and
+    # Dean's PC refuse the symlink, the case skipped in both runs and the proof read BLIND there. The probe makes a link
+    # exactly as the law does (fixture_tmp.link_dir) and asks realpath to resolve it; a PC that can do neither reads
+    # that proof ELSEWHERE.
+    "dir-link": ("fixture_tmp", "can_link_a_directory",
+                 "a directory link in its temp dir (a symlink, or a junction on Windows) that realpath resolves"),
     # REG-1688 — the ALT filed test_a_stub_agent_never_films_his_screen BLIND on [2] and [3]: the film loop it guards
     # starts only on macOS (start_film_thread returns unless sys.platform == "darwin"), and the law reaches the farewell
     # look with SIGTERM, which on Windows ends the process before any handler runs.
@@ -973,10 +980,10 @@ def _bring_across(src, dst, need, say):
     laws that read them SKIPPED through their own sabotage - `test_eye_declares_reach` read BLIND on the
     ALT while it goes red on the Mac. Now that every PC proves itself (REG-1447), that is a lock held shut
     on every Windows PC by the prover's own plumbing.
-    The Mac keeps the APFS clone, byte for byte. Elsewhere: `.git` (1.8 GB on his Mac) becomes a
-    `git clone --shared` - the objects are BORROWED read-only through alternates, the refs and the index
-    are the sandbox's own, so nothing a law runs in there can write into the real repository; its index
-    is rebuilt from HEAD, which on an installed console is the working tree. Anything else is copied only
+    The Mac keeps the APFS clone, byte for byte. Elsewhere: `.git` (1.8 GB on his Mac) becomes a private
+    `git clone --shared` (_share_history) - the objects are BORROWED read-only through alternates, the refs and
+    the index are the sandbox's own, so nothing a law runs in there can write into the real repository; its
+    index is rebuilt from HEAD, which on an installed console is the working tree. Anything else is copied only
     under the size caps above.
     """
     if sys.platform == "darwin":
@@ -987,20 +994,7 @@ def _bring_across(src, dst, need, say):
                 "UNPROVABLE rather than risking the disk" % (need, _rc))
         return
     if os.path.basename(os.path.normpath(src)) == ".git" and os.path.isdir(src):
-        tmp = dst + ".shared"
-        env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
-        r = subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout",
-                            os.path.dirname(os.path.normpath(src)), tmp],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, env=env)
-        if r.returncode != 0:
-            _rmtree_hard(tmp)
-            say("  could not share the git history into the sandbox (git clone --shared exit %s) — gates "
-                "that read it stay UNPROVABLE" % r.returncode)
-            return
-        os.replace(os.path.join(tmp, ".git"), dst)
-        _rmtree_hard(tmp)
-        subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
-                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
+        _share_history(os.path.dirname(os.path.normpath(src)), dst, say)
         return
     if os.path.isfile(src):
         if os.path.getsize(src) > _NEED_COPY_MAX_FILE:
@@ -1020,6 +1014,131 @@ def _bring_across(src, dst, need, say):
                     % (need, _NEED_COPY_MAX_TREE // (1024 * 1024)))
                 return
     shutil.copytree(src, dst)
+
+
+#: REG-2364 - where a sandbox history's PUSH url points: a path inside its own git dir that is never a repository, so
+#: a push from a sandbox fails at once instead of writing the checkout it was cloned from.
+_NO_PUSH = "no-push-from-a-sandbox"
+
+
+def _share_history(work_tree, dst, say):
+    """A PRIVATE git history of `work_tree`, placed at `dst` (a sandbox's `.git`). -> True when the sandbox holds one.
+
+    `git clone --shared --no-checkout`: the objects are BORROWED read-only through alternates (nothing copied), the
+    refs, the index and the config are the sandbox's own, and HEAD is work_tree's HEAD - so a law reads the history
+    being proved, and nothing it runs in there can write the real repository. Off the Mac a `.git` directory comes
+    this way (REG-1448); on every platform a linked worktree's `.git` POINTER does (REG-2364, make_sandbox).
+
+    ⚠⚠ REG-2364 - NO GIT_* VARIABLE REACHES THESE CALLS. Git exports GIT_DIR into every hook and GIT_DIR beats cwd=.
+    MEASURED on a fixture worktree: the `read-tree HEAD` below, run under a leaked GIT_DIR, rewrote the REAL worktree's
+    index (its staged entry gone), and a leaked GIT_WORK_TREE makes the clone itself refuse. A prover started from a
+    hook - the old one, or one run by hand inside it - carries them. [[feedback-fixtures-never-touch-live-data]]
+    ⚠ AND THE CLONE'S `origin` IS THE REAL CHECKOUT, so a `git push` from the sandbox would write its refs - a door of
+    the same kind as the leaked GIT_DIR that put two fixture commits on his push branch on v3783. The push url is
+    pointed at a path that is no repository, and a history whose push could not be shut is not kept.
+    """
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    tmp = dst + ".shared"
+    placed = False
+    try:
+        r = subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout", work_tree, tmp],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, env=env)
+        if r.returncode != 0:
+            say("  could not share the git history into the sandbox (git clone --shared exit %s) — gates "
+                "that read it stay UNPROVABLE" % r.returncode)
+            return False
+        os.replace(os.path.join(tmp, ".git"), dst)
+        placed = True
+        subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
+        shut = subprocess.run(["git", "config", "remote.origin.pushurl", os.path.join(dst, _NO_PUSH)],
+                              cwd=os.path.dirname(dst), capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=60, env=env)
+        if shut.returncode != 0:
+            _rmtree_hard(dst)
+            say("  the sandbox's git history could not have its push shut (git config exit %s) — not kept, so "
+                "gates that read it stay UNPROVABLE" % shut.returncode)
+            return False
+        return True
+    except (OSError, subprocess.SubprocessError) as e:
+        if placed:
+            _rmtree_hard(dst)
+        say("  could not share the git history into the sandbox (%s) — gates that read it stay UNPROVABLE"
+            % type(e).__name__)
+        return False
+    finally:
+        _rmtree_hard(tmp)
+
+
+def _drop_run_records(dest, keep, say):
+    """REG-2365 — the copied repo at `dest` loses every LIVE run record. -> {repo-relative path: what was done}
+
+    A run record is what a RUN writes into the tree it grades: heart2's own (_SELF_RECORDS, all in tv/) and the gate
+    runs' (suite_verdict.RUN_RECORDS - read from there, never restated). One that HEAD does not track is removed; one it
+    tracks becomes HEAD's blob, restored by the sandbox's OWN private history (the `../.git` two gates declare, brought
+    by make_sandbox as a clone), so no Python write and no git call ever reaches the real repo. A record a gate declares
+    in PROOF_NEEDS (`keep`) stays: that law asked for it, and its key holds it.
+    ⚠⚠ WHAT IT COST. Since REG-2361 the hook's tv suites run BEFORE the proving stage, in the tree heart2 then copies.
+    One of them (test_control's TestV2414) called render_check.main() without moving HERE and wrote a FIXTURE verdict -
+    abortedAt "state-panel", renderFailures 1 - over tv/.render_verdict.json; MEASURED in the branch's own worktree
+    (04:02), and every sandbox built after it carried that file. A record is never part of the bytes a law is proved on:
+    the key leaves these names out (_SELF_RECORDS), so a law that read one was proved on a live value no key held. CI
+    checks out none of the untracked ones and HEAD's blob of the tracked one; a sandbox now matches it.
+    ⚠ CAN NOT SAY "TRACKED": with no history in the sandbox, heart2's own records still go (git never tracks them) and a
+    gate run's record stays as copied - said, never silent."""
+    own = {"tv/" + n for n in _SELF_RECORDS}
+    recs = set(own)
+    try:
+        import suite_verdict as _SV
+        recs |= {str(r) for r in _SV.RUN_RECORDS}
+    except Exception as e:
+        say("  ⚠ suite_verdict will not import (%s), so which records a gate run writes is UNKNOWN - only heart2's own "
+            "were taken out of the sandbox" % type(e).__name__)
+    root = os.path.normpath(dest)
+    present = sorted(r for r in recs - set(keep or ())
+                     if os.path.lexists(os.path.join(root, *r.split("/"))))
+    if not present:
+        return {}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    gd = os.path.join(root, ".git")
+    git = ["git", "--git-dir=" + gd, "--work-tree=" + root, "-c", "core.hooksPath=" + os.devnull]
+    tracked = None
+    if os.path.isdir(gd):
+        try:
+            r = subprocess.run(git + ["ls-tree", "-z", "--name-only", "HEAD", "--"] + present, cwd=root,
+                               capture_output=True, timeout=60, env=env)
+            if r.returncode == 0:
+                tracked = {n for n in r.stdout.decode("utf-8", "replace").split("\0") if n}
+        except (OSError, subprocess.SubprocessError):
+            tracked = None
+    done = {}
+    for rel in present:
+        p = os.path.normpath(os.path.join(root, *rel.split("/")))
+        if not p.startswith(root + os.sep):
+            done[rel] = "kept: it does not lie inside the sandbox"      # a record list naming `..`: never followed
+            continue
+        if tracked is not None and rel in tracked:
+            try:
+                ok = subprocess.run(git + ["checkout", "-q", "HEAD", "--", rel], cwd=root, capture_output=True,
+                                    timeout=60, env=env).returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                ok = False
+            done[rel] = "HEAD's blob" if ok else "kept: its history could not restore HEAD's blob"
+        elif tracked is not None or rel in own:
+            try:
+                os.remove(p)
+                done[rel] = "removed"
+            except OSError as e:
+                done[rel] = "kept: it could not be removed (%s)" % type(e).__name__
+        else:
+            done[rel] = "kept: the sandbox holds no history to say whether git tracks it"
+    kept = ["%s (%s)" % (r, w[len("kept: "):]) for r, w in sorted(done.items()) if w.startswith("kept: ")]
+    if kept:
+        say("  ⚠ %d live run record(s) stay in the sandbox, so a law that reads one reads a live value: %s"
+            % (len(kept), "; ".join(kept)))
+    return done
 
 
 def _track_sandbox(root):
@@ -1231,6 +1350,18 @@ def make_sandbox(say=print):
             # sandbox holds no door to the real repo: the need stays out, said, and the gate that declared it reads
             # UNPROVABLE here. Where .git is a directory (his main checkout, where the push runs) the clone is a
             # full private copy, exactly as before. [[feedback-fixtures-never-touch-live-data]]
+            # ⚠⚠ REG-2364 — AND LEFT OUT, IT LEFT A WORKTREE'S SANDBOX WITH NO HISTORY AT ALL. Nobody saw it, because
+            # the hook leaked GIT_DIR: every git call a law made in here answered from - and could write - the real
+            # worktree through it. Pushes run from worktrees now and the hook unsets GIT_DIR (REG-2360), and MEASURED
+            # on that branch: test_control's relaunch case errored on `git rev-parse HEAD` (a red clean run refuses the
+            # push) and the version-stamp law's red-proof [7] went BLIND (its only catcher skips without history). So
+            # the pointer is still never copied; the sandbox gets a PRIVATE clone of that checkout's history instead
+            # (_share_history: HEAD is the worktree's HEAD, the objects borrowed read-only, the push shut). Only when
+            # no clone can be made does the gate that declared it stay UNPROVABLE here, said.
+            _dg = os.path.normpath(os.path.join(dest, "tv", _need))
+            if ((_dg + os.sep).startswith(os.path.normpath(dest) + os.sep)
+                    and _share_history(os.path.dirname(_s), _dg, say)):
+                continue
             say("  PROOF_NEEDS %r is a worktree POINTER (a file naming another checkout's git dir), not a history "
                 "- not brought across, so the gate that declared it stays UNPROVABLE in this sandbox" % _need)
             continue
@@ -1253,6 +1384,13 @@ def make_sandbox(say=print):
                 # which is the honest outcome. It must never silently look like a pass.
                 say("  could not place %s in the sandbox (%s) — gates that read it stay UNPROVABLE"
                     % (_root_file, type(_e).__name__))
+    # REG-2365 — A SANDBOX NEVER CARRIES A LIVE RUN RECORD (the census, the render verdict, the proof ledger): removed, or
+    # HEAD's blob where git tracks it - after the history above, which restores it. See _drop_run_records.
+    try:
+        _drop_run_records(dest, {os.path.normpath(os.path.join("tv", _n)).replace(os.sep, "/") for _n in _needs}, say)
+    except Exception as _e:
+        say("  ⚠ the run records could not be taken out of the sandbox (%s) - a law that reads one reads a live value"
+            % type(_e).__name__)
     tv = os.path.join(dest, "tv")
     if not os.path.isfile(os.path.join(tv, "control_app.py")):
         say("  the sandbox is missing control_app.py — refusing to report verdicts about it")
