@@ -13,6 +13,14 @@ file, where heart2 sees it and refuses to key it.
 
 These cases drive the guard in a contained process and in an uncontained one, and pin the one thing the helpers are
 for: heart2's own scanner counts os.listdir in a law file and does not count them. [[unknown-stays-unknown]]
+
+REG-2366 — THE LINK THAT SHOWS THE PATH IS RESOLVED MUST BE ONE THIS PC CAN MAKE. Red-proof [2] (realpath -> abspath)
+has one catcher: a directory link inside the scratch that points at the tree. Windows refuses os.symlink without a
+privilege his ALT and Dean's PC do not hold, so that case skipped in both runs there, the tampered run read green, and
+the heart filed [2] BLIND - one BLIND shuts every lock on a PC (REG-1677). Now the link is fixture_tmp.link_dir: a
+symlink, else a Windows directory junction (no privilege; realpath resolves it - REG-1668's way). And [2] declares
+`"needs": "dir-link"`, whose probe (fixture_tmp.can_link_a_directory) makes a link the same way: a PC that can make
+neither files [2] ELSEWHERE, never BLIND, and a PC whose probe says yes may not skip the case - it fails instead.
 RED_PROOF below.
 """
 import ast
@@ -21,7 +29,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -61,13 +71,26 @@ class AScratchListingReadsOnlyItsOwnScratch(unittest.TestCase):
         with self.assertRaises(ValueError, msg="a glob over the tree was answered"):
             _fx_tmp.match_own(os.path.join(HERE, "*.py"))
 
-    def test_a_symlink_out_of_the_scratch_is_refused(self):
+    def test_a_link_out_of_the_scratch_is_refused(self):
+        """★ the ONE catcher of red-proof [2] (the path not resolved): a directory link inside the scratch pointing at
+        the tree. REG-2366 - a symlink where this PC allows one, else a Windows junction (no privilege needed, REG-1668):
+        his ALT and Dean's PC refuse the symlink, and this case skipping in both runs read BLIND there."""
         link = os.path.join(self.d, "to_the_tree")
-        try:
-            os.symlink(HERE, link)
-        except (OSError, NotImplementedError):
-            self.skipTest("this PC cannot make a symlink - the escape is UNMEASURED here, not passing")
-        with self.assertRaises(ValueError, msg="a symlink inside the scratch let a listing read the tree"):
+        how = _fx_tmp.link_dir(HERE, link)
+        if how:
+            self.addCleanup(_fx_tmp.unlink_dir_link, link)    # runs BEFORE setUp's rmtree: the link, never the tree
+        if not how or os.path.realpath(link) != os.path.realpath(HERE):
+            why = ("made a %s that realpath does not resolve to the tree" % how) if how else \
+                  "could make neither a symlink nor a junction"
+            # proof [2] declares "dir-link": where heart2's probe (the same link_dir, the same realpath) also says no,
+            # the heart files [2] ELSEWHERE and never asks this case - a skip here is honest. Where the probe says YES,
+            # the heart judges [2] on this PC and a skip would read BLIND and shut every lock: that is a red instead.
+            if _fx_tmp.can_link_a_directory():
+                self.fail("this PC %s inside the scratch, yet heart2's dir-link probe says it can make one - the heart "
+                          "judges red-proof [2] here, and a skip would file it BLIND" % why)
+            self.skipTest("this PC %s - the escape is UNMEASURED here, not passing (heart2 files proof [2] "
+                          "ELSEWHERE on such a PC)" % why)
+        with self.assertRaises(ValueError, msg="a %s inside the scratch let a listing read the tree" % how):
             _fx_tmp.list_own(link)
 
     def test_a_wildcard_above_the_last_part_is_refused(self):
@@ -95,6 +118,72 @@ class AScratchListingReadsOnlyItsOwnScratch(unittest.TestCase):
                                 "ever be keyed: %r" % (mine,))
 
 
+def _refused(*a, **k):
+    """os.symlink as Windows answers it without the privilege (MEASURED on his ALT, REG-1668)"""
+    raise OSError(1314, "A required privilege is not held by the client")
+
+
+def _no_junction(*a, **k):
+    raise OSError(4390, "The file or directory is not a reparse point")
+
+
+class TheEscapeIsMeasuredWhereALinkCanBeMade(unittest.TestCase):
+    """REG-2366 - red-proof [2] is judged only where a directory link can be made, and on Windows a refused symlink
+    becomes a junction - so the proof reads PROVEN where it can be, ELSEWHERE where it cannot, and never BLIND.
+    Every case here runs on every OS: nothing in it needs a link this PC must be able to make."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="link_")          # inside the contained parent
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def test_the_heart_asks_the_question_the_case_asks(self):
+        """the capability is wired end to end: heart2 knows "dir-link", its probe is the same routine the case uses,
+        proof [2] declares it, and the heart's answer on this PC is the probe's"""
+        self.assertEqual(tuple(heart2.PROOF_NEEDS_HOST.get("dir-link") or ())[:2],
+                         ("fixture_tmp", "can_link_a_directory"),
+                         "heart2 does not know the dir-link capability (or asks another probe): a proof declaring it is "
+                         "INVALID everywhere, or judged by a question the case never asks")
+        proofs = heart2.red_proofs_in(os.path.abspath(__file__))
+        unresolved = [p for p in proofs if p.get("replace") == "    p = os.path.abspath(path)\n"]
+        self.assertEqual(len(unresolved), 1, "PREMISE: the unresolved-path proof is not where it was")
+        self.assertEqual(unresolved[0].get("needs"), "dir-link",
+                         "the unresolved-path proof does not declare dir-link: on a PC that can make no link its one "
+                         "catcher skips in both runs and the heart files it BLIND")
+        self.assertIs(heart2.host_lacks("dir-link")[0], not _fx_tmp.can_link_a_directory(),
+                      "the heart's answer for this PC is not the probe's")
+
+    def test_a_pc_that_can_make_no_link_reads_elsewhere(self):
+        """★ the shape of a PC with no way to link: the symlink refused, and on Windows the junction and `mklink /J`
+        refused too - link_dir makes nothing, the probe says no, and the heart files [2] ELSEWHERE instead of judging
+        a case that can only skip"""
+        refused_cmd = subprocess.CompletedProcess(["cmd"], 1, b"", b"refused")
+        with mock.patch.object(os, "symlink", _refused), \
+                mock.patch.dict(sys.modules, {"_winapi": types.SimpleNamespace(CreateJunction=_no_junction)}), \
+                mock.patch.object(subprocess, "run", lambda *a, **k: refused_cmd):
+            self.assertIsNone(_fx_tmp.link_dir(HERE, os.path.join(self.d, "no_link")),
+                              "PREMISE: a link was made with every way to make one refused")
+            self.assertFalse(_fx_tmp.can_link_a_directory(),
+                             "the dir-link probe says yes on a PC that can make no link: the heart judges [2] there "
+                             "and its one catcher cannot run")
+            self.assertIs(heart2.host_lacks("dir-link")[0], True,
+                          "a PC that can make no link does not read [2] ELSEWHERE")
+
+    def test_a_refused_symlink_becomes_a_junction_on_windows(self):
+        """★ REG-1668's way, driven on any OS: with the symlink refused on a Windows-shaped run, link_dir asks for a
+        junction - target first, then the link, as CPython's _winapi.CreateJunction takes them. (The junction itself
+        is CPython's; this pins that it is asked for, and the right way round.)"""
+        target, link, made = os.path.join(self.d, "target"), os.path.join(self.d, "junction"), []
+        self.addCleanup(_fx_tmp.unlink_dir_link, link)     # a sabotaged run may reach a real `mklink /J` on Windows
+        with mock.patch.object(os, "symlink", _refused), mock.patch.object(os, "name", "nt"), \
+                mock.patch.dict(sys.modules, {"_winapi": types.SimpleNamespace(
+                    CreateJunction=lambda src, dst: made.append((src, dst)))}):
+            how = _fx_tmp.link_dir(target, link)
+        self.assertEqual(how, "junction", "a refused symlink did not fall back to a junction on Windows: the escape is "
+                                          "never measured there and [2] is ELSEWHERE on every PC he plays on")
+        self.assertEqual(made, [(os.path.abspath(target), os.path.abspath(link))],
+                         "the junction was asked for the wrong way round (CreateJunction takes the target first)")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -116,11 +205,15 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "REG-2362 - the path is not resolved: a symlink inside the scratch reads the tree",
+        "why": "REG-2362 - the path is not resolved: a link inside the scratch (a symlink, or a junction on Windows) "
+               "reads the tree",
         "file": "fixture_tmp.py",
         "find": "    p = os.path.realpath(path)\n",
         "replace": "    p = os.path.abspath(path)\n",
         "matches": 1,
+        # REG-2366 - its one catcher needs a directory link: a PC that can make neither a symlink nor a junction files
+        # this proof ELSEWHERE (proven where one can be made), never BLIND
+        "needs": "dir-link",
     },
     {
         "why": "REG-2362 - a process that never contained its scratch lists the shared temp root's children as its own",
@@ -134,6 +227,30 @@ RED_PROOF = [
         "file": "fixture_tmp.py",
         "find": "    if any(c in d for c in \"*?[\"):\n",
         "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2366 - the junction fallback is gone: on Windows without the symlink privilege the escape is never "
+               "measured, and [2] is ELSEWHERE on every PC he plays on",
+        "file": "fixture_tmp.py",
+        "find": "        _winapi.CreateJunction(os.path.abspath(target), os.path.abspath(link))\n",
+        "replace": "        raise OSError(\"no junction\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2366 - the dir-link probe says yes on a PC that can make no link: the heart judges [2] where its one "
+               "catcher cannot run",
+        "file": "fixture_tmp.py",
+        "find": "        if not link_dir(target, link):\n            return False\n",
+        "replace": "        if not link_dir(target, link):\n            return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2366 - heart2 forgets the dir-link capability: [2] declares a name no probe knows and reads INVALID "
+               "on every PC",
+        "file": "heart2.py",
+        "find": "    \"dir-link\": (\"fixture_tmp\", \"can_link_a_directory\",\n",
+        "replace": "    \"dir-link-gone\": (\"fixture_tmp\", \"can_link_a_directory\",\n",
         "matches": 1,
     },
 ]

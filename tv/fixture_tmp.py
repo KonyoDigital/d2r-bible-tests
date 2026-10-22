@@ -101,6 +101,11 @@ def _release(d):
 # inside the parent contain() made for this process, so they can never be pointed at the tree, his footage or a
 # temp dir another process shares. A listing of anything else stays os.listdir in the law file, where heart2 sees it.
 # Law: test_a_scratch_listing_reads_only_its_own_scratch. [[unknown-stays-unknown]]
+#   HOW A LAW USES THEM: call contain() once at import, BEFORE any tempfile.mkdtemp; a directory that mkdtemp() (no
+#   dir= argument) or os.makedirs under one of those made since is its own - `os.listdir(d)` becomes `list_own(d)`,
+#   `glob.glob(os.path.join(d, "f_*.jpg"))` becomes `match_own(...)`, same answer. A path mkdtemp made BEFORE
+#   contain(), one made with dir= elsewhere, the parent itself, or a link out of it raises ValueError - never a silent
+#   empty list. The REG-2362 swap of a law's os.listdir is only that: the same path, the same names.
 def _own(path):
     """-> the real path of `path`, when it lies strictly inside this process's contained scratch parent. Raises
     ValueError otherwise: no contain() in this process, the parent itself, or anywhere outside it (symlinks resolved)."""
@@ -136,3 +141,75 @@ def match_own(pattern):
         raise ValueError("fixture_tmp: only the last part of %r may hold a wildcard" % pattern)
     _own(d)
     return _glob.glob(pattern)
+
+
+# ══ REG-2366 - A DIRECTORY LINK, MADE THE WAY THIS PC CAN ═══════════════════════════════════════════════════════
+# list_own's containment rests on realpath, and the one case that shows it (a link inside the scratch pointing at the
+# tree) needs a DIRECTORY LINK. Windows refuses os.symlink without a privilege his ALT and Dean's PC do not hold, so on
+# them that case skipped in the clean run and in the tampered run alike: the tampered run read green - BLIND - and one
+# BLIND record shuts every lock on that PC (REG-1677). REG-1668 met the same wall in the frame-index law: a directory
+# JUNCTION needs no privilege, and realpath resolves it (CPython 3.8+). link_dir makes a symlink where it can and a
+# junction on Windows where it cannot. can_link_a_directory asks exactly that - the same routine, the same realpath -
+# for heart2's PROOF_NEEDS_HOST "dir-link", so a proof that needs a link reads ELSEWHERE, never BLIND, on a PC that can
+# make neither. Neither calls contain(): the probe is safe to import and run from the prover.
+def link_dir(target, link):
+    """Make `link` a directory link to `target`: a symlink, else (Windows) a directory junction. -> "symlink" |
+    "junction" | None when this PC can make neither. Never raises."""
+    try:
+        os.symlink(target, link, target_is_directory=True)
+        return "symlink"
+    except (OSError, NotImplementedError, AttributeError):
+        pass
+    if os.name != "nt":
+        return None
+    try:
+        import _winapi                       # CPython's own junction maker (its test_os makes them this way)
+        _winapi.CreateJunction(os.path.abspath(target), os.path.abspath(link))
+        return "junction"
+    except Exception:
+        pass
+    try:                                     # REG-1668's way: cmd's own `mklink /J`, no privilege needed
+        import subprocess
+        r = subprocess.run(["cmd", "/c", "mklink", "/J", os.path.abspath(link), os.path.abspath(target)],
+                           capture_output=True, timeout=30)
+        if r.returncode == 0 and os.path.isdir(link):
+            return "junction"
+    except Exception:
+        pass
+    return None
+
+
+def unlink_dir_link(link):
+    """Remove a link link_dir made: the LINK, never what it points at. Never raises."""
+    try:
+        os.unlink(link)                      # a symlink anywhere; a junction on Windows too
+        return
+    except OSError:
+        pass
+    try:
+        os.rmdir(link)                       # a junction unlink would not take
+    except OSError:
+        pass
+
+
+def can_link_a_directory():
+    """heart2's PROOF_NEEDS_HOST probe for "dir-link" (REG-2366): can THIS PC make, in its temp dir, a directory link
+    that realpath resolves - made by link_dir, exactly as the law makes it? -> bool. Links two directories of its own,
+    removes both, touches nothing else."""
+    base = None
+    try:
+        base = tempfile.mkdtemp(prefix="d2r-linkprobe-")
+        target = os.path.join(base, "target")
+        os.mkdir(target)
+        link = os.path.join(base, "link")
+        if not link_dir(target, link):
+            return False
+        try:
+            return os.path.realpath(link) == os.path.realpath(target)
+        finally:
+            unlink_dir_link(link)
+    except OSError:
+        return False
+    finally:
+        if base:
+            shutil.rmtree(base, ignore_errors=True)

@@ -123,6 +123,13 @@ ELSEWHERE = "ELSEWHERE"
 #: capability -> (module, probe, his words for it). A name not listed here is INVALID: a typo must never excuse a proof.
 PROOF_NEEDS_HOST = {
     "d2r-install": ("affix_lexicon", "install_present", "the D2R install (its CASC data and the extractor)"),
+    # REG-2366 — a directory link in the temp dir: a symlink, or a junction on Windows (no privilege, REG-1668). The
+    # scratch-listing law's realpath proof has one catcher, a link inside the scratch pointing at the tree; his ALT and
+    # Dean's PC refuse the symlink, the case skipped in both runs and the proof read BLIND there. The probe makes a link
+    # exactly as the law does (fixture_tmp.link_dir) and asks realpath to resolve it; a PC that can do neither reads
+    # that proof ELSEWHERE.
+    "dir-link": ("fixture_tmp", "can_link_a_directory",
+                 "a directory link in its temp dir (a symlink, or a junction on Windows) that realpath resolves"),
     # REG-1688 — the ALT filed test_a_stub_agent_never_films_his_screen BLIND on [2] and [3]: the film loop it guards
     # starts only on macOS (start_film_thread returns unless sys.platform == "darwin"), and the law reaches the farewell
     # look with SIGTERM, which on Windows ends the process before any handler runs.
