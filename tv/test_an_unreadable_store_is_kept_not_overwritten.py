@@ -47,7 +47,7 @@ class AnUnreadableStoreIsKeptNotOverwritten(unittest.TestCase):
         self.said = []
 
     def asides(self, base=".heart2_cache.json"):
-        return sorted(n for n in os.listdir(self.dir) if n.startswith(base + ".unreadable-"))
+        return sorted(n for n in _fx_tmp.list_own(self.dir) if n.startswith(base + ".unreadable-"))
 
     def entries(self):
         with io.open(self.path, encoding="utf-8") as fh:
@@ -74,7 +74,7 @@ class AnUnreadableStoreIsKeptNotOverwritten(unittest.TestCase):
         self.assertTrue(c.flush(), "the write over an unreadable store failed: %s" % self.said[-3:])
         self.assertEqual(sorted(self.entries()), ["k1", "k3"], "the write did not merge .prev's entries in")
         kept = self.asides()
-        self.assertEqual(len(kept), 1, "the unreadable bytes were not kept aside: %s" % os.listdir(self.dir))
+        self.assertEqual(len(kept), 1, "the unreadable bytes were not kept aside: %s" % _fx_tmp.list_own(self.dir))
         with io.open(os.path.join(self.dir, kept[0]), encoding="utf-8") as fh:
             self.assertEqual(fh.read(), GARBAGE, "the bytes kept aside are not the unreadable store's")
 

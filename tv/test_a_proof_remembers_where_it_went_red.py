@@ -255,8 +255,8 @@ class ARedMemory(unittest.TestCase):
         with io.open(H.RED_MEMORY, "w", encoding="utf-8") as fh:
             fh.write("{not json")
         self.assertEqual(self.prove(), H.PROVEN)             # learns -> a write over the unreadable memory
-        aside = [n for n in os.listdir(self.root) if n.startswith(".heart2_red.json.unreadable-")]
-        self.assertEqual(len(aside), 1, "the unreadable memory was written over: %s" % os.listdir(self.root))
+        aside = [n for n in _fx_tmp.list_own(self.root) if n.startswith(".heart2_red.json.unreadable-")]
+        self.assertEqual(len(aside), 1, "the unreadable memory was written over: %s" % _fx_tmp.list_own(self.root))
         with io.open(os.path.join(self.root, aside[0]), encoding="utf-8") as fh:
             self.assertEqual(fh.read(), "{not json")
         self.assertEqual([e["ids"] for e in self.memory().values()], [["Catches.test_value_is_one"]])

@@ -188,7 +188,8 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         self.assertEqual(sorted(_entries(path)), ["cachewinA", "cachewinB"],
                          "one writer erased the other's write - the Windows lock does not hold")
         self.assertTrue(os.path.isfile(os.path.join(os.path.dirname(path), H._LOCK_NAME)), "no lock file beside the store")
-        self.assertEqual([n for n in os.listdir(os.path.dirname(path)) if n.endswith(".tmp")], [], "a tmp outlived its write")
+        self.assertEqual([n for n in _fx_tmp.list_own(os.path.dirname(path)) if n.endswith(".tmp")], [],
+                         "a tmp outlived its write")
         import fnmatch
         import safe_copy as SC
         self.assertTrue(SC._heavy_file(H._LOCK_NAME), "the lock file %s would travel into every sandbox" % H._LOCK_NAME)
@@ -224,7 +225,7 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         self.assertEqual(got.get("B"), (True, None), "the second writer's tmp was moved by the first writer's rename - "
                                                      "one tmp name shared by two writers: %s" % (got,))
         self.assertEqual(sorted(_entries(path)), ["B"], "the store holds neither writer's own bytes")
-        self.assertEqual([n for n in os.listdir(self.root) if n.endswith(".tmp")], [], "a tmp outlived its write")
+        self.assertEqual([n for n in _fx_tmp.list_own(self.root) if n.endswith(".tmp")], [], "a tmp outlived its write")
 
     def test_a_dead_writers_tmp_is_swept_and_a_live_ones_is_kept(self):
         """★ R9 - a tmp left by a writer whose pid no longer runs leaves when the store opens; this process's stays; a tmp
@@ -239,7 +240,7 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
                 fh.write("x")
         H._VerdictCache(path=path, say=_quiet)
         H._StoreFile(os.path.join(self.root, "control_app.py"), _quiet).sweep()
-        left = set(os.listdir(self.root))
+        left = set(_fx_tmp.list_own(self.root))
         if os.name == "nt":             # REG-1725 - os.kill(pid, 0) is a Ctrl-C there, never a probe: nothing is swept
             self.assertEqual(H._StoreFile(path, _quiet).sweep(), 0, "the sweep asked a pid on Windows")
             self.assertEqual(left, set(names.values()), "the sweep removed a file on Windows")
