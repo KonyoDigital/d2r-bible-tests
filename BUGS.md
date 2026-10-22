@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2564 - A MULE-MAP WRITE THAT DID NOT STICK DROPPED A FILING; ANOTHER TAB'S ROSTER SKIPPED THE MAP RULE - focused second eye on ede52513c
+
+The r3a fix round (ede52513c) was never reviewed; a focused Grok CLI review (2026-10-23) failed it with three majors:
+vaultUnassign deleted the filing from the live map before a write that could be refused or throw (quota), so the next good
+save dropped it; the restore door ignored saveA() and answered ok, so vaultFixSockets let the old label go after a refile
+that never landed (and with no refile at all for a filed label it had no home for); and the roster tab sync adopted another
+tab's roster that drops a mule the map files to - bytes the load path holds - so the paint prune dropped those filings.
+Fixed: the live map files it again on a refused or thrown write; a refused restore is undone and answered not-written;
+vaultFixSockets treats "filed, but no refile" as a refusal; the paint's mule-rule prune waits while another tab's roster
+is ahead of its map (holding that roster, as the review proposed, would quarantine every legit delete from another tab -
+its delete writes the roster first). Law:
+tv/test_a_refused_map_write_never_drops_a_filing.py (3 red-proofs). Open minors from that review: vaultSetSockets /
+vaultKeepAsBase still say "registered" over a refused filing; the in-flight reading window (15 min) is shorter than a 40-file
+read, and a duplicated tab inherits the scan session id.
+
 ### REG-2563 - A GATE CALLED THE CLAUDE CLI (test_screen_parity, `claude auth status`) - Elad 2026-10-22: never
 
 A run_gates --changed logged "test_screen_parity not stored - the gate started claude". Traced with a logging fake `claude`

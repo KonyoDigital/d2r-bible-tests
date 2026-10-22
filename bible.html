@@ -41677,6 +41677,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _rosterSaved = load(RK, null);   /* null: nothing saved yet, or UNKNOWN (_muleUnread says which) */
   var roster = _rosterSaved || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
+  var _rosterMapPending = false;   /* REG-2564 — another tab's roster arrived ahead of its map: no mule-rule prune yet */
   /* a roster rebuilt from a list of mules, keeping every filing: each mule the list holds VERBATIM (his name, note, icon,
      boundChar, added), each core locker it lacks at its default place, and a stand-in for each mule id the mule map
      still files items to that the list does not hold. REG-2522 fix round — Start it fresh rebuilt from the map's ids
@@ -41725,10 +41726,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        roster from another tab must also hold every core locker (_rosterCoreWhy): a load puts one back, a merge cannot,
        and no tab of this board saves one without them. A missing ADDED mule is not asked here - another tab's delete
        writes the roster first and the map (its filings gone) right after. */
-    window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; }, after: _vaultTabAfter,
+    /* REG-2564 (focused second eye on ede52513c) — ANOTHER TAB'S ROSTER IS NOT A REASON TO PRUNE. Its delete writes the
+       roster first and the map right after, so a roster that lacks a mule the map still files to is adopted (above) - but
+       until that tab's map arrives, the paint's prune must not drop those filings against it: a later saveA() here would
+       write the map without them, and if no map ever comes (not this board's delete) they would be gone for good. */
+    window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; },
+                             after: function(){ _rosterMapPending = false; return _vaultTabAfter.apply(this, arguments); },
                              shape: function(v){ return _muleShapeWhy(AK, v); },
                              adopted: function(){ delete _muleUnread[AK]; } };
-    window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; }, after: _vaultTabAfter,
+    window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; },
+                             after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; }
+                                                return _vaultTabAfter.apply(this, arguments); },
                              shape: function(v){ return _muleShapeWhy(RK, v) || _rosterCoreWhy(v); },
                              absent: function(){ return DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }); },
                              adopted: function(){ delete _muleUnread[RK]; } };
@@ -44128,7 +44136,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       || ((typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld());
     Object.keys(assign).forEach(function(n){
       if (_pruneHeld) return;
-      if (assign[n]!=='__keep' && !muleById(assign[n])) { delete assign[n]; return; }
+      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (_rosterMapPending) return; delete assign[n]; return; }
       if (pool.indexOf(n) >= 0) return;
       if (Object.prototype.hasOwnProperty.call(_pvW6, n)) return;
       delete assign[n];
@@ -45658,12 +45666,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         why: nm + ' is locked to your MAIN (' + lk + ') — a restore never puts a MAIN item into a mule' };
       var rowR = (opts.prov && typeof opts.prov === 'object' && !Array.isArray(opts.prov) && opts.prov.source)
                ? JSON.parse(JSON.stringify(opts.prov)) : null;
+      var _rowPrevR; try { _rowPrevR = _provAll()[nm]; } catch (e) { _rowPrevR = undefined; }
       if (rowR){
         rowR.mule = toR; rowR.holder = _vHomeName(toR); rowR.restoredAt = new Date().toISOString();
         try { var _pr2 = _provAll()[nm]; if (_pr2 && _pr2.kind === 'owned' && !rowR.ownedBy) rowR.ownedBy = _pr2; } catch (e) {}
         var paR = _provAll(); paR[nm] = rowR; _provWrite(paR);
       }
-      assign[nm] = toR; saveA();
+      assign[nm] = toR;
+      /* REG-2564 — A RESTORE THE MAP REFUSES IS NOT A RESTORE: the filing and the witness row go back to what they were */
+      var _okR; try { _okR = saveA() !== false; } catch (e) { _okR = false; }
+      if (!_okR){
+        delete assign[nm];
+        if (rowR){ try { var paB = _provAll(); if (_rowPrevR === undefined) delete paB[nm]; else paB[nm] = _rowPrevR; _provWrite(paB); } catch (e) {} }
+        return { ok: false, refused: 'not-written', why: 'the mule map could not be written, so ' + nm + ' was not put back into ' + _vHomeName(toR) };
+      }
       return { ok: true, mode: 'restored', mule: toR, witnessed: !!rowR, prov: rowR };
     }
     /* A RESET REBUILD. The evidence plan already decided; this door only files that row, and it
@@ -47018,8 +47034,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     /* REG-2521 fix round — the map is written FIRST, and a map the door refuses is never answered ok: the witness row is
        demoted only once the filing it describes has really left the saved map */
+    var _prevU = assign[name];
     delete assign[name];
-    if (saveA() === false){
+    var _okU; try { _okU = saveA() !== false; } catch (e) { _okU = false; }   /* REG-2564 — a throw (quota) is a refusal too */
+    if (!_okU){
+      if (_prevU !== undefined) assign[name] = _prevU;   /* REG-2564 — the live map files it again, so the next save cannot drop it */
       var whyW = String(name == null ? '' : name) + ' was not sent back to the dock - the mule map could not be written, so the saved map still files it'
                + ' (its witness row is untouched; a reload shows it in its locker)';
       _vaultLockSay(name, '⚠ ' + whyW, true);
@@ -47519,8 +47538,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          the door refuses (a MAIN lock on the new label, a witness it will not take) puts back what this click added and
          leaves the old label, its filing and its witness row exactly as they were - said, never "fixed". */
       var _rfF = null;
-      if (oldMule && typeof muleById === 'function' && muleById(oldMule)) _rfF = window.vaultFile(newLabel, null, { restore: true, mule: oldMule, prov: _pvF });
+      /* REG-2564 — a label that is filed, or carries a stash witness, MUST be refiled before it lets go; no refile is a refusal */
+      var _rfNeed = !!oldMule || !!(_pvF && _pvF.kind !== 'owned');
+      if (oldMule && typeof muleById === 'function' && (muleById(oldMule) || oldMule === '__keep')) _rfF = window.vaultFile(newLabel, null, { restore: true, mule: oldMule, prov: _pvF });
       else if (_pvF && _pvF.kind !== 'owned') { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) _rfF = window.vaultFile(newLabel, _provAsWitness(_pvF), { mule: sg.id }); }
+      if (_rfNeed && !_rfF) _rfF = { ok: false, refused: 'no-home', why: 'there is no locker on this board to refile the new label into' };
       if (_rfF && !_rfF.ok){
         if (!_hadNew){ try { owned.delete(newLabel); } catch(e){} try { window._ownedProvForget(newLabel); } catch(e){} }
         try { persistOwned(); } catch(e){}

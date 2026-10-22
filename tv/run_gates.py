@@ -11318,6 +11318,12 @@ GATES = [
              "held vault answered 'copy 2 filed to bases' over a refused write. One copy comes off and the name stays "
              "owned and filed; the pick's own single copy leaves through the removal door (journaled, undoable); every "
              "pick asks the hold first. The whole page runs in node, real doors."),
+    Gate("test_a_refused_map_write_never_drops_a_filing",
+         [sys.executable, os.path.join(HERE, "test_a_refused_map_write_never_drops_a_filing.py")], 300,
+         needs_app=False,
+         why="REG-2564 (focused second eye on the r3a fix round) - a refused or throwing mule-map write left the filing "
+             "deleted in the live map, a refused restore answered ok, and another tab's roster dropping a filed mule was "
+             "adopted. Whole page in node, real doors."),
     Gate("test_no_gate_calls_the_claude_cli",
          [sys.executable, os.path.join(HERE, "test_no_gate_calls_the_claude_cli.py")], 300,
          needs_app=False,
