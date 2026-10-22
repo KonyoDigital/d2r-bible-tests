@@ -356,6 +356,15 @@ class ALawWhoseEveryCaseSkipsOffPosixSaysSo(_Sandbox):
         self.assertEqual(self.judge_on("win32", self.proof("posix-signals")), H.ELSEWHERE)
         self.assertEqual(self.runs, [], "Windows ran a proof it can never judge")
 
+    def test_a_reader_that_cannot_read_refuses_nothing(self):
+        """The reader is asked inside _prove_one, where a raise is recorded BLIND - and one BLIND shuts every lock."""
+        self.gate(ALL_POSIX)
+        H._POSIX_ONLY_MEMO.clear()
+        self.addCleanup(H._POSIX_ONLY_MEMO.clear)
+        with mock.patch.object(H, "posix_only_cases", mock.Mock(side_effect=RecursionError("too deep to parse"))):
+            v = self.judge_on("darwin", self.proof())
+        self.assertEqual(v, H.PROVEN, "a reader that raised refused, or crashed, a proof it could not read: %s" % v)
+
     def test_a_law_with_a_case_that_runs_on_windows_is_judged_as_before(self):
         self.gate(SOME_POSIX)
         self.assertEqual(self.judge_on("darwin", self.proof()), H.PROVEN)
@@ -733,6 +742,11 @@ RED_PROOF = [
      "file": "gate_trace/sitecustomize.py",
      "find": "    skips = os.environ.pop(\"TV_GATE_SKIPS\", None) == \"1\"  # SKIP-WATCH-OWN\n",
      "replace": "    skips = os.environ.get(\"TV_GATE_SKIPS\", None) == \"1\"  # SKIP-WATCH-OWN\n",
+     "matches": 1},
+    {"why": "REG-2357 - a source the reader cannot parse raises inside _prove_one, and the proof is recorded BLIND",
+     "file": "heart2.py",
+     "find": "            except Exception:  # POSIX-READER-NEVER-RAISES: a source too deep to parse refuses and excuses nothing\n",
+     "replace": "            except ZeroDivisionError:  # POSIX-READER-NEVER-RAISES: a source too deep to parse refuses and excuses nothing\n",
      "matches": 1},
 ]
 

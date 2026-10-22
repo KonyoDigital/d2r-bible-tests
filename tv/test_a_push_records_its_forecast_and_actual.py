@@ -312,6 +312,17 @@ class ThePushRecordsWhatItDid(_Fixture):
                          "a proof banked for the same bytes was re-run and the record called it clean: %s" % rec)
         self.assertIn("PROVE-ONCE VIOLATION", rows[2]["missWhy"])
 
+    def test_the_waves_all_hit_check_marks_nothing(self):
+        """REG-2353 (round 3) - the clean wave asks whether EVERY proof of a gate would be served, to skip its clean run.
+        A question, not a use: the main pass's lookup() marks what it serves."""
+        for i in range(3):
+            k = self.bank(i)
+            self.cache.entries[k]["tree"] = H.TREE_ID
+        run = H._PushRun(order={}, browser=(), cache=self.cache)
+        got = H._wave_gate(self.tv, GATE, "fake_gate.py", self.proofs, _say, run)
+        self.assertEqual(got[0], H.NOT_RUN, "PREMISE: a gate whose every proof is banked in this tree is not run")
+        self.assertEqual(self.cache.marked, [], "the wave's all-hit check asked the serving read: %s" % self.cache.marked)
+
     def test_the_push_marks_only_what_it_served(self):
         """REG-2353 (round 3) - PREMISE of the two above: the push's own serving read is still lookup(), so the hit it
         reused is asked there (and marked used under R4); the run's servable set, taken at its start, asked nothing."""
@@ -567,6 +578,11 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        return self.peek(key)\n",
      "replace": "        return self.entries.get(key)\n",
+     "matches": 1},
+    {"why": "REG-2353 - the clean wave's all-hit check asks the serving read and marks a gate's every proof used",
+     "file": "heart2.py",
+     "find": "                _hit = cache.peek(key) if key is not None else None   # REG-2353 - asked, not served: marks nothing\n",
+     "replace": "                _hit = cache.lookup(key) if key is not None else None   # REG-2353 - asked, not served: marks nothing\n",
      "matches": 1},
 ]
 

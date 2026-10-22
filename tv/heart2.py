@@ -1444,7 +1444,8 @@ def posix_only_cases(src):
 
 def _posix_only_of(sandbox, filename):
     """REG-2357 — posix_only_cases() of this gate's file: the sandbox copy first, then the repo's. Parsed once per
-    content (test_control.py is 2.7 MB). -> (off, every) | None (it will not read or parse: nothing is refused on it)"""
+    content (test_control.py is 2.7 MB). -> (off, every) | None (it will not read or parse: nothing is refused on it).
+    Never raises: it is asked inside _prove_one, where a raise is recorded BLIND, and one BLIND shuts every lock."""
     for _p in (os.path.join(sandbox, filename), os.path.join(REPO, "tv", filename)):
         try:
             with io.open(_p, encoding="utf-8", errors="replace") as fh:
@@ -1453,7 +1454,10 @@ def _posix_only_of(sandbox, filename):
             continue
         key = hashlib.sha1(src.encode("utf-8", "replace")).hexdigest()
         if key not in _POSIX_ONLY_MEMO:
-            _POSIX_ONLY_MEMO[key] = posix_only_cases(src)
+            try:
+                _POSIX_ONLY_MEMO[key] = posix_only_cases(src)
+            except Exception:  # POSIX-READER-NEVER-RAISES: a source too deep to parse refuses and excuses nothing
+                _POSIX_ONLY_MEMO[key] = None
         return _POSIX_ONLY_MEMO[key]
     return None
 
@@ -3190,7 +3194,7 @@ def _wave_gate(sandbox, name, filename, proofs, say, run):
                     key, _r, _w = cache.key_for(sandbox, name, filename, proofs[i])
                 except Exception:
                     key = None
-                _hit = cache.lookup(key) if key is not None else None
+                _hit = cache.peek(key) if key is not None else None   # REG-2353 - asked, not served: marks nothing
                 # #242 - a proof banked in ANOTHER tree is reused, but its gate still owes this tree one clean run: a
                 # law that reads live state only main holds can be red here and green there
                 if _hit is None or _hit.get("tree") != TREE_ID:
