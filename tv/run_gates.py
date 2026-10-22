@@ -127,9 +127,28 @@ def dead_console_port():
         return _DEAD_PORT["v"]
 
 
+def git_free_env(base=None, **extra):
+    """REG-2396 - `base` (default os.environ) with EVERY GIT_* variable removed, then `extra`. -> dict (a copy)
+
+    ⚠⚠ WHAT IT COST. Git exports GIT_DIR into a pre-push hook run from a linked worktree, and GIT_DIR beats cwd= and
+    -C in every git child: the v3783 pushes got two fixture commits on the push branch, and the v3784 push
+    re-initialised his main checkout as core.bare=true (REG-2360, REG-2392). The hook unsets that pointer now - but a
+    law run is also started by heart2, by this file, by suite_verdict and by shard_suite: by hand, from CI, from an OLD
+    hook (a push runs the hook file in his main checkout, so the hook it gets is the one origin/main had), from any
+    shell a hook left behind. heart2 dropped GIT_* in 2 routines, 5 of its 9 spawn calls. Every one now builds its
+    child's environment here, so a law run never inherits a pointer at someone else's repository, whoever started it.
+    EVERY GIT_*, not git's --local-env-vars list: GIT_NAMESPACE, GIT_CONFIG_PARAMETERS (a push's `git -c`) and the rest
+    change what a law's git sees as well. TV_PUSHED_GIT_DIR and TV_PUSHED_COMMIT - the commit-stamps law's own handle
+    on the pushed commit - are not GIT_* and pass. Case-blind, as Windows' environment is.
+    Law: test_a_worktree_sandbox_carries_its_own_history (ALawRunNeverInheritsTheCallersGitDir)."""
+    env = {k: v for k, v in (os.environ if base is None else base).items() if not str(k).upper().startswith("GIT_")}
+    env.update(extra)
+    return env
+
+
 def law_env(needs_app, base=None):
-    """The environment a gate runs in. -> dict (a copy; `base` defaults to os.environ)"""
-    env = dict(os.environ if base is None else base)
+    """The environment a gate runs in. -> dict (a copy; `base` defaults to os.environ; no GIT_* variable - REG-2396)"""
+    env = git_free_env(base)
     if not needs_app and env.get("TV_CONTROL_PORT", "") in ("", "17772"):
         env["TV_CONTROL_PORT"] = dead_console_port()
     return env

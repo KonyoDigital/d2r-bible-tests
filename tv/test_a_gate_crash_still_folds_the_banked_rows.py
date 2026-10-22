@@ -41,7 +41,13 @@ class ARunThatDiesStillFolds(unittest.TestCase):
 
         def spy(*a, **kw):
             env = kw.get("env") or {}
-            if env.get("TV_SELF_ARMING_DEFER"):
+            argv = a[0] if a else kw.get("args") or []
+            # REG-2396 - a GATE run is told by what it runs, never by its environment alone: gate_ledger's own git
+            # questions now carry a (GIT_*-free) copy of the run's environment, defer variable included, and counted
+            # here as gates they fired the "crash" before the first gate had run - its banked row was never written
+            ran_gate = any(os.path.basename(str(x)) in ("t_bank.py", "t_two.py")
+                           for x in (argv if isinstance(argv, (list, tuple)) else [argv]))
+            if ran_gate and env.get("TV_SELF_ARMING_DEFER"):
                 seen.append(env["TV_SELF_ARMING_DEFER"])
                 if crash and len(seen) == 2:
                     raise KeyboardInterrupt("a gate died mid-run")

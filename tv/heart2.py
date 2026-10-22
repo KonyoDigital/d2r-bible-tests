@@ -972,6 +972,19 @@ _NEED_COPY_MAX_FILE = 50 * 1024 * 1024
 _NEED_COPY_MAX_TREE = 200 * 1024 * 1024
 
 
+def _git_free_env(**extra):
+    """REG-2396 - THE ENVIRONMENT OF EVERY PROCESS HEART2 STARTS: this process's, with EVERY GIT_* variable removed, plus
+    `extra`. -> dict. One definition, run_gates.git_free_env (law_env applies it to every law run there and here).
+
+    ⚠⚠ heart2 dropped GIT_* in 2 routines - 5 of its 9 spawn calls (found by the cross-family review of Push A2): the
+    law runs themselves (_run_gate_once), its own key questions (`git -C REPO ...`, which a leaked GIT_DIR beats) and
+    the APFS cp inherited whatever the caller had. So a prove started from an OLD hook - a push runs the hook in his
+    MAIN checkout, the one origin/main had - or by hand inside one ran every law under the pointer at the real repo,
+    and keyed its proofs on another tree's files. The new hook unsets it first; this holds whoever the caller is."""
+    import run_gates as _rg
+    return _rg.git_free_env(None, **extra)
+
+
 def _bring_across(src, dst, need, say):
     """Place one PROOF_NEEDS item in a sandbox. Never escapes the sandbox, never fills the disk.
 
@@ -988,10 +1001,19 @@ def _bring_across(src, dst, need, say):
     """
     if sys.platform == "darwin":
         _rc = subprocess.run(["cp", "-c", "-R", src, dst],
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT).returncode
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=_git_free_env()).returncode
         if _rc != 0:      # not APFS, or clones unavailable — say so rather than silently copying GBs
             say("  could not CLONE %r (cp -c exit %s) — not copying it by hand; the gate stays "
                 "UNPROVABLE rather than risking the disk" % (need, _rc))
+            return
+        if os.path.basename(os.path.normpath(src)) == ".git" and os.path.isdir(dst):
+            # REG-2397 - THE MAIN CHECKOUT'S HISTORY ARRIVES AS A WHOLE COPY OF ITS .git, REMOTES INCLUDED: its origin
+            # is GitHub (the PUBLIC repo) and a `git push` a law made in the sandbox would have gone there. Shut every
+            # remote's push the way _share_history shuts a clone's; a copy whose push cannot be shut is not kept.
+            if not _shut_push(dst, say):
+                _rmtree_hard(dst)
+                say("  the sandbox's copy of %r could not have its push shut — not kept, so gates that read it stay "
+                    "UNPROVABLE" % need)
         return
     if os.path.basename(os.path.normpath(src)) == ".git" and os.path.isdir(src):
         _share_history(os.path.dirname(os.path.normpath(src)), dst, say)
@@ -1021,6 +1043,39 @@ def _bring_across(src, dst, need, say):
 _NO_PUSH = "no-push-from-a-sandbox"
 
 
+def _shut_push(git_dir, say):
+    """REG-2364 / REG-2397 - EVERY REMOTE of the history at `git_dir` (a sandbox's own .git) gets a push url that is no
+    repository. -> bool (False: a remote could not be read or shut - the caller then keeps no history)
+
+    A clone's origin is the checkout it was cloned from (REG-2364). A Mac sandbox's copy of the main checkout's .git keeps
+    HIS remotes, and its origin is GitHub - the PUBLIC repo (REG-2397). Either way a `git push` a law made in the sandbox
+    would write a real repository. A remote's push url beats its url for a push (and a remote that has one ignores
+    url.*.pushInsteadOf), so each one points at a path inside the sandbox's own git dir that is never a repository, and
+    the push fails at once. Asked through --git-dir with no GIT_* variable: nothing but the sandbox's config is written."""
+    env = _git_free_env(GIT_OPTIONAL_LOCKS="0")
+    git = ["git", "--git-dir=" + git_dir]
+    try:
+        r = subprocess.run(git + ["config", "--get-regexp", r"^remote\..+\.(url|pushurl)$"], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace", timeout=60, env=env)
+        if r.returncode not in (0, 1):            # 1: no remote at all - nothing to shut
+            say("  the sandbox's git remotes could not be read (git config exit %s)" % r.returncode)
+            return False
+        names = sorted(set(m.group(1) for m in (re.match(r"remote\.(\S+)\.(?:url|pushurl)(?:\s|$)", ln)
+                                                 for ln in (r.stdout or "").splitlines()) if m))
+        for name in names:
+            shut = subprocess.run(git + ["config", "--replace-all", "remote.%s.pushurl" % name,
+                                         os.path.join(git_dir, _NO_PUSH)], capture_output=True, text=True,
+                                  encoding="utf-8", errors="replace", timeout=60, env=env)
+            if shut.returncode != 0:
+                say("  the sandbox's remote %r could not have its push shut (git config exit %s)"
+                    % (name, shut.returncode))
+                return False
+        return True
+    except (OSError, subprocess.SubprocessError) as e:
+        say("  the sandbox's git remotes could not be shut (%s)" % type(e).__name__)
+        return False
+
+
 def _share_history(work_tree, dst, say):
     """A PRIVATE git history of `work_tree`, placed at `dst` (a sandbox's `.git`). -> True when the sandbox holds one.
 
@@ -1037,8 +1092,7 @@ def _share_history(work_tree, dst, say):
     the same kind as the leaked GIT_DIR that put two fixture commits on his push branch on v3783. The push url is
     pointed at a path that is no repository, and a history whose push could not be shut is not kept.
     """
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    env["GIT_OPTIONAL_LOCKS"] = "0"
+    env = _git_free_env(GIT_OPTIONAL_LOCKS="0")
     tmp = dst + ".shared"
     placed = False
     try:
@@ -1052,13 +1106,10 @@ def _share_history(work_tree, dst, say):
         placed = True
         subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
-        shut = subprocess.run(["git", "config", "remote.origin.pushurl", os.path.join(dst, _NO_PUSH)],
-                              cwd=os.path.dirname(dst), capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=60, env=env)
-        if shut.returncode != 0:
+        if not _shut_push(dst, say):
             _rmtree_hard(dst)
-            say("  the sandbox's git history could not have its push shut (git config exit %s) — not kept, so "
-                "gates that read it stay UNPROVABLE" % shut.returncode)
+            say("  the sandbox's git history could not have its push shut — not kept, so gates that read it stay "
+                "UNPROVABLE")
             return False
         return True
     except (OSError, subprocess.SubprocessError) as e:
@@ -1100,8 +1151,7 @@ def _drop_run_records(dest, keep, say):
                      if os.path.lexists(os.path.join(root, *r.split("/"))))
     if not present:
         return {}
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    env["GIT_OPTIONAL_LOCKS"] = "0"
+    env = _git_free_env(GIT_OPTIONAL_LOCKS="0")
     gd = os.path.join(root, ".git")
     git = ["git", "--git-dir=" + gd, "--work-tree=" + root, "-c", "core.hooksPath=" + os.devnull]
     tracked = None
@@ -1941,7 +1991,7 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     p = os.path.join(sandbox_tv, filename)
     if not os.path.exists(p):
         return None, "the gate file is not in the sandbox"
-    env = dict(os.environ)
+    env = _git_free_env()                      # REG-2396 - a law run never inherits the caller's GIT_DIR
     env["PYTHONDONTWRITEBYTECODE"] = "1"      # no stale .pyc can outlive a tamper
     env["HEART2_LANES"] = str(int(LANES_NOW or 1))   # REG-1997 - the lanes running beside this law right now
     # ⚠ #42 — THE RESTRICTION BELONGS TO THE PROOF, NEVER TO THE ENVIRONMENT. `widths` is handed in only by a push-time
@@ -3332,7 +3382,7 @@ def _tracked_files(repo=None):
     the prover are unchanged. None (git not answering) leaves the key as it was - over-inclusion, never a stale PROVEN."""
     repo = REPO if repo is None else repo
     try:
-        r = subprocess.run(["git", "-C", repo, "ls-files", "-z"], capture_output=True, timeout=30)
+        r = subprocess.run(["git", "-C", repo, "ls-files", "-z"], capture_output=True, timeout=30, env=_git_free_env())
     except (OSError, subprocess.SubprocessError):
         return None
     if r.returncode != 0:
@@ -3749,7 +3799,7 @@ def _git(*args):
     """#42 — one read-only git question about this repo. -> (ok, stdout)"""
     try:
         r = subprocess.run(["git", "-C", REPO] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                           timeout=30)
+                           timeout=30, env=_git_free_env())
     except Exception as _e:
         # the question could not be asked: said as a failed answer (ok False), which the caller reports as UNKNOWN
         return False, "git %s: %s" % (args[0] if args else "", type(_e).__name__)

@@ -7,6 +7,65 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2397 - ON THE MAC, A SANDBOX OF THE MAIN CHECKOUT KEPT HIS REMOTES: A `git push` A LAW MADE THERE WOULD HAVE GONE TO GITHUB (Push A2 review)
+
+REG-2364 shut the push of the private clone a worktree's sandbox gets. A sandbox built from the MAIN checkout on the Mac takes a
+different road: `_bring_across` copies the whole `.git` with `cp -c -R` (an APFS clone), config and remotes included - and his
+main checkout's origin is the PUBLIC GitHub repo, with no push url. A `git push` any law ran inside such a sandbox would have used
+his credential helper and pushed for real. Named in REG-2364's LEFT; the reviewer of Push A2 asked for it closed.
+FIX: heart2._shut_push - ONE routine, now also the clone's (REG-2364): every remote of the sandbox's history (`remote.<name>.url`
+or `.pushurl`, any scope) gets `remote.<name>.pushurl` replaced by a path inside the sandbox's own git dir that is never a
+repository (a push url beats the url, and a remote with one ignores url.*.pushInsteadOf), asked through --git-dir with no GIT_*
+variable. A history whose push cannot be shut is not kept (the gates that read it stay UNPROVABLE). MEASURED on a fixture main
+checkout with two stand-in remotes (`origin`, `mirror`): a commit and a push to each from its sandbox both fail, both remotes and
+the fixture repo unchanged; with the darwin branch's `_shut_push` call removed (red-proof, macOS only) the push reaches the remote.
+GUARD: tv/test_a_worktree_sandbox_carries_its_own_history.py, test_a_push_from_a_main_checkout_sandbox_reaches_no_remote; RED
+proofs [1] (re-anchored on _shut_push) and [9] (`"needs": "macos"` - off the Mac the history is a clone, whose push [1] covers).
+LEFT: a push to an explicit URL (`git push <url>`) cannot be shut by configuration; no law does that.
+
+### REG-2396 - HEART2 DROPPED GIT_* IN ONLY 2 ROUTINES: A LAW RUN INHERITED THE CALLER'S GIT_DIR WHOEVER STARTED IT (Push A2 review)
+
+Found by the cross-family review of Push A2 (GrokBot, #230: "2 of its 11 places") and by our own reviewer. REG-2360 made the HOOK
+unset git's pointer before its stages, and heart2 built clean environments in two routines (_share_history, _drop_run_records):
+5 of its 9 spawn calls. The other 4 inherited the caller's environment whole: _run_gate_once (`env = dict(os.environ)` ->
+run_gates.law_env, no filter) - every law heart2 proves, at push and by hand; heart2's own key questions, `git -C REPO ls-files`
+(_tracked_files, the key's named-file half) and `_git` (the push base, the changed files), where a leaked GIT_DIR beats -C; and
+the APFS `cp` (harmless - cp reads no GIT_* - and given the clean environment anyway). run_gates.law_env, the door every gate
+run passes on CI and by hand, had no filter either; nor did suite_verdict (its suite runs and tree key), shard_suite (every shard
+of test_control, and the plan import) or gate_ledger (its carry questions). So heart2 was safe only while the hook scrubbed first -
+and a push runs the hook file in his MAIN checkout (core.hooksPath), the one origin/main has, so Push A2's own push runs v3784's
+hook, which scrubs nothing.
+FIX: ONE helper, run_gates.git_free_env(base, **extra): EVERY GIT_* variable removed (not git's --local-env-vars list -
+GIT_NAMESPACE, a push's GIT_CONFIG_PARAMETERS and the rest change what a law's git sees too; case-blind, as Windows' environment
+is); TV_PUSHED_GIT_DIR / TV_PUSHED_COMMIT, the commit-stamps law's handle on the pushed commit, are not GIT_* and pass. law_env
+applies it to every gate run; heart2 (_git_free_env: the cp, the clone, read-tree, the push shut, ls-tree, checkout, the law run,
+ls-files, _git), suite_verdict, shard_suite and gate_ledger take every child's environment from it. This also closes GrokBot's LOW
+(the hook clears fewer GIT_* than heart2: GIT_EXEC_PATH, GIT_NAMESPACE, ...): whatever the hook leaves, no law those four start
+gets it. It also
+covers REG-2360's LEFT for every run heart2, run_gates, suite_verdict or shard_suite starts: the 14 temp-repo laws with no scope
+scrub of their own are now safe there, hook or no hook.
+MEASURED on fixtures with the caller's GIT_DIR, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS and GIT_NAMESPACE in the prover's own
+environment: a fixture law run by _run_gate_once in a worktree's sandbox sees no GIT_* variable, answers `git rev-parse
+--absolute-git-dir` with the sandbox's own .git and HEAD with the worktree's, and its commit and `core.bare true` land in the
+sandbox - the fixture repo byte-identical; heart2._git answers the main checkout's HEAD (not the worktree's) and _tracked_files
+lists the main checkout's index (not the worktree's staged entry).
+GUARD: tv/test_a_worktree_sandbox_carries_its_own_history.py, class ALawRunNeverInheritsTheCallersGitDir (4 cases: the law run;
+heart2's own git questions; law_env drops every GIT_* and keeps TV_PUSHED_*; every subprocess call in heart2, suite_verdict,
+shard_suite and gate_ledger passes env= and none builds an environment from os.environ by hand). RED proofs [4]-[8]: the helper
+keeps GIT_*; law_env copies its base whole; ls-files, and `_git`, under the caller's GIT_DIR; the law run built from os.environ.
+The law: 9/9 OK plain; heart2 --prove 10/10 PROVEN. Every one of the 92 non-browser laws that read the changed files was run plain:
+91 green at once, the 92nd is the fold law below.
+ALSO FIXED, found by running every law that reads the changed files (92 non-browser, plain): the spy in
+tv/test_a_gate_crash_still_folds_the_banked_rows.py told a GATE run by "the defer variable is in its environment". gate_ledger's git
+questions now carry a (GIT_*-free) copy of the run's environment, defer variable included, so the spy counted them as gates and
+fired its "crash" before the first gate ran - its banked row was never written: 1 failure on the new tree, green on HEAD's code
+(measured both ways). It now tells a gate run by its argv; 6/6 OK on the new tree and on HEAD's; heart2 --prove 10/10 PROVEN.
+LEFT: a law run by hand as `python3 tv/test_x.py` from a shell that holds GIT_DIR still inherits it - nothing sits between that
+shell and the law. The suites the hook runs itself (test_agent, test_folder_scans, test_tz_art, the two chronicle suites; test_control
+goes through shard_suite) inherit what the scrub leaves - the push's `git -c` options and variables like GIT_EXEC_PATH, never a
+pointer. heart2's push base (an ORDERING hint for --push, never the proving set) is asked of git without the push's
+`git -c` options; the hook's own base is TV_PUSH_BASE (REG-2395).
+
 ### REG-2395 - A PUSH WHOSE @{push} DID NOT RESOLVE SKIPPED ALL SIX TV SUITES WITHOUT A WORD (Push A2 review)
 
 hooks/pre-push's tv-suites lane (test_agent, test_control, test_folder_scans, test_tz_art, test_chronicle_retro,

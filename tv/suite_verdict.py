@@ -70,11 +70,19 @@ RUN_TIMEOUT_S = {"test_agent": 600, "test_control": 1500}
 SHARDED = frozenset(("test_control",))
 
 
+def _git_free_env():
+    """REG-2396 - the environment every process this file starts runs in: run_gates.git_free_env, the one definition (no
+    GIT_* variable). A leaked GIT_DIR beats cwd=, so the key would be another checkout's tree and a suite run would
+    write through it. -> dict"""
+    import run_gates as _rg
+    return _rg.git_free_env()
+
+
 def _git(args, cwd=None):
     """-> stdout str, or None when git could not answer."""
     try:
         p = subprocess.run(["git"] + list(args), cwd=cwd or REPO, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=60)
+                           errors="replace", timeout=60, env=_git_free_env())
     except Exception:
         return None
     if p.returncode != 0:
@@ -281,7 +289,7 @@ def run(name, cwd=None):
     t0 = time.time()
     try:
         p = subprocess.run(argv, cwd=cwd or REPO, capture_output=True, text=True, encoding="utf-8",
-                           errors="replace", timeout=RUN_TIMEOUT_S.get(name, 1500))
+                           errors="replace", timeout=RUN_TIMEOUT_S.get(name, 1500), env=_git_free_env())
         out = (p.stdout or "") + (p.stderr or "")
         ok = p.returncode == 0
     except subprocess.TimeoutExpired:

@@ -57,6 +57,15 @@ sys.exit(0 if res.wasSuccessful() else 1)
 '''
 
 
+def _git_free_env(base=None):
+    """REG-2396 - the environment of every process this file starts: run_gates.git_free_env (the one definition, beside
+    this file) - no GIT_* variable, so a shard never runs its law under a leaked GIT_DIR, whoever started it. -> dict"""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import run_gates as _rg
+    return _rg.git_free_env(base)
+
+
 def _load_plan(suite, here=HERE):
     """The suite's TestCase classes, their case counts, and which must run ALONE. -> ({name: n}, [name, ...])"""
     code = ("import json, os, sys, unittest\nsys.path.insert(0, %r)\nsys.argv = [%r]\n"
@@ -69,7 +78,7 @@ def _load_plan(suite, here=HERE):
             "            if getattr(obj, 'SHARD_ALONE', False) is True:\n                alone.append(name)\n"
             "full = unittest.defaultTestLoader.loadTestsFromModule(mod).countTestCases()\n"
             "print('SHARD_CLASSES ' + json.dumps({'counts': out, 'alone': alone, 'full': full}))\n") % (here, suite + ".py", suite)
-    p = subprocess.run([sys.executable, "-c", code], cwd=here, capture_output=True, text=True,
+    p = subprocess.run([sys.executable, "-c", code], cwd=here, capture_output=True, text=True, env=_git_free_env(),
                        encoding="utf-8", errors="replace", timeout=300)
     for ln in (p.stdout or "").splitlines():
         if ln.startswith("SHARD_CLASSES "):
@@ -129,7 +138,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     _started, _overran = {}, set()      # each shard's budget runs from ITS start; who was ended for overrunning it
 
     def _start(i, names):
-        env = dict(os.environ if _env is None else _env)
+        env = _git_free_env(_env)                 # REG-2396 - a shard never inherits the caller's GIT_DIR
         env.update({"SHARD_HERE": here, "SHARD_SUITE": suite, "SHARD_CLASSES": json.dumps(names),
                     "SHARD_OUT": os.path.join(tmp, "shard%d.json" % i),
                     "TV_PORT": str(PORT_BASE + 2 * i), "TV_CONTROL_PORT": str(PORT_BASE + 2 * i + 1),
@@ -232,7 +241,7 @@ def _end_one(p):
             return
         if os.name == "nt":
             subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, timeout=30)
+                           stderr=subprocess.DEVNULL, timeout=30, env=_git_free_env())
         else:
             import signal as _sg
             os.killpg(p.pid, _sg.SIGKILL)
