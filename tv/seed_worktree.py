@@ -18,8 +18,8 @@ until #178 made that ledger one per machine. This joins worktree creation to tha
     <worktree>/.seed-tmp/node_modules/ (ignored by git at any depth) and moved into place whole, so a killed seed never
     leaves half a node_modules behind under the real name.
   · IT NEVER OVERWRITES. An item already present in the worktree (file, directory or link) is left exactly as it is.
-  · tv/.second_eye.jsonl IS ASKED, NOT ASSUMED: it is seeded only while second_eye_ledger still keeps a per-checkout
-    ledger for this worktree (the module is asked; #178 retires the copy).
+  · tv/.second_eye.jsonl IS ASKED, NOT ASSUMED: it is seeded only while the second_eye_ledger the WORKTREE runs still
+    keeps a per-checkout ledger (its module is read; #178 retires the copy, and a branch from before #178 still gets it).
   · IT REFUSES, COPYING NOTHING (exit 2): a destination that is the main checkout itself (its .git is a directory), a
     path that is not a worktree root, a pointer that will not resolve, a common dir with no main checkout beside it, and
     a seed that would leave free disk under his ON AIR floor (FLOOR_GB, the console's own line). TV_SEED_FREE_BYTES is a
@@ -91,21 +91,32 @@ def main_checkout_of(worktree):
 
 
 def second_eye_per_checkout(worktree):
-    """Does second_eye_ledger still keep a per-checkout ledger for this worktree? Asked of the module. -> (bool, why)"""
+    """Will the second_eye_ledger THIS WORKTREE runs keep a per-checkout ledger? -> (bool, why)
+
+    Asked of the module the worktree's own gates will run (its tv/second_eye_ledger.py, parsed - never imported or
+    run): a module from before #178 has no machine_ledger() and keeps tv/.second_eye.jsonl, so the copy is still
+    needed; one that has it is asked where this worktree's ledger lives. A module that cannot be read is UNKNOWN, and
+    the copy is made: a missing ledger refuses a push, an extra copy is only folded in."""
+    import ast
+    src = os.path.join(worktree, "tv", "second_eye_ledger.py")
+    try:
+        with io.open(src, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+    except (OSError, SyntaxError, ValueError) as e:
+        return True, ("the worktree's tv/second_eye_ledger.py would not read (%s) - seeded, since a missing ledger "
+                      "refuses a push" % type(e).__name__)
+    if not any(isinstance(n, ast.FunctionDef) and n.name == "machine_ledger" for n in tree.body):
+        return True, "the worktree's second_eye_ledger predates #178 - its ledger is per checkout"
     try:
         if HERE not in sys.path:
             sys.path.insert(0, HERE)
         import second_eye_ledger as SEL
+        path, why = SEL.machine_ledger(worktree)
     except Exception as e:
-        return True, "second_eye_ledger would not import (%s) - seeded, since a missing ledger refuses a push" % (
-            type(e).__name__)
-    ask = getattr(SEL, "machine_ledger", None)
-    if ask is None:
-        return True, "second_eye_ledger predates #178 - its ledger is per checkout"
-    path, why = ask(worktree)
+        return True, "where the worktree's ledger lives could not be asked (%s) - seeded" % type(e).__name__
     own = os.path.realpath(path) == os.path.realpath(os.path.join(worktree, SECOND_EYE))
     if why is not None or own:
-        return True, "second_eye_ledger keeps this worktree's ledger in the worktree (%s)" % (why or path)
+        return True, "the worktree keeps its own ledger (%s)" % (why or path)
     return False, "the second-eye ledger is one per machine (#178) - nothing to seed"
 
 
@@ -247,6 +258,8 @@ def seed(worktree, say=print, dry=False, second_eye=None):
         need += b
     if not second_eye:
         say("seed:   %-22s not seeded - %s" % (SECOND_EYE, se_why))
+    else:
+        say("seed:   %-22s wanted - %s" % (SECOND_EYE, se_why))
     try:
         free, seam = _free_bytes(worktree)
     except Exception as e:

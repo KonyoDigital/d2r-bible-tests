@@ -9,8 +9,8 @@ and a FIXTURE worktree pointer in this law's own scratch - no git is run, and fr
   1. a fresh worktree gets REAL copies: node_modules a directory (never a link into main - a node_modules symlink once
      deleted main's real one), its files their own inodes, an edit to the copy never reaches main, a relative link
      inside node_modules/.bin kept inside the copy, tv/.heart2.json byte-equal, the staging area gone, the headroom said;
-  2. tv/.second_eye.jsonl is ASKED of second_eye_ledger: one per machine (#178) -> not copied, and said; per checkout
-     (an older module, or told so) -> copied;
+  2. tv/.second_eye.jsonl is ASKED of the second_eye_ledger the worktree will run: one per machine (#178) -> not
+     copied, and said; a module from before #178 -> copied; no readable module -> UNKNOWN, copied, and said;
   3. nothing present is overwritten;
   4. a seed that would leave free disk under his 8 GB ON AIR floor is refused with exit 2 and NOTHING copied - and the
      boundary is exact: leaving the floor itself is allowed;
@@ -74,7 +74,9 @@ class APushWorktreeIsSeededBeforeItsGates(unittest.TestCase):
         self._env.start()
         self.addCleanup(self._env.stop)
 
-    def _worktree(self, name):
+    def _worktree(self, name, module="today"):
+        """A fixture worktree. `module`: the second_eye_ledger its gates would run - "today" (this tree's, per
+        machine), "old" (one from before #178, per checkout) or None (none at all)."""
         root = os.path.join(self.root, name)
         meta = os.path.join(self.main, ".git", "worktrees", name)
         os.makedirs(os.path.join(root, "tv"))
@@ -82,6 +84,12 @@ class APushWorktreeIsSeededBeforeItsGates(unittest.TestCase):
         _put(os.path.join(meta, "gitdir"), os.path.join(root, ".git") + "\n")
         _put(os.path.join(meta, "commondir"), "../..\n")
         _put(os.path.join(root, ".git"), "gitdir: %s\n" % meta)
+        mod = os.path.join(root, "tv", "second_eye_ledger.py")
+        if module == "today":
+            shutil.copy2(os.path.join(HERE, "second_eye_ledger.py"), mod)
+        elif module == "old":
+            _put(mod, "import os\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+                      "LEDGER_PATH = os.path.join(HERE, '.second_eye.jsonl')\n")
         return root
 
     def _seed(self, dest, **kw):
@@ -124,16 +132,18 @@ class APushWorktreeIsSeededBeforeItsGates(unittest.TestCase):
         self.assertEqual(self._seed(self.wt), 0, self._out())
         self.assertFalse(os.path.lexists(led), "the per-machine second-eye ledger was copied into the worktree")
         self.assertIn("one per machine", self._out())
-        wt2 = self._worktree("wt2")
-        self.assertEqual(self._seed(wt2, second_eye=True), 0, self._out())
-        self.assertTrue(os.path.isfile(os.path.join(wt2, "tv", ".second_eye.jsonl")),
-                        "a per-checkout second-eye ledger was not seeded")
-        import second_eye_ledger as SEL
-        wt3 = self._worktree("wt3")
-        with mock.patch.object(SEL, "machine_ledger", None):     # a module from before #178
-            self.assertEqual(self._seed(wt3), 0, self._out())
-        self.assertTrue(os.path.isfile(os.path.join(wt3, "tv", ".second_eye.jsonl")),
-                        "a module that keeps the ledger per checkout was not asked - the copy was skipped")
+        old = self._worktree("wt_old", module="old")              # a branch from before #178 still needs its copy
+        self.assertEqual(self._seed(old), 0, self._out())
+        self.assertTrue(os.path.isfile(os.path.join(old, "tv", ".second_eye.jsonl")),
+                        "a worktree whose own module keeps the ledger per checkout was not given it")
+        self.assertIn("predates #178", self._out())
+        none = self._worktree("wt_none", module=None)              # UNKNOWN: copied, and said
+        self.assertEqual(self._seed(none), 0, self._out())
+        self.assertTrue(os.path.isfile(os.path.join(none, "tv", ".second_eye.jsonl")))
+        self.assertIn("would not read", self._out())
+        told = self._worktree("wt_told")
+        self.assertEqual(self._seed(told, second_eye=True), 0, self._out())
+        self.assertTrue(os.path.isfile(os.path.join(told, "tv", ".second_eye.jsonl")))
 
     # 3 ---------------------------------------------------------------------------------------------------------------
     def test_nothing_present_is_overwritten(self):

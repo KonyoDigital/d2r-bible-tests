@@ -55,7 +55,8 @@ FIX: NEW tv/seed_worktree.py <worktree> [--dry-run]. It finds the main checkout 
 commondir; no home path, no git run) and COPIES node_modules and tv/.heart2.json - never a link (a node_modules symlink once deleted
 main's real one, v3525). A link inside node_modules is kept only when it is relative and lands inside the copy (.bin's), and each
 item is built under <worktree>/.seed-tmp/node_modules/ (git-ignored at any depth) and moved into place whole. It skips anything
-present, asks second_eye_ledger whether its ledger is still per checkout before copying it (REG-2450 retires that copy), refuses
+present, asks the second_eye_ledger the WORKTREE will run (its source, parsed) whether that ledger is still per checkout before
+copying it (REG-2450 retires the copy; a branch from before it still gets one; an unreadable module is UNKNOWN and gets one), refuses
 the main checkout itself, a path that is not a worktree root and any seed that would leave free disk under his 8 GB ON AIR floor
 (exit 2, nothing copied), and prints what it seeded and the headroom. TV_SEED_FREE_BYTES is a law's seam. Not yet called by
 anything: the worktree recipe (and the push wrapper, when there is one) should run it right after `git worktree add`.
