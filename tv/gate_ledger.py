@@ -1601,9 +1601,11 @@ def read_trace(path, allow_cdp_chrome=False):
     REG-2442 - the facts beside the sets: E {name: sha256 | "-" absent | "?" two values}, Z {path: {kind: size}}, H
     {path: the bytes' sha256 as the run first opened them}, D {folder: its listing digest as first listed} - a Z or an H
     after the run wrote the path measured the run's own bytes and is left out - and T {ls-files scope}. N lines are a
-    child's lookup table and no fact. REG-2443 - C, render_check's attested Chrome, reads EXACTLY like U unless the
-    caller passes allow_cdp_chrome=True; then facts["C"] lists them and the caller owes a key for what that browser
-    loaded (the ledger never passes it, so a ledger run reads byte for byte as before)."""
+    child's lookup table and no fact. REG-2449 - MA, the part of M the run LOOKED for first and found absent (an A, or
+    an H "-", before its first write): never state it found to be there, but its absence is a fact (facts_of holds it,
+    and the ledger asks it of another checkout). REG-2443 - C, render_check's attested Chrome, reads EXACTLY like U
+    unless the caller passes allow_cdp_chrome=True; then facts["C"] lists them and the caller owes a key for what that
+    browser loaded (the ledger never passes it, so a ledger run reads byte for byte as before)."""
     try:
         with open(path, encoding="utf-8", errors="surrogateescape") as fh:
             lines = fh.read().splitlines()
@@ -1659,6 +1661,11 @@ def read_trace(path, allow_cdp_chrome=False):
             return None, "a python child of the gate ran without the trace"
     # made by this run before anything looked at it, so it is not state the run found
     facts["M"] = set(p for p, k in first.items() if k == "W" or (k == "A" and p in facts["W"]))  # LEDGER-MADE-FIRST
+    # REG-2449 - ...except the ones it LOOKED for first and found ABSENT: an A before the first write (exists() and then
+    # create it; a mkdir, symlink, link or copytree looks first, since each fails on a path that is there), or an H "-"
+    # (a write that keeps or refuses what it finds - append, r+, 'x' - found nothing there). That absence is a fact of
+    # the run: a tree that already holds the path is not the tree it ran on.
+    facts["MA"] = set(p for p in facts["M"] if first.get(p) == "A" or hashed.get(p) == "-")  # LEDGER-FOUND-ABSENT
     facts["E"], facts["Z"], facts["T"], facts["C"], facts["H"], facts["D"] = env, sizes, scopes, chrome, hashed, listed
     return facts, None
 
@@ -1673,10 +1680,20 @@ def read_trace(path, allow_cdp_chrome=False):
 #   L  a listed folder's names, each with its kind and a file's size, as one digest      E  each env value's digest
 #   I  for each imported name, which tv/, root or source-folder module could answer it - no new one may shadow it
 #   G  every tracked .gitignore's bytes (and which there are)                              T  each ls-files scope's set
+# What the run MADE is no fact, except what it found first (REG-2449): a path it looked for and found absent before
+# it made it (MA) is held ABSENT, a write that kept the bytes it found (append, r+) holds them (R, from H), and the
+# folder a made path was written into must still be a folder (Z "d"). Only a path made without looking - a truncating
+# write, a rename or copy onto it - holds nothing.
 # FLOORS, said: the times of a file (a raw os.stat().st_mtime; STRICT refuses the os.path getters), a C library's own
 # reads and getenv(), what a Chrome loads (a C fact - its caller keys the pages), .git/info/exclude and the global git
-# excludes file (a check-ignore's other inputs), and a file the run rewrote is held as the run left it.
-FACTS_VERSION = 1
+# excludes file (a check-ignore's other inputs), a read the trace kept no bytes for (node's own main script) is
+# measured in `root` right after the run, and on Windows os.rename - which fails on a path that is there, where POSIX
+# replaces it - is read like os.replace (one audit event for both).
+#: REG-2449 - 2: MA held absent, kept bytes held, a made path's folder held. A record of another version never holds.
+FACTS_VERSION = 2
+#: REG-2449 - the ledger's per-tree facts (Ledger._tree_facts): 2 adds made_absent, kept, the folders a run wrote into
+#: and a node child's listings. A row of another version carries only in the checkout it was proved in.
+TREE_FACTS_VERSION = 2
 #: REG-2442 - the environment names a prover sets PER RUN: never an E fact. gate_trace/sitecustomize.py's _PLUMBING and
 #: node_trace.cjs carry the same set (test_a_trace_names_every_read_a_key_needs holds the three equal). [[copy-drift]]
 TRACE_PLUMBING = frozenset(("TMPDIR", "TEMP", "TMP", "TV_LANE_PORT_BASE", "TV_PORT", "TV_CONTROL_PORT", "TV_LAW_PORT",
@@ -1710,7 +1727,10 @@ def _listing_digest(root, rel):
             for e in it:
                 if e.name == "__pycache__":
                     continue
-                kind, size = _kind_size(e.stat(follow_symlinks=False))
+                try:
+                    kind, size = _kind_size(e.stat(follow_symlinks=False))
+                except OSError:
+                    return "?"  # REG-2449 - a name gone mid-listing is no answer, never "the folder is absent"
                 rows.append("%s\t%s\t%s" % (e.name, kind.lower(), size))
     except FileNotFoundError:
         return "-"
@@ -1804,20 +1824,32 @@ def facts_of(root, facts):
     Bytes, sizes, listings and env digests come from the trace, measured AS the run read them (H, Z, D, E). What the
     trace could not measure - a node read's bytes is measured, a listing by descriptor or by glob's pattern is not -
     is measured in `root`, which must be the tree the run read, right after the run (a heart2 sandbox before anything
-    else touches it), as are the module homes, the .gitignores and the tracked sets. A path the run made before it
-    read it (M) is not a fact; a write that kept the bytes it found (append, r+) measured them first (H)."""
+    else touches it), as are the module homes, the .gitignores and the tracked sets. A path the run made (M) is no
+    fact of what it found, with three exceptions (REG-2449): one it looked for first and found absent (MA) is held
+    absent, a write that kept the bytes it found (append, r+) measured them first (H) and holds them, and the folder
+    a made path was written into must still be a folder."""
     hashed = facts.get("H") or {}
-    made = set(facts.get("M") or ()) - set(hashed)
+    made = set(facts.get("M") or ())
+    found_absent = set(facts.get("MA") or ()) & made  # FACTS-FOUND-ABSENT
+    kept = set(p for p in made if p in hashed) - found_absent
     sizes = facts.get("Z") or {}
     listed = facts.get("D") or {}
     rec = {"v": FACTS_VERSION}
     rec["R"] = {}
-    for p in sorted((set(facts.get("R") or ()) | set(hashed)) - made):
+    for p in sorted((set(facts.get("R") or ()) | set(hashed)) - (made - kept)):
         d = hashed.get(p)
         rec["R"][p] = (("d:" + _listing_digest(root, p)) if d == "d" else d) if d is not None else _fact_bytes(root, p)
     rec["Z"] = dict((p, dict(k)) for p, k in sorted(sizes.items()) if p not in made)
+    for p in sorted(made):
+        folder = p.rsplit("/", 1)[0] if "/" in p else ""
+        if folder and folder not in made:  # the run wrote INTO it: what it was decided the write  # FACTS-WRITE-FOLDER
+            try:
+                kind, size = _kind_size(os.stat(_fact_path(root, folder)))
+            except OSError:
+                kind, size = "-", "-"  # a write that failed on a missing folder: held missing, as the run had it
+            rec["Z"].setdefault(folder, {}).setdefault(kind, size)
     rec["S"] = dict((p, _presence(root, p)) for p in sorted(set(facts.get("S") or ()) - made - set(sizes)))
-    rec["A"] = sorted(set(facts.get("A") or ()) - made)
+    rec["A"] = sorted((set(facts.get("A") or ()) - made) | found_absent)
     rec["L"] = dict((p, listed.get(p) or _listing_digest(root, p)) for p in sorted(set(facts.get("L") or ()) - made))
     homes = set(["", "tv"]) | set(os.path.dirname(p).replace(os.sep, "/") for p in rec["R"] if p.endswith(".py"))
     rec["I"] = _module_homes(root, set(facts.get("I") or ()), homes)
@@ -3030,11 +3062,18 @@ class Ledger(object):
 
         absent:  every path it looked for outside the tracked set and found absent (an ignored file is never in git
                  status, so a PASS proved without it would carry into a checkout that has it)
-        folders: every untracked folder it found (an ignored folder only one checkout holds)
-        listed:  for every TRACKED folder it really listed (a D fact; a `git ls-files` is not a folder listing), the
-                 names git does not track there - a listing sees ignored names git status never says
-        A row with these carries into another checkout only where they hold; None (git could not list the tracked
-        files, or a folder could not be read) keeps the row to its own checkout."""
+        folders: every untracked folder it found (an ignored folder only one checkout holds), and (REG-2449) every
+                 folder a path it made was written into - a write into a folder another checkout lacks fails there
+        listed:  for every TRACKED folder it really listed, the names git does not track there - a listing sees ignored
+                 names git status never says. REG-2449 - "really listed" is a D fact OR an L of a folder: a node child
+                 wrote no D before REG-2449, and its listing was never held. L "" alone is `git ls-files` (the tracked
+                 set, not the root's names), so the root counts only with its D.
+        made_absent (REG-2449): every path outside the tracked set the run LOOKED for, found absent and then made (MA:
+                 exists() then create it, append onto nothing, an 'x' open, a mkdir) - its absence is what the run found
+        kept (REG-2449): every such path a write found THERE and kept the bytes of (append, r+): those bytes (H)
+        A row with these carries into another checkout only where they hold; made_absent and kept are asked only in
+        ANOTHER checkout (in its own the run left them behind - today's rule). None (git could not list the tracked
+        files, a folder could not be read, a kept file's bytes were not measured) keeps the row to its own checkout."""
         tracked = self._tracked(root)
         if tracked is None:
             return None
@@ -3050,25 +3089,53 @@ class Ledger(object):
                 absent.append(path)  # LEDGER-TREE-ABSENT
             elif os.path.isdir(full):
                 folders.append(path)
-        seen = facts.get("D") if isinstance(facts.get("D"), dict) else None
+        # REG-2449 - what the run made: found absent first (made_absent), found there with bytes it kept (kept), and
+        # the folder it was written into
+        hashed = facts.get("H") if isinstance(facts.get("H"), dict) else {}
+        found_absent = set(facts.get("MA") or ())
+        made_absent, kept, into = [], {}, set()
+        for path in sorted(made):
+            if not path:
+                continue
+            folder = path.rsplit("/", 1)[0] if "/" in path else ""
+            if folder and folder not in made:
+                into.add(folder)
+            if path in tracked or path in dirs or path == ".git" or path.startswith(".git/") \
+                    or os.path.basename(path) in _SELF or path in _KEYED_CACHES:
+                continue
+            if path in found_absent:
+                made_absent.append(path)  # LEDGER-TREE-MADE-ABSENT
+            elif path in hashed:
+                if hashed[path] in ("-", "d", "?"):
+                    return None  # bytes it kept that no other checkout can be held to
+                kept[path] = hashed[path]  # LEDGER-TREE-KEPT
+        for folder in sorted(into - set(folders)):
+            if not os.path.isdir(_fact_path(root, folder)):
+                return None  # the folder it wrote into is gone again: nothing to hold another checkout to
+            folders.append(folder)  # LEDGER-TREE-WRITE-FOLDER
+        folders.sort()
+        d_facts = facts.get("D") if isinstance(facts.get("D"), dict) else {}
         listed = {}
-        for folder in sorted((set(seen) if seen is not None else set(facts.get("L") or ())) - made):
+        for folder in sorted((set(d_facts) | set(p for p in (facts.get("L") or ()) if p)) - made):  # LEDGER-TREE-L
             if folder in dirs or folder == "":
                 names = self._untracked_names(root, folder, tracked, dirs)
                 if names is None:
                     return None
                 listed[folder] = names
-        return {"absent": absent, "folders": folders, "listed": listed}
+        return {"v": TREE_FACTS_VERSION, "absent": absent, "folders": folders, "listed": listed,
+                "made_absent": made_absent, "kept": kept}
 
     def _tree_moved(self, entry, root):
         """REG-2445 (a) - why a stored PASS cannot carry into THIS checkout, or None. A row without per-tree facts (folded
-        from a checkout's own file, or written before them) carries only in the checkout it was proved in. With them,
-        each absent path must still be absent and each folder a folder; a listed folder's untracked names are asked only
-        in ANOTHER checkout (in its own, today's rule stands: the console writes ignored names there all day). -> str"""
+        from a checkout's own file, or written before them, or - REG-2449 - of another TREE_FACTS_VERSION) carries only
+        in the checkout it was proved in. With them, each absent path must still be absent and each folder a folder; a
+        listed folder's untracked names, each path the run found absent and made, and each file whose bytes it kept are
+        asked only in ANOTHER checkout (in its own, today's rule stands: the run left them there itself, and the console
+        writes ignored names there all day). -> str"""
         here = _tree_id(root)
         tf = entry.get("tree_facts")
         tree = entry.get("tree")
-        if not isinstance(tf, dict):
+        if not isinstance(tf, dict) or tf.get("v") != TREE_FACTS_VERSION:
             if tree and tree != here:
                 return "this PASS was proved in another checkout without per-tree facts, so it carries only there"
             return None
@@ -3078,6 +3145,14 @@ class Ledger(object):
         for path in tf.get("folders") or ():
             if not os.path.isdir(_fact_path(root, path)):
                 return "inputs changed: %s is not a folder in this checkout" % path
+        if tree != here:
+            for path in tf.get("made_absent") or ():
+                if os.path.lexists(_fact_path(root, path)):  # LEDGER-TREE-MADE-ABSENT-MOVED
+                    return ("inputs changed: %s exists in this checkout, and the run that proved the PASS found it "
+                            "absent and made it" % path)
+            for path, d in sorted((tf.get("kept") or {}).items()):
+                if _fact_bytes(root, path) != d:  # LEDGER-TREE-KEPT-MOVED
+                    return "inputs changed: %s is not the bytes the run found and kept where it was proved" % path
         listed = tf.get("listed") or {}
         if listed and tree != here:
             tracked = self._tracked(root)

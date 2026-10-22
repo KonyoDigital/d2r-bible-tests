@@ -52,6 +52,12 @@ every path outside the root without a word. TV_GATE_TRACE_STRICT=1 adds two U's:
 dbm (their reads raise no open event) and os.path.getmtime/getctime/getatime on a path under the root (a copy's times
 are the copy's). FLOOR, said: a raw os.stat(p).st_mtime is not seen; Z keeps the size, never the times.
 
+REG-2449 - A WRITE THAT FAILS ON A PATH THAT IS THERE LOOKED FIRST. mkdir, symlink, link and copytree's folder write A
+(nothing there) or S and Z before their W, and an exclusive open ('x', O_EXCL) measures H like an append. Only a
+truncating write - and a rename or copy onto a path - makes it without looking. So gate_ledger.read_trace's MA (found
+absent, then made) holds every path whose absence the run's success rested on. A listing's D is written even when a name
+vanishes mid-listing - as `?`, never `-` (the folder is there).
+
 REG-2350 (#42 R5) - THE KILL WATCH, armed by TV_GATE_KILLS alone (heart2 arms it on every proof run), into its
 own file, in the same line shape:
 
@@ -428,8 +434,10 @@ def _boot():
                     return
                 writes = (isinstance(mode, str) and any(c in mode for c in "wax+")) or (
                     mode is None and isinstance(flags, int) and flags & wflags)
-                making = (isinstance(mode, str) and any(c in mode for c in "wx")) or (
-                    mode is None and isinstance(flags, int) and flags & (os.O_TRUNC | os.O_EXCL))
+                # REG-2449 - only a TRUNCATING write makes a path without looking: an exclusive create ('x', O_EXCL)
+                # fails on a path that is there, so it measures what it finds (H) like a write that keeps the bytes
+                making = (isinstance(mode, str) and "w" in mode) or (mode is None and isinstance(flags, int) and bool(
+                    flags & os.O_TRUNC) and not flags & os.O_EXCL)  # TRACE-TRUNCATING-ONLY
                 if not writes or not making:
                     bytes_fact(r)  # a read, or a write that keeps the bytes it finds (append, r+): what it found
                 if writes:
@@ -456,10 +464,13 @@ def _boot():
                             emit("R", r)
                     r = rel(args[1])
                     if r is not None:
+                        if event == "shutil.copytree":
+                            looked(r)  # REG-2449 - it makes its folder with makedirs: one already there fails it
                         emit("W", r)  # a file this run made is not state it found
             elif event in ("os.mkdir", "os.symlink", "os.link"):
                 r = rel(args[1] if event != "os.mkdir" and len(args) > 1 else args[0])
                 if r is not None:
+                    looked(r)  # REG-2449 - each fails on a path that is there, so it looked first  # TRACE-LOOKED-FIRST
                     emit("W", r)
             elif event == "import":
                 name = str(args[0] or "").split(".")[0]
@@ -557,6 +568,22 @@ def _boot():
                 d = file_sha(full)
         emit("H", "%s %s" % (d, r))  # TRACE-BYTES-FACT
 
+    def looked(r):
+        """REG-2449 - a write that FAILS on a path that is there (mkdir, symlink, link, copytree's folder) looked first:
+        A for nothing there, S and its Z for something. That look is then the path's first fact, so a run that found it
+        absent and made it holds the absence (gate_ledger's MA) - before, its W came first and it read as made without
+        looking, and a tree already holding the path (where the run fails) held every fact. An 'x' open measures H."""
+        try:
+            st = os.lstat(under_root(r))  # busy: the real lstat, no S line of its own
+        except (FileNotFoundError, NotADirectoryError):
+            emit("A", r)
+            return
+        except OSError:
+            emit("S", r)
+            return
+        emit("S", r)
+        emit("Z", "%s %s" % (size_of(st, False), r))
+
     def listing_fact(r):
         """REG-2442 - D: what a listed folder held as it was listed - each name with its kind and a file's size (never a
         time), sorted, as one sha256; gate_ledger._listing_digest is the same rule. Once per folder per process."""
@@ -570,7 +597,11 @@ def _boot():
                 for e in it:
                     if e.name == "__pycache__":
                         continue
-                    st = e.stat(follow_symlinks=False)
+                    try:
+                        st = e.stat(follow_symlinks=False)
+                    except OSError:
+                        rows = None  # REG-2449 - a name gone mid-listing is no answer, never "the folder is absent"
+                        break
                     kind = "l" if _stat.S_ISLNK(st.st_mode) else ("f" if _stat.S_ISREG(st.st_mode) else (
                         "d" if _stat.S_ISDIR(st.st_mode) else "o"))
                     rows.append("%s\t%s\t%s" % (e.name, kind, ("%d" % st.st_size) if kind in "fl" else "-"))
@@ -581,7 +612,8 @@ def _boot():
         except OSError:
             d = "?"
         else:
-            d = hashlib.sha256("\n".join(sorted(rows)).encode("utf-8", "surrogateescape")).hexdigest()
+            d = "?" if rows is None else hashlib.sha256(
+                "\n".join(sorted(rows)).encode("utf-8", "surrogateescape")).hexdigest()
         emit("D", "%s %s" % (d, r))  # TRACE-LISTING-FACT
 
     def mtime_wrap(real, what):

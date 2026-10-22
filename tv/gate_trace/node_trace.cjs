@@ -152,6 +152,46 @@
   const W = (p) => note('W', p);
   const L = (p) => note('L', p);
   const realLstat = fs.lstatSync;
+  const realReaddir = fs.readdirSync;
+  const underRoot = (r) => (r === '' ? roots[0] : path.join(roots[0], ...r.split('/')));
+  // REG-2449 - D: what a listed folder held as it was listed - sitecustomize.py's listing_fact, the same rule: each
+  // name (never __pycache__) with its kind (l f d o, from lstat) and a file's or a link's size, rows sorted by code
+  // point, one sha256; '-' absent, 'f' a file, '?' unreadable or a name that is not UTF-8. Once per folder. Before, a
+  // node listing wrote L alone, so the ledger never held the ignored names it saw (its per-tree facts took D only).
+  function D(p) {
+    const r = rel(p);
+    if (r === null || seen.has('D:' + r)) return;
+    seen.add('D:' + r);
+    const full = underRoot(r);
+    let d;
+    try {
+      const rows = [];
+      for (const name of realReaddir(full)) {
+        if (name === '__pycache__') continue;
+        let st = null;
+        try { st = realLstat(path.join(full, name)); } catch (e) { st = null; }
+        if (st === null || name.includes('\ufffd')) { d = '?'; break; }  // gone mid-listing, or not UTF-8
+        const k = st.isSymbolicLink() ? 'l' : st.isFile() ? 'f' : st.isDirectory() ? 'd' : 'o';
+        rows.push(name + '\t' + k + '\t' + ((k === 'f' || k === 'l') ? String(st.size) : '-'));
+      }
+      if (d === undefined) {
+        rows.sort((a, b) => Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8')));
+        d = crypto.createHash('sha256').update(Buffer.from(rows.join('\n'), 'utf8')).digest('hex');
+      }
+    } catch (e) {
+      d = (e && e.code === 'ENOENT') ? '-' : ((e && e.code === 'ENOTDIR') ? 'f' : '?');
+    }
+    emit('D', d + ' ' + r);  // TRACE-LISTING-FACT
+  }
+  // a listing: L and its D; a RECURSIVE one (node 20+) reads every folder under it, which no one D names - a U
+  const LD = (p, opts) => {
+    if (opts && typeof opts === 'object' && opts.recursive) {
+      if (rel(p) !== null) emit('U', 'listed a folder recursively (no one D names what it read)');  // TRACE-RECURSIVE
+      return;
+    }
+    L(p);
+    D(p);
+  };
   // the Z fact: an lstat names a non-link F, D or O (sitecustomize.py's size_of), a followed stat f, d or o
   const sizeOf = (st, follows) => {
     const k = st.isSymbolicLink() ? 'l' : st.isFile() ? 'f' : st.isDirectory() ? 'd' : 'o';
@@ -175,19 +215,38 @@
   const P = fs.promises;
   for (const n of ['readFileSync', 'readFile', 'createReadStream']) wrap(fs, n, RH);
   for (const n of ['readFile']) wrap(P, n, RH);
-  // a write that keeps the bytes it finds (append, r+, no truncate) measured them first, as a read does
-  const keeps = (flags) => (typeof flags === 'string' ? !/[wx]/.test(flags)
-    : (typeof flags === 'number' && (flags & (fs.constants.O_TRUNC | fs.constants.O_EXCL)) === 0));
+  // a write that keeps the bytes it finds (append, r+, no truncate) measured them first, as a read does - and so does
+  // (REG-2449) an exclusive create ('wx', O_EXCL): it fails on a path that is there, so it looked. Only a truncating
+  // write makes a path without looking.
+  const keeps = (flags) => (typeof flags === 'string' ? (/x/.test(flags) || !/w/.test(flags))
+    : (typeof flags === 'number' && ((flags & fs.constants.O_EXCL) !== 0 || (flags & fs.constants.O_TRUNC) === 0)));
   const opened = (p, flags) => { if (!writes(flags)) { RH(p); return; } if (keeps(flags)) H(p); W(p); };
   for (const n of ['openSync', 'open']) wrap(fs, n, opened);
   wrap(P, 'open', opened);
-  for (const n of ['readdirSync', 'readdir', 'opendirSync', 'opendir']) wrap(fs, n, L);
-  for (const n of ['readdir', 'opendir']) wrap(P, n, L);
+  for (const n of ['readdirSync', 'readdir', 'opendirSync', 'opendir']) wrap(fs, n, LD);
+  for (const n of ['readdir', 'opendir']) wrap(P, n, LD);
   for (const n of ['existsSync', 'statSync', 'lstatSync', 'stat', 'lstat', 'accessSync', 'access', 'exists', 'realpathSync']) wrap(fs, n, S);
   for (const n of ['stat', 'lstat', 'access']) wrap(P, n, S);
-  for (const n of ['writeFileSync', 'writeFile', 'mkdirSync', 'mkdir', 'createWriteStream']) wrap(fs, n, W);
+  // a writeFile or a write stream with a flag that keeps or refuses what it finds ('a', 'r+', 'wx') measures it first
+  const flagOf = (opts, key, dflt) => (opts && typeof opts === 'object' && opts[key] !== undefined ? opts[key] : dflt);
+  const wrote = (p, flags) => { if (keeps(flags)) H(p); W(p); };
+  for (const n of ['writeFileSync', 'writeFile']) wrap(fs, n, (p, data, opts) => wrote(p, flagOf(opts, 'flag', 'w')));
+  wrap(P, 'writeFile', (p, data, opts) => wrote(p, flagOf(opts, 'flag', 'w')));
+  wrap(fs, 'createWriteStream', (p, opts) => wrote(p, flagOf(opts, 'flags', 'w')));
+  // REG-2449 - mkdir, symlink and link fail on a path that is there: each LOOKED first (S or A, then W), so a run that
+  // found the path absent and made it holds the absence
+  const looked = (p) => { S(p); W(p); };  // TRACE-LOOKED-FIRST
+  for (const n of ['mkdirSync', 'mkdir']) wrap(fs, n, looked);
+  wrap(P, 'mkdir', looked);
+  for (const n of ['symlinkSync', 'symlink', 'linkSync', 'link']) wrap(fs, n, (a, b) => looked(b));
+  for (const n of ['symlink', 'link']) wrap(P, n, (a, b) => looked(b));
+  // fs.cp copies a whole tree: its reads and writes go through no call this file wraps
+  const copied = (a, b) => {
+    if (rel(a) !== null || rel(b) !== null) emit('U', 'copied with fs.cp (its reads and writes reach no wrapped call)');
+  };
+  for (const n of ['cpSync', 'cp']) wrap(fs, n, copied);
+  wrap(P, 'cp', copied);
   for (const n of ['appendFileSync', 'appendFile']) wrap(fs, n, (p) => { H(p); W(p); });
-  for (const n of ['writeFile', 'mkdir']) wrap(P, n, W);
   wrap(P, 'appendFile', (p) => { H(p); W(p); });
   for (const n of ['renameSync', 'rename']) wrap(fs, n, (a, b) => W(b));
   wrap(P, 'rename', (a, b) => W(b));

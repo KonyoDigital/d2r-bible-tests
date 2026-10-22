@@ -11,6 +11,12 @@ own file is folded in once per version. REG-2343 withdrew a first cut for four h
   (b) a writer writes only its own rows and drops - a row it merely loaded never comes back over another's drop;
   (c) old code never opens the machine file (it keeps writing tv/.gate_ledger.json, folded in, never written);
   (d) a --record with no trace stores nothing and drops nothing.
+REG-2449 - what a run MADE carries only where it would make it again. A worktree's PASS whose run found an ignored
+store ABSENT and created it (exists() then create, an append onto nothing, a mkdir) carried into the main checkout,
+which holds that store with other bytes - where the same gate fails - and so did one whose run appended to a store it
+found there, and one that wrote into an ignored folder main lacks. A node child's listing of a tracked folder was never
+held (it wrote L and no D). Driven here with REAL traced runs in a linked worktree; in its own checkout the run's
+leftovers stay today's rule.
 Every git command here runs on a throwaway repository with GIT_* removed for its own scope (REG-2392).
 RED_PROOF below.
 """
@@ -35,6 +41,7 @@ _console_safe_enable()
 import gate_ledger as GL  # noqa: E402
 
 _HAVE_GIT = shutil.which("git") is not None
+_HAVE_NODE = shutil.which("node") is not None
 #: the modules a fixture checkout needs to answer ledger_path() and fold, copied from THIS tree (a tampered one too)
 _CARRIED = ("gate_ledger.py", "prove_record.py", "console_safe.py")
 
@@ -269,6 +276,174 @@ class APassCarriesOnlyWhereItWasTrue(_ScrubbedGit):
         self.assertIn("another-gate", rows, "the writer's own row was not written")
 
 
+# ── REG-2449: what the run made, held across checkouts by real traced runs ─────────────────────────────────────────────
+#: law bodies, each a gate that PASSES on a fresh tree and FAILS where the ignored path it makes is already there
+_MADE_LAWS = {
+    "exists then create": ("tv/live.store", "p = os.path.join(H, 'live.store')\n"
+                                            "if not os.path.exists(p):\n"
+                                            "    with open(p, 'w') as fh:\n"
+                                            "        fh.write('ok')\n"
+                                            "with open(p) as fh:\n"
+                                            "    sys.exit(0 if fh.read() == 'ok' else 1)\n"),
+    "append onto nothing": ("tv/journal.store", "p = os.path.join(H, 'journal.store')\n"
+                                                "with open(p, 'a') as fh:\n"
+                                                "    fh.write('x')\n"
+                                                "with open(p) as fh:\n"
+                                                "    sys.exit(0 if fh.read() == 'x' else 1)\n"),
+    "mkdir": ("tv/made.store", "os.mkdir(os.path.join(H, 'made.store'))\n"),
+}
+_KEPT_LAW = ("p = os.path.join(H, 'log.store')\n"
+             "with open(p, 'a') as fh:\n"
+             "    fh.write('+')\n"
+             "with open(p) as fh:\n"
+             "    sys.exit(0 if fh.read().startswith('seed') else 1)\n")
+_INTO_LAW = ("with open(os.path.join(H, 'scratch', 'out.store'), 'w') as fh:\n"
+             "    fh.write('written into a folder it found')\n")
+_NODE_LISTER = ("const fs = require('fs');\n"
+                "process.exit(fs.readdirSync(__dirname).some((n) => n.endsWith('.flag')) ? 1 : 0);\n")
+
+
+@unittest.skipUnless(_HAVE_GIT, "no git on PATH - a worktree-shaped fixture cannot be made here")
+class WhatTheRunMadeCarriesOnlyWhereItWasNot(_ScrubbedGit):
+    def _world(self, body, node=False):
+        """A main checkout whose tv/t_law.py is `body`, a fresh linked worktree of it, and a ledger. -> (main, wt)"""
+        head = "import os, subprocess, sys\nH = os.path.dirname(os.path.abspath(__file__))\n"
+        files = {"tv/t_law.py": head + body, "tv/keep.txt": "k\n"}
+        if node:
+            files["tv/t_law.py"] = head + "sys.exit(subprocess.run(['node', os.path.join(H, 'list.js')]).returncode)\n"
+            files["tv/list.js"] = _NODE_LISTER
+        main = _repo(files)
+        self.addCleanup(shutil.rmtree, main, True)
+        with io.open(os.path.join(main, ".gitignore"), "a", encoding="utf-8") as fh:
+            fh.write("*.store\nscratch/\n")
+        _git(main, "commit", "-q", "-am", "ignore the stores")
+        wt = os.path.realpath(tempfile.mkdtemp(prefix="ledger-made.")) + "-wt"
+        _git(main, "worktree", "add", "-q", "--detach", wt)
+        self.addCleanup(shutil.rmtree, wt, True)
+        self.ledger = os.path.join(os.path.dirname(wt), os.path.basename(wt) + "-ledger", GL.LEDGER_NAME)
+        self.addCleanup(shutil.rmtree, os.path.dirname(self.ledger), True)
+        return main, wt
+
+    def _gate(self, root):
+        class _G(object):
+            name = "made-fixture"
+            argv = [sys.executable, os.path.join(root, "tv", "t_law.py")]
+            timeout = 60
+            cwd = root
+            needs_app = False
+            skip_ok = ()
+        return _G()
+
+    def _book(self):
+        return GL.Ledger(path=self.ledger, probes={"python": "3", "node": "v1", "playwright": "1"})
+
+    def _record(self, root):
+        """Run the gate traced in `root` and record its PASS. -> the trace's facts"""
+        trace = GL.trace_path()
+        try:
+            proc = subprocess.run(self._gate(root).argv, cwd=root, env=GL.trace_env(_git_free(), root, trace),
+                                  capture_output=True, text=True, timeout=120)
+            facts, why = GL.read_trace(trace)
+        finally:
+            if os.path.exists(trace):
+                os.remove(trace)
+        self.assertEqual(proc.returncode, 0, "PREMISE: the gate failed where it was proved: %s" % proc.stderr[-600:])
+        self.assertIsNone(why, "PREMISE: the run was untraced: %s" % why)
+        book = self._book()
+        self.assertTrue(book.record(self._gate(root), True, trace=facts), "PREMISE: not recorded: %s" % book.last_why)
+        return facts
+
+    def _carries(self, root):
+        entry, why = self._book().lookup(self._gate(root))
+        return entry is not None, why
+
+    def _runs(self, root):
+        return subprocess.run(self._gate(root).argv, cwd=root, env=_git_free(), capture_output=True, text=True,
+                              timeout=120).returncode
+
+    def test_a_pass_whose_run_made_what_it_found_absent_stays_out_of_a_checkout_that_holds_it(self):
+        for how, (made, body) in sorted(_MADE_LAWS.items()):
+            with self.subTest(how=how):
+                main, wt = self._world(body)
+                facts = self._record(wt)
+                self.assertIn(made, facts["MA"], "PREMISE: the trace did not say the run found %s absent" % made)
+                ok, why = self._carries(main)
+                self.assertTrue(ok, "PREMISE (%s): the PASS did not carry into main, which lacks %s: %s" % (how, made, why))
+                if how == "mkdir":
+                    os.makedirs(os.path.join(main, *made.split("/")))
+                else:
+                    _write(main, made, "his live bytes")
+                self.assertNotEqual(self._runs(main), 0, "PREMISE (%s): the gate passes in main anyway" % how)
+                ok, why = self._carries(main)
+                self.assertFalse(ok, "(%s) a worktree's PASS whose run found %s absent and made it carried into a "
+                                     "checkout that holds it - where the gate fails" % (how, made))
+                self.assertIn("found it absent and made it", why or "")
+                ok, why = self._carries(wt)
+                self.assertTrue(ok, "(%s) the run's own leftover stopped the carry in its own checkout: %s" % (how, why))
+
+    def test_a_store_whose_bytes_the_run_kept_carries_only_onto_the_same_bytes(self):
+        main, wt = self._world(_KEPT_LAW)
+        for root in (main, wt):
+            _write(root, "tv/log.store", "seed\n")
+        self._record(wt)
+        ok, why = self._carries(main)
+        self.assertTrue(ok, "PREMISE: the PASS did not carry into main, which holds the same bytes: %s" % why)
+        _write(main, "tv/log.store", "other\n")
+        self.assertNotEqual(self._runs(main), 0, "PREMISE: the gate passes on other bytes anyway")
+        _write(main, "tv/log.store", "other\n")
+        ok, why = self._carries(main)
+        self.assertFalse(ok, "a PASS whose run appended to and read back an ignored store carried onto other bytes")
+        self.assertIn("not the bytes the run found and kept", why or "")
+
+    def test_a_pass_that_wrote_into_an_ignored_folder_stays_out_of_a_checkout_without_it(self):
+        main, wt = self._world(_INTO_LAW)
+        os.makedirs(os.path.join(wt, "tv", "scratch"))
+        self._record(wt)
+        self.assertNotEqual(self._runs(main), 0, "PREMISE: the gate passes in main without the folder")
+        ok, why = self._carries(main)
+        self.assertFalse(ok, "a PASS whose run wrote into an ignored folder carried into a checkout without it")
+        self.assertIn("tv/scratch is not a folder", why or "")
+        os.makedirs(os.path.join(main, "tv", "scratch"))
+        ok, why = self._carries(main)
+        self.assertTrue(ok, "the folder is there and the PASS still did not carry: %s" % why)
+
+    @unittest.skipUnless(_HAVE_NODE, "no node on PATH - the node lister cannot run here")
+    def test_a_node_childs_listing_holds_the_folders_ignored_names_across_checkouts(self):
+        main, wt = self._world("", node=True)
+        facts = self._record(wt)
+        self.assertIn("tv", facts["L"], "PREMISE: the node child's listing is not in the trace")
+        _write(main, "tv/x.flag", "an ignored name only main holds\n")
+        self.assertNotEqual(self._runs(main), 0, "PREMISE: the gate passes in main anyway")
+        ok, why = self._carries(main)
+        self.assertFalse(ok, "a PASS whose node child listed tv carried into a checkout with another ignored name there")
+        self.assertIn("holds other untracked names", why or "")
+
+
+@unittest.skipUnless(_HAVE_GIT, "no git on PATH - the record fixture cannot be made here")
+class TheTreeFactsAskWhatTheyMust(_ScrubbedGit):
+    def setUp(self):
+        super(TheTreeFactsAskWhatTheyMust, self).setUp()
+        self.root = _repo({"tv/t_law.py": "print('ok')\n", "tv/keep.txt": "k\n"})
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.book = GL.Ledger(path=os.path.join(self.root, "ledger", GL.LEDGER_NAME),
+                              probes={"python": "3", "node": "v1", "playwright": "1"})
+
+    def test_an_L_of_a_tracked_folder_is_a_listing_even_without_its_D(self):
+        """REG-2449 - a node child wrote L and no D; any L of a folder is a listing. L "" alone is git ls-files."""
+        _write(self.root, "tv/.ignored.flag", "x")
+        facts = {"R": set(), "W": set(), "S": set(), "A": set(), "L": {"tv", ""}, "I": set(), "G": set(), "M": set(),
+                 "D": {}}
+        tf = self.book._tree_facts(facts, self.root)
+        self.assertEqual(tf["listed"].get("tv"), [".ignored.flag"], "an L without a D was not held as a listing")
+        self.assertNotIn("", tf["listed"], "git ls-files' L \"\" was taken for a listing of the root's names")
+
+    def test_a_row_of_another_tree_facts_version_carries_only_in_its_own_checkout(self):
+        old = {"absent": [], "folders": [], "listed": {}}
+        why = self.book._tree_moved({"tree": GL._tree_id(self.root + "-elsewhere"), "tree_facts": old}, self.root)
+        self.assertIn("another checkout", why or "", "a row from before REG-2449 carried into another checkout")
+        self.assertIsNone(self.book._tree_moved({"tree": GL._tree_id(self.root), "tree_facts": old}, self.root))
+
+
 RED_PROOF = [
     {"why": "the ledger is this checkout's own again (HERE)", "file": "gate_ledger.py",
      "find": "    return os.environ.get(\"TV_GATE_LEDGER\") or machine_ledger_path()[0]  # LEDGER-PER-MACHINE\n",
@@ -301,6 +476,37 @@ RED_PROOF = [
     {"why": "a writer writes back every row it loaded", "file": "gate_ledger.py",
      "find": "                touched = self.dropped | self._own\n",
      "replace": "                touched = self.dropped | self._own | set(self.entries or {})\n", "matches": 1},
+    # REG-2449 - what the run made
+    {"why": "REG-2449 - read_trace names no path the run found absent and then made", "file": "gate_ledger.py",
+     "find": "    facts[\"MA\"] = set(p for p in facts[\"M\"] if first.get(p) == \"A\" or hashed.get(p) == \"-\")  "
+             "# LEDGER-FOUND-ABSENT\n",
+     "replace": "    facts[\"MA\"] = set()  # LEDGER-FOUND-ABSENT\n", "matches": 1},
+    {"why": "REG-2449 - the per-tree facts keep no path the run found absent and made", "file": "gate_ledger.py",
+     "find": "                made_absent.append(path)  # LEDGER-TREE-MADE-ABSENT\n",
+     "replace": "                pass  # LEDGER-TREE-MADE-ABSENT\n", "matches": 1},
+    {"why": "REG-2449 - another checkout is never asked whether it holds what the run found absent and made",
+     "file": "gate_ledger.py",
+     "find": "                if os.path.lexists(_fact_path(root, path)):  # LEDGER-TREE-MADE-ABSENT-MOVED\n",
+     "replace": "                if False:  # LEDGER-TREE-MADE-ABSENT-MOVED\n", "matches": 1},
+    {"why": "REG-2449 - the run's own leftovers stop the carry in its own checkout", "file": "gate_ledger.py",
+     "find": "        if tree != here:\n            for path in tf.get(\"made_absent\") or ():\n",
+     "replace": "        if True:\n            for path in tf.get(\"made_absent\") or ():\n", "matches": 1},
+    {"why": "REG-2449 - the bytes a run kept are no per-tree fact", "file": "gate_ledger.py",
+     "find": "                kept[path] = hashed[path]  # LEDGER-TREE-KEPT\n",
+     "replace": "                pass  # LEDGER-TREE-KEPT\n", "matches": 1},
+    {"why": "REG-2449 - another checkout's kept bytes are never compared", "file": "gate_ledger.py",
+     "find": "                if _fact_bytes(root, path) != d:  # LEDGER-TREE-KEPT-MOVED\n",
+     "replace": "                if False:  # LEDGER-TREE-KEPT-MOVED\n", "matches": 1},
+    {"why": "REG-2449 - the folder a made file was written into is no per-tree fact", "file": "gate_ledger.py",
+     "find": "            folders.append(folder)  # LEDGER-TREE-WRITE-FOLDER\n",
+     "replace": "            pass  # LEDGER-TREE-WRITE-FOLDER\n", "matches": 1},
+    {"why": "REG-2449 - only a D is a listing, so a node child's listing is never held", "file": "gate_ledger.py",
+     "find": "        for folder in sorted((set(d_facts) | set(p for p in (facts.get(\"L\") or ()) if p)) - made):  "
+             "# LEDGER-TREE-L\n",
+     "replace": "        for folder in sorted(set(d_facts) - made):  # LEDGER-TREE-L\n", "matches": 1},
+    {"why": "REG-2449 - a row of an older tree-facts version carries into another checkout", "file": "gate_ledger.py",
+     "find": "        if not isinstance(tf, dict) or tf.get(\"v\") != TREE_FACTS_VERSION:\n",
+     "replace": "        if not isinstance(tf, dict):\n", "matches": 1},
 ]
 
 if __name__ == "__main__":

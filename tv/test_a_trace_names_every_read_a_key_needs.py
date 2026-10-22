@@ -20,6 +20,10 @@ Driven here on fixture trees, each run under the REAL hook (gate_trace/sitecusto
   * gate_ledger.facts_of / facts_hold: an identical tree holds; one byte, one size, one listed name, one env value, an
     absent file that appears, a module that would now shadow an import, a kept-bytes (append) file, the tracked set
     and a .gitignore each break it. read_trace() still reads a C line exactly like U by default.
+  * REG-2449 - what the run MADE is held where it found something first: a file it found absent and then created
+    (exists() then create, an append onto nothing, an 'x' open, a mkdir - python and node), and the folder a made file
+    was written into. A node listing writes D, the same digest as python's; a recursive node listing and fs.cp are a U.
+    A name gone mid-listing reads `?`, never "the folder is absent".
 RED_PROOF below; every git command here runs with GIT_* removed (a hook's GIT_DIR must never reach a throwaway repo).
 """
 import hashlib
@@ -97,6 +101,7 @@ _PRISTINE = {
     "tv/sub/a.txt": "a\n",
     "tv/log.txt": "old log\n",
     "tv/helper_fx.py": "X = 1\n",
+    "tv/outbox/keep.txt": "k\n",
 }
 _FACTS_LAW = r"""import os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -117,6 +122,19 @@ with open(os.path.join(HERE, 'made.txt'), 'w') as fh:
     fh.write('mine\n')
 open(os.path.join(HERE, 'made.txt')).read()
 os.path.getsize(os.path.join(HERE, 'made.txt'))
+state = os.path.join(HERE, 'state.json')
+if not os.path.exists(state):
+    with open(state, 'w') as fh:
+        fh.write('{}')
+open(state).read()
+os.path.getsize(state)
+with open(os.path.join(HERE, 'fresh.log'), 'a') as fh:
+    fh.write('first line\n')
+os.mkdir(os.path.join(HERE, 'made_dir'))
+with open(os.path.join(HERE, 'excl.txt'), 'x') as fh:
+    fh.write('mine alone\n')
+with open(os.path.join(HERE, 'outbox', 'sent.txt'), 'w') as fh:
+    fh.write('into a folder it found\n')
 os.environ['TV_KNOB_A']
 os.environ.get('TV_KNOB_B')
 'TV_KNOB_C' in os.environ
@@ -147,7 +165,8 @@ def _facts_run():
     proc, facts, why = _traced(root, "t_facts.py", env_extra=env)
     rec = GL.facts_of(root, facts) if facts is not None else None
     # the tree the NEXT run would start from: the run's own leftovers gone, its append undone
-    for rel in ("tv/sub/made_after.txt", "tv/made.txt"):
+    for rel in ("tv/sub/made_after.txt", "tv/made.txt", "tv/state.json", "tv/fresh.log", "tv/made_dir", "tv/excl.txt",
+                "tv/outbox/sent.txt"):
         _gone(root, rel)
     _write(root, "tv/log.txt", _PRISTINE["tv/log.txt"])
     _MEMO["run"] = (root, proc, facts, why, rec)
@@ -326,6 +345,27 @@ class ALaterTreeIsHeldToEveryFact(unittest.TestCase):
         ok, why = self._holds()
         self.assertTrue(ok, "a file the run made itself became a fact: %s" % why)
 
+    def test_a_file_the_run_found_absent_and_made_breaks_it_when_there(self):
+        """REG-2449 - exists() said no and the run created it: a later tree that already holds the file (another
+        checkout's, an older run's) is not the tree the run decided on - there it takes the other branch."""
+        self.assertIn("tv/state.json", self.rec["A"], "the absence the run found before it made the file is no fact")
+        self._breaks("tv/state.json exists now", "tv/state.json", '{"stale": true}')
+
+    def test_an_append_onto_nothing_holds_the_absence(self):
+        self._breaks("tv/fresh.log exists now", "tv/fresh.log", "an older log\n")
+
+    def test_a_mkdir_and_an_exclusive_create_looked_first(self):
+        self._breaks("tv/made_dir exists now", mkdir=os.path.join("tv", "made_dir"))
+        self._breaks("tv/excl.txt exists now", "tv/excl.txt", "already here\n")
+
+    def test_a_folder_the_run_wrote_into_must_still_be_a_folder(self):
+        here, away = os.path.join(self.root, "tv", "outbox"), os.path.join(self.root, "tv", "outbox.away")
+        os.rename(here, away)
+        self.addCleanup(os.rename, away, here)
+        ok, why = self._holds()
+        self.assertFalse(ok, "the folder the run wrote a file into is gone and the facts still held")
+        self.assertIn("tv/outbox", why or "")
+
     def test_another_version_or_an_attested_chrome_never_holds(self):
         self.assertFalse(GL.facts_hold(self.root, dict(self.rec, v=0), _base_env())[0])
         rec = dict(self.rec, C=["started chrome, a Chrome this run started for its pages"])
@@ -503,6 +543,91 @@ class APathlibProbeIsAFact(unittest.TestCase):
             self.assertIn("tv/absent.flag", facts["A"], "Path.exists() of an absent file wrote no A fact")
 
 
+# ── a name gone mid-listing (REG-2449) ─────────────────────────────────────────────────────────────────────────────────
+class _Vanishing(object):
+    """os.scandir whose every entry is gone by the time it is stat'ed (a name deleted mid-listing), made on demand."""
+
+    def __init__(self, real):
+        self.real = real
+
+    def __call__(self, path="."):
+        return _VanishingIt(self.real(path))
+
+
+class _VanishingIt(object):
+    def __init__(self, it):
+        self.it = it
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.it.close()
+
+    def __iter__(self):
+        for e in self.it:
+            yield _GoneEntry(e.name)
+
+
+class _GoneEntry(object):
+    def __init__(self, name):
+        self.name = name
+
+    def stat(self, follow_symlinks=True):
+        raise FileNotFoundError(2, "gone mid-listing", self.name)
+
+
+_VANISH_CHILD = r"""import os
+class Gone(object):
+    def __init__(self, name):
+        self.name = name
+    def stat(self, follow_symlinks=True):
+        raise FileNotFoundError(2, 'gone mid-listing', self.name)
+class It(object):
+    def __init__(self, it):
+        self.it = it
+    def __enter__(self):
+        return self
+    def __exit__(self, *exc):
+        self.it.close()
+    def __iter__(self):
+        return (Gone(e.name) for e in self.it)
+real = os.scandir
+os.scandir = lambda path='.': It(real(path))
+os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'box'))
+print('ok')
+"""
+
+
+class ANameGoneMidListingIsNoAnswer(unittest.TestCase):
+    """REG-2449 - the folder IS there; one of its names vanished between the listing and its stat. Before, that
+    FileNotFoundError fell through to the folder's own `-`: the listing read as "absent", and a later tree where the
+    folder really is absent held it."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="facts-vanish.")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        _write(self.root, "tv/box/a.txt", "a\n")
+
+    def test_the_checks_digest_says_unknown(self):
+        real = os.scandir
+        os.scandir = _Vanishing(real)
+        try:
+            got = GL._listing_digest(self.root, "tv/box")
+        finally:
+            os.scandir = real
+        self.assertEqual(got, "?", "a name gone mid-listing read as %r - the folder is there" % got)
+
+    def test_the_traced_listing_says_unknown(self):
+        # the hook measures its D through os.scandir: in the child every name it finds is gone by its stat
+        _write(self.root, "tv/t_vanish.py", _VANISH_CHILD)
+        proc, facts, why = _traced(self.root, "t_vanish.py")
+        self.assertEqual(proc.returncode, 0, "PREMISE: %s" % proc.stderr[-600:])
+        self.assertIsNone(why, "PREMISE: the run was untraced: %s" % why)
+        self.assertEqual(facts["D"].get("tv/box"), "?", "the hook's listing of a folder whose name vanished said %r"
+                         % facts["D"].get("tv/box"))
+
+
 # ── the node twin ──────────────────────────────────────────────────────────────────────────────────────────────────────
 @unittest.skipUnless(_HAVE_NODE, "no node on PATH - the node twin cannot run here")
 class ANodeChildWritesTheSameFacts(unittest.TestCase):
@@ -524,6 +649,45 @@ class ANodeChildWritesTheSameFacts(unittest.TestCase):
         self.assertNotIn("TV_KNOB_BULK", facts["E"], "a node spread became a single-name fact")
         self.assertEqual(facts["Z"].get("tv/sized.txt"), {"F": "4"}, "node's stat kept no size")
         self.assertEqual(facts["H"].get("tv/sized.txt"), _sha("four"), "node's read kept no bytes")
+
+    def test_a_node_listing_is_held_as_listed_and_a_node_write_that_looked_holds_the_absence(self):
+        """REG-2449 - a node child's readdir wrote L and no D, so the ledger's per-tree facts never held what it saw;
+        and its mkdirSync / 'wx' / writeFile({flag: 'a'}) read as made without looking."""
+        root = tempfile.mkdtemp(prefix="facts-node-made.")
+        self.addCleanup(shutil.rmtree, root, True)
+        _write(root, "tv/box/a.txt", "aaa")
+        _write(root, "tv/box/sub/b.txt", "b")
+        if _POSIX:
+            os.symlink("a.txt", os.path.join(root, "tv", "box", "ln"))
+        _write(root, "tv/t_made.js",
+               "const fs = require('fs'); const path = require('path'); const j = (...a) => path.join(__dirname, ...a);\n"
+               "fs.readdirSync(j('box'));\n"
+               "fs.mkdirSync(j('made_dir'));\n"
+               "fs.closeSync(fs.openSync(j('excl.txt'), 'wx'));\n"
+               "fs.writeFileSync(j('fresh.log'), 'x', {flag: 'a'});\n"
+               "fs.writeFileSync(j('blind.txt'), 'x');\n"
+               "console.log('ok');\n")
+        listed = GL._listing_digest(root, "tv/box")
+        proc, facts, why = _traced(root, "t_made.js", argv0=["node"])
+        self.assertEqual(proc.returncode, 0, "PREMISE: %s" % proc.stderr[-600:])
+        self.assertIsNone(why, "PREMISE: the node run was untraced: %s" % why)
+        self.assertEqual(facts["D"].get("tv/box"), listed, "a node listing is not held as python's digest holds it")
+        for rel in ("tv/made_dir", "tv/excl.txt", "tv/fresh.log"):
+            self.assertIn(rel, facts["MA"], "node's write of %s found it absent and reads as made without looking" % rel)
+        self.assertNotIn("tv/blind.txt", facts["MA"], "a truncating write looked at nothing and became an absence fact")
+        self.assertIn("tv/blind.txt", facts["M"])
+
+    def test_a_recursive_listing_and_fs_cp_untrace_the_run(self):
+        root = tempfile.mkdtemp(prefix="facts-node-u.")
+        self.addCleanup(shutil.rmtree, root, True)
+        _write(root, "tv/box/a.txt", "aaa")
+        for body, said in (("fs.readdirSync(__dirname, {recursive: true});", "listed a folder recursively"),
+                           ("fs.cpSync(path.join(__dirname, 'box'), path.join(__dirname, 'box2'), {recursive: true});",
+                            "copied with fs.cp")):
+            _write(root, "tv/t_u.js", "const fs = require('fs'); const path = require('path');\n%s\n" % body)
+            proc, facts, why = _traced(root, "t_u.js", argv0=["node"])
+            self.assertEqual(proc.returncode, 0, "PREMISE: %s" % proc.stderr[-600:])
+            self.assertIn(said, why or "", "node's %s stayed traced" % body)
 
 
 RED_PROOF = [
@@ -617,6 +781,55 @@ RED_PROOF = [
             "and every traced Path.stat() raises", "file": "gate_trace/sitecustomize.py",
      "find": "            import pathlib as _pl\n", "replace": "            _pl = sys.modules.get(\"pathlib\")\n",
      "matches": 1, "needs": "macos"},
+    # REG-2449 - what the run made is held where it found something first
+    {"why": "REG-2449 - facts_of drops the absence of a file the run found absent and then made", "file": "gate_ledger.py",
+     "find": "    rec[\"A\"] = sorted((set(facts.get(\"A\") or ()) - made) | found_absent)\n",
+     "replace": "    rec[\"A\"] = sorted(set(facts.get(\"A\") or ()) - made)\n", "matches": 1},
+    {"why": "REG-2449 - an exclusive create ('x') reads as made without looking", "file": "gate_trace/sitecustomize.py",
+     "find": "                making = (isinstance(mode, str) and \"w\" in mode) or (mode is None and isinstance(flags, int) and "
+             "bool(\n",
+     "replace": "                making = (isinstance(mode, str) and any(c in mode for c in \"wx\")) or (mode is None and "
+                "isinstance(flags, int) and bool(\n", "matches": 1},
+    {"why": "REG-2449 - a mkdir writes no look before it makes the folder", "file": "gate_trace/sitecustomize.py",
+     "find": "                    looked(r)  # REG-2449 - each fails on a path that is there, so it looked first  "
+             "# TRACE-LOOKED-FIRST\n",
+     "replace": "                    pass  # TRACE-LOOKED-FIRST\n", "matches": 1},
+    {"why": "REG-2449 - the folder a made file was written into is no fact", "file": "gate_ledger.py",
+     "find": "            rec[\"Z\"].setdefault(folder, {}).setdefault(kind, size)\n", "replace": "            pass\n",
+     "matches": 1},
+    {"why": "REG-2449 - the check reads a name gone mid-listing as the folder being absent", "file": "gate_ledger.py",
+     "find": "                    return \"?\"  # REG-2449 - a name gone mid-listing is no answer, never \"the folder is "
+             "absent\"\n",
+     "replace": "                    raise\n", "matches": 1},
+    {"why": "REG-2449 - the hook reads a name gone mid-listing as the folder being absent",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                        rows = None  # REG-2449 - a name gone mid-listing is no answer, never \"the folder is "
+             "absent\"\n",
+     "replace": "                        raise\n", "matches": 1},
+    {"why": "REG-2449 - a node listing writes no D", "file": "gate_trace/node_trace.cjs",
+     "find": "    emit('D', d + ' ' + r);  // TRACE-LISTING-FACT\n", "replace": "    // TRACE-LISTING-FACT\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2449 - node's mkdirSync writes no look before it makes the folder", "file": "gate_trace/node_trace.cjs",
+     "find": "  const looked = (p) => { S(p); W(p); };  // TRACE-LOOKED-FIRST\n",
+     "replace": "  const looked = (p) => { W(p); };  // TRACE-LOOKED-FIRST\n", "matches": 1, "needs": "node"},
+    {"why": "REG-2449 - node's 'wx' open reads as made without looking", "file": "gate_trace/node_trace.cjs",
+     "find": "  const keeps = (flags) => (typeof flags === 'string' ? (/x/.test(flags) || !/w/.test(flags))\n",
+     "replace": "  const keeps = (flags) => (typeof flags === 'string' ? !/[wx]/.test(flags)\n", "matches": 1,
+     "needs": "node"},
+    {"why": "REG-2449 - node's writeFile ignores its flag, so an append onto nothing reads as made without looking",
+     "file": "gate_trace/node_trace.cjs",
+     "find": "  for (const n of ['writeFileSync', 'writeFile']) wrap(fs, n, (p, data, opts) => wrote(p, flagOf(opts, 'flag', "
+             "'w')));\n",
+     "replace": "  for (const n of ['writeFileSync', 'writeFile']) wrap(fs, n, (p, data, opts) => wrote(p, 'w'));\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2449 - a recursive node listing stays traced", "file": "gate_trace/node_trace.cjs",
+     "find": "      if (rel(p) !== null) emit('U', 'listed a folder recursively (no one D names what it read)');  "
+             "// TRACE-RECURSIVE\n",
+     "replace": "      // TRACE-RECURSIVE\n", "matches": 1, "needs": "node"},
+    {"why": "REG-2449 - node's fs.cp stays traced", "file": "gate_trace/node_trace.cjs",
+     "find": "    if (rel(a) !== null || rel(b) !== null) emit('U', 'copied with fs.cp (its reads and writes reach no "
+             "wrapped call)');\n",
+     "replace": "    // fs.cp\n", "matches": 1, "needs": "node"},
 ]
 
 if __name__ == "__main__":

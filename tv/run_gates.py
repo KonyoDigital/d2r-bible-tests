@@ -11883,8 +11883,9 @@ GATES = [
              "TV_GATE_TRACE_DENY/_ALLOW make a read of a denied root a U, STRICT makes those imports and getmtime/"
              "getctime under the root a U, single-name env reads are E facts (never plumbing, a bulk copy, or a value "
              "the run made), Z keeps a stat's size, H the bytes as read, D a listing as listed, T the tracked set; "
-             "gate_ledger.facts_of/facts_hold hold a later tree to every one. Driven on fixture trees under the real "
-             "hook, python and node."),
+             "gate_ledger.facts_of/facts_hold hold a later tree to every one. REG-2449 - a path the run found absent "
+             "and made (exists() then create, append, 'x', mkdir) is held absent, kept bytes and a written-into folder "
+             "are held, a node listing writes D. Driven on fixture trees under the real hook, python and node."),
     Gate("test_a_chrome_the_run_did_not_start_untraces_it",
          [sys.executable, os.path.join(HERE, "test_a_chrome_the_run_did_not_start_untraces_it.py")], 300,
          needs_app=False,
@@ -11908,7 +11909,9 @@ GATES = [
              ".git, never by running git), each checkout's own file folded in once; REG-2343's four holes are closed: "
              "a PASS carries into another checkout only where its absent ignored inputs, untracked folders and listed "
              "folders' untracked names hold (a folded row only in its own checkout), a writer writes only its own rows "
-             "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing."),
+             "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing. "
+             "REG-2449 - a path the run found absent and made, bytes it kept, a folder it wrote into and a node child's "
+             "listing hold too: real traced runs in a linked worktree never carry into a checkout where the gate fails."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
