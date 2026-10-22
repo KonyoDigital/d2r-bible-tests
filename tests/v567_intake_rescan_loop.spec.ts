@@ -58,6 +58,9 @@ test('a MATCHED read gets the hard seen mark — never offered again, even by a 
     w.vaultScanFolderLegacy([f]);
     return { mark: seen['hit.png'], menu: (document.getElementById('vault-intake-report')?.textContent || '') };
   });
-  expect(r.mark).toBe(1);                          // hard mark
+  // REG-2401 — the hard mark now RECORDS what the file put in the vault ({held, unr, at}), so a later skip can ask
+  // whether it is still his; it is still never 'retry' and never offered as new while that holds
+  expect(r.mark && typeof r.mark === 'object' && Array.isArray(r.mark.held) && r.mark.held.includes('The Stone of Jordan'),
+    'the matched read did not record what it put in the vault: ' + JSON.stringify(r.mark)).toBe(true);
   expect(r.menu).not.toMatch(/New\s*1|1\s*new/i);  // not offered as new again
 });

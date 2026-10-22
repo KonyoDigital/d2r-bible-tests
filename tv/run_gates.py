@@ -10937,6 +10937,31 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_reload_never_drops_what_he_owns",
+         [sys.executable, os.path.join(HERE, "test_a_reload_never_drops_what_he_owns.py")], 120,
+         needs_app=False,
+         why="REG-2400 (#162 item 1 + #144 item 6) - GrokBot #230 on v3783/v3784: one reload took d2r_owned 272 -> 113, no "
+             "journal row, no undo. The load-time prune read 'no catalogue knows this name' as 'he does not own it' and "
+             "persisted it: rolled-name keepers (Death Loop, Wraith Grasp, Chaotic Grand Charm of Pestilence...) and the "
+             "typed runewords Ancient's Pledge / Breath of the Dying. Now the prune's filter is a question and the owned-load "
+             "doctor answers it: a name it would drop is KEPT, named in window._ownedLoadReceipt, warned and painted on the "
+             "Vault (#vault-owned-kept); only a non-name entry is set aside, and said. The shipped prune runs in node over "
+             "his lost names through two reloads."),
+    Gate("test_a_frame_is_read_again_when_its_item_is_gone",
+         [sys.executable, os.path.join(HERE, "test_a_frame_is_read_again_when_its_item_is_gone.py")], 120,
+         needs_app=False,
+         why="REG-2401 (#162 item 2) - after the reload loss, re-feeding all 292 frames added 0: d2r_intakeSeen keyed the "
+             "skip on 'this file was ever read'. A file that read something now records what it put in the vault, and the "
+             "skip asks whether that is still his: still owned -> skipped; gone with no removal on record -> read again; "
+             "removed by him -> skipped; UNKNOWN -> skipped and said; a legacy mark keeps its old meaning. A re-read never "
+             "counts a second copy, and the folder poll never re-reads on its own. The shipped verdict block runs in node."),
+    Gate("test_grasp_is_a_gloves_suffix",
+         [sys.executable, os.path.join(HERE, "test_grasp_is_a_gloves_suffix.py")], 60,
+         needs_app=False,
+         why="REG-2402 (#162 item 4) - 'Wraith Grasp' routed as 'Wraith + Grasp: ring'. The rolled-name grammar had no "
+             "gloves row; the game's RareSuffix table (RotW) gives hand/fist/claw/clutches/knuckle to gloves and "
+             "grip/grasp/hold/touch/finger to gloves AND ring. The Gloves row is the game's, so Grasp reads 'gloves / "
+             "ring'; routing to MAGIC & RARE is unchanged."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
