@@ -1039,6 +1039,17 @@
     "purpose": "Loads bible.html and tv/control_ui.html in a real JS engine (Chromium via CDP, or node) and fails on any SyntaxError — one bad escape or mid-line comment blanks the whole 37k-line page.",
     "territory": "gates-proofs"
   },
+  "keep_awake.py": {
+    "entryPoints": [
+      "held",
+      "hold_for_pid",
+      "status",
+      "caffeinate_argv"
+    ],
+    "gotcha": "The Windows execution state is PER THREAD and the OS drops it when that thread ends, so a pid hold lives on its own watcher thread (take, WaitForSingleObject on the process handle, release with ES_CONTINUOUS alone - all on that thread); a release from any other thread releases nothing. The flags are exactly 0x80000001 - never ES_DISPLAY_REQUIRED (his screen still turns off), never away mode, never powercfg or the registry. macOS is `caffeinate -i -w <pid>`, spawned with an absolute executable and close_fds=False because the console has Quartz loaded (#150's fork deadlock). A lid close still sleeps the PC: that stays the OS's call.",
+    "purpose": "#170 (REG-2483): keeps this PC awake ONLY while a proof or sweep runs - held(why) for a with-block on this thread, hold_for_pid(pid, why) for a process (idempotent, ends by itself when the pid ends, normally or killed), status() in the shared vocabulary {on, holds, lastTs, why}. self_prove takes a hold for the prover it spawns and for one a relaunched console adopts.",
+    "territory": "routines-infra"
+  },
   "lane_census.py": {
     "entryPoints": [
       "census",

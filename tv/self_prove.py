@@ -958,6 +958,32 @@ def spawn(log_path, python=None, workers=None, popen=None, names=None):
 #: prover's pid held here for the console's whole life was the pid a later stand-aside killed.
 _STARTED = {"pid": None, "birth": None}
 
+#: REG-2483 (#170) - the door a running proof's keep-awake hold goes through. None = keep_awake.hold_for_pid, asked
+#: only for a REAL prover; a law's recording spawn hands a stand-in pid, and nothing is held for a process that is not
+#: there. A law sets its own door here to watch both the spawn and the adopted-prover holds.
+AWAKE_DOOR = None
+
+
+def _hold_awake(pid, real=True):
+    """REG-2483 (#170) - his ruling 2026-10-21: keep the PC awake ONLY while a proof runs. -> the door's answer | None
+
+    keep_awake binds the hold to the prover's pid (a watcher thread on Windows, `caffeinate -w` on macOS), so it is
+    released when the prover ends - finished, stood aside, stalled or crashed - and never outlives the work. Never
+    raises: a hold that could not be taken leaves the proof running and the PC sleeping as it always would."""
+    door = AWAKE_DOOR
+    if door is None:
+        if not real or not pid:
+            return None
+        try:
+            import keep_awake as _ka
+            door = _ka.hold_for_pid
+        except Exception as e:
+            return {"held": False, "pid": pid, "why": "keep_awake would not import (%s)" % type(e).__name__}
+    try:
+        return door(pid, "a heart proof is running")
+    except Exception as e:
+        return {"held": False, "pid": pid, "why": "the keep-awake door raised (%s)" % type(e).__name__}
+
 
 def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None,
          playing=None, free=None, kill_fn=None, sandbox=None):
@@ -1216,6 +1242,11 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                      "is left to finish, never killed, and no second proof starts beside it" % pid) if birth is None
              else ("proof pid %s is alive but its start time could not be read right now - it stays tracked, is never "
                    "killed on a guess, and no second proof starts beside it; asked again next tick" % pid)}
+    # REG-2483 (#170) - A PROOF THAT IS STILL RUNNING HOLDS THIS PC AWAKE, ASKED EVERY TICK. The hold is idempotent per
+    # pid and ends by itself when the prover ends, so a relaunched console that ADOPTS a prover still running takes it
+    # again on its first tick - the old console's hold died with it. Only a prover whose identity is verified.
+    if running:
+        _hold_awake(running, real=spawn_fn is None)
     if d["start"]:
         try:
             if spawn_fn is None:                           # a real start, not a law's recording spawn
@@ -1245,6 +1276,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                 mem["pid"] = (spawn_fn or spawn)(log_path)
             mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
             _STARTED.update(pid=mem["pid"], birth=mem["pidBirth"])
+            _hold_awake(mem["pid"], real=spawn_fn is None)  # REG-2483 - awake from the proof's first second
             mem["startedFor"] = census.get("fingerprint")
             mem["startedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_s))
             mem["runs"] = _int(mem.get("runs")) + 1
