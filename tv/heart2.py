@@ -3871,22 +3871,38 @@ _PROVE_UNMATCHED = []
 _INDEXED_NAME = re.compile(r"^(.+)\[(\d+)\]$")
 
 
+def gate_named(want, name, filename):
+    """REG-2352 (#42 R11) — does a --prove / --forecast name select the gate (name, filename)? -> bool (pure)
+
+    THE ONE PREDICATE: prove(), _forecast_main() and unmatched_names() all ask it, so what a run proves and what it
+    calls unmatched can never disagree. A gate is named by its registered name, by its file as gate_files() gives it, or
+    by that file's basename. Round 3: a root-level gate's file is "../visual_lock_invariant.py" there, and
+    unmatched_names took `visual_lock_invariant.py` as a match by basename while prove() matched by name or file only:
+    `--prove visual_lock_invariant.py` proved nothing, named nothing, and exited 0."""
+    w = str(want or "")
+    return bool(w) and w in (str(name), str(filename), os.path.basename(str(filename)))
+
+
+def gates_named(only, gates):
+    """REG-2352 — the gates `only` selects by gate_named(). -> [(name, filename)]; every gate when `only` is empty"""
+    return [(n, f) for n, f in (gates or []) if not only or any(gate_named(w, n, f) for w in only)]
+
+
 def unmatched_names(only, gates):
-    """REG-2352 (#42 R11) — the --prove names that match no gate by name or by file. -> [(name, why)] (pure)
+    """REG-2352 (#42 R11) — the --prove names that select no gate (gate_named). -> [(name, why)] (pure)
 
     `--prove NAME[5]` matched nothing, printed "nothing to prove", and exited 0: a typo, or a proof index nobody can ask
     for, read as a proof that passed. A name with an index gets the hint it needs."""
-    known = set()
-    for n, f in (gates or []):
-        known.update((n, f, os.path.basename(f)))
+    gates = list(gates or [])
     out = []
     for n in sorted(set(only or ())):
-        if n in known:
+        if any(gate_named(n, gn, gf) for gn, gf in gates):  # UNMATCHED-BY-THE-ONE-PREDICATE
             continue
         m = _INDEXED_NAME.match(str(n))
         if m:
             out.append((n, "a proof index is not a gate name - `--prove %s` proves every proof of %s"
-                        % (m.group(1), "that gate" if m.group(1) in known else "a gate of that name, and there is none")))
+                        % (m.group(1), "that gate" if any(gate_named(m.group(1), gn, gf) for gn, gf in gates)
+                           else "a gate of that name, and there is none")))
         else:
             out.append((n, "matches no gate this heart can prove (no registered python gate has that name or file)"))
     return out
@@ -3894,7 +3910,7 @@ def unmatched_names(only, gates):
 
 def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True):
     gates = gate_files()
-    todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]
+    todo = gates_named(only, gates)                      # REG-2352 - the one predicate unmatched_names asks too
     # REG-2352 (#42 R11) — NO SILENT PROVE-NOTHING: every name that matches no gate is said here, and main() exits 2 on it
     _PROVE_UNMATCHED[:] = unmatched_names(only, gates) if only else []
     for _un, _uwhy in _PROVE_UNMATCHED:
@@ -5003,7 +5019,7 @@ def _forecast_main(names):
     try:
         gates = gate_files(say=lambda *a, **k: None)
         want = set(names or ())
-        todo = [(n, f) for n, f in gates if n in want or f in want]
+        todo = gates_named(want, gates) if want else []      # REG-2352 - the one predicate prove() and unmatched ask
         have = [(n, f, red_proofs_in(f)) for n, f in todo]
         forecast([(n, f, p) for n, f, p in have if p], say=print,
                  unmatched=unmatched_names(want, gates) if want else ())

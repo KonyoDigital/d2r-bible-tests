@@ -93,6 +93,8 @@ Spec R11, 2026-10-21. A --prove name that matched no gate (a typo, or `NAME[k]`,
 
 FIX: prove() names every unmatched --prove name; a `NAME[k]` gets the hint to prove the gate. main() then exits 2, also when other names matched. A push prints every inherited HEART2_* variable in its first lines and keeps them in its record (REG-2353). The summary of a passing push survives in that record.
 
+ROUND 3 (the review of T2): a root-level gate's file is "../visual_lock_invariant.py" in gate_files(). unmatched_names took `visual_lock_invariant.py` as a match by its basename, while prove() and the forecast matched by name or file only. So `--prove visual_lock_invariant.py` proved nothing, named nothing, and exited 0 (measured by the review). `gate_named()` is now the ONE predicate prove(), `--forecast` and unmatched_names ask: the gate's name, its file, or that file's basename. That command now proves the gate.
+
 GUARD: tv/test_a_push_records_its_forecast_and_actual.py (shared with REG-2353).
 
 ### REG-2351 - ONE CLOSING CLEAN RUN THAT COULD NOT FINISH THREW AWAY EVERY PROOF ITS GATE HAD EARNED (#42 R7, push-proof track T2)

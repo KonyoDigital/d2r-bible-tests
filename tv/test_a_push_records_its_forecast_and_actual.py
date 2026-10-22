@@ -99,6 +99,29 @@ class NoSilentProveNothing(unittest.TestCase):
         code, out = _run_main(["--prove", "g1"], **self.patches)
         self.assertEqual(code, 0, "PREMISE: a matched run that proved its gate exits 0:\n%s" % out)
 
+    def test_a_root_level_gate_is_named_by_one_predicate_everywhere(self):
+        """REG-2352 (round 3) - a root-level gate's file is "../visual_lock_invariant.py" in gate_files(). unmatched_names
+        took its basename as a match while prove() did not, so `--prove visual_lock_invariant.py` proved nothing, named
+        nothing and exited 0. prove(), the forecast and unmatched_names now ask one predicate."""
+        self.gates.append(("visual-lock", "../visual_lock_invariant.py"))
+        seen = []
+
+        def proving(have, say=print, workers=None, blank=None):
+            seen.extend(n for n, _f, _p in have)
+            return dict((n, H.PROVEN) for n, _f, _p in have), dict((n, [H.PROVEN]) for n, _f, _p in have)
+        code, out = _run_main(["--prove", "visual_lock_invariant.py"], **dict(self.patches, _prove_gates=proving))
+        self.assertEqual((code, seen), (0, ["visual-lock"]), "`--prove visual_lock_invariant.py` did not prove the "
+                                                             "root-level gate (exit %s, proved %s):\n%s" % (code, seen, out))
+        for want in ("visual_lock_invariant.py", "../visual_lock_invariant.py", "visual-lock"):
+            self.assertEqual(H.unmatched_names({want}, self.gates), [], "%r selects a gate and was called unmatched" % want)
+            self.assertEqual(H.gates_named({want}, self.gates), [("visual-lock", "../visual_lock_invariant.py")], want)
+        asked = []
+        code, out = _run_main(["--forecast", "visual_lock_invariant.py"], gate_files=lambda say=print: list(self.gates),
+                              red_proofs_in=lambda f: [{"why": "x"}],
+                              forecast=lambda have, say=print, sandbox=None, cache=None, unmatched=(): asked.append(
+                                  ([n for n, _f, _p in have], list(unmatched))) or {})
+        self.assertEqual(asked, [(["visual-lock"], [])], "the forecast selected another set than prove(): %s" % asked)
+
 
 class _Fixture(unittest.TestCase):
     """A sandbox-shaped tree: one gate with three proofs (A, B, C) over subject.py, and one law that lists a directory."""
@@ -448,6 +471,28 @@ RED_PROOF = [
      # REG-2357 - its one catching case is POSIX-only (flock): on Windows the case skips in both runs and this proof
      # filed BLIND there. Judged where POSIX is.
      "matches": 1, "needs": "posix"},
+    # REG-2352 (round 3) - one predicate names a gate for prove(), the forecast and unmatched_names
+    {"why": "REG-2352 - prove() matches by name or file only: `--prove visual_lock_invariant.py` proves nothing and exits 0",
+     "file": "heart2.py",
+     "find": "    todo = gates_named(only, gates)                      # REG-2352 - the one predicate unmatched_names asks too\n",
+     "replace": "    todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]\n",
+     "matches": 1},
+    {"why": "REG-2352 - the predicate forgets a root-level gate's basename: `--prove visual_lock_invariant.py` proves "
+            "nothing",
+     "file": "heart2.py",
+     "find": "    return bool(w) and w in (str(name), str(filename), os.path.basename(str(filename)))\n",
+     "replace": "    return bool(w) and w in (str(name), str(filename))\n",
+     "matches": 1},
+    {"why": "REG-2352 - the forecast selects its gates by another rule than prove()",
+     "file": "heart2.py",
+     "find": "        todo = gates_named(want, gates) if want else []      # REG-2352 - the one predicate prove() and unmatched ask\n",
+     "replace": "        todo = [(n, f) for n, f in gates if n in want or f in want]\n",
+     "matches": 1},
+    {"why": "REG-2352 - unmatched_names judges names by another rule than prove(), so a root-level gate is named unmatched",
+     "file": "heart2.py",
+     "find": "        if any(gate_named(n, gn, gf) for gn, gf in gates):  # UNMATCHED-BY-THE-ONE-PREDICATE\n",
+     "replace": "        if any(n in (gn, gf) for gn, gf in gates):  # UNMATCHED-BY-THE-ONE-PREDICATE\n",
+     "matches": 1},
 ]
 
 
