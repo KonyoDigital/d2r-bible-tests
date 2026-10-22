@@ -31537,9 +31537,11 @@ def _vault_cooling_board(owed, now_ms=None):
             rid = os.path.basename(str(d))
             e = _vault_cooling(rid, now_ms)
             if e:
-                out.append({"reel": rid, "until": e.get("until"), "barren": e.get("barren"),
-                            "why": "%d barren round(s); not read again until the cooldown ends or the vault reader "
-                                   "changes" % int(e.get("barren") or 0)})
+                _nb = e.get("barren")   # #188 eye: a non-numeric stored count must not end the board early
+                _nbs = str(_nb) if isinstance(_nb, int) else "an unknown number of"
+                out.append({"reel": rid, "until": e.get("until"), "barren": _nb,
+                            "why": "%s barren round(s); not read again until the cooldown ends or the vault reader "
+                                   "changes" % _nbs})
     except Exception:
         return out
     return out
