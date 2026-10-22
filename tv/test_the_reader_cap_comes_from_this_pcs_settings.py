@@ -5,9 +5,12 @@ MEASURED 2026-10-21 on his Mac: the live console (launched through Terminal, TVD
 TV_INTAKE_* variable at all - neither the LaunchAgent plist nor `launchctl setenv` reaches a Terminal-launched console -
 so tv/intake_local.mjs capped at its code default while the caps were believed raised: his live ledger held 20 reads in
 the last hour, and the 21st was refused as `subscription hourly cap hit (20/20)` with nothing saying which limit that
-was or where it came from. The refusal also left the lane as `200 {"error":"worker-exception"}` (intake.js catches the
-throw), and on /api/ask the runner died, so the console fell through to the website proxy and read on the API key.
-And `TV_INTAKE_*_MAX=0`, the documented off switch, never switched anything off: `parseInt('0') || 20` is 20.
+was or where it came from.
+
+READ FROM THE CODE, not measured: the refusal left the lane as `200 {"error":"worker-exception"}` (intake.js catches the
+throw), and on /api/ask the runner exited 1, so the handler fell through to the website proxy, which reads on the site's
+API key - pinned with stub runners in test_a_capped_read_is_answered_429. And `TV_INTAKE_*_MAX=0`, the documented off
+switch, never switched anything off: `parseInt('0') || 20` is 20.
 
 THE LAW, DRIVEN through the real runner (`node tv/intake_local.mjs` + the locked functions/api pipeline) on a fixture
 ledger (TV_SUB_BUDGET) and a fixture settings file (TV_PC_SETTINGS) - his ledger and his settings are never read or
