@@ -6510,6 +6510,58 @@ def _ensure_numpy_at_boot(_find=None, _run=None):
     return _ensure_pkg_at_boot("numpy", "numpy", "NUMPY_BOOT", _find=_find, _run=_run)
 
 
+#: REG-2465 (#167) — what the boot node step was answered on this console. None until it has asked (and always None
+#: off Windows or on a scratch console, where it never asks).
+NODE_BOOT = None
+
+
+def _ensure_node_at_boot():
+    """REG-2465 (#167) — THE CONSOLE'S DEPENDENCY DOOR FOR NODE, ON WINDOWS, AT BOOT.
+    -> the record (also NODE_BOOT), or None when it is not this console's job
+
+    His ruling 2026-10-21 (#167): "BOTH" - the installer AND the console's own dependency step fetch Node on every PC,
+    so the next new PC never needs SSH. Node is a runtime dependency here, not a test one: the intake lane spawns a bare
+    'node' (the subscription runner) and heart2's _host_has_node asks PATH, so on Dean's PC every node-only law
+    skipped and the intake read on the hosted site until Node was put there by hand. Like Pillow and numpy, a
+    self-updated console never re-runs an installer, so the console asks for itself.
+
+    The work lives in tv/node_runtime.py: ensure(blocking=False, why) resolves node, or fetches the pinned portable zip
+    on a background thread (its SHA-256 checked before it is extracted, into %LOCALAPPDATA%\\Programs\\nodejs), and
+    puts its folder at the head of os.environ['PATH'] for THIS process only - which reaches the intake lane's spawn,
+    heart2's question and every child this console starts. This step only asks it and records the answer. A
+    node_runtime that cannot be imported, or that raises, is recorded UNKNOWN and boot goes on. Off Windows it asks
+    nothing (node_runtime only resolves there), and neither does a scratch console (it would fetch into a real home)."""
+    if not IS_WIN:
+        return None
+    try:
+        import win_relaunch as _wr
+        if _wr.scratch_console():
+            return None
+    except Exception:
+        return None
+    rec = {"ts": int(time.time() * 1000), "ok": None, "node": None, "fetched": None, "onPath": None, "why": None}
+    globals()["NODE_BOOT"] = rec
+    try:
+        import node_runtime as _nr
+    except Exception as e:
+        rec["why"] = "UNKNOWN - node_runtime could not be imported (%s: %s)" % (type(e).__name__, str(e)[:120])
+        print("\u26a0 boot node: %s" % rec["why"], flush=True)
+        return rec
+    try:
+        got = _nr.ensure(blocking=False, why="console boot")
+    except Exception as e:
+        rec["why"] = "UNKNOWN - node_runtime.ensure raised %s: %s" % (type(e).__name__, str(e)[:120])
+        print("\u26a0 boot node: %s" % rec["why"], flush=True)
+        return rec
+    if not isinstance(got, dict):
+        rec["why"] = "UNKNOWN - node_runtime.ensure answered a %s, not a record" % type(got).__name__
+    else:
+        rec.update(ok=got.get("ok"), node=got.get("node"), fetched=got.get("fetched"), onPath=got.get("onPath"),
+                   why=(str(got.get("why") or "")[:300] or None))
+    print("boot node: ok=%s %s" % (rec["ok"], rec["why"] or ""), flush=True)
+    return rec
+
+
 def _prewarm_seal_cache():
     """v880 (Grok j / back-pass #4) — build the theatre's ?w=1280 derivatives for the NEWEST
     sealed session in a low-priority background thread: first playback pays no sips storm.
@@ -48961,6 +49013,7 @@ def main():
     # #227 — a self-updated console never re-runs the launcher: it makes sure it can read its frames
     threading.Thread(target=_ensure_pillow_at_boot, daemon=True, name="tvd-pillow").start()
     threading.Thread(target=_ensure_numpy_at_boot, daemon=True, name="tvd-numpy").start()   # REG-1719
+    threading.Thread(target=_ensure_node_at_boot, daemon=True, name="tvd-node").start()     # REG-2465
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
