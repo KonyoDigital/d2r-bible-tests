@@ -11900,6 +11900,15 @@ GATES = [
              "tracked .html/.js/.css/.mjs/.cjs names one in src=, a stylesheet/preload/import link, url(), import(), "
              "@import, a Worker, importScripts, a service worker or fetch(). The page list is the law's own bytes, "
              "held to git ls-files (a new tracked page must be added there)."),
+    Gate("test_the_suite_ledger_is_one_per_machine",
+         [sys.executable, os.path.join(HERE, "test_the_suite_ledger_is_one_per_machine.py")], 120,
+         needs_app=False,
+         why="REG-2445 (#164/#178 class) - the gate ledger and its map were per checkout, so every fresh push worktree "
+             "started with no carried suite PASS and lost what it proved. They live in git's common dir now (read from "
+             ".git, never by running git), each checkout's own file folded in once; REG-2343's four holes are closed: "
+             "a PASS carries into another checkout only where its absent ignored inputs, untracked folders and listed "
+             "folders' untracked names hold (a folded row only in its own checkout), a writer writes only its own rows "
+             "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
