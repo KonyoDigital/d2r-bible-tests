@@ -40,8 +40,16 @@ def _names():
     return sorted(set(re.findall(r'_decision_path\(\s*"([^"]+)"\s*\)', src)))
 
 
-#: #148 — tracked ON PURPOSE (.gitignore says why): a single kept evidence record, not per-machine state
-TRACKED_ON_PURPOSE = {".status_worst.json": "the 612,893 ms request that answered #28 - kept evidence, a ruling"}
+#: #148 — tracked ON PURPOSE (.gitignore says why). REG-2461: none left. Its one entry was the console's slowest-request
+#: record, which the running console rewrote on every PC; that record is per-PC now (.status_worst.here.json) and is
+#: checked below like every other file the console mints at the state root.
+TRACKED_ON_PURPOSE = {}
+
+
+def _no_host(d):
+    """-c value that points core.excludesFile at a file that does not exist, so no PC's global ignore answers for
+    the tree (a host rule would keep this law green with the tree's own line deleted)."""
+    return "core.excludesFile=" + os.path.join(d, "no-host-excludes")
 
 
 def _state_root_names():
@@ -94,7 +102,7 @@ def _ignored(rels):
             if os.path.isfile(os.path.join(ROOT, rel)):
                 shutil.copyfile(os.path.join(ROOT, rel), os.path.join(d, rel))
         return [rel for rel in rels
-                if _git(["check-ignore", "-q", "--no-index", rel], cwd=d).returncode != 0]
+                if _git(["-c", _no_host(d), "check-ignore", "-q", "--no-index", rel], cwd=d).returncode != 0]
     finally:
         shutil.rmtree(d, True)
 

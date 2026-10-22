@@ -381,9 +381,21 @@ heart2_look_*.sh
 # entirely — so the lane would skip reels it has never seen and re-buy ones it had ruled out, which
 # is the exact defect #60 exists to end, re-entered through git.
 #
-# ⚠ Its sibling `.status_worst.json` IS tracked ON PURPOSE and stays that way: that one is a single
-# kept EVIDENCE record (the 612,893 ms request that answered #28), not per-machine state.
+# ⚠ REG-2461 (#181) - its sibling, the console's slowest-request record, is per-machine state too. It
+# used to be the TRACKED tv/.status_worst.json, kept as "the 612,893 ms request that answered #28" -
+# but the running console rewrote it on every new worst, so what shipped to every PC was one console's
+# record (by v3406 his Mac's 1,773,092 ms request), and a fresh PC published it as its own worst.
+# The console now writes only `.status_worst.here.json` below. The tracked file stays as it is
+# (deleting it would make `git pull --ff-only` refuse on a PC where it is locally modified) and
+# nothing writes it again.
 tv/.vault_autoread.json
+
+# REG-2461 / REG-2462 (#181) - THIS PC's console records. Each is written only by the console or harness on this
+# machine and read only here; another PC shows UNKNOWN, never these numbers.
+tv/.status_worst.here.json
+tv/.status_worst.here.json.tmp
+tv/.river_epoch.here.json
+tv/.river_epoch.here.json.tmp
 
 # v3076 — runtime lane traces: a loop's own recorded decision, rewritten constantly
 tv/.lane_trace/

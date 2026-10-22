@@ -11542,6 +11542,17 @@ GATES = [
              "tv_diablo's vision writer handed the shared ledger back in seconds, so one vision read reset the intake "
              "cap (reproduced on a fixture ledger): 20 intake rows, one _sub_budget_record(), and the board's 21st "
              "read is still 429."),
+    Gate("test_a_pc_keeps_its_own_slowest_request",
+         [sys.executable, os.path.join(HERE, "test_a_pc_keeps_its_own_slowest_request.py")], 120,
+         needs_app=False,
+         why="REG-2461 / REG-2462 (#181) - the console's slowest-request record and the river epoch were TRACKED "
+             "files, so every update shipped one PC's numbers to every PC: a fresh PC loaded his Mac's committed "
+             "1,773,092 ms request as its own worst, published it as worstRequest and kept it as the bar to beat. "
+             "Both are per-PC gitignored files now (.status_worst.here.json, .river_epoch.here.json); absent is None "
+             "- nothing measured here - and the tracked copies are never written again. Driven in a fixture world: "
+             "another PC's record is never this PC's, a slow status request is kept and published here only, git's "
+             "own matcher ignores the names the code writes, and an epoch that cannot be serialised leaves the last "
+             "one whole."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

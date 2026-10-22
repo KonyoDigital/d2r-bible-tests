@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2461 - EVERY PC PUBLISHED HIS MAC'S SLOWEST REQUEST AS ITS OWN: THE CONSOLE'S RECORD WAS A TRACKED FILE (#181)
+
+Measured 2026-10-22 (git ls-files, and read from the code): tv/.status_worst.json is tracked. `_status_worst_path()` and `_STATUS_WORST_PATH` named it, `_status_worst_load()` read it as THIS PC's slowest request, the status epilogue kept it as the bar a new request must beat (`_prev = ... or _status_worst_load()`), and `_status_timing_payload()` published it as `worstRequest`. The committed copy is the last one his Mac's console wrote before v3406 - v3404's 1,773,092 ms request, slowest section fleetOrigin - so a fresh PC (Dean's) published his Mac's 29.5 minutes as its own worst and kept no slow request of its own below it. The .gitignore comment still called the file "the 612,893 ms request that answered #28" (overwritten long ago), and test_every_decision_file_is_ignored carried it as TRACKED_ON_PURPOSE.
+
+FIX: one per-PC gitignored name, tv/.status_worst.here.json, at both literals. The loader reads only it (absent is None - nothing measured here yet) and the writer writes only it. The tracked file stays byte-identical and nothing writes it again. It is NOT deleted here: on a PC where it is locally modified (the ALT's ` M`, REG-1837) a commit that deletes it makes `git pull --ff-only` refuse for good, and launcher_pull never resets an own record. self_prove.CONSOLE_OWN_RECORDS is unchanged. The .gitignore comment says what the file was; the dead TRACKED_ON_PURPOSE entry is gone, so the per-PC name is checked like every other state-root file, and that law now scrubs GIT_* (REG-2392) and switches off the host's global excludes for its throwaway repo.
+
+GUARD: tv/test_a_pc_keeps_its_own_slowest_request.py (registered), in a fixture world (TV_HIST set before control_app is imported): another PC's record under the tracked name and no per-PC file -> `_status_worst_load()` None and `worstRequest` None; a slow `status_payload()` request (its network, CLI and git producers stubbed, the agent probe held 0.8 s) is kept in the per-PC file and published, the tracked bytes identical; git's own matcher ignores the names the code writes, with their .tmp. RED proofs: the loader falls back to the tracked name; the writer targets it; the ignore line removed.
+
+LEFT: the tracked tv/.status_worst.json is still in the tree (removing it waits for a pull door that resets an own record). The roster half of #181 - each PC publishing its own heart, locks and river with their age - is not in this change.
+
+### REG-2462 - THE RIVER EPOCH WROTE A TRACKED FILE, AND WROTE IT IN PLACE (#181)
+
+tv/river_epoch.py's EPOCH_PATH was the tracked tv/.river_epoch.json, so one machine's epoch over its own reels shipped to every PC. write() was `io.open(p, "w").write(json.dumps(...))`: the open truncates before dumps runs, so a record dumps could not serialise left the file EMPTY (read from the code; reproduced in the law with a record holding an object()). Nothing reads the file; only write() does.
+
+FIX: EPOCH_PATH is the per-PC gitignored tv/.river_epoch.here.json, and write() makes the text first, writes a tmp beside the record and renames it over the record. The tracked file is left as it is, for the pull reason in REG-2461.
+
+GUARD: tv/test_a_pc_keeps_its_own_slowest_request.py `TheEpochIsWrittenWhole` and its git case (the epoch's name is read from EPOCH_PATH). RED proofs: EPOCH_PATH back to the tracked file; its ignore line removed; the in-place write restored.
+
 ### REG-2460 - A HIGH-WATER MARK SET BY ANOTHER BOARD'S SEED COULD NEVER COME DOWN, AND THE RULED DOOR COULD NOT REACH IT (Dean's 261, #169)
 
 Measured on Dean's PC 2026-10-21/22 by the agent, through his console's own state: both of his worlds held a uniques high-water mark of 261, set 08-28 by Konyo's seed (sets 116 / uniques 261 was Konyo's own board that week; v2692 recorded his board showing Konyo's seed). His ladder world has read 0 since 09-26, and console_doctor's progress row has said "BELOW its own high-water mark" (uniques 0, best 261) ever since. board_tally_merge's mark only ever RISES (its rule 3, Konyo's 08-28 ask), and the door Konyo ruled for this on 10-21, `/api/ledger_drop_accept`, closes `.ledger_drops.json` EPISODES - Dean has none, so it answered "no open drop for foundLog" and wrote nothing.

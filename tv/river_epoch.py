@@ -53,7 +53,10 @@ SURFACES = ("river.epoch", "reel.route")
 EXCLUDED = ("ledger-unreadable", "target-met")
 EXCLUDED_WHY = "cannot fire without a free_mb target; the retention plan does not count them as gaps"
 
-EPOCH_PATH = os.path.join(HERE, ".river_epoch.json")
+#: REG-2462 (#181) - THIS PC's epoch record. It was the TRACKED tv/.river_epoch.json, so one machine's run over its
+#: own reels shipped to every PC with each update. The per-PC name is gitignored; the tracked file is left as it is
+#: (deleting it would make `git pull --ff-only` refuse on a PC where it is locally modified) and nothing writes it.
+EPOCH_PATH = os.path.join(HERE, ".river_epoch.here.json")
 
 
 def snapshot():
@@ -256,8 +259,17 @@ def run(cycles=10, quiet_for=2, apply=False):
 
 
 def write(ep, path=None):
+    """REG-2462 - the epoch record, written whole or not at all. -> the path written
+
+    It was `io.open(p, "w").write(json.dumps(...))`: the open TRUNCATES before dumps runs, so a record dumps could
+    not serialise left an EMPTY file where the last epoch was. The text is made first, written to a tmp beside the
+    record and renamed over it, so a raise anywhere leaves the previous record whole."""
     p = path or EPOCH_PATH
-    io.open(p, "w", encoding="utf-8").write(json.dumps(ep, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(ep, indent=1, ensure_ascii=False) + "\n"
+    tmp = p + ".tmp"
+    with io.open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, p)
     return p
 
 
