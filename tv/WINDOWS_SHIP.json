@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3785",
+  "ver": "v3787",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3785: T3 REG-2360 to 2366, six BLIND re-aims REG-2371 to 2376, REG-2392 corrected, REG-2393 (Push A2)",
+  "note": "v3787: perfect bases file to the socketed mule and the console tip survives a warm-up scroll",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
