@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
     && !!(window as any).LSR);
 });
 
-test('a second, different pick in one open is a swap and takes back the first copy (REG-2267)', async ({ page }) => {
+test('a second, different planner pick keeps the first pick copy (REG-2227)', async ({ page }) => {
   const r = await page.evaluate(({ grief, second }) => {
     const W = window as any;
     const readCopies = () => { try { return JSON.parse(W.LSR.getItem('d2r_copies') || '{}') || {}; } catch (e) { return {}; } };
@@ -59,8 +59,6 @@ test('a second, different pick in one open is a swap and takes back the first co
   expect(r.r1mode, 'the already-filed Grief re-pick is recorded as a copy').toBe('copy');
   expect(r.afterGrief[GRIEF], 'Grief is copy 2 after the first pick').toBe(2);
 
-  // REG-2267 (v3753) supersedes REG-2227 here: one planner open holds ONE pick, so a different pick in the
-  // same open is a SWAP and takes back the copy the swapped-away Grief added (no phantom copy). Guard twin:
-  // tv/test_a_hand_added_item_stays_his.py griefAfterSwap.
-  expect(r.afterSecond[GRIEF], 'a swap in the same open takes back the swapped-away copy (REG-2267)').toBeUndefined();
+  // REG-2227 (#3): picking a DIFFERENT item next must NOT undo Grief's copy — whatever its id
+  expect(r.afterSecond[GRIEF], 'a later, different pick must not undo the earlier copy').toBe(2);
 });

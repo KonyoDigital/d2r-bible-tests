@@ -69,10 +69,8 @@ test('re-rolling a SECOND planner pick must not undo the FIRST pick copy (REG-22
   expect(r.r1mode, 'the already-filed Grief re-pick is recorded as a copy').toBe('copy');
   expect(r.afterGrief[GRIEF], 'Grief is copy 2 after the first pick').toBe(2);
   // the v3740 id-guard already keeps the copy across a second, DIFFERENT pick
-  // REG-2267 (v3753): the different pick in the same open is a swap, so Grief's copy is taken back once
-  expect(r.afterSecond[GRIEF], 'the swap takes back the swapped-away copy (REG-2267)').toBeUndefined();
+  expect(r.afterSecond[GRIEF], 'Grief copy survives the second, different pick').toBe(2);
 
   // REG-2240 (#108): re-rolling the LATER pick must NOT revert Grief's copy — the bump is not Grief's here
-  // REG-2240: the re-roll of the later pick must not undo anything more (no double take-back, no negative)
-  expect(r.afterReroll[GRIEF], 'a re-roll of a later pick must not touch the earlier copy again').toBeUndefined();
+  expect(r.afterReroll[GRIEF], 'a re-roll of a later pick must not undo the earlier copy').toBe(2);
 });
