@@ -4500,18 +4500,74 @@ window.LSR = (function(){
     _qSay();
     return { ok: true, released: true, aside: ent.aside, why: null };
   }
+  /* REG-2526 (review of REG-2410, r5) — A REFUSED WRITE IS SAID AS IT HAPPENS. The count went into the registry and only
+     the console: the notice was painted when the store was quarantined and never again, so a rune count he edited looked
+     saved all session and was gone on the reload. The first refusal of a store repaints the notice at once; the rest are
+     gathered into one repaint per 250 ms, so the number he reads is never behind by more than that. */
+  var _qPaintT = null;
   function _qRefuse(k, verb){
     var ent = _QUAR[k];
     ent.refused++; ent.lastVerb = verb; ent.lastRefusedAt = Date.now();
     if (ent.refused === 1 || ent.refused % 50 === 0)
       _qWarn(k + ' is ' + (ent.kind === 'stale' ? 'held' : 'quarantined') + ' (' + ent.reason + ') - a ' + verb
              + ' was refused (' + ent.refused + ' so far)');
+    if (ent.refused === 1) _qSay();
+    else if (!_qPaintT){
+      try { _qPaintT = setTimeout(function(){ _qPaintT = null; _qSay(); }, 250); } catch(eT){ _qPaintT = null; _qSay(); }
+    }
     return false;
   }
   function quarantined(k){
     if (k == null) return Object.keys(_QUAR).map(function(x){ return _QUAR[x]; });
     return _QUAR[String(k)] || null;
   }
+  /* ⟦ONE STORE READER⟧ ══ V1 round 3 (#162, #152; REG-2520) — EVERY VAULT STORE IS READ THROUGH THIS ONE READER, AND BYTES
+     THAT WILL NOT READ ARE UNKNOWN, NEVER EMPTY. Round 2's reviews found the REG-2410 defect alive in three more stores:
+     the scan ledger (d2r_intakeSeen), the removal journal (d2r_vaultRemoved) and the Recently-registered log
+     (d2r_intakeLog) each had its own `JSON.parse(raw || '[]')` with `catch -> []`, so bytes cut short read as EMPTY and the
+     next write put one mark, one batch or one session over every row he had - his undo history among them. And a mule
+     roster saved as "[]" passed its shape check (every element of nothing is a mule), so the paint's prune dropped every
+     filing against three lockers. Each store had its own reader and each reader its own idea of "unreadable".
+     read(k, shape, absent) is the one idea:
+       · nothing saved yet (absent or '')                    -> `absent`, a measured nothing (the caller's empty container)
+       · bytes that parse to the shape                        -> the value
+       · bytes that will not parse, or the wrong shape        -> null = UNKNOWN, and the key goes to quarantine(): its bytes
+                                                                 kept aside, every write and remove of it refused, the
+                                                                 notice says which store and why
+       · a key this door already quarantined                  -> null, until he releases it (a restore, Start it fresh,
+                                                                 Keep this tab's copy, another tab's store that reads)
+     shape: 'list' | 'map' | 'map?' (a map, or the null this page writes for "not seeded yet") | function(v) -> null when
+     the value reads, else the words for why not (the roster's rule: a list of mules holding every core locker).
+     A caller never puts {} or [] where it got null: it says UNKNOWN, or it refuses in words, or - a boot loader that
+     must hand the page a live container - it runs on its default while the door holds the store and the vault is held.
+     [[unknown-stays-unknown]] [[heart-first]] */
+  function _qWhat(v){
+    return v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'object' ? 'a map'
+         : typeof v === 'string' ? 'text' : typeof v === 'number' ? 'a number' : typeof v;
+  }
+  function shapeWhy(v, shape){
+    if (typeof shape === 'function'){ var w = null; try { w = shape(v); } catch(eS){ w = 'could not be checked'; } return w ? String(w) : null; }
+    if (shape === 'list') return Array.isArray(v) ? null : 'is not a list (it holds ' + _qWhat(v) + ')';
+    if (shape === 'map?' && v === null) return null;
+    if (shape === 'map' || shape === 'map?')
+      return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? null : 'is not a map (it holds ' + _qWhat(v) + ')';
+    return null;
+  }
+  function read(k, shape, absent){
+    k = String(k);
+    var cur = _QUAR[k];
+    if (cur && cur.kind === 'quarantine') return null;
+    var raw;
+    try { raw = RAW.getItem(key(k)); } catch(eR){ quarantine(k, 'could not be read'); return null; }
+    if (raw == null || raw === '') return absent;
+    var v;
+    try { v = JSON.parse(raw); } catch(eP){ quarantine(k, 'will not parse'); return null; }
+    if (shape === 'map?' && v === null) return absent;
+    var why = shapeWhy(v, shape);
+    if (why){ quarantine(k, why); return null; }
+    return v;
+  }
+  /* ⟦/ONE STORE READER⟧ */
   return {
     getItem:    function(k){ return RAW.getItem(key(k)); },
     setItem:    function(k,v){
@@ -4520,6 +4576,7 @@ window.LSR = (function(){
       return RAW.setItem(key(k), v);
     },
     removeItem: function(k){ if (_QUAR[k]) return _qRefuse(String(k), 'remove'); return RAW.removeItem(key(k)); },
+    read: read, shapeWhy: shapeWhy,
     quarantine: quarantine, hold: hold, release: release, quarantined: quarantined,
     spSide: _spSide,
     raw: RAW, key: key
@@ -4798,9 +4855,12 @@ window._tickRedoRestore = function(name, r){
       if (typeof window.vaultRemovalLog !== 'function' || typeof window.vaultRestoreLast !== 'function'){
         out.vault = { restored: 0, why: 'the vault door is not on this page' };
       } else {
-        var log = window.vaultRemovalLog() || [];
-        var last = log.length ? log[log.length - 1] : null;
-        out.vault = (last && last.ts === r.vaultTs)
+        var log = window.vaultRemovalLog();
+        var last = (log && log.length) ? log[log.length - 1] : null;
+        /* REG-2520 — a journal that would not read is UNKNOWN, never "another removal came after" */
+        out.vault = (log === null)
+          ? { restored: 0, why: 'the vault removal journal would not read - its bytes are kept aside (see the notice at the top)' }
+          : (last && last.ts === r.vaultTs)
           ? window.vaultRestoreLast()
           : { restored: 0, why: 'another removal came after the un-tick - put it back from the vault removal list',
               said: 'another removal came after the un-tick', todo: 'put it back from the vault removal list' };
@@ -21433,21 +21493,13 @@ const _safeJsonParse = (raw, fallback) => {
    write to k, the page runs on the fallback in memory, and window._storeQuarantinePaint says so on the board.
    ⚠ CONTAINER SHAPE ONLY. A list holding one odd element still reads: holding a 300-name owned list over one
    stray null would stop his vault for nothing, and that is a different question. [[unknown-stays-unknown]] */
+/* REG-2520 — the boot loaders read through THE ONE READER (⟦ONE STORE READER⟧, window.LSR.read). A store that will not
+   read comes back UNKNOWN (null) from it, quarantined; a loader must still hand the page a live container, so it runs on
+   its `fallback` IN MEMORY while the door refuses every write of that key and the notice says so - a stand-in under the
+   hold, never a reading of his store (the vault's doors ask the hold, ⟦VAULT HOLD⟧, before they write from it). */
 const _storeRead = (kind, fallback) => ({ getItem: (k) => {
-  const _what = (v) => (v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'object' ? 'a map'
-                        : typeof v === 'string' ? 'text' : typeof v === 'number' ? 'a number' : typeof v);
-  const _q = (why) => {
-    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(k, why); } catch(eQ){}
-    return fallback;
-  };
-  let raw = null;
-  try { raw = LS.getItem(k); } catch(e) { return _q('could not be read'); }
-  if (raw === null || raw === undefined || raw === '') return fallback;
-  let v;
-  try { v = JSON.parse(raw); } catch(e) { return _q('will not parse'); }
-  if (kind === 'map?' && v === null) return fallback;
-  if (kind === 'list') return Array.isArray(v) ? v : _q('is not a list (it holds ' + _what(v) + ')');
-  return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? v : _q('is not a map (it holds ' + _what(v) + ')');
+  const v = window.LSR.read(k, kind, fallback);
+  return (v === null) ? fallback : v;
 } });
 try { window._storeRead = _storeRead; } catch(e){}
 /* ⟦/STORE READ⟧ */
@@ -21468,7 +21520,11 @@ window._STORE_SAY = {
   /* REG-2415..2417 — the vault stores read from storage on every use (⟦#246 VAULTFILE⟧ _provAll, the mule window's
      _mulePosAll / _mpEqAll) go to the same door, so they are named here too */
   d2r_vaultProv: 'the vault witness rows - who or what filed each item', d2r_mulePos: 'your hand spots on the mule grids',
-  d2r_muleEquip: 'what each mule wears and carries'
+  d2r_muleEquip: 'what each mule wears and carries',
+  /* REG-2520 — the vault stores read through the one reader since V1 round 3 */
+  d2r_intakeSeen: 'the scan ledger - which screenshots were read, and what each read',
+  d2r_intakeLog: 'the Recently-registered log', d2r_vaultRemoved: 'the removal journal - your undo of a removal',
+  d2r_vaultRemovedAt: 'the per-item record of what you removed, and when'
 };
 /* REG-2415 — why a store the door holds cannot be written now, in his words; null when nothing holds it. One sentence for
    every refusal a vault door says, so a refusal and the notice never name a store two ways. */
@@ -21489,23 +21545,48 @@ window._storeQuarantineHtml = function(list){
   var head = nq
     ? '⚠ ' + nq + ' saved store' + (nq === 1 ? '' : 's') + ' would not read — kept aside, and nothing writes over ' + (nq === 1 ? 'it' : 'them')
     : '⚠ Another tab changed what this tab holds — reload before you change anything here';
+  /* REG-2523 — a store whose last good copy is still in THIS tab says so and offers to keep it; REG-2526 (review of
+     REG-2410, storage full) — a store whose bytes could not be copied aside has no way out in the page (Start it fresh and
+     a restore both refuse it, rightly), so it says that, and what to do: download its bytes, or free space and reload */
+  var keepBtn = function(k){ return ' <button type="button" class="sq-btn" onclick="window._storeKeepThisTab(\'' + k + '\')">Keep this tab’s copy</button>'; };
+  var refusedSay = function(q){ return q.refused ? esc(q.refused) + ' write' + (q.refused === 1 ? ' was' : 's were') + ' refused' : ''; };
   var rows = held.map(function(q){
     var say = (window._STORE_SAY && window._STORE_SAY[q.key]) || '';
     var k = esc(q.key);
     if (q.kind === 'stale')
-      return '<li data-store="' + k + '" data-kind="stale"><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
-        + ' changed in another tab: ' + esc(q.reason) + '. This tab writes nothing to it until it reloads.'
+      return '<li data-store="' + k + '" data-kind="stale"' + (q.cleared ? ' data-last-good="1"' : '') + '><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
+        + ' changed in another tab: ' + esc(q.reason) + '. This tab writes nothing to it until it reloads'
+        + (q.refused ? ' (' + refusedSay(q) + ')' : '') + '.'
+        + (q.cleared ? ' This tab still holds your last good copy.' + keepBtn(k) : '')
         + ' <button type="button" class="sq-btn" onclick="location.reload()">Reload this tab</button></li>';
-    return '<li data-store="' + k + '" data-kind="quarantine"><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
+    var tail = q.lastGood
+      ? 'This tab still holds your last good copy' + (q.refused ? ' (' + refusedSay(q) + ' while it is held)' : '') + '.' + keepBtn(k)
+      : 'Until it is fixed the page runs on a default in its place' + (q.refused ? ', and ' + refusedSay(q) : '') + '.';
+    return '<li data-store="' + k + '" data-kind="quarantine"' + (q.lastGood ? ' data-last-good="1"' : '') + (q.asideOk ? '' : ' data-aside="none"') + '><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
       + ' ' + esc(q.reason) + '. '
       + (q.asideOk ? 'Its ' + (q.bytes == null ? '' : esc(q.bytes) + ' ') + 'bytes are kept aside as <code>' + esc(q.aside) + '</code>. '
-                   : 'Its bytes could not be copied aside, so they stay where they are. ')
-      + 'Until it is fixed the page runs on a default in its place' + (q.refused ? ', and ' + esc(q.refused) + ' write' + (q.refused === 1 ? ' was' : 's were') + ' refused' : '') + '.'
-      + (q.asideOk ? ' <button type="button" class="sq-btn" onclick="window._storeStartFresh(\'' + k + '\')">Start it fresh</button>' : '')
+                   : 'Its bytes could not be copied aside (this browser’s storage may be full), so they stay where they are, and nothing on this page can start it fresh or restore a backup over them: download them first, or free some space in this browser and reload. ')
+      + tail
+      + (q.asideOk ? ' <button type="button" class="sq-btn" onclick="window._storeStartFresh(\'' + k + '\')">Start it fresh</button>'
+                   : ' <button type="button" class="sq-btn" onclick="window._storeDownloadBytes(\'' + k + '\')">Download its bytes</button>')
       + '</li>';
   }).join('');
+  var nAside = held.filter(function(q){ return q.kind !== 'stale' && q.asideOk; }).length;
   return '<div class="sq-head">' + head + '</div><ul class="sq-list">' + rows + '</ul>'
-    + (nq ? '<div class="sq-foot">A backup restore (Backup &amp; Share) puts a good copy back. Starting a store fresh keeps the old bytes aside.</div>' : '');
+    + (nAside ? '<div class="sq-foot">' + (nAside === nq ? 'A backup restore' : 'For a store whose bytes are kept aside, a backup restore')
+                + ' (Backup &amp; Share) puts a good copy back. Starting a store fresh keeps the old bytes aside.</div>' : '');
+};
+/* REG-2526 — the bytes of a store the door holds, as a file he saves (the one way out while they cannot be copied aside) */
+window._storeDownloadBytes = function(k){
+  try {
+    var LSR = window.LSR, raw = LSR.raw.getItem(LSR.key(k));
+    if (raw == null) return { ok: false, why: k + ' holds nothing to download' };
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+    a.download = String(k).replace(/[^A-Za-z0-9_.-]+/g, '_') + '-kept-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.json';
+    document.body.appendChild(a); a.click(); setTimeout(function(){ try { URL.revokeObjectURL(a.href); a.remove(); } catch (eR) {} }, 0);
+    return { ok: true, bytes: raw.length };
+  } catch (e) { return { ok: false, why: k + ' could not be downloaded: ' + ((e && e.message) || e) }; }
 };
 window._storeQuarantinePaint = function(){
   try {
@@ -21548,7 +21629,9 @@ window._storeStartFresh = function(k, skipAsk){
   var ask = skipAsk ? Promise.resolve(true)
     : (typeof window.uiConfirm === 'function'
         ? window.uiConfirm('Start ' + k + ' (' + say + ') fresh?\n\nIt ' + q.reason + '. Its exact bytes stay kept aside as '
-            + q.aside + ', and the page reloads with this store empty.' + (_FRESH_SAY[k] || ''),
+            + q.aside + ', and the page reloads with this store empty.' + (_FRESH_SAY[k] || '')
+            /* REG-2523 — starting fresh drops the good copy this tab still holds; the question says so, and names the other exit */
+            + (q.lastGood ? '\n\nThis tab still holds your last good copy - it is lost if you start fresh. "Keep this tab’s copy" writes it back instead.' : ''),
             { ok: 'Start it fresh', cancel: 'Keep it held' })
         : Promise.resolve(false));
   return ask.then(function(yes){
@@ -22218,10 +22301,20 @@ try {
      ts}}), which never evicts and only moves forward; _removedAfter and the backfill read it beside the ring. Keyed as the
      backfill keys (the register's own resolution, then the vault fold — L-1 / M3). The removal door calls this. */
   var _RM_AT_KEY = 'd2r_vaultRemovedAt';
+  /* REG-2520 — the journal and its per-name record are read through THE ONE READER (window.LSR.read): bytes that will not
+     read are UNKNOWN (null) and quarantined, never [] or {}. A harness door with no reader asks _bfJson, whose UNKNOWN
+     (undefined) is the same null here. */
+  function _rmRead(k, shape, dflt){
+    var D = window.LSR;
+    if (D && typeof D.read === 'function') return D.read(k, shape, dflt);
+    var v = _bfJson(k, dflt);
+    if (v === undefined) return null;
+    return (shape === 'list' ? Array.isArray(v) : (v && typeof v === 'object' && !Array.isArray(v))) ? v : null;
+  }
   window._vaultRemovalNote = function(b){
     var w = window._removalIsHisWord(b);
     if (!w || !Array.isArray(b.names) || !b.names.length) return { noted: 0, why: w ? 'no names' : 'not his word' };
-    var store = _bfJson(_RM_AT_KEY, {});
+    var store = _rmRead(_RM_AT_KEY, 'map', {});
     if (!store || typeof store !== 'object' || Array.isArray(store)) return { noted: 0, why: 'd2r_vaultRemovedAt would not read — nothing was written over it' };
     var n = 0;
     b.names.forEach(function(nm){
@@ -22233,27 +22326,43 @@ try {
     if (n){ try { window.LSR.setItem(_RM_AT_KEY, JSON.stringify(store)); } catch (e) { return { noted: 0, why: 'd2r_vaultRemovedAt would not write' }; } }
     return { noted: n };
   };
-  window._removedAfter = function(name, ts){
+  /* REG-2528 (review of REG-2401, r6) — HIS LAST WORD, INDEXED ONCE PER SCAN. Every held name that has left owned asked
+     _removedAfter once per file, and each ask parsed both removal stores and folded every name in the ring: files x
+     removed names on the main thread every 12 s (measured 342 ms at 300/300, 2.2 s at 1000/1000, 4.9 s at 2000/2000).
+     The index reads both stores once (through the one reader) and keys every removal that is his word by the fold
+     _removedAfter always compared on, the latest per key. -> {idx: {canonKey: {at, lane, frame}}} | {unknown: why} */
+  window._removedAfterIndex = function(){
+    var log = _rmRead('d2r_vaultRemoved', 'list', []);
+    if (!Array.isArray(log)) return { unknown: 'the removal journal would not read — whether you removed it after this read is UNKNOWN' };
+    var noted = _rmRead(_RM_AT_KEY, 'map', {});
+    if (!noted || typeof noted !== 'object' || Array.isArray(noted)) return { unknown: 'the per-name removal record would not read — whether you removed it after this read is UNKNOWN' };
+    var idx = Object.create(null);
+    var put = function(k, at, lane, frame){ var c = idx[k]; if (!c || at > c.at) idx[k] = { at: at, lane: lane, frame: frame }; };
+    log.forEach(function(b){
+      var w = window._removalIsHisWord(b);
+      if (!w) return;
+      (Array.isArray(b.names) ? b.names : []).forEach(function(n){ var k = _cnV(n); if (k) put(k, w.at, w.lane, w.frame); });
+    });
+    /* the per-name record outlives the ring: a removal the ring evicted is still his word */
+    Object.keys(noted).forEach(function(k){
+      var r = noted[k]; if (!r || typeof r !== 'object') return;
+      var at = _ms(r.at); if (at == null) return;
+      put(k, at, String(r.lane || 'manual'), r.frame || null);
+    });
+    return { idx: idx };
+  };
+  /* index: the one a scan built (_intakeSeenAsk), else it is built for this ask */
+  window._removedAfter = function(name, ts, index){
     /* L-1 — the read's name AND the name the register owns it as: a removal journaled under either is his word about it */
     var keys = {}, k0 = _cnV(name), k1 = _cnV(_regName(name));
     if (k0) keys[k0] = 1; if (k1) keys[k1] = 1;
     if (!k0 && !k1) return null;
-    var log = _bfJson('d2r_vaultRemoved', []);
-    if (!Array.isArray(log)) return { unknown: 'the removal journal would not read — whether you removed it after this read is UNKNOWN' };
-    var noted = _bfJson(_RM_AT_KEY, {});
-    if (!noted || typeof noted !== 'object' || Array.isArray(noted)) return { unknown: 'the per-name removal record would not read — whether you removed it after this read is UNKNOWN' };
+    var I = (index && (index.idx || index.unknown)) ? index : window._removedAfterIndex();
+    if (I.unknown) return { unknown: I.unknown };
     var t = _ms(ts), last = null;
-    log.forEach(function(b){
-      var w = window._removalIsHisWord(b);
-      if (!w) return;
-      if (!(Array.isArray(b.names) ? b.names : []).some(function(n){ return keys[_cnV(n)] === 1; })) return;
-      if (!last || w.at > last.at) last = { at: w.at, lane: w.lane, frame: w.frame };
-    });
-    /* the per-name record outlives the ring: a removal the ring evicted is still his word */
     Object.keys(keys).forEach(function(k){
-      var r = noted[k]; if (!r || typeof r !== 'object') return;
-      var at = _ms(r.at); if (at == null) return;
-      if (!last || at > last.at) last = { at: at, lane: String(r.lane || 'manual'), frame: r.frame || null };
+      var r = I.idx[k]; if (!r) return;
+      if (!last || r.at > last.at) last = { at: r.at, lane: r.lane, frame: r.frame };
     });
     if (!last) return null;
     if (t == null) return { unknown: 'removed ' + _iso(last.at) + ', and this read carries no time — whether it is newer is UNKNOWN' };
@@ -22510,8 +22619,12 @@ try {
     if (!prov) return { ran: false, why: 'd2r_vaultProv would not parse — nothing was backfilled over it' };
     if (typeof window.tvVaultRegister !== 'function' || typeof window._vaultMayClaim !== 'function')
       return { ran: false, why: 'the vault register is not on this page yet — nothing was backfilled; it asks again next load' };
+    /* REG-2521 — a held vault refuses every register (the one door), so a one-time replay run now would stamp itself
+       done over refusals and never run again: it waits, said, and asks again next load */
+    var _bfHeld = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (_bfHeld) return { ran: false, why: _bfHeld.why + ' — nothing was backfilled; it asks again next load' };
     /* M3 — HIS REMOVALS, read raw: a journal that will not parse is UNKNOWN, and nothing is replayed over it */
-    var _rmLog = _bfJson('d2r_vaultRemoved', []);
+    var _rmLog = _rmRead('d2r_vaultRemoved', 'list', []);   /* REG-2520 — the one reader */
     if (!Array.isArray(_rmLog)) return { ran: false, why: 'the removal journal would not read — whether he removed any of these is UNKNOWN, so nothing was backfilled; it asks again next load' };
     /* ⚠ M3 (review of bd976210, reproduced) — ONE ITEM, EVERY SPELLING. The removal journal and the owned set were keyed by
        the exact string, so a name he removed came back when the ledger spelled it with a curly apostrophe or another case.
@@ -22526,7 +22639,7 @@ try {
       var t = +((b && b.ts) || 0); _rmAt[k] = Math.max(_rmAt[k] || 0, t || 1); }); });
     /* round-5 review (MED) — and the per-name record the ring evicts nothing from: a removal older than the ring's 20 batches
        is still his; a record that will not read is UNKNOWN and nothing is replayed over it */
-    var _rmNoted = _bfJson(_RM_AT_KEY, {});
+    var _rmNoted = _rmRead(_RM_AT_KEY, 'map', {});   /* REG-2520 — the one reader */
     if (!_rmNoted || typeof _rmNoted !== 'object' || Array.isArray(_rmNoted)) return { ran: false, why: 'the per-name removal record would not read — whether he removed any of these is UNKNOWN, so nothing was backfilled; it asks again next load' };
     Object.keys(_rmNoted).forEach(function(k){ var r = _rmNoted[k], t = r && typeof r === 'object' ? (_ms(r.at) || _ms(r.ts) || 0) : 0;
       if (k) _rmAt[k] = Math.max(_rmAt[k] || 0, t || 1); });
@@ -22703,6 +22816,8 @@ try {
               why: 'the one-time seed cleanse — a chronicle-seed name in owned with no filing, no receipt and no lock: residue of the v659-v676 floors' }); }
       catch (e) { return { ran: false, why: 'the removal door threw (' + String(e && e.message || e) + ') — nothing was stamped; it asks again next load' }; }
     }
+    /* REG-2521 — a door that refused (the vault held) is not a cleanse that ran: nothing is stamped, it asks again next load */
+    if (vr && vr.refused) return { ran: false, why: 'the removal door refused (' + String(vr.why || vr.refused) + ') — nothing was stamped; it asks again next load' };
     var removed = (vr && vr.removed) || [];
     if (removed.length){
       var fl = _bfJson('d2r_foundLog', {});
@@ -23572,11 +23687,15 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
     return (spec.kind === 'set' || spec.kind === 'list') ? [] : {};
   };
   var valOf = function(v){ return (v == null) ? absentOf() : v; };
-  var shapeOk = function(v){
-    if (v == null || spec.kind === 'store') return true;
-    if (spec.kind === 'set' || spec.kind === 'list') return Array.isArray(v);
-    return typeof v === 'object' && !Array.isArray(v);
+  /* REG-2522 — a store with its own shape rule (the roster: a list of mules holding every core locker) is judged by it,
+     the rule its load asks (spec.shape -> null, or the words for why not) */
+  var shapeWhy = function(v){
+    if (v == null || spec.kind === 'store') return null;
+    if (typeof spec.shape === 'function'){ var w = null; try { w = spec.shape(v); } catch (eSh) { w = 'could not be checked'; } if (w) return String(w); }
+    if (spec.kind === 'set' || spec.kind === 'list') return Array.isArray(v) ? null : 'is not a list';
+    return (typeof v === 'object' && !Array.isArray(v)) ? null : 'is not a map';
   };
+  var shapeOk = function(v){ return !shapeWhy(v); };
   var replace = function(live, v){
     if (spec.kind === 'set'){ live.clear(); (v || []).forEach(function(n){ live.add(n); }); }
     else if (spec.kind === 'list'){ live.length = 0; (v || []).forEach(function(m){ live.push(m); }); }
@@ -23600,9 +23719,20 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
   var theirs = parse(newRaw);
   var held = (LSR && typeof LSR.quarantined === 'function') ? LSR.quarantined(k) : null;
   if (!theirs.ok || !shapeOk(theirs.v)){
+    /* REG-2523 (review of REG-2413, r4) — THIS TAB'S LAST GOOD COPY HAS A WAY OUT. The bad bytes are the other tab's, and
+       they are what goes aside; this tab still holds his copy as it was before that write - read fine, merged, nothing
+       held it. The notice used to say "the page runs on a default in its place" (false: this tab runs on his copy) and
+       offered two exits that both dropped it (Start it fresh empties the store; a restore loses everything since the
+       backup). The entry now carries lastGood, and the notice offers Keep this tab's copy (_storeKeepThisTab): ask, keep
+       the bad bytes aside, write this tab's copy in their place. */
+    var _live0 = null;
+    try { _live0 = (spec.kind !== 'store' && typeof spec.get === 'function') ? spec.get() : null; } catch (eG0) { _live0 = null; }
+    var _qe = null;
     if (LSR && typeof LSR.quarantine === 'function')
-      LSR.quarantine(k, 'another tab wrote ' + (theirs.ok ? 'a store of the wrong shape' : 'bytes that will not parse'));
-    return { ok: false, quarantined: true };
+      _qe = LSR.quarantine(k, 'another tab wrote ' + (theirs.ok ? 'a store of the wrong shape (it ' + shapeWhy(theirs.v) + ')' : 'bytes that will not parse'));
+    var _good = !!(_qe && _qe.kind === 'quarantine' && !held && _live0 != null);
+    if (_good){ _qe.lastGood = true; try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP0) {} }
+    return { ok: false, quarantined: true, lastGood: _good };
   }
   if (spec.kind === 'store'){
     /* read from storage on every use, so there is nothing to merge; a quarantine here lifts once the store reads - or
@@ -23667,6 +23797,70 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
   after(wrote);
   return { ok: true, merged: true, applied: n, wroteBack: wrote };
 };
+/* REG-2523 — KEEP THIS TAB'S COPY. Offered by the notice for a store another tab wrote bad bytes over (lastGood) or a
+   storage another tab cleared (cleared), while this tab still holds its copy in memory. He is asked first. Whatever the
+   key holds now is kept aside before anything is written - the other tab's bad bytes stay in their quarantine slot
+   (content-addressed, read back), and bytes written after a clear are copied aside the same way - and only then is this
+   tab's copy written, read back, and the hold lifted. A copy that cannot be kept aside writes nothing.
+   -> Promise {ok, wrote, aside} | {ok:false, why} */
+window._storeKeepThisTab = function(k, skipAsk){
+  var LSR = window.LSR, spec = (window._TAB_SYNC || {})[k];
+  var q = (LSR && typeof LSR.quarantined === 'function') ? LSR.quarantined(k) : null;
+  var no = function(why){ return Promise.resolve({ ok: false, why: why }); };
+  if (!q || !(q.lastGood || q.cleared)) return no(k + ' has no copy in this tab to keep');
+  if (!spec || typeof spec.get !== 'function') return no(k + ' is not held in this tab');
+  var live = null;
+  try { live = spec.get(); } catch (eL) { live = null; }
+  if (live == null) return no(k + ' is not in this tab');
+  var bytes = JSON.stringify(spec.kind === 'set' ? Array.from(live) : live);
+  var n = (spec.kind === 'set') ? live.size : (Array.isArray(live) ? live.length : Object.keys(live).length);
+  var say = (window._STORE_SAY && window._STORE_SAY[k]) || k;
+  var what = (q.kind === 'quarantine')
+    ? 'Another tab wrote bytes over it that ' + String(q.reason).replace(/^another tab wrote /, 'were ') + '; they stay kept aside as ' + q.aside + '.'
+    : 'Another tab cleared this browser’s saved data; anything written there since is kept aside first.';
+  var ask = skipAsk ? Promise.resolve(true)
+    : (typeof window.uiConfirm === 'function'
+        ? window.uiConfirm('Keep this tab’s copy of ' + k + ' (' + say + ')?\n\n' + what + ' This tab still holds your last good copy ('
+            + n + ' entr' + (n === 1 ? 'y' : 'ies') + '), and it is written back in their place.',
+            { ok: 'Keep this tab’s copy', cancel: 'Leave it held' })
+        : Promise.resolve(false));
+  return ask.then(function(yes){
+    if (!yes) return { ok: false, why: 'left held' };
+    /* what holds it NOW: the ask waited on him, and another tab may have written (or released it) since */
+    var q2 = LSR.quarantined(k);
+    if (!q2 || !(q2.lastGood || q2.cleared)) return { ok: false, why: k + ' is no longer held for this tab’s copy - nothing was written' };
+    var phys = LSR.key(k), now = null;
+    try { now = LSR.raw.getItem(phys); } catch (eN) { return { ok: false, why: k + ' could not be read, so nothing was written over it' }; }
+    var keptAlready = false;
+    try { keptAlready = !!(q2.aside && LSR.raw.getItem(q2.aside) === now); } catch (eK) { keptAlready = false; }
+    if (now != null && now !== '' && now !== bytes && !keptAlready){
+      /* bytes in the key that are not kept aside yet - the other tab's that could not be copied, another write that landed
+         since, or bytes written after a clear: they go aside FIRST, through the door's own content-addressed slot */
+      var r0 = LSR.release(k);
+      if (!r0 || !r0.ok)
+        return { ok: false, why: k + ' - the bytes in it could not be copied aside, so nothing is written over them (download them from the notice first)' };
+      var e2 = LSR.quarantine(k, q2.kind === 'quarantine' ? q2.reason : 'written by another tab after it cleared the saved data');
+      if (!e2 || !e2.asideOk){
+        if (e2){ e2.lastGood = true; }
+        try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP3) {}
+        return { ok: false, why: k + ' holds bytes another tab wrote, and they could not be copied aside - nothing was written over them' };
+      }
+    }
+    var rel = LSR.release(k);
+    if (!rel || !rel.ok) return { ok: false, why: (rel && rel.why) || 'the door kept it' };
+    var wrote = false;
+    try { wrote = (LSR.setItem(k, bytes) !== false) && (LSR.raw.getItem(phys) === bytes); } catch (eW) { wrote = false; }
+    if (!wrote){
+      try { LSR.hold(k, 'this tab’s copy could not be written back'); } catch (eH) {}
+      try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP) {}
+      return { ok: false, why: k + ' - this tab’s copy could not be written (the browser refused the write); it stays held' };
+    }
+    try { if (spec.adopted) spec.adopted(); } catch (eA) {}
+    try { if (spec.after) spec.after(true); } catch (eAf) {}
+    try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP2) {}
+    return { ok: true, wrote: n, aside: (rel && rel.aside) || q.aside || null };
+  });
+};
 (function(){
   var REG = window._TAB_SYNC, _paintT = null;
   function vaultAfter(wrote){
@@ -23719,8 +23913,17 @@ window._tabSyncMerge = function(k, oldRaw, newRaw){
         if (!ev) return;
         try { if (ev.storageArea && window.localStorage && ev.storageArea !== window.localStorage) return; } catch (eA) {}
         if (ev.key == null){
-          /* another document cleared this browser's storage: nothing here can be merged against that */
-          Object.keys(REG).forEach(function(x){ try { window.LSR.hold(x, 'another tab cleared this browser’s saved data'); } catch (eH) {} });
+          /* another document cleared this browser's storage: nothing here can be merged against that.
+             REG-2523 — for a store this tab holds in memory, that copy is the only one left: the hold says so
+             (cleared) and the notice offers Keep this tab's copy beside the reload, which would read nothing */
+          Object.keys(REG).forEach(function(x){
+            try {
+              var _was = window.LSR.quarantined(x);
+              var _h = window.LSR.hold(x, 'another tab cleared this browser’s saved data');
+              if (!_was && _h && _h.kind === 'stale' && REG[x] && REG[x].kind !== 'store' && typeof REG[x].get === 'function') _h.cleared = true;
+            } catch (eH) {}
+          });
+          try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch (eP1) {}
           return;
         }
         var ks = Object.keys(REG);
@@ -24804,8 +25007,16 @@ window._uniqueResetDo = function(plan){
     Object.keys(seed).forEach(function(n){ if (uni[K(n)] === 1 || fl[n] === undefined) gun[n] = 1; });
     (plan.names || []).forEach(function(n){ gun[n] = 1; });
     LS.setItem('d2r_foundLog', JSON.stringify(fl));
-    LS.setItem('d2r_owned', JSON.stringify(own2));
+    var _ownW = LS.setItem('d2r_owned', JSON.stringify(own2));
     LS.setItem('d2r_grailUnfound', JSON.stringify(gun));
+    /* REG-2528 (review of REG-2405, r3) — HIS RESET IS HIS WORD, ON RECORD. It took the uniques out of d2r_owned whole with
+       no removal on record, so every screenshot that read one now read 'gone' ("no removal on record" - false) and a
+       folder Scan offered to read it again, or the TV's feed read it, and the unique came back over his reset. Each name
+       that left owned is noted per name (window._vaultRemovalNote, lane 'unique-reset'), so the verdict reads 'removed'. */
+    var _gone = own.filter(function(n){ return uni[K(n)] === 1; });
+    if (_gone.length && _ownW !== false && typeof window._vaultRemovalNote === 'function'){
+      try { window._vaultRemovalNote({ ts: Date.now(), names: _gone, lane: 'unique-reset', why: 'RESET UNIQUES (his confirmed reset)' }); } catch(eN){}
+    }
     /* ⚠⚠ v2740 — SHUT THE SEED DOOR, NOT JUST THIS SET OF NAMES.
        Konyo: "as long as it doesnt seed my profile again .. it can base its own console and
        evidence .. based on his own ledger .. but not mine".
@@ -25590,10 +25801,23 @@ window.RARE_NAME_POOLS = RARE_NAME_POOLS; window.RARE_NAME_PREFIXES = RARE_NAME_
    for a charm / jewel / ring / amulet wearing a prefix and/or an 'of ...' suffix; null otherwise. Asked only for a name
    no catalogue knows - a real item never wears these clothes here. */
 var _MAGIC_SMALL_RE = /^(?:([A-Z][A-Za-z'\-]*)\s+)?(Grand Charm|Large Charm|Small Charm|Jewel|Ring|Amulet)(?:\s+(of\s+[A-Z][A-Za-z' \-]*))?$/;
+/* REG-2525 (V1 round 3) — A REAL UNIQUE IS NEVER A ROLLED NAME. The Gloves row (REG-2402) put 'Claw' in the pools and
+   'Raven' is a prefix, so the grail unique Raven Claw is also a rare's shape - as Rune Master (Rune + Master) always was.
+   The catalogue is asked first, and that includes the uniques roster's own sources (ITEM_VALUE + _UNI_EXTRA, the names
+   _gUniqueRoster is built from) and ITEM_CODEX's uniques and set pieces - the same names the console's harvest
+   (control_app._kai_fullnames) now keeps out of its rare combos, so the page and the console's grail gate agree.
+   -> true when a catalogue carries the name as a unique or set piece */
+function _rareRealName(nm){
+  var own = function(o){ return !!(o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, nm)); };
+  if (own(window.ITEM_VALUE) || own(window._UNI_EXTRA)) return true;
+  var c = (typeof ITEM_CODEX !== 'undefined') ? ITEM_CODEX : null;
+  return !!(own(c) && c[nm] && /^(unique|set)$/i.test(String(c[nm].rarity || '')));
+}
 function _rolledQuality(name){
   var nm = String(name == null ? '' : name).trim();
   if (!nm) return null;
   try { if (typeof d2rItemLookup === 'function' && d2rItemLookup(nm)) return null; } catch(e){}
+  try { if (_rareRealName(nm)) return null; } catch(e){}
   var w = nm.split(/\s+/);
   if (w.length === 2 && RARE_NAME_PREFIXES.indexOf(w[0]) >= 0){
     var ks = Object.keys(RARE_NAME_POOLS).filter(function(k){ return RARE_NAME_POOLS[k].indexOf(w[1]) >= 0; });
@@ -25716,7 +25940,10 @@ window.renderHighValueFinds = renderHighValueFinds;
      ⚠ Defence in depth, stated honestly: I could NOT name a currently-reachable victim on this
      tree (TV extras are covered by _EXTRA_ITEM_SET, socket bases by _SOCKET_KEEP). It is here
      because the store exists and was not consulted, not because a row is dying today. */
-  var _maKeep = _safeJsonParse(LS.getItem('d2r_muleAssign'), {}) || {};
+  /* REG-2520 — read through THE ONE READER: a mule map that will not read is quarantined HERE, at its first read (kept
+     aside, held, said), never read as {} - the doctor below keeps every owned name either way, so this only admits */
+  var _maKeep = ((window.LSR && typeof window.LSR.read === 'function') ? window.LSR.read('d2r_muleAssign', 'map', {})
+                 : _safeJsonParse(LS.getItem('d2r_muleAssign'), {})) || {};
   /* #75 (REG-2233, GrokBot top priority) — AND A NAME HE KEPT IN MAGIC & RARE IS A NAME HE OWNS.
      aicMule (the AI Item Checker keep), the planner magic/rare pick and aicJudgeApply each write
      magicFinds[name] AND owned.add(name) ("own the name so the count moves", :45085) but, by the
@@ -25861,6 +26088,32 @@ window.renderHighValueFinds = renderHighValueFinds;
   };
   const _old = window._ownedLoadDoctor([..._ownedBefore], owned);
   owned = new Set(_old.keep);
+  /* REG-2527 (review of REG-2400, minor) — "SET ASIDE" WAS A DELETE. persist() below writes d2r_owned without the entries
+     that are not names, and nothing kept them anywhere, while the Vault said they "were set aside". Now they are copied
+     aside first - content-addressed beside the store's own quarantine slots (<world>d2r_quarantine~d2r_owned~not-names~
+     <hash>), read back to prove it - and the Vault says where. A copy that cannot be made (a full storage) keeps them in
+     the SAVED list: the door quarantines d2r_owned (every write of it refused, said on the board) while the page runs on
+     the names - memory never holds a non-name the code after this reads as a name. A load never drops an entry it could
+     not keep somewhere. */
+  if (_old.receipt.notNames.length){
+    var _naRaw = JSON.stringify(_old.receipt.notNames), _naAt = null;
+    try {
+      var _naH = 0x811c9dc5;
+      for (var _ni = 0; _ni < _naRaw.length; _ni++){ _naH ^= _naRaw.charCodeAt(_ni); _naH = Math.imul(_naH, 0x01000193) >>> 0; }
+      /* in the store's own world (the door's prefix), written raw like the door's quarantine slots */
+      var _naPfx = (typeof LS.key === 'function') ? String(LS.key('d2r_owned')).replace(/d2r_owned$/, '') : '', _naDoor = LS.raw || LS;
+      var _naKey = _naPfx + 'd2r_quarantine~d2r_owned~not-names~' + ('0000000' + _naH.toString(16)).slice(-8);
+      if (_naDoor.getItem(_naKey) !== _naRaw) _naDoor.setItem(_naKey, _naRaw);
+      if (_naDoor.getItem(_naKey) === _naRaw) _naAt = _naKey;
+    } catch (eNa) { _naAt = null; }
+    _old.receipt.asideAt = _naAt;
+    /* not kept aside: they stay where they were - the saved list, as the load read it - and nothing writes over it */
+    if (!_naAt){
+      try { if (typeof LS.quarantine === 'function')
+              LS.quarantine('d2r_owned', 'holds ' + _old.receipt.notNames.length + ' entr' + (_old.receipt.notNames.length === 1 ? 'y' : 'ies')
+                            + ' that are not item names, and they could not be copied aside'); } catch (eNq) {}
+    }
+  }
   window._ownedLoadReceipt = _old.receipt;
   if (_old.receipt.kept.length) {
     try { console.warn('[bible] KEPT ' + _old.receipt.kept.length + ' owned name(s) no catalogue on this page knows - a load '
@@ -25883,8 +26136,10 @@ window.renderHighValueFinds = renderHighValueFinds;
          + kept.map(function(n){ return '<p class="vault-org-row" data-name="' + esc(n) + '">' + esc(n) + '</p>'; }).join('');
     if (odd.length)
       h += '<p class="vault-propose" data-state="unknown" data-moved="false">' + odd.length + ' entr' + (odd.length === 1 ? 'y' : 'ies')
-         + ' in your owned list ' + (odd.length === 1 ? 'is' : 'are') + ' not an item name and ' + (odd.length === 1 ? 'was' : 'were')
-         + ' set aside on this load: ' + esc(JSON.stringify(odd).slice(0, 200)) + '</p>';
+         + ' in your owned list ' + (odd.length === 1 ? 'is' : 'are') + ' not an item name'
+         + ((R && R.asideAt) ? ' and ' + (odd.length === 1 ? 'was' : 'were') + ' set aside on this load, kept as <code>' + esc(R.asideAt) + '</code>: '
+                             : ' - ' + (odd.length === 1 ? 'it' : 'they') + ' could not be copied aside, so ' + (odd.length === 1 ? 'it stays' : 'they stay') + ' in your saved owned list and nothing is written over it (see the notice at the top): ')
+         + esc(JSON.stringify(odd).slice(0, 200)) + '</p>';
     el.hidden = false; el.innerHTML = h; return R;
   };
   /* ⟦OWNED LOAD DOCTOR END⟧ */
@@ -28059,6 +28314,20 @@ window._repaintOwned = function _repaintOwned() {
   try { if (typeof window.renderForgeSets === 'function') window.renderForgeSets(); } catch (e) {}
 };
 
+/* REG-2521 (V1 round 3; the merge join's rule, swept) — A REMOVAL THE VAULT DOOR REFUSED IS NEVER WALKED AROUND. Both
+   un-tick branches below fell back to `owned.delete` whenever vaultRemove "took nothing" - and a refusal (the vault held,
+   its removal journal UNKNOWN) looked exactly like that: the name left owned with no journal row and no undo, exactly
+   while the board said the vault is held. Now a refusal keeps the name (the Chronicle's own un-tick, a separate ledger,
+   still happens) and is said where he clicked; vaultRemove has already said it on the vault's status line. */
+function _vrRefusedSay(name, r){
+  try {
+    var e = function(x){ return String(x == null ? '' : x).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    if (typeof window._grailToast === 'function')
+      window._grailToast('⚠', '<b>' + e(name) + '</b> stays in your vault', e((r && r.why) || 'the removal door refused') + ' — nothing was removed');
+  } catch(eS){}
+  return false;
+}
+try { window._vrRefusedSay = _vrRefusedSay; } catch(eVr){}
 function toggleOwned(name, prov) {
   // v677 — grail items live in the FOUND LEDGER (d2r_foundLog), never the vault: a chronicle tick
   // is knowledge, not possession (Konyo throws most finds away). Non-grail labels (socketed bases,
@@ -28108,7 +28377,7 @@ function toggleOwned(name, prov) {
              witness row on the mule — only the name leaves owned, journaled and undoable (REG-1507). */
           var _vrUT = null;
           try { if (typeof window.vaultRemove === 'function') _vrUT = window.vaultRemove([name], { lane: 'un-tick', quiet: true, keepFiling: true, why: 'un-ticked on its item card' }); } catch(e){ _vrUT = null; }
-          if (!(_vrUT && _vrUT.removed && _vrUT.removed.length)){ owned.delete(name); try { window._ownedProvForget(name); } catch(e){} persist(); }
+          if (_vrUT && _vrUT.refused){ try { window._vrRefusedSay(name, _vrUT); } catch(eRs){} } else if (!(_vrUT && _vrUT.removed && _vrUT.removed.length)){ owned.delete(name); try { window._ownedProvForget(name); } catch(e){} persist(); }   /* REG-2521 — a refusal is never walked around */
           if (_rdo && _vrUT && _vrUT.ts) _rdo.vaultTs = _vrUT.ts;   // REG-1638 - a re-tick in the window undoes exactly this removal
         }
         /* v1964 — RETRACT THE GAME-FOUND DATE HERE TOO. v1891 taught _forgeUndo that an un-tick must
@@ -28185,8 +28454,11 @@ function toggleOwned(name, prov) {
     if (wasOwned){
       var _vrNG = null;
       try { if (typeof window.vaultRemove === 'function') _vrNG = window.vaultRemove([name], { lane: 'un-tick', quiet: true, keepFiling: true, why: 'un-ticked on its item card' }); } catch(e){ _vrNG = null; }
-      if (!(_vrNG && _vrNG.removed && _vrNG.removed.length)) owned.delete(name);
-      try { window._ownedProvForget(name); } catch(e){}
+      /* REG-2521 — a removal door that REFUSED (the vault held, its journal UNKNOWN) is never walked around: the name and its
+         receipt stay, and the refusal is said; only a door that is absent or took nothing falls back */
+      if (_vrNG && _vrNG.refused){ try { window._vrRefusedSay(name, _vrNG); } catch(eRs2){} }
+      else { if (!(_vrNG && _vrNG.removed && _vrNG.removed.length)) owned.delete(name);
+             try { window._ownedProvForget(name); } catch(e){} }
     }
     else window._ownedAdd(name, (prov && prov.source) ? prov : { source: 'hand', by: 'toggleOwned', where: 'the item card tick' });
     persist();
@@ -41142,8 +41414,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      erasing every mule assignment while the doctor, reading the same store, said UNKNOWN. [[unknown-stays-unknown]] */
   var _muleUnread = {};
   /* REG-2411 — load() is the shape door too: _loadParsed reads and parses as it always did, and _muleShape (⟦VAULT HOLD⟧
-     below) refuses a roster or mule map of the wrong shape the same way. Absent in a harness that cuts only this part. */
-  function load(k,f){ var v = _loadParsed(k, f); return (typeof _muleShape === 'function') ? _muleShape(k, v, f) : v; }
+     below) refuses a roster or mule map of the wrong shape the same way. Absent in a harness that cuts only this part.
+     REG-2520 / REG-2522 — on the page it is THE ONE READER (window.LSR.read) asking the module's own shape rules
+     (_muleShapeWhy: a roster is a list of mules holding every core locker, the map a map): UNKNOWN is marked unread
+     (_guardedSet refuses it, the hold names it) and the module runs on its default in memory. A harness door with no
+     reader keeps the old two steps, under the same rules. */
+  var _LOAD_ABSENT = {};
+  function load(k,f){
+    var D = window.LSR;
+    if (D && typeof D.read === 'function' && typeof _muleShapeWhy === 'function'){
+      var v0 = D.read(k, function(v){ return _muleShapeWhy(k, v); }, _LOAD_ABSENT);
+      if (v0 === _LOAD_ABSENT) return f;
+      if (v0 === null){
+        var q0 = null; try { q0 = D.quarantined(k); } catch (eQ0) { q0 = null; }
+        _muleUnread[k] = (q0 && q0.reason) || 'will not read';
+        return f;
+      }
+      return v0;
+    }
+    var v = _loadParsed(k, f); return (typeof _muleShape === 'function') ? _muleShape(k, v, f) : v;
+  }
   function _loadParsed(k,f){ var raw; try{ raw = window.LSR.getItem(k); }catch(e){ _muleUnread[k] = 'could not be read'; return f; }
     if (raw == null || raw === '') return f;
     try{ var v=JSON.parse(raw); return v||f; }catch(e){ _muleUnread[k] = 'will not parse'; return f; } }
@@ -41168,13 +41458,31 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      render prune does not drop filings against it, and + Add an item refuses in words (_vhPrepare). Nothing here
      deletes, repairs or guesses: the notice offers the way out (a backup restore, or starting that one store fresh
      with its bytes kept aside). [[unknown-stays-unknown]] [[heart-first]] */
+  /* REG-2522 (review of REG-2411, rv6) — A ROSTER WITHOUT ITS CORE LOCKERS IS THE WRONG SHAPE. "[]" passed the old check
+     (every element of nothing is a mule), the migrations then saved a three-locker roster over it, and the paint's prune
+     dropped every filing on uni-weap, uni-armor, sets, dupes and the rest - "[]" is exactly the bytes REG-2414's merge bug
+     stored. Every DEFAULT_ROSTER locker is a core locker (REG-2195: only a mule he added can be deleted), and every roster
+     this board saves holds them all, so a saved roster that lacks one did not come from this board's own writes: it is
+     quarantined like bytes that will not parse, which holds the vault, and the prune drops nothing against it. One rule
+     for the shape, asked by the reader at load, by the tab sync (another tab's write) and by the harness path below.
+     -> null when it reads | the words for why it does not */
+  function _muleShapeWhy(k, v){
+    if (k !== RK) return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? null : 'is not a map of names to mules';
+    if (!Array.isArray(v) || !v.every(function(m){ return !!m && typeof m === 'object' && !Array.isArray(m) && typeof m.id === 'string' && m.id !== ''; }))
+      return 'is not a list of mules';
+    var have = {};
+    v.forEach(function(m){ have[m.id] = 1; });
+    var miss = DEFAULT_ROSTER.map(function(m){ return m.id; }).filter(function(id){ return !have[id]; });
+    if (!miss.length) return null;
+    return (miss.length === DEFAULT_ROSTER.length ? 'holds none of the core lockers' : 'is missing the core locker' + (miss.length === 1 ? ' ' : 's ') + miss.join(', '))
+      + ' - every roster this board saves holds them, so these bytes did not come from it';
+  }
+  try { window._vaultRosterWhy = function(v){ return _muleShapeWhy(RK, v); }; } catch (eRw) {}
   function _muleShape(k, v, f){
     var why = _muleUnread[k] || null;
     if (!why && v != null && v !== f){
-      var ok = (k === RK)
-        ? (Array.isArray(v) && v.every(function(m){ return !!m && typeof m === 'object' && !Array.isArray(m) && typeof m.id === 'string' && m.id !== ''; }))
-        : (typeof v === 'object' && !Array.isArray(v));
-      if (!ok) why = _muleUnread[k] = (k === RK ? 'is not a list of mules' : 'is not a map of names to mules');
+      var w = _muleShapeWhy(k, v);
+      if (w) why = _muleUnread[k] = w;
     }
     if (!why) return v;
     try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(k, why); } catch (eQ) {}
@@ -41183,8 +41491,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* what the vault stands on (the mule map is judged against it), and what + Add an item writes (those plus the records).
      REG-2415 — the witness store is one of them: the W6 prune keeps a filing by its witness row, and every filing door
      writes its row before the filing, so a witness store that will not read holds the vault like the four above. */
-  var VAULT_BASIS = Object.keys({ d2r_owned: 1, d2r_muleRoster: 1, d2r_muleAssign: 1, d2r_copies: 1, d2r_vaultProv: 1 });
-  var VAULT_STORES = VAULT_BASIS.concat(Object.keys({ d2r_vaultRecords: 1 }));
+  /* REG-2521 (V1 round 3) — THE HOLD COVERS EVERY VAULT STORE, AND IT IS ASKED AT THE ONE DOOR. Round 2 measured the hold
+     refusing at two doors (+ Add an item, frame reads) while vaultFile, the sorter, a hand-witnessed register and the
+     Chronicle's "Vault only" answered ok over writes the door refused - the last one deleting his inbox row with nothing
+     saved. Now: Magic & Rare joins the basis (the pool the prune judges filings against holds its keepers), and the
+     scan ledger, the Recently-registered log and the removal journal with its per-name record join the stores the vault
+     reads (VAULT_STORES), each read through THE ONE READER. Which doors ask what:
+       · _vaultBasisHeld()  the mule map and the prune (_guardedSet), vaultFile, the sorter (vaultAutoAssign / Auto-Sort)
+       · _vaultHeld()       + Add an item, a frame read (_vaultIntakeGate), the folder scans, every register
+                            (tvVaultRegister, his hand included), so his inbox row stays while nothing is saved
+       · _vaultHeldFor(ks)  a door that names exactly what it writes (the removal door: owned, the journal and its
+                            per-name record, plus the basis when it takes a filing) */
+  var VAULT_BASIS = Object.keys({ d2r_owned: 1, d2r_muleRoster: 1, d2r_muleAssign: 1, d2r_copies: 1, d2r_vaultProv: 1, d2r_magicFinds: 1 });
+  var VAULT_STORES = VAULT_BASIS.concat(Object.keys({ d2r_vaultRecords: 1, d2r_vaultRemoved: 1, d2r_vaultRemovedAt: 1,
+                                                       d2r_intakeSeen: 1, d2r_intakeLog: 1 }));
+  /* what the removal door writes on every removal (the basis joins it when the removal takes a filing) */
+  var VAULT_REMOVAL_STORES = Object.keys({ d2r_owned: 1, d2r_vaultRemoved: 1, d2r_vaultRemovedAt: 1 });
+  /* the shape each of those stores is read with (VAULT_BASIS's own stores are read by their loaders) */
+  var VAULT_STORE_SHAPE = { d2r_vaultRemoved: 'list', d2r_vaultRemovedAt: 'map', d2r_intakeSeen: 'map', d2r_intakeLog: 'list' };
   function _vaultHeldBy(keys){
     var out = [];
     keys.forEach(function(k){
@@ -41205,6 +41529,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var l = _vaultHeldBy(VAULT_STORES);
     return l.length ? { keys: l.map(function(q){ return q.key; }), why: _vaultHeldSay(l) } : null;
   };
+  window._vaultHeldFor = function(keys){
+    var l = _vaultHeldBy((keys || []).filter(function(k, i, a){ return a.indexOf(k) === i; }));
+    return l.length ? { keys: l.map(function(q){ return q.key; }), why: _vaultHeldSay(l) } : null;
+  };
+  /* the removal door's question, published so a door cut on its own asks the module (no publisher, no hold): what a
+     removal writes, plus the basis when it takes a filing (takesFiling) or puts one back (an undo, the TV unvault) */
+  window._vaultRemovalHeld = function(takesFiling){
+    return window._vaultHeldFor(VAULT_REMOVAL_STORES.concat(takesFiling ? VAULT_BASIS : []));
+  };
+  window._VAULT_BASIS = VAULT_BASIS.slice(); window._VAULT_STORES = VAULT_STORES.slice();
+  /* REG-2520 — the stores the vault reads on demand are read once as the module loads, through the one reader, so one
+     that will not read is quarantined - and the vault held, and the notice painted - before any door is asked, never
+     first discovered by the write that would have gone over it */
+  Object.keys(VAULT_STORE_SHAPE).forEach(function(k){
+    try { if (window.LSR && typeof window.LSR.read === 'function') window.LSR.read(k, VAULT_STORE_SHAPE[k], null); } catch (eVr) {}
+  });
   var _vrRecFollowLive = false;   /* #76 — a refused records refresh follows the live model, not a stale stamp */
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
@@ -41232,9 +41572,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_vaultTabPaintT) return;
       _vaultTabPaintT = setTimeout(function(){ _vaultTabPaintT = null; try { renderVault(); } catch (eR) {} }, 40);
     };
+    /* REG-2522 — another tab's write is judged by the SAME shape rule as a load (a roster "[]" from another tab was a list,
+       so the merge adopted it and the prune dropped every filing): `shape` answers null or the words for why not */
     window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; }, after: _vaultTabAfter,
+                             shape: function(v){ return _muleShapeWhy(AK, v); },
                              adopted: function(){ delete _muleUnread[AK]; } };
     window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; }, after: _vaultTabAfter,
+                             shape: function(v){ return _muleShapeWhy(RK, v); },
                              absent: function(){ return DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }); },
                              adopted: function(){ delete _muleUnread[RK]; } };
     /* REG-2415..2417 — the witness rows, his hand spots and the mule equipment are read from storage on every use, so another
@@ -45060,6 +45404,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, refused: 'prov-unreadable', why: nm + ' was not filed - '
                + ((typeof window._storeHeldWhy === 'function' && window._storeHeldWhy(PROV_KEY))
                   || ('the witness store (' + PROV_KEY + ') would not read, and nothing is written over it')) };
+    /* REG-2521 (review of REG-2411, rv2) — THE HOLD IS ASKED HERE, AT THE ONE DOOR. With d2r_copies, the roster or owned
+       quarantined, a move answered {ok, mode:'moved'} and a reader filing {ok, mode:'filed'}: the witness row was written
+       and saveA() was refused, so the row said uni-armor while the saved map still said uni-weap - a split no reload
+       could explain. Every branch below writes the mule map, so while a store it stands on (VAULT_BASIS) is UNKNOWN or
+       held, nothing is filed, moved, restored or rebuilt, and the refusal names the store. */
+    var _bh0 = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (_bh0) return { ok: false, refused: 'held', why: nm + ' was not filed - ' + _bh0 + ' (see the notice at the top)' };
     var lk = '';
     try { lk = (window._laneLocked && window._laneLocked(nm)) || ''; } catch (e) { lk = ''; }
     if (opts.move){
@@ -45079,7 +45430,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var pm = _provAll();
       if (pm[nm]){ pm[nm].mule = to; pm[nm].holder = _vHomeName(to); pm[nm].movedAt = new Date().toISOString();
                    pm[nm].movedBy = String(opts.by || 'hand'); _provWrite(pm); }
-      assign[nm] = to; saveA();
+      var _fromM = assign[nm];
+      assign[nm] = to;
+      /* REG-2521 — a map the door refused is never answered as moved */
+      if (saveA() === false){ assign[nm] = _fromM; return { ok: false, refused: 'not-written', why: nm + ' was not moved - the mule map could not be written' }; }
       return { ok: true, mode: 'moved', mule: to, witnessed: !!(pm[nm] && pm[nm].kind !== 'owned') };
     }
     /* #246 review — A RESTORE IS NOT A NEW CLAIM, SO IT MINTS NO WITNESS. An undo (vaultRestoreLast) and a rename
@@ -45264,7 +45618,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { var _pr0 = _provAll()[nm]; if (_pr0 && _pr0.kind === 'owned') row.ownedBy = _pr0; } catch (e) {}   /* the receipt it replaces rides along */
     var pa = _provAll(); pa[nm] = row; _provWrite(pa);
     try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
-    assign[nm] = home; saveA();
+    var _fromF = assign[nm];
+    assign[nm] = home;
+    /* REG-2521 — a map the door refused is never answered as filed */
+    if (saveA() === false){ if (_fromF == null) delete assign[nm]; else assign[nm] = _fromF;
+      return { ok: false, refused: 'not-written', why: nm + ' was not filed - the mule map could not be written' }; }
     return { ok: true, mode: wasHere ? 'confirmed' : 'filed', mule: home, holder: row.holder, prov: row,
              why: (sg && sg.why) || '' };
   };
@@ -45868,6 +46226,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.tvVaultRegister = function(name, witness){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+      /* REG-2521 (review of REG-2411, rv2c) — THE HOLD IS ASKED FOR EVERY WITNESS, HIS HAND INCLUDED. The wrapper below asks
+         the frame gate only for a read; a hand witness skipped it, so the Chronicle inbox's "Vault only" (his hand) was
+         answered {ok, vault:'filed'} while d2r_owned and the mule map refused the write - and kaiVaultFileOnly deleted his
+         inbox row with nothing saved. Now nothing is registered while any vault store is UNKNOWN or held: the answer is
+         ok:false, and every caller keeps what it holds (the inbox row stays his to rule on). */
+      var _vhR = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+      if (_vhR) return { ok:false, refused:'held', registered:false, held:_vhR.keys,
+                         /* the store first: the Chronicle inbox shows the first 90 characters of a refusal */
+                         why: _vhR.why + ' — not registered' };
       /* L-4 — a bare name several known items share is refused (or settled by the read's kind), never filed as one of them.
          round-5 review (HIGH): a refusal is SURFACED — the read is held in the Chronicle inbox naming the candidates (the
          ask), never a silent x.vault=false; a same-kind pair (Spirit) is settled to the bare name with its base UNKNOWN */
@@ -46322,6 +46689,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_stTv) _stTv.textContent = '⚠ TV unvault waits (' + list.join(', ') + ') - ' + _pvTv;
       return { ok:false, refused:'prov-unreadable', why: _pvTv, labels: list };
     }
+    /* REG-2521 — and while any store the removal writes is UNKNOWN or held (owned, the journal and its per-name record,
+       the basis): the journaled removal would refuse, and the residue loop below must never walk around it */
+    var _hTv = (typeof window._vaultRemovalHeld === 'function') ? window._vaultRemovalHeld(true) : null;
+    if (!_hTv && typeof window.vaultRemovalLog === 'function' && window.vaultRemovalLog() === null)
+      _hTv = { why: 'the removal journal (d2r_vaultRemoved) would not read, and nothing is written over it' };
+    if (_hTv){
+      var _stTh = document.getElementById('vault-status');
+      if (_stTh) _stTh.textContent = '⚠ TV unvault waits (' + list.join(', ') + ') - ' + _hTv.why;
+      return { ok:false, refused:'held', why: _hTv.why, labels: list };
+    }
     var pf = null;
     if (proof && typeof proof === 'object' && proof.frame){
       var at = (typeof proof.at === 'number' && isFinite(proof.at)) ? proof.at : _tvFrameMs(proof.frame);
@@ -46331,6 +46708,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* M-3 (review of 7cded0c1) — a name the board holds leaves through the journaled door (the TV saw it thrown: a real
        signal, dated, undoable); a filing residue for a name it does not hold is dropped as before */
     if (held.length){ try { batch = window.vaultRemove(held, { lane: 'tv-unvault', quiet: true, why: 'the TV saw it thrown', proof: pf }); } catch(e){ batch = null; } }
+    if (batch && batch.refused) return { ok:false, refused: batch.refused, why: batch.why, labels: list };   /* REG-2521 — never walked around */
     list.forEach(function(name){
       try { owned.delete(name); } catch(e){}
       try { delete assign[name]; } catch(e){}
@@ -46437,6 +46815,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        [[zero-needs-a-denominator]] [[the-unjoined-end]] */
     var r = window.vaultRemove([name], {lane: 'card-click',
                                         why: 'un-owned from the item card', quiet: true});
+    /* REG-2521 — a refusal (the vault held) is already on the status line in the door's words; "was not in owned" would be false */
+    if (r && r.refused) return r;
     if (r && r.removed.length) {
       status('🗑 "'+name+'" removed from owned — if that was wrong, re-✓ it on its item card, '
              + 'or undo the whole batch with vaultRestoreLast()');
@@ -46492,15 +46872,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      Gated by test_the_removal_journal_forks_like_the_store.py, which v3196 actually built.
      [[ladder-doctrine]] [[the-unjoined-end]] */
   var _VR_LOG = 'd2r_vaultRemoved', _VR_RING = 20;
+  /* REG-2520 (review of REG-2404/2405, r7; review of REG-2410, rv3) — THE JOURNAL IS READ THROUGH THE ONE READER. It was
+     `JSON.parse(raw || '[]')` with `catch -> []`: a journal cut short read as EMPTY, and the next removal - every un-tick
+     and every Magic & Rare ✕ since REG-2404/2405 - wrote [its one batch] over every batch he had, his undo history and
+     the "his word" rows _removedAfter reads with it. Now bytes that will not read are UNKNOWN (null), quarantined at the
+     door (kept aside, every write refused, said on the board), and the removal door refuses in words: a removal with no
+     journal could never be undone. -> the batches | [] when none was ever written | null = UNKNOWN */
   function _vrRead(){
-    try { var a = JSON.parse(window.LSR.getItem(_VR_LOG) || '[]'); return Array.isArray(a) ? a : []; }
-    catch(e){ return []; }
+    var D = window.LSR;
+    if (D && typeof D.read === 'function') return D.read(_VR_LOG, 'list', []);
+    try { var a = JSON.parse(D.getItem(_VR_LOG) || '[]'); return Array.isArray(a) ? a : null; } catch(e){ return null; }
   }
+  /* -> true when the ring landed; false when there was nothing to write (UNKNOWN) or the door refused it */
   function _vrWrite(log){
-    try { window.LSR.setItem(_VR_LOG, JSON.stringify(log.slice(-_VR_RING))); } catch(e){}
+    if (!Array.isArray(log)) return false;
+    try { return window.LSR.setItem(_VR_LOG, JSON.stringify(log.slice(-_VR_RING))) !== false; } catch(e){ return false; }
   }
   /* the heart and the console read the journal through here, never off the raw key — one
-     accessor means the fork rule above is applied in exactly one place. */
+     accessor means the fork rule above is applied in exactly one place. null = UNKNOWN (it would not read). */
   window.vaultRemovalLog = function(){ return _vrRead(); };
 
   window.vaultRemove = function(names, opts){
@@ -46523,6 +46912,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_whyRm){
       if (!opts.quiet) status('⚠ nothing removed - ' + _whyRm);
       return { requested: req.length, removed: [], skipped: [], ts: null, batch: null, refused: 'prov-unreadable', why: _whyRm };
+    }
+    /* REG-2521 — THE REMOVAL DOOR WAITS WHILE A STORE IT WRITES IS UNKNOWN OR HELD: owned, the journal and its per-name
+       record always, and - when it takes a filing - the mule map and what it is judged against (VAULT_BASIS). A journal
+       that will not read is the plainest case: the removal could never be undone. Said even for a quiet caller, because
+       a refusal nobody sees is the silent loss this door exists to prevent. */
+    var _hRm = (typeof window._vaultRemovalHeld === 'function') ? window._vaultRemovalHeld(!opts.keepFiling) : null;
+    var _logRm = _vrRead();
+    if (!_hRm && _logRm === null)
+      _hRm = { keys: [_VR_LOG], why: 'the removal journal (' + _VR_LOG + ') would not read, and nothing is written over it' };
+    if (_hRm){
+      status('⚠ nothing removed - ' + _hRm.why + ' (see the notice at the top)');
+      return { requested: req.length, removed: [], skipped: [], ts: null, batch: null, refused: 'held', held: _hRm.keys, why: _hRm.why };
     }
     var removed = [], skipped = [], filed = {}, seen = {}, provs = {};
     req.forEach(function(raw){
@@ -46566,7 +46967,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 proof: (opts.proof && typeof opts.proof === 'object') ? opts.proof : null };
       /* REG-2404 — a Magic & Rare record the same click took (vaultThrowFind) rides in the batch, so the undo is whole */
       if (opts.magic && typeof opts.magic === 'object' && !Array.isArray(opts.magic)) batch.magic = opts.magic;
-      var log = _vrRead(); log.push(batch); _vrWrite(log);
+      var log = _logRm; log.push(batch); _vrWrite(log);   /* REG-2520 — the journal this door read (and checked) above */
       /* round-5 review (MED) — the per-name record the ring never evicts (window._vaultRemovalNote, the owned door's rule) */
       try { if (typeof window._vaultRemovalNote === 'function') batch.noted = window._vaultRemovalNote(batch); } catch(e){}
       if (!opts.keepFiling){ try { _provDrop(removed); } catch(e){} }
@@ -46693,6 +47094,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* The reverse of exactly one batch — and ONLY of what that batch removed. */
   window.vaultRestoreLast = function(){
     var log = _vrRead();
+    /* REG-2520 / REG-2521 — an undo reads the journal through the one reader: UNKNOWN is said, never popped as empty; and
+       it writes owned and the mule map, so it waits, in words, while a store it writes is UNKNOWN or held */
+    if (log === null){
+      var _wU = 'the removal journal (' + _VR_LOG + ') would not read - nothing was undone, and its bytes are kept aside (see the notice at the top)';
+      status('⚠ ' + _wU); return { restored: 0, kept: 0, refused: 'held', why: _wU };
+    }
+    var _hU = (typeof window._vaultRemovalHeld === 'function') ? window._vaultRemovalHeld(true) : null;
+    if (_hU){ status('⚠ nothing was undone - ' + _hU.why + ' (see the notice at the top)'); return { restored: 0, kept: 0, refused: 'held', why: _hU.why }; }
     var last = log.pop();
     if (!last) return { restored: 0, kept: 0, why: 'the removal journal is empty' };
     var here = (window._D2R_LEDGER || null);
@@ -48494,6 +48903,10 @@ window.vaultAutoAssign = function(){
     var _pvSw = (_pvS === null) ? ((typeof _provUnknownWhy === 'function') ? _provUnknownWhy() : 'the witness store would not read')
               : ((typeof window._vaultProvHeld === 'function') ? window._vaultProvHeld() : null);
     if (_pvSw){ status('⚠ nothing was sorted - ' + _pvSw); return { filed: 0, refused: 'prov-unreadable', why: _pvSw }; }
+    /* REG-2521 (review of REG-2411, rv2b) — the sorter said "⚖️ filed 1 witnessed item" while saveA() was refused: the
+       held vault is asked before anything is sorted, and the refusal is said. Auto-Sort (his click) asks this first. */
+    var _bhS = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (_bhS){ status('⚠ nothing was sorted - ' + _bhS + ' (see the notice at the top)'); return { filed: 0, refused: 'held', why: _bhS }; }
     Object.keys(_pvS).sort().forEach(function(name){
       if (assign[name] != null) return;
       var _row = _pvS[name] || {};
@@ -48747,7 +49160,10 @@ window.vaultAutoAssign = function(){
        names out of `owned` beside the removal journal, so the next reclose (every kaiVer bump, POST /api/kai_reclose)
        replayed the same older read and owned them again — REG-1391's "his removal outranks every older read" could not see
        a removal it never recorded. Dated, listed, undoable, like every other removal on this board. */
-    try { window.vaultRemove(unsorted, { lane: 'clear-unsorted', quiet: true, why: 'Delete unsorted — the dock button' }); } catch(e){}
+    var _vrCU = null;
+    try { _vrCU = window.vaultRemove(unsorted, { lane: 'clear-unsorted', quiet: true, why: 'Delete unsorted — the dock button' }); } catch(e){}
+    /* REG-2521 — a refused removal is said (the door's own words stay on the status line), never followed by "cleared N" */
+    if (_vrCU && _vrCU.refused) return _vrCU;
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
     status('🗑 cleared '+unsorted.length+' unsorted item'+(unsorted.length===1?'':'s')+' from the dock');
@@ -48826,6 +49242,7 @@ window.vaultAutoAssign = function(){
     var takeM = names.filter(function(name){ return !assign[name]; });   /* already filed in a mule — his hand put it there */
     try { var vrM = window.vaultRemove(takeM, { lane: 'menu-import', quiet: true, why: 'These look like a chronicle page — taken out of owned' });
           n = (vrM && vrM.removed) ? vrM.removed.length : 0; } catch(e){}
+    if (vrM && vrM.refused) return;   /* REG-2521 — the door said why on the status line; "removed 0" would bury it */
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     try { window._repaintOwned(); } catch(e){}
     status('\ud83d\udcd6 removed ' + n + ' menu-read name(s) from owned');
@@ -54552,7 +54969,18 @@ window.vaultAutoAssign = function(){
   }
   // ── v215: intake journal — persists what was registered, when, across sessions
   var JOURNAL_KEY='d2r_intakeLog';
-  function journal(){ try { return JSON.parse(window.LSR.getItem(JOURNAL_KEY)||'[]'); } catch(e){ return []; } }
+  /* REG-2520 (review of REG-2410, rv3) — the Recently-registered log is read through THE ONE READER: a log cut short is
+     UNKNOWN (null) and quarantined, never [] - journalAdd wrote [this session] over every session it held.
+     -> the sessions | [] when nothing was ever logged | null = UNKNOWN. A harness door with no reader: the same rule. */
+  function journal(){
+    var D = window.LSR;
+    if (D && typeof D.read === 'function') return D.read(JOURNAL_KEY, 'list', []);
+    try { var a = JSON.parse(D.getItem(JOURNAL_KEY) || '[]'); return Array.isArray(a) ? a : null; } catch(e){ return null; }
+  }
+  /* the words a door says while the log will not read */
+  function _journalUnknownSay(){
+    return 'the Recently-registered log (' + JOURNAL_KEY + ') would not read - this scan was not written over it, and its bytes are kept aside (see the notice at the top)';
+  }
   // v320: clear the intake history so the SAME screenshots can be re-read (for test runs).
   // v328 made this a FULL RESET that also emptied every ✓ owned item, the set pieces, Magic & Rare and the
   // copy counts. 2026-09-27 — he pressed it and lost d2r_owned 223 -> 0 and d2r_setPieces 134 -> 0 (the set
@@ -54582,7 +55010,10 @@ window.vaultAutoAssign = function(){
   // the dedicated wipe-slate for that safeguard alone (the 🧹 vault reset clears it too, together with the
   // mule assignments and the intake log — see window._VAULT_RESET_SCOPE).
   window.vaultClearScanHistory = async function(){
-    var seenN = 0; try { seenN = Object.keys(seenLedger()).length; } catch(e){}
+    var _slw = seenLedger();
+    /* REG-2520 — UNKNOWN is never an empty slate: the bytes are kept aside, and the notice's Start it fresh clears them */
+    if (_slw === null){ status('🧽 ' + _seenUnknownSay() + ' - Start it fresh from the notice wipes it, its bytes kept aside'); return; }
+    var seenN = Object.keys(_slw).length;
     if (!seenN){ status('🧽 scan slate already empty — nothing to clear'); return; }
     if (!(await uiConfirm('Clear scan history (wipe the slate)?\n\nThis forgets the '+seenN+' screenshot file'+(seenN===1?'':'s')+' the vault has already read, so the NEXT folder scan treats every file as fresh and re-reads them.\n\nYour ✓ owned items, mules, Magic & Rare, and the registered vault are NOT touched — only the seen-files ledger.'))) return;
     try { window.LSR.removeItem(SEEN_KEY); } catch(e){}
@@ -54591,8 +55022,9 @@ window.vaultAutoAssign = function(){
   // v342.23 — also persist the PER-SCREENSHOT breakdown (file → what it read) so the "Recently registered"
   // history keeps the deep per-shot detail across reloads, not just the item chips. Compact + short filenames.
   function journalAdd(items, perFile){
-    if (!items.length && !(perFile && perFile.length)) return;
+    if (!items.length && !(perFile && perFile.length)) return true;
     var j = journal();
+    if (j === null) return false;   /* REG-2520 — UNKNOWN: nothing is written over it; the caller says so */
     var sf = function(s){ return String(s||'').replace(/^Screenshot\s+\d{4}-\d{2}-\d{2}\s+at\s+/i,'').replace(/\.(png|jpe?g|webp)$/i,''); };
     var pf = (perFile||[]).map(function(f){ return { f:sf(f.file), ff:(f.file||''), nw:(f.nw||[]), mf:(f.mf||[]), own:(f.own||[]), unr:(f.unr||[]), e:!!f.err, th:(f.thumb||'') }; });
     j.unshift({ ts: Date.now(), u: (typeof intakeLogger !== 'undefined' ? intakeLogger : 'Konyo'), items: items.slice(0, 30), pf: pf });   // v397 — tag the logger
@@ -54833,6 +55265,8 @@ function renderJournal(){
     var el = document.getElementById('vault-journal');
     if (!el) return;
     var j = journal();
+    /* REG-2520 — UNKNOWN is said where the log is drawn, never drawn as an empty log */
+    if (j === null){ el.style.display=''; el.innerHTML = '<div class="vj-unknown" role="status">🕘 Recently registered — UNKNOWN: ' + esc(_journalUnknownSay()) + '</div>'; return; }
     if (!j.length){ el.style.display='none'; return; }
     el.style.display='';
     var Q = { unique:'var(--q-unique)', set:'var(--q-set)', rw:'var(--q-runeword)', rune:'var(--rune)', magic:'var(--q-magic)', rare:'var(--q-rare)' };
@@ -55021,15 +55455,23 @@ function renderJournal(){
     var _seenSkip = 0, _seenGone = 0, _seenRemoved = 0, _seenUnknown = 0;
     if (!opts.fromFolder){
       var _seenL = (function(){ try { return seenLedger(); } catch(e){ return {}; } })();
-      var _seenAsk = _intakeSeenAsk();
+      /* REG-2520 — a scan ledger that will not read is UNKNOWN: nothing is read (no file can be told new) or marked */
+      if (_seenL === null){
+        report.hidden = false;
+        report.innerHTML = '<div class="vir-card"><div class="vir-head"><span class="vir-title">📸 Nothing was read</span></div>'
+          + '<div class="vir-reconcile"><span class="vir-rc-note">' + esc(_seenUnknownSay()) + '</span></div></div>';
+        return { ok: false, refused: 'held', registered: false, why: _seenUnknownSay() };
+      }
+      var _seenAsk = _intakeSeenAsk(), _seenLegacy = 0;
       files = files.filter(function(f){
         if (!f || !f.name) return true;
         var _sv = _intakeSeenVerdict(_seenL, f, _seenAsk);   /* REG-2401 — keyed on "is what it read still his", not "was it ever read" */
-        if (_sv.state === 'fresh') return true;
+        if (_sv.state === 'fresh' || _sv.state === 'reading') return true;   /* REG-2524 — his drop of a file whose read never closed reads it */
         if (_sv.state === 'gone') { _seenGone++; return true; }
         _seenSkip++;
         if (_sv.state === 'removed') _seenRemoved++;
         else if (_sv.state === 'unknown') _seenUnknown++;
+        else if (_sv.legacy) _seenLegacy++;
         return false;
       });
       if (!files.length){
@@ -55039,7 +55481,10 @@ function renderJournal(){
           + '<div class="vir-reconcile"><span class="vir-rc"><b>' + _seenSkip + '</b> file' + (_seenSkip===1?'':'s') + ' already read — skipped (free, no AI call)</span>'
           + (_seenRemoved ? '<span class="vir-rc"><b>' + _seenRemoved + '</b> of them read an item you removed since — your removal stands</span>' : '')
           + (_seenUnknown ? '<span class="vir-rc"><b>' + _seenUnknown + '</b> of them read an item that is gone, and whether you removed it could not be read — not read again</span>' : '')
-          + '<span class="vir-rc-note">these exact files were scanned before, so nothing was sent to the AI. A file is read again once what it read has left your vault with no removal on record. Drop NEW screenshots, or use 🧽 Clear scan history to force a re-read.</span></div></div>';
+          /* REG-2529 (review of REG-2401, minor) — the card said every file is read again once its item leaves; a file marked
+             before records existed carries no record of what it read, so that was false for it - now it is said */
+          + (_seenLegacy ? '<span class="vir-rc"><b>' + _seenLegacy + '</b> of them were read before this board kept a record of what each file read — they are never read again on their own</span>' : '')
+          + '<span class="vir-rc-note">these exact files were scanned before, so nothing was sent to the AI. A file with a record is read again once what it read has left your vault with no removal on record; a file read before records existed is not. Drop NEW screenshots, or use 🕐 Latest N (Scan folder) or 🧽 Clear scan history to force a re-read.</span></div></div>';
         return;
       }
     }
@@ -55295,6 +55740,10 @@ function renderJournal(){
              name: a re-read never adds the misread label back beside the fixed one */
           var _asNow = _intakeRenamed(fRec.prev, n);
           if (_asNow && !owned.has(n) && owned.has(_asNow)) { if (dupes.indexOf(_asNow) < 0) dupes.push(_asNow); fRec.own.push(_asNow); return; }
+          /* REG-2529 (review of REG-2405, r4) — and when the renamed item ITSELF left the vault (the silent loss this re-read
+             exists to heal), the re-read brings back HIS label, never the misread one: his socket-count fix stands, and the
+             record keeps `as` because the label it maps to is held again */
+          if (_asNow && !owned.has(n) && !owned.has(_asNow)) n = _asNow;
           if (!owned.has(n)) {
             window._ownedAdd(n, _intakeRec(fname));
             // v227: an exact piece ✓s its set's grail aggregate row too (calc-only)
@@ -55490,14 +55939,18 @@ function renderJournal(){
     // were re-billed to the AI every 12 seconds for 10+ minutes, flooding the journal with blank sessions).
     // A no-match file now gets a soft 'retry' mark: the quiet auto-scan treats it as seen; the manual Scan
     // button treats it as fresh — the recovery intent survives, the money-burning loop cannot.
+    var _keptWhy = [];   /* REG-2520 — a store this read could not write is said on the card, never dropped quietly */
     try {
       var _sNow = seenLedger(), _sAskM = _intakeSeenAsk();
       /* REG-2401 — a file that read something records WHAT it put in the vault, so a later skip can ask whether it is
          still his; err / no-match stays 'retry' (manual-rescan only, v567). An extra copy or an over-cap read is a read. */
-      files.forEach(function(f, i){ _intakeSeenMark(_sNow, f, perFile[i], _sAskM); });
-      window.LSR.setItem(SEEN_KEY, JSON.stringify(_sNow));
+      if (_sNow === null) _keptWhy.push(_seenUnknownSay().replace('nothing was read or marked', 'this read was not marked over it'));
+      else {
+        files.forEach(function(f, i){ _intakeSeenMark(_sNow, f, perFile[i], _sAskM); });
+        if (window.LSR.setItem(SEEN_KEY, JSON.stringify(_sNow)) === false) _keptWhy.push('the scan ledger (' + SEEN_KEY + ') is held, so this read was not marked in it');
+      }
     } catch(e){}
-    journalAdd(logged, perFile);
+    if (journalAdd(logged, perFile) === false) _keptWhy.push(_journalUnknownSay());
     try { var _promoted=(typeof window._promoteUnknownBases==='function')?window._promoteUnknownBases():[]; if(_promoted.length && typeof window._grailToast==='function') window._grailToast('🧰','<b>'+_promoted.length+'</b> read'+(_promoted.length>1?'s':'')+' promoted to forge bases',_promoted.join(', ')); } catch(e){}   // v631 · v1576 — was `typeof toast`, a name declared NOWHERE in the file: the guard was permanently false and this promotion never once announced itself. The real toast is window._grailToast(ico,main,sub).
     persistOwned(); saveA(); renderVault(); refreshOpenCard(); renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){}
     window._repaintOwned();   // v1599 — was a permanently-false `typeof renderAll` guard
@@ -55577,6 +56030,7 @@ function renderJournal(){
          : '')
       + (_aiErr ? '<div class="vir-needlook" style="border-color:rgba(255,64,64,.6);background:rgba(255,64,64,.08)"><div class="vir-nl-top"><span class="vir-nl-h" style="color:var(--hell,#ff4040)">⚠ AI service error — nothing registered</span><span class="vir-nl-d">' + esc(_aiErr) + ' · NOT your screenshots — likely API key / credits / rate-limit. Retry a smaller batch.</span></div></div>' : '')
       + _needLook
+      + (_keptWhy.length ? '<div class="vir-needlook vir-kept" role="status"><div class="vir-nl-top"><span class="vir-nl-h">⚠ not written</span><span class="vir-nl-d">' + esc(_keptWhy.join(' · ')) + '</span></div></div>' : '')
       + '<details class="vir-scandet"><summary class="vir-scansum">▸ scan details — new · copies · duplicates · throw-out · skipped</summary>'
       + '<div class="vir-reconcile"><span class="vir-rc"><b>' + logged.length + '</b> new</span>' + (extraCopies.length ? '<span class="vir-rc" style="color:var(--gold-bright,#f0c060)">+ <b>' + extraCopies.length + '</b> 📦 extra copies</span>' : '') + '<span class="vir-rc" title="' + (_preReg > 0 ? 'these items were already ✓ in your vault BEFORE this scan' : 'the vault was EMPTY at the start of this scan, so these are DUPLICATE SHOTS — the same item appeared in an earlier screenshot of this same batch (first = new, this = the repeat). Collapsed to one, never double-counted — NOT based on any prior history.') + '">+ <b>' + dupes.length + '</b> ' + (_preReg > 0 ? 'already-owned' : 'duplicate shot' + (dupes.length === 1 ? '' : 's')) + '</span><span class="vir-rc">+ <b>' + magicNew.length + '</b> 🔮 magic</span><span class="vir-rc">+ <b>' + (unrec.length + cappedOut.length) + '</b> 🗑 throw-out</span>' + (cappedOut.length ? '<span class="vir-rc" style="color:#b5a48a" title="extra copies past the 3-per-base mule cap">(incl <b>' + cappedOut.length + '</b> over-cap)</span>' : '') + (_seenSkip > 0 ? '<span class="vir-rc" style="color:#8a9aa8">· <b>' + _seenSkip + '</b> already-read file' + (_seenSkip===1?'':'s') + ' skipped (free)</span>' : '')
       + '<span class="vir-rc-note">' + (function(){ var _it = logged.length + magicNew.length + unrec.length + cappedOut.length;
@@ -55677,7 +56131,12 @@ function renderJournal(){
       return false;
     } catch(e){ return false; }
   };
-  function seenLedger(){ try { return JSON.parse(window.LSR.getItem(SEEN_KEY)||'{}'); } catch(e){ return {}; } }
+  /* REG-2520 (review of REG-2401, r2) — THE SCAN LEDGER IS READ THROUGH THE ONE READER. A ledger cut short read as {}:
+     every screenshot he ever read became 'fresh', the poll handed old ones back to the AI 12 at a time (re-billed), a
+     re-read of a file whose item he removed put it back, and the next mark wrote bare marks over every record - what each
+     file read, lost. Now it is UNKNOWN (null), quarantined (kept aside, said), and no scan reads or marks over it.
+     -> {file: mark} | {} when nothing was ever read | null = UNKNOWN. A harness door with no reader: the same rule. */
+  function seenLedger(){ var D = window.LSR; if (D && typeof D.read === 'function') return D.read(SEEN_KEY, 'map', {}); try { var v = JSON.parse(D.getItem(SEEN_KEY) || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : null; } catch(e){ return null; } }
   /* ⟦INTAKE SEEN VERDICT BEGIN⟧ ══ #162 item 2 (REG-2401) — A FRAME IS SKIPPED WHILE WHAT IT READ IS STILL HIS ═════════
      GrokBot #230 on v3783: after one reload took 159 of 272 owned names, re-feeding all 292 frames added 0 ("ok 0").
      Every frame said "already read", so the loss could never heal. The ledger keyed the skip on "this file was ever
@@ -55691,6 +56150,8 @@ function renderJournal(){
        · whether he removed it, or what is owned, cannot be read -> 'unknown'  skipped and SAID, never guessed
        · a 1, a number or a name|mtime key from before this record -> 'seen'   what it read is UNKNOWN, so it is not re-billed
        · 'retry' (read nothing)                                  -> 'retry'    unchanged (v567)
+       · 'reading' (REG-2524: handed to a read that never closed) -> 'reading'  the page closed mid-read: a manual Scan
+                                                                    offers it as its own choice, the poll never reads it
      A file read again is the SAME file: a name it read last time is the same item, never a second copy (_intakeSameItem).
      The folder watch never re-reads a 'gone' file on its own (v567's money loop): the 12 s poll SAYS how many, and a
      manual Scan offers them as their own button (REG-2403: new files are read first, and the offer marks nothing).
@@ -55708,6 +56169,7 @@ function renderJournal(){
     if (v === undefined || v === null || v === '' || v === 0)
       return { state: (seen && seen[nm + '|' + (f && f.lastModified)]) ? 'seen' : 'fresh', gone: [], prev: null };
     if (v === 'retry') return { state: 'retry', gone: [], prev: null };
+    if (v === 'reading') return { state: 'reading', gone: [], prev: null };   /* REG-2524 — handed to a read that has not closed */
     if (typeof v !== 'object' || Array.isArray(v) || !Array.isArray(v.held)) return { state: 'seen', gone: [], prev: null, legacy: true };
     if (v.world != null && ask && ask.world != null && v.world !== ask.world)
       return { state: 'seen', gone: [], prev: null, otherWorld: v.world };
@@ -55801,6 +56263,7 @@ function renderJournal(){
   /* the vault's own answers: held -> true | false | null (UNKNOWN), HIS removal after a read (the journal's rule), and
      which world is asking (main or ladder - the store a held name is looked for in) */
   function _intakeSeenAsk(){
+    var _rmIdx = null;
     return {
       world: (window.D2R_PROFILE === 'ladder') ? 'ladder' : 'main',
       held: function(n){
@@ -55816,9 +56279,13 @@ function renderJournal(){
         if (_qd('d2r_magicFinds')) return null;
         return !!(typeof magicFinds === 'object' && magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n));
       },
+      /* REG-2528 — one index of his removals per scan (window._removedAfterIndex), built on the first ask, never per file */
       removedAfter: function(n, at){
-        return (typeof window._removedAfter === 'function') ? window._removedAfter(n, at)
-             : { unknown: 'the removal journal is not on this page' };
+        if (typeof window._removedAfter !== 'function') return { unknown: 'the removal journal is not on this page' };
+        if (_rmIdx === null && typeof window._removedAfterIndex === 'function'){
+          try { _rmIdx = window._removedAfterIndex(); } catch (eRi) { _rmIdx = { unknown: 'the removal record could not be read' }; }
+        }
+        return window._removedAfter(n, at, _rmIdx || undefined);
       }
     };
   }
@@ -55837,55 +56304,123 @@ function renderJournal(){
   // read that were never read (the 12 s poll skips them, the next Scan says '0 new'): v584.1's restart trap, back. Now
   // a PICK writes what it means (vaultReadBatch): ✨ New registers the new files it reads, 🕐 Latest N and Skip register
   // them as v224 always did, ♻ Read again registers none of them — and a menu nobody picks from registers nothing.
-  var _pendingAll = null, _pendingFresh = null, _pendingGone = null;
+  var _pendingAll = null, _pendingFresh = null, _pendingGone = null, _pendingWaiting = null;
+  /* ⟦SCAN MARKS⟧ ══ REG-2524 (review of REG-2403, r1) — A SCAN MARKS ONLY WHAT A READ WILL TAKE, AND SAYS WHAT IT LEAVES.
+     _seenRegister ran BEFORE window.vaultIntake, whose first statement is the AUTO INTAKE gate - and AUTO INTAKE is off
+     by default. So his manual Scan, the 12 s poll, the menu with no report element and the ✨ New / 🕐 Latest picks all
+     marked new screenshots read (a bare 1, 'seen' for ever) and the read was refused: the status said "reading…", the
+     next Scan said "0 new" after he turned AUTO INTAKE on, and those screenshots were never read. A page reloaded or
+     closed mid-read left the same bare marks (v584.1's restart trap). Now:
+       · the gate (window._vaultIntakeGate: AUTO INTAKE, and the vault hold) is asked BEFORE anything is marked; when it
+         refuses, nothing is marked or read, and the scan says how many wait and why;
+       · a file handed to a read is marked 'reading', not 1: the read's own end-of-batch mark replaces it, and a read that
+         never closed leaves it 'reading' - offered by a manual Scan as its own choice (⏯), never read by the poll;
+       · a file his pick registers unread (🕐 Latest N past it, or Skip) keeps the bare 1 it always got (v224);
+       · a ledger that will not read is UNKNOWN: nothing is read or marked over it, and that is said;
+       · a file whose items' status could not be read ('unknown') is counted and said, never skipped in silence.
+     Law: tv/test_a_scan_asks_the_gate_before_it_marks.py drives this block with the real gate in node. */
+  function _seenUnknownSay(){
+    return 'the scan ledger (' + SEEN_KEY + ') would not read - nothing was read or marked, and its bytes are kept aside (see the notice at the top)';
+  }
+  /* what a refused gate means for this scan, in his words */
+  function _gateWaitSay(g, nNew, nOther){
+    var n = nNew + nOther;
+    var what = n + ' screenshot' + (n === 1 ? '' : 's') + ' wait' + (n === 1 ? 's' : '');
+    /* "off" only when the switch READ off: a switch that would not read is said in the gate's own words, never "off" */
+    if (g && g.refused === 'auto-intake-off' && /^AUTO INTAKE is off/.test(String(g.why || '')))
+      return 'AUTO INTAKE is off — ' + what + ' to be read; nothing was read or marked (turn AUTO INTAKE on, then 🔄 Scan folder)';
+    return String((g && g.why) || 'the read is refused') + ' — ' + what + '; nothing was read or marked';
+  }
+  /* the states a scan leaves for his choice or his eye, as one tail for its status line */
+  function _scanMoreSay(waiting, unknownN){
+    var w = waiting || 0, u = unknownN || 0, out = '';
+    if (w) out += ' · ⏯ ' + w + ' screenshot' + (w===1?' was':'s were') + ' handed to a read that never finished (the page closed or reloaded) — 🔄 Scan folder offers ' + (w===1?'it':'them');
+    if (u) out += ' · ' + u + ' screenshot' + (u===1?'':'s') + ' read items whose status could not be read — not read again';
+    return out;
+  }
   /* register files by NAME in the CURRENT ledger — a merge, never the scan's stale snapshot written back over reads that
-     landed meanwhile. Only a file a pick named, or one handed to the read in the same breath, is marked. */
-  function _seenRegister(files){
-    var s = seenLedger(), n = 0;
+     landed meanwhile. Only a file a pick named, or one handed to the read in the same breath, is marked: 'reading' for a
+     file handed to the read, 1 for one a pick registers unread. -> how many were marked | -1 when the ledger will not
+     read or the door refused the write (UNKNOWN: nothing marked over it) */
+  function _seenRegister(files, mark){
+    var s = seenLedger(), n = 0, m = (mark === 'reading') ? 'reading' : 1;
+    if (s === null) return -1;
     (files || []).forEach(function(f){
       if (!f || !f.name) return;
       var v = s[f.name];
       if (v && typeof v === 'object') return;      /* a record a read wrote since this scan began outranks a bare mark */
-      s[f.name] = 1; n++;
+      s[f.name] = m; n++;
     });
-    if (n) window.LSR.setItem(SEEN_KEY, JSON.stringify(s));
+    if (n && window.LSR.setItem(SEEN_KEY, JSON.stringify(s)) === false) return -1;
     return n;
   }
+  /* the gate, asked before any mark: null = the read may run */
+  function _scanGate(){ return (typeof window._vaultIntakeGate === 'function') ? window._vaultIntakeGate() : null; }
   /* what a scan that read (or offered) new files says about the 'gone' ones it left for his choice */
   function _goneWaitSay(gone){
     var g = Array.isArray(gone) ? gone.length : 0;
     return g ? ' · ♻ ' + g + ' already-read screenshot' + (g===1?' read an item that is':'s read items that are')
              + ' no longer in your vault, with no removal on record — 🔄 Scan folder to choose' : '';
   }
-  function vaultOfferMenu(all, fresh, seen, gone){
+  function vaultOfferMenu(all, fresh, seen, gone, more){
     gone = Array.isArray(gone) ? gone : [];
+    more = more || {};
+    var waiting = Array.isArray(more.waiting) ? more.waiting : [];
     all.sort(function(a,b){ return a.lastModified-b.lastModified; });
     fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
     gone.sort(function(a,b){ return a.lastModified-b.lastModified; });
-    _pendingAll = all; _pendingFresh = fresh; _pendingGone = gone;
+    waiting.sort(function(a,b){ return a.lastModified-b.lastModified; });
+    _pendingAll = all; _pendingFresh = fresh; _pendingGone = gone; _pendingWaiting = waiting;
     var rep = document.getElementById('vault-intake-report');
-    if (!rep){ if (fresh.length){ _seenRegister(fresh); window.vaultIntake(fresh, {fromFolder:true, goneWaiting: gone.length}); } return; }
+    /* REG-2524 — with no report element the read cannot run (vaultIntake needs it), so nothing is marked: it is said */
+    if (!rep){ if (fresh.length) status('📂 ' + fresh.length + ' new screenshot' + (fresh.length===1?'':'s') + ' wait — open the Vault to read ' + (fresh.length===1?'it':'them') + '; nothing was read or marked'); return; }
     rep.hidden = false;
     var html = '📂 folder scanned: <strong style="color:var(--best,#66ff88)">' + fresh.length + ' new</strong> · ' + all.length + ' screenshots total — read which?<br>';
     /* REG-2401 — a screenshot whose item left the vault with no removal on record is offered AS ITS OWN CHOICE: never
        folded into "New", never read by the poll */
     if (gone.length) html += '♻ <strong>' + gone.length + '</strong> already-read screenshot' + (gone.length===1?' read an item that is':'s read items that are') + ' no longer in your vault, with no removal on record.<br>';
+    /* REG-2524 — a read that never closed is its own choice too; 'unknown' and records-less files are said, not hidden */
+    if (waiting.length) html += '⏯ <strong>' + waiting.length + '</strong> screenshot' + (waiting.length===1?' was':'s were') + ' handed to a read that never finished (the page closed or reloaded).<br>';
+    if (more.unknown) html += '<strong>' + more.unknown + '</strong> already-read screenshot' + (more.unknown===1?' read items whose':'s read items whose') + ' status could not be read — not read again.<br>';
+    if (more.legacy) html += '<strong>' + more.legacy + '</strong> screenshot' + (more.legacy===1?' was':'s were') + ' read before this board kept a record of what each file read — never read again on their own (🕐 Latest N reads past the ledger).<br>';
     if (fresh.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'new\')" style="border-color:rgba(102,255,136,.5);color:var(--best,#66ff88)">✨ New ' + fresh.length + '</button> ';
     if (gone.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'gone\')">♻ Read again ' + gone.length + '</button> ';
+    if (waiting.length) html += '<button class="vault-btn" onclick="window.vaultReadBatch(\'waiting\')">⏯ Finish ' + waiting.length + '</button> ';
     [20, 40].forEach(function(k){ if (all.length >= k) html += '<button class="vault-btn" onclick="window.vaultReadBatch('+k+')">🕐 Latest '+k+'</button> '; });
     if (all.length && all.length < 20) html += '<button class="vault-btn" onclick="window.vaultReadBatch('+all.length+')">🕐 All '+all.length+'</button> ';
     html += '<button class="vault-btn" onclick="window.vaultReadBatch(0)">Skip — just register</button>';
     rep.innerHTML = html;
   }
   window.vaultReadBatch = function(k){
-    var all = _pendingAll || [], fresh = _pendingFresh || [], gone = _pendingGone || [];
-    _pendingAll = _pendingFresh = _pendingGone = null;
+    var all = _pendingAll || [], fresh = _pendingFresh || [], gone = _pendingGone || [], waiting = _pendingWaiting || [];
+    _pendingAll = _pendingFresh = _pendingGone = _pendingWaiting = null;
     var rep = document.getElementById('vault-intake-report');
-    var pick = (k === 'new') ? fresh : (k === 'gone') ? gone : (k ? all.slice(-k) : []);
-    /* REG-2403 — the pick writes what it means: every pick but ♻ Read again registers the new files (✨ New reads them;
-       🕐 Latest N and Skip register them unread, as v224 did); ♻ Read again leaves them NEW, so the next scan reads them */
-    if (k !== 'gone') _seenRegister(fresh);
-    var _staysNew = (k === 'gone' && fresh.length) ? ' · the ' + fresh.length + ' new screenshot' + (fresh.length===1?' stays':'s stay') + ' new — 🔄 Scan folder reads ' + (fresh.length===1?'it':'them') : '';
+    var pick = (k === 'new') ? fresh : (k === 'gone') ? gone : (k === 'waiting') ? waiting : (k ? all.slice(-k) : []);
+    /* REG-2524 — a pick that reads asks the gate FIRST: refused, nothing is marked or read, and that is said */
+    if (pick.length){
+      var _g = _scanGate();
+      if (_g){
+        if (rep){ rep.innerHTML = ''; rep.hidden = true; }
+        status('📂 ' + _gateWaitSay(_g, pick.length, 0));
+        return;
+      }
+    }
+    /* REG-2403 — the pick writes what it means: every pick but ♻ Read again (and ⏯ Finish) registers the new files - ✨ New
+       and 🕐 Latest N hand the ones they read to the read ('reading', REG-2524), 🕐 Latest N and Skip register the rest
+       unread (1), as v224 did; ♻ Read again leaves them NEW, so the next scan reads them */
+    var _marked = 0;
+    if (k !== 'gone' && k !== 'waiting'){
+      var _inPick = {}; pick.forEach(function(f){ if (f && f.name) _inPick[f.name] = 1; });
+      var _r1 = _seenRegister(fresh.filter(function(f){ return f && _inPick[f.name]; }), 'reading');
+      var _r2 = _seenRegister(fresh.filter(function(f){ return f && !_inPick[f.name]; }));
+      _marked = (_r1 < 0 || _r2 < 0) ? -1 : 0;
+    }
+    if (_marked < 0){
+      if (rep){ rep.innerHTML = ''; rep.hidden = true; }
+      status('📂 ' + _seenUnknownSay());
+      return;
+    }
+    var _staysNew = ((k === 'gone' || k === 'waiting') && fresh.length) ? ' · the ' + fresh.length + ' new screenshot' + (fresh.length===1?' stays':'s stay') + ' new — 🔄 Scan folder reads ' + (fresh.length===1?'it':'them') : '';
     if (!pick.length){
       if (rep){ rep.innerHTML = ''; rep.hidden = true; }
       status((k ? '📂 nothing to read' : '📂 registered — only NEW screenshots count from now on') + _staysNew);
@@ -55924,7 +56459,9 @@ function renderJournal(){
         perm = await handle.requestPermission({ mode:'read' });
         if (perm !== 'granted') { status('folder access declined'); return; }
       }
-      var seen = seenLedger(), fresh = [], all = [], retriable = 0, regone = [], _sAsk = _intakeSeenAsk();
+      var seen = seenLedger(), fresh = [], all = [], retriable = 0, regone = [], waiting = [], unknownN = 0, legacyN = 0, _sAsk = _intakeSeenAsk();
+      /* REG-2520 — UNKNOWN is said and nothing is read or marked: a ledger read as {} made every screenshot 'fresh' */
+      if (seen === null){ status('📂 ' + _seenUnknownSay()); return; }
       var firstConnect = Object.keys(seen).length === 0;
       for await (var entry of handle.values()){
         if (entry.kind !== 'file' || !/\.(png|jpe?g|webp)$/i.test(entry.name)) continue;
@@ -55940,20 +56477,37 @@ function renderJournal(){
         if (_sv.state === 'fresh') { seen[f.name] = 1; fresh.push(f); }
         else if (_sv.state === 'retry'){ retriable++; if (!quiet){ seen[f.name] = 1; fresh.push(f); } }
         else if (_sv.state === 'gone') regone.push(f);   /* offered for his choice — the poll never reads it */
+        /* REG-2524 — a read that never closed waits for his choice (never while a read is in flight in this tab: that read
+           is taking it now); a file whose items' status could not be read is counted and said */
+        else if (_sv.state === 'reading'){ if (!window._vIntakeBusy) waiting.push(f); }
+        else if (_sv.state === 'unknown') unknownN++;
+        else if (_sv.legacy) legacyN++;
+      }
+      /* REG-2524 — THE GATE IS ASKED BEFORE ANYTHING IS MARKED OR READ. AUTO INTAKE off (the default) or a held vault
+         refuses the read, so the scan marks nothing and says how many wait */
+      var _gS = (fresh.length || regone.length || waiting.length) ? _scanGate() : null;
+      if (_gS){
+        if (!quiet){ var _repG = document.getElementById('vault-intake-report'); if (_repG){ _repG.innerHTML = ''; _repG.hidden = true; } }
+        status('📂 ' + _gateWaitSay(_gS, fresh.length, regone.length + waiting.length));
+        return;
       }
       if (quiet){
         if (!fresh.length){
+          var _moreQ = _scanMoreSay(waiting.length, unknownN);
           if (regone.length) status('📂 '+(retriable ? retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time · ' : '')
-            + regone.length+' already-read screenshot'+(regone.length===1?'':'s')+' read an item no longer in your vault, with no removal on record — hit 🔄 Scan folder to choose');
-          else if (retriable) status('📂 '+retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time — hit 🔄 Scan folder to retry them');
+            + regone.length+' already-read screenshot'+(regone.length===1?'':'s')+' read an item no longer in your vault, with no removal on record — hit 🔄 Scan folder to choose' + _moreQ);
+          else if (retriable) status('📂 '+retriable+' screenshot'+(retriable===1?'':'s')+' read nothing last time — hit 🔄 Scan folder to retry them' + _moreQ);
+          else if (_moreQ) status('📂' + _moreQ.replace(/^ ·/, ''));
           return;
         }
         if (fresh.length <= 12){
-          _seenRegister(fresh);   /* REG-2403 — marked in the breath it is handed to the read, merged into the ledger as it is now */
+          /* REG-2403 — marked in the breath it is handed to the read, merged into the ledger as it is now; REG-2524 — as
+             'reading', so a read that never closes leaves it offered, never 'seen' */
+          if (_seenRegister(fresh, 'reading') < 0){ status('📂 ' + _seenUnknownSay()); return; }
           fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
-          status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone));
+          status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN));
           window.vaultIntake(fresh, {fromFolder:true, goneWaiting: regone.length});
-        } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch' + _goneWaitSay(regone));
+        } else status('📂 '+fresh.length+' new screenshots waiting — hit 🔄 Scan folder to pick a batch' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN));
         return;
       }
       // v584.1 — MANUAL scan with a small fresh batch reads IMMEDIATELY, exactly like the auto-watch
@@ -55964,13 +56518,13 @@ function renderJournal(){
       // marked the new shots read before he chose — the restart trap again. The new files are read NOW; the gone ones
       // are said here and on the poll, and the next Scan (nothing new left) offers them as '♻ Read again N'.
       if (fresh.length > 0 && fresh.length <= 12){
-        _seenRegister(fresh);
+        if (_seenRegister(fresh, 'reading') < 0){ status('📂 ' + _seenUnknownSay()); return; }   /* REG-2524 */
         fresh.sort(function(a,b){ return a.lastModified-b.lastModified; });
-        status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone));
+        status('📂 '+fresh.length+' new screenshot'+(fresh.length===1?'':'s')+' — reading…' + _goneWaitSay(regone) + _scanMoreSay(waiting.length, unknownN));
         window.vaultIntake(fresh, {fromFolder:true, goneWaiting: regone.length});
         return;
       }
-      vaultOfferMenu(all, fresh, seen, regone);   /* REG-2401 — a 'gone' file is his choice: offered as its own button (REG-2403: the menu marks nothing) */
+      vaultOfferMenu(all, fresh, seen, regone, { waiting: waiting, unknown: unknownN, legacy: legacyN });   /* REG-2401 — a 'gone' file is his choice: offered as its own button (REG-2403: the menu marks nothing) */
     } catch(e){ if(!quiet) status('scan failed: '+(e && e.name || e)); }
     finally { _vScanBusy = false; }
   };
@@ -55980,7 +56534,8 @@ function renderJournal(){
   // protects the token budget. NEVER hide the feature silently again (REG-011).
   window.vaultScanFolderLegacy = function(fileList){
     try {
-      var seen = seenLedger(), fresh = [], all = [], regone = [], _sAsk = _intakeSeenAsk();
+      var seen = seenLedger(), fresh = [], all = [], regone = [], waiting = [], unknownN = 0, legacyN = 0, _sAsk = _intakeSeenAsk();
+      if (seen === null){ status('📂 ' + _seenUnknownSay()); return; }   /* REG-2520 */
       var firstConnect = Object.keys(seen).length === 0;
       Array.prototype.forEach.call(fileList, function(f){
         if (!/\.(png|jpe?g|webp)$/i.test(f.name)) return;
@@ -55991,8 +56546,14 @@ function renderJournal(){
         if (_sv.state === 'fresh') { seen[f.name] = 1; fresh.push(f); }
         else if (_sv.state === 'retry'){ seen[f.name] = 1; fresh.push(f); }   // v567 — legacy picker is manual → retry-able
         else if (_sv.state === 'gone') regone.push(f);
+        else if (_sv.state === 'reading'){ if (!window._vIntakeBusy) waiting.push(f); }   /* REG-2524 */
+        else if (_sv.state === 'unknown') unknownN++;
+        else if (_sv.legacy) legacyN++;
       });
-      vaultOfferMenu(all, fresh, seen, regone);
+      /* REG-2524 — the picker's menu marks nothing; the pick asks the gate (vaultReadBatch). Said here when it would refuse */
+      var _gL = (fresh.length || regone.length || waiting.length) ? _scanGate() : null;
+      if (_gL){ status('📂 ' + _gateWaitSay(_gL, fresh.length, regone.length + waiting.length)); return; }
+      vaultOfferMenu(all, fresh, seen, regone, { waiting: waiting, unknown: unknownN, legacy: legacyN });
     } catch(e){ status('scan failed: '+(e && e.message || e)); }
   };
   // v235: toggle the folder UI between "connect me" and the live animated watcher.

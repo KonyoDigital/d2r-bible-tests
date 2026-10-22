@@ -813,6 +813,10 @@ class TheOwnedStoreIsOnlyGrownThroughTheDoor(unittest.TestCase):
                                                  "QUARANTINED (then UNKNOWN, never 'gone'); it reads the door's registry, "
                                                  "never the store, and writes nothing (test_a_frame_verdict_reads_a_"
                                                  "quarantined_store_as_unknown drives it)"),
+        "LS.quarantine('d2r_owned', 'holds '": (1, "REG-2527 — the load's doctor could not copy the entries that are not "
+                                                  "names aside (a full storage), so it QUARANTINES the owned key: every "
+                                                  "write of it is refused and the saved list keeps them; it grows nothing "
+                                                  "(test_entries_that_are_not_names_are_kept_aside drives it)"),
     }
     READ_BEFORE = re.compile(r"(getItem|\.key|_chLsGet)\(\s*$")
     WRITE_BEFORE = re.compile(r"setItem\(\s*$")

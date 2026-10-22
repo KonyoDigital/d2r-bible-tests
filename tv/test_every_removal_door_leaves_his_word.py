@@ -51,8 +51,10 @@ JOURNAL = [
     ("  var _RM_NOT_HIS_WORD = ", "\n"),
     ("  window._removalIsHisWord = function(b){", "\n  };\n"),
     ("  var _RM_AT_KEY = ", "\n"),
+    ("  function _rmRead(k, shape, dflt){", "\n  }\n"),
     ("  window._vaultRemovalNote = function(b){", "\n  };\n"),
-    ("  window._removedAfter = function(name, ts){", "\n  };\n"),
+    ("  window._removedAfterIndex = function(){", "\n  };\n"),
+    ("  window._removedAfter = function(name, ts, index){", "\n  };\n"),
 ]
 #: the removal door, its journal and its undo (the same region tv/test_the_removal_door_is_undoable.py cuts)
 DOOR = ("  var _VR_LOG = 'd2r_vaultRemoved', _VR_RING = 20;\n", "  // v342.3 — throw out a Magic & Rare keeper")

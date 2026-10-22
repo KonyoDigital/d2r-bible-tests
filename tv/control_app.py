@@ -10187,6 +10187,30 @@ def _kai_fullnames():
                     nm = _nm.strip()
                     if 3 <= len(nm) <= 48 and not any(ch in nm for ch in "<>{}$"):
                         rare_combos.add(nm.lower())
+        # REG-2525 (V1 round 3) — A REAL UNIQUE IS NEVER A RARE COMBO. REG-2402 gave the pools the game's Gloves row
+        # ('Claw' among it), and 'Raven' is a rare prefix, so the grail unique "Raven Claw" landed in rare_combos and the
+        # /kai_verdict grail gate stopped lifting its toss/border to 'grail' - written to the append-only journal as toss.
+        # "Rune Master" (Rune + Master) and "Death Cleaver" (a crafted example) were already there. The page asks its
+        # catalogue before it calls a name rolled (_rolledQuality); this harvest now asks the same unique/set roster the
+        # page's own uniques roster is built from (ITEM_VALUE + _UNI_EXTRA) and ITEM_CODEX's uniques and set pieces, and
+        # no name they carry is a rare combo. Law: tv/test_a_real_unique_is_never_a_rare_combo.py
+        _real = set()
+        _dec = json.JSONDecoder()
+        for _anchor in ("window.ITEM_VALUE = ", "const _UNI_EXTRA = ", "const ITEM_CODEX = "):
+            try:
+                _ai = src.find(_anchor)
+                if _ai < 0:
+                    raise ValueError("not in bible.html")
+                _obj, _ = _dec.raw_decode(src, _ai + len(_anchor))
+                for _k, _v in (_obj.items() if isinstance(_obj, dict) else ()):
+                    if _anchor.startswith("const ITEM_CODEX") and not (
+                            isinstance(_v, dict) and str(_v.get("rarity", "")).lower() in ("unique", "set")):
+                        continue
+                    _real.add(str(_k).strip().lower())
+            except Exception as _eR:
+                print("⚠ kai: %s would not read (%s) - a real unique whose words are a rare prefix + suffix may be "
+                      "read as a rare combo" % (_anchor.strip(" ="), _eR), flush=True)
+        rare_combos -= _real
         names |= rare_combos   # full union still returned for register/recognition
     except Exception:
         pass

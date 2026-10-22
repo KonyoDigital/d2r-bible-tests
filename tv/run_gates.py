@@ -11092,6 +11092,86 @@ GATES = [
              "his items had left and a Scan offered to read them again (an AI read). held() now answers UNKNOWN for a "
              "store the door quarantined, so the verdict says 'unknown', never 'gone'; with nothing quarantined a silent "
              "loss still reads 'gone'. The shipped door, boot readers and verdict block run in node."),
+    Gate("test_every_vault_store_reads_unknown_never_empty",
+         [sys.executable, os.path.join(HERE, "test_every_vault_store_reads_unknown_never_empty.py")], 120,
+         needs_app=False,
+         why="REG-2520 (V1 round 3; #162, #152) - the scan ledger, the removal journal and its per-name record and the "
+             "Recently-registered log each read bytes cut short as EMPTY and the next write went over every row (old "
+             "screenshots re-billed, his undo history lost); the boot prune read a mule map cut short as {}. Every vault "
+             "store is now read by ONE rule (window.LSR.read): UNKNOWN (null), quarantined as the module loads, bytes kept "
+             "aside, writes refused, said on the board, the vault held. The shipped readers run in node over each store "
+             "cut short, wrong-shaped, absent and good."),
+    Gate("test_the_vault_hold_refuses_at_the_one_door",
+         [sys.executable, os.path.join(HERE, "test_the_vault_hold_refuses_at_the_one_door.py")], 120,
+         needs_app=False,
+         why="REG-2521 (review of REG-2411, rv2) - while a store the vault stands on was quarantined, vaultFile answered "
+             "{ok, moved/filed} over a refused write, Auto-Sort said 'filed 1 witnessed item', a hand register was "
+             "answered ok and the Chronicle inbox's 'Vault only' DELETED his row with nothing saved; un-ticks walked "
+             "around a refused removal. The hold is now asked at the one door (vaultFile, the sorter, every register, the "
+             "removal door and its undo) and every caller keeps what it holds and says why. The shipped doors and "
+             "toggleOwned run in node, per held store."),
+    Gate("test_a_roster_without_its_core_lockers_is_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_roster_without_its_core_lockers_is_unknown.py")], 120,
+         needs_app=False,
+         why="REG-2522 (review of REG-2411, rv6) - a roster saved as \"[]\" (the REG-2414 bytes) passed the shape check, the "
+             "migrations saved three lockers over it and the W6 prune dropped every filing on the other eight. A saved "
+             "roster that lacks any core locker is now quarantined at load and refused from another tab (one shape rule), "
+             "the vault held, the prune drops nothing; his real roster (11 core lockers + his own mules) reads as before."),
+    Gate("test_this_tabs_last_good_copy_can_be_kept",
+         [sys.executable, os.path.join(HERE, "test_this_tabs_last_good_copy_can_be_kept.py")], 120,
+         needs_app=False,
+         why="REG-2523 (review of REG-2413, r4) - another tab's bad write quarantined the key with the BAD bytes aside, "
+             "the notice said 'runs on a default' and both exits dropped this tab's good copy. The hold now carries "
+             "lastGood / cleared, the notice says 'this tab still holds your last good copy' and offers Keep this tab's "
+             "copy: asked, anything not kept aside goes aside first, then his copy is written and read back. The shipped "
+             "tab sync and notice run in node."),
+    Gate("test_a_scan_asks_the_gate_before_it_marks",
+         [sys.executable, os.path.join(HERE, "test_a_scan_asks_the_gate_before_it_marks.py")], 120,
+         needs_app=False,
+         why="REG-2524 (review of REG-2403, r1) - with AUTO INTAKE off (the default) the scan, the poll and every pick "
+             "marked new screenshots read and the gate then refused the read: 'seen' for ever, '0 new' after he turned it "
+             "on. The gate is now asked before anything is marked, a file handed to a read is marked 'reading' (offered as "
+             "Finish, never read by the poll), an unreadable ledger reads nothing and says so, and UNKNOWN / pre-record "
+             "files are said. Shipped scan in node."),
+    Gate("test_a_real_unique_is_never_a_rare_combo",
+         [sys.executable, os.path.join(HERE, "test_a_real_unique_is_never_a_rare_combo.py")], 120,
+         needs_app=False,
+         why="REG-2525 (review of REG-2402) - the Gloves row put 'Claw' in RARE_NAME_POOLS, so the console's harvest made "
+             "the grail unique Raven Claw a rare combo and the /kai_verdict grail gate journaled a toss on it (Rune Master "
+             "and Death Cleaver were already there). No catalogued unique / set / grail-seed name is a rare combo now "
+             "(control_app._kai_fullnames subtracts the roster), and the page asks the same catalogues first "
+             "(_rolledQuality); rolled names stay tossable."),
+    Gate("test_a_refused_write_is_said_as_it_happens",
+         [sys.executable, os.path.join(HERE, "test_a_refused_write_is_said_as_it_happens.py")], 120,
+         needs_app=False,
+         why="REG-2526 (review of REG-2410, r5 + storage full) - a refused write of a quarantined store was counted only "
+             "in the console: an edited rune count looked saved all session. The first refusal repaints the notice at "
+             "once, the rest within 250 ms; a store whose bytes could not be copied aside says there is no way out in the "
+             "page, offers its bytes as a download, and no footer promises a restore that would refuse it."),
+    Gate("test_entries_that_are_not_names_are_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_entries_that_are_not_names_are_kept_aside.py")], 120,
+         needs_app=False,
+         why="REG-2527 (review of REG-2400) - the owned-load doctor 'set aside' a non-name entry by deleting it (persist() "
+             "wrote owned without it, kept nowhere) while the Vault said 'set aside'. The entries are now copied aside "
+             "(content-addressed, read back) before persist() and the Vault says where; when the copy cannot be made they "
+             "stay in the saved list, held at the door, and memory runs on the names. The shipped load and doctor run in "
+             "node, including a full storage."),
+    Gate("test_his_reset_is_on_record_and_read_once_a_scan",
+         [sys.executable, os.path.join(HERE, "test_his_reset_is_on_record_and_read_once_a_scan.py")], 120,
+         needs_app=False,
+         why="REG-2528 (review of REG-2405 r3 + REG-2401 r6) - RESET UNIQUES left no removal on record, so a screenshot "
+             "that read the unique read 'gone' and came back over his reset; and every file's verdict re-parsed both "
+             "removal stores (5.4 s at 2000/2000 on the poll). The reset is noted per name (lane unique-reset, verdict "
+             "'removed'), and a scan builds one index of his removals - this law COUNTS the store reads: one per scan, "
+             "never one per file."),
+    Gate("test_a_renamed_item_comes_back_as_his_fix",
+         [sys.executable, os.path.join(HERE, "test_a_renamed_item_comes_back_as_his_fix.py")], 120,
+         needs_app=False,
+         why="REG-2529 (review of REG-2405 r4 + REG-2401) - a re-read of a renamed item that had itself left added the "
+             "MISREAD label back over his socket-count fix and dropped the rename from the record; the Nothing-new card "
+             "claimed every file is read again once its item leaves, false for the bare marks written before records "
+             "existed. Now his label comes back and `as` is kept; the card and the scan menu count and say the pre-record "
+             "files."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

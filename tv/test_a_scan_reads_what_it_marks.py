@@ -36,7 +36,8 @@ from cb_node_harness import NODE  # noqa: E402
 PAGE = os.path.join(os.path.dirname(HERE), "bible.html")
 VERDICT = ("  /* ⟦INTAKE SEEN VERDICT BEGIN⟧", "  /* ⟦INTAKE SEEN VERDICT END⟧ */\n")
 SEEN_LEDGER = ("  function seenLedger(){", "\n")
-SCAN = ("  var _pendingAll = null, _pendingFresh = null, _pendingGone = null;\n", "  // v235: toggle the folder UI between")
+SCAN = ("  var _pendingAll = null, _pendingFresh = null, _pendingGone = null, _pendingWaiting = null;\n",
+        "  // v235: toggle the folder UI between")
 
 GONE = "f_1790549355102.jpg"   # one of GrokBot's frames (#162): it read "Death Loop", which then left owned silently
 
@@ -140,8 +141,10 @@ OUT.readAgain = CALLS.slice();
         self.assertEqual(got["opts"][0].get("goneWaiting"), 1, "the read was not told a gone screenshot waits")
         self.assertTrue(any("♻ 1 already-read screenshot" in m for m in got["status"]),
                         "the gone screenshot was not said: %r" % got["status"])
-        self.assertEqual(got["ledger"].get("new_1.jpg"), 1)
-        self.assertEqual(got["ledger"].get("new_2.jpg"), 1)
+        # REG-2524 - a file handed to a read is marked 'reading' (the read's own end-of-batch mark replaces it), never
+        # the bare 1 that read 'seen' for ever when the read never closed
+        self.assertEqual(got["ledger"].get("new_1.jpg"), "reading")
+        self.assertEqual(got["ledger"].get("new_2.jpg"), "reading")
         self.assertTrue(got["goneUntouched"], "the scan rewrote the gone screenshot's record")
         self.assertEqual(got["pollReads"], [], "the 12 s poll read something on its own: %r" % got["pollReads"])
         self.assertTrue(any("1 already-read screenshot" in m for m in got["pollStatus"]),
@@ -197,7 +200,8 @@ mid['other.jpg'] = { held: ['Grief'], unr: [], at: 8, world: 'main' };
 RAW[SEEN_KEY] = JSON.stringify(mid);
 window.vaultReadBatch(20);                               /* 🕐 Latest 20: reads 20, registers all 25 (v224) */
 OUT.latest = CALLS.slice(); var L = ledger();
-OUT.latestMarked = pile.filter(function(n){ return L[n] === 1; }).length;
+OUT.latestMarked = pile.filter(function(n){ return L[n] === 1 || L[n] === 'reading'; }).length;
+OUT.latestReading = pile.filter(function(n){ return L[n] === 'reading'; }).length;
 OUT.kept = [L['s01.jpg'], L['other.jpg']];
 reset(); RAW[SEEN_KEY] = JSON.stringify({});
 await window.vaultScanFolder(false); window.vaultReadBatch(0);   /* Skip — just register */
@@ -209,6 +213,8 @@ OUT.newReads = CALLS.slice(); OUT.newMarked = Object.keys(ledger()).length;
         self.assertEqual(len(got["latest"]), 1)
         self.assertEqual(len(got["latest"][0]), 20)
         self.assertEqual(got["latestMarked"], 24, "🕐 Latest N no longer registers the new files (v224): %r" % got)
+        self.assertEqual(got["latestReading"], 20, "REG-2524 - the 20 files 🕐 Latest 20 hands to the read are not marked "
+                                                   "'reading' (the 4 it registers unread keep the bare 1): %r" % got)
         self.assertEqual(got["kept"][0]["held"], ["Shako"], "a pick wrote a bare mark over a record a read had written")
         self.assertEqual(got["kept"][1]["held"], ["Grief"], "a pick wrote the scan's stale snapshot over the ledger")
         self.assertEqual(got["skipReads"], [], "Skip made a read")
@@ -255,23 +261,23 @@ OUT.again = menu();
 RED_PROOF = [
     {"why": "REG-2403 - a manual Scan with 1-12 new files goes to the menu again whenever a gone file waits",
      "file": "bible.html",
-     "find": "      if (fresh.length > 0 && fresh.length <= 12){\n        _seenRegister(fresh);\n",
-     "replace": "      if (fresh.length > 0 && fresh.length <= 12 && !regone.length){\n        _seenRegister(fresh);\n",
+     "find": "      if (fresh.length > 0 && fresh.length <= 12){\n        if (_seenRegister(fresh, 'reading') < 0)",
+     "replace": "      if (fresh.length > 0 && fresh.length <= 12 && !regone.length){\n        if (_seenRegister(fresh, 'reading') < 0)",
      "matches": 1},
     {"why": "REG-2403 - the menu registers the new screenshots the moment it appears, before he chooses",
      "file": "bible.html",
-     "find": "    _pendingAll = all; _pendingFresh = fresh; _pendingGone = gone;\n",
-     "replace": "    _pendingAll = all; _pendingFresh = fresh; _pendingGone = gone; _seenRegister(fresh);\n",
+     "find": "    _pendingAll = all; _pendingFresh = fresh; _pendingGone = gone; _pendingWaiting = waiting;\n",
+     "replace": "    _pendingAll = all; _pendingFresh = fresh; _pendingGone = gone; _pendingWaiting = waiting; _seenRegister(fresh);\n",
      "matches": 1},
     {"why": "REG-2403 - '♻ Read again' marks the new screenshots read without reading them",
      "file": "bible.html",
-     "find": "    if (k !== 'gone') _seenRegister(fresh);\n",
-     "replace": "    _seenRegister(fresh);\n",
+     "find": "    if (k !== 'gone' && k !== 'waiting'){\n",
+     "replace": "    if (true){\n",
      "matches": 1},
     {"why": "REG-2403 - Skip and Latest N no longer register the new screenshots (v224's token guard)",
      "file": "bible.html",
-     "find": "    if (k !== 'gone') _seenRegister(fresh);\n",
-     "replace": "    if (k === 'new') _seenRegister(fresh);\n",
+     "find": "    if (k !== 'gone' && k !== 'waiting'){\n",
+     "replace": "    if (k === 'new'){\n",
      "matches": 1},
     {"why": "REG-2403 - a pick writes a bare mark over a record a read wrote since the scan began",
      "file": "bible.html",

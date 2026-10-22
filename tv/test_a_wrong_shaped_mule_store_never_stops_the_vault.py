@@ -224,8 +224,8 @@ class AWrongShapedMuleStoreNeverStopsTheVault(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2411 - a roster that parses to the wrong shape reaches roster.find again (the vault script stopped)",
      "file": "bible.html", "matches": 1,
-     "find": "      if (!ok) why = _muleUnread[k] = (k === RK ? 'is not a list of mules' : 'is not a map of names to mules');\n",
-     "replace": ""},
+     "find": "  function _muleShapeWhy(k, v){\n",
+     "replace": "  function _muleShapeWhy(k, v){\n    if (k === RK) return null;\n"},
     {"why": "REG-2411 - saveA writes the mule map while d2r_owned / the roster is quarantined",
      "file": "bible.html", "matches": 1,
      "find": "    if (k === AK && typeof window._vaultBasisHeld === 'function' && window._vaultBasisHeld()) {\n",
