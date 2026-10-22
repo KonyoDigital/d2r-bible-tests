@@ -23,7 +23,10 @@ async function seedLoad(page: any, owned: string[], assign: any) {
       localStorage.setItem('d2r_owned', JSON.stringify(owned));
       localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
       localStorage.setItem('d2r_copies', '{}');
-      localStorage.removeItem('d2r_setPieceReconcile');
+      // v3753 runs the fold once at LOAD; stamp it done so the test's forced run is the one under test
+      localStorage.setItem('d2r_setPieceReconcile', JSON.stringify({ ver: 99 }));
+      // and the older REG-2229 set-dupe migration would fold a loose twin at load first
+      localStorage.setItem('d2r_setDupeMigrate_v2227', '1');
     } catch (e) {}
   }, { owned, assign });
   await page.goto(URL);

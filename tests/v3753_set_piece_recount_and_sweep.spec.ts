@@ -82,14 +82,18 @@ test('the reconcile sweeps a dead bare copies key, folding its count onto the ke
   // a prior version removed the bare from owned but left a copies["Natalya's Totem"] key behind.
   // dead count (2) BELOW the keeper (3): keeper unchanged, orphan swept
   await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [HELM]: 3, [BARE]: 2 }, {});
-  let r = await sweepRun(page);
+  const r = await sweepRun(page);
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();
   expect(r.cpHelm).toBe(3);            // MAX(3,2) — keeper not over-raised
   expect(r.stamped).toBe(true);
+});
+
+test('a dead bare count ABOVE the keeper is MOVED onto it by MAX, never lost (#76)', async ({ page }) => {
+  // own page: a second seedLoad in one page kept the first sweep's write, so the keeper read 3, not 4
   // dead count (4) ABOVE the keeper (absent -> 1): MOVED onto the keeper, never deleted-and-lost
   await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {});
-  r = await sweepRun(page);
+  const r = await sweepRun(page);
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();
   expect(r.cpHelm).toBe(4);            // MAX(1,4) — the real count is PRESERVED on the ledger key (Grok v3753 #2)

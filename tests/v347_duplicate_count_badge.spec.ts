@@ -44,7 +44,7 @@ test.describe('v347 duplicate count badge', () => {
       const cell = document.querySelector('.vm-cell[data-vault-item="Windforce"]');
       return { cnt: cell?.querySelector('.vm-cell-cnt')?.textContent || '' };
     });
-    expect(r.cnt).toContain('×3');
+    expect(r.cnt).toContain('1/3');   // the locker cell now reads which copy of how many (copy 1 of 3)
   });
 
   test('copyCount reflects duplicates and a single-owned item has no badge', async ({ page }) => {

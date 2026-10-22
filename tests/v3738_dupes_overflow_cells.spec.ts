@@ -26,6 +26,7 @@ test('the DUPES locker draws no spare cells; copies stay on the shared mule (Ela
       ravenOverflow: W._vaultSharedOverflowCells('Raven Frost'),
       names: W._vaultSharedOverflowNames(),
       sharedGrief: W._shelfDrawNames(['Grief'], 'shared').length,
+      griefCap: W._vaultWarCap('Grief'),
     };
     W.VAULT_PROVEN = { 'Grief': true };   // so the ⚖ proof chip renders and we can check its numerator
     W.renderVault();
@@ -46,7 +47,8 @@ test('the DUPES locker draws no spare cells; copies stay on the shared mule (Ela
     return { logic, spareCells, griefCells, dupesPresent: !!dupes, saysEmpty, isDimmed, provSeen, provTitle };
   });
 
-  expect(r.logic.sharedGrief).toBe(7);
+  // L1 (Elad 2026-10-20) / 10-22 war-gear ruling: the shared card draws the war cap, not every copy
+  expect(r.logic.sharedGrief).toBe(Math.min(7, r.logic.griefCap));
   expect(r.dupesPresent).toBe(true);
   expect(r.logic.griefOverflow).toBe(0);
   expect(r.logic.ravenOverflow).toBe(0);

@@ -28,8 +28,10 @@ test('a keep-in-inventory charm is never in the unsorted dock (so Delete-unsorte
     const leaked = keepers.filter(n => dockFolded.indexOf(fold(n)) >= 0);
     return { dock, leaked, sg };
   }, KEEPERS);
-  // identity: all three route to __keep
-  for (const n of KEEPERS) expect(r.sg[n], `${n} must route to __keep`).toBe('__keep');
+  // REG-2241 (Elad): torches and anni stay in shared, gheeds gets muled - each has a home, none is unsorted
+  expect(r.sg['Annihilus']).toBe('shared');
+  expect(r.sg['Hellfire Torch']).toBe('shared');
+  expect(r.sg['Gheed’s Fortune']).toBe('uni-small');
   // the data-loss guard: none of them is in the dock list Delete-unsorted reads
   expect(r.leaked, 'a keeper leaked into the unsorted dock — Delete-unsorted would nuke it').toEqual([]);
 });

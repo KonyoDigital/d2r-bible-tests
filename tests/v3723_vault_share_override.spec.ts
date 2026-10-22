@@ -41,7 +41,7 @@ test('unchecking a default-shared item removes it from the shared stash', async 
 
 // A default-mule item, force-checked, BECOMES shared.
 test('force-checking a default-mule item puts it in the shared stash', async ({ page }) => {
-  const M = "Andariel's Visage";
+  const M = "Arreat's Face";   // REG-2242 made merc gear (Andariel's Visage) shared by rule; a med-tier helm stays mule
   const def = await page.evaluate((n: string) => (window as any)._shareDefault(n), M);
   expect(def, 'precondition: the rules do NOT share this (med tier)').toBe('mule');
   expect(await routeOf(M)(page), 'default route is not shared').not.toBe('shared');

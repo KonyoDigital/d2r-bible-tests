@@ -34,7 +34,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
  * SEEN RED: with the v1958 changes reverted, the first test fails on 158 of 206 names.
  */
 
-test('★★★ Gheed’s Fortune stays in inventory whichever apostrophe reads it', async ({ page }) => {
+test('★★★ Gheed’s Fortune is muled the same whichever apostrophe reads it', async ({ page }) => {
   await page.goto(URL);
   await page.waitForTimeout(1600);
 
@@ -49,8 +49,9 @@ test('★★★ Gheed’s Fortune stays in inventory whichever apostrophe reads 
     return { straight: p("Gheed's Fortune"), curly: p('Gheed’s Fortune') };
   });
 
-  expect(r.straight?.id).toBe('__keep');
-  expect(r.curly?.id, 'a curly apostrophe must not mule a keep-in-inventory charm').toBe('__keep');
+  // REG-2241 (Elad): "gheeds gets muled" - both apostrophes reach the same small-charm mule
+  expect(r.straight?.id).toBe('uni-small');
+  expect(r.curly?.id, 'a curly apostrophe must route like the straight one').toBe('uni-small');
 });
 
 test('★★★ a curly apostrophe routes to the same mule as a straight one', async ({ page }) => {

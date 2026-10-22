@@ -36,7 +36,9 @@ test.describe('v466 AI Item Checker', () => {
 
   test('mid roll → BORDERLINE', async ({ page }) => {
     const v = await page.evaluate(() => (window as any)._aicVerdict({
-      base: 'Sharkskin Belt', q: 'rare', mods: ['+30% Faster Hit Recovery', '+20 to Life'],
+      // REG-2251: an affix rolled at 85%+ of its range is a KEEP, so +30 FHR / +20 Life (top rolls) no longer
+      // reads borderline. Mid rolls of both affixes do.
+      base: 'Sharkskin Belt', q: 'rare', mods: ['+16% Faster Hit Recovery', '+25 to Life'],
     }));
     expect(v.tier).toBe('border');
   });

@@ -13,16 +13,20 @@ test('shared-tab overflow note is honest: no "preview", names the items, says th
   // 120 slot-unknown dummies all routed to SHARED → they pile on tab 5 (spare) and overflow its 10×10.
   // Gibberish names resolve to no doll slot (tab 5) and to the default footprint, so overflow is
   // deterministic and does not depend on any item-size or routing table.
-  await page.addInitScript(() => {
-    const dummies: string[] = [];
-    const assign: Record<string, string> = {};
-    for (let i = 0; i < 120; i++) { const n = 'Zdummy' + i; dummies.push(n); assign[n] = 'shared'; }
-    localStorage.setItem('d2r_owned', JSON.stringify(dummies));
-    localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
-  });
+  // The load-time owned-prune drops unknown names from a seeded d2r_owned, so register the dummies
+  // through the TV door (a stub survives the prune) and file each to SHARED after load.
+  await page.addInitScript(() => { try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {} });
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
   await page.waitForTimeout(1800);
+  await page.evaluate(() => {
+    const w = window as any;
+    for (let i = 0; i < 120; i++) {
+      const n = 'Zdummy' + i;
+      w.tvVaultRegister(n);
+      w.vaultFile(n, { by: 'hand', at: new Date().toISOString(), where: 'spec' }, { mule: 'shared' });
+    }
+  });
 
   // PART A — the pure note builder (bulletproof RED-first: undefined before the fix, no DOM needed).
   const unit = await page.evaluate(() => {

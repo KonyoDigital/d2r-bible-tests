@@ -7,6 +7,53 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2555 - MAIN CI RED AT v3785: 20 SPECS STILL ASSERTED RETIRED RULES, ONE FLAKED ON A LATE SCROLL (GB-L, 2026-10-22, v3787)
+
+CI run 39807016744 (v3785) failed 30 Playwright tests across shards 1-8. The triage on #230 sorted them. This
+entry covers the STALE ones. Each spec now asserts the ruling that replaced the one it was written for:
+- REG-2241 (torches and anni stay in shared, gheeds gets muled): v1958, v203 taxonomy, v363, v3721, v3724, v3726 keeper.
+- REG-2242 (merc gear goes to shared): v203 Vampire Gaze, v3724 Visage. v3723 and v3726 now use Arreat's Face as
+  the med-tier mule precondition.
+- REG-2267 (a different pick in one planner open is a SWAP and takes back the swapped-away copy) supersedes the
+  REG-2227 expectation in v3740 and v3742 reroll. The python twin is griefAfterSwap in test_a_hand_added_item_stays_his.
+- L1 war cap (2026-10-20) and the 10-22 war-gear ruling retire "every copy on the war stash": v3737, v3738.
+- REG-2251 (an affix at 85% or more is KEEP): v466 borderline now uses mid rolls.
+- #76 slotted ledger keys: v203 intake reads "Tal Rasha's Lidless Eye (orb)". v3751 and v3752 pre-stamp the load-time
+  folds, so the forced run is the one under test. v3752's tripwires follow v3767 (a re-read is a witness, not a bump)
+  and the v3753 nested set-piece guard. v3753 splits the MAX(1,4) case into its own page, because the second seed
+  in one page kept the first sweep's write. `renderMultiKeep` is published on window again.
+- UI wording: v347 (copy 1/3), v403 ("2 items total · 4 copies"). v3742 overflow registers its dummies through
+  the TV door, because the load-time prune drops unknown seeded names.
+- FLAKY v1812: a deferred step scrolls the active tab into view (scrollLeft 274) after the spec reset it to 0.
+  It failed 6 of 12 locally. The spec now re-parks the strip until it stays at 0: 16 of 16 passed.
+
+### REG-2554 - A SCROLL IN THE TIP'S WARM-UP KILLED THE PROSE TIP BEFORE IT OPENED (v3746 tip specs red, v3787)
+
+tv/control_ui.html `_itemTip.reglue`: a scroll inside the ~380ms warm-up (say() asked, timer pending, not yet
+`tip-say`) fell through to the item-card exit and hid the tip. The REG-2252 re-glue promise ("a scroll re-glues,
+never blanks") broke for any scroll that landed in the warm-up. FIX: if a prose tip is pending and its host is
+connected, reglue leaves it pending. The timer then paints it at the host's current rect. GUARD:
+tests/v3746_itemtip_position_tracks_anchor.spec.ts, unchanged. Both cases are RED without the fix and 6 of 6 GREEN with it.
+
+### REG-2553 - A PERFECT BASE CAME BACK UNFILED: THE ROUTER'S VENDOR ADVICE BEAT HIS REG-2250 RULING (v3787)
+
+`_cbPerfectBaseMule` named the keeper correctly ("Monarch (4os)"), but `_vpRoute` asked suggestMule. A socketed base
+whose runewords are all forged reads `__throwout` ("nothing left for it ... vendor it"), so vaultPlannerFile fell
+to "stays unfiled". FIX (bible.html, the REG-2250 branch): when the router does not file a perfect base, file it
+to the SOCKETED base mule (`bases`) through vaultFile. A plain 0-socket white still stays unfiled. GUARD:
+tests/v3746_perfect_base_auto_mules.spec.ts. 4 cases were RED in CI. Now 12 of 12 GREEN (repeat-each 2).
+
+### REG-2552 - THE SCRUB LAW MISSED A QUOTE-SPLIT NAME AND A NAME HELD IN A VARIABLE (GB-L, 2026-10-22, v3787)
+
+The A2 re-review left two misses in test_a_leaked_git_dir_never_writes_the_real_repo `_reexports`:
+`export GIT_D''IR=...` (the shell joins the quoted parts into GIT_DIR) and `_n=GIT_DIR; export "$_n=..."`.
+FIX: the forms now match on a dequoted view of the code, and line numbers map back through the kept positions.
+Variables that hold a pointer name (`v=NAME`, `for v in ... NAME`) are tracked. Any export, declare, typeset,
+local, readonly, read, printf -v, mapfile, readarray, eval or env of `$v`/`${v}` counts as a re-export.
+Stated reach: a name assembled from parts (`a=GIT_; export "${a}DIR"`) is NOT covered. Eight new _REACH cases,
+six positive and two negative. Two new RED_PROOFs: the dequote dropped, and the variable map emptied.
+`heart2 --prove`: 16/16 PROVEN.
+
 ### REG-2551 - THE SCRUB LAW READ ONLY THE SCRUB BLOCK: A POINTER RE-EXPORTED AFTER IT KEPT EVERY CASE GREEN (the Grok CLI review of Push A2, MEDIUM M2)
 
 test_a_leaked_git_dir_never_writes_the_real_repo's scrub cases (TheHookUnsetsThePointerBeforeAnyStage,

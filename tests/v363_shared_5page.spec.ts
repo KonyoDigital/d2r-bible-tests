@@ -33,7 +33,7 @@ test('high-value items auto-route to SHARED, laid on the tab for their slot (#26
     return { routes, counts };
   });
   expect(errs).toEqual([]);
-  expect(r.routes.anni).toBe('__keep');        // never-mule keeper, not shared
+  expect(r.routes.anni).toBe('shared');        // REG-2241: torches and anni stay in shared
   expect(r.routes.arachnid).toBe('shared');    // high trade value → auto-routes to SHARED
   expect(r.routes.wf).not.toBe('shared');
   // #264 (REG-2019) — the 5 tabs are laid out BY SLOT: Crown of Ages (a helm) on tab 2, Arachnid Mesh (a belt) on

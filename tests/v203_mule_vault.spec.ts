@@ -153,11 +153,11 @@ test.describe('v203 the vault', () => {
     // v364: high trade-value items ("worth keeping close") auto-route to the SHARED cross-account stash
     // instead of their slot mule. SoJ is 'high' value → shared.
     expect(r.soj).toBe('shared');
-    expect(r.gaze).toBe('uni-armor');   // med value → its slot mule
+    expect(r.gaze).toBe('shared');      // REG-2242: merc gear (Vampire Gaze) goes to shared
     expect(r.storm).toBe('uni-armor');  // low value → its slot mule
     // v409: Annihilus (like Hellfire Torch / Gheed's Fortune) only works in the ACTIVE character's
     // inventory — never muled and not shared (a charm in shared stash does nothing). → __keep sentinel.
-    expect(r.anni).toBe('__keep');
+    expect(r.anni).toBe('shared');      // REG-2241: torches and anni stay in shared
     expect(r.wf).toBe('uni-weap');      // med value → its slot mule
     // shared-stash items are explicitly excluded from muling
     expect(r.rune).toBeNull();
@@ -224,10 +224,11 @@ test.describe('v203 the vault', () => {
       await w.vaultIntake([f]);
     }, '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==');
     const r = await page.evaluate(() => ({
-      piece: eval('owned').has("Tal Rasha's Lidless Eye"),
+      // #76 (v3751): a set piece is keyed on its SLOTTED ledger form
+      piece: eval('owned').has("Tal Rasha's Lidless Eye (orb)"),
       grailRow: eval('owned').has('Tal Rasha set (any piece)'),
       chips: [...document.querySelectorAll('#vault-dock .vault-chip, .vm-item-row')].map((c: any) => c.dataset?.vaultItem || c.textContent),
-      assigned: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')["Tal Rasha's Lidless Eye"],
+      assigned: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')["Tal Rasha's Lidless Eye (orb)"],
     }));
     expect(r.piece).toBe(true);
     expect(r.grailRow).toBe(true);             // grail ✓ rides along

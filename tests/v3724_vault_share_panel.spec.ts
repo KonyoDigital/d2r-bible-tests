@@ -36,8 +36,8 @@ test('the share panel lists owned shared candidates, checked; keepers and med it
   const names = r.rows.map((x: any) => x.name);
   expect(names, 'a high-trade item is a shared candidate').toContain('War Traveler');
   expect(names, 'a war-gear item is a shared candidate').toContain('Enigma');
-  expect(names, 'a keeper (Annihilus) is never offered a shared toggle').not.toContain('Annihilus');
-  expect(names, 'a med item does not route to shared, so it is not listed').not.toContain("Andariel's Visage");
+  expect(names, 'REG-2241: Annihilus stays in shared, so it is a shared candidate').toContain('Annihilus');
+  expect(names, 'REG-2242: merc gear goes to shared, so it is listed').toContain("Andariel's Visage");
   const wt = r.rows.find((x: any) => x.name === 'War Traveler');
   expect(wt && wt.checked, 'War Traveler is in the shared stash by default → checked').toBe(true);
 });

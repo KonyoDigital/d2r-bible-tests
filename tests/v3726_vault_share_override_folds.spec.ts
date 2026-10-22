@@ -92,7 +92,7 @@ test('a planner-label force-in is shared', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
     try { localStorage.removeItem('d2r_vaultShareOverride'); w.__shareOvCache = null; } catch (e) {}
-    const n = "Andariel's Visage (Demonhead)";
+    const n = "Arreat's Face (Slayer Guard)";   // REG-2242: merc gear is shared by rule now
     const before = (w.suggestMule(n) || {}).id || null;
     w._setShareOverride(n, 'shared');
     const after = w.suggestMule(n) || {};
@@ -139,8 +139,8 @@ test('a keeper force-in stays a keeper', async ({ page }) => {
     }
     return { anni: go('Annihilus'), cube: go('Horadric Cube') };
   });
-  expect(r.anni.id, 'Annihilus stays in inventory').toBe('__keep');
-  expect(r.anni.id, 'a keeper is not shared').not.toBe('shared');
+  // REG-2241 (Elad): torches and anni stay in shared - a force-in keeps it there
+  expect(r.anni.id, 'Annihilus is in the shared stash').toBe('shared');
   expect(r.cube.id, 'the Cube stays with the character').toBe('__keep');
   expect(r.cube.id, 'standing kit is not shared').not.toBe('shared');
 });
