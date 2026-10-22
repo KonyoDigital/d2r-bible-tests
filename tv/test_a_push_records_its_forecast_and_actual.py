@@ -173,6 +173,15 @@ class _Fixture(unittest.TestCase):
             p = mock.patch.object(H, name, value)
             p.start()
             self.addCleanup(p.stop)
+        # ...and the memory's own file and module state are this fixture's too. On a tree where _red_recall marks a use
+        # (T1's R2) it marks it against RED_MEMORY, and the exit flush writes it: unpatched, this law wrote the MACHINE's
+        # red memory (<git common dir>/heart2/), measured at the Push A1 merge. Nothing of the machine's is touched now.
+        for name, value in (("RED_MEMORY", os.path.join(self.root, ".heart2_red.json")), ("_RED_USED", {}),
+                            ("_RED", {"path": None, "sig": None, "entries": None, "folded": True})):
+            if name == "RED_MEMORY" or hasattr(H, name):
+                p = mock.patch.object(H, name, value)
+                p.start()
+                self.addCleanup(p.stop)
 
     def key(self, i):
         k, _r, why = self.cache.key_for(self.tv, GATE, "fake_gate.py", self.proofs[i])
