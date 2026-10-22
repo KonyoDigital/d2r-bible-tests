@@ -7,6 +7,66 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2457 - WINDOWS: WHETHER realpath RESOLVES A DIRECTORY JUNCTION INSIDE THE SCRATCH IS STILL UNVERIFIED (#182 low 5, M2 stores-plumbing)
+
+A2's list_own refuses a link out of the scratch because os.path.realpath resolves it, and REG-2455's two swap cases make their
+link the same way (fixture_tmp.link_dir); on Windows that link is a directory JUNCTION (no symlink privilege on his ALT or Dean's
+PC), and whether CPython's realpath resolves a junction there - and whether a directory renames cleanly under a scanner - was
+never run on one of his PCs. The probe to run is fixture_tmp.can_link_a_directory(), then this law, on a Windows PC that has
+pulled the code.
+MEASURED 2026-10-22 over SSH, one read-only call each time (15:2x, 16:4x, 17:5x): the ALT answered every time, but he was
+PLAYING (Boosteroid), 480-579 MB RAM free, its checkout still at v3746 (no list_own, no link_dir); Dean's PC was offline on the
+tailnet (last seen 13-14 h before). Nothing was started on either (a job on his gaming PC goes through alt_job.sh, which refuses
+while he plays and under 2 GB free). UNVERIFIED - not passing, not failing. Meanwhile: every red proof that needs a link
+declares "needs": "dir-link", so a PC whose probe says it cannot make one files it ELSEWHERE, never BLIND; a PC whose probe
+says it can is held to the case (a NOLINK there fails, never skips); the swap fixtures retry a rename Windows refuses for a
+moment (PermissionError, 25 x 0.2 s) before they fail.
+NEXT: when the ALT is idle and has pulled, through alt_job.sh: python -c "import sys; sys.path.insert(0, r'<repo>\tv'); import
+fixture_tmp as F; print(F.can_link_a_directory())", then python tv\test_a_scratch_listing_reads_only_its_own_scratch.py;
+record both answers here.
+
+### REG-2456 - A MULTI-REF PUSH HANDED THE STAMPS LAW ONE SHA AND SAID NOTHING OF THE OTHER REFS (#182 low 4, M2 stores-plumbing)
+
+hooks/pre-push's pushed-commit block (REG-2360) hands the commit-stamps law ONE commit: the local sha pushed to main, else the
+first ref that ships bytes, else HEAD. A push of several refs with no main ref therefore graded the first ref's commit, and the
+others went unread in silence (beside main, the other refs were just as unread).
+FIX: the block now names, in the hook's own output, every ref that ships bytes and is not the commit the law reads: "this push
+ships more than one ref: the commit-stamps law reads ONE commit, only <sha>; NOT read by it: <ref>@<sha9> ...". A ref pushing
+the very commit the law reads, and a deletion, are not named. No test_control edit (outside this territory): the law still
+reads one commit; the gap is said, not closed.
+GUARD: tv/test_a_leaked_git_dir_never_writes_the_real_repo.py, ThePushedCommitIsHandedOverByName
+.test_every_ref_the_stamps_law_does_not_read_is_named (the hook's own marked block, in a real bash). 1 RED proof.
+
+### REG-2455 - list_own RE-RESOLVED THE SCRATCH PARENT ON EVERY CALL: A RENAME + LINK SWAP LISTED ANOTHER TREE (#182 low 2, M2 stores-plumbing)
+
+fixture_tmp._own measured a path against os.path.realpath(<the contained parent>) computed afresh on every call, and list_own /
+match_own then listed the path as GIVEN, not the one checked. MEASURED in a child process on this Mac: contain(), make a scratch
+dir, rename the parent aside and put a directory link to another tree in its place - list_own(<the dir>) answered ['FAKE.txt']
+from the other tree, and match_own matched there.
+FIX: contain() resolves the parent ONCE (_HELD["real"]); _own measures against that string; list_own / match_own list the
+RESOLVED directory and check the path again AFTER the read (_still_own), so a swap between the check and the read raises
+instead of handing another tree's names back. match_own still returns paths spelled under the caller's directory.
+GUARD: tv/test_a_scratch_listing_reads_only_its_own_scratch.py - test_a_parent_swapped_for_a_link_lists_nothing (a child
+process swaps its own parent for real) and test_a_swap_during_the_listing_answers_nothing (the child's own os.listdir /
+os.scandir makes the swap between fixture_tmp's check and its read). 3 RED proofs (the root re-resolved, list_own's re-check
+dropped, match_own's re-check dropped), each declared "needs": "dir-link" - a PC that can make no link files them ELSEWHERE.
+
+### REG-2454 - THE SCRUB LAW FOUND "THE FIRST STAGE" BY TWO SPELLINGS ONLY (#182 low 1, M2 stores-plumbing)
+
+test_the_scrub_comes_before_the_first_stage counted a hook line as a stage only when it held `gate_run "` or `python3 "$REPO/`,
+so a stage spelled any other way - `node tv/x.mjs`, `npx playwright test`, `bash tools/x.sh`, `python3 -m unittest`,
+`$(python tv/y.py)`, a backquoted `node -e` - could run before the GIT_* scrub while the law stayed green.
+FIX: the law reads stages by the hook's own grammar - any of gate_run / python3 / python / node / bash / npx run as a command
+word - through the same bash reader REG-2551 reads re-exports with (_shell_code: comments out; quotes, $(...), `...` and heredoc
+bodies followed as bash nests them), which now also reports the frame each character was read in, so a word inside quotes is
+data and never a stage. On the real hook it reads 64 stages (gate_run 19, python3 41, node 2, npx 2) and the first is the same
+as before - hooks/pre-push:267, the version-stamp gate - after the scrub (line 76); a reader that loses bash's place reads
+UNKNOWN, never passing. Its reach, stated: a program named through a variable ("$PY" -c ...) is not seen, and a word in a
+heredoc body is read as code - such a word before the scrub reads RED, never green.
+GUARD: the same law, test_a_stage_spelled_any_way_before_the_scrub_is_found (ten spellings first in a fixture hook; a comment,
+gate_run's definition, a quoted word, a git line and a name merely containing a program's are not stages). 2 RED proofs (the
+grammar narrowed back to one spelling; a quoted word read as a stage).
+
 ### REG-2453 - THE "SECOND EYE ASKED TWICE" ROW RE-PARSED THE WHOLE 7.3 MB LEDGER 43 TIMES A TICK (#48, M2 stores-plumbing)
 
 2026-10-22, measured on a COPY of his ledger (2,274 rows, 7.3 MB; TV_SECOND_EYE_LEDGER at the copy, his file only read). The console

@@ -79,7 +79,9 @@ def contain():
     base = tempfile.gettempdir()
     sweep_stale(base)
     d = tempfile.mkdtemp(prefix="%s%d-" % (PREFIX, os.getpid()), dir=base)
-    _HELD.update(dir=d, base=base)
+    # REG-2455 - the parent's REAL path, resolved ONCE, here: _own() measures every later path against this string,
+    # never against a fresh realpath of the parent (which a rename + link swap would answer for)
+    _HELD.update(dir=d, base=base, real=os.path.realpath(d))
     tempfile.tempdir = d
     for var in ("TMPDIR", "TEMP", "TMP"):
         os.environ[var] = d
@@ -113,7 +115,7 @@ def _own(path):
     if not held:
         raise ValueError("fixture_tmp: this process never called contain(), so no directory can be shown to be its "
                          "own scratch - list it with os.listdir in the law file, where the heart sees it")
-    root = os.path.realpath(held)
+    root = _HELD.get("real") or os.path.realpath(held)
     p = os.path.realpath(path)
     try:
         inside = os.path.commonpath([root, p]) == root
@@ -126,21 +128,37 @@ def _own(path):
     return p
 
 
+def _still_own(path, p):
+    """REG-2455 - after a listing: `path` must still resolve to the directory that was listed, or the listing is not an
+    answer about it (a rename + link swap between the check and the read). Raises ValueError."""
+    if _own(path) != p:
+        raise ValueError("fixture_tmp: %r moved while it was being listed - it now resolves outside what was listed, "
+                         "so the listing answers for nothing" % (path,))
+
+
 def list_own(path):
-    """os.listdir(path), for a directory inside this process's own scratch only (REG-2362). -> [names]"""
-    _own(path)
-    return os.listdir(path)
+    """os.listdir(path), for a directory inside this process's own scratch only (REG-2362). -> [names]
+
+    REG-2455 - the RESOLVED directory is listed (the path checked is the path read), and the path is checked again
+    after: a swap between the check and the read raises instead of listing another tree."""
+    p = _own(path)
+    names = os.listdir(p)
+    _still_own(path, p)
+    return names
 
 
 def match_own(pattern):
     """glob.glob(pattern), when the pattern's directory is inside this process's own scratch and only its last part
-    holds a wildcard (REG-2362). -> [paths]"""
+    holds a wildcard (REG-2362). -> [paths], spelled under the caller's directory as glob.glob(pattern) spells them.
+    REG-2455 - matched in the RESOLVED directory and checked again after, like list_own."""
     import glob as _glob
     d = os.path.dirname(pattern)
     if any(c in d for c in "*?["):
         raise ValueError("fixture_tmp: only the last part of %r may hold a wildcard" % pattern)
-    _own(d)
-    return _glob.glob(pattern)
+    p = _own(d)
+    hits = _glob.glob(os.path.join(p, os.path.basename(pattern)))
+    _still_own(d, p)
+    return [os.path.join(d, os.path.basename(h)) for h in hits]
 
 
 # ══ REG-2366 - A DIRECTORY LINK, MADE THE WAY THIS PC CAN ═══════════════════════════════════════════════════════
