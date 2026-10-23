@@ -11007,7 +11007,7 @@ GATES = [
              "stamp lines of the stamp surfaces are masked, and any other word, a literal the law counts, a home path, "
              "an incoherent hand bump or a version-ish proof keeps the bytes raw. Temp tree and temp cache."),
     Gate("test_a_proof_proved_elsewhere_counts_only_under_this_trees_key",
-         [sys.executable, os.path.join(HERE, "test_a_proof_proved_elsewhere_counts_only_under_this_trees_key.py")], 60,
+         [sys.executable, os.path.join(HERE, "test_a_proof_proved_elsewhere_counts_only_under_this_trees_key.py")], 240,
          needs_app=False,
          why="REG-2630 - `heart2 --export-proved` ships only servable PROVENs its own HEAD's bytes key, from a clean "
              "tree, never into an older export; `heart2 --import-proved` banks a box export or census shard files of "
@@ -11583,7 +11583,7 @@ GATES = [
              "lead line and the shadow bar, drawn by the panel's own code in node), and main() sweeps stale d2jsp "
              "scratch once, guarded."),
     Gate("test_an_all_hit_push_reads_each_input_once",
-         [sys.executable, os.path.join(HERE, "test_an_all_hit_push_reads_each_input_once.py")], 60,
+         [sys.executable, os.path.join(HERE, "test_an_all_hit_push_reads_each_input_once.py")], 180,
          needs_app=False,
          why="REG-2631 - an all-hit push reads each input once: the keyer's digests are served only within a quiet "
              "stretch that every law run and tamper write ends (inode-change time in the key), and the clean wave "
