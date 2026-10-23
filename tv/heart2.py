@@ -4448,6 +4448,59 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
             _drop_sandbox(_own)
 
 
+#: REG-2585 — this run's proof shard (main() sets it from --proof-shard K/N; None everywhere else). One prover per process.
+_SHARD = {"spec": None, "manifest": None}
+
+
+def _shard_cut(have, order, gates, say):
+    """REG-2585 — a push run cut down to its proof shard. -> (order, gates); unchanged when no shard is set.
+
+    Every shard computes the SAME plan (proof_shard.plan over `have` and gate_costs.json) and keeps only its own proofs,
+    in the run's order; a gate with no proof here is not run at all - not even its clean run."""
+    spec = _SHARD.get("spec")
+    if not spec:
+        return order, gates
+    import proof_shard as _PS
+    k, n = spec
+    assignment = _PS.plan(have, n, _PS.gate_costs())
+    own = _PS.mine(assignment, k)
+    order2, gates2 = _PS.restrict_order(order, gates, own)
+    _SHARD["plan"] = _PS.plan_digest(have, n, assignment)
+    _SHARD["own"] = own
+    say("  REG-2585 PROOF SHARD %d/%d: %d of %d proof(s) in %d gate(s) are this shard's (plan %s); the rest are the "
+        "other shards' and are NOT RUN here" % (k, n, sum(len(v) for v in order2.values()),
+                                                sum(len(p) for _n, _f, p in have), len(gates2), _SHARD["plan"][:12]))
+    return order2, gates2
+
+
+def _shard_finish(cache, names, stopped, say):
+    """REG-2585 — a FINISHED shard writes its manifest into its own cache file, through the store's one writer.
+    -> True when written. Never called for a run that could not prove (no sandbox): an unfinished shard has none."""
+    spec = _SHARD.get("spec")
+    if not spec or cache is None:
+        return False
+    import proof_shard as _PS
+    ok_h, head = _git("rev-parse", "HEAD")
+    ok_d, dirty = _git("status", "--porcelain", "--untracked-files=no")
+    m = _PS.manifest(spec[0], spec[1], head.strip() if ok_h else "", (bool(dirty.strip()) if ok_d else True),
+                     _SHARD.get("plan") or "", _SHARD.get("own") or {}, names, stopped[0] if stopped else None,
+                     int(time.time() * 1000))
+    cache.flush()
+
+    def merge(disk):
+        body = dict(disk or {})
+        body.setdefault("format", 2)
+        body.setdefault("entries", {})
+        body["shard"] = m
+        return body
+    ok, why = cache.file.commit(merge)
+    say("  REG-2585 PROOF SHARD %d/%d: %s" % (spec[0], spec[1], "manifest written (head %s%s)" % (
+        m["head"][:12], ", DIRTY - an import will refuse it" if m["dirty"] else "") if ok
+        else "the manifest could NOT be written (%s) - an import will refuse this shard" % why))
+    _SHARD["manifest"] = m if ok else None
+    return ok
+
+
 def _prove_push(have, say, stopped=None, cache=None, blank=None):
     """#42 — prove() at push time. -> ({name: verdict}, {name: [verdict | None]}) | (None, None); NOT_RUN gates are left
     OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on.
@@ -4461,6 +4514,7 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
     say("  #42 SEAMS (REG-2352): %s" % (" · ".join("%s=%s" % kv for kv in _seams.items()) if _seams else
                                         "no HEART2_* variable is set - every default holds"))
     base, order, gates, counts = _push_facts(have, say)
+    order, gates = _shard_cut(have, order, gates, say)                 # REG-2585 - only this shard's proofs
     say("  #42 FAIL FAST: likeliest to fail first - %d anchor(s) off, %d entr(ies) new or changed since %s, %d whose "
         "tampered file changed; the run stops at the first BLIND / INVALID / clean-run red."
         % (counts["anchor"], counts["entry"], base or "an UNKNOWN base (neither @{push} nor origin/main resolves - "
@@ -4938,6 +4992,12 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
         _cache = open_cache(say)
         results, per_proof = _prove_push(have, say, stopped, cache=_cache, blank=_blank)
         _ages = dict(getattr(_cache, "measured", None) or {})     # gate -> oldest provedAt among its reused proofs
+        if _SHARD.get("spec"):
+            # REG-2585 - A SHARD IS NOT A CENSUS: it proved a slice of each gate it touched, so it writes no state; what it
+            # leaves is its cache file and, once it has finished, the manifest an import checks
+            if results is not None:
+                _shard_finish(_cache, only, stopped, say)
+            return dict((n, v) for n, v in (results or {}).items())
         if results is not None and not results:
             # ⚠ A STOP BEFORE ANY GATE WAS JUDGED TO THE END IS NOT AN EMPTY RUN. _write_state reads an empty result as a
             # FULL run that proved nothing and would wipe every standing proof (provedGates, blind) - so nothing is
@@ -5794,6 +5854,43 @@ def triage(say=print):
     return {"writable": [n for n, _ in writable], "unprovable": [n for n, _ in unprovable]}
 
 
+def import_shards(paths, say=print, target=None):
+    """REG-2586 — `heart2.py --import-shards FILE...`: the shards' banked PROVENs into this machine's verdict cache, ALL OR
+    NOTHING (tv/proof_shard.py says every rule). -> exit code: 0 imported, 2 refused (nothing written)"""
+    import proof_shard as _PS
+    target = target or CACHE
+    ok_h, head = _git("rev-parse", "HEAD")
+    head = head.strip() if ok_h else ""
+    bodies = []
+    for p in paths or []:
+        body, why = _read_store(p, _entries_shape)
+        bodies.append((os.path.basename(os.path.dirname(os.path.abspath(p))) + "/" + os.path.basename(p), body, why))
+    ok, why, shards = _PS.check_shards(bodies, head)
+    if ok:
+        ok, why, take, skipped = _PS.select(shards)
+    if not ok:
+        say("  ✗ REG-2586 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
+        return 2
+    out = {}
+
+    def merge(disk):
+        ent, added = _PS.merge_into((disk or {}).get("entries"), take)
+        out["added"], out["evicted"] = added, _cache_evict(ent, CACHE_MAX)
+        body = dict((k, v) for k, v in (disk or {}).items() if k not in ("format", "entries"))
+        body.update(format=2, entries=ent)
+        return body
+    w_ok, w_why = _StoreFile(target, say).commit(merge)            # the stores' one locked writer
+    if not w_ok:
+        say("  ✗ REG-2586 IMPORT REFUSED: %s could not be written (%s)." % (os.path.basename(target), w_why))
+        return 2
+    say("  ✓ REG-2586 IMPORTED %d shard(s) of HEAD %s: %d PROVEN entr(ies) banked, %d already served here and kept, "
+        "%d not servable and never banked (ELSEWHERE, BLIND, undated...)%s. Each keeps the tree it was proved in, so "
+        "every gate still owes this tree one clean run (#242)."
+        % (len(shards), head[:12], out.get("added", 0), len(take) - out.get("added", 0), skipped,
+           (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else ""))
+    return 0
+
+
 def prove_exit_code(results):
     """(exit_code, broken, idle) for a set of prove() verdicts. Decides; prints nothing.
 
@@ -5851,7 +5948,35 @@ def main(argv):
                          "and run in full, and what can never be banked - BEFORE any proving; always exits 0")
     ap.add_argument("--pushes", nargs="?", type=int, const=20, default=None,
                     help="REG-2353 print this machine's last N push records (forecast vs actual), newest last")
+    ap.add_argument("--proof-shard", default=None, metavar="K/N",
+                    help="REG-2585 with --push: prove only shard K of N of these gates' proofs (one plan every shard "
+                         "computes alike), into the fresh cache file HEART2_CACHE_PATH names; no census is written")
+    ap.add_argument("--import-shards", nargs="+", default=None, metavar="FILE",
+                    help="REG-2586 merge every shard's banked PROVENs into this machine's verdict cache - all shards of "
+                         "this HEAD or nothing; each entry keeps its tree; exits 2 on a refusal")
     a = ap.parse_args(argv)
+    if a.import_shards is not None:
+        return import_shards(a.import_shards)
+    _SHARD["spec"] = None
+    if a.proof_shard is not None:
+        import proof_shard as _PS
+        _sw = None
+        try:
+            _SHARD["spec"] = _PS.parse_spec(a.proof_shard)
+        except ValueError as _se:
+            _sw = str(_se)
+        if _sw is None and not (a.prove is not None and a.push):
+            _sw = "--proof-shard proves through --prove --push, the only run that banks"
+        if _sw is None and not os.environ.get("HEART2_CACHE_PATH"):
+            _sw = "--proof-shard needs HEART2_CACHE_PATH: a shard banks into a file of its own, never this machine's store"
+        if _sw is None and str(os.environ.get("HEART2_PROVE_CACHE", "1")).strip().lower() in ("0", "no", "off", "false"):
+            _sw = "--proof-shard with the cache OFF would bank nothing"
+        if _sw is None and os.path.exists(CACHE):
+            _sw = "%s already exists - a shard starts from an empty file, so it serves nothing it did not prove" % CACHE
+        if _sw is not None:
+            _SHARD["spec"] = None
+            print("  ✗ REG-2585: %s" % _sw)
+            return 2
     if a.forecast is not None:
         return _forecast_main(a.forecast)
     if a.pushes is not None:

@@ -1,0 +1,256 @@
+# -*- coding: utf-8 -*-
+"""REG-2586 — A SHARD'S PROVENS COME HOME ALL OR NOTHING, AND EACH KEEPS THE TREE IT WAS PROVED IN.
+
+⚠ WHAT IT IS FOR. `heart2 --prove --push --proof-shard K/N` (REG-2585, test_a_proof_shard_covers_every_proof_once)
+banks each CI runner's PROVENs into a file of its own. `heart2 --import-shards FILE...` merges those files into this
+machine's verdict cache, so the next push serves them instead of proving them again.
+
+⚠ THE DEFECTS THIS GUARDS, each one a verdict served that nobody earned here:
+  · a PARTIAL set is imported (a shard died, its runner timed out) - the push then reads "all banked" for proofs that
+    were never run, and nothing says which;
+  · a shard of ANOTHER commit is imported - its keys still hash bytes, but a set cut from another plan is not this
+    push's set; a shard from a tree that differed from its HEAD (dirty) banked bytes no commit holds;
+  · an unfinished shard, two shards with one number, shards that disagree on N or on the plan;
+  · an ELSEWHERE, a BLIND, an UNPROVABLE, an undated or a fact-bound entry is banked - peek() would refuse to serve it,
+    so the import must refuse to bank it;
+  · an entry a shard was never assigned is taken - a shard that proved outside its plan is not trusted with the rest;
+  · the import rewrites `tree` to this checkout's - then #242's "every gate's clean run in THIS tree" is skipped and a
+    gate whose clean run only ever happened on a Linux runner reads as checked here;
+  · the import overwrites what this machine already serves, or writes past the store's lock (a running push's flush
+    and the import racing on one file).
+Every store here is a temp file; HEAD is a stand-in. [[feedback-fixtures-never-touch-live-data]] RED_PROOF below.
+"""
+import io
+import json
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+import heart2        # noqa: E402
+import proof_shard   # noqa: E402
+
+RED_PROOF = [
+    {
+        "why": "REG-2586 - a partial set is imported: a dead shard's proofs read as banked though nothing ran them",
+        "file": "proof_shard.py",
+        "find": "    if missing:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - a shard of another commit is imported into this checkout's cache",
+        "file": "proof_shard.py",
+        "find": "        if not head or m.get(\"head\") != head:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - a shard proved from a tree that differed from its HEAD is imported",
+        "file": "proof_shard.py",
+        "find": "        if m.get(\"dirty\") is not False:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - a shard that never finished is imported as if it had",
+        "file": "proof_shard.py",
+        "find": "        if m.get(\"finished\") is not True:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - shards cut from two different plans are imported as one set",
+        "file": "proof_shard.py",
+        "find": "    if len(plans) != 1:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - an ELSEWHERE, BLIND or undated entry is banked though peek() would never serve it",
+        "file": "proof_shard.py",
+        "find": "            if not servable(e):\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - a shard that holds a proof its plan never gave it is still trusted with the rest",
+        "file": "proof_shard.py",
+        "find": "            if (str(e.get(\"gate\")), e.get(\"proof\")) not in assigned:\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - the import rewrites each entry's tree, so #242 skips the clean run this tree never had",
+        "file": "proof_shard.py",
+        "find": "            take[key] = e                   # KEPT",
+        "replace": "            take[key] = dict(e, tree=\"REWRITTEN\")  # KEPT",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - an import overwrites an entry this machine already serves",
+        "file": "proof_shard.py",
+        "find": "        if servable(out.get(key)):\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - the import writes past the store's lock and drops what the store held",
+        "file": "heart2.py",
+        "find": "    w_ok, w_why = _StoreFile(target, say).commit(merge)",
+        "replace": "    w_ok, w_why = (io.open(target, \"w\", encoding=\"utf-8\").write(json.dumps(merge({}))) > 0), None",
+        "matches": 1,
+    },
+]
+
+HEAD = "1234567890abcdef1234567890abcdef12345678"
+CI_TREE = "/home/runner/work/repo/repo"
+
+
+def _e(gate, proof, verdict="PROVEN", at=1761200000000, **extra):
+    e = {"verdict": verdict, "gate": gate, "proof": proof, "why": "w", "tree": CI_TREE}
+    if at is not None:
+        e["provedAt"] = at
+    e.update(extra)
+    return e
+
+
+class _Fixture(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="shardimport-")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.target = os.path.join(self.tmp, "home", os.path.basename(heart2.CACHE))
+        os.makedirs(os.path.dirname(self.target))
+        self.said = []
+        p = mock.patch.object(heart2, "_git", side_effect=lambda *a: (True, HEAD + "\n"))
+        p.start()
+        self.addCleanup(p.stop)
+
+    def shard(self, k, n, entries, assigned=None, **m):
+        d = os.path.join(self.tmp, "shard-%d" % k)
+        if not os.path.isdir(d):
+            os.makedirs(d)
+        path = os.path.join(d, os.path.basename(heart2.CACHE))
+        own = {}
+        for g, i in (assigned if assigned is not None else [(e["gate"], e["proof"]) for e in entries.values()]):
+            own.setdefault(g, set()).add(i)
+        man = proof_shard.manifest(k, n, HEAD, False, "plan-1", own, None, [], 1761200000000)
+        man.update(m)
+        with io.open(path, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"format": 2, "entries": entries, "shard": man}))
+        return path
+
+    def run_import(self, paths):
+        return heart2.import_shards(paths, say=self.said.append, target=self.target)
+
+    def home(self):
+        if not os.path.exists(self.target):
+            return None
+        with io.open(self.target, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def two(self, **m2):
+        a = self.shard(1, 2, {"k1": _e("g1", 0), "k2": _e("g1", 1)})
+        b = self.shard(2, 2, {"k3": _e("g2", 0)}, **m2)
+        return [a, b]
+
+
+class AWholeSetComesHome(_Fixture):
+    def test_every_proven_is_banked_with_the_tree_it_was_proved_in(self):
+        self.assertEqual(self.run_import(self.two()), 0, self.said)
+        ent = self.home()["entries"]
+        self.assertEqual(sorted(ent), ["k1", "k2", "k3"])
+        for k, e in ent.items():
+            self.assertEqual(e["tree"], CI_TREE, "%s: the import rewrote the tree it was proved in" % k)
+            self.assertNotEqual(e["tree"], heart2.TREE_ID)
+
+    def test_what_peek_would_refuse_is_never_banked(self):
+        a = self.shard(1, 1, {"ok": _e("g", 0), "else": _e("g", 1, verdict="ELSEWHERE"),
+                              "blind": _e("g", 2, verdict="BLIND"), "unp": _e("g", 3, verdict="UNPROVABLE"),
+                              "undated": _e("g", 4, at=None), "traced": _e("g", 5, kind="traced"),
+                              "facts": _e("g", 6, factsRef="x")})
+        self.assertEqual(self.run_import([a]), 0, self.said)
+        self.assertEqual(sorted(self.home()["entries"]), ["ok"])
+
+    def test_what_this_machine_already_serves_is_kept_and_its_other_keys_stay(self):
+        mine = {"k1": dict(_e("g1", 0, at=1700000000000), tree="/here"),
+                "own": dict(_e("x", 0), tree="/here"), "stale": _e("g2", 0, verdict="UNPROVABLE")}
+        with io.open(self.target, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"format": 2, "entries": mine, "extra": 7}))
+        paths = [self.shard(1, 2, {"k1": _e("g1", 0), "k2": _e("g1", 1)}),
+                 self.shard(2, 2, {"stale": _e("g2", 0)})]
+        self.assertEqual(self.run_import(paths), 0, self.said)
+        body = self.home()
+        ent = body["entries"]
+        self.assertEqual(ent["k1"]["tree"], "/here", "an entry this machine serves was overwritten")
+        self.assertIn("own", ent)
+        self.assertEqual(ent["stale"]["verdict"], "PROVEN", "a stale local non-PROVEN was not replaced")
+        self.assertEqual(body.get("extra"), 7)
+
+    def test_the_write_goes_through_the_stores_lock(self):
+        calls = []
+        real = heart2._StoreFile.commit
+
+        def spy(self_, merge):
+            calls.append(self_.path)
+            return real(self_, merge)
+        with mock.patch.object(heart2._StoreFile, "commit", spy):
+            self.assertEqual(self.run_import(self.two()), 0, self.said)
+        self.assertEqual(calls, [self.target])
+
+
+class APartOrForeignSetIsRefused(_Fixture):
+    def assertRefused(self, paths, word):
+        before = self.home()
+        self.assertEqual(self.run_import(paths), 2, self.said)
+        self.assertEqual(self.home(), before, "a refused import wrote")
+        self.assertIn(word, " ".join(str(x) for x in self.said))
+
+    def test_a_missing_shard(self):
+        self.assertRefused(self.two()[:1], "missing")
+
+    def test_a_shard_of_another_head(self):
+        self.assertRefused(self.two(head="f" * 40), "HEAD")
+
+    def test_a_dirty_shard(self):
+        self.assertRefused(self.two(dirty=True), "differed")
+
+    def test_a_shard_that_never_finished(self):
+        self.assertRefused(self.two(finished=False), "never finished")
+
+    def test_shards_of_two_plans(self):
+        self.assertRefused(self.two(plan="plan-2"), "plans")
+
+    def test_shards_that_disagree_on_n(self):
+        a = self.shard(1, 2, {"k1": _e("g1", 0)})
+        b = self.shard(2, 3, {"k3": _e("g2", 0)})
+        self.assertRefused([a, b], "disagree")
+
+    def test_one_shard_given_twice(self):
+        a = self.shard(1, 1, {"k1": _e("g1", 0)})
+        self.assertRefused([a, a], "twice")
+
+    def test_a_file_with_no_manifest(self):
+        p = os.path.join(self.tmp, os.path.basename(heart2.CACHE))
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"format": 2, "entries": {"k": _e("g", 0)}}))
+        self.assertRefused([p], "manifest")
+
+    def test_an_entry_outside_its_plan(self):
+        a = self.shard(1, 1, {"k1": _e("g1", 0), "k9": _e("g9", 4)}, assigned=[("g1", 0)])
+        self.assertRefused([a], "never gave")
+
+    def test_a_head_nobody_can_read(self):
+        with mock.patch.object(heart2, "_git", return_value=(False, "")):
+            self.assertRefused(self.two(), "UNKNOWN")
+
+
+if __name__ == "__main__":
+    unittest.main()
