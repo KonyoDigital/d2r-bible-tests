@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2616 - THE KEEPALIVE COULD NOT BRING A CONSOLE BACK AFTER A REBOOT WITH NOBODY SIGNED IN - 2026-10-23 (his ruling on REG-2614)
+
+REG-2614's task runs as the signed-in user (InteractiveToken), so a PC that rebooted to the sign-in screen - the ALT
+after an update - still had no console until someone signed in. His 2026-10-23 ruling: the console must come back
+then too. An OPTIONAL install, the default unchanged: `console_keepalive.py --install-unattended USER` re-registers
+the same task as USER with LogonType Password through Register-ScheduledTask. The password is read from an
+environment variable (default TVD_KEEPALIVE_PASSWORD), handed to PowerShell on stdin only, and is never in argv, the
+task XML, the repo, a log or an answer (Windows' refusal text has it replaced by ***). A console pass finds the
+owner's task 'already' there and never removes or rewrites it. Law: tv/test_a_dead_windows_console_comes_back_by_itself.py
+(class Unattended, 7 red-proofs). Note: a console started with nobody signed in runs in the background session -
+its server and sync run, no window shows until it is restarted from a signed-in session.
+
+Round 3 of REG-2614 (review r2): schtasks output is read as bytes (UTF-16 with or without BOM, UTF-8, else the locale
+page with bad bytes replaced) and parsed inside the try - text=True on a Hebrew Windows raised and the task was never
+made; the 90 s pass deadline is driven by the law in a child process.
+
 ### REG-2614 - A WINDOWS CONSOLE THAT DIED STAYED DEAD UNTIL THE NEXT SIGN-IN - 2026-10-23 (Windows console watchdog)
 
 2026-10-16: the ALT's console died with no error and nothing relaunched it until someone signed in to Windows, so it

@@ -51,6 +51,7 @@ class _Win:
     def __init__(self, exists=False, create_rc=0, query_says=None, encoding=None):
         self.exists, self.create_rc, self.query_says, self.calls, self.xml = exists, create_rc, query_says, [], None
         self.encoding = encoding   # None: answers str (the logic laws); "utf-16" etc.: answers bytes like a pipe
+        self.ps, self.ps_makes_it, self.written = None, True, None
 
     def run(self, argv, **kw):
         r = self._run(argv, **kw)
@@ -67,6 +68,14 @@ class _Win:
 
     def _run(self, argv, **kw):
         self.calls.append(list(argv))
+        if argv[0] == "powershell":
+            # Register-ScheduledTask (REG-2616): the XML from the path in the env, the password on stdin
+            self.ps = (list(argv), kw)
+            self.xml = self.written
+            if self.create_rc == 0:
+                self.exists = self.ps_makes_it
+                return _R(0)
+            return _R(1, "", "Register-ScheduledTask : The user name or password is incorrect (%s)." % SECRET)
         verb = argv[1]
         if verb == "/Query":
             if self.query_says is not None:
@@ -418,6 +427,98 @@ class Task(unittest.TestCase):
         self.assertEqual(CD._keepalive_pythonw(WIN_PY, isfile=lambda p: False), WIN_PY)
 
 
+SECRET = "s3cr3t-NOT-a-real-one"   # a test value; the real password is never in the repo
+
+
+class Unattended(unittest.TestCase):
+    """REG-2616 (his 2026-10-23 ruling): an optional install that runs the task with nobody signed in."""
+
+    def _install(self, w, user="EXAMPLE-PC\\player", password=SECRET):
+        return CD.install_unattended_keepalive(user, password, run=w.run, is_win=True, tv_dir=WIN_TV, python=WIN_PY,
+                                               now_ms=1_700_000_000_000, write_xml=w.write_xml,
+                                               isfile=lambda p: True, env={})
+
+    def test_the_default_stays_signed_in_or_locked(self):
+        x = CD.keepalive_task_xml(WIN_PY, WIN_TV, "2026-10-23T21:00:00")
+        p = ET.fromstring(x.split("\n", 1)[1]).find(NS + "Principals/" + NS + "Principal")
+        self.assertEqual(p.find(NS + "LogonType").text, "InteractiveToken")
+        self.assertIsNone(p.find(NS + "UserId"), "the default names an account")
+
+    def test_unattended_runs_as_the_account_with_no_password_in_the_xml(self):
+        w = _Win()
+        r = self._install(w)
+        self.assertEqual(r["did"], "created", r)
+        p = ET.fromstring(w.xml.split("\n", 1)[1]).find(NS + "Principals/" + NS + "Principal")
+        self.assertEqual(p.find(NS + "LogonType").text, "Password", "a task with nobody signed in needs Password")
+        self.assertEqual(p.find(NS + "UserId").text, "EXAMPLE-PC\\player")
+        self.assertNotIn(SECRET, w.xml)
+        self.assertIn("<ExecutionTimeLimit>PT0S", w.xml)
+
+    def test_the_password_goes_on_stdin_only(self):
+        w = _Win()
+        r = self._install(w)
+        argv, kw = w.ps
+        self.assertFalse(any(SECRET in a for a in argv), "the password is on a command line every process can read")
+        self.assertEqual(kw.get("input"), (SECRET + "\n").encode("utf-8"))
+        self.assertNotIn(SECRET, json.dumps(kw.get("env") or {}), "the password is in the child's environment")
+        self.assertEqual(kw["env"]["TVD_KA_TASK"], CD.KEEPALIVE_TASK)
+        self.assertEqual(kw["env"]["TVD_KA_USER"], "EXAMPLE-PC\\player")
+        self.assertNotIn(SECRET, json.dumps(r))
+
+    def test_a_refusal_is_said_without_the_password(self):
+        w = _Win(create_rc=1)
+        r = self._install(w)
+        self.assertEqual(r["did"], "failed")
+        self.assertIn("password is incorrect", r["why"])
+        self.assertNotIn(SECRET, r["why"], "Windows' words carried the password into the answer")
+
+    def test_registered_but_not_seen_is_failed(self):
+        w = _Win()
+        w.ps_makes_it = False
+        self.assertEqual(self._install(w)["did"], "failed")
+
+    def test_no_password_or_not_windows_does_nothing(self):
+        for user, pw in (("u", ""), ("", SECRET), ("u", None)):
+            w = _Win()
+            self.assertIsNone(self._install(w, user, pw)["did"])
+            self.assertEqual(w.calls, [], "something was run without the account and its password")
+        self.assertIsNone(CD.install_unattended_keepalive("u", SECRET, run=_Win().run, is_win=False)["did"])
+
+    def test_a_sign_in_pass_leaves_the_owners_task_alone(self):
+        w = _Win(exists=True)
+        marker = os.path.join(self.tmp, ".keepalive_task.json")
+        for did in ("created", "already", "left"):
+            r = CD.ensure_keepalive_task(marker, did, run=w.run, is_win=True, tv_dir=WIN_TV, python=WIN_PY,
+                                         write_xml=w.write_xml, isfile=lambda p: True)
+            self.assertNotIn("/Delete", w.verbs(), "the owner's unattended task was removed by a console pass")
+            self.assertNotIn("/Create", w.verbs(), "the owner's unattended task was overwritten by a console pass")
+            self.assertIn(r["did"], ("already", "left"), r)
+
+    def test_the_cli_reads_the_password_from_the_environment_only(self):
+        got = []
+        install = lambda u, p: got.append((u, p)) or {"did": "created", "why": "ok"}
+        import io
+        from contextlib import redirect_stdout
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = KA.install_main(["--install-unattended", "EXAMPLE-PC\\player"], environ={KA.PASSWORD_ENV: SECRET},
+                                 install=install)
+        self.assertEqual((rc, got), (0, [("EXAMPLE-PC\\player", SECRET)]))
+        self.assertNotIn(SECRET, out.getvalue())
+        with redirect_stdout(io.StringIO()):
+            rc = KA.install_main(["--install-unattended", "u", "--password-env", "OTHER"], environ={"OTHER": "x"},
+                                 install=install)
+        self.assertEqual((rc, got[-1]), (0, ("u", "x")))
+        got.clear()
+        with redirect_stdout(io.StringIO()):
+            rc = KA.install_main(["--install-unattended", "u", SECRET], environ={}, install=install)
+        self.assertEqual((rc, got), (2, []), "a password on the command line (or none at all) was used")
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ka-unattended-")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+
 class PassDeadline(unittest.TestCase):
     def test_a_hung_pass_ends_itself(self):
         # review r2: the task has no time limit and IgnoreNew, so only this timer stops a hung pass holding every
@@ -513,6 +614,27 @@ class ConsoleSide(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "        r = run([\"powershell\", \"-NoProfile\", \"-NonInteractive\", \"-Command\", _UNATTENDED_PS],",
+     "replace": "        r = run([\"powershell\", \"-NoProfile\", \"-NonInteractive\", \"-Command\", _UNATTENDED_PS, password],",
+     "why": "REG-2616: the password on a command line any process on the PC can read"},
+    {"matches": 1, "file": "console_doctor.py", "find": "    return text.replace(secret, \"***\") if secret else text\n",
+     "replace": "    return text\n", "why": "REG-2616: Windows' refusal carries the password into the answer and the log"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "<UserId>%s</UserId><LogonType>Password</LogonType>",
+     "replace": "<UserId>%s</UserId><LogonType>InteractiveToken</LogonType>",
+     "why": "REG-2616: the unattended task still needs someone signed in"},
+    {"matches": 1, "file": "console_doctor.py", "find": "    if run_as:\n        principal", "replace": "    if True:\n        principal",
+     "why": "REG-2616: the default mode names an account (signed-in-or-locked is no longer the default)"},
+    {"matches": 1, "file": "console_doctor.py", "find": "    if not user or not password:\n", "replace": "    if not user:\n",
+     "why": "REG-2616: an install with no password is attempted"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "    if _keepalive_task_exists(run) is not True:\n        return {\"did\": \"failed\", \"why\": \"the unattended",
+     "replace": "    if False:\n        return {\"did\": \"failed\", \"why\": \"the unattended",
+     "why": "REG-2616: a registration the check cannot see is claimed made"},
+    {"matches": 1, "file": "console_keepalive.py", "find": "    password = environ.get(name) or \"\"\n",
+     "replace": "    password = environ.get(name) or args[-1]\n",
+     "why": "REG-2616: a password typed on the command line (shell history, process list) is taken"},
     {"matches": 1, "file": "console_doctor.py",
      "find": "        lst = run([\"schtasks\", \"/Query\", \"/FO\", \"CSV\", \"/NH\"], capture_output=True, timeout=60)",
      "replace": "        lst = run([\"schtasks\", \"/Query\", \"/FO\", \"CSV\", \"/NH\"], capture_output=True, text=True, timeout=60)",

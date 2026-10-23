@@ -7,6 +7,9 @@ died afterwards. This is the Windows cousin of tvd_supervisor.sh: Task Scheduler
 (pythonw), as the signed-in user, and it starts the launcher with -Background only when the console is GONE.
 
     python console_keepalive.py           one pass: probe :17772, decide, maybe launch, log one line
+    python console_keepalive.py --install-unattended USER [--password-env NAME]
+                                          the owner's one-time install of the task that runs with nobody
+                                          signed in (REG-2616); the password comes from $NAME, never argv
 
 Safe to run any number of times, beside a running console or another pass:
   - a console that answers, or is merely slow (a connect that times out - the ALT stalls for minutes under load),
@@ -207,5 +210,43 @@ def main(run=None, deadline_s=None):
     return 0 if r.get("action") != "error" else 1
 
 
+PASSWORD_ENV = "TVD_KEEPALIVE_PASSWORD"
+
+
+def install_main(argv, environ=None, install=None):
+    """`console_keepalive.py --install-unattended USER [--password-env NAME]` -> exit code. REG-2616.
+
+    The owner's one-time install of the keepalive that runs with nobody signed in. The password is read from the
+    environment variable NAME (default TVD_KEEPALIVE_PASSWORD) - never from argv, so it is in no command line and no
+    shell history - and handed on, never printed. Imports the doctor only here: a pass imports nothing of it."""
+    environ = os.environ if environ is None else environ
+    args = list(argv)
+    try:
+        user = args[args.index("--install-unattended") + 1]
+    except (ValueError, IndexError):
+        print("usage: console_keepalive.py --install-unattended USER [--password-env NAME]")
+        return 2
+    name = PASSWORD_ENV
+    if "--password-env" in args:
+        i = args.index("--password-env")
+        if i + 1 >= len(args):
+            print("usage: --password-env NAME")
+            return 2
+        name = args[i + 1]
+    password = environ.get(name) or ""
+    if not password:
+        print("no password in $%s - nothing installed (the default signed-in mode is unchanged)" % name)
+        return 2
+    if install is None:
+        sys.path.insert(0, HERE)
+        import console_doctor as _cd
+        install = _cd.install_unattended_keepalive
+    r = install(user, password)
+    print("%s: %s" % (r.get("did"), r.get("why")))
+    return 0 if r.get("did") == "created" else 1
+
+
 if __name__ == "__main__":
+    if "--install-unattended" in sys.argv[1:]:
+        sys.exit(install_main(sys.argv[1:]))
     sys.exit(main())
