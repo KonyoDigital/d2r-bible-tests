@@ -20149,7 +20149,9 @@ class TestV2052TheSeenFileIsTheJoin(unittest.TestCase):
         co_names holds what the function actually references; a docstring mentioning
         vault_seen_save cannot satisfy this."""
         import inspect
-        names = set(ca._vault_sweep_run.__code__.co_names)
+        # REG-2466 (M4) - the sweep is wrapped by @_held_awake (functools.wraps), so the wrapper's code names only
+        # _SweepHold; the body that must ask both ends is the wrapped function.
+        names = set(inspect.unwrap(ca._vault_sweep_run).__code__.co_names)
         self.assertIn("vault_seen_load", names)
         self.assertIn("vault_seen_save", names)
         # keyword names of a CALL are not always in co_names (they can sit in co_consts).
@@ -24017,7 +24019,8 @@ class TestV2080TheHarnessDoesNotRunTheACTINGWatchers(unittest.TestCase):
             r = start("harness-test")
         self.assertEqual(set(r["stoodDown"]),
                          {"tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
-                          "tvd-retro-triage"})
+                          "tvd-retro-triage", "tvd-orphan-fold"})
+        # REG-2463 (#168, M4) - the orphan-fold lane MOVES his loose frames, so it is an acting watcher too.
         for name in r["stoodDown"]:
             self.assertNotIn(name, r["started"])
 
