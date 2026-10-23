@@ -118,4 +118,9 @@ if __name__ == "__main__":
         _enable()
     except Exception:
         pass
-    sys.exit(main())
+    rc = main()
+    if rc == 0 and sys.platform.startswith("win"):
+        # REG-2614 - the keepalive task is checked on the same real Windows, riding this job (no workflow edit)
+        import windows_keepalive_check
+        rc = windows_keepalive_check.main()
+    sys.exit(rc)

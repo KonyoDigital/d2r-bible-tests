@@ -2704,7 +2704,7 @@
     "entryPoints": [
       "main"
     ],
-    "purpose": "REG-2614 - on windows-latest (tv-windows-boot.yml) registers the keepalive task XML under a scratch name with the real Task Scheduler, reads it back, deletes it, and drives one keepalive pass against a closed port with a recording launcher.",
+    "purpose": "REG-2614 - on windows-latest (called by windows_boot_check.py after its boot passes) registers the keepalive task XML under a scratch name with the real Task Scheduler, reads it back, deletes it, and drives one keepalive pass against a closed port with a recording launcher.",
     "gotcha": "Exit 77 off Windows. Never launches anything for real; the scratch task is deleted in a finally.",
     "territory": "routines-infra"
   },
