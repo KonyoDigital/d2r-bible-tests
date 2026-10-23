@@ -35,6 +35,7 @@ FREE BY CONSTRUCTION: filesystem, git and localhost only. No model turn, no netw
 import contextlib
 import glob
 import json
+import ntpath
 import os
 import re
 import subprocess
@@ -4341,6 +4342,151 @@ def ensure_sign_in_start(marker, answers_path=None, run=None, startup_dir=None, 
         return {"did": "created", "why": "%s - but its record could not be kept (%s), so a later removal may be "
                                          "re-made once" % (st2["why"], type(e).__name__)}
     return {"did": "created", "why": st2["why"]}
+
+
+#: REG-2614 — the task that brings a dead Windows console back. Its own name: the sign-in start is a different thing.
+KEEPALIVE_TASK = "TV DIABLO keepalive"
+KEEPALIVE_EVERY_MIN = 5
+
+
+def _xml_esc(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _keepalive_pythonw(python=None, isfile=os.path.isfile):
+    """The windowless interpreter beside the console's own: pythonw.exe next to python.exe (no window flashes every
+    five minutes), else the console's own interpreter - a flash beats a console that never comes back."""
+    py = python or sys.executable or "pythonw.exe"
+    d, b = ntpath.split(py)
+    if b.lower() == "python.exe" and isfile(ntpath.join(d, "pythonw.exe")):
+        return ntpath.join(d, "pythonw.exe")
+    return py
+
+
+def keepalive_task_xml(pythonw, tv_dir, start_local):
+    """PURE. The Task Scheduler definition of the keepalive. -> str
+
+    Every KEEPALIVE_EVERY_MIN minutes, for ever, as the signed-in user (InteractiveToken - no password is stored and
+    no administrator is needed), hidden, ON BATTERY TOO (schtasks /SC MINUTE would default to AC-only, and Dean's PC is
+    a laptop), never two at once, killed after 2 minutes. A pass is console_keepalive.py: it launches only a console
+    that is GONE (REG-2614). XML rather than /TR: /TR is capped at 261 characters and a repo under a long path with
+    spaces would not fit."""
+    script = ntpath.join(tv_dir, "console_keepalive.py")
+    return ('<?xml version="1.0" encoding="UTF-16"?>\n'
+            '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
+            '  <RegistrationInfo><Description>TV DIABLO - brings the console back within %d minutes if it dies '
+            '(REG-2614). Never starts one that was closed on purpose.</Description></RegistrationInfo>\n'
+            '  <Triggers><TimeTrigger><StartBoundary>%s</StartBoundary><Enabled>true</Enabled>'
+            '<Repetition><Interval>PT%dM</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>'
+            '</TimeTrigger></Triggers>\n'
+            '  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType>'
+            '<RunLevel>LeastPrivilege</RunLevel></Principal></Principals>\n'
+            '  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
+            '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
+            '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable>'
+            '<Hidden>true</Hidden><ExecutionTimeLimit>PT2M</ExecutionTimeLimit><Enabled>true</Enabled></Settings>\n'
+            '  <Actions Context="Author"><Exec><Command>%s</Command><Arguments>%s</Arguments>'
+            '<WorkingDirectory>%s</WorkingDirectory></Exec></Actions>\n'
+            '</Task>\n') % (KEEPALIVE_EVERY_MIN, _xml_esc(start_local), KEEPALIVE_EVERY_MIN, _xml_esc(pythonw),
+                             _xml_esc('"%s"' % script), _xml_esc(tv_dir))
+
+
+def _keepalive_task_exists(run):
+    """-> True | False | None (UNKNOWN). schtasks says 'cannot find' for a missing task; anything else is not an answer."""
+    try:
+        r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK], capture_output=True, text=True, timeout=20)
+    except Exception:
+        return None
+    if getattr(r, "returncode", 1) == 0:
+        return True
+    said = ("%s %s" % (getattr(r, "stdout", "") or "", getattr(r, "stderr", "") or "")).lower()
+    return False if ("cannot find" in said or "does not exist" in said) else None
+
+
+def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
+                          write_xml=None, isfile=os.path.isfile):
+    """REG-2614 — A CONSOLE THAT STARTS AT SIGN-IN ALSO COMES BACK WHEN IT DIES. -> {"did", "why"}
+
+    2026-10-16: the ALT's console died with no error and stayed dead until the next Windows sign-in - 302 commits
+    missed. The sign-in start (REG-1660) only runs at sign-in. This rides THE SAME CONSENT: the keepalive exists
+    only while the sign-in start does, so a PC that said "No, I open it myself", or removed the entry, is never
+    given a console that starts itself every five minutes instead.
+
+      did "created"    the task is made and the check now SEES it; the marker records it
+      did "already"    the task exists - left exactly as it is
+      did "left"       the task this console made is gone (someone removed it): never made again
+      did "withdrawn"  the sign-in start is gone or ruled out, so the keepalive this console made is removed with it
+      did "failed"     it could not be made or removed - said, never claimed
+      did None         not Windows, or the sign-in start / the task is UNKNOWN - nothing is done on a guess
+    [[unknown-stays-unknown]]"""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    if not is_win:
+        return {"did": None, "why": "only a Windows console needs a keepalive task"}
+    if run is None:
+        import git_quiet as _gq
+        run = _gq.run
+    consent = sign_in_did in ("created", "already")
+    if sign_in_did not in ("created", "already", "left"):
+        return {"did": None, "why": "whether this console starts at sign-in is not settled (%s) - the keepalive "
+                                    "follows it, so nothing is done" % (sign_in_did,)}
+    rec = _sign_in_marker_read(marker)
+    if rec is None:
+        return {"did": None, "why": "the record of an earlier keepalive cannot be read - nothing is done"}
+    exists = _keepalive_task_exists(run)
+    if exists is None:
+        return {"did": None, "why": "whether the '%s' task exists is UNKNOWN - nothing is done" % KEEPALIVE_TASK}
+    if not consent:
+        if exists and rec.get("madeMs"):
+            try:
+                r = run(["schtasks", "/Delete", "/TN", KEEPALIVE_TASK, "/F"], capture_output=True, text=True,
+                        timeout=30)
+                ok = getattr(r, "returncode", 1) == 0
+            except Exception:
+                ok = False
+            if not ok:
+                return {"did": "failed", "why": "the sign-in start is gone but its keepalive could not be removed"}
+            return {"did": "withdrawn", "why": "the sign-in start is gone, so the keepalive this console made went "
+                                               "with it"}
+        return {"did": "left", "why": "this console does not start at sign-in, so it has no keepalive"}
+    if exists:
+        return {"did": "already", "why": "the '%s' task brings this console back if it dies" % KEEPALIVE_TASK}
+    if rec.get("madeMs"):
+        return {"did": "left", "why": "the keepalive this console made is gone - someone removed it, so it is not "
+                                      "made again"}
+    tv_dir = tv_dir or os.path.dirname(os.path.abspath(__file__))
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    start = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now_ms / 1000.0))
+    xml = keepalive_task_xml(_keepalive_pythonw(python, isfile), tv_dir, start)
+    xml_path = marker + ".task.xml"
+    try:
+        if write_xml is not None:
+            write_xml(xml_path, xml)
+        else:
+            with open(xml_path, "w", encoding="utf-16") as fh:   # the BOM Task Scheduler expects
+                fh.write(xml)
+        r = run(["schtasks", "/Create", "/TN", KEEPALIVE_TASK, "/XML", xml_path, "/F"],
+                capture_output=True, text=True, timeout=30)
+    except Exception as e:
+        return {"did": "failed", "why": "the keepalive task could not be written (%s)" % type(e).__name__}
+    finally:
+        try:
+            os.remove(xml_path)
+        except OSError:
+            pass
+    if getattr(r, "returncode", 1) != 0:
+        return {"did": "failed", "why": "Windows refused the keepalive task: %s"
+                                        % ((str(getattr(r, "stderr", "") or "").strip()[-160:]) or "no reason given")}
+    if _keepalive_task_exists(run) is not True:
+        return {"did": "failed", "why": "the keepalive task was written but the check still cannot see it"}
+    try:
+        tmp = marker + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"madeMs": now_ms, "task": KEEPALIVE_TASK, "why": "REG-2614"}, fh)
+        os.replace(tmp, marker)
+    except Exception as e:
+        return {"did": "created", "why": "made, but its record could not be kept (%s)" % type(e).__name__}
+    return {"did": "created", "why": "the '%s' task now brings this console back within %d minutes if it dies"
+                                     % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN)}
 
 
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.

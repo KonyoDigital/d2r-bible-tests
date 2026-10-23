@@ -7,6 +7,26 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2614 - A WINDOWS CONSOLE THAT DIED STAYED DEAD UNTIL THE NEXT SIGN-IN - 2026-10-23 (Windows console watchdog)
+
+2026-10-16: the ALT's console died with no error and nothing relaunched it until someone signed in to Windows, so it
+missed 302 commits. The sign-in start (REG-1660) runs once, at sign-in; nothing watched a console that died after.
+Fix: tv/console_keepalive.py, run every 5 minutes by a per-user scheduled task "TV DIABLO keepalive" (pythonw,
+hidden, InteractiveToken - no stored password, no administrator - on battery too, IgnoreNew, 2-minute limit,
+registered from XML so a long path with spaces fits). A pass connects to :17772 only: REFUSED is gone and starts
+start_tvd_win.ps1 -Background hidden and windowless; up, slow (a timed-out connect) and unknown are left alone. A
+console closed on purpose (control_app's one exit surface writes tv/.tvd_exited_on_purpose, the next boot clears it,
+primary Windows console only) or a stood-down supervisor (.tvd_supervisor_pause) is never relaunched; one launch per
+10 minutes, booked before it is tried; a torn memory file is said and rewritten. The console makes the task beside its
+sign-in start (console_doctor.ensure_keepalive_task) on the SAME consent: never made after a removal, withdrawn with
+a removed or refused sign-in start (only if this console made it), nothing done on UNKNOWN.
+LIMIT: "without a sign-in" means without a NEW sign-in - the task runs in the signed-in (also locked) session. A PC
+that rebooted to the sign-in screen has no session to film in; starting a console there needs a stored password or
+S4U, which also cannot capture the desktop. That is his call, not made here.
+GUARD: tv/test_a_dead_windows_console_comes_back_by_itself.py (23 cases, 17 red-proofs) and, on real Windows in
+tv-windows-boot.yml, tv/windows_keepalive_check.py (the XML registered, read back, left on a second pass, deleted;
+a closed port reads gone; a pass launches once then holds).
+
 ### REG-2615 - THE STATUS CALL WAITED ON A SCAN OF EVERY REEL FOR ITS FORENSICS BADGE - 2026-10-23
 
 The ALT's status call took about 30 s, almost all in forensicsSummary; Dean's measured 423 ms of a 432 ms call there

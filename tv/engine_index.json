@@ -420,6 +420,17 @@
     "purpose": "Scar ledger plus three re-derivable remedies: fold orphan frames into the reel their own stamp names, restore a vault store from a healthy backup, clear a stale theatre-fault. TV_AUTO_HEAL arms it.",
     "territory": "heart-organs"
   },
+  "console_keepalive.py": {
+    "entryPoints": [
+      "run_once",
+      "decide",
+      "probe",
+      "main"
+    ],
+    "purpose": "REG-2614 - the Windows console watchdog. Task Scheduler runs it every 5 min (task 'TV DIABLO keepalive', pythonw, hidden, as the signed-in user); a pass connects to :17772 and starts start_tvd_win.ps1 -Background only when the port REFUSES.",
+    "gotcha": "Slow (a timed-out connect) and unknown are left alone. tv/.tvd_exited_on_purpose (written by control_app's exit surface, cleared at boot) and tv/.tvd_supervisor_pause stop it; one launch per 10 min, booked in tv/.tvd_keepalive.json before it is tried. Stdlib only, imports nothing of the console's. The task is made and withdrawn by console_doctor.ensure_keepalive_task on the sign-in start's consent.",
+    "territory": "routines-infra"
+  },
   "console_safe.py": {
     "entryPoints": [
       "enable"
@@ -2649,6 +2660,14 @@
     ],
     "purpose": "Boots a SCRATCH console (TV_STUB=1, TV_CAPTURE=off, own port and sandbox) and asks /api/status which build it runs, against tv/WINDOWS_SHIP.json. The Windows CI job (tv-windows-boot.yml) runs it on windows-latest (#229).",
     "gotcha": "Exit 77 = could not run (no manifest), never a pass. TVD_BOOT_CHECK_TREE points it at another tree, which is how it was proven on the ALT over SSH without touching his checkout. The console is stopped by its own PID and the sandbox removed whatever happens.",
+    "territory": "routines-infra"
+  },
+  "windows_keepalive_check.py": {
+    "entryPoints": [
+      "main"
+    ],
+    "purpose": "REG-2614 - on windows-latest (tv-windows-boot.yml) registers the keepalive task XML under a scratch name with the real Task Scheduler, reads it back, deletes it, and drives one keepalive pass against a closed port with a recording launcher.",
+    "gotcha": "Exit 77 off Windows. Never launches anything for real; the scratch task is deleted in a finally.",
     "territory": "routines-infra"
   },
   "worker_source.py": {

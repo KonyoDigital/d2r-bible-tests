@@ -11397,6 +11397,15 @@ GATES = [
              "every live run record (heart2's _SELF_RECORDS + suite_verdict.RUN_RECORDS): untracked ones removed, "
              "a tracked one restored to HEAD's blob by the sandbox's own history, a PROOF_NEEDS-declared one kept. "
              "Driven on a fixture repo holding every record live, and TestV2414 run whole against a trap HERE."),
+    Gate("test_a_dead_windows_console_comes_back_by_itself",
+         [sys.executable, os.path.join(HERE, "test_a_dead_windows_console_comes_back_by_itself.py")], 120,
+         needs_app=False,
+         why="REG-2614 (2026-10-23) - a Windows console that died is brought back within minutes with no sign-in. "
+             "On 2026-10-16 the ALT console died with no error and stayed dead until the next sign-in, missing 302 "
+             "commits. console_keepalive.py runs every 5 min from a per-user scheduled task (hidden, on battery "
+             "too, no admin, never two at once) that the console makes beside its sign-in start and withdraws with "
+             "it; only a REFUSED port is gone, a console closed on purpose or a stood-down supervisor is never "
+             "relaunched, one launch per cooldown."),
     Gate("test_the_status_never_waits_on_forensics",
          [sys.executable, os.path.join(HERE, "test_the_status_never_waits_on_forensics.py")], 120,
          needs_app=False,
