@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Vault L1 - MOVE TASKS is a right-side panel: a clean numbered checklist, one line per task.
+"""Vault L1 - MOVE TASKS is a clean numbered checklist, one line per task (Vault v2: an overlay opened from its FAB).
 
 Elad, 2026-10-20: "MOVE TASKS becomes a right-side panel. A clean numbered checklist, one line per task
 (Arcanna's Sign · MANUAL → SETS-REST (3,1)), Moves then Throw-outs, the done ones collapsed at the bottom. Each line
 has a tick box (his hand, or the reels: gone k/5), and clicking a line opens BEFORE | AFTER. The left keeps add, find,
 the mules and the locked line, each with one plain line. Cut the wordy text."
+Vault v2 (Elad, 2026-10-23, approved design): the right-side panel became an OVERLAY opened from a FAB above the inbox
+FAB - the vault keeps its full width and the list floats over it. Everything else here holds unchanged.
 Driven on the SHIPPED page in Chrome. NO CHROME = a declared skip. RED_PROOF below.
 [[regression-guard]]
 """
@@ -73,27 +75,33 @@ class TheTasksPanel(unittest.TestCase):
         try:
             return b.run("window.switchTab('vault'); var c = document.getElementById('mule-vault-card');"
                          "if (c && c.classList.contains('collapsed')) window.toggleCardCollapse('mule-vault-card');"
-                         "await new Promise(function(r){ setTimeout(r, 300); });"
-                         "var p = document.getElementById('vault-tasks').getBoundingClientRect();"
+                         "window.vaultTasksTog(false); await new Promise(function(r){ setTimeout(r, 200); });"
+                         "var m0 = document.querySelector('#mule-vault-card .vault-main').getBoundingClientRect();"
+                         "window.vaultTasksTog(true); await new Promise(function(r){ setTimeout(r, 300); });"
+                         "var a = document.getElementById('vault-tasks'), p = a.getBoundingClientRect();"
                          "var m = document.querySelector('#mule-vault-card .vault-main').getBoundingClientRect();"
-                         "OUT.p = [p.left, p.width, p.top]; OUT.m = [m.left, m.right, m.top];")
+                         "OUT.p = [p.left, p.width, p.top, p.right, p.bottom]; OUT.m0 = [m0.left, m0.width]; OUT.m = [m.left, m.width];"
+                         "OUT.pos = getComputedStyle(a).position; OUT.vw = innerWidth; OUT.vh = innerHeight;"
+                         "window.vaultTasksTog(false);")
         finally:
             b.t.send("Emulation.clearDeviceMetricsOverride")
 
-    def test_the_list_lives_in_the_right_side_panel(self):
+    def test_the_list_lives_in_the_move_tasks_overlay(self):
         world()
         o = board().run(READ + "var a = L().closest('aside'); OUT.aside = a ? a.id : null;"
                         "OUT.inMain = !!L().closest('.vault-main');"
                         "OUT.leftKeeps = ['vault-find-input', 'vault-planner-q', 'vault-shelf', 'vault-equipped'].map(function(id){"
                         "  var e = document.getElementById(id); return !!(e && e.closest('.vault-main')); });")
-        self.assertEqual(o["aside"], "vault-tasks", "MOVE TASKS is not in the right-side panel")
-        self.assertFalse(o["inMain"], "MOVE TASKS still sits in the left column")
-        self.assertTrue(all(o["leftKeeps"]), "add, find, the mules and the locked line must stay on the left: %r" % o)
+        self.assertEqual(o["aside"], "vault-tasks", "MOVE TASKS is not in its own panel")
+        self.assertFalse(o["inMain"], "MOVE TASKS sits inside the vault column again")
+        self.assertTrue(all(o["leftKeeps"]), "add, find, the mules and the locked line must stay in the vault: %r" % o)
         for w, h in ((1440, 900), (1280, 720)):
             g = self._at(w, h)
-            self.assertGreaterEqual(g["p"][0], g["m"][1] - 2, "the panel is not to the right at %dx%d: %r" % (w, h, g))
-            self.assertLess(abs(g["p"][2] - g["m"][2]), 40, "the panel does not sit beside the left column at %dx%d: %r" % (w, h, g))
-            self.assertGreaterEqual(g["p"][1], 300, "the panel is too narrow for one line at %dx%d: %r" % (w, h, g))
+            self.assertEqual(g["pos"], "fixed", "MOVE TASKS is not an overlay at %dx%d: %r" % (w, h, g))
+            self.assertEqual(g["m"], g["m0"], "opening MOVE TASKS moved or narrowed the vault at %dx%d: %r" % (w, h, g))
+            self.assertGreaterEqual(g["p"][1], 300, "the overlay is too narrow for one line at %dx%d: %r" % (w, h, g))
+            self.assertTrue(0 <= g["p"][0] and g["p"][3] <= g["vw"] and g["p"][2] >= 0 and g["p"][4] <= g["vh"],
+                            "the overlay leaves the screen at %dx%d: %r" % (w, h, g))
 
     def test_one_numbered_line_per_task_moves_then_throw_outs(self):
         world()
@@ -158,7 +166,7 @@ class TheTasksPanel(unittest.TestCase):
 
     def test_each_left_area_says_one_plain_line_and_the_wordy_text_is_gone(self):
         world()
-        o = board().run("OUT.says = [].map.call(document.querySelectorAll('#mule-vault-card .vault-say'), function(e){"
+        o = board().run("OUT.says = [].map.call(document.querySelectorAll('#mule-vault-card .vault-say, #vault-tasks .vault-say'), function(e){"
                         "  return [e.getAttribute('data-say'), e.textContent, !!e.closest('.vault-main')]; });"
                         "OUT.eq = (document.querySelector('#vault-equipped .vault-equipped-k') || {}).textContent || '';"
                         "window.vaultOrganizePaint([%s], []); var og = document.getElementById('vault-organize');"
@@ -182,20 +190,20 @@ RED_PROOF = [
      "find": "        : (w.kind === 'dock' && typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)) ?",
      "replace": "        : (false) ?",
      "matches": 1},
-    {"why": "MOVE TASKS goes back into the left column.",
+    {"why": "MOVE TASKS goes back into the vault column (the boot hangs the overlay inside .vault-main, not on <body>).",
      "file": "bible.html",
-     "find": "      </div><!-- /vault-main -->\n      <aside id=\"vault-tasks\" class=\"vault-tasks-panel\" aria-label=\"move tasks\">\n        <p class=\"vault-say\" data-say=\"tasks\">Tick each task when it is done. The reels tick them too.</p>\n        <div id=\"vault-move-list\" class=\"vault-move\" aria-label=\"move task list\"></div>\n      </aside>\n",
-     "replace": "        <div id=\"vault-move-list\" class=\"vault-move\" aria-label=\"move task list\"></div>\n      </div><!-- /vault-main -->\n      <aside id=\"vault-tasks\" class=\"vault-tasks-panel\" aria-label=\"move tasks\">\n        <p class=\"vault-say\" data-say=\"tasks\">Tick each task when it is done. The reels tick them too.</p>\n      </aside>\n",
+     "find": "if (el && document.body && el.parentNode !== document.body) document.body.appendChild(el);",
+     "replace": "if (el && document.body && el.parentNode !== document.body) document.querySelector('#mule-vault-card .vault-main').appendChild(el);",
      "matches": 1},
-    {"why": "The panel stacks under the left column instead of beside it.",
+    {"why": "MOVE TASKS stops being an overlay and takes layout room again (in-flow, pushing the vault).",
      "file": "bible.html",
-     "find": "#mule-vault-card .boss-body.vault-body{display:flex;",
-     "replace": "#mule-vault-card .boss-body.vault-body{display:block;",
+     "find": ".vault-tasks-pop{position:fixed;",
+     "replace": ".vault-tasks-pop{position:static;",
      "matches": 1},
     {"why": "A line loses its tick box.",
      "file": "bible.html",
-     "find": "        + '<input type=\"checkbox\" class=\"vtk-tick vmv-mark\"",
-     "replace": "        + '<input type=\"hidden\" class=\"vtk-tick vmv-mark\"",
+     "find": "            : '<input type=\"checkbox\" class=\"vtk-tick vmv-mark\" aria-label=\"mark moved\"",
+     "replace": "            : '<input type=\"hidden\" class=\"vtk-tick vmv-mark\" aria-label=\"mark moved\"",
      "matches": 1},
     {"why": "Lines lose their numbers.",
      "file": "bible.html",
@@ -234,13 +242,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "His tick does nothing.",
      "file": "bible.html",
-     "find": "    return _vaultMoveMark(name, copyIx);\n  }\n  try { window._vaultTaskTick = _vaultTaskTick; }",
-     "replace": "    return null;\n  }\n  try { window._vaultTaskTick = _vaultTaskTick; }",
+     "find": "    } else res = _vaultMoveMark(name, copyIx);\n",
+     "replace": "    } else res = null;\n",
      "matches": 1},
     {"why": "The tick box click also opens BEFORE | AFTER.",
      "file": "bible.html",
-     "find": "        + ' onclick=\"event.stopPropagation();window._vaultTaskTick(",
-     "replace": "        + ' onclick=\"window._vaultTaskTick(",
+     "find": "              + ' onclick=\"event.stopPropagation();window._vaultTaskTick(",
+     "replace": "              + ' onclick=\"window._vaultTaskTick(",
      "matches": 1},
     {"why": "The mules lose their plain line.",
      "file": "bible.html",
