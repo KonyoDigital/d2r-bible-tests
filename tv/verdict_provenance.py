@@ -450,6 +450,18 @@ def ratchet():
         print("  local scope: NOT MEASURED on this venue — 0 of %d baseline store(s) are here. "
               "These are runtime stores written by the machine that runs the console; their "
               "absence is a venue fact, not a clean result." % len(b_local))
+        # ⚠⚠ #219 follow-up (heart2 --prove on a clean checkout, 2026-10-23) - NOT MEASURED covers the baseline's 32
+        # runtime stores, never a store that ARRIVED. A fresh checkout (CI, the box, a /tmp worktree a push proves
+        # from) holds 0 of them, so the branch above skipped the arrival check too: engine_index.json, heart_floor.json
+        # and test_reel_refs.json sit in git, outside the pinned trackedNames, and a clock test answering True for every
+        # field filed them SILENT where nobody looked - the red-proof stayed GREEN (BLIND) everywhere but his main
+        # checkout. An arrival is judged wherever it is on disk; only the baseline's own stores need his machine.
+        _here = {s: v for s, v in lo.items() if s not in b_local and os.path.exists(os.path.join(HERE, s))}
+        reg2, _gain2, new2, _gone2 = _compare({}, _here)
+        _red += ["local · %s" % x for x in reg2]
+        for s in new2:
+            print("   ⚪ %s" % s)
+        bad += len(reg2)
     else:
         # the same "a row is not a file" rule, per store: a DECLARED local store that is not on disk here is
         # ABSENT (UNKNOWN, not fixed), never a rank drop — a checkout that holds SOME of his runtime stores
