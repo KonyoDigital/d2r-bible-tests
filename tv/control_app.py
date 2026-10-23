@@ -31497,6 +31497,78 @@ def _chron_sweep_hang_check():
 _VAULT_AUTOREEL_ON = os.environ.get("TV_VAULT_AUTOREEL", "1") != "0"
 _VAULT_AUTOREAD_EVERY_S = 45          # slower than chronicle's 20s: a vault sweep is the dearer read
 _VAULT_AUTOREAD_MAX_TRIES = 2
+
+#: #188 REG-2560 - THE RIVER RE-READ THE SAME UNEXTRACTABLE REELS FOREVER. A reel the prune holds as
+#: panels-never-banked that still comes back owed after its tries was sent "back to the top" with tries=0, so the next
+#: tick paid for it again: about 6,000 Sonnet reads on the same few reels. It now COOLS: not read again before `until`,
+#: and each barren round doubles the wait (6 h, 12 h, 24 h ... capped at 7 days). A new vault reader
+#: (VAULT_PROMPT_VER) ends every cooldown at once, because that is the one change that can make a barren reel read.
+#: The cooldown is wall-clock and persisted, so neither a relaunch nor a locked-then-opened sweep door
+#: (vault.sweep_start) hands a cooling reel its read back the moment the lane can run again.
+_VAULT_COOL_BASE_MS = 6 * 3600 * 1000
+_VAULT_COOL_MAX_MS = 7 * 24 * 3600 * 1000
+
+
+def _vault_reader_ver():
+    try:
+        import tv_diablo as _tvc
+        return str(getattr(_tvc, "VAULT_PROMPT_VER", "") or "")
+    except Exception:
+        return ""
+
+
+def _vault_cooling(rid, now_ms=None):
+    """-> the cooldown entry when `rid` must not be read yet, else None. A bad entry is "not cooling", never a raise."""
+    c = _VAULT_AUTOREAD.get("cooldown")
+    e = c.get(rid) if isinstance(c, dict) else None
+    if not isinstance(e, dict):
+        return None
+    try:
+        until = float(e.get("until") or 0)
+    except (TypeError, ValueError):
+        return None
+    ver = _vault_reader_ver()
+    if ver and str(e.get("promptVer") or "") != ver:      # REG-2561: a failed lookup is not a new reader
+        return None
+    now = time.time() * 1000 if now_ms is None else now_ms
+    return e if now < until else None
+
+
+def _vault_cool(rid, why="", now_ms=None):
+    """Record one more barren round for `rid` and set its next read time. -> the entry written."""
+    c = _VAULT_AUTOREAD.get("cooldown")
+    if not isinstance(c, dict):
+        c = _VAULT_AUTOREAD["cooldown"] = {}
+    now = time.time() * 1000 if now_ms is None else now_ms
+    old = c.get(rid) if isinstance(c.get(rid), dict) else {}
+    ver = _vault_reader_ver() or str(old.get("promptVer") or "")   # REG-2561: never stamp an unknown reader
+    try:
+        n = int(old.get("barren") or 0) if str(old.get("promptVer") or "") == ver else 0
+    except (TypeError, ValueError):
+        n = None   # #188 CI: an unreadable count is UNKNOWN, not zero - it must not reset the backoff to 6 h
+    n = 11 if n is None else n + 1   # unknown -> the longest wait (the 7-day cap), never a fresh short one
+    wait = min(_VAULT_COOL_MAX_MS, _VAULT_COOL_BASE_MS * (2 ** min(n - 1, 10)))
+    e = {"until": now + wait, "at": now, "barren": n, "promptVer": ver, "why": str(why or "")[:200]}
+    c[rid] = e
+    return e
+
+
+def _vault_cooling_board(owed, now_ms=None):
+    """Every owed reel that is cooling, in words. -> [{reel, until, barren, why}]; never raises."""
+    out = []
+    try:
+        for d in owed or []:
+            rid = os.path.basename(str(d))
+            e = _vault_cooling(rid, now_ms)
+            if e:
+                _nb = e.get("barren")   # #188 eye: a non-numeric stored count must not end the board early
+                _nbs = str(_nb) if isinstance(_nb, int) else "an unknown number of"
+                out.append({"reel": rid, "until": e.get("until"), "barren": _nb,
+                            "why": "%s barren round(s); not read again until the cooldown ends or the vault reader "
+                                   "changes" % _nbs})
+    except Exception:
+        return out
+    return out
 _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired": {},
                    # v2302 — the LAST reason an attempt on this reel gave. Retirement used
                    # to assert a cause it had never measured; now it can quote one.
@@ -31510,7 +31582,11 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
                    # from them instead of re-reading from 0%. { sid: {"frames": [...], "state": {...},
                    # "promptVer", "agentVer", "ts"} }. Written by the sweep's checkpoint, CLEARED when
                    # a reel completes, ignored when stale. The sibling of chron_autoread["resume"].
-                   "resume": {}}
+                   "resume": {},
+                   # #188 REG-2560 — a reel the prune holds as panels-never-banked whose read came back
+                   # barren: { rid: {"until": ms, "at": ms, "barren": n, "promptVer": str} }. Not read
+                   # again before `until` unless the vault reader changes. See _vault_cool.
+                   "cooldown": {}}
 
 #: ⚠⚠⚠ v2901 (#60) — WHAT THE LANE LEARNS MUST SURVIVE THE PROCESS. MEASURED 2026-09-10: the dict
 #: above had **14 write sites and ZERO persistence sites** — no save, no load, no json anywhere.
@@ -31849,6 +31925,10 @@ def _vault_autoread_load():
         for k in ("retired", "tries", "lastWhy", "reextract", "rejudged", "resume"):   # #130 — resume added
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
+        # #188 REG-2560 — a restart must not hand a cooling reel its read back. Not a dict -> ignored, and a bad
+        # entry inside it reads as "not cooling" in _vault_cooling, never as an exception.
+        if isinstance(d.get("cooldown"), dict):
+            _VAULT_AUTOREAD["cooldown"] = dict(d["cooldown"])
         if isinstance(d.get("latticeTried"), dict):
             _VAULT_AUTOREAD["latticeTried"] = dict(d["latticeTried"])
         if isinstance(d.get("joinQueued"), dict):
@@ -31940,6 +32020,9 @@ def _vault_autoread_save():
                "latticeTried": _VAULT_AUTOREAD.get("latticeTried") or {},
                "joinQueued": _VAULT_AUTOREAD.get("joinQueued") or {},
                "joinTried": _VAULT_AUTOREAD.get("joinTried") or {},
+               # #188 REG-2560 — lost here, every relaunch would re-read each cooling reel at once
+               "cooldown": (_VAULT_AUTOREAD.get("cooldown")
+                            if isinstance(_VAULT_AUTOREAD.get("cooldown"), dict) else {}),
                # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
                # the cursor, so every save it added wrote everything EXCEPT the thing it was for, and
                # each relaunch restarted the rotation at the head of the owed list.
@@ -33667,6 +33750,8 @@ def _vault_autoread_state():
                                   else _vault_no_tick_why() if (owed and not _lt) else None)),   # REG-1646
                 "lastTick": _lt,
                 "triageRuledEmpty": _TRIAGE_RULED_EMPTY.get("vault"),            # REG-1751
+                # #188 REG-2560 - every owed reel that is cooling, with its until-time and why, in words
+                "cooling": _vault_cooling_board(owed),
                 "retired": sorted(d.get("retired") or {}),
                 "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
                 "tries": {k: v for k, v in list((d.get("tries") or {}).items())[:6]}}
@@ -33913,6 +33998,8 @@ def vault_autoreel_tick():
                 pass
         if rid in _VAULT_AUTOREAD["retired"]:
             continue
+        if _vault_cooling(rid):          # #188 REG-2560 - a barren held reel waits out its cooldown
+            continue
         if rid in _VAULT_SWEEP_QUARANTINE:
             # river watchdog quarantined this reel after it HUNG the measurer; skip it so the lane reads
             # the rest instead of re-hanging on the same reel (cleared on relaunch — a transient hang retries)
@@ -33968,12 +34055,16 @@ def vault_autoreel_tick():
             try:
                 import reel_retention as _rr_hold
                 _held_unextracted = bool(_rr_hold._panels_never_banked(rid))
+                _hold_measured = True
             except Exception as _e_hold:
+                _hold_measured = False                 # REG-2561: an unasked hold is not a barren round
                 # cannot ask -> do NOT retire. Refusing to retire only costs another read;
                 # retiring wrongly costs the extraction for ever.
                 _held_unextracted = True
             if _held_unextracted:
                 _VAULT_AUTOREAD["tries"][rid] = 0          # back to the top of the river
+                if _hold_measured:
+                    _vault_cool(rid, _said)                # #188 REG-2560 - but not before its cooldown ends
                 _vault_autoread_save()
                 return {"ok": False, "requeued": rid, "owed": owed,
                         "why": ("%s — but this reel carries panel frames with NO vault row, so the "
@@ -42454,7 +42545,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3788",
+        "ver": "v3789",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

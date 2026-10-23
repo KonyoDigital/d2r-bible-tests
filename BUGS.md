@@ -702,6 +702,23 @@ GUARDS: NEW tv/test_the_vault_memo_changes_no_answer.py (4 cases; 8 RED_PROOFs -
 NOT FIXED HERE (it would change a result): _itemCells stores its final answer under the bare name even when the key carried a stored base, so a planner pick whose base _cbFoot cannot size leaves a guess cached under the bare name after the record is gone.
 
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
+### REG-2562 - REG-2558'S OWN-THE-NAME LINE WAS A BARE owned.add, OUTSIDE THE DOOR (CI census on v3788, GB-L, 2026-10-23, v3789)
+test_every_owned_door_writes_provenance went red in CI on ab7065bb: the perfect-base early return added to `owned`
+without a provenance row. It now goes through window._ownedAdd with source 'hand' / 'perfect base filed'. The
+census passes (45 OK) and the v3746 spec passes (7/7).
+
+### REG-2561 - THE COOLDOWN TREATED AN UNANSWERED QUESTION AS AN ANSWER (#188 second eye, GB-L, 2026-10-22, v3789)
+If the reader version could not be read, it compared as a new reader and cancelled every cooldown, and the next
+cooldown was stamped with an empty reader. If the hold lookup raised, that counted as a barren round. Now an
+unknown reader keeps the stamp it had, and only a measured hold cools a reel. RED_PROOF "REG-2561".
+
+### REG-2560 - A BARREN HELD REEL WAS RE-READ ON EVERY TICK, AND EVERY PADLOCK OPEN RESTARTED THEM ALL (#188, GB-L on Claude's 38ab93ab, 2026-10-22, v3789)
+The panels-never-banked requeue reset tries to 0 and the reel was owed again on the next tick, so the same reels
+were paid for over and over. Claude's WIP called an undefined `_vault_cooling_board`. Now `_vault_cool` sets a
+wall-clock cooldown that doubles from 6 h up to 7 days, `_vault_cooling` skips the reel in the owed loop, a new
+VAULT_PROMPT_VER ends it, and the cooldown is persisted in .vault_autoread.json, so an opened vault.sweep_start
+padlock or a relaunch no longer restarts it. Law: tv/test_a_barren_held_reel_cools.py, with 3 RED_PROOFs.
+
 ### REG-2559 - A LAW SPENT HIS PLAN ON OPUS: THE CLOUD-ROUTE CASE RAN THE REAL `claude -p` (#189, GB-L, 2026-10-22, v3788)
 
 test_triage_runs_beside_a_shadow_reel's test_a_cloud_route_pc_is_never_told_to_launch_d2r calls farmgate_payload,
