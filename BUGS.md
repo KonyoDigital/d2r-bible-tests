@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2611 - A HIGH-WATER MARK SET BY DATA THAT WAS NEVER THIS WORLD'S HAD NO DOOR - board #169
+
+board_tally_merge's mark only rises and a fall is never auto-healed, which is right for a world's own data. On Dean's PC
+(measured 2026-10-21) both worlds held a uniques mark of 261 that came from another board's seed, the ladder world has read
+0 since 09-26, and the doctor's progress row has said "BELOW its own high-water mark" ever since. ledger_drop_accept could
+not reach it: it closes .ledger_drops.json episodes, and that machine holds none. New door: board_tally_rebase(world, lane,
+reason, confirm) and POST /api/board_tally_rebase. It needs a reason and confirm (without confirm it only says what it would
+do), works on one world and one lane, and only moves a mark DOWN to that world's current reading. The old mark is kept in
+`rebasedFrom`, the ruling is appended to a permanent `rebases` list, and the next tally ratchets up from the new mark. The
+doctor's below-mark row now names the door. Law: tv/test_a_drop_is_an_episode.py
+(AMarkSetByDataThatWasNeverHisIsRebasedByRuling, 6 cases, 6 red-proofs). Built from Claude's draft
+(scratchpad/dean/05_board_tally_rebase_door.diff). After ship, the ruling itself is run on Dean's PC (ladder world, uniques).
+
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
 Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote

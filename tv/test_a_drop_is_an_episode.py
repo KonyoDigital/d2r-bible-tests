@@ -254,6 +254,87 @@ class ADropIsAnEpisode(unittest.TestCase):
         self.assertIn("sets 134 -> 0", why, "the doctor could not read the episode as a fall")
 
 
+class AMarkSetByDataThatWasNeverHisIsRebasedByRuling(unittest.TestCase):
+    """REG-2611 - MEASURED on Dean's PC 2026-10-21: both of his worlds held a uniques mark of 261 that came from Konyo's
+    seed, his ladder world has read 0 since 09-26, the doctor's row said "BELOW its own high-water mark" ever since,
+    and ledger_drop_accept could not reach it (his .ledger_drops.json holds no episodes). board_tally_rebase is the
+    ruled door. Fixtures only: _board_tally_path is pointed at a temp dir."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="tally-rebase-")
+        self._orig = CA._board_tally_path
+        CA._board_tally_path = lambda: os.path.join(self.d, "board_tally.json")
+        self.addCleanup(setattr, CA, "_board_tally_path", self._orig)
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.key = CA._route_key(OWNER)
+
+    def _post(self, uni, at):
+        return CA.board_tally_merge({"v": 2, "who": OWNER, "route": OWNER, "at": at,
+                                     "sets": {"have": 120, "total": 135},
+                                     "uniques": {"have": uni, "total": 403},
+                                     "runewords": {"have": 99, "total": 99}})
+
+    def _doc(self):
+        with open(os.path.join(self.d, "board_tally.json"), encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def _seeded_then_fell(self):
+        self._post(261, 1000)          # the mark another board's seed set
+        self._post(0, 2000)            # what this world itself reads
+
+    def test_without_his_reason_nothing_moves(self):
+        self._seeded_then_fell()
+        r = CA.board_tally_rebase(self.key, "uniques", "  ", confirm=True)
+        self.assertFalse(r["applied"], r)
+        self.assertEqual(self._doc()["high"][self.key]["uniques"]["have"], 261)
+
+    def test_without_confirm_it_only_says_what_it_would_do(self):
+        self._seeded_then_fell()
+        r = CA.board_tally_rebase(self.key, "uniques", "seed residue", confirm=False)
+        self.assertFalse(r["applied"], r)
+        self.assertEqual(r["would"], {"world": self.key, "lane": "uniques", "from": 261, "to": 0})
+        self.assertEqual(self._doc()["high"][self.key]["uniques"]["have"], 261, "a dry run wrote the mark")
+
+    def test_with_confirm_the_mark_comes_down_and_the_old_one_is_kept(self):
+        self._seeded_then_fell()
+        r = CA.board_tally_rebase(self.key, "uniques", "seed residue", confirm=True, now_ms=3000)
+        self.assertTrue(r["applied"], r)
+        hi = self._doc()["high"][self.key]["uniques"]
+        self.assertEqual(hi["have"], 0)
+        self.assertEqual(hi["rebasedFrom"]["have"], 261, "the old mark was erased rather than kept beside the new one")
+        self.assertEqual(self._doc()["rebases"],
+                         [{"world": self.key, "lane": "uniques", "from": 261, "to": 0, "at": 3000, "by": "seed residue"}])
+
+    def test_it_never_raises_a_mark_and_names_only_real_lanes(self):
+        self._seeded_then_fell()
+        self.assertFalse(CA.board_tally_rebase(self.key, "sets", "x", confirm=True)["applied"],
+                         "a lane sitting AT its mark was re-based")
+        self.assertFalse(CA.board_tally_rebase(self.key, "everything", "x", confirm=True)["applied"])
+        self.assertFalse(CA.board_tally_rebase("nobody|main", "uniques", "x", confirm=True)["applied"])
+        self.assertEqual(self._doc()["high"][self.key]["sets"]["have"], 120)
+
+    def test_the_next_tally_ratchets_from_the_new_mark_and_the_ruling_survives(self):
+        self._seeded_then_fell()
+        CA.board_tally_rebase(self.key, "uniques", "seed residue", confirm=True, now_ms=3000)
+        self._post(5, 4000)
+        d = self._doc()
+        self.assertEqual(d["high"][self.key]["uniques"]["have"], 5)
+        self.assertEqual(len(d.get("rebases") or []), 1, "a later tally erased the record of his ruling")
+
+    def test_the_doctor_stops_calling_it_below_its_mark(self):
+        import console_doctor as CD
+        orig = CD.HERE
+        CD.HERE = self.d
+        self.addCleanup(setattr, CD, "HERE", orig)
+        self._seeded_then_fell()
+        _st, why = CD._check_his_progress_number_has_not_been_overwritten()
+        self.assertIn("BELOW its own high-water mark", why, "PREMISE: the seeded mark is not read as a fall")
+        self.assertIn("/api/board_tally_rebase", why, "the doctor's row does not name the ruled door")
+        CA.board_tally_rebase(self.key, "uniques", "seed residue", confirm=True, now_ms=3000)
+        _st, why = CD._check_his_progress_number_has_not_been_overwritten()
+        self.assertNotIn("BELOW its own high-water mark", why, "the ruled re-base did not reach the doctor's row")
+
+
 RED_PROOF = [
     {
         "why": "2026-09-28 review round 2 - an unreadable last reading falls back to the high-water mark every tally and re-files the open fall without end",
@@ -320,6 +401,48 @@ RED_PROOF = [
         "find": ("    doc[\"drops\"] = [d for d in doc[\"drops\"]\n"
                  "                    if id(d) in _keep_ids or (isinstance(d, dict) and d.get(\"open\"))]\n"),
         "replace": "    doc[\"drops\"] = doc[\"drops\"][-40:]\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2611 - a re-base without his reason moves the mark",
+        "file": "control_app.py",
+        "find": "    if not why_reason:\n        return {\"ok\": False, \"applied\": False, \"why\": \"a re-base needs his reason - it is a ruling, not a reset\"}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2611 - the dry run writes the mark",
+        "file": "control_app.py",
+        "find": "    if not confirm:\n        return {\"ok\": True, \"applied\": False, \"would\": {\"world\": key, \"lane\": lane, \"from\": old, \"to\": now},\n",
+        "replace": "    if False:\n        return {\"ok\": True, \"applied\": False, \"would\": {\"world\": key, \"lane\": lane, \"from\": old, \"to\": now},\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2611 - the old mark is erased instead of kept beside the new one",
+        "file": "control_app.py",
+        "find": "\"rebasedFrom\": dict(hi[lane]),\n",
+        "replace": "\"rebasedFrom\": None,\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2611 - a mark sitting at (or below) the reading is re-based anyway",
+        "file": "control_app.py",
+        "find": "    if isinstance(old, bool) or not isinstance(old, int) or old <= now:\n",
+        "replace": "    if isinstance(old, bool) or not isinstance(old, int):\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2611 - the ruling is not appended to the permanent rebases record",
+        "file": "control_app.py",
+        "find": "    doc.setdefault(\"rebases\", []).append({\"world\": key,",
+        "replace": "    [].append({\"world\": key,",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2611 - the doctor's below-mark row stops naming the ruled door",
+        "file": "console_doctor.py",
+        "find": "this world's, POST /api/board_tally_rebase {",
+        "replace": "this world's, ask {",
         "matches": 1,
     },
 ]
