@@ -54,25 +54,40 @@ DENY_PREFIX = ("d2r_quarantine", "d2r_d2jsp_", "d2r_api_")
 API_FIELDS = {
     "chars_learned": ("ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel"),
     "main_locks": ("ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"),
+    "world": ("machine", "profile", "ledger", "os", "cousin"),
 }
+# The world the owner's board drew in: which machine and profile its stores belong to, the ledger it keeps and the
+# OS it reported. The shadow frame takes these instead of the viewer's own, so a Mac viewing a Windows owner draws
+# the Windows world (its ribbon, its seed floor, its prefixes). Closed values only: nothing else rides here.
+WORLD_VALUES = {"machine": ("mac", "windows"), "profile": ("main", "ladder"),
+                "os": ("MAC", "WINDOWS", "LINUX", "ANDROID", "THIS MACHINE")}
+_LEDGER = re.compile(r"^[^\x00-\x1f\"<>\\]{0,40}$")
 API_PREFIX = "d2r_api_"
 
 _KEY = re.compile(r"^d2r_[A-Za-z0-9_]{1,60}$")
 _PRIVATE = (
     re.compile(r"(?:/Users/|/home/|/private/|/var/folders/)[^\s\"']*"),
     re.compile(r"[A-Za-z]:\\\\?(?:Users|Documents and Settings)\\\\?[^\s\"']*"),
-    re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{32}(?![0-9a-fA-F])"),
+    # An install id is crypto.randomUUID() (v4), dashed or not: the version and variant digits pin the shape so
+    # an item or reel hash of 32 hex is left alone.
+    re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}(?![0-9a-fA-F])"),
+    re.compile(r"(?<![0-9a-fA-F])[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![0-9a-fA-F])"),
+    re.compile(r"\b(?:ghp_|gho_|ghs_|github_pat_|xox[abposr]-|sk-)[A-Za-z0-9_\-]{16,}"),
+    re.compile(r"\b[A-Za-z0-9][A-Za-z0-9\-]{0,62}\.local\b"),
     re.compile(r"\bI?L?·[0-9a-f]{8}·"),
     re.compile(r"data:image/[^\s\"']*"),
 )
 
 
 def budget():
-    """KV writes a day: presence 768 + roster 4x25 + snapshot 4xDAY_CAP, under the 1000 ceiling."""
+    """KV writes a day. `together` is today's four PCs: presence 768 + roster 4x25 + snapshot 4xDAY_CAP = 948.
+    `worst` is every owner label writing at both caps: 768 + 5x25 + 5xDAY_CAP = 993. Both under the 1000 ceiling."""
     roster = _rp.budget()
-    snap = 4 * DAY_CAP
+    snap = roster["pcs"] * DAY_CAP
+    labels = len(OWNERS)
+    worst = roster["presence"] + labels * roster["perPc"] + labels * DAY_CAP
     return {"presence": roster["presence"], "roster": roster["roster"], "snapshot": snap,
-            "together": roster["together"] + snap, "ceiling": roster["ceiling"]}
+            "together": roster["together"] + snap, "worst": worst, "ceiling": roster["ceiling"]}
 
 
 def snapshot_key(owner):
@@ -137,9 +152,30 @@ def allowed_key(k, board=True):
     return not any(k.startswith(p) for p in DENY_PREFIX)
 
 
+def world_of(raw):
+    """The board's {machine, profile, ledger, os} -> the same dict when every value is one it may be, else None."""
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for k, allowed in WORLD_VALUES.items():
+        if raw.get(k) not in allowed:
+            return None
+        out[k] = raw[k]
+    ledger = raw.get("ledger")
+    if not isinstance(ledger, str) or not _LEDGER.match(ledger):
+        return None
+    out["ledger"] = ledger
+    if not isinstance(raw.get("cousin"), bool):
+        return None
+    out["cousin"] = raw["cousin"]
+    return out
+
+
 def api_store(name, payload):
     """-> (store name, JSON string) for one console answer, or None when it is not one the shadow serves."""
     fields = API_FIELDS.get(name)
+    if name == "world":
+        payload = world_of(payload)
     if not fields or not isinstance(payload, dict):
         return None
     kept = {f: payload[f] for f in fields if f in payload}
@@ -329,8 +365,10 @@ def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
         return {"ok": False, "owner": owner, "why": "not one of the five owner labels"}
     if not record_ok(rec, owner):
         why = "%s has not uploaded a console snapshot yet" % owner
-        if fetch_why:
+        if fetch_why and source == "cache":
             why += " (and the site could not be read: %s)" % str(fetch_why)[:80]
+        elif fetch_why:
+            why += " (the site says: %s)" % str(fetch_why)[:120]
         return {"ok": False, "owner": owner, "why": why, "source": source}
     t = rec["t"]
     ago = _ago_words(now_ms - t)

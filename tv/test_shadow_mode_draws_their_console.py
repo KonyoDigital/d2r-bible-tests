@@ -46,6 +46,7 @@ try:
 except Exception:
     pass
 from test_v3769_vault_move_list_visual import _CDP, _chrome_path, _ev, _wait_fn  # noqa: E402
+import console_snapshot as CS  # noqa: E402
 
 NO_BROWSER = "no Chrome/Chromium on this machine"
 HTTP_PORT = 17975
@@ -133,6 +134,10 @@ CAPTURE = r"""function (w, step) {
 OWN = "document.getElementById('tvd-eng').contentWindow"
 SHADOW = "document.getElementById('shadow-eng').contentWindow"
 WORDS = OWNER + " · offline · last upload 2 h ago"
+# The world facts a board derives at boot, and what they draw: the cousin ribbon class and whether the seeds apply.
+WORLD = ("(function(){var w=%s; return {machine: w.D2R_MACHINE, os: w.D2R_HOST_OS, profile: w.D2R_PROFILE, "
+         "ledger: w._D2R_LEDGER, cousin: w._isCousinShell, seeds: w._seedsBelongHere, "
+         "ribbon: w.document.body.classList.contains('cousin-shell')}})()")
 
 
 def _serve(stores, hits, mode):
@@ -295,12 +300,21 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
 
         # A - the owner's own console on its own stores
         cls.mode[0] = "A"
+        # A's world is this headless Linux browser's own (machine 'windows', host LINUX) with a ledger of its own;
+        # the viewer below is pinned to the Mac world on the seed ledger, so a shadow that took the viewer's world
+        # draws the Mac ribbon and lets the Mac's seeds in.
         seed(dict(cls.stores, d2r_ownerClaim="*", d2r_installIdCache="tvdshadow0000000",
-                  d2r_installId="tvdshadow0000000"))
+                  d2r_installId="tvdshadow0000000", d2r_ledgerName="Dean ledger"))
         nav("/")
         ready(OWN)
         time.sleep(8)
         cls.a = read(OWN)
+        cls.a_world = _ev(cdp, WORLD % OWN)
+        # what A's board posts beside its stores (the console validates it and rides it as d2r_api_world)
+        cls.a_posted = _ev(cdp, "(function(){var w=%s; return {machine: w.D2R_MACHINE, profile: w.D2R_PROFILE, "
+                                "os: w.D2R_HOST_OS, ledger: String(w._D2R_LEDGER || '').slice(0, 40), "
+                                "cousin: !!w._isCousinShell}})()" % OWN)
+        cls.stores["d2r_api_world"] = json.dumps(cls.a_posted, separators=(",", ":"), sort_keys=True)
         # B - a viewer's console with a world of its own opens Dean's shadow through the Roster door
         cls.mode[0] = "B"
         seed({"d2r_ownerClaim": "*", "d2r_installIdCache": "viewer0000000000", "d2r_installId": "viewer0000000000",
@@ -308,7 +322,8 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
                                                     "sets": [{"name": "Set 1", "slots": {}, "inv": [], "swap": {},
                                                               "ws": 1}],
                                                     "active": 0, "notes": "", "stash": [], "from": None, "at": 1}}),
-              "d2r_owned": json.dumps(["Shako"]), "viewer_sentinel": "keep-me"})
+              "d2r_owned": json.dumps(["Shako"]), "viewer_sentinel": "keep-me",
+              "d2r_activeMachine": "mac", "d2r_machineSource": "user", "d2r_ledgerName": "KonyoEndgame"})
         _ev(cdp, "sessionStorage.setItem('viewer_sess','1'); 1")
         nav("/")
         ready(OWN)
@@ -340,6 +355,8 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
                    barShown: !!(bar && !bar.hidden && bar.getBoundingClientRect().height > 0),
                    covers: (function(){ var r = s.getBoundingClientRect(); return r.width > 800 && r.height > 500; })() }; })()""")
         cls.b = read(SHADOW)
+        cls.b_world = _ev(cdp, WORLD % SHADOW)
+        cls.viewer_world = _ev(cdp, WORLD % OWN)
         # every header tab routes in the shadow, the console-native ones included
         cls.routes = {}
         for t in ("session", "forge", "crafts", "funi", "fsets", "tools", "d2jsp", "tvd", "chars"):
@@ -425,6 +442,11 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         for k, v in tips.items():
             self.assertFalse(v.startswith("ERR"), "%s: %s" % (k, v))
         self.assertIn("Arachnid Mesh", self.a["builder"]["shared"])
+
+    def test_their_world_is_drawn_not_the_viewers(self):
+        self.assertTrue(CS.world_of(self.a_posted), "A's board posted a world the console would drop: %r" % self.a_posted)
+        self.assertNotEqual(self.viewer_world["machine"], self.a_world["machine"], "the fixture no longer differs")
+        self.assertEqual(self.b_world, self.a_world, "the shadow drew the viewer's world, not theirs")
 
     def test_the_viewers_own_storage_is_untouched(self):
         self.assertTrue(self.flags["snap"], self.flags)

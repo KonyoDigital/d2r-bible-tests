@@ -105,11 +105,16 @@ class WhatLeavesThePC(unittest.TestCase):
 
     def test_paths_install_ids_and_pictures_are_blanked(self):
         dirty = {"a": "/Users/someone/Library/x.png", "b": "C:\\Users\\player\\Documents\\x.d2s",
-                 "c": "0123456789abcdef0123456789abcdef", "d": "data:image/png;base64,AAAA", "keep": "Enigma"}
+                 "c": "0123456789ab4def8123456789abcdef", "hash": "0123456789abcdef0123456789abcdef", "d": "data:image/png;base64,AAAA", "keep": "Enigma"}
         got = CS.clean({"stores": {"d2r_x": json.dumps(dirty)}})["stores"]["d2r_x"]
-        for bad in ("/Users/", "Users\\", "0123456789abcdef0123456789abcdef", "data:image"):
+        for bad in ("/Users/", "Users\\", "0123456789ab4def8123456789abcdef", "data:image"):
             self.assertNotIn(bad, got)
         self.assertEqual(json.loads(got)["keep"], "Enigma")
+        self.assertEqual(json.loads(got)["hash"], "0123456789abcdef0123456789abcdef",
+                         "a 32-hex hash that is not an install id's shape was blanked")
+        for secret in ("ghp_" + "A" * 30, "github_pat_" + "B" * 30, "Some-MacBook-Pro.local",
+                       "01234567-89ab-4def-8123-456789abcdef"):
+            self.assertNotIn(secret, CS.clean({"stores": {"d2r_x": json.dumps({"v": "x " + secret})}})["stores"]["d2r_x"])
 
     def test_the_size_caps_drop_the_largest_first_and_say_so(self):
         s = _stores()
@@ -136,10 +141,23 @@ class WhatLeavesThePC(unittest.TestCase):
         self.assertNotIn("status", cl, "a ticking field rides the snapshot and makes every upload 'changed'")
         self.assertNotIn("generatedTs", json.loads(got["d2r_api_main_locks"]))
 
+    def test_the_world_rides_with_closed_values_only(self):
+        w = {"machine": "windows", "profile": "ladder", "os": "WINDOWS", "ledger": "Dean ledger", "cousin": True}
+        self.assertEqual(CS.world_of(w), w)
+        for bad in (dict(w, machine="linux"), dict(w, profile="hc"), dict(w, os="BeOS"), dict(w, cousin=1),
+                    dict(w, ledger="<img>"), dict(w, ledger="x" * 41), {k: v for k, v in w.items() if k != "os"}):
+            self.assertIsNone(CS.world_of(bad), bad)
+        got = CS.with_api(_stores(), {"world": dict(w, extra="/Users/x")})
+        self.assertEqual(json.loads(got["d2r_api_world"]), w)
+        self.assertNotIn("d2r_api_world", CS.with_api(_stores(), {"world": dict(w, os="BeOS")}))
+        self.assertFalse(CS.allowed_key("d2r_api_world"), "a board post may not name its own world store")
+
     def test_the_kv_budget_stays_under_the_ceiling(self):
         b = CS.budget()
         self.assertLessEqual(b["together"], b["ceiling"])
         self.assertEqual(b["snapshot"], 4 * CS.DAY_CAP)
+        self.assertEqual(b["worst"], 768 + len(CS.OWNERS) * (RP.DAY_CAP + CS.DAY_CAP))
+        self.assertLessEqual(b["worst"], b["ceiling"], "every owner label at both caps runs past the KV ceiling")
         self.assertGreaterEqual(CS.MIN_GAP_MS, 24 * 3600 * 1000 // CS.DAY_CAP,
                                 "the console's pace would run into the worker's daily cap")
 
@@ -317,6 +335,8 @@ class TheWorker(unittest.TestCase):
         shutil.rmtree(cls.dir, True)
 
     def _post(self, body, key=None, seed=None, now=None):
+        if body.get("signedAt") is None:
+            body = dict(body, signedAt=now if now is not None else T0)
         raw = _raw(body)
         step = {"raw": _b64(raw), "headers": RS.sign_headers(key, raw)[0] if key else {}}
         if seed is not None:
@@ -327,7 +347,7 @@ class TheWorker(unittest.TestCase):
 
     def _body(self, stores=None, boot=False, **over):
         s = _stores() if stores is None else stores
-        b = {"owner": OWNER, "boot": boot, "signedAt": T0, "hash": CS.digest(s), "stores": s}
+        b = {"owner": OWNER, "boot": boot, "signedAt": None, "hash": CS.digest(s), "stores": s}
         b.update(over)
         return b
 
@@ -392,9 +412,63 @@ class TheWorker(unittest.TestCase):
         self.assertIn("quota", capped["reply"]["why"])
         self.assertEqual(capped["puts"], [])
 
+    def test_a_captured_upload_cannot_be_replayed(self):
+        s2 = dict(_stores(), d2r_owned=json.dumps(["Enigma"]))
+        first = self._post(self._body(boot=True), self.key_a, seed=self.seed, now=T0)
+        newer = self._post(self._body(stores=s2, boot=True), self.key_a, now=T0 + 60000)
+        replay = {k: v for k, v in first.items() if k != "seed"}
+        replay["now"] = T0 + 120000
+        out = _node({"steps": [first, newer, replay]})
+        r = [x["reply"] for x in out["steps"]]
+        self.assertEqual((r[0].get("stored"), r[1].get("stored")), (["snapshot"], ["snapshot"]))
+        self.assertFalse(r[2]["ok"], "the first (boot) upload was replayed over the newer one: %r" % r[2])
+        self.assertIn("replayed", r[2]["why"])
+        self.assertEqual(out["records"]["snapshot:" + OWNER]["stores"], s2)
+        stale = _node({"steps": [self._post(self._body(signedAt=T0), self.key_a, seed=self.seed,
+                                            now=T0 + 16 * 60000),
+                                 self._post(self._body(signedAt="soon"), self.key_a, now=T0)]})
+        for got in stale["steps"]:
+            self.assertFalse(got["reply"]["ok"], got["reply"])
+            self.assertIn("signedAt", got["reply"]["why"])
+            self.assertEqual(got["puts"], [])
+
+    def test_a_signed_client_cannot_park_stores_the_console_keeps_home(self):
+        cases = [dict(_stores(), d2r_installId="x"), dict(_stores(), d2r_api_status="{}"),
+                 dict(_stores(), d2r_quarantine_a="{}"), dict(_stores(), d2r_tvdHist="[]")]
+        out = _node({"steps": [self._post(self._body(stores=c), self.key_a, seed=self.seed, now=T0) for c in cases]})
+        for c, got in zip(cases, out["steps"]):
+            self.assertFalse(got["reply"]["ok"], "the worker stored %r" % sorted(c))
+            self.assertEqual(got["puts"], [])
+        ok = _node({"steps": [self._post(self._body(stores=dict(_stores(), d2r_api_world="{}")), self.key_a,
+                                         seed=self.seed, now=T0)]})
+        self.assertEqual(ok["steps"][0]["reply"].get("stored"), ["snapshot"], ok["steps"][0]["reply"])
+
+    def test_the_worker_keeps_home_what_the_console_keeps_home(self):
+        js = _read(SNAPSHOT_JS)
+        deny = js[js.index("export const DENY = ["):js.index("];", js.index("export const DENY = ["))]
+        self.assertEqual(set(re.findall(r'"(d2r_[A-Za-z0-9_]+)"', deny)), set(CS.DENY))
+        pre = re.search(r"export const DENY_PREFIX = \[([^\]]*)\]", js).group(1)
+        self.assertEqual(set(re.findall(r'"([^"]+)"', pre)), set(CS.DENY_PREFIX))
+        api = re.search(r"export const API_NAMES = \[([^\]]*)\]", js).group(1)
+        self.assertEqual(set(re.findall(r'"([^"]+)"', api)), set(CS.API_FIELDS))
+
+    def test_a_record_signed_by_a_key_no_longer_theirs_is_not_served(self):
+        with io.open(self.key_b, encoding="utf-8") as fh:
+            pub_b = RS.unb64u(json.load(fh)["pub"])
+        rotated = {"rosterkey:" + OWNER: {"pub": RS.b64u(pub_b), "keyId": RS.key_id(pub_b), "at": 2}}
+        out = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0), {"get": OWNER}]})
+        self.assertEqual(out["steps"][1]["get"]["stores"], _stores())
+        rec = out["records"]["snapshot:" + OWNER]
+        seed = dict(rotated)
+        seed["snapshot:" + OWNER] = rec
+        got = _node({"steps": [{"get": OWNER, "seed": seed}]})["steps"][0]["get"]
+        self.assertTrue(got["corrupt"], got)
+        self.assertNotIn("stores", got)
+        self.assertIn("registered key", got["why"])
+
     def test_a_record_that_fails_its_own_hash_is_served_as_corrupt(self):
         seed = dict(self.seed)
-        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_stores()),
+        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_stores()), "pub": None,
                                      "stores": dict(_stores(), d2r_owned='["planted"]')}
         out = _node({"steps": [{"get": OWNER, "seed": seed}, {"get": "Wife PC"}, {"get": "Somebody"}]})
         corrupt, none, bad = (s["get"] for s in out["steps"])
@@ -444,6 +518,31 @@ class TheConsoleDoors(unittest.TestCase):
             v = self.CA._snapshot_view(OWNER)
         self.assertFalse(v["ok"])
         self.assertIn("has not uploaded", v["why"])
+
+    def test_the_last_copy_stands_in_only_when_the_site_could_not_be_read(self):
+        self.assertTrue(CS.write_cache(os.path.join(self.tmp, "snapshot_cache"), _record()))
+        for said in ({"ok": True, "owner": OWNER, "published": False},
+                     {"ok": True, "owner": OWNER, "published": True, "corrupt": True, "t": T0,
+                      "why": "the key that signed it is not Dean's registered key now"}):
+            with mock.patch.object(self.CA, "_roster_get", lambda url, said=said: said), self._fleet():
+                v = self.CA._snapshot_view(OWNER)
+            self.assertFalse(v["ok"], "this PC's old copy was shown over the site's answer %r" % said)
+            self.assertIn("the site says", v["why"])
+        with mock.patch.object(self.CA, "_roster_get", lambda url: None), self._fleet():
+            v = self.CA._snapshot_view(OWNER)
+        self.assertEqual((v["ok"], v["source"]), (True, "cache"))
+
+    def test_the_world_the_board_drew_in_rides_with_the_upload(self):
+        w = {"machine": "windows", "profile": "main", "os": "WINDOWS", "ledger": "", "cousin": True}
+        self.assertTrue(self.CA._snapshot_book_take({"stores": _stores(), "world": w})["ok"])
+        posted = []
+        with mock.patch.object(self.CA, "_snapshot_owner", lambda: OWNER), \
+                mock.patch.object(self.CA, "_snapshot_chars_learned", lambda: None), \
+                mock.patch.object(self.CA, "main_locks_view", lambda: None), \
+                mock.patch.object(self.CA, "_roster_post",
+                                  lambda url, body, key: posted.append(body) or {"ok": True, "stored": ["snapshot"]}):
+            self.CA._snapshot_publish_once(True)
+        self.assertEqual(json.loads(posted[0]["stores"]["d2r_api_world"]), w)
 
     def test_the_book_takes_only_what_may_leave_and_the_lane_signs_with_the_roster_key(self):
         got = self.CA._snapshot_book_take({"stores": dict(_stores(), d2r_installId="x", d2r_tvdHist="[]")})
@@ -499,6 +598,18 @@ class TheViewerPanel(unittest.TestCase):
         enter = ui[ui.index("  window._shadowSnapEnter = function"):start]
         self.assertIn("&tvd-shadow=1", enter)
         self.assertIn("' · read only'", enter)
+
+
+class TheBoardSaysItsWorld(unittest.TestCase):
+
+    def test_the_board_posts_the_world_its_stores_were_drawn_in(self):
+        html = _read(BIBLE)
+        up = html[html.index("/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE."):]
+        up = up[:up.index("</script>")]
+        self.assertIn("var body = JSON.stringify({ stores: stores, world: world });", up)
+        for fact in ("machine: window.D2R_MACHINE", "profile: window.D2R_PROFILE", "os: window.D2R_HOST_OS",
+                     "ledger: String(window._D2R_LEDGER || '')", "cousin: !!window._isCousinShell"):
+            self.assertIn(fact, up)
 
 
 class TheSameConsoleDrawsIt(unittest.TestCase):
@@ -607,19 +718,43 @@ function run(parentSnap, search) {
   res.sent = sent;
   res.refused = w._tvdShadowRefused;
   res.indexedDB = typeof w.indexedDB;
-  res.cls = doc.documentElement.classList.list;
+  res.cls = doc.documentElement.classList.list.slice();
+  w._tvdBookPost = function () { sent.push(['book']); };
+  w._tvdBookPost();
   // the click veil: a write button is stopped, a VIEW control and a plain tab pass
-  const mk = (onclick, cls) => ({ getAttribute: (n) => (n === 'onclick' ? onclick : null),
-    closest(sel) { if (sel.indexOf('.tab') === 0) return cls === 'tab' ? this : null; return this; } });
+  const mk = (onclick, cls, inSummary) => ({ getAttribute: (n) => (n === 'onclick' ? onclick : null),
+    matches(sel) { return cls === 'tab' && sel.indexOf('.tab') === 0; },
+    closest(sel) { if (sel.indexOf('.tab') === 0) return (cls === 'tab' || inSummary) ? this : null; return this; } });
   const fire = (el) => { let stopped = false; const ev = { target: { closest: (sel) => el.closest(sel) },
     preventDefault() {}, stopImmediatePropagation() { stopped = true; } };
     for (const f of listeners.click || []) f(ev); return stopped; };
   res.veil = { del: fire(mk("_cbDelete('bx1')")), set: fire(mk('_cbMainSet(1)')), open: fire(mk("openCharBuilder('bx1')")),
-               mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')) };
-  const keyEv = { target: { tagName: 'INPUT' }, preventDefault() {}, stopImmediatePropagation() { this.stopped = true; } };
-  for (const f of listeners.keydown || []) f(keyEv);
-  res.typing = !!keyEv.stopped;
-  res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'pointerdown'].filter((t) => (listeners[t] || []).length);
+               mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')),
+               inSummary: fire(mk("_cbDelete('bx1')", null, true)) };
+  const key = (k, extra) => { const ev = Object.assign({ key: k, target: { tagName: 'DIV' }, preventDefault() {},
+    stopImmediatePropagation() { this.stopped = true; } }, extra || {}); for (const f of listeners.keydown || []) f(ev);
+    return !!ev.stopped; };
+  res.typing = key('a', { target: { tagName: 'INPUT' } });
+  res.keys = { Delete: key('Delete'), z: key('z', { ctrlKey: true }), Enter: key('Enter'), ArrowDown: key('ArrowDown'),
+               PageDown: key('PageDown'), Escape: key('Escape'), copy: key('c', { metaKey: true }), Tab: key('Tab') };
+  res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'pointerdown', 'keypress', 'keyup'].filter((t) => (listeners[t] || []).length);
+  // the viewer's console is out of reach by name, and the real storage cannot be put back
+  res.parentSealed = w.parent === w && w.frameElement === null;
+  res.reopen = [];
+  for (const n of ['localStorage', 'indexedDB', 'parent']) {
+    try { Object.defineProperty(w, n, { configurable: true, get: () => realLS }); res.reopen.push(n); } catch (e) {}
+  }
+  // THEIR WORLD: a Windows cousin on ladder with its own ledger, drawn by a Mac viewer
+  const before = w.localStorage.getItem('d2r_activeMachine');
+  const theirs = Object.assign({}, CFG.snap.stores, { d2r_api_world: JSON.stringify(
+    { machine: 'windows', profile: 'ladder', os: 'WINDOWS', ledger: 'Dean ledger', cousin: true }) });
+  const t = run(Object.assign({}, CFG.snap, { stores: theirs }), '?tvd-shadow=1').win;
+  t.D2R_MACHINE = 'mac'; t.D2R_HOST_OS = 'MAC'; t.D2R_PROFILE = 'main'; t._D2R_LEDGER = 'KonyoEndgame'; t._isCousinShell = false;
+  res.world = { machine: t.D2R_MACHINE, os: t.D2R_HOST_OS, profile: t.D2R_PROFILE, ledger: t._D2R_LEDGER,
+                cousin: t._isCousinShell, stored: t.localStorage.getItem('d2r_activeMachine'),
+                source: t.localStorage.getItem('d2r_machineSource'), ptr: t.localStorage.getItem('d2r_activeProfileWin'),
+                ladderCopy: t.localStorage.getItem('L·d2r_charBuilds') === CFG.snap.stores.d2r_charBuilds,
+                noWorld: before };
   process.stdout.write(JSON.stringify(res));
 })();
 """
@@ -678,12 +813,90 @@ class TheShadowFrameBoot(unittest.TestCase):
         v = self.r["veil"]
         self.assertTrue(v["del"] and v["set"], "a write button reached the page in shadow")
         self.assertFalse(v["open"] or v["mule"] or v["tab"], "a view control was stopped: %r" % v)
+        self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
         self.assertTrue(self.r["typing"])
         self.assertEqual(sorted(self.r["blocks"]),
-                         sorted(["change", "input", "submit", "drop", "paste", "dragstart", "pointerdown"]))
+                         sorted(["change", "input", "submit", "drop", "paste", "dragstart", "pointerdown",
+                                 "keypress", "keyup"]))
+
+    def test_keys_move_the_view_and_nothing_else(self):
+        k = self.r["keys"]
+        self.assertTrue(k["Delete"] and k["z"] and k["Enter"], "a board shortcut saw a key in shadow: %r" % k)
+        self.assertFalse(k["ArrowDown"] or k["PageDown"] or k["Escape"] or k["copy"] or k["Tab"],
+                         "a key that only moves the view was stopped: %r" % k)
+
+    def test_the_viewers_console_and_real_storage_are_out_of_reach(self):
+        self.assertTrue(self.r["parentSealed"], "the board can still reach the console that shows it by `parent`")
+        self.assertEqual(self.r["reopen"], [], "a later script could put back: %r" % self.r["reopen"])
+
+    def test_their_world_is_drawn_not_this_browsers(self):
+        w = self.r["world"]
+        self.assertEqual((w["machine"], w["os"], w["profile"], w["ledger"], w["cousin"]),
+                         ("windows", "WINDOWS", "ladder", "Dean ledger", True),
+                         "the shadow drew the viewer's world, or a board line re-derived it: %r" % w)
+        self.assertEqual((w["stored"], w["source"], w["ptr"]), ("windows", "user", "ladder"))
+        self.assertTrue(w["ladderCopy"], "a ladder owner's stores are not where the ladder board reads them")
+        self.assertIsNone(w["noWorld"], "a snapshot with no world pinned one anyway")
 
 
 RED_PROOF = [
+    {"why": "Shadow: the board can reach the console that shows it through `parent`",
+     "file": "bible.html",
+     "find": "      Object.defineProperty(window, 'parent', { configurable: false, get: function () { return window; } });\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a later script can put this browser's real storage back (the getter is configurable)",
+     "file": "bible.html",
+     "find": "      Object.defineProperty(window, 'indexedDB', { configurable: false, get: function () { return undefined; } });\n",
+     "replace": "      Object.defineProperty(window, 'indexedDB', { configurable: true, get: function () { return undefined; } });\n",
+     "matches": 1, "needs": "node"},
+    {"why": "Shadow: a Windows cousin is drawn as the viewer's own (owner) world, so the Mac's seeds land in it",
+     "file": "bible.html",
+     "find": "      if (typeof world.cousin === 'boolean') pin('_isCousinShell', world.cousin);\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a ladder owner is drawn on the viewer's main profile",
+     "file": "bible.html",
+     "find": "seed.d2r_activeProfileWin = world.profile; pin('D2R_PROFILE', world.profile);",
+     "replace": "seed.d2r_activeProfileWin = world.profile;", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the board's own shortcuts see every key press",
+     "file": "bible.html",
+     "find": "      if (NAV.test(String(ev.key || ''))) return true;\n",
+     "replace": "      return true;\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a write button inside a fold passes the veil as the fold",
+     "file": "bible.html",
+     "find": "      if (el.matches && el.matches('.tab, summary, [data-shadow-view]')) return true;\n",
+     "replace": "      if (el.closest('.tab, summary, [data-shadow-view]')) return true;\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a shadow frame posts a roster book",
+     "file": "bible.html",
+     "find": "    pin('_tvdBookPost', function () { return false; });\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the board stops saying which world its stores were drawn in",
+     "file": "bible.html",
+     "find": "    var body = JSON.stringify({ stores: stores, world: world });\n",
+     "replace": "    var body = JSON.stringify({ stores: stores });\n", "matches": 1},
+    {"why": "Shadow: the worker takes a replayed (older) upload over a newer one",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (prev && typeof prev.signedAt === \"number\" && signedAt <= prev.signedAt) {\n",
+     "replace": "  if (false) {\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker stores an identity or debug store a signed client sent",
+     "file": "functions/api/snapshot.js",
+     "find": " && typeof stores[k] === \"string\" && nameOk(k));",
+     "replace": " && typeof stores[k] === \"string\");", "matches": 1, "needs": "node"},
+    {"why": "Shadow: GET serves a record signed by a key that is no longer the owner's",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (!registered || !registered.pub || b64uKey(registered.pub) !== b64uKey(prev.pub)) {\n",
+     "replace": "  if (false) {\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: this PC's old copy is shown over the site saying nothing is uploaded or the record is corrupt",
+     "file": "tv/control_app.py",
+     "find": "    if rec is None and unread:\n",
+     "replace": "    if rec is None:\n", "matches": 1},
+    {"why": "Shadow: a world value outside the closed set rides the upload",
+     "file": "tv/console_snapshot.py",
+     "find": "        if raw.get(k) not in allowed:\n            return None\n",
+     "replace": "        pass\n", "matches": 1},
+    {"why": "Shadow: the console drops the board's world before the upload",
+     "file": "tv/control_app.py",
+     "find": "        clean[\"world\"] = world\n",
+     "replace": "        pass\n", "matches": 1},
     {"why": "Shadow: a board screen draws differently in shadow (a render branch on _tvdShadow)",
      "file": "bible.html",
      "find": "  function renderVault(){\n",
@@ -703,7 +916,7 @@ RED_PROOF = [
      "replace": "    if (who) who.textContent = String(d.words || owner) + ' · read only';\n", "matches": 1},
     {"why": "Shadow: the boot block hands the page the browser's real localStorage, so a shadow writes his own store",
      "file": "bible.html",
-     "find": "      Object.defineProperty(window, 'localStorage', { configurable: true, get: function () { return mem; } });\n",
+     "find": "      Object.defineProperty(window, 'localStorage', { configurable: false, get: function () { return mem; } });\n",
      "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: the fetch guard lets a POST to the console through",
      "file": "bible.html",
