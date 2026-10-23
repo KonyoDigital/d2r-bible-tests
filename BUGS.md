@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2574 - M6 ADDED THE 45TH FIXED-SIZE SOURCE WINDOW AND LEFT THE MAP WITHOUT ITS EIGHT LAWS (M6 CI fix round)
+
+The CI-only gates on ci/gbl-batch-m6 read two things the pre-push hook does not run. test_a_source_window_must_reach_its_subject:
+fixed-size windows rose from 44 to 45. The one new site is T2's
+test_a_price_read_on_another_board_is_not_the_post_price.test_no_caller_hands_the_raw_reading_to_the_post_price, which reported
+each stray d2jspPriceToSend call as `s[i:i + 90]`. FIX: the call is reported up to the end of its own line, a real boundary, so
+the window count is back to 44 (ceiling 44, unchanged). test_the_blueprint_cannot_go_stale: BLUEPRINT.md named 1085 gates
+and not the eight M6 laws, nor tv/roster_sign.py. FIX: regenerated with python3 tv/blueprint.py (1093 gates, 253 modules).
+
 ### REG-2573 - A SIGNED PUBLISH OF AN UNCHANGED ROW WAS NEVER ASKED: THE KEY-ARRIVING BRANCH HAD NO LAW (M6 T3 review fix round)
 
 functions/api/roster.js decides whether a signed publish is the owner's key arriving (upgrade) through sameIntent - same

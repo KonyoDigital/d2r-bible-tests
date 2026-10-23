@@ -234,7 +234,9 @@ class APriceReadOnAnotherBoardIsNotThePostPrice(unittest.TestCase):
         self.assertEqual(s.count("d2jspPriceToSend((quoted"), 0)
         self.assertEqual(s.count("d2jspPriceToSend(q.fg"), 0)
         calls = [m.start() for m in re.finditer(r"d2jspPriceToSend\(", s)]
-        outside = [s[i:i + 90] for i in calls
+        # each offending call is reported up to the end of its own line, a real boundary
+        # (not a fixed character count that measures a guess about the line length)
+        outside = [s[i:s.find("\n", i) if s.find("\n", i) >= 0 else len(s)] for i in calls
                    if not s.startswith("d2jspPriceToSend(quoted, typed)", i)
                    and not s.startswith("d2jspPriceToSend(d2jspQuotedForBoard(", i)
                    and not s.startswith("d2jspPriceToSend(30", i)
