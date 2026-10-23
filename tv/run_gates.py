@@ -8220,6 +8220,15 @@ GATES = [
          skip_ok=()),
     # ⚠ MIND THE SEPARATING COMMA ON EVERY Gate(...) INSERT — dropping it has produced a
     # SyntaxError twice in this file. [[gate-insert-missing-comma]]
+    Gate("test_a_newer_ci_push_cancels_the_older_run",
+         [sys.executable, os.path.join(HERE, "test_a_newer_ci_push_cancels_the_older_run.py")], 60,
+         needs_app=False,
+         why="gbl/ci-speed - main v3791's Publish smoke waited 25 min for a runner behind ci/gbl-* runs a newer "
+             "push to the same branch had already replaced. Every workflow a ci/** push starts now groups by "
+             "workflow + branch and cancels the older run there; on main, schedules and PRs the shared block's "
+             "group is the run's own id, so it never cancels or drops one (Publish and Routine I keep their "
+             "own pinned rules).",
+         skip_ok=()),
     Gate("test_ci_spends_no_minutes_on_a_slow_mirror",
          [sys.executable, os.path.join(HERE, "test_ci_spends_no_minutes_on_a_slow_mirror.py")], 120,
          needs_app=False,
