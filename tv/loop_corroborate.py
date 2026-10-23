@@ -53,7 +53,9 @@ SURFACES = ("_ledger_backup_loop", "_vault_autoread_loop",
             # WHAT IT DECIDED via lane_trace, so there is a second, cross-process witness.
             "_drift_loop", "_shadow_watch_loop", "_orphan_exit_loop", "_orphan_watch",
             # #41 rank 16 (REG-1560) — it leaves a real trace (what it measured, and its receipt)
-            "_tooltip_oracle_loop")
+            "_tooltip_oracle_loop",
+            # REG-2463 (#168) — it leaves a real trace every pass: what it folded, owes and left loose
+            "_orphan_fold_loop")
 
 #: vessel -> (lane the tick is stamped under, glob for its trace, declared period in seconds)
 #: ⚠ THE LANE NAME IS NOT THE VESSEL NAME. `_ledger_backup_loop` stamps under
@@ -90,6 +92,10 @@ LOOPS = {
     # period: 900 s, and a first look 60 s after boot.
     "_tooltip_oracle_loop": ("tvd-tooltip-oracle",
                              _lt.path_of("tvd-tooltip-oracle"), 900.0),
+    # REG-2463 (#168) — the orphan fold writes its trace on every pass (no throttle): 1800 s, a first look 300 s
+    # after boot (orphan_fold.EVERY_S / FIRST_S).
+    "_orphan_fold_loop": ("tvd-orphan-fold",
+                          _lt.path_of("tvd-orphan-fold"), 1800.0),
 }
 
 #: how many declared periods a trace may fall behind before the pair is a contradiction. Generous

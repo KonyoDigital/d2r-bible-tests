@@ -13,17 +13,29 @@
 // Now: empty-cwd spawn, no project/local settings, no session persistence, low effort,
 // hard hourly circuit breaker, explicit --model sonnet.
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync, readFileSync, mkdirSync, existsSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { readSettings, intSetting } from './pc_settings.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLAUDE = process.env.TVD_CLAUDE_BIN || 'claude';
-const BUDGET_PATH = join(HERE, '.subscription_budget.json');
-// Hard caps — override with TV_INTAKE_HOURLY_MAX / TV_INTAKE_DAILY_MAX
-const HOURLY_MAX = Math.max(0, parseInt(process.env.TV_INTAKE_HOURLY_MAX || '20', 10) || 20);
-const DAILY_MAX = Math.max(0, parseInt(process.env.TV_INTAKE_DAILY_MAX || '80', 10) || 80);
+// TV_SUB_BUDGET names the ledger explicitly - the same override tv_diablo._sub_budget_path() honours - so a law can
+// point this lane at a fixture and never at his meter.
+const BUDGET_PATH = String(process.env.TV_SUB_BUDGET || '').trim() || join(HERE, '.subscription_budget.json');
+// Hard caps. REG-2382 - THEY WERE READ FROM process.env ONLY, and his console is launched through Terminal, where
+// neither the LaunchAgent plist nor `launchctl setenv` reaches it: MEASURED 2026-10-21, the live console carried no
+// TV_INTAKE_* at all and capped at 20 an hour. Now one rule on every PC (tv/pc_settings.mjs): env TV_INTAKE_*_MAX
+// (the override) > this PC's gitignored tv/pc_settings.json > the code default 20 / 80. Each limit keeps its source so
+// the refusal can say which limit it enforced and where that number came from. 0 opens the circuit.
+const _SETTINGS = readSettings();
+const HOURLY = intSetting('TV_INTAKE_HOURLY_MAX', 20, process.env, _SETTINGS);
+const DAILY = intSetting('TV_INTAKE_DAILY_MAX', 80, process.env, _SETTINGS);
+const HOURLY_MAX = HOURLY.value;
+const DAILY_MAX = DAILY.value;
+const HOUR_MS = 3600 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 // Product default: SONNET. Override only via TV_INTAKE_MODEL (e.g. haiku for experiments).
 // Never leave this empty — empty would fall through to user settings (fable).
 const INTAKE_MODEL = (process.env.TV_INTAKE_MODEL || 'sonnet').trim() || 'sonnet';
@@ -46,42 +58,111 @@ function _budgetLoad() {
 }
 
 function _budgetSave(state) {
+  // REG-2385 - ATOMIC, like tv_diablo's writer of the same file: a torn write reads as {} on both sides and restarts
+  // BOTH lanes' caps from zero. A per-process tmp (two writers), and where a rename is refused - a reader holding the
+  // file on Windows - the old in-place write rather than no write at all.
+  const body = JSON.stringify(state);
+  const tmp = BUDGET_PATH + '.' + process.pid + '.tmp';
   try {
-    writeFileSync(BUDGET_PATH, JSON.stringify(state));
+    writeFileSync(tmp, body);
+    renameSync(tmp, BUDGET_PATH);
+    return;
+  } catch (_) {
+    try { unlinkSync(tmp); } catch (e) {}
+  }
+  try {
+    writeFileSync(BUDGET_PATH, body);
   } catch (_) {}
 }
 
+function _said(limit) {
+  /** REG-2382 - where a limit came from, plus every layer that held an unusable value. */
+  return 'limit from ' + limit.source + (limit.notes.length ? '; ' + limit.notes.join('; ') : '');
+}
+
+function _retryS(window, used, max, now, span) {
+  /** Seconds until enough of the window's calls age out for one more call - never a guess when it cannot be known. */
+  const sorted = window.slice().sort((a, b) => a - b);
+  const t = sorted[used - max];
+  return Number.isFinite(t) ? Math.max(1, Math.ceil((t + span - now) / 1000)) : null;
+}
+
+function _full(window, rows, limit, span, now, words) {
+  /** One window at or over its limit -> {window, used, limit, source, retryS, lim, words}; null while it has room. */
+  if (rows.length < limit.value) return null;
+  return { window, used: rows.length, limit: limit.value, source: limit.source, lim: limit, words,
+    retryS: _retryS(rows, rows.length, limit.value, now, span) };
+}
+
+function _late(w) {
+  /** REG-2390 - how late a full window lets the next read through: an unknown retry is later than any known one. */
+  return w.retryS === null ? Infinity : w.retryS;
+}
+
+// REG-2390 - WHEN BOTH WINDOWS ARE FULL, THE REFUSAL IS THE ONE THAT BINDS. The hour was asked first and answered alone:
+// with 80 reads today, 20 of them this hour, the refusal said '(20/20 ...) — intake paused this hour' with a retry_s of
+// 120 - a read promised two minutes on - while the day cap refused for 20 hours more (reproduced on a fixture), and
+// it named the hour's source when the day's limit came from another layer. Every full window is found now. The refusal
+// is the one whose retry is LATEST, with that window's own limit, source and retry_s, so the read it promises is one
+// every window admits; its message says the other window is full too. An unknown retry binds over a known one, so no
+// time is promised while one window's cannot be known; a tie goes to the day, the longer window. With both switches
+// at 0, the circuit names both.
 function budgetCheck() {
-  /** Returns null if allowed, or an Error message if the circuit is open. */
+  /** Returns null if allowed, else the refusal {window, used, limit, source, retryS, msg} (REG-2383, REG-2390). */
   if (HOURLY_MAX <= 0 || DAILY_MAX <= 0) {
-    return 'subscription circuit open (TV_INTAKE_*_MAX=0)';
+    const off = [['TV_INTAKE_HOURLY_MAX', HOURLY], ['TV_INTAKE_DAILY_MAX', DAILY]].filter(([, l]) => l.value <= 0);
+    return { window: 'circuit', used: null, limit: 0, source: off[0][1].source, retryS: null,
+      msg: `subscription circuit open (${off.map(([n, l]) => n + '=0, ' + _said(l)).join('; ')}) — intake is switched off on this PC` };
   }
   const now = Date.now();
   const state = _budgetLoad();
-  const calls = (state.calls || []).filter((t) => now - t < 24 * 3600 * 1000);
-  const hour = calls.filter((t) => now - t < 3600 * 1000);
-  if (hour.length >= HOURLY_MAX) {
-    return `subscription hourly cap hit (${hour.length}/${HOURLY_MAX}) — intake paused this hour`;
-  }
-  if (calls.length >= DAILY_MAX) {
-    return `subscription daily cap hit (${calls.length}/${DAILY_MAX}) — intake paused today`;
-  }
-  return null;
+  const calls = (state.calls || []).filter((t) => now - t < DAY_MS);
+  const hour = calls.filter((t) => now - t < HOUR_MS);
+  const full = [_full('hour', hour, HOURLY, HOUR_MS, now, ['hourly', 'this hour']),
+    _full('day', calls, DAILY, DAY_MS, now, ['daily', 'today'])].filter(Boolean);
+  if (!full.length) return null;
+  const bind = full.reduce((a, b) => (_late(b) >= _late(a) ? b : a));
+  const others = full.filter((w) => w !== bind);
+  const pause = bind.retryS === null && others.length ? 'intake paused' : 'intake paused ' + bind.words[1];
+  return { window: bind.window, used: bind.used, limit: bind.limit, source: bind.source, retryS: bind.retryS,
+    msg: `subscription ${bind.words[0]} cap hit (${bind.used}/${bind.limit}, ${_said(bind.lim)}) — ${pause}`
+      + others.map((w) => `; the ${w.words[0]} cap is full too (${w.used}/${w.limit}, ${_said(w.lim)})`).join('') };
 }
+
+// REG-2385 - TWO WRITERS, TWO CLOCKS, ONE LEDGER. This file is also tv_diablo's vision meter (_sub_budget_record writes
+// time.time() SECONDS); this lane writes Date.now() MILLISECONDS. Recording a call kept only the rows younger than a day
+// IN MILLISECONDS - which no seconds row ever is - so every intake read ERASED the vision lane's rows (reproduced on a
+// fixture: three fresh vision rows in, one intake row out). The other lane's rows are kept now, aged in their own unit
+// (tv_diablo._sub_budget_calls' window: a minute of skew, under a day). What this lane COUNTS is unchanged: budgetCheck
+// windows in milliseconds, so it counts its own rows only - the G5 ledger records the same collision (v1698). That
+// holds only while tv_diablo writes these rows back in milliseconds: it divided them by 1000, and one vision read
+// reset this cap (REG-2387).
+const MS_FLOOR = 1e11;   // 1e11 ms is 1973 and 1e11 s is the year 5138: nothing real lands between them
 
 function budgetRecord() {
   const now = Date.now();
   const state = _budgetLoad();
-  const calls = (state.calls || []).filter((t) => now - t < 24 * 3600 * 1000);
+  const calls = (Array.isArray(state.calls) ? state.calls : []).filter((t) => {
+    const n = Number(t);
+    if (!Number.isFinite(n)) return false;
+    if (n >= MS_FLOOR) return now - n < DAY_MS;
+    const age = now / 1000 - n;
+    return age >= -60 && age < 86400;
+  });
   calls.push(now);
   _budgetSave({ calls, last: now });
 }
+
+// REG-2383 - the refusal the shim raised. The locked pipeline catches the throw and answers 200 with an error body
+// (intake.js) or rejects (ask.js); either way the answer this lane gives is the cap's 429, decided below.
+let CAP_HIT = null;
 
 function claudeCall(apiBody) {
   // translate one Anthropic /v1/messages body into a claude-CLI run on the subscription
   const blocked = budgetCheck();
   if (blocked) {
-    throw new Error(blocked);
+    CAP_HIT = blocked;
+    throw new Error(blocked.msg);
   }
 
   // Always pin model on the CLI so ~/.claude/settings.json "fable" never wins.
@@ -182,6 +263,26 @@ const request = new Request('http://local' + path, {
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify(body),
 });
-const resp = await mod.onRequestPost({ request, env: {} });
-const text = await resp.text();
-process.stdout.write(JSON.stringify({ status: resp.status, body: text, lane: 'subscription' }));
+// REG-2383 - A CAP HIT IS ANSWERED 429, NOT 200 WITH AN ERROR BODY. intake.js turned the shim's throw into
+// `200 {error:'worker-exception'}`, so the console handed the board a success status for a read that never happened;
+// ask.js let it reject, the runner exited 1, and the console fell through to the website proxy - the API key the cap
+// exists to protect. A refusal is not a failure: it is said, with its limit, its source and when to retry.
+let resp = null;
+let text = '';
+try {
+  resp = await mod.onRequestPost({ request, env: {} });
+  text = await resp.text();
+} catch (e) {
+  if (!CAP_HIT) throw e;   // not a cap: fail exactly as before, and the console tries its next lane
+}
+if (CAP_HIT) {
+  process.stdout.write(JSON.stringify({
+    status: 429,
+    body: JSON.stringify({ error: 'subscription-cap', message: CAP_HIT.msg, window: CAP_HIT.window,
+      used: CAP_HIT.used, limit: CAP_HIT.limit, source: CAP_HIT.source, retry_s: CAP_HIT.retryS,
+      lane: 'subscription' }),
+    lane: 'subscription',
+  }));
+} else {
+  process.stdout.write(JSON.stringify({ status: resp.status, body: text, lane: 'subscription' }));
+}

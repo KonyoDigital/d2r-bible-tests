@@ -34,12 +34,20 @@ fix that shipped the same week.
 
 This module DECIDES and MOVES. It never deletes a frame, never touches a file already inside a
 `reel_*` directory, and refuses to act without an explicit --yes.
+
+REG-2463 (#168) - AND NOW IT IS A LANE. His ruling 2026-10-21: "FOLD + LANE". Before, nothing folded
+on its own on any PC: the healer remedy runs only with TV_AUTO_HEAL=1 (unset everywhere), and even
+armed, one fold would disarm it for good (the doctor's row stays MISSING on frames an overlap refuses -
+Dean, after a fold of 65,457 frames by hand: 2,468 left loose in 18 refused clusters). run_once() is
+one pass of control_app's tvd-orphan-fold lane; it asks what is in flight first, folds only what
+apply_plan calls eligible, and names what it leaves loose.
 """
 
 import argparse
 import glob
 import json
 import os
+import threading
 import time
 import re
 import sys
@@ -60,6 +68,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 GAP_MS = 180_000
 
 FRAME_RE = re.compile(r"^f_(\d{10,16})\.jpg$")
+
+#: REG-2463 (#168) - the lane's name, its first look after boot and its period (control_app's loop reads these)
+LANE = "tvd-orphan-fold"
+FIRST_S = 300.0
+EVERY_S = 1800.0
+
+#: REG-2463 - ONE FOLD AT A TIME. The lane and the opt-in healer remedy (console_healer's
+#: _remedy_fold_orphan_footage, TV_AUTO_HEAL=1) both move loose frames. apply_plan holds this for the
+#: whole of a fold, and run_once holds it from its plan to the end of its fold, so the two never move the
+#: same frames at once (two os.replace of one frame, two writers of one reel's index).
+_FOLD_LOCK = threading.RLock()
+
+
+def _one_fold_at_a_time(fn):
+    """REG-2463 - run a fold under _FOLD_LOCK (the remedy's apply_plan and the lane's both come here)."""
+    import functools
+
+    @functools.wraps(fn)
+    def _run(*a, **k):
+        with _FOLD_LOCK:
+            return fn(*a, **k)
+    return _run
 
 
 def _reel_windows(hist):
@@ -192,6 +222,7 @@ def plan(hist_dir=None, gap_ms=GAP_MS):
                       " %d probe artifact(s) left alone; they are not a recording." % arte)}
 
 
+@_one_fold_at_a_time
 def apply_plan(p, yes=False):
     """Fold the ELIGIBLE clusters. Refuses without an explicit yes — this moves his footage."""
     if not yes:
@@ -230,6 +261,75 @@ def apply_plan(p, yes=False):
         except Exception as e:
             failed.append({"reel": c["reel"], "why": "index not written: %s" % str(e)[:100]})
     return {"ok": not failed, "moved": moved, "reels": made, "failed": failed}
+
+
+def run_once(hist_dir=None, in_flight=None, now_ms=None):
+    """REG-2463 (#168) - ONE PASS OF THE ORPHAN-FOLD LANE. Never raises.
+    -> {on, worked, lastTs, owed, folded, reels, refused, why} (the heart's lane vocabulary)
+
+      1. ASK WHAT IS IN FLIGHT FIRST - `in_flight()` -> (ok, why); the console hands it nothing_in_flight.
+         A refusal, a raise, or nobody to ask moves nothing: an answer nobody could get is not permission.
+      2. ONE FOLD AT A TIME - while the healer remedy is folding, this pass moves nothing and says so.
+      3. plan(), then apply_plan(p, yes=True), which folds the ELIGIBLE clusters only. A cluster a reel already
+         covers (folding it would mint a second session id for one recording) and one whose newest frame is still
+         inside the gap (it may still be filming) stay loose - counted, and named in `refused` with plan's reason.
+    `worked` and `folded` are the frames moved this pass (worked is None when the pass did not run); `owed` is the
+    clusters this lane will fold later - still inside the gap, or not fully moved - and None when it is UNKNOWN. A
+    cluster refused for an overlap is never owed: no pass of this lane will fold it, a person decides."""
+    now_ms = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    out = {"on": True, "worked": None, "lastTs": now_ms, "owed": None, "folded": 0, "reels": [], "refused": [],
+           "why": ""}
+    try:
+        if in_flight is None:
+            out["why"] = "not folding: nothing could be asked what is in flight, and that is not permission"
+            return out
+        try:
+            ok, why = in_flight()
+        except Exception as e:
+            ok, why = False, "the in-flight check raised %s" % type(e).__name__
+        if not ok:
+            out["why"] = "not folding while %s" % (why or "something is in flight")
+            return out
+        if not _FOLD_LOCK.acquire(blocking=False):
+            out["why"] = "not folding: another fold is moving frames right now"
+            return out
+        try:
+            p = plan(hist_dir)
+            if not p.get("ok"):
+                out["why"] = "the footage could not be read: %s" % str(p.get("why"))[:160]
+                return out
+            res = apply_plan(p, yes=True)
+        finally:
+            _FOLD_LOCK.release()
+        clusters = p.get("clusters") or []
+        made = {r.get("reel"): int(r.get("frames") or 0) for r in (res.get("reels") or []) if isinstance(r, dict)}
+        moved = int(res.get("moved") or 0)
+        out["worked"] = out["folded"] = moved
+        out["reels"] = sorted(r for r, n in made.items() if n)
+        out["refused"] = [{"t0": c.get("t0"), "t1": c.get("t1"), "frames": c.get("frames"),
+                           "kind": "overlap" if c.get("overlaps") else "growing", "why": c.get("why")}
+                          for c in clusters if not c.get("eligible")]
+        short = [c for c in clusters if c.get("eligible") and made.get(c.get("reel"), 0) < int(c.get("frames") or 0)]
+        growing = [r for r in out["refused"] if r["kind"] == "growing"]
+        overlap = [r for r in out["refused"] if r["kind"] == "overlap"]
+        out["owed"] = len(growing) + len(short)
+        parts = [("folded %d loose frame(s) into %d reel(s)" % (moved, len(out["reels"]))) if moved
+                 else "folded nothing"]
+        if overlap:
+            parts.append("%d cluster(s) (%d frame(s)) left loose: a reel already covers each window, and folding "
+                         "would mint a second session id for one recording - a person decides"
+                         % (len(overlap), sum(int(r.get("frames") or 0) for r in overlap)))
+        if growing:
+            parts.append("%d cluster(s) left loose for now: the newest frame is inside the gap, so it may still be "
+                         "filming" % len(growing))
+        if res.get("failed"):
+            parts.append("%d move(s) failed: %s" % (len(res["failed"]), str(res["failed"][0])[:120]))
+        if not clusters:
+            parts = ["nothing loose to fold - every recording frame is in a reel"]
+        out["why"] = "; ".join(parts)
+    except Exception as e:
+        out.update(worked=None, owed=None, why="the fold pass raised %s: %s" % (type(e).__name__, str(e)[:120]))
+    return out
 
 
 def main(argv=None):

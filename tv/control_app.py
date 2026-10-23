@@ -2320,6 +2320,24 @@ def _board_tally_path():
     return os.path.join(os.path.dirname(os.path.abspath(_chron_swept_path())), "board_tally.json")
 
 
+#: REG-2460 - every read-modify-write of board_tally.json holds this lock. The console answers on a
+#: ThreadingHTTPServer: a tally the board posted while his ruled re-base ran would load the file before
+#: the re-base, save after it, and put the old mark back - the door would have said "re-based" of a mark
+#: that came straight back. Two tally posts at once also shared one fixed .tmp name.
+_BOARD_TALLY_LOCK = threading.RLock()
+
+
+def _board_tally_locked(fn):
+    """REG-2460 - run a board_tally.json read-modify-write under _BOARD_TALLY_LOCK."""
+    import functools as _functools
+
+    @_functools.wraps(fn)
+    def _run(*a, **k):
+        with _BOARD_TALLY_LOCK:
+            return fn(*a, **k)
+    return _run
+
+
 def board_tally_save(t):
     """Bank what the BOARD says its counts are. -> True when it landed.
 
@@ -2697,6 +2715,7 @@ def _route_key(who):
 _TALLY_DROP_STORE = {"sets": "setPieces", "uniques": "foundLog", "runewords": "rwMade"}
 
 
+@_board_tally_locked
 def board_tally_merge(t):
     """Bank a posted tally WITHOUT letting one world overwrite another's numbers.
 
@@ -6491,6 +6510,58 @@ def _ensure_numpy_at_boot(_find=None, _run=None):
     return _ensure_pkg_at_boot("numpy", "numpy", "NUMPY_BOOT", _find=_find, _run=_run)
 
 
+#: REG-2465 (#167) — what the boot node step was answered on this console. None until it has asked (and always None
+#: off Windows or on a scratch console, where it never asks).
+NODE_BOOT = None
+
+
+def _ensure_node_at_boot():
+    """REG-2465 (#167) — THE CONSOLE'S DEPENDENCY DOOR FOR NODE, ON WINDOWS, AT BOOT.
+    -> the record (also NODE_BOOT), or None when it is not this console's job
+
+    His ruling 2026-10-21 (#167): "BOTH" - the installer AND the console's own dependency step fetch Node on every PC,
+    so the next new PC never needs SSH. Node is a runtime dependency here, not a test one: the intake lane spawns a bare
+    'node' (the subscription runner) and heart2's _host_has_node asks PATH, so on Dean's PC every node-only law
+    skipped and the intake read on the hosted site until Node was put there by hand. Like Pillow and numpy, a
+    self-updated console never re-runs an installer, so the console asks for itself.
+
+    The work lives in tv/node_runtime.py: ensure(blocking=False, why) resolves node, or fetches the pinned portable zip
+    on a background thread (its SHA-256 checked before it is extracted, into %LOCALAPPDATA%\\Programs\\nodejs), and
+    puts its folder at the head of os.environ['PATH'] for THIS process only - which reaches the intake lane's spawn,
+    heart2's question and every child this console starts. This step only asks it and records the answer. A
+    node_runtime that cannot be imported, or that raises, is recorded UNKNOWN and boot goes on. Off Windows it asks
+    nothing (node_runtime only resolves there), and neither does a scratch console (it would fetch into a real home)."""
+    if not IS_WIN:
+        return None
+    try:
+        import win_relaunch as _wr
+        if _wr.scratch_console():
+            return None
+    except Exception:
+        return None
+    rec = {"ts": int(time.time() * 1000), "ok": None, "node": None, "fetched": None, "onPath": None, "why": None}
+    globals()["NODE_BOOT"] = rec
+    try:
+        import node_runtime as _nr
+    except Exception as e:
+        rec["why"] = "UNKNOWN - node_runtime could not be imported (%s: %s)" % (type(e).__name__, str(e)[:120])
+        print("\u26a0 boot node: %s" % rec["why"], flush=True)
+        return rec
+    try:
+        got = _nr.ensure(blocking=False, why="console boot")
+    except Exception as e:
+        rec["why"] = "UNKNOWN - node_runtime.ensure raised %s: %s" % (type(e).__name__, str(e)[:120])
+        print("\u26a0 boot node: %s" % rec["why"], flush=True)
+        return rec
+    if not isinstance(got, dict):
+        rec["why"] = "UNKNOWN - node_runtime.ensure answered a %s, not a record" % type(got).__name__
+    else:
+        rec.update(ok=got.get("ok"), node=got.get("node"), fetched=got.get("fetched"), onPath=got.get("onPath"),
+                   why=(str(got.get("why") or "")[:300] or None))
+    print("boot node: ok=%s %s" % (rec["ok"], rec["why"] or ""), flush=True)
+    return rec
+
+
 def _prewarm_seal_cache():
     """v880 (Grok j / back-pass #4) — build the theatre's ?w=1280 derivatives for the NEWEST
     sealed session in a low-priority background thread: first playback pays no sips storm.
@@ -9429,8 +9500,10 @@ def _win_tint_caption():
 # so it would write those fixture verdicts into his REAL retro_triage.json. A gate run
 # would then teach the live store that his reels hold no panels.
 # [[feedback-fixtures-never-touch-live-data]]
+# REG-2463 — and the orphan fold: a harness's loose frames are its fixture, and folding them on a timer would
+# change the footage a render or a demo is reading while it reads it.
 _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
-                      "tvd-retro-triage")
+                      "tvd-retro-triage", "tvd-orphan-fold")
 
 #: v3297 — lanes the roster SKIPPED at boot (TV_STUB harness), kept module-readable so a doctor
 #: row can say "stood down by design" instead of grading a deliberate absence as a dead loop.
@@ -9598,6 +9671,9 @@ def start_background_watchers(why):
         # #41 rank 16 (REG-1560) — their planner's tooltip rows against the SHIPPED composition, on this
         # console's cadence, receipted per row. Reads bible.html, writes only its own receipt. No node = UNKNOWN.
         ("tvd-tooltip-oracle", _tooltip_oracle_loop),
+        # REG-2463 (#168) — his ruling 2026-10-21, "FOLD + LANE": loose frames of a session that died before it
+        # sealed fold into a reel of their own on every PC. Moves frames only; asks what is in flight first.
+        ("tvd-orphan-fold", _orphan_fold_loop),
         # v2072 — say it out loud when the process is behind the disk. ANNOUNCES ONLY unless
         # TV_AUTO_RELAUNCH=1, and even then refuses while the agent is alive: a restart mid-film
         # orphans the frames of the session it kills.
@@ -19780,11 +19856,20 @@ def _runaway_verdict(late_s, tick_s, cpu_frac, streak, blocked_delta=None):
 
 
 def _cpu_seconds():
-    """CPU seconds this process has burned, or None. -> float|None"""
+    """CPU seconds this process has burned, or None. -> float|None
+
+    REG-2464 (#171) — `resource` is POSIX-only, so on Windows this was None on every tick: _RUNAWAY['cpu'] read null
+    on Dean's PC and the runaway watch's CPU half was blind there. time.process_time() is this process's user+system
+    CPU on every OS (GetProcessTimes on Windows) - the same measure getrusage(RUSAGE_SELF) gives on POSIX, which is
+    still asked first. None only when neither can answer."""
     try:
         import resource
         r = resource.getrusage(resource.RUSAGE_SELF)
         return float(r.ru_utime) + float(r.ru_stime)
+    except Exception:
+        pass
+    try:
+        return float(time.process_time())      # REG-2464 - every OS, Windows included
     except Exception:
         return None
 
@@ -28661,6 +28746,45 @@ def _tooltip_oracle_loop():
             pass
 
 
+#: REG-2463 (#168) — the orphan-fold lane's first look after boot, and its period (orphan_fold.FIRST_S / EVERY_S)
+_ORPHAN_FOLD_FIRST_S = 300.0
+_ORPHAN_FOLD_EVERY_S = 1800.0
+
+
+def _orphan_fold_loop():
+    """REG-2463 (#168) — LOOSE FRAMES FOLD ON THEIR OWN LANE, on every PC. His ruling 2026-10-21: "FOLD + LANE".
+
+    A session that dies before it seals leaves its frames loose in hist/, where no lane and no deleter can see them
+    (Dean: 67,925 frames, 2.53 GB). Nothing folded them on its own: the healer remedy runs only with TV_AUTO_HEAL=1,
+    and armed it would disarm itself after one fold. The whole of the work is orphan_fold.run_once: it asks
+    nothing_in_flight first, folds only the clusters apply_plan calls eligible, and names what it leaves loose - a
+    window a reel already covers, and one that may still be filming. This loop keeps the cadence, stamps its beat
+    and leaves its trace. ⚠ IT ONLY MOVES FRAMES into the reel their own stamps name - it deletes nothing. A first
+    look a few minutes after boot, then every half hour.
+    """
+    _first = True
+    while True:
+        try:
+            # two plain sleeps, the tooltip loop's shape: BLUEPRINT's lane table reads the cadence off each constant
+            if _first:
+                time.sleep(_ORPHAN_FOLD_FIRST_S)
+            else:
+                time.sleep(_ORPHAN_FOLD_EVERY_S)
+            _first = False
+            _lane_tick('tvd-orphan-fold', _ORPHAN_FOLD_EVERY_S)
+            import orphan_fold as _of
+            r = _of.run_once(HIST_DIR, in_flight=lambda: nothing_in_flight(
+                "folding now would move frames out from under it"))
+            import lane_trace as _lt
+            _lt.note('tvd-orphan-fold', worked=r.get("worked"), owed=r.get("owed"), folded=r.get("folded"),
+                     reels=len(r.get("reels") or []), refused=len(r.get("refused") or []),
+                     why=str(r.get("why") or "")[:200])
+            if r.get("folded"):
+                print("   \U0001f9f5 orphan fold: %s" % str(r.get("why"))[:200], flush=True)
+        except Exception:
+            pass
+
+
 def _prune_loop():
     """Prune while he records, indefinitely, exactly as he asked."""
     while True:
@@ -30294,6 +30418,63 @@ def ledger_drop_accept(store, reason, confirm=False, now_ms=None, path=None):
     _ledger_drops_save(doc, path)
     return {"ok": True, "applied": True, "closed": len(closed),
             "why": "accepted %d drop(s) of %s (%s)" % (len(closed), store, why_reason[:120])}
+
+
+_TALLY_LANES = ("sets", "uniques", "runewords")
+
+
+@_board_tally_locked
+def board_tally_rebase(world, lane, reason, confirm=False, now_ms=None):
+    """REG-2460 — A HIGH-WATER MARK SET BY DATA THAT WAS NEVER THIS WORLD'S IS RE-BASED BY HIS RULING. -> dict
+
+    board_tally_merge's mark only ever rises (its rule 3) and a fall is never auto-healed - right for HIS data. It is
+    wrong when the mark itself came from data that was never this world's, and nothing could undo it: MEASURED on
+    Dean's PC 2026-10-21, both of his worlds held uniques 261 (main, 08-28: sets 116 / uniques 261 = Konyo's own
+    board that week; v2692 records his board showing Konyo's seed), his ladder world has read 0 since 09-26, and the
+    doctor's "progress number" row has said "BELOW its own high-water mark" ever since. ledger_drop_accept cannot
+    reach it: it closes .ledger_drops.json episodes, and his holds none ("no open drop for foundLog").
+
+    Only with confirm AND a reason, one world and one lane at a time, and only DOWN to the world's own current
+    reading. Nothing is restored and nothing is hidden: the old mark stays beside the new one in `rebasedFrom`, and
+    the ruling is appended to `rebases`, which no later tally removes. The next tally ratchets up from here."""
+    lane = str(lane or "")
+    if lane not in _TALLY_LANES:
+        return {"ok": False, "applied": False, "why": "lane must be one of %s" % ", ".join(_TALLY_LANES)}
+    why_reason = str(reason or "").strip()
+    if not why_reason:
+        return {"ok": False, "applied": False, "why": "a re-base needs his reason - it is a ruling, not a reset"}
+    doc = board_tally_load()
+    if not isinstance(doc, dict) or not isinstance(doc.get("high"), dict):
+        return {"ok": False, "applied": False, "why": "this machine has no board tally with a high-water mark"}
+    key = str(world or "")
+    hi = doc["high"].get(key)
+    row = (doc.get("byRoute") or {}).get(key) if isinstance(doc.get("byRoute"), dict) else None
+    if not isinstance(hi, dict) or not isinstance(row, dict):
+        return {"ok": False, "applied": False,
+                "why": "no world %r in the board tally - its worlds are: %s" % (key, ", ".join(sorted(doc["high"])))}
+    old = (hi.get(lane) or {}).get("have") if isinstance(hi.get(lane), dict) else None
+    cur = row.get(lane) if isinstance(row.get(lane), dict) else {}
+    now = cur.get("have")
+    if isinstance(now, bool) or not isinstance(now, int):
+        return {"ok": False, "applied": False,
+                "why": "this world's current %s reading cannot be read - nothing is re-based on a guess" % lane}
+    if isinstance(old, bool) or not isinstance(old, int) or old <= now:
+        return {"ok": False, "applied": False,
+                "why": "the %s mark (%s) is not above this world's current reading (%d) - nothing to re-base"
+                       % (lane, old, now)}
+    if not confirm:
+        return {"ok": True, "applied": False, "would": {"world": key, "lane": lane, "from": old, "to": now},
+                "why": ("this would re-base %s's %s mark from %d to its current %d. Nothing has been written; "
+                        "call again with confirm." % (key, lane, old, now))}
+    at = int(now_ms if now_ms is not None else time.time() * 1000)
+    hi[lane] = {"have": now, "total": cur.get("total"), "at": at, "rebasedFrom": dict(hi[lane]),
+                "rebasedBy": why_reason[:300]}
+    doc.setdefault("rebases", []).append({"world": key, "lane": lane, "from": old, "to": now, "at": at,
+                                          "by": why_reason[:300]})
+    if not board_tally_save(doc):
+        return {"ok": False, "applied": False, "why": "the board tally could not be written - nothing changed"}
+    return {"ok": True, "applied": True, "world": key, "lane": lane, "from": old, "to": now,
+            "why": "re-based %s's %s mark from %d to %d (%s)" % (key, lane, old, now, why_reason[:120])}
 
 
 def ledger_restore_plan(file=None):
@@ -35882,6 +36063,64 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     return {"ok": True, "started": True, "lanes": lanes}
 
 
+#: REG-2466 (#170) — the last sweep's keep-awake hold on this PC: {what, held, why, ts}. None until a sweep has run.
+KEEP_AWAKE_LAST = None
+
+
+class _SweepHold(object):
+    """REG-2466 (#170) — THIS PC STAYS AWAKE WHILE A SWEEP RUNS, AND ONLY THEN. His ruling 2026-10-21: "YES, ONLY
+    WHILE WORKING" (Dean's laptop slept mid-proof).
+
+    Enters tv/keep_awake.py's `held(why)` (Track C: this thread, for the with-block; never raises - on Windows
+    SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED), no display hold, no powercfg change) when the sweep
+    starts, and leaves it when the sweep ends - by a return or a raise alike, so a crash never leaves the PC held.
+    Without keep_awake it holds nothing and SAYS so: on KEEP_AWAKE_LAST every time, in the log once per process."""
+    _said = set()
+
+    def __init__(self, what):
+        self.what, self.cm = what, None
+
+    def __enter__(self):
+        rec = {"what": self.what, "held": False, "why": None, "ts": int(time.time() * 1000)}
+        try:
+            import keep_awake as _ka
+            cm = _ka.held("%s running" % self.what)
+            cm.__enter__()
+            self.cm = cm
+            rec.update(held=True, why="this PC is held awake for the %s" % self.what)
+        except Exception as e:
+            rec["why"] = ("NOT held - keep_awake is unavailable (%s: %s), so this PC may sleep in the middle of the %s"
+                          % (type(e).__name__, str(e)[:100], self.what))
+            if self.what not in _SweepHold._said:
+                _SweepHold._said.add(self.what)
+                print("\u26a0 %s" % rec["why"], flush=True)
+        globals()["KEEP_AWAKE_LAST"] = rec
+        return rec
+
+    def __exit__(self, et, ev, tb):
+        cm, self.cm = self.cm, None
+        if cm is not None:
+            try:
+                cm.__exit__(et, ev, tb)
+            except Exception:
+                pass
+        return False                  # the sweep's own raise is never swallowed here
+
+
+def _held_awake(what):
+    """REG-2466 - run a sweep inside _SweepHold(what). A decorator, so the sweep's own body is unchanged."""
+    import functools as _functools
+
+    def _deco(fn):
+        @_functools.wraps(fn)
+        def _run(*a, **k):
+            with _SweepHold(what):
+                return fn(*a, **k)
+        return _run
+    return _deco
+
+
+@_held_awake("vault sweep")
 def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
     try:
         # REG-2159 — a thread that got past the door (the switch moved) still does not read.
@@ -39213,7 +39452,7 @@ def _chron_calibration(reel_dirs):
             exact = {"ok": None, "say": (
                 "the board did not answer (%s), so the exact check did not run%s"
                 % (own_why or "no reason given",
-                   "" if r else " — and no Remaining page has ever been recorded either"))}
+                   "" if r else " — and no Remaining page has ever been recorded on this PC either"))}
     except Exception as e:
         exact = {"ok": None, "say": "counter_ledger unavailable: %s" % str(e)[:110]}
     out["exact"] = exact
@@ -40592,6 +40831,7 @@ def _chron_live_lane_pages(limit=2000):
         return []
 
 
+@_held_awake("chronicle sweep")
 def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
     try:
         # REG-2159 — a thread that got past the door still does not read, and does not seal.
@@ -42189,13 +42429,66 @@ def _status_worst_path():
     Resolved at CALL time, like `_disk_history_path()` and `_shadow_watch_path()` — an env honoured
     only at import is a redirect that silently does not take. In production TV_HIST is unset and
     this is exactly HERE, so nothing about his console's own record changes.
+
+    ⚠⚠ REG-2461 (#181) — THIS PC'S RECORD, NEVER ANOTHER PC'S. The record lived in the TRACKED
+    tv/.status_worst.json, so every update shipped one console's slowest request to every PC: a fresh
+    install loaded the committed record (v3404, 1,773,092 ms, fleetOrigin - his Mac's) as ITS OWN
+    worst and published it as worstRequest until something there beat 29.5 minutes. The record is
+    now `.status_worst.here.json`, gitignored: read and written only by this PC's console or a
+    fixture world (`_status_worst_ours()` says which process that is), and absent means None -
+    nothing measured here yet, never a number from elsewhere. The
+    tracked file stays as it is and nothing writes it again: deleting it in a commit would make
+    `git pull --ff-only` refuse forever on a PC where it is locally modified (the ALT's ` M`,
+    REG-1837). [[unknown-stays-unknown]] [[feedback-per-pc-personal-data]]
     """
-    return os.path.join(_fixture_root_for_state(), ".status_worst.json")
+    return os.path.join(_fixture_root_for_state(), ".status_worst.here.json")
 
 
 #: kept so existing readers of the module attribute resolve; the CALLABLE is the source
-#: of truth and every read/write goes through it.
-_STATUS_WORST_PATH = os.path.join(_fixture_root_for_state(), ".status_worst.json")
+#: of truth and every read/write goes through it. REG-2461: the per-PC name, never the tracked one.
+_STATUS_WORST_PATH = os.path.join(_fixture_root_for_state(), ".status_worst.here.json")
+
+
+def _status_worst_ours():
+    """May THIS process read or write this PC's slowest-request record? -> bool
+
+    ⚠⚠ REG-2461, review (major): THE RECORD IS THE CONSOLE'S, NOT EVERY IMPORTER'S. status_payload()
+    runs in every process that imports this module: every law that asks for a status, the pre-push
+    suites (run from his own checkout, REG-1650), any CLI. The first cut of REG-2461 let all of them
+    load and save the per-PC record, and with the tracked 1,773,092 ms bar gone, the first test
+    request over 750 ms became "this PC's slowest request". The review reproduced it:
+    test_a_dead_journal_reader_says_so (TV_HIST unset) left a 1,141 ms record in the tree, and a fresh
+    import of this module published it as worstRequest. Read from the code, not measured: the live
+    console loads that file whenever its own in-memory record is None, so it would publish a test's
+    request as its worst and keep it as the bar. Measured again for this fix with a law-shaped process
+    (TV_HIST unset, not the console, the agent probe held 0.8 s): it wrote a 2,468.9 ms record. A
+    fixture banked as his console's record is the lie REG-2461 removes, in a new form.
+
+    Two kinds of process may hold the record:
+      · this PC's console: main() booted it (frame_ref.on_console_path), on the primary port, and not
+        a TV_STUB harness. This is the rule this PC's sign-in start already keeps (_sign_in_setup_once);
+      · a fixture world: TV_HIST names a root outside this tree (the canonical rule that
+        _fixture_root_for_state applies), so the record there belongs to the fixture.
+    Any other process keeps its slowest request in memory only. It never reads this PC's record as its
+    bar, never publishes it as its own, and never writes it. A law that repoints the state root
+    without TV_HIST is still a law. When this cannot tell, the answer is False: main() marks the console
+    path before it asks for its first status. [[feedback-fixtures-never-touch-live-data]]
+    [[unknown-stays-unknown]]
+    """
+    if (os.environ.get("TV_HIST") or "").strip():
+        try:
+            _root = os.path.normcase(os.path.realpath(_fixture_root_for_state()))
+            if _root != os.path.normcase(os.path.realpath(HERE)):
+                return True     # a fixture world: its record is the fixture's own
+        except Exception:
+            pass
+    if os.environ.get("TV_STUB"):
+        return False            # a harness console never holds this PC's record
+    try:
+        import frame_ref as _fr_sw
+        return bool(_fr_sw.on_console_path()) and _is_primary_console()
+    except Exception:
+        return False
 
 
 def _status_worst_load():
@@ -42212,19 +42505,31 @@ def _status_worst_load():
     the next ordinary one. The event #28 exists to explain has happened repeatedly and left no
     record. This keeps the whole thing, and keeps it across a restart, so the NEXT one is evidence
     instead of another anecdote.
+
+    REG-2461 - only THIS PC's record (_status_worst_path). No per-PC file is None - nothing has
+    crossed the bar here yet - and the tracked tv/.status_worst.json, another PC's request, is never
+    read in its place. A process that is neither this PC's console nor a fixture world gets None too
+    (_status_worst_ours): the record is never a law's bar, and a law never publishes it as its own.
     """
+    if not _status_worst_ours():
+        return None             # REG-2461 review - not this PC's console: its own requests only, in memory
     try:
         with io.open(_status_worst_path(), encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else None
     except FileNotFoundError:
-        return None
+        return None             # REG-2461 - nothing measured HERE yet: UNKNOWN, never another PC's record
     except Exception:
         return None
 
 
 def _status_worst_save(rec):
-    """Persist the slowest request. Never raises into the request path."""
+    """Persist THIS PC's slowest request (REG-2461: the per-PC file only). Never raises into the request path.
+
+    Only this PC's console or a fixture world writes it (_status_worst_ours). Any other process keeps
+    `worstRequest` in memory and writes nothing."""
+    if not _status_worst_ours():
+        return None             # REG-2461 review - a law, a suite or a CLI never banks its request here
     try:
         dest = _status_worst_path()
         tmp = dest + ".tmp"
@@ -47414,6 +47719,12 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, ledger_drop_accept(body.get("store"), body.get("reason"),
                                                confirm=_confirmed(body.get("confirm"))))
             return
+        if path == "/api/board_tally_rebase":
+            # REG-2460 - the one door for a high-water mark that came from data that was never this world's
+            # (Dean's uniques 261, Konyo's seed). His ruling and confirm are both required. Nothing is restored.
+            self._json(200, board_tally_rebase(body.get("world"), body.get("lane"), body.get("reason"),
+                                               confirm=_confirmed(body.get("confirm"))))
+            return
         if path == "/api/ledger_restore_apply":
             # v2735 — and the write half, through chronicle_apply, which is the BOARD's door.
             # ⚠ `confirm` is required. The backup is the automatic half and never needs him; a
@@ -47780,6 +48091,11 @@ class Handler(BaseHTTPRequestHandler):
                     _nice_kw = ({"creationflags": 0x4000 | _WIN_CREATE} if IS_WIN
                                 else {"preexec_fn": (lambda: os.nice(10))})   # v879 — intake yields to the game
                     _last_err = ""
+                    # REG-2383 - A LANE AT ITS CAP REFUSED; IT DID NOT FAIL. Its runner answers 429 with the limit, the
+                    # limit's source and when to retry (tv/intake_local.mjs). Another lane may still read (shadow: Grok
+                    # is the failover), but when none does the answer is that 429 - never 200 with an error body, and
+                    # never the website proxy below, which reads on the site's API key: the spend the cap exists to stop.
+                    _cap_answer = None
                     for _lane_lab, _runner in _runners:
                         try:
                             _pr = subprocess.run(
@@ -47789,6 +48105,10 @@ class Handler(BaseHTTPRequestHandler):
                             if _pr.returncode == 0 and _pr.stdout:
                                 _out = json.loads(_pr.stdout.decode("utf-8", "replace"))
                                 _pl = (_out.get("body") or "").encode("utf-8")
+                                if str(_out.get("status")) == "429":
+                                    _cap_answer = _cap_answer or (_lane_lab, _pl)
+                                    _last_err = "the %s lane is at its cap" % _lane_lab
+                                    continue
                                 # Prefer a body that is not an obvious hard error if multiple lanes
                                 _ok_body = True
                                 try:
@@ -47798,19 +48118,39 @@ class Handler(BaseHTTPRequestHandler):
                                         _last_err = str(_bj.get("error"))[:200]
                                 except Exception:
                                     pass
-                                if _ok_body or _lane_lab == _runners[-1][0]:
-                                    self.send_response(int(_out.get("status") or 200))
-                                    self.send_header("Content-Type", "application/json")
-                                    self.send_header("X-Intake-Lane", _lane_lab)
-                                    self.send_header("Content-Length", str(len(_pl)))
-                                    self.end_headers()
-                                    self.wfile.write(_pl)
+                                if _ok_body or (_lane_lab == _runners[-1][0] and _cap_answer is None):
+                                    _st_lane = int(_out.get("status") or 200)
+                                    # REG-2388 - THE READ HAPPENED. A board that hung up while it was being written is
+                                    # not this lane failing: the except below sent the console on to the next lane and
+                                    # then the website proxy (the site's API key) for a read that was already made.
+                                    try:
+                                        self.send_response(_st_lane)
+                                        self.send_header("Content-Type", "application/json")
+                                        self.send_header("X-Intake-Lane", _lane_lab)
+                                        self.send_header("Content-Length", str(len(_pl)))
+                                        self.end_headers()
+                                        self.wfile.write(_pl)
+                                    except Exception:   # REG-2388 - the board hung up on an answer: the read is over
+                                        self.close_connection = True
                                     return
                             else:
                                 _last_err = (_pr.stderr or b"").decode("utf-8", "replace")[-300:]
                         except Exception as _lane_ex:
                             _last_err = str(_lane_ex)[:200]
                             continue
+                    if _cap_answer is not None:
+                        # REG-2388 - the cap is the answer whatever becomes of its write: inside the outer try, a
+                        # board that hung up on the 429 fell through to the website proxy, the spend the cap stops.
+                        try:
+                            self.send_response(429)
+                            self.send_header("Content-Type", "application/json")
+                            self.send_header("X-Intake-Lane", _cap_answer[0])
+                            self.send_header("Content-Length", str(len(_cap_answer[1])))
+                            self.end_headers()
+                            self.wfile.write(_cap_answer[1])
+                        except Exception:   # REG-2388 - the board hung up on the cap: it is still the answer
+                            self.close_connection = True
+                        return
                     if _strict:
                         self._json(502, {"ok": False, "lane": "subscription-failed",
                                          "msg": "all local intake runners failed (strict: no website fallback)",
@@ -48643,6 +48983,51 @@ def _win_focus_existing_console():
         return False
 
 
+CONSOLE_LOG_ROLL_BYTES = 32 * 1024 * 1024
+
+
+def _route_pythonw_output():
+    """REG-2381 — PYTHONW HAS NO STDOUT, SO ON WINDOWS EVERYTHING THE CONSOLE SAID WAS DROPPED. -> path | None
+
+    MEASURED on Dean's PC 2026-10-21 (his console starts as pythonw.exe, per start_tvd_win.log): no tv/control_app.log
+    at all, so console_doctor's hunt-economy eye answered "no console log on this machine ... unaskable for 48d (891
+    attempts)", and every print() - the CONSOLE BOOT marker that eye slices on, "[sign-in] created", the reel
+    auto-sweep's watch line, the drift hold - went nowhere (pythonw leaves sys.stdout and sys.stderr None, and print()
+    to None is silent). His Mac's launcher appends the same stream to this file (start_tvd_mac.sh
+    `>>"$HERE/control_app.log"`), which is the path the doctor reads.
+
+    Only a stream that is None is routed, so a terminal, a launcher redirect and every law keep exactly what they
+    have. A scratch console (win_relaunch.scratch_console(): TV_STUB=1 or a non-primary port) writes a temp-dir log,
+    never this machine's - a harness boot in the real log would move the doctor's CONSOLE BOOT slice (the #225 rule).
+    Past CONSOLE_LOG_ROLL_BYTES at boot the file rolls to control_app.prev.log (tv/*.log ignores both)."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return None
+    try:
+        import win_relaunch as _wr_out
+        _scratch = bool(_wr_out.scratch_console())
+    except Exception:
+        _scratch = False
+    if _scratch:
+        import tempfile as _tf_out
+        p = os.path.join(_tf_out.gettempdir(), "tvd-scratch-console-control_app.log")
+    else:
+        p = os.path.join(HERE, "control_app.log")
+    try:
+        if os.path.getsize(p) > CONSOLE_LOG_ROLL_BYTES:
+            os.replace(p, os.path.splitext(p)[0] + ".prev.log")
+    except OSError:
+        pass                     # absent, or held open by the image this one replaces: append to it as it is
+    try:
+        fh = open(p, "a", encoding="utf-8", errors="replace", buffering=1)
+    except OSError:
+        return None              # nowhere to write: the streams stay None, exactly as before
+    if sys.stdout is None:
+        sys.stdout = fh
+    if sys.stderr is None:
+        sys.stderr = fh
+    return p
+
+
 def main():
     # ⚠⚠ REG-1436 (#66) — THIS PROCESS IS A CONSOLE, SAID FIRST, BEFORE IT ASKS ANYTHING (REG-1410..1412).
     # MEASURED on his ALT right after v3522: 11 s /api/status then timeouts while tvd-eagle-watch tokenized every
@@ -48655,6 +49040,9 @@ def main():
     # marked that is the exact tokenize scan over every tv/*.py: the post-ship stall itself, once per ship, at
     # boot. Marking spawns nothing, so it may precede the #224 reap. Proven by DRIVING main() under stubs
     # (test_a_plan_is_computed_once.TheConsoleIsMarkedBeforeItAsksAnything), not by reading its names.
+    # REG-2381 - before ANY of that: under pythonw (every Windows console) sys.stdout/stderr are None and everything main()
+    # prints - the CONSOLE BOOT marker included - was dropped. It opens one file and asks nothing.
+    _route_pythonw_output()
     try:
         import frame_ref as _fr_console
         _fr_console.mark_console_path(True)
@@ -48854,6 +49242,7 @@ def main():
     # #227 — a self-updated console never re-runs the launcher: it makes sure it can read its frames
     threading.Thread(target=_ensure_pillow_at_boot, daemon=True, name="tvd-pillow").start()
     threading.Thread(target=_ensure_numpy_at_boot, daemon=True, name="tvd-numpy").start()   # REG-1719
+    threading.Thread(target=_ensure_node_at_boot, daemon=True, name="tvd-node").start()     # REG-2465
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
