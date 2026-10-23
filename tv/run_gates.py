@@ -10227,6 +10227,15 @@ GATES = [
              "a deleter's record is closed out once, one still on the shelf never, one gone with no record is named and "
              "never stamped; dry writes nothing; an unreadable record is UNKNOWN. The heart's corroborator goes red on "
              "an unlogged deletion and agrees once it is logged; the triage tick closes out after its walk."),
+    Gate("test_a_released_reel_stays_released",
+         [sys.executable, os.path.join(HERE, "test_a_released_reel_stays_released.py")], 60,
+         needs_app=False,
+         why="REG-2640 (2026-10-24) - his fleet read 'river stuck' on his Mac with a CURRENT census: 12 reels the drain "
+             "released were released again every 15-minute pass since 09-29 (one tombstoned 127 times). The KAI closer "
+             "re-indexed, re-read and re-sealed each trimmed reel within a minute, the written-back records broke the "
+             "remnant filter, and the stuck reading counted them as owed. reel_retention.remnant_reels is the one answer "
+             "the plan, the closer queue and the stuck reading ask: records and dotfiles the console writes back do not "
+             "un-release a reel, a stray frame that is not kept does, an unreadable store hides nothing."),
     Gate("test_claude_signs_in_from_the_console",
          [sys.executable, os.path.join(HERE, "test_claude_signs_in_from_the_console.py")], 60,
          needs_app=False,

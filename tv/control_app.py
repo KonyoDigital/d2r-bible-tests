@@ -14634,6 +14634,45 @@ def _kai_report_needs_reclose(report, target):
     return False
 
 
+def _kai_close_queue(hist, target):
+    """The reels the KAI closer owes a close, oldest name first. -> list. Raises only when `hist` cannot be listed.
+
+    REG-2640 - lifted out of _kai_closer_loop unchanged but for the remnant skip, so a law can ask it what the loop
+    would close without starting the loop."""
+    reels = []
+    # REG-2640 - A RELEASED REEL IS NOT A REEL TO CLOSE. The trim leaves only its evidence pictures, so it has no
+    # kai_report.json and this loop re-indexed, re-read and re-sealed it within a minute - which made it a
+    # candidate again, and the drain released it again: 12 of his reels, every 15 minutes, since 09-29.
+    # reel_retention.remnant_reels is the one answer the deleter and the river's stuck reading also ask.
+    try:
+        import reel_retention as _rr_rem
+        _remnants = _rr_rem.remnant_reels(hist)
+    except Exception:
+        _remnants = set()
+    for d in sorted(os.listdir(hist)):
+        if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
+            continue
+        if d in _remnants:
+            continue
+        # This `continue` is literally what hid reel_s_1785708285647_38665 (98 frames,
+        # no index) from the theatre. Repair FIRST — skip only a reel that truly has
+        # nothing playable. The reel_ guard above keeps cache160/cache1280 out.
+        if not _reel_ensure_index(os.path.join(hist, d))[0]:
+            continue
+        kr = os.path.join(hist, d, "kai_report.json")
+        if not os.path.isfile(kr):
+            reels.append(d)
+            continue
+        try:
+            with open(kr, encoding="utf-8") as _kf:
+                _rep = json.load(_kf) or {}
+            if _kai_report_needs_reclose(_rep, target):
+                reels.append(d)
+        except Exception:
+            reels.append(d)
+    return reels
+
+
 def _kai_closer_loop():
     """v934 — 🧠 KAI THE CLOSER (layer 3, v1). After a session seals, walk its ENTIRE reel
     with the local OCR worker (no time pressure, nice'd), diff every frame's item-ish text
@@ -14693,26 +14732,7 @@ def _kai_closer_loop():
             # watchdog + incomplete-seal reclose (scanned>0 but routing missing — window-kill
             # mid-closer left film playable with no per-frame filter chrome).
             _KAIVER_TARGET = 6
-            reels = []
-            for d in sorted(os.listdir(hist)):
-                if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
-                    continue
-                # This `continue` is literally what hid reel_s_1785708285647_38665 (98 frames,
-                # no index) from the theatre. Repair FIRST — skip only a reel that truly has
-                # nothing playable. The reel_ guard above keeps cache160/cache1280 out.
-                if not _reel_ensure_index(os.path.join(hist, d))[0]:
-                    continue
-                kr = os.path.join(hist, d, "kai_report.json")
-                if not os.path.isfile(kr):
-                    reels.append(d)
-                    continue
-                try:
-                    with open(kr, encoding="utf-8") as _kf:
-                        _rep = json.load(_kf) or {}
-                    if _kai_report_needs_reclose(_rep, _KAIVER_TARGET):
-                        reels.append(d)
-                except Exception:
-                    reels.append(d)
+            reels = _kai_close_queue(hist, _KAIVER_TARGET)
             if not reels:
                 continue
             # v948.8 — PRIORITY RECLOSE: an explicit POST /api/kai_reclose drops a
@@ -17030,7 +17050,15 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     if _shelf is None:
         if not os.path.isdir(HIST_DIR):
             return None
-        _on = lambda reel: os.path.isdir(os.path.join(HIST_DIR, reel))   # noqa: E731
+        # REG-2640 - a RELEASED reel (tombstoned, only its kept evidence pictures left) is off the shelf: the drain has
+        # paid it. Counting it at ROUTED/CAPTURE as "the drain owes them a tombstone" painted his Mac 'river stuck' for
+        # reels tombstoned up to 127 times. The deleter's own answer, so the two cannot drift (REG-1614).
+        try:
+            import reel_retention as _rr_rem
+            _released = _rr_rem.remnant_reels(HIST_DIR)
+        except Exception:
+            return None
+        _on = lambda reel: reel not in _released and os.path.isdir(os.path.join(HIST_DIR, reel))   # noqa: E731
     else:
         _ids = set(str(x) for x in _shelf)
         _on = _ids.__contains__
@@ -17045,7 +17073,7 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     # uses - and the moment each older reel left it. It could not be built: None, never "nothing is stuck".
     try:
         import reel_retention as _rr_win
-        _names = list(_ids) if _shelf is not None else _shelf_reel_names()
+        _names = list(_ids) if _shelf is not None else [r for r in _shelf_reel_names() if r not in _released]
         _keep = int(_rr_win.KEEP_RECENT)
         _left = _rr_win.shield_exits(_names, _keep)
     except Exception:

@@ -1152,25 +1152,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
         # 2026-09-28 — an EVIDENCE REMNANT is a reel already released whose cited pictures stayed (apply_plan, his
         # §26): tombstoned WITH a `kept` list. It is not a new candidate and not owed - replanning it would release
         # it again every pass and read as a stalled drain. It is listed in `remnants`, never silently dropped.
-        try:
-            _tomb_rows = (_load(_tombstone_path(hist)) or {}).get("reels") or []
-            _kept_of = {}
-            for _t in _tomb_rows:
-                if isinstance(_t, dict) and _t.get("kept"):
-                    _kept_of.setdefault(_t.get("reel"), set()).update(str(x) for x in _t.get("kept") or ())
-            # the second eye on v3521: the tombstone is written BEFORE the delete, so a trim that failed halfway (a
-            # file in use, a crash) left a `kept` row over a reel still holding its other frames - and this filter
-            # exempted it forever. A remnant is DONE only when nothing but its kept pictures is left; anything more
-            # and it is planned again like any reel.
-            _remnants = set()
-            for _r, _k in _kept_of.items():
-                try:
-                    if set(os.listdir(os.path.join(hist, _r))) <= _k:
-                        _remnants.add(_r)
-                except OSError:
-                    pass
-        except Exception:
-            _remnants = set()
+        _remnants = remnant_reels(hist)
         _remnant_list = sorted(r for r in reels if r in _remnants)
         reels = [r for r in reels if r not in _remnants]
     except OSError as e:
@@ -1721,6 +1703,63 @@ def _is_child_dir(hist, name):
         return os.path.dirname(d) == h and d != h
     except Exception:
         return False
+
+
+#: REG-2640 - THE FILES A CONSOLE WRITES BACK INTO A REEL ON ITS OWN. A released reel keeps only its evidence pictures
+#: (apply_plan), and within a minute the KAI closer found it with no kai_report.json, repaired its index.json, re-read it
+#: (stash_eye drops `.stash_eye_tab.jpg` beside the frame it OCRs) and sealed it again. MEASURED on his Mac 2026-10-24:
+#: 12 reels released every 15-minute pass since 09-29 - one of them tombstoned 127 times - each pass "freeing" ~1 MB of
+#: these records, and the fleet card read "river stuck" for them at ROUTED and CAPTURE. These are the reel's own records
+#: and scratch, never a frame: a remnant holding them beside its kept pictures is still DONE.
+REMNANT_RECORDS = frozenset(("index.json", "kai_report.json"))
+
+
+def _remnant_extra(name):
+    """True when `name` is a file the console regenerates inside a reel (REMNANT_RECORDS or a dot scratch file). Pure."""
+    n = str(name or "")
+    return n in REMNANT_RECORDS or n.startswith(".")
+
+
+_REMNANT_MEMO = {}
+
+
+def remnant_reels(hist=None):
+    """REG-2640 - THE RELEASED REELS: tombstoned with a `kept` list, holding nothing but those pictures. -> set (never raises)
+
+    ONE answer for every reader: plan() does not plan them again, the KAI closer does not re-seal them, and the river's
+    stuck reading does not call them owed. A remnant is DONE only when every FRAME left is a kept one (the second eye on
+    v3521: a trim that failed halfway is planned again); the reel's own records and dot scratch files (_remnant_extra) do
+    not count against it. An unreadable tombstone store is the empty set, so nothing is hidden on a guess."""
+    hist = _resolve_hist(hist)
+    tp = _tombstone_path(hist)
+    try:
+        _st = os.stat(tp)
+        key = (tp, _st.st_mtime_ns, _st.st_size)
+    except OSError:
+        key = None
+    kept_of = _REMNANT_MEMO.get(key) if key else None
+    if kept_of is None:
+        kept_of = {}
+        try:
+            for _t in (_load(tp) or {}).get("reels") or []:
+                if isinstance(_t, dict) and _t.get("kept"):
+                    kept_of.setdefault(_t.get("reel"), set()).update(str(x) for x in _t.get("kept") or ())
+        except Exception:
+            kept_of = {}
+        if key:
+            _REMNANT_MEMO.clear()
+            _REMNANT_MEMO[key] = kept_of
+    out = set()
+    for _r, _k in kept_of.items():
+        if not _is_reel_dir_name(_r):
+            continue
+        try:
+            left = set(f for f in os.listdir(os.path.join(hist, _r)) if not _remnant_extra(f))
+        except OSError:
+            continue
+        if left <= _k:
+            out.add(_r)
+    return out
 
 
 def apply_plan(p, yes=False):

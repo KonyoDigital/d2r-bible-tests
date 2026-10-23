@@ -974,8 +974,8 @@ RED_PROOF = [
     {
         "why": "the second eye on v3521 - a half-trimmed reel with a `kept` row is a finished remnant forever",
         "file": "reel_retention.py",
-        "find": "                    if set(os.listdir(os.path.join(hist, _r))) <= _k:\n",
-        "replace": "                    if True:\n",
+        "find": "        if left <= _k:\n            out.add(_r)\n",
+        "replace": "        if True:\n            out.add(_r)\n",
         "matches": 1,
     },
     {
