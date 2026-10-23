@@ -5908,15 +5908,19 @@ def import_shards(paths, say=print, target=None):
         body = dict((k, v) for k, v in (disk or {}).items() if k not in ("format", "entries"))
         body.update(format=2, entries=ent)
         return body
+    _halted = sum(1 for _l, b, _w in bodies if isinstance(b, dict) and isinstance(b.get("shard"), dict)
+                  and b["shard"].get("stopped"))
     w_ok, w_why = _StoreFile(target, say).commit(merge)            # the stores' one locked writer
     if not w_ok:
         say("  ✗ REG-2586 IMPORT REFUSED: %s could not be written (%s)." % (os.path.basename(target), w_why))
         return 2
     say("  ✓ REG-2586 IMPORTED %d shard(s) of HEAD %s: %d PROVEN entr(ies) banked, %d already served here and kept, "
         "%d not servable and never banked (ELSEWHERE, BLIND, undated...)%s. Each keeps the tree it was proved in, so "
-        "a push's clean wave still runs each such gate clean here once (#242)."
+        "a push's clean wave still runs each such gate clean here once (#242).%s"
         % (len(shards), head[:12], out.get("added", 0), len(take) - out.get("added", 0), skipped,
-           (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else ""))
+           (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else "",
+           (" ⚠ %d shard(s) STOPPED on a failure: what they banked is sound, what they never ran is not banked, "
+            "and the failure itself is still owed a fix." % _halted) if _halted else ""))
     return 0
 
 

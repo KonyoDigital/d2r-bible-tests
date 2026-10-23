@@ -83,7 +83,7 @@ def plan(have, n, costs=None):
     known = sorted(v for v in costs.values() if v > 0)
     default = known[len(known) // 2] if known else 1.0
     gates = []
-    for name, _f, proofs in have:
+    for name, _f, proofs in sorted(have, key=lambda t: str(t[0])):     # one order, whatever order the names came in
         p = len(proofs or [])
         if p:
             c = costs.get(str(name))

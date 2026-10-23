@@ -127,6 +127,15 @@ class ThePlan(unittest.TestCase):
             self.assertEqual(set(a.values()), set(range(1, n + 1)), "N=%d: a shard was given nothing" % n)
             self.assertEqual(a, proof_shard.plan(have, n, COSTS), "N=%d: two shards would compute two plans" % n)
 
+    def test_the_plan_does_not_depend_on_the_order_the_names_came_in(self):
+        """The second eye (grok-4.7, 2026-10-23): the float total was summed in `have` order, so names in another order
+        could round a chunk count across a ceil boundary. The chunks were already sorted by (cost, name, index), so no
+        tamper here goes red; the gates are now summed in name order and this pins it."""
+        have = _have(FIX)
+        for n in (2, 3, 5):
+            self.assertEqual(proof_shard.plan(have, n, COSTS), proof_shard.plan(list(reversed(have)), n, COSTS))
+            self.assertEqual(proof_shard.plan(have, n, COSTS), proof_shard.plan(have[3:] + have[:3], n, COSTS))
+
     def test_the_big_gate_is_split_and_the_load_is_level(self):
         have = _have(FIX)
         a = proof_shard.plan(have, 8, COSTS)

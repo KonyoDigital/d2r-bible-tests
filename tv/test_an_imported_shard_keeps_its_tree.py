@@ -200,6 +200,13 @@ class AWholeSetComesHome(_Fixture):
             self.assertEqual(e["tree"], CI_TREE, "%s: the import rewrote the tree it was proved in" % k)
             self.assertNotEqual(e["tree"], heart2.TREE_ID)
 
+    def test_a_stopped_shard_banks_what_it_proved_and_says_it_stopped(self):
+        a = self.shard(1, 2, {"k1": _e("g1", 0)})
+        b = self.shard(2, 2, {"k3": _e("g2", 0)}, stopped=["g2", 1, "BLIND", "stayed green"])
+        self.assertEqual(self.run_import([a, b]), 0, self.said)
+        self.assertEqual(sorted(self.home()["entries"]), ["k1", "k3"])
+        self.assertIn("1 shard(s) STOPPED", " ".join(self.said))
+
     def test_what_peek_would_refuse_is_never_banked(self):
         a = self.shard(1, 1, {"ok": _e("g", 0), "else": _e("g", 1, verdict="ELSEWHERE"),
                               "blind": _e("g", 2, verdict="BLIND"), "unp": _e("g", 3, verdict="UNPROVABLE"),
