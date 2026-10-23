@@ -52,6 +52,7 @@ class _Win:
         self.exists, self.create_rc, self.query_says, self.calls, self.xml = exists, create_rc, query_says, [], None
         self.encoding = encoding   # None: answers str (the logic laws); "utf-16" etc.: answers bytes like a pipe
         self.ps, self.ps_makes_it, self.written = None, True, None
+        self.logon, self.ps_logon = "InteractiveToken", "Password"   # the registered task's LogonType
 
     def run(self, argv, **kw):
         r = self._run(argv, **kw)
@@ -74,9 +75,17 @@ class _Win:
             self.xml = self.written
             if self.create_rc == 0:
                 self.exists = self.ps_makes_it
+                self.logon = self.ps_logon
                 return _R(0)
-            return _R(1, "", "Register-ScheduledTask : The user name or password is incorrect (%s)." % SECRET)
+            # CLIXML, as PowerShell writes a captured error: '-' and '<' escaped, so a plain replace misses it
+            return _R(1, "", "#< CLIXML <Objs><S S=\"Error\">Register-ScheduledTask : The user name or password is "
+                             "incorrect (%s)._x000D__x000A_</S></Objs>" % SECRET.replace("-", "_x002D_"))
         verb = argv[1]
+        if verb == "/Query" and "/XML" in argv:
+            if not self.exists or self.logon is None:
+                return _R(1, "", "FEHLER")
+            return _R(0, '<?xml version="1.0" encoding="UTF-16"?><Task><Principals><Principal id="Author">'
+                         '<LogonType>%s</LogonType></Principal></Principals></Task>' % self.logon)
         if verb == "/Query":
             if self.query_says is not None:
                 return _R(1, "", self.query_says)
@@ -436,7 +445,7 @@ class Unattended(unittest.TestCase):
     def _install(self, w, user="EXAMPLE-PC\\player", password=SECRET):
         return CD.install_unattended_keepalive(user, password, run=w.run, is_win=True, tv_dir=WIN_TV, python=WIN_PY,
                                                now_ms=1_700_000_000_000, write_xml=w.write_xml,
-                                               isfile=lambda p: True, env={})
+                                               isfile=lambda p: True, env=self.caller_env)
 
     def test_the_default_stays_signed_in_or_locked(self):
         x = CD.keepalive_task_xml(WIN_PY, WIN_TV, "2026-10-23T21:00:00")
@@ -454,16 +463,48 @@ class Unattended(unittest.TestCase):
         self.assertNotIn(SECRET, w.xml)
         self.assertIn("<ExecutionTimeLimit>PT0S", w.xml)
 
-    def test_the_password_goes_on_stdin_only(self):
+    def test_the_password_goes_only_to_the_one_child_in_its_environment(self):
         w = _Win()
         r = self._install(w)
         argv, kw = w.ps
-        self.assertFalse(any(SECRET in a for a in argv), "the password is on a command line every process can read")
-        self.assertEqual(kw.get("input"), (SECRET + "\n").encode("utf-8"))
-        self.assertNotIn(SECRET, json.dumps(kw.get("env") or {}), "the password is in the child's environment")
-        self.assertEqual(kw["env"]["TVD_KA_TASK"], CD.KEEPALIVE_TASK)
-        self.assertEqual(kw["env"]["TVD_KA_USER"], "EXAMPLE-PC\\player")
+        self.assertFalse(any(SECRET in a for a in argv), "the password is on a command line (audit logs, WMI)")
+        env = kw.get("env") or {}
+        self.assertEqual(env.get("TVD_KA_PW"), SECRET, "the password never reached Register-ScheduledTask")
+        self.assertEqual([k for k, v in env.items() if SECRET in str(v)], ["TVD_KA_PW"],
+                         "the caller's password variable was handed on as well")
+        self.assertNotIn(KA.PASSWORD_ENV, env)
+        self.assertNotIn("UNRELATED", env, "the whole caller environment was handed on")
+        self.assertEqual(env.get("PATH"), "C:\\Windows\\System32")
+        self.assertEqual(env["TVD_KA_TASK"], CD.KEEPALIVE_TASK)
+        self.assertEqual(env["TVD_KA_USER"], "EXAMPLE-PC\\player")
+        self.assertIsNone(kw.get("input"))
+        self.assertIn("-Password $env:TVD_KA_PW", argv[-1], "the script does not take the password it was given")
+        self.assertNotIn("ReadLine", argv[-1], "review r3: [Console]::In under -Command never sees a piped line")
+        self.assertIn("-Encoding Unicode", argv[-1])
         self.assertNotIn(SECRET, json.dumps(r))
+
+    def test_registered_but_not_unattended_is_failed(self):
+        w = _Win()
+        w.ps_logon = "InteractiveToken"
+        r = self._install(w)
+        self.assertEqual(r["did"], "failed", "a task that still needs a sign-in was claimed unattended")
+
+    def test_a_reregistered_task_the_console_first_made_is_never_removed(self):
+        # review r3: the console made the signed-in task (madeMs), then the owner re-registered it unattended
+        marker = os.path.join(self.tmp, ".keepalive_task.json")
+        with open(marker, "w") as fh:
+            json.dump({"madeMs": 1, "task": CD.KEEPALIVE_TASK}, fh)
+        for logon in ("Password", None):
+            w = _Win(exists=True)
+            w.logon = logon
+            r = CD.ensure_keepalive_task(marker, "left", run=w.run, is_win=True, tv_dir=WIN_TV, python=WIN_PY,
+                                         write_xml=w.write_xml, isfile=lambda p: True)
+            self.assertNotIn("/Delete", w.verbs(), "the owner's task (%s) was removed" % logon)
+            self.assertEqual(r["did"], "left", r)
+        w = _Win(exists=True)
+        r = CD.ensure_keepalive_task(marker, "left", run=w.run, is_win=True, tv_dir=WIN_TV, python=WIN_PY,
+                                     write_xml=w.write_xml, isfile=lambda p: True)
+        self.assertEqual(r["did"], "withdrawn", "the console's own signed-in task is still withdrawn with its consent")
 
     def test_a_refusal_is_said_without_the_password(self):
         w = _Win(create_rc=1)
@@ -471,6 +512,8 @@ class Unattended(unittest.TestCase):
         self.assertEqual(r["did"], "failed")
         self.assertIn("password is incorrect", r["why"])
         self.assertNotIn(SECRET, r["why"], "Windows' words carried the password into the answer")
+        self.assertNotIn(SECRET.replace("-", "_x002D_"), r["why"], "a CLIXML-escaped copy of the password was said")
+        self.assertIn("***", r["why"])
 
     def test_registered_but_not_seen_is_failed(self):
         w = _Win()
@@ -515,6 +558,8 @@ class Unattended(unittest.TestCase):
         self.assertEqual((rc, got), (2, []), "a password on the command line (or none at all) was used")
 
     def setUp(self):
+        # the caller's environment holds the password variable (as the CLI's does) and unrelated values
+        self.caller_env = {KA.PASSWORD_ENV: SECRET, "PATH": "C:\\Windows\\System32", "UNRELATED": "x"}
         self.tmp = tempfile.mkdtemp(prefix="ka-unattended-")
         self.addCleanup(shutil.rmtree, self.tmp, True)
 
@@ -532,6 +577,14 @@ class PassDeadline(unittest.TestCase):
         self.assertEqual(r.returncode, 3, "a hung pass was not ended by its deadline (rc %s)" % r.returncode)
         self.assertLess(_t.time() - t0, 20)
         self.assertEqual(KA.PASS_DEADLINE_S, 90)
+
+    def test_a_pass_that_ended_leaves_no_timer_behind(self):
+        # review r3: main() called in-process must not arm an os._exit that ends its caller later
+        import subprocess as _sp
+        code = ("import sys, time; sys.path.insert(0, %r); import console_keepalive as k; "
+                "rc = k.main(run=lambda: {'action': 'leave'}, deadline_s=1); time.sleep(3); sys.exit(10 + rc)" % HERE)
+        r = _sp.run([sys.executable, "-c", code], capture_output=True, timeout=25)
+        self.assertEqual(r.returncode, 10, "the deadline of a finished pass still fired (rc %s)" % r.returncode)
 
     def test_a_pass_that_ends_returns_its_code(self):
         self.assertEqual(KA.main(run=lambda: {"action": "leave"}, deadline_s=60), 0)
@@ -614,6 +667,22 @@ class ConsoleSide(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"matches": 1, "file": "console_doctor.py", "find": "-Password $env:TVD_KA_PW -Force",
+     "replace": "-Password ([Console]::In.ReadLine()) -Force",
+     "why": "review r3: the password read from a stdin Windows PowerShell never hands to [Console]::In"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "        e = {k: v for k, v in src.items() if k.upper() in _UNATTENDED_ENV_KEEP}\n",
+     "replace": "        e = dict(src)\n", "why": "review r3: PowerShell inherits the caller's password variable too"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": " and _keepalive_task_logon(run) != \"InteractiveToken\":\n", "replace": " and False:\n",
+     "why": "review r3: a console pass deletes the owner's re-registered unattended task"},
+    {"matches": 1, "file": "console_doctor.py", "find": "    if _keepalive_task_logon(run) != \"Password\":\n",
+     "replace": "    if False:\n", "why": "review r3: a task that still needs a sign-in is claimed unattended"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "    text = _re.sub(r\"_x([0-9A-Fa-f]{4})_\", lambda m: chr(int(m.group(1), 16)), str(text or \"\"))\n",
+     "replace": "    text = str(text or \"\")\n", "why": "review r3: a CLIXML-escaped password slips past the scrub"},
+    {"matches": 1, "file": "console_keepalive.py", "find": "        _t.cancel() ", "replace": "        pass ",
+     "why": "review r3: a finished pass leaves a timer that ends its caller"},
     {"matches": 1, "file": "console_doctor.py",
      "find": "        r = run([\"powershell\", \"-NoProfile\", \"-NonInteractive\", \"-Command\", _UNATTENDED_PS],",
      "replace": "        r = run([\"powershell\", \"-NoProfile\", \"-NonInteractive\", \"-Command\", _UNATTENDED_PS, password],",
@@ -628,10 +697,6 @@ RED_PROOF = [
      "why": "REG-2616: the default mode names an account (signed-in-or-locked is no longer the default)"},
     {"matches": 1, "file": "console_doctor.py", "find": "    if not user or not password:\n", "replace": "    if not user:\n",
      "why": "REG-2616: an install with no password is attempted"},
-    {"matches": 1, "file": "console_doctor.py",
-     "find": "    if _keepalive_task_exists(run) is not True:\n        return {\"did\": \"failed\", \"why\": \"the unattended",
-     "replace": "    if False:\n        return {\"did\": \"failed\", \"why\": \"the unattended",
-     "why": "REG-2616: a registration the check cannot see is claimed made"},
     {"matches": 1, "file": "console_keepalive.py", "find": "    password = environ.get(name) or \"\"\n",
      "replace": "    password = environ.get(name) or args[-1]\n",
      "why": "REG-2616: a password typed on the command line (shell history, process list) is taken"},

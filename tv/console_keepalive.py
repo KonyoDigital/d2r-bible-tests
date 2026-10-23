@@ -206,7 +206,10 @@ def main(run=None, deadline_s=None):
     _t = threading.Timer(PASS_DEADLINE_S if deadline_s is None else deadline_s, lambda: os._exit(3))
     _t.daemon = True
     _t.start()
-    r = (run or run_once)()
+    try:
+        r = (run or run_once)()
+    finally:
+        _t.cancel()                     # review r3: a pass that ended must not leave a timer that ends its caller
     return 0 if r.get("action") != "error" else 1
 
 

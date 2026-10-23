@@ -13,9 +13,11 @@ REG-2614's task runs as the signed-in user (InteractiveToken), so a PC that rebo
 after an update - still had no console until someone signed in. His 2026-10-23 ruling: the console must come back
 then too. An OPTIONAL install, the default unchanged: `console_keepalive.py --install-unattended USER` re-registers
 the same task as USER with LogonType Password through Register-ScheduledTask. The password is read from an
-environment variable (default TVD_KEEPALIVE_PASSWORD), handed to PowerShell on stdin only, and is never in argv, the
-task XML, the repo, a log or an answer (Windows' refusal text has it replaced by ***). A console pass finds the
-owner's task 'already' there and never removes or rewrites it. Law: tv/test_a_dead_windows_console_comes_back_by_itself.py
+environment variable (default TVD_KEEPALIVE_PASSWORD) and handed to the one PowerShell child in its own environment
+(TVD_KA_PW; the caller's variable is not passed on; review r3: stdin under -Command never reached it), and is never
+in argv, the task XML, the repo, a log or an answer (Windows' refusal text, CLIXML unescaped, has it replaced by
+***). Made = the task's own XML says LogonType Password. A console pass finds the owner's task 'already' there and
+never removes a task whose LogonType is not InteractiveToken, even one it first made (review r3). Law: tv/test_a_dead_windows_console_comes_back_by_itself.py
 (class Unattended, 7 red-proofs). Note: a console started with nobody signed in runs in the background session -
 its server and sync run, no window shows until it is restarted from a signed-in session.
 
