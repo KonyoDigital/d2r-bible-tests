@@ -23,8 +23,8 @@ a removed or refused sign-in start (only if this console made it), nothing done 
 LIMIT: "without a sign-in" means without a NEW sign-in - the task runs in the signed-in (also locked) session. A PC
 that rebooted to the sign-in screen has no session to film in; starting a console there needs a stored password or
 S4U, which also cannot capture the desktop. That is his call, not made here.
-GUARD: tv/test_a_dead_windows_console_comes_back_by_itself.py (23 cases, 17 red-proofs) and, on real Windows in
-tv-windows-boot.yml, tv/windows_keepalive_check.py (the XML registered, read back, left on a second pass, deleted;
+GUARD: tv/test_a_dead_windows_console_comes_back_by_itself.py (23 cases, 17 red-proofs) and, on real Windows (run by
+tv/windows_boot_check.py in the tv-windows-boot job, no workflow edit), tv/windows_keepalive_check.py (the XML registered, read back, left on a second pass, deleted;
 a closed port reads gone; a pass launches once then holds).
 
 ### REG-2615 - THE STATUS CALL WAITED ON A SCAN OF EVERY REEL FOR ITS FORENSICS BADGE - 2026-10-23
