@@ -329,6 +329,7 @@ class AMarkSetByDataThatWasNeverHisIsRebasedByRuling(unittest.TestCase):
         self._seeded_then_fell()
         _st, why = CD._check_his_progress_number_has_not_been_overwritten()
         self.assertIn("BELOW its own high-water mark", why, "PREMISE: the seeded mark is not read as a fall")
+        self.assertIn("POST /api/board_tally_rebase", why, "the below-mark row does not name the ruled door")
         CA.board_tally_rebase(self.key, "uniques", "seed residue", confirm=True, now_ms=3000)
         _st, why = CD._check_his_progress_number_has_not_been_overwritten()
         self.assertNotIn("BELOW its own high-water mark", why, "the ruled re-base did not reach the doctor's row")
@@ -363,6 +364,83 @@ class AMarkSetByDataThatWasNeverHisIsRebasedByRuling(unittest.TestCase):
         self.assertTrue(out.get("r", {}).get("applied"), out)
         self.assertEqual(self._doc()["high"][self.key]["uniques"]["have"], 0,
                          "a tally posted during the re-base put the seeded mark back - the door said re-based")
+
+    def test_only_that_world_and_lane_move_and_the_total_is_the_current_one(self):
+        other = {"id": "0ther00000000000000000000000000c", "p": "main", "pfx": "I-0ther000-"}
+        CA.board_tally_merge({"v": 2, "who": other, "route": other, "at": 500,
+                              "uniques": {"have": 300, "total": 403}, "sets": {"have": 1, "total": 135}})
+        self._seeded_then_fell()
+        CA.board_tally_merge({"v": 2, "who": OWNER, "route": OWNER, "at": 2500, "sets": {"have": 120, "total": 135},
+                              "uniques": {"have": 0, "total": 404}, "runewords": {"have": 99, "total": 99}})
+        self.assertTrue(CA.board_tally_rebase(self.key, "uniques", "seed residue", confirm=True)["applied"])
+        hi = self._doc()["high"]
+        self.assertEqual(hi[self.key]["uniques"]["total"], 404, "the re-based mark kept the seed's total")
+        self.assertEqual(hi[self.key]["sets"]["have"], 120, "a sibling lane moved")
+        self.assertEqual(hi[CA._route_key(other)]["uniques"]["have"], 300, "another world's mark moved")
+
+    def test_a_mark_below_the_reading_is_never_re_based(self):
+        self._seeded_then_fell()
+        d = self._doc()
+        d["high"][self.key]["uniques"]["have"] = 0
+        d["byRoute"][self.key]["uniques"]["have"] = 50
+        with open(os.path.join(self.d, "board_tally.json"), "w", encoding="utf-8") as fh:
+            json.dump(d, fh)
+        r = CA.board_tally_rebase(self.key, "uniques", "x", confirm=True)
+        self.assertFalse(r["applied"], r)
+        self.assertEqual(self._doc()["high"][self.key]["uniques"]["have"], 0, "a re-base RAISED a mark")
+
+    def _served(self, body):
+        import io
+        got = {}
+        h = CA.Handler.__new__(CA.Handler)
+        raw = json.dumps(body).encode()
+        h.path = "/api/board_tally_rebase"
+        h.headers = {"Content-Length": str(len(raw)), "Content-Type": "application/json"}
+        h.rfile = io.BytesIO(raw)
+        h._json = lambda code, obj: got.update(code=code, body=obj)
+        h.do_POST()
+        return got.get("body") or {}
+
+    def test_the_door_writes_only_on_an_explicit_confirm(self):
+        self._seeded_then_fell()
+        base = {"world": self.key, "lane": "uniques", "reason": "seed residue"}
+        for confirm in (None, "false", False, 0):
+            body = dict(base) if confirm is None else dict(base, confirm=confirm)
+            r = self._served(body)
+            self.assertFalse(r.get("applied"), (confirm, r))
+            self.assertEqual(self._doc()["high"][self.key]["uniques"]["have"], 261, "confirm=%r wrote" % (confirm,))
+        r = self._served(dict(base, confirm=True))
+        self.assertTrue(r.get("applied"), r)
+        self.assertEqual(self._doc()["high"][self.key]["uniques"]["have"], 0)
+
+    def test_the_doctor_reads_the_published_worlds_mark_not_the_first_owner_row(self):
+        """Grok review r1 major: Dean's PC has no ownerId (no WebKit store). His main world was banked first at 261
+        and reads 261; his ladder world is the newer post, reads 0, and its mark is 261 from the seed. The published
+        top-level lanes are the ladder world's, while the doctor took the first owner-shaped row of the sorted file. Re-basing the ladder world must clear the doctor's row, and the main
+        world's mark must stay 261."""
+        import console_doctor as CD
+        orig = CD.HERE
+        CD.HERE = self.d
+        self.addCleanup(setattr, CD, "HERE", orig)
+        # board_tally_save sorts keys, so "first in the file" is the alphabetically-first world: main's id sorts first
+        main = {"id": "a1d00000000000000000000000000001", "p": "main", "pfx": ""}
+        ladder = {"id": "e1d00000000000000000000000000002", "p": "ladder", "pfx": ""}
+        for who, uni, at in ((main, 261, 1000), (ladder, 261, 1500), (ladder, 0, 9000)):
+            CA.board_tally_merge({"v": 2, "who": who, "route": who, "at": at, "sets": {"have": 116, "total": 135},
+                                  "uniques": {"have": uni, "total": 403}, "runewords": {"have": 0, "total": 99}})
+        CA.board_tally_merge({"v": 2, "who": main, "route": main, "at": 1600, "sets": {"have": 116, "total": 135},
+                              "uniques": {"have": 261, "total": 403}, "runewords": {"have": 0, "total": 99}})
+        d = self._doc()
+        self.assertIsNone(d.get("ownerId"), "PREMISE: this machine has an ownerId")
+        self.assertEqual(d["uniques"]["have"], 0, "PREMISE: the ladder world is not the published one")
+        self.assertEqual(list(d["byRoute"])[0], CA._route_key(main), "PREMISE: main is not first in the (sorted) file")
+        _st, why = CD._check_his_progress_number_has_not_been_overwritten()
+        self.assertIn("BELOW its own high-water mark", why, "PREMISE: the seeded mark is not read as a fall")
+        self.assertTrue(CA.board_tally_rebase(CA._route_key(ladder), "uniques", "seed residue", confirm=True)["applied"])
+        _st, why = CD._check_his_progress_number_has_not_been_overwritten()
+        self.assertNotIn("BELOW its own high-water mark", why,
+                         "the doctor compared the published world against another world's mark")
+        self.assertEqual(self._doc()["high"][CA._route_key(main)]["uniques"]["have"], 261)
 
 
 RED_PROOF = [
@@ -473,6 +551,41 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "@_board_tally_locked\ndef board_tally_merge(t):\n",
         "replace": "def board_tally_merge(t):\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2460 r2 - a mark above the reading is re-based but one below it is too (<= weakened to ==)",
+        "file": "control_app.py",
+        "find": "    if isinstance(old, bool) or not isinstance(old, int) or old <= now:\n",
+        "replace": "    if isinstance(old, bool) or not isinstance(old, int) or old == now:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2460 r2 - the re-based mark keeps the seed's total instead of the current one",
+        "file": "control_app.py",
+        "find": "    hi[lane] = {\"have\": now, \"total\": cur.get(\"total\"), \"at\": at,",
+        "replace": "    hi[lane] = {\"have\": now, \"total\": hi[lane].get(\"total\"), \"at\": at,",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2460 r2 - the route treats any POST as confirmed",
+        "file": "control_app.py",
+        "find": "            self._json(200, board_tally_rebase(body.get(\"world\"), body.get(\"lane\"), body.get(\"reason\"),\n                                               confirm=_confirmed(body.get(\"confirm\"))))\n",
+        "replace": "            self._json(200, board_tally_rebase(body.get(\"world\"), body.get(\"lane\"), body.get(\"reason\"),\n                                               confirm=True))\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2460 r2 - the doctor compares the published world against the first owner-shaped row's mark",
+        "file": "console_doctor.py",
+        "find": "            key = _pk\n",
+        "replace": "            pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2460 - the doctor's below-mark row stops naming the ruled door",
+        "file": "console_doctor.py",
+        "find": "this world's, POST /api/board_tally_rebase {",
+        "replace": "this world's, ask {",
         "matches": 1,
     },
 ]

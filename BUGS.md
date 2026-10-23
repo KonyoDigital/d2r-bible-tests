@@ -275,6 +275,13 @@ GUARD: tv/test_a_drop_is_an_episode.py `AMarkSetByDataThatWasNeverHisIsRebasedBy
 
 LEFT: the re-base itself on Dean's PC (his ladder world, lane uniques, his ruling as the reason; the dry run first) is a step on that PC after this lands.
 
+Round 2 (#169 board batch, Grok CLI review r1, 2026-10-23, FAIL, 1 major 2 minors): the doctor compared the PUBLISHED lanes (ownerId's world,
+else the newest pfx "" post) against the high-water mark of the first owner-shaped row of the sorted file. With no ownerId
+(Windows) that can be a different world, so re-basing the published world would never clear the row. The doctor now reads
+the published world's own mark. Also pinned: only that world and lane move, the re-based mark takes the current total, a
+mark below the reading is refused, and the HTTP route writes only on an explicit confirm. `rebasedFrom` lasts until the
+next rise; `rebases` is the permanent record. The doctor's below-mark row now names the door. 10 cases, 11 red-proofs.
+
 ### REG-2390 - WITH BOTH WINDOWS FULL, THE INTAKE REFUSAL NAMED THE HOUR AND A TWO-MINUTE RETRY WHILE THE DAY CAP REFUSED FOR 20 HOURS
 
 tv/intake_local.mjs `budgetCheck()` asked the hour first and answered with it alone. With 80 intake reads today, 20 of them in the last hour (the default caps, 20/80), the refusal was `window: hour`, `(20/20, limit from the code default) — intake paused this hour`, retry_s 120 - the 429 body's promise of when the reader reads again - while the daily cap kept refusing for about 20 hours. Reproduced on a fixture ledger 2026-10-22 (the round-3 review's repro): (429, hour, 20, 20, retry_s 120); with the clock moved on by the promised 125 s, (429, day, 80, 80, retry_s 71995). With the hourly limit from env and the daily one from the settings file, it named `env TV_INTAKE_HOURLY_MAX` while the file's daily limit was the one refusing. The hour-first order and its "paused this hour" are on origin/main too (read, not run); REG-2383's retry_s and REG-2382's source turned them into a time and a source in the refusal. Two switches at 0 named only the hourly one, so raising it would leave intake off with nothing saying why. control_app's `_cap_state` (the meter) already says both windows. Found by the round-3 review of REG-2382..2389, before any of it shipped.

@@ -30449,8 +30449,9 @@ def board_tally_rebase(world, lane, reason, confirm=False, now_ms=None):
     reach it: it closes .ledger_drops.json episodes, and his holds none ("no open drop for foundLog").
 
     Only with confirm AND a reason, one world and one lane at a time, and only DOWN to the world's own current
-    reading. Nothing is restored and nothing is hidden: the old mark stays beside the new one in `rebasedFrom`, and
-    the ruling is appended to `rebases`, which no later tally removes. The next tally ratchets up from here."""
+    reading. Nothing is restored and nothing is hidden: the old mark stays beside the new one in `rebasedFrom` (until
+    the next rise rewrites the lane), and the ruling is appended to `rebases`, the permanent record no later tally
+    removes. The next tally ratchets up from here."""
     lane = str(lane or "")
     if lane not in _TALLY_LANES:
         return {"ok": False, "applied": False, "why": "lane must be one of %s" % ", ".join(_TALLY_LANES)}
