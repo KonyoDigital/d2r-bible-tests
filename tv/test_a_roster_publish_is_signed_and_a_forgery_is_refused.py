@@ -645,6 +645,9 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
             heads = RS.sign_headers(path_a, raw)[0]
             boot_raw = _raw({"owner": OWNER, "boot": True, "signedAt": 1790000000001, "sections": {"characters": mine}})
             boot_heads = RS.sign_headers(path_a, boot_raw)[0]
+            moved = {"asOf": 2001, "counts": 1, "rows": [{"name": "Sorceress", "cls": "Sorceress", "level": 91}]}
+            moved_raw = _raw({"owner": OWNER, "boot": False, "signedAt": 1790000000002, "sections": {"characters": moved}})
+            moved_heads = RS.sign_headers(path_a, moved_raw)[0]
             steps = [
                 # 0 a row written before signing (no verdict), no key registered: this PC's first signed publish
                 _step(raw, heads, fresh=True, seed={rk: record()}),
@@ -669,6 +672,21 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                 # 7 no key anywhere, an unsigned publish of the same sections over a pre-signing row (an old one):
                 #   stored NOT verified, so the row stops reading "published before signing"
                 _step(raw, {}, fresh=True, seed={rk: record(t=10)}),
+                # r3 (the review of r2 found four edits that stayed green):
+                # 8 a signed boot of an unchanged row already under this key, its key registered: skipped 'unchanged' -
+                #   a boot is not a key arriving, and an ordinary boot must not cost a write
+                _step(boot_raw, boot_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))})),
+                # 9 rosterkey reset, then a TICK (not a boot) inside the hour whose sections changed, the row still
+                #   verified under this key: the key arrives on the tick too - registered and stored
+                _step(moved_raw, moved_heads, fresh=True, seed={rk: record(
+                    intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}),
+                # 10 a BOOT of an unchanged row with this key's pub but a stale key id: the id is rewritten on a boot too
+                _step(boot_raw, boot_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId="000000000000", pub=RS.b64u(pub_a))})),
+                # 11 an unsigned tick of the same sections over a RECENT pre-signing row: an unsigned publish is no key
+                #   arriving, so the hourly guard holds and the row keeps no verdict
+                _step(raw, {}, fresh=True, seed={rk: record()}),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -698,6 +716,20 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         self.assertEqual((r7.get("stored"), r7["intentVerified"]), (["roster"], False),
                          "an unsigned publish over a pre-signing row was skipped: %r" % r7)
         self.assertIs(rec7.get("intentVerified"), False, "the row still reads 'published before signing'")
+        r8 = s[8]["reply"]
+        self.assertEqual((r8.get("stored"), r8.get("skipped"), s[8]["puts"]), ([], ["unchanged"], []),
+                         "a signed boot of an unchanged row under its own registered key was written again: %r" % r8)
+        r9 = s[9]["reply"]
+        self.assertEqual((r9.get("stored"), r9.get("registered"), s[9]["puts"]), (["roster"], True, [kk, rk]),
+                         "after a rosterkey reset a changed tick inside the hour registered no key: %r" % r9)
+        self.assertEqual(s[9]["records"][rk]["sections"]["characters"]["asOf"], 2001)
+        r10 = s[10]["reply"]
+        self.assertEqual((r10.get("stored"), s[10]["records"][rk]["keyId"]), (["roster"], kid_a),
+                         "a boot kept a key id that is not its key's: %r" % r10)
+        r11, rec11 = s[11]["reply"], s[11]["records"][rk]
+        self.assertEqual((r11.get("stored"), r11.get("skipped"), s[11]["puts"]), ([], ["within the hour"], []),
+                         "an unsigned tick inside the hour over a pre-signing row was written: %r" % r11)
+        self.assertNotIn("intentVerified", rec11, "an unsigned tick inside the hour gave a pre-signing row a verdict")
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1329,6 +1361,28 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "!!prev && prev.intentVerified === verified && prevPub",
      "replace": "!!prev && prevPub",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r3: every boot counts as a key arriving, so an ordinary boot of an unchanged row costs a write",
+     "file": "functions/api/roster.js",
+     "find": "(!sameIntent || intent.register === true)",
+     "replace": "(!sameIntent || intent.register === true || boot)",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r3: a key registers only on a boot, so after a rosterkey reset a changed tick inside the hour "
+            "is skipped and registers nothing",
+     "file": "functions/api/roster.js",
+     "find": "(!sameIntent || intent.register === true)",
+     "replace": "(!sameIntent || (intent.register === true && boot))",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r3: a boot counts as the same key id, so a boot of an unchanged row keeps a stale key id",
+     "file": "functions/api/roster.js",
+     "find": " && (prev.keyId || null) === keyId;",
+     "replace": " && ((prev.keyId || null) === keyId || boot);",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r3: an unsigned publish counts as a key arriving, so an unsigned tick inside the hour over a "
+            "pre-signing row is written",
+     "file": "functions/api/roster.js",
+     "find": "  const upgrade = verified && (!sameIntent",
+     "replace": "  const upgrade = (!sameIntent",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",

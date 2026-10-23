@@ -55,6 +55,11 @@ this key but a stale key id - the id is rewritten; and an unsigned publish of th
 stored NOT verified, never skipped. Four more RED_PROOFs: upgrade without the first-registration clause, the unchanged check
 without !upgrade, sameIntent without the key id, sameIntent without the verdict. The churn-guard case reads its reply with
 .get, so that tamper fails on its own message.
+FIX ROUND 3 (the review of r2 found four more edits that stayed green): a signed boot of an unchanged row under its own
+registered key is skipped 'unchanged' (a boot is not a key arriving); after a rosterkey reset a changed TICK inside the hour
+registers the key and is stored (not only a boot); a boot of an unchanged row with a stale key id rewrites the id; an
+unsigned tick inside the hour over a recent pre-signing row is skipped 'within the hour' and leaves no verdict. Four more
+RED_PROOFs: upgrade || boot, register only on a boot, the key-id compare || boot, upgrade without `verified &&`.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
