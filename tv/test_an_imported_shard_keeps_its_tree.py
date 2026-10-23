@@ -95,6 +95,27 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        "why": "REG-2586 - an in-plan proof is banked under a key this checkout's bytes never give it (any law's key)",
+        "file": "proof_shard.py",
+        "find": "            if keyer is not None and keyer(str(e.get(\"gate\")), e.get(\"proof\")) != key:\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - two shards that both claim one proof are imported, the later entry silently wins",
+        "file": "proof_shard.py",
+        "find": "            if row in owner:\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - an import into a checkout whose tracked files differ from HEAD keys proofs by bytes no commit has",
+        "file": "heart2.py",
+        "find": "        if not ok_d or dirty.strip():\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-2586 - an import overwrites an entry this machine already serves",
         "file": "proof_shard.py",
         "find": "        if servable(out.get(key)):\n            continue\n",
@@ -129,7 +150,13 @@ class _Fixture(unittest.TestCase):
         self.target = os.path.join(self.tmp, "home", os.path.basename(heart2.CACHE))
         os.makedirs(os.path.dirname(self.target))
         self.said = []
-        p = mock.patch.object(heart2, "_git", side_effect=lambda *a: (True, HEAD + "\n"))
+        self.dirty = ""
+        p = mock.patch.object(heart2, "_git", side_effect=lambda *a: (True, HEAD + "\n") if a[0] == "rev-parse"
+                              else (True, self.dirty))
+        p.start()
+        self.addCleanup(p.stop)
+        self.keys = {}                  # (gate, proof) -> the key this checkout's bytes give it (a stand-in keyer)
+        p = mock.patch.object(heart2, "_shard_keyer", return_value=lambda g, i: self.keys.get((g, i)))
         p.start()
         self.addCleanup(p.stop)
 
@@ -138,6 +165,8 @@ class _Fixture(unittest.TestCase):
         if not os.path.isdir(d):
             os.makedirs(d)
         path = os.path.join(d, os.path.basename(heart2.CACHE))
+        for key, e in entries.items():
+            self.keys.setdefault((e["gate"], e["proof"]), key)
         own = {}
         for g, i in (assigned if assigned is not None else [(e["gate"], e["proof"]) for e in entries.values()]):
             own.setdefault(g, set()).add(i)
@@ -246,6 +275,31 @@ class APartOrForeignSetIsRefused(_Fixture):
     def test_an_entry_outside_its_plan(self):
         a = self.shard(1, 1, {"k1": _e("g1", 0), "k9": _e("g9", 4)}, assigned=[("g1", 0)])
         self.assertRefused([a], "never gave")
+
+    def test_an_entry_filed_under_a_key_these_bytes_do_not_give_it(self):
+        paths = self.two()
+        self.keys[("g1", 1)] = "the-key-this-tree-gives"
+        self.assertRefused(paths, "do not give it")
+
+    def test_one_proof_assigned_to_two_shards(self):
+        a = self.shard(1, 2, {"k1": _e("g1", 0)})
+        b = self.shard(2, 2, {"k3": _e("g2", 0)}, assigned=[("g2", 0), ("g1", 0)])
+        self.assertRefused([a, b], "assigned to shards")
+
+    def test_a_shard_number_that_is_not_a_whole_number(self):
+        a = self.shard(1, 2, {"k1": _e("g1", 0)})
+        b = self.shard(2, 2, {"k3": _e("g2", 0)})
+        with io.open(b, encoding="utf-8") as fh:
+            body = json.load(fh)
+        body["shard"]["k"] = 2.0
+        with io.open(b, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(body))
+        self.assertRefused([a, b], "readable shard number")
+
+    def test_into_a_checkout_whose_files_differ_from_head(self):
+        paths = self.two()
+        self.dirty = " M tv/heart2.py\n"
+        self.assertRefused(paths, "differ from its HEAD")
 
     def test_a_head_nobody_can_read(self):
         with mock.patch.object(heart2, "_git", return_value=(False, "")):

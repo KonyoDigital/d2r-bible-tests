@@ -158,7 +158,7 @@ def check_shards(bodies, head):
 
     bodies  [(label, body | None, why-unreadable | None)] - each shard file as read
     head    this checkout's HEAD sha"""
-    shards, ns, plans = {}, set(), set()
+    shards, ns, plans, owner = {}, set(), set(), {}
     for label, body, why in bodies:
         if body is None:
             return False, "%s is unreadable (%s)" % (label, why), []
@@ -172,9 +172,8 @@ def check_shards(bodies, head):
                                                                       str(head)[:12] or "UNKNOWN"), []
         if m.get("dirty") is not False:
             return False, "%s ran on a tree whose tracked files differed from its HEAD" % label, []
-        try:
-            k, n = int(m.get("k")), int(m.get("n"))
-        except (TypeError, ValueError):
+        k, n = m.get("k"), m.get("n")
+        if not all(isinstance(x, int) and not isinstance(x, bool) for x in (k, n)) or not 1 <= k <= n:
             return False, "%s names no readable shard number" % label, []
         if k in shards:
             return False, "shard %d/%d is given twice" % (k, n), []
@@ -187,6 +186,11 @@ def check_shards(bodies, head):
         ent = body.get("entries")
         if not isinstance(ent, dict):
             return False, "%s has no 'entries' map" % label, []
+        for row in assigned:
+            if row in owner:
+                return False, "%s[%s] is assigned to shards %d and %d - one plan gives a proof one shard" % (
+                    row[0], row[1], owner[row], k), []
+            owner[row] = k
         shards[k] = (ent, assigned)
     if not shards:
         return False, "no shard was given", []
@@ -204,10 +208,12 @@ def check_shards(bodies, head):
     return True, None, [(k, shards[k][0], shards[k][1]) for k in sorted(shards)]
 
 
-def select(shards):
+def select(shards, keyer=None):
     """The entries an import may bank. -> (ok, why | None, {key: entry}, skipped count)
 
-    An entry outside its shard's plan refuses the whole import; one that is not servable is skipped (counted)."""
+    An entry outside its shard's plan refuses the whole import; one that is not servable is skipped (counted).
+    keyer   (gate, proof index) -> the key THIS checkout's bytes give that proof (None: unkeyable here). A servable entry
+            filed under any other key refuses the import: the shard's key is a claim, this tree's key is the fact."""
     take, skipped = {}, 0
     for k, ent, assigned in shards:
         for key, e in ent.items():
@@ -220,6 +226,9 @@ def select(shards):
             if not servable(e):
                 skipped += 1                # ELSEWHERE, BLIND, UNPROVABLE, undated, traced: never banked
                 continue
+            if keyer is not None and keyer(str(e.get("gate")), e.get("proof")) != key:
+                return False, "shard %d files %s[%s] under a key this checkout's bytes do not give it" % (
+                    k, e.get("gate"), e.get("proof")), {}, 0
             take[key] = e                   # KEPT as the shard wrote it - its tree above all
     return True, None, take, skipped
 

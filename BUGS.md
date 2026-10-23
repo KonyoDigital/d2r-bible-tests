@@ -10,7 +10,9 @@
 ### REG-2586 - A SHARD'S PROVENS COME HOME ALL OR NOTHING, AND KEEP THE TREE THEY WERE PROVED IN (proof-keys build, GB-box, 2026-10-23, v3789)
 `heart2 --import-shards FILE...` merges CI shard caches into this machine's verdict cache under the store lock. It
 refuses the whole set, writing nothing, unless every shard 1..N is there once, finished, on this checkout's HEAD, clean,
-and cut from one plan; an entry outside its shard's assignment also refuses it. Only what peek() would serve is banked
+and cut from one plan, no proof assigned to two shards, and this checkout clean too. An entry outside its shard's
+assignment, or filed under a key this checkout's bytes do not give that proof (recomputed with key_for, the second
+eye's high finding), refuses it as well. Only what peek() would serve is banked
 (never ELSEWHERE, BLIND, UNPROVABLE, undated or fact-bound). `tree` is kept, so #242 still owes each gate one clean run
 here. An entry this machine already serves is kept. Law test_an_imported_shard_keeps_its_tree, RED_PROOF "REG-2586".
 

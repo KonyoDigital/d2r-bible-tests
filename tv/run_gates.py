@@ -10930,6 +10930,20 @@ GATES = [
              "push. Such a run is now UNKNOWN: the kill watch in gate_trace/sitecustomize.py writes K for every child a "
              "signal ended and X for every signal the run sent itself, and a K no X explains is a kill from outside. A "
              "law that ends its own helper is judged as before; SIGINT ends a prover like SIGTERM."),
+    Gate("test_a_proof_shard_covers_every_proof_once",
+         [sys.executable, os.path.join(HERE, "test_a_proof_shard_covers_every_proof_once.py")], 60,
+         needs_app=False,
+         why="REG-2585 - `heart2 --prove --push --proof-shard K/N` proves one shard of one deterministic, cost-balanced "
+             "plan: every proof in exactly one shard, a big gate split across shards, only this shard's proofs reach "
+             "the lanes, a fresh cache file of its own, a manifest (HEAD, dirty, plan) and no census. Fixture plan "
+             "and the push run with its seams replaced; nothing is proved for real."),
+    Gate("test_an_imported_shard_keeps_its_tree",
+         [sys.executable, os.path.join(HERE, "test_an_imported_shard_keeps_its_tree.py")], 60,
+         needs_app=False,
+         why="REG-2586 - `heart2 --import-shards` banks CI shard caches all or nothing under the store lock: every "
+             "shard 1..N once, finished, on this HEAD, clean, one plan; only what peek() serves (never ELSEWHERE, "
+             "BLIND, undated); tree kept so #242 still runs each gate clean here; what this machine serves is kept. "
+             "Temp stores only."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,

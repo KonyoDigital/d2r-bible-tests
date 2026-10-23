@@ -5854,6 +5854,31 @@ def triage(say=print):
     return {"writable": [n for n, _ in writable], "unprovable": [n for n, _ in unprovable]}
 
 
+def _shard_keyer(target):
+    """REG-2586 - (gate, proof index) -> the verdict-cache key THIS checkout's tv/ gives that proof, or None. The key
+    is computed exactly as a push computes it (_VerdictCache.key_for), over the checkout's own bytes."""
+    st = {}
+
+    def keyer(gate, idx):
+        if "files" not in st:
+            st["files"] = dict(gate_files(say=lambda *a, **k: None))
+            st["cache"] = _VerdictCache(path=target, say=lambda *a, **k: None)
+            st["proofs"] = {}
+        fn = st["files"].get(gate)
+        if not fn or isinstance(idx, bool) or not isinstance(idx, int):
+            return None
+        if gate not in st["proofs"]:
+            st["proofs"][gate] = red_proofs_in(fn) or []
+        proofs = st["proofs"][gate]
+        if not 0 <= idx < len(proofs):
+            return None
+        try:
+            return st["cache"].key_for(HERE, gate, fn, proofs[idx])[0]
+        except Exception:
+            return None
+    return keyer
+
+
 def import_shards(paths, say=print, target=None):
     """REG-2586 — `heart2.py --import-shards FILE...`: the shards' banked PROVENs into this machine's verdict cache, ALL OR
     NOTHING (tv/proof_shard.py says every rule). -> exit code: 0 imported, 2 refused (nothing written)"""
@@ -5867,7 +5892,11 @@ def import_shards(paths, say=print, target=None):
         bodies.append((os.path.basename(os.path.dirname(os.path.abspath(p))) + "/" + os.path.basename(p), body, why))
     ok, why, shards = _PS.check_shards(bodies, head)
     if ok:
-        ok, why, take, skipped = _PS.select(shards)
+        ok_d, dirty = _git("status", "--porcelain", "--untracked-files=no")
+        if not ok_d or dirty.strip():
+            ok, why = False, "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
+    if ok:
+        ok, why, take, skipped = _PS.select(shards, keyer=_shard_keyer(target))
     if not ok:
         say("  ✗ REG-2586 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
         return 2
@@ -5885,7 +5914,7 @@ def import_shards(paths, say=print, target=None):
         return 2
     say("  ✓ REG-2586 IMPORTED %d shard(s) of HEAD %s: %d PROVEN entr(ies) banked, %d already served here and kept, "
         "%d not servable and never banked (ELSEWHERE, BLIND, undated...)%s. Each keeps the tree it was proved in, so "
-        "every gate still owes this tree one clean run (#242)."
+        "a push's clean wave still runs each such gate clean here once (#242)."
         % (len(shards), head[:12], out.get("added", 0), len(take) - out.get("added", 0), skipped,
            (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else ""))
     return 0
