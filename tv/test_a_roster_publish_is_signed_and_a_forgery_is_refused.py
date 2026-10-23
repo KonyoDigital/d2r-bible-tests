@@ -687,6 +687,22 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                 # 11 an unsigned tick of the same sections over a RECENT pre-signing row: an unsigned publish is no key
                 #   arriving, so the hourly guard holds and the row keeps no verdict
                 _step(raw, {}, fresh=True, seed={rk: record()}),
+                # r4 (the review of r3 found four more edits that stayed green):
+                # 12 a signed TICK under the registered key that wrote the row, rows changed, inside the hour: the
+                #   hourly cap holds for a verified row too - only a key arriving skips it
+                _step(moved_raw, moved_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))})),
+                # 13 a signed TICK over another key's verified row that still holds `owned`: the row keeps only what
+                #   this key signed, on a tick as on a boot (REG-2516's heal runs on a tick)
+                _step(moved_raw, moved_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId=kid_b, pub=RS.b64u(pub_b), sections={"characters": mine, "owned": {
+                        "asOf": 1000, "counts": 1, "rows": [{"name": "FORGED Zod rune", "level": 1}]}})})),
+                # 14 an unsigned BOOT of the same sections over a recent pre-signing row: stored NOT verified -
+                #   the boot that comes back unsigned must say so on the row
+                _step(boot_raw, {}, fresh=True, seed={rk: record()}),
+                # 15 rosterkey reset, then an UNCHANGED tick (not a boot), the row still verified under this key:
+                #   a registration is written even when the body is unchanged
+                _step(raw, heads, fresh=True, seed={rk: record(intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -730,6 +746,20 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         self.assertEqual((r11.get("stored"), r11.get("skipped"), s[11]["puts"]), ([], ["within the hour"], []),
                          "an unsigned tick inside the hour over a pre-signing row was written: %r" % r11)
         self.assertNotIn("intentVerified", rec11, "an unsigned tick inside the hour gave a pre-signing row a verdict")
+        r12 = s[12]["reply"]
+        self.assertEqual((r12.get("stored"), r12.get("skipped"), s[12]["puts"]), ([], ["within the hour"], []),
+                         "a signed tick under the row's own registered key skipped the hourly cap: %r" % r12)
+        r13, rec13 = s[13]["reply"], s[13]["records"][rk]
+        self.assertEqual((r13.get("stored"), rec13.get("keyId"), sorted(rec13["sections"])),
+                         (["roster"], kid_a, ["characters"]),
+                         "a signed tick over another key's row kept a section this key never signed: %r" % rec13)
+        r14, rec14 = s[14]["reply"], s[14]["records"][rk]
+        self.assertEqual((r14.get("stored"), r14.get("intentVerified"), rec14.get("intentVerified")),
+                         (["roster"], False, False),
+                         "an unsigned boot over a pre-signing row left it with no verdict: %r" % r14)
+        r15 = s[15]["reply"]
+        self.assertEqual((r15.get("stored"), r15.get("registered"), s[15]["puts"]), (["roster"], True, [kk, rk]),
+                         "after a rosterkey reset an unchanged tick registered no key: %r" % r15)
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1383,6 +1413,34 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  const upgrade = verified && (!sameIntent",
      "replace": "  const upgrade = (!sameIntent",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r4: a verified row skips the hourly cap, so every signed tick with a change is written",
+     "file": "functions/api/roster.js",
+     "find": "  if (prev && age < HOUR_MS && !boot && !upgrade) {",
+     "replace": "  if (prev && age < HOUR_MS && !boot && !upgrade && !verified) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r4: a signed tick inherits every prior section, so another key's `owned` stays under this key",
+     "file": "functions/api/roster.js",
+     "find": "  const inherit = !verified || sameIntent;",
+     "replace": "  const inherit = !verified || sameIntent || !boot;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r4: a boot counts as the same verdict, so an unsigned boot over a pre-signing row is skipped "
+            "and the row keeps no verdict",
+     "file": "functions/api/roster.js",
+     "find": "!!prev && prev.intentVerified === verified && prevPub",
+     "replace": "!!prev && (prev.intentVerified === verified || boot) && prevPub",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r4: the unchanged check lets any boot through as the same intent, so an unsigned boot over a "
+            "pre-signing row is skipped 'unchanged'",
+     "file": "functions/api/roster.js",
+     "find": "prev.hash === hash && sameIntent && !upgrade) {",
+     "replace": "prev.hash === hash && (sameIntent || boot) && !upgrade) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r4: a registration counts only on a boot or a change, so after a rosterkey reset an "
+            "unchanged tick is skipped and the key stays unregistered",
+     "file": "functions/api/roster.js",
+     "find": "(!sameIntent || intent.register === true)",
+     "replace": "(!sameIntent || (intent.register === true && (boot || prev.hash !== hash)))",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",

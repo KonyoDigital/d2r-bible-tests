@@ -69,6 +69,11 @@ registered key is skipped 'unchanged' (a boot is not a key arriving); after a ro
 registers the key and is stored (not only a boot); a boot of an unchanged row with a stale key id rewrites the id; an
 unsigned tick inside the hour over a recent pre-signing row is skipped 'within the hour' and leaves no verdict. Four more
 RED_PROOFs: upgrade || boot, register only on a boot, the key-id compare || boot, upgrade without `verified &&`.
+FIX ROUND 4 (the review of r3 found four more): a signed tick with a change under the row's own registered key is skipped
+'within the hour' (the cap holds for a verified row); a signed tick over another key's row keeps only `characters` (the
+REG-2516 heal runs on a tick, not only a boot); an unsigned boot over a recent pre-signing row is stored NOT verified; after a
+rosterkey reset an UNCHANGED tick registers the key and is stored. Five RED_PROOFs: the hourly guard && !verified, inherit ||
+!boot, the verdict compare || boot, the unchanged check (sameIntent || boot), register only on a boot or a change.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
