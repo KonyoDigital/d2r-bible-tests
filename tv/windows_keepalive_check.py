@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """REG-2614 - ON A REAL WINDOWS, THE KEEPALIVE TASK IS ACCEPTED AS WRITTEN AND A PASS DECIDES RIGHT. -> exit 0 / 1 / 77
 
-Run by tv-windows-boot.yml on windows-latest. The box laws prove the logic with a fake schtasks; only a real Task
+Run on windows-latest by windows_boot_check.py (tv-windows-boot.yml), after the scratch boot passes. The box laws prove the logic with a fake schtasks; only a real Task
 Scheduler can say whether the XML it is given is one it takes. Under a SCRATCH task name, so a dev PC running this is
 never touched: register through ensure_keepalive_task's own path, read it back (battery, hidden, interval, user),
 delete it. Then one keepalive pass against a port nothing listens on, with a recording launcher, must launch once and

@@ -2138,7 +2138,7 @@ hook and a routine are all reached without an import, so it is a question, not a
 - **windows_boot_check.py** — Boots a SCRATCH console (TV_STUB=1, TV_CAPTURE=off, own port and sandbox) and asks /api/status which build it runs, against tv/WINDOWS_SHIP.json. The Windows CI job (tv-windows-boot.yml) runs it on windows-latest (#229).  ·  *no importer*
       ↪ main
       ⚠ Exit 77 = could not run (no manifest), never a pass. TVD_BOOT_CHECK_TREE points it at another tree, which is how it was proven on the ALT over SSH without touching his checkout. The console is stopped by its own PID and the sandbox removed whatever happens.
-- **windows_keepalive_check.py** — REG-2614 - on windows-latest (tv-windows-boot.yml) registers the keepalive task XML under a scratch name with the real Task Scheduler, reads it back, deletes it, and drives one keepalive pass against a closed port with a recording launcher.  ·  *no importer*
+- **windows_keepalive_check.py** — REG-2614 - on windows-latest (called by windows_boot_check.py after its boot passes) registers the keepalive task XML under a scratch name with the real Task Scheduler, reads it back, deletes it, and drives one keepalive pass against a closed port with a recording launcher.
       ↪ main
       ⚠ Exit 77 off Windows. Never launches anything for real; the scratch task is deleted in a finally.
 

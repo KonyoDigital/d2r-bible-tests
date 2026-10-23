@@ -34,7 +34,3 @@ jobs:
         env:
           PYTHONIOENCODING: utf-8
         run: python tv/windows_boot_check.py
-      - name: The keepalive task is one a real Task Scheduler takes (REG-2614)
-        env:
-          PYTHONIOENCODING: utf-8
-        run: python tv/windows_keepalive_check.py
