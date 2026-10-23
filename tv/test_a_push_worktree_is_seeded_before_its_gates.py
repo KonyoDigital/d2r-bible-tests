@@ -168,6 +168,53 @@ class APushWorktreeIsSeededBeforeItsGates(unittest.TestCase):
         os.environ[SW.ENV_FREE] = str(floor + need)
         self.assertEqual(self._seed(self.wt), 0, "a seed leaving exactly the floor was refused: %s" % self._out())
 
+    # 4b --------------------------------------------------------------------------------------------------------------
+    def _written(self, dst):
+        n = 0
+        for root, _d, names in os.walk(dst):
+            for x in names:
+                q = os.path.join(root, x)
+                if not os.path.islink(q):
+                    n += os.lstat(q).st_size
+        return n
+
+    def test_the_floor_prices_the_copy_that_is_written(self):
+        """REG-2451 round 2: the floor priced links as free and a linked node_modules as one directory entry, while
+        the copy walked them whole - a seed passed the floor short by the whole store. Three layouts, each priced at
+        no less than what the copy writes, and the seed refused one byte under it."""
+        if not self.links:
+            self.skipTest("no symlink privilege on this PC")
+        store = os.path.join(self.root, "store")
+        _put(os.path.join(store, "big", "blob.bin"), "x" * 300000)
+        # (a) node_modules itself a link to a store outside the checkout
+        top = os.path.join(self.root, "nm_linked")
+        os.symlink(store, top)
+        # (b) an ABSOLUTE link inside node_modules (copied as what it points at)
+        absl = os.path.join(self.root, "nm_abs")
+        _put(os.path.join(absl, "a.js"), "1;\n")
+        os.symlink(os.path.join(store, "big"), os.path.join(absl, "dep"))
+        # (c) a relative in-tree link, on a PC where os.symlink is refused (Windows): the copy materialises it
+        rel = os.path.join(self.root, "nm_rel")
+        _put(os.path.join(rel, "pkg", "blob.bin"), "y" * 200000)
+        os.symlink(os.path.join("pkg", "blob.bin"), os.path.join(rel, "tool"))
+        for name, src, refuse in (("linked", top, False), ("absolute", absl, False), ("refused-link", rel, True)):
+            dst = os.path.join(self.root, "out_" + name)
+            if refuse:
+                with mock.patch.object(SW.os, "symlink", side_effect=OSError("no privilege")):
+                    SW._copy_tree(src, dst)
+            else:
+                SW._copy_tree(src, dst)
+            wrote, priced = self._written(dst), SW._tree_bytes(src)[1]
+            self.assertGreaterEqual(priced, wrote, "%s: the floor priced %d bytes, the copy wrote %d"
+                                    % (name, priced, wrote))
+        # and the seed itself: a linked node_modules is refused one byte under floor + what it really costs
+        shutil.rmtree(os.path.join(self.main, "node_modules"))
+        os.symlink(store, os.path.join(self.main, "node_modules"))
+        need = 300000 + os.path.getsize(os.path.join(self.main, "tv", ".heart2.json"))
+        os.environ[SW.ENV_FREE] = str(int(SW.FLOOR_GB * 1e9) + need - 1)
+        self.assertEqual(self._seed(self.wt), 2, "a linked store was priced as free: %s" % self._out())
+        self.assertFalse(os.path.lexists(os.path.join(self.wt, "node_modules")))
+
     # 5 ---------------------------------------------------------------------------------------------------------------
     def test_the_main_checkout_is_never_a_destination(self):
         self.assertEqual(self._seed(self.main), 2, "the main checkout was accepted as its own seed destination: %s"
@@ -194,6 +241,18 @@ RED_PROOF = [
      "file": "seed_worktree.py",
      "find": "    if os.path.realpath(main) == os.path.realpath(worktree):\n",
      "replace": "    if False:\n",
+     "matches": 1},
+    {"why": "REG-2451 round 2 - the floor prices a link as free again: a linked store passes the ON AIR floor short "
+            "by its whole size, then the copy writes it",
+     "file": "seed_worktree.py",
+     "find": "                f, b = _followed_bytes(p, set())    # per link: two links to one store are two copies\n",
+     "replace": "                f, b = 0, 0\n",
+     "matches": 1},
+    {"why": "REG-2451 round 2 - a linked node_modules is priced as one directory entry (its own st_size), not the "
+            "store the copy walks",
+     "file": "seed_worktree.py",
+     "find": "    if not os.path.isdir(src):\n        return _followed_bytes(src, set())\n",
+     "replace": "    if not os.path.isdir(src) or os.path.islink(src):\n        return 1, os.lstat(src).st_size\n",
      "matches": 1},
 ]
 
