@@ -120,11 +120,11 @@ RED_PROOF = [
      "file": "bible.html", "matches": 1,
      "find": "      status('⚠ \"' + name + '\" was not thrown out of Magic & Rare - ' + (r.why || 'the removal door refused'));\n",
      "replace": ""},
-    {"why": "V1 merge join - the removal door no longer refuses while the witness store is held, so the toss takes the "
+    {"why": "V1 merge join - the removal door no longer refuses while the witness store is held (its REG-2415 wait and the REG-2521 held wait behind it, which asks the witness store as part of the basis), so the toss takes the "
             "keeper and the filing it cannot carry",
      "file": "bible.html", "matches": 1,
-     "find": "    if (_whyRm){\n",
-     "replace": "    if (false){\n"},
+     "find": "    if (_whyRm){\n      if (!opts.quiet) status('⚠ nothing removed - ' + _whyRm);\n      return { requested: req.length, removed: [], skipped: [], ts: null, batch: null, refused: 'prov-unreadable', why: _whyRm };\n    }\n    /* REG-2521 — THE REMOVAL DOOR WAITS WHILE A STORE IT WRITES IS UNKNOWN OR HELD: owned, the journal and its per-name\n       record always, and - when it takes a filing - the mule map and what it is judged against (VAULT_BASIS). A journal\n       that will not read is the plainest case: the removal could never be undone. Said even for a quiet caller, because\n       a refusal nobody sees is the silent loss this door exists to prevent. */\n    var _hRm = (typeof window._vaultRemovalHeld === 'function') ? window._vaultRemovalHeld(!opts.keepFiling) : null;\n    var _logRm = _vrRead();\n    if (!_hRm && _logRm === null)\n      _hRm = { keys: [_VR_LOG], why: 'the removal journal (' + _VR_LOG + ') would not read, and nothing is written over it' };\n    if (_hRm){",
+     "replace": "    if (false){\n      if (!opts.quiet) status('⚠ nothing removed - ' + _whyRm);\n      return { requested: req.length, removed: [], skipped: [], ts: null, batch: null, refused: 'prov-unreadable', why: _whyRm };\n    }\n    /* REG-2521 — THE REMOVAL DOOR WAITS WHILE A STORE IT WRITES IS UNKNOWN OR HELD: owned, the journal and its per-name\n       record always, and - when it takes a filing - the mule map and what it is judged against (VAULT_BASIS). A journal\n       that will not read is the plainest case: the removal could never be undone. Said even for a quiet caller, because\n       a refusal nobody sees is the silent loss this door exists to prevent. */\n    var _hRm = (typeof window._vaultRemovalHeld === 'function') ? window._vaultRemovalHeld(!opts.keepFiling) : null;\n    var _logRm = _vrRead();\n    if (!_hRm && _logRm === null)\n      _hRm = { keys: [_VR_LOG], why: 'the removal journal (' + _VR_LOG + ') would not read, and nothing is written over it' };\n    if (false){"},
 ]
 
 
