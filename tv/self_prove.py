@@ -922,7 +922,12 @@ def lanes_for(free, cpus):
     return max(1, min(int(f // LANE_BUDGET_MB), c // 2, MAX_PROVE_LANES))
 
 
-def spawn(log_path, python=None, workers=None, popen=None, names=None):
+#: REG-2613 (#34) - the marker that names a SELF-PROVER to child_guard's watchdog ("-X" options are free-form in
+#: CPython and change nothing). Only self_prove.spawn's argv carries it: a pre-push or hand-run prover never matches.
+PROVER_MARK = ("-X", "tvd_self_prove")
+
+
+def spawn(log_path, python=None, workers=None, popen=None, names=None, door=None):
     """Start `heart2.py --prove` hidden and below everything he does. -> pid
     #99 — `names`: prove just these gates as ONE SLICE (`--prove NAMES --slice`); None proves the whole census.
     REG-1670 — `workers` None asks lanes_for() with the memory free right now."""
@@ -947,17 +952,43 @@ def spawn(log_path, python=None, workers=None, popen=None, names=None):
         # ⚠ `nice` THE COMMAND, not preexec_fn: this runs inside the console's threaded server, and
         # Python documents preexec_fn as unsafe when threads are running.
         kw["start_new_session"] = True
-    cmd = [py, os.path.join(HERE, "heart2.py"), "--prove"] + ((list(names) + ["--slice"]) if names else [])
+    cmd = [py] + list(PROVER_MARK) + [os.path.join(HERE, "heart2.py"), "--prove"] + (
+        (list(names) + ["--slice"]) if names else [])
     if not IS_WIN and os.path.exists("/usr/bin/nice"):
         cmd = ["/usr/bin/nice", "-n", "15"] + cmd
     log = open(log_path, "ab")
     kw["stdout"] = log
     kw["stderr"] = subprocess.STDOUT
     try:
-        p = (popen or subprocess.Popen)(cmd, **kw)
+        if popen is None or door is not None:
+            # REG-2613 (#34) - THE PROVER GOES THROUGH child_guard'S ONE DOOR: the console that spawns it OWNS it.
+            # Windows: a Job Object with KILL_ON_JOB_CLOSE, so Dean's console closing ends heart2 AND every gate it
+            # started; POSIX: its own session, ended as a tree. The door ends a previous prover of this checkout
+            # first, and the watchdog ends one whose console is gone. Its creationflags (below normal, no window)
+            # ride through unchanged. A law's recording `popen` alone never enters the real door's ledger: a fake
+            # pid recorded there would be ended - by pid - on the next real spawn.
+            p = (door or _guard_spawn)("prover", cmd, popen=popen, **kw)
+        else:
+            p = popen(cmd, **kw)
     finally:
         log.close()                       # the child holds its own handle
     return p.pid
+
+
+def _guard_spawn(role, argv, popen=None, **kw):
+    import child_guard                    # imported at spawn, never at import: the pre-push gate loads no guard
+    return child_guard.spawn(role, argv, popen=popen, **kw)
+
+
+_CONSOLE = []
+
+
+def console_id():
+    """REG-2613 - THIS console process: pid and birth. A prover started by another console life was ended with it
+    (child_guard), which is a stand-aside, not a failed proof."""
+    if not _CONSOLE:
+        _CONSOLE.append("%d:%s" % (os.getpid(), proc_birth(os.getpid())))
+    return _CONSOLE[0]
 
 
 #: ⚠ second eye (Grok, 2026-09-29): the pid of a proof THIS process started, kept in memory too. If saving
@@ -1082,7 +1113,8 @@ def _ask(v, probe):
 
 def _forget(mem):
     """The proof this lane was tracking is over (ended, or stood aside and gone): drop every trace of it."""
-    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates", "logFrom"):
+    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates", "logFrom",
+              "startedBy"):
         mem.pop(k, None)
     _STARTED.update(pid=None, birth=None)
 
@@ -1183,6 +1215,11 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             # the new gates are simply unproved, and are proved next, without the backoff.
             mem["lastMoved"] = "the gates changed during the proof (%s -> %s)" % (
                 str(mem.get("startedFor"))[:8], str(census.get("fingerprint"))[:8])
+        elif mem.get("startedBy") and mem.get("startedBy") != console_id():
+            # REG-2613 (#34) - its console ended, and child_guard ended the prover WITH it (Windows: the Job closed;
+            # POSIX: the watchdog's dead-parent sweep). Nothing was proved wrong: a stand-aside, never the 3 h backoff.
+            mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=now_ms,
+                       lastStoodAsideWhy="the console that started it ended, and the prover ended with it")
         elif _log_says_no_sandbox(_store_path(path) + ".log", mem.get("logFrom")):
             # REG-1845 — not a failed proof: no lane could copy the repo. Booked with its kind, so decide() asks the
             # copier again every tick instead of waiting 3 h for a copy that would be refused the same way.
@@ -1253,6 +1290,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             else:
                 mem["pid"] = (spawn_fn or spawn)(log_path)
             mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
+            mem["startedBy"] = console_id()                 # REG-2613 - the console that owns it (child_guard)
             _STARTED.update(pid=mem["pid"], birth=mem["pidBirth"])
             mem["startedFor"] = census.get("fingerprint")
             mem["startedAt"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_s))
