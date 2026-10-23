@@ -5,7 +5,8 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v44 — event-boss additions (Summoner / Diablo Clone) + command-palette completeness.
 // Summoner drops Key of Hate (Arcane Sanctuary); Diablo Clone drops Annihilus (SoJ-spawned).
-// Event drops are %-encoded (chance < 100) rather than 1:N, qlvl 0, playerMult 1, no hours.
+// Event drops are probabilities in (0,1] (#63, REG-2503) rather than 1:N, qlvl 0, playerMult 1, no hours.
+// The keys drop on Hell only (silospen RotW 3.0, /players 1); Diablo Clone always drops Annihilus (vanilla, labelled).
 test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette completeness', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
@@ -25,8 +26,8 @@ test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette comple
     });
     expect(data.summoner).not.toBeNull();
     expect(data.dclone).not.toBeNull();
-    expect(data.summoner!.drops).toEqual([{ n: 'Key of Hate', hell: 36 }]);
-    expect(data.dclone!.drops).toEqual([{ n: 'Annihilus', hell: 12 }]);
+    expect(data.summoner!.drops).toEqual([{ n: 'Key of Hate', hell: 0.0862 }]);
+    expect(data.dclone!.drops).toEqual([{ n: 'Annihilus', hell: 1 }]);
   });
 
   test('event item sources route to the correct event boss', async ({ page }) => {
@@ -42,25 +43,27 @@ test.describe('v44 event-boss audit — Summoner / Diablo Clone + palette comple
     expect(new Set(src.anni)).toEqual(new Set(['dclone']));
   });
 
-  test('event drops render as percentage (chance < 100), not 1:N', async ({ page }) => {
+  test('event drops render as percentage (a probability <= 1), not 1:N', async ({ page }) => {
     const f = await page.evaluate(() => ({
-      koh: (eval('fmt') as any)(36),
-      anni: (eval('fmt') as any)(12),
-      // a normal 1:N value still renders as 1:N
+      koh: (eval('fmt') as any)(0.0862),
+      anni: (eval('fmt') as any)(1),
+      // a normal 1:N value still renders as 1:N, however small (#63: 1:49 is never 49%)
       shako: (eval('fmt') as any)(912),
+      small: (eval('fmt') as any)(49),
     }));
-    expect(f.koh).toBe('36%');
-    expect(f.anni).toBe('12%');
+    expect(f.koh).toBe('8.6%');
+    expect(f.anni).toBe('100%');
     expect(f.shako).toContain('1:');
+    expect(f.small).toBe('1:49');
   });
 
-  test('hoursFor returns null for %-encoded event drops (no bogus time estimate)', async ({ page }) => {
+  test('hoursFor returns null for event drops (no bogus time estimate)', async ({ page }) => {
     const h = await page.evaluate(() => {
       const _hoursFor = eval('hoursFor') as any;
       const _effChance = eval('effChance') as any;
       return {
-        koh: _hoursFor(_effChance(36, 'summoner', 'hell'), 0.5, 85),
-        anni: _hoursFor(_effChance(12, 'dclone', 'hell'), 0.5, 3),
+        koh: _hoursFor(_effChance(0.0862, 'summoner', 'hell'), 0.5, 85),
+        anni: _hoursFor(_effChance(1, 'dclone', 'hell'), 0.5, 3),
       };
     });
     expect(h.koh).toBeNull();

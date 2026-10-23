@@ -310,7 +310,8 @@ test.describe('data integrity — every cell faithful to the model (NO fabricati
             const adj = (adjustChance as any)(d[k], (mf as any));
             cellsChecked++;
             if (adj !== null && adj !== undefined) {
-              const expected = (fmt as any)(adj);
+              // #63 (REG-2503) - a Pandemonium key's cell prints its card's sourced band; every other cell is fmt
+              const expected = (fmtDrop as any)(adj, itemName);
               if (txt !== expected) mismatches.push({ bossId, itemName, k, txt, expected });
             } else if (numRe.test(txt) || pctRe.test(txt)) {
               phantoms.push({ bossId, itemName, k, txt });

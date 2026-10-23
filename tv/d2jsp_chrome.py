@@ -1,29 +1,40 @@
 # -*- coding: utf-8 -*-
-"""Post one priced draft to d2jsp board 268 through the Chrome login on this machine.
+"""Post one priced draft to d2jsp board 268 (271 on a ladder console) through the Chrome login on this machine.
 
 The desk in bible.html calls POST /api/d2jsp_send. This module reads the d2jsp
-cookies from the local Chrome profile at that moment, loads the compose form,
-and submits only when that form is board 268 and the browser is logged in.
-The cookie is not stored, not logged, and not returned. A missing login, an
-unreadable cookie, or a form this desk does not know returns a status word
-and does not claim a post.
+cookies from the local Chrome profile at that moment, opens the board's own New
+Trade form in a scratch Chrome, and submits only when that form is the one this
+desk knows and the browser is logged in. The cookie is not stored, not logged,
+and not returned, and the cookie database is read in memory, never copied to
+disk. A missing login, an unreadable cookie, or a form this desk does not know
+returns a status word and does not claim a post.
+
+One send runs at a time. A submit that was clicked and not receipted is
+maybe-sent, never "nothing was posted", and the same draft is not sent again
+for 30 minutes after it was posted or may have been, unless a later send
+changed that topic. Every answer's reason is one of SEND_REASONS.
 
 Windows has no reader here. A public page has no route. Those stay unposted.
 Linux reads the Chrome profile on that machine.
 """
 from __future__ import annotations
 
+import atexit
+import contextlib
+import datetime
 import hashlib
 import json
 import os
 import re
 import shutil
 import signal
+import socket
 import sqlite3
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -38,6 +49,26 @@ LOGIN_URL = "https://forums.d2jsp.org/login.php"
 _HOST = "forums.d2jsp.org"
 _PRICE_LINE = re.compile(r"^\d+(?:\.\d+)? fg$")
 _CHROME_EPOCH = 11644473600  # seconds from 1601-01-01 to 1970-01-01
+
+# REG-2490 - every reason d2jsp_send answers with. The desk in bible.html names each one.
+SEND_REASONS = (
+    "submitted",            # ok: the board shows the new topic (topic)
+    "already-posted",       # submitted from this console in the last 30 min, so not sent again (topic, at)
+    "maybe-sent",           # the submit was clicked and no receipt came back (board, at)
+    "maybe-sent-recently",  # maybe-sent in the last 30 min, so not sent again (at)
+    "busy",                 # another send is running on this console
+    "not-posted",           # no click happened, or the board sent the compose form back
+    "unread",               # the forum could not be read before the click
+    "chrome-start",         # the scratch Chrome could not start (why)
+    "chrome-unread",        # the Chrome login could not be read
+    "need-login",           # Chrome is not logged into d2jsp (opened)
+    "form-unknown",         # the form is not the one this desk fills
+    "wrong-board",
+    "no-price",
+    "title",
+    "long",
+    "origin",
+)
 
 
 def console_may_post(origin, host, port, sec_fetch_site=None):
@@ -203,13 +234,18 @@ def _cookie_db_path():
 
 
 def _read_rows(db_path):
-    """Copy the cookie database, then read it. Chrome keeps the live file locked."""
+    """Read the cookie database with no copy on disk. -> rows
+
+    Chrome keeps the live file locked, so the file is opened read-only and
+    immutable and backed up into an in-memory database, which is read there.
+    REG-2492: the backup used to go to a d2jsp-cookies-*.db file in $TMPDIR,
+    removed only in a finally, so a console killed mid-read left every site's
+    encrypted cookies on disk.
+    """
     uri = "file:" + urllib.parse.quote(db_path, safe="/") + "?immutable=1"
     src = sqlite3.connect(uri, uri=True)
     try:
-        tmp = tempfile.NamedTemporaryFile(prefix="d2jsp-cookies-", suffix=".db", delete=False)
-        tmp.close()
-        dst = sqlite3.connect(tmp.name)
+        dst = sqlite3.connect(":memory:")
         try:
             src.backup(dst)
             rows = list(dst.execute(
@@ -217,10 +253,6 @@ def _read_rows(db_path):
             ))
         finally:
             dst.close()
-            try:
-                os.remove(tmp.name)
-            except OSError:
-                pass
     finally:
         src.close()
     return rows
@@ -348,8 +380,14 @@ def d2jsp_login_status(now_utc=None):
     """Whether this machine's own Chrome is signed into d2jsp.
 
     The cookie header is read and dropped. It is not returned, logged, or stored.
-    Another console reads the Chrome of the person at that computer.
+    Another console reads the Chrome of the person at that computer. The room
+    asks this every time it opens, so the scratch Chromes and cookie copies a
+    killed console left behind are swept here too (REG-2492).
     """
+    try:
+        _sweep_stale_scratch()
+    except Exception:
+        pass
     _header, reason = live_cookie_header(now_utc)
     if reason == "ok":
         return {
@@ -522,6 +560,11 @@ def chrome_user_agent(platform=None, version=None):
     When the version cannot be read, the header still names Chrome and a
     challenge page stays unread. It is not reported as a post. Mac and Linux
     name themselves, because a cookie from one does not travel as the other.
+
+    REG-2575: a version read that does not answer in 5 s is a version that cannot be read. Only
+    OSError was caught, so subprocess.TimeoutExpired rose through _headers: the send answered
+    "unread" before any page was fetched, and the quote raised. CI's loaded runner, where
+    `google-chrome --version` took longer than 5 s, failed the desk law that way.
     """
     plat = sys.platform if platform is None else platform
     if version is None:
@@ -535,7 +578,7 @@ def chrome_user_agent(platform=None, version=None):
                     capture_output=True, timeout=5, text=True,
                     encoding="utf-8", errors="replace",
                 )
-            except OSError:
+            except (OSError, subprocess.SubprocessError):
                 proc = None
             if proc is not None and proc.returncode == 0:
                 got = (proc.stdout or "").strip()
@@ -550,7 +593,7 @@ def chrome_user_agent(platform=None, version=None):
                         capture_output=True, timeout=5, text=True,
                         encoding="utf-8", errors="replace",
                     )
-                except OSError:
+                except (OSError, subprocess.SubprocessError):
                     proc = None
                 if proc is not None and proc.returncode == 0:
                     got = (proc.stdout or "").strip().rsplit(" ", 1)[-1]
@@ -622,8 +665,6 @@ _QUOTE_JS = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "functions", "api", "d2jsp_quote.js",
 )
-quote_login_opened = False
-_quote_login_lock = threading.Lock()
 
 
 def _quote_unknown(item, read_at, reason):
@@ -716,7 +757,8 @@ def parse_public_quote(html, item, read_at, node_run=None):
     )
     try:
         proc = node_run(prog, str(html or ""))
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
+        # REG-2576: a node that does not answer in 20 s is a page that was not read, never a raise.
         return _quote_unknown(item, read_at, "unread")
     if getattr(proc, "returncode", 1) != 0:
         return _quote_unknown(item, read_at, "unread")
@@ -765,501 +807,709 @@ def time_now():
 
 
 _SCRATCH_PREFIXES = ("d2jsp-quote-", "d2jsp-post-")
-_SCRATCH_STALE_S = 300  # 5 min — far beyond a normal op (<30s), so an in-flight profile is never swept
+_COOKIE_COPY_PREFIX = "d2jsp-cookies-"
+_SCRATCH_STALE_S = 300  # 5 min — far beyond a normal op (under 2 min), so an in-flight profile is never swept
+_ERE_SPECIAL = frozenset(".[]()*+?{}|^$\\")
+
+
+def _ere(text):
+    """text as a POSIX extended regular expression that matches it literally."""
+    return "".join("\\" + c if c in _ERE_SPECIAL else c for c in str(text))
+
+
+def _kill_profile_holders(profile):
+    """SIGKILL every process whose command line names exactly this --user-data-dir.
+    -> pids signalled, or None when pgrep could not be asked
+
+    REG-2493: the pattern goes after `--`. Without it pgrep read `--user-data-dir=...` as an
+    option of its own, printed its usage, exited 2 and listed nothing, so the REG-2190 sweep never
+    killed a Chrome. The pattern ends at a space or at the end of the command line, so a profile
+    whose path only starts with this one is not a match. Matched by that argument, never by a
+    name, so his real Chrome can never be a target.
+
+    REG-2498: a pgrep that could not run (none on this PC, or no answer in 5 s) is None, never [].
+    [] says "no Chrome held it", which nobody measured."""
+    try:
+        out = subprocess.run(
+            ["pgrep", "-f", "--", "--user-data-dir=" + _ere(profile) + "( |$)"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5,
+        ).stdout
+    except Exception:
+        return None
+    hit = []
+    for word in str(out or "").split():
+        try:
+            pid = int(word)
+        except ValueError:
+            continue
+        if pid == os.getpid():
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+            hit.append(pid)
+        except Exception:
+            pass
+    return hit
+
+
+def _stale(path, now):
+    """True when path was last changed _SCRATCH_STALE_S or more before now."""
+    try:
+        return now - os.lstat(path).st_mtime >= _SCRATCH_STALE_S
+    except OSError:
+        return False
 
 
 def _sweep_stale_scratch(now=None, tmp=None):
-    """REG-2190 — SWEEP SCRATCH CHROMES A CRASHED CONSOLE LEFT HOLDING HIS COOKIES. -> count removed.
+    """REG-2190 / REG-2492 — SWEEP WHAT A KILLED CONSOLE LEFT HOLDING HIS COOKIES. -> how many are gone
 
     Each op mkdtemps a d2jsp-quote-* / d2jsp-post-* profile and cleans it in its `finally`. But a
     console killed mid-op (kill -9, a relaunch) never reaches that finally, so the headless Chrome —
-    which holds his decrypted d2jsp session — keeps running and its profile stays on disk, and
-    nothing came back for them (process-port-discipline: everything I start, I own until it is dead).
-    This runs at the top of each op: it removes any d2jsp scratch profile older than _SCRATCH_STALE_S
-    (seconds-old in-flight ones are left alone) and SIGKILLs a Chrome still holding one — matched by
-    its exact --user-data-dir, never by name, so his real Chrome can never be a target."""
+    which holds his decrypted d2jsp session — keeps running and its profile stays on disk. A console
+    before REG-2492 also left d2jsp-cookies-* copies of the whole Chrome cookie database the same
+    way. This runs before each scratch Chrome, whenever the room asks for the login state, and at
+    console boot. It removes any of them last changed _SCRATCH_STALE_S or more ago (an in-flight
+    one, seconds old, is never touched): a Chrome still holding a profile is SIGKILLed first, a
+    cookie copy is removed with os.remove (rmtree cannot remove a file), and only what is actually
+    gone afterwards is counted."""
     import glob as _glob
-    import time as _time
-    now = _time.time() if now is None else now
+    now = time.time() if now is None else now
     root = tmp if tmp is not None else tempfile.gettempdir()
+    base = _glob.escape(root)
     removed = 0
     for pref in _SCRATCH_PREFIXES:
-        for d in _glob.glob(os.path.join(root, pref + "*")):
-            try:
-                if now - os.path.getmtime(d) < _SCRATCH_STALE_S:
-                    continue
-            except OSError:
+        for d in _glob.glob(os.path.join(base, pref + "*")):
+            if os.path.islink(d) or not os.path.isdir(d) or not _stale(d, now):
                 continue
-            try:
-                _out = subprocess.run(["pgrep", "-f", "--user-data-dir=" + d],
-                                      capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5).stdout   # REG-2196 (Grok second-eye) - utf-8, never the locale
-                for _pid in _out.split():
-                    try:
-                        os.kill(int(_pid), signal.SIGKILL)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+            _kill_profile_holders(d)
             shutil.rmtree(d, ignore_errors=True)
+            if not os.path.lexists(d):
+                removed += 1
+    for f in _glob.glob(os.path.join(base, _COOKIE_COPY_PREFIX + "*")):
+        if (os.path.isdir(f) and not os.path.islink(f)) or not _stale(f, now):
+            continue
+        try:
+            os.remove(f)
+        except OSError:
+            pass
+        if not os.path.lexists(f):
             removed += 1
     return removed
 
 
-def _chrome_search(item, cookie):
+_IN_FLIGHT = {}
+_IN_FLIGHT_LOCK = threading.Lock()
+
+
+def _track_scratch(proc, profile):
+    """Hold a scratch Chrome and its profile while it is in flight. -> the key _untrack_scratch takes"""
+    key = object()
+    with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT[key] = (proc, profile)
+    return key
+
+
+def _untrack_scratch(key):
+    with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT.pop(key, None)
+
+
+def _end_chrome(proc):
+    """Kill a scratch Chrome with its renderers, and reap it.
+
+    Its process group is its own pid (start_new_session). A browser that has already exited is
+    only reaped: its pid may belong to another process by now."""
+    if proc.poll() is None:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    try:
+        proc.wait(timeout=5)
+    except Exception:
+        pass
+
+
+def _reap_in_flight():
+    """At interpreter exit: end every scratch Chrome this process started that is still in flight,
+    and remove its profile, which holds his d2jsp session. -> how many there were
+
+    REG-2492. atexit runs on a normal exit only. An os.execv relaunch, os._exit and kill -9 skip
+    it; _sweep_stale_scratch takes what those leave, at the next boot or room open."""
+    with _IN_FLIGHT_LOCK:
+        held = list(_IN_FLIGHT.values())
+        _IN_FLIGHT.clear()
+    for proc, profile in held:
+        _end_chrome(proc)
+        shutil.rmtree(profile, ignore_errors=True)
+    return len(held)
+
+
+atexit.register(_reap_in_flight)
+
+
+_START_WHY = {
+    "websocket": "the websocket-client module is not installed for this console's Python",
+    "no-chrome": "Chrome is not installed on this machine",
+    "launch": "Chrome would not start",
+    "devtools": "Chrome did not open its DevTools connection",
+}
+
+
+class ChromeStart(Exception):
+    """The scratch Chrome did not come up, so nothing was opened and nothing was clicked.
+
+    REG-2491: a missing websocket module raised ImportError out of the route, and a missing Chrome
+    or a DevTools port that never answered read 'unread'. Now each is reason 'chrome-start' with
+    a short why."""
+
+    def __init__(self, key):
+        Exception.__init__(self, key)
+        self.key = str(key)
+        self.why = _START_WHY.get(self.key, "Chrome did not start")
+
+
+_SNAPSHOT_JS = (
+    "JSON.stringify({href:location.href,ready:document.readyState,"
+    "mark:!!window.__d2jspClicked,"
+    "html:document.documentElement?document.documentElement.outerHTML:''})"
+)
+
+
+class _ErrorReply(OSError):
+    """DevTools answered a script with a protocol error in place of a result.
+
+    REG-2496: Chrome answers "Execution context was destroyed" when the page navigates away while
+    the call is in flight, which a submit's own navigation can do. The script may have run, so this
+    is no answer, never an empty one."""
+
+
+class _Page(object):
+    """The one tab of a scratch Chrome, driven over its DevTools socket. Nothing sent or read is logged.
+
+    goto, act and snapshot are all a flow uses, so a law drives the same flow with a page made of
+    strings and no browser."""
+
+    def __init__(self, ws):
+        self._ws = ws
+        self._n = 0
+
+    def call(self, method, params=None, wait=15):
+        self._n += 1
+        return _cdp_call(self._ws, self._n, method, params, wait=wait)
+
+    def goto(self, url):
+        self.call("Page.navigate", {"url": str(url)})
+
+    def act(self, name, script):
+        """Run one of the flow's scripts. -> its string answer, '' when the script threw
+
+        Raises when the browser does not answer, which is not the same as answering nothing, and
+        raises _ErrorReply when it answers with a protocol error: a fill answered that way may have
+        clicked (REG-2496 - it used to read '', no click, and a post the board took read
+        form-unknown)."""
+        got = self.call("Runtime.evaluate", {"expression": script, "returnByValue": True}, wait=8)
+        if not isinstance(got.get("result"), dict):
+            raise _ErrorReply(str(name))
+        res = got["result"]
+        if res.get("exceptionDetails"):
+            return ""
+        val = (res.get("result") or {}).get("value")
+        return val if isinstance(val, str) else ""
+
+    def snapshot(self):
+        """-> {href, ready, mark, html}; None when the page answered something else"""
+        try:
+            snap = json.loads(self.act("snapshot", _SNAPSHOT_JS) or "")
+        except (ValueError, _ErrorReply):
+            return None
+        if not isinstance(snap, dict):
+            return None
+        return {
+            "href": str(snap.get("href") or ""),
+            "ready": str(snap.get("ready") or ""),
+            "mark": bool(snap.get("mark")),
+            "html": str(snap.get("html") or ""),
+        }
+
+
+def _free_port():
+    sock = socket.socket()
+    try:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+    finally:
+        sock.close()
+
+
+def _devtools_up(base, proc, wait_s=12):
+    """True once Chrome's DevTools answers; False when it has not in wait_s, or the browser exited."""
+    end = time.monotonic() + wait_s
+    while time.monotonic() < end:
+        if proc.poll() is not None:
+            return False
+        try:
+            urllib.request.urlopen(base + "/json/version", timeout=2).close()
+            return True
+        except Exception:
+            time.sleep(0.2)
+    return False
+
+
+def _cookie_pairs(cookie):
+    """(name, value) for each part of a Cookie header."""
+    pairs = []
+    for part in str(cookie or "").split(";"):
+        if "=" not in part:
+            continue
+        name, value = part.split("=", 1)
+        name = name.strip()
+        if name:
+            pairs.append((name, value))
+    return pairs
+
+
+@contextlib.contextmanager
+def _scratch_chrome(cookie, prefix):
+    """One headless Chrome on its own profile and its own port, with the d2jsp cookie set. -> its _Page
+
+    The one start the search, the edit and the post share (REG-2490: it was copied three times).
+    His open Chrome is not the one this starts, and no port is fixed. Raises ChromeStart before
+    anything is opened when the websocket-client module is missing, Chrome is not installed or
+    will not start, or its DevTools connection is not up in 12 s. The browser and its profile are
+    held for the exit reaper while in flight, and killed and removed when the block ends."""
+    try:
+        import websocket
+    except ImportError:
+        raise ChromeStart("websocket")
+    browser = _chrome_bin()
+    if not browser:
+        raise ChromeStart("no-chrome")
+    _sweep_stale_scratch()
+    prof = tempfile.mkdtemp(prefix=prefix)
+    proc = None
+    held = None
+    ws = None
+    try:
+        port = _free_port()
+        try:
+            proc = subprocess.Popen(
+                [browser, "--headless=new", "--disable-gpu", "--no-first-run",
+                 "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
+                 "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
+                 "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+            )
+        except OSError:
+            raise ChromeStart("launch")
+        held = _track_scratch(proc, prof)
+        base = "http://127.0.0.1:%d" % port
+        if not _devtools_up(base, proc):
+            raise ChromeStart("devtools")
+        try:
+            tab = json.loads(urllib.request.urlopen(
+                urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
+                timeout=10,
+            ).read().decode("utf-8", "replace"))
+            ws = websocket.create_connection(
+                tab["webSocketDebuggerUrl"], timeout=20, origin=base,
+            )
+            page = _Page(ws)
+            page.call("Network.enable")
+            page.call("Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
+            for name, value in _cookie_pairs(cookie):
+                page.call("Network.setCookie", {
+                    "name": name,
+                    "value": value,
+                    "url": "https://forums.d2jsp.org/",
+                    "domain": ".d2jsp.org",
+                    "path": "/",
+                    "secure": True,
+                })
+            page.call("Page.enable")
+        except Exception:
+            raise ChromeStart("devtools")
+        yield page
+    finally:
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+        if proc is not None:
+            _end_chrome(proc)
+        shutil.rmtree(prof, ignore_errors=True)
+        _untrack_scratch(held)
+
+
+def _open_link_js(label):
+    """Follow the page's own link whose text is exactly `label`, when it opens post.php.
+    -> 'opened' | 'no-link'"""
+    return (
+        "(function(){var as=document.querySelectorAll('a');"
+        "for(var i=0;i<as.length;i++){"
+        "var label=(as[i].textContent||'').replace(/\\s+/g,' ').trim();"
+        "if(label!==" + json.dumps(str(label)) + ")continue;"
+        "var href=as[i].href||'';"
+        "if(href.indexOf('/post.php')<0)continue;"
+        "location.href=href;return 'opened';}"
+        "return 'no-link';})()"
+    )
+
+
+def _fill_js(subject, text):
+    """The board's form filled as a sale with no paid extras, and sent by its own button.
+    -> 'clicked' | 'title' | 'no-form' | 'no-sell' | 'no-submit'
+
+    A title past 50 characters is the board's own limit, so the form is not sent with one. The
+    page is marked just before the click, so a document that loads after it is known to be new."""
+    return (
+        "(function(){var box=document.querySelector("
+        + json.dumps('textarea[name="Post"]') + ");"
+        "var title=document.querySelector("
+        + json.dumps('input[name="ttitle"]') + ");"
+        "if(!box||!title||!box.form)return 'no-form';"
+        "var subject=" + json.dumps(str(subject or "")) + ";"
+        "if(subject.length>50)return 'title';"
+        "title.value=subject;box.value=" + json.dumps(str(text or "")) + ";"
+        "var picked=false;var labs=document.querySelectorAll('label');"
+        "for(var i=0;i<labs.length;i++){"
+        "if((labs[i].textContent||'').indexOf('Selling Item')<0)continue;"
+        "var input=document.getElementById(labs[i].htmlFor||'');"
+        "if(input&&input.name==='sType'){input.checked=true;picked=true;}}"
+        "if(!picked)return 'no-sell';"
+        "var paid=['sItalic','sBold','sRed'];"
+        "for(var p=0;p<paid.length;p++){"
+        "var extra=box.form.querySelector('input[name=\"'+paid[p]+'\"]');"
+        "if(extra)extra.checked=false;}"
+        "var btn=box.form.querySelector("
+        + json.dumps('input[name="submit"]') + ");"
+        "if(!btn)return 'no-submit';"
+        "window.__d2jspClicked=1;btn.click();return 'clicked';})()"
+    )
+
+
+_FORM_S = 25.0      # load the board, open the form, fill it and click
+_RECEIPT_S = 35.0   # after the click, for the board to land on the new topic
+_CHECK_S = 20.0     # then, for the board list to load once more
+_TICK_S = 0.8
+_NO_ANSWER = "?"    # a script was sent and the browser did not answer
+
+
+def _board_url(board):
+    return "https://forums.d2jsp.org/forum.php?f=%d" % int(board)
+
+
+def _on_board(href, board):
+    """The board's own topic list: forum.php?f=<board> on the forum host."""
+    try:
+        parts = urllib.parse.urlparse(str(href or ""))
+        found = (urllib.parse.parse_qs(parts.query).get("f") or [""])[0]
+        return (parts.scheme == "https" and parts.netloc == _HOST
+                and parts.path.endswith("/forum.php") and int(found) == int(board))
+    except (TypeError, ValueError):
+        return False
+
+
+def _compose_page(href, html):
+    """The board's trade form, on the forum, with the title and message boxes this desk fills."""
+    return _on_forum(href) and 'name="Post"' in html and 'name="ttitle"' in html
+
+
+def _topic_id(url):
+    try:
+        return int((urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("t") or [""])[0])
+    except (TypeError, ValueError):
+        return None
+
+
+class _Links(HTMLParser):
+    """Every <a href> on a page with the text inside it."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.links = []
+        self._at = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            href = ""
+            for key, val in attrs:
+                if key == "href":
+                    href = val or ""
+            self._at = [href, []]
+
+    def handle_data(self, data):
+        if self._at is not None:
+            self._at[1].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self._at is not None:
+            self.links.append((self._at[0], "".join(self._at[1])))
+            self._at = None
+
+
+def _board_read(html, base, subject, board=None):
+    """One read of a board's topic list.
+    -> (the newest topic id it lists or None, {topic id: topic url} for links whose text is exactly subject)
+
+    A same-subject link that names another board (a sidebar, a cross-link) is never a candidate;
+    every topic link still counts toward the newest id, since all of them existed before the click."""
+    links = _Links()
+    try:
+        links.feed(str(html or ""))
+        links.close()
+    except Exception:
+        return None, {}
+    want = " ".join(str(subject or "").split())
+    top = None
+    same = {}
+    for href, text in links.links:
+        url = _public_topic(urllib.parse.urljoin(base or _board_url(BOARD), href))
+        tid = _topic_id(url) if url else None
+        if tid is None:
+            continue
+        top = tid if top is None else max(top, tid)
+        try:
+            fid = int((urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("f") or [""])[0])
+        except (TypeError, ValueError):
+            fid = None
+        if board is not None and fid is not None and fid != int(board):
+            continue
+        if " ".join(text.split()) == want and tid not in same:
+            same[tid] = url
+    return top, same
+
+
+def _flow_begin(kind, subject, board, start):
+    """A post (kind 'post': board list, New Trade, form, receipt, board list again) or an edit
+    (kind 'edit': topic, Edit, form, receipt), before its first step."""
+    return {
+        "kind": kind, "subject": str(subject or ""), "board": int(board or BOARD),
+        "start": str(start or ""), "phase": "open", "t0": None, "asked": False, "seen": False,
+        "landed": "", "top": None, "before": None, "word": "", "clicked": False,
+        "click_at": None, "back": False, "check_at": None, "result": None,
+    }
+
+
+def _flow_done(st, topic="", stop=""):
+    st["phase"] = "done"
+    clicked = bool(st["clicked"])
+    st["result"] = {
+        "landed": st["landed"],
+        "clicked": clicked,
+        "topic": topic,
+        "back": bool(st["back"]) and not topic,
+        "stop": "" if clicked else (stop or "not-posted"),
+    }
+    return st, ("done",)
+
+
+def _flow_step(st, snap, now, said=None):
+    """ONE DECISION of a post or an edit, over one page snapshot. -> (state, action)
+
+    Pure: a snapshot in, the next action out, and no browser, clock or I/O, so a law drives the
+    same decisions with a page made of strings. `snap` is {href, ready, mark, html}, or None when
+    the page did not answer. `said` is (script name, its answer) for the script the last action
+    ran, the answer _NO_ANSWER when the browser did not answer. Actions are ("wait",),
+    ("run", name), ("goto", url) and ("done",), with st["result"] = {landed, clicked, topic,
+    back, stop}.
+
+    REG-2490. Reaching the form and the receipt have their own budgets (_FORM_S, and _RECEIPT_S,
+    over 30 s): one 25 s deadline used to cover both, so a slow board that took the post read as
+    not posted. Once the fill script has been SENT, the run is clicked unless the page answered
+    that it did not click, because an unanswered submit may have gone out. A post with no receipt
+    reads the board list again. A topic whose text is exactly the subject, that was not on the
+    list before the click and is newer than every topic the list showed then, is the receipt; an
+    older one never is.
+    """
+    st = dict(st)
+    if st["t0"] is None:
+        st["t0"] = now
+    snap = snap if isinstance(snap, dict) else None
+    href = str((snap or {}).get("href") or "")
+    html = str((snap or {}).get("html") or "")
+    ready = (snap or {}).get("ready") in ("interactive", "complete")
+    readable = bool(html) and not _challenge_page(html)
+    if href:
+        st["landed"] = href
+    if readable and href.startswith("https://") and _on_forum(href):
+        st["seen"] = True
+    name, word = said if said else (None, None)
+    if name == "fill" and not st["clicked"]:
+        if word in ("clicked", _NO_ANSWER):
+            st.update(phase="receipt", clicked=True, click_at=now)
+        elif word == "title":
+            return _flow_done(st, stop="title")
+        else:
+            st["word"] = word or "no-form"
+    elif name in ("open-trade", "open-edit") and word == "opened" and st["phase"] == "open":
+        st["phase"] = "form"
+
+    if st["phase"] in ("open", "form"):
+        if href and _on_forum(href) and "login" in href.lower():
+            return _flow_done(st, stop="need-login")
+        if now - st["t0"] >= _FORM_S:
+            if st["word"]:
+                return _flow_done(st, stop="form-unknown")
+            return _flow_done(st, stop="not-posted" if st["seen"] else "unread")
+        compose = readable and ready and _compose_page(href, html)
+        if st["phase"] == "open" and st["asked"] and compose:
+            st["phase"] = "form"
+        if st["phase"] == "form":
+            return st, (("run", "fill") if compose else ("wait",))
+        if not (readable and ready):
+            return st, ("wait",)
+        if st["kind"] == "post" and _on_board(href, st["board"]) and "New Trade" in html:
+            if st["before"] is None:
+                st["top"], st["before"] = _board_read(html, href, st["subject"], st["board"])
+            st["asked"] = True
+            return st, ("run", "open-trade")
+        if st["kind"] == "edit" and _topic(href):
+            st["asked"] = True
+            return st, ("run", "open-edit")
+        return st, ("wait",)
+
+    if st["phase"] == "receipt":
+        fresh = snap is not None and not snap.get("mark")
+        if fresh and readable and _topic(href):
+            got = _public_topic(href)
+            if got:
+                return _flow_done(st, topic=got)
+        if fresh and readable and ready and _compose_page(href, html):
+            st["back"] = True
+        if not st["back"] and now - st["click_at"] < _RECEIPT_S:
+            return st, ("wait",)
+        if st["kind"] != "post":
+            return _flow_done(st)
+        st.update(phase="check", check_at=now)
+        return st, ("goto", _board_url(st["board"]))
+
+    if st["phase"] == "check":
+        if readable and ready and _on_board(href, st["board"]):
+            _newest, same = _board_read(html, href, st["subject"], st["board"])
+            before = st["before"] or {}
+            new = sorted(url for tid, url in same.items()
+                         if tid not in before and st["top"] is not None and tid > st["top"])
+            if len(new) == 1:
+                return _flow_done(st, topic=new[0])
+            if new:
+                st["back"] = False      # more than one new topic carries the subject: which is his is unknown
+            return _flow_done(st)
+        if now - st["check_at"] >= _CHECK_S:
+            return _flow_done(st)
+        return st, ("wait",)
+
+    return _flow_done(st)
+
+
+def _run_flow(page, st, scripts, clock, nap):
+    """Carry out _flow_step's decisions on `page` until it is done. -> the run's result
+
+    Never raises. A browser that stops answering is a step with no snapshot, and a run that may
+    have clicked is carried to its verdict, never dropped as a transport error."""
+    act = ("goto", st["start"])
+    said = None
+    while True:
+        if act[0] == "goto":
+            try:
+                page.goto(act[1])
+            except Exception:
+                pass
+        elif act[0] == "run":
+            try:
+                word = page.act(act[1], scripts[act[1]])
+            except Exception:
+                word = _NO_ANSWER
+            said = (act[1], word if isinstance(word, str) else "")
+        nap(_TICK_S)
+        try:
+            snap = page.snapshot()
+        except Exception:
+            snap = None
+        try:
+            st, act = _flow_step(st, snap, clock(), said)
+        except Exception:
+            st, act = _flow_done(dict(st), stop="unread")
+        said = None
+        if act[0] == "done":
+            return st["result"]
+
+
+def _chrome_search(item, cookie, chrome=None, clock=None, nap=None):
     """Load the Switch Ladder search in a scratch Chrome. The cookie is not logged.
 
     The forum answers a scripted request with a challenge page. A separate Chrome,
     on its own profile and its own port, can submit the board's own search form.
-    His open Chrome is not the one this starts. Raises OSError when that load fails.
+    His open Chrome is not the one this starts. Raises ChromeStart or OSError when
+    that load fails.
     """
-    import time
-    import websocket
-    keywords = _search_keywords(item)
-    _sweep_stale_scratch()
-    prof = tempfile.mkdtemp(prefix="d2jsp-quote-")
-    sock = __import__("socket").socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    browser = _chrome_bin()
-    if not browser:
-        raise OSError("chrome")
-    proc = subprocess.Popen(
-        [browser, "--headless=new", "--disable-gpu", "--no-first-run",
-         "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
-         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
-         "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
-    )
-    base = "http://127.0.0.1:%d" % port
-    ws = None
-    try:
-        deadline = time.time() + 12
-        while time.time() < deadline:
-            try:
-                urllib.request.urlopen(base + "/json/version", timeout=2)
-                break
-            except Exception:
-                time.sleep(0.2)
-        else:
-            raise OSError("chrome")
-        tab = json.loads(urllib.request.urlopen(
-            urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
-            timeout=10,
-        ).read().decode("utf-8", "replace"))
-        ws = websocket.create_connection(
-            tab["webSocketDebuggerUrl"], timeout=20, origin=base,
-        )
-        _cdp_call(ws, 1, "Network.enable")
-        _cdp_call(ws, 2, "Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
-        ident = 10
-        for part in str(cookie or "").split(";"):
-            if "=" not in part:
-                continue
-            name, value = part.split("=", 1)
-            name = name.strip()
-            if not name:
-                continue
-            _cdp_call(ws, ident, "Network.setCookie", {
-                "name": name,
-                "value": value,
-                "url": "https://forums.d2jsp.org/",
-                "domain": ".d2jsp.org",
-                "path": "/",
-                "secure": True,
-            })
-            ident += 1
-        _cdp_call(ws, 50, "Page.enable")
-        _cdp_call(ws, 51, "Page.navigate", {
-            "url": "https://forums.d2jsp.org/forum.php?f=%d" % QUOTE_BOARD,
-        })
-        submit = (
-            "(function(){var f=document.querySelector('form[action*=\"search.php\"]');"
-            "if(!f||!f.stext)return 'no-form';f.stext.value=%s;f.submit();return 'sent';})()"
-        ) % json.dumps(keywords)
+    clock = clock or time.monotonic
+    nap = nap or time.sleep
+    submit = (
+        "(function(){var f=document.querySelector('form[action*=\"search.php\"]');"
+        "if(!f||!f.stext)return 'no-form';f.stext.value=%s;f.submit();return 'sent';})()"
+    ) % json.dumps(_search_keywords(item))
+    with (chrome or _scratch_chrome)(cookie, "d2jsp-quote-") as page:
+        page.goto("https://forums.d2jsp.org/forum.php?f=%d" % QUOTE_BOARD)
         sent = False
         html = ""
-        deadline = time.time() + 20
-        while time.time() < deadline:
-            time.sleep(0.8)
+        end = clock() + 20
+        while clock() < end:
+            nap(0.8)
             try:
-                got = _cdp_call(ws, 60, "Runtime.evaluate", {
-                    "expression": "document.documentElement.outerHTML",
-                    "returnByValue": True,
-                }, wait=8)
+                snap = page.snapshot()
             except Exception:
                 continue
-            html = ((got.get("result") or {}).get("result") or {}).get("value") or ""
+            html = (snap or {}).get("html") or ""
             if not sent and "search.php" in html and "stext" in html:
                 try:
-                    _cdp_call(ws, 61, "Runtime.evaluate", {
-                        "expression": submit,
-                        "returnByValue": True,
-                    }, wait=8)
-                    sent = True
+                    page.act("search", submit)
+                except _ErrorReply:
+                    pass        # an error in place of a result: the search may have gone out
                 except Exception:
                     continue
+                sent = True
             if sent and "Search Results" in html and not _challenge_page(html):
                 return html
         if sent and html and not _challenge_page(html):
             return html
         raise OSError("search")
-    finally:
-        if ws is not None:
-            try:
-                ws.close()
-            except Exception:
-                pass
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-        shutil.rmtree(prof, ignore_errors=True)
 
 
-def _chrome_edit(topic, subject, text, cookie):
-    """Replace the saved topic through its own Edit link.
+def _chrome_edit(topic, subject, text, cookie, chrome=None, clock=None, nap=None):
+    """Replace the saved topic through its own Edit link. -> the run's result (see _flow_step)
 
-    The link has to say Edit and open post.php. Anything else returns no-edit
-    and does not start a new trade. A title longer than 50 characters is not
-    sent. The cookie is not logged. His open Chrome is not the one this starts.
+    The link has to say Edit and open post.php. A topic with no such link is
+    not posted to, and no new trade starts. A title longer than 50 characters is
+    not sent. Raises ChromeStart before anything is opened, and nothing after.
+    The cookie is not logged. His open Chrome is not the one this starts.
     """
-    import time
-    import websocket
-    _sweep_stale_scratch()
-    prof = tempfile.mkdtemp(prefix="d2jsp-post-")
-    sock = __import__("socket").socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    browser = _chrome_bin()
-    if not browser:
-        raise OSError("chrome")
-    proc = subprocess.Popen(
-        [browser, "--headless=new", "--disable-gpu", "--no-first-run",
-         "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
-         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
-         "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
-    )
-    base = "http://127.0.0.1:%d" % port
-    ws = None
-    try:
-        deadline = time.time() + 12
-        while time.time() < deadline:
-            try:
-                urllib.request.urlopen(base + "/json/version", timeout=2)
-                break
-            except Exception:
-                time.sleep(0.2)
-        else:
-            raise OSError("chrome")
-        tab = json.loads(urllib.request.urlopen(
-            urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
-            timeout=10,
-        ).read().decode("utf-8", "replace"))
-        ws = websocket.create_connection(
-            tab["webSocketDebuggerUrl"], timeout=20, origin=base,
-        )
-        _cdp_call(ws, 1, "Network.enable")
-        _cdp_call(ws, 2, "Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
-        ident = 10
-        for part in str(cookie or "").split(";"):
-            if "=" not in part:
-                continue
-            name, value = part.split("=", 1)
-            name = name.strip()
-            if not name:
-                continue
-            _cdp_call(ws, ident, "Network.setCookie", {
-                "name": name,
-                "value": value,
-                "url": "https://forums.d2jsp.org/",
-                "domain": ".d2jsp.org",
-                "path": "/",
-                "secure": True,
-            })
-            ident += 1
-        _cdp_call(ws, 50, "Page.enable")
-        _cdp_call(ws, 51, "Page.navigate", {"url": str(topic or "")})
-        open_edit = (
-            "(function(){var as=document.querySelectorAll('a');"
-            "for(var i=0;i<as.length;i++){"
-            "var label=(as[i].textContent||'').replace(/\\s+/g,' ').trim();"
-            "if(label!=='Edit')continue;"
-            "var href=as[i].href||'';"
-            "if(href.indexOf('/post.php')<0)continue;"
-            "location.href=href;return 'opened';}"
-            "return 'no-edit';})()"
-        )
-        fill = (
-            "(function(){var box=document.querySelector("
-            + json.dumps('textarea[name="Post"]') + ");"
-            "var title=document.querySelector("
-            + json.dumps('input[name="ttitle"]') + ");"
-            "if(!box||!title||!box.form)return 'no-form';"
-            "var subject=" + json.dumps(str(subject or "")) + ";"
-            "if(subject.length>50)return 'title';"
-            "title.value=subject;box.value=" + json.dumps(str(text or "")) + ";"
-            "var picked=false;var labs=document.querySelectorAll('label');"
-            "for(var i=0;i<labs.length;i++){"
-            "if((labs[i].textContent||'').indexOf('Selling Item')<0)continue;"
-            "var input=document.getElementById(labs[i].htmlFor||'');"
-            "if(input&&input.name==='sType'){input.checked=true;picked=true;}}"
-            "if(!picked)return 'no-sell';"
-            "var paid=['sItalic','sBold','sRed'];"
-            "for(var p=0;p<paid.length;p++){"
-            "var extra=box.form.querySelector('input[name=\"'+paid[p]+'\"]');"
-            "if(extra)extra.checked=false;}"
-            "var btn=box.form.querySelector("
-            + json.dumps('input[name="submit"]') + ");"
-            "if(!btn)return 'no-submit';"
-            "btn.click();return 'clicked';})()"
-        )
-        opened = False
-        sent = False
-        href = ""
-        saw_page = False
-        deadline = time.time() + 25
-        while time.time() < deadline:
-            time.sleep(0.8)
-            try:
-                got = _cdp_call(ws, 60, "Runtime.evaluate", {
-                    "expression": "JSON.stringify({href:location.href,html:document.documentElement?document.documentElement.outerHTML:''})",
-                    "returnByValue": True,
-                }, wait=8)
-            except Exception:
-                continue
-            raw = ((got.get("result") or {}).get("result") or {}).get("value") or ""
-            try:
-                snap = json.loads(raw)
-            except Exception:
-                continue
-            href = str(snap.get("href") or "")
-            html = str(snap.get("html") or "")
-            if href and _on_forum(href) and "login" in href.lower():
-                return href
-            if html and not _challenge_page(html):
-                saw_page = True
-            if sent and _topic(href) and not _challenge_page(html):
-                return href
-            if (not opened) and saw_page:
-                try:
-                    opened_msg = _cdp_call(ws, 61, "Runtime.evaluate", {
-                        "expression": open_edit,
-                        "returnByValue": True,
-                    }, wait=8)
-                    opened_word = ((opened_msg.get("result") or {}).get("result") or {}).get("value") or ""
-                    if opened_word == "opened":
-                        opened = True
-                except Exception:
-                    continue
-            if opened and (not sent) and (not _challenge_page(html)) and ('name="Post"' in html):
-                try:
-                    filled = _cdp_call(ws, 62, "Runtime.evaluate", {
-                        "expression": fill,
-                        "returnByValue": True,
-                    }, wait=8)
-                    word = ((filled.get("result") or {}).get("result") or {}).get("value") or ""
-                    if word == "title":
-                        return href
-                    if word == "clicked":
-                        sent = True
-                except Exception:
-                    continue
-        if sent and href:
-            return href
-        if saw_page:
-            return "no-edit"
-        raise OSError("post")
-    finally:
-        if ws is not None:
-            try:
-                ws.close()
-            except Exception:
-                pass
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-        shutil.rmtree(prof, ignore_errors=True)
+    scripts = {"open-edit": _open_link_js("Edit"), "fill": _fill_js(subject, text)}
+    with (chrome or _scratch_chrome)(cookie, "d2jsp-post-") as page:
+        return _run_flow(page, _flow_begin("edit", subject, BOARD, topic), scripts,
+                         clock or time.monotonic, nap or time.sleep)
 
 
-def _chrome_post(subject, text, cookie, forum=None):
-    """Submit a board 268 trade from the forum's own New Trade link.
+def _chrome_post(subject, text, cookie, forum=None, chrome=None, clock=None, nap=None):
+    """Submit a board 268 (or 271) trade from the board's own New Trade link. -> the run's result
 
     The trading board does not open on the old compose address. That address
     answers Invalid Action. The form that does open names the title ttitle, the
     message Post, and the button submit. A title longer than 50 characters
-    is the board's own limit, and this function does not send it.
-    Returns the URL the browser landed on. Raises OSError when that browser
-    does not finish. The cookie is not logged. His open Chrome is not the one
-    this starts.
+    is the board's own limit, and this function does not send it. The run is
+    _flow_step's: the board list is read before the click and again when no
+    receipt comes. Raises ChromeStart before anything is opened, and nothing
+    after. The cookie is not logged. His open Chrome is not the one this starts.
     """
-    import time
-    import websocket
-    _sweep_stale_scratch()
-    prof = tempfile.mkdtemp(prefix="d2jsp-post-")
-    sock = __import__("socket").socket()
-    sock.bind(("127.0.0.1", 0))
-    port = sock.getsockname()[1]
-    sock.close()
-    browser = _chrome_bin()
-    if not browser:
-        raise OSError("chrome")
-    proc = subprocess.Popen(
-        [browser, "--headless=new", "--disable-gpu", "--no-first-run",
-         "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
-         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
-         "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
-    )
-    base = "http://127.0.0.1:%d" % port
-    ws = None
-    try:
-        deadline = time.time() + 12
-        while time.time() < deadline:
-            try:
-                urllib.request.urlopen(base + "/json/version", timeout=2)
-                break
-            except Exception:
-                time.sleep(0.2)
-        else:
-            raise OSError("chrome")
-        tab = json.loads(urllib.request.urlopen(
-            urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
-            timeout=10,
-        ).read().decode("utf-8", "replace"))
-        ws = websocket.create_connection(
-            tab["webSocketDebuggerUrl"], timeout=20, origin=base,
-        )
-        _cdp_call(ws, 1, "Network.enable")
-        _cdp_call(ws, 2, "Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
-        ident = 10
-        for part in str(cookie or "").split(";"):
-            if "=" not in part:
-                continue
-            name, value = part.split("=", 1)
-            name = name.strip()
-            if not name:
-                continue
-            _cdp_call(ws, ident, "Network.setCookie", {
-                "name": name,
-                "value": value,
-                "url": "https://forums.d2jsp.org/",
-                "domain": ".d2jsp.org",
-                "path": "/",
-                "secure": True,
-            })
-            ident += 1
-        board = _post_board(forum) or BOARD
-        _cdp_call(ws, 50, "Page.enable")
-        _cdp_call(ws, 51, "Page.navigate", {
-            "url": "https://forums.d2jsp.org/forum.php?f=%d" % board,
-        })
-        open_trade = (
-            "(function(){var as=document.querySelectorAll('a');"
-            "for(var i=0;i<as.length;i++){"
-            "var label=(as[i].textContent||'').replace(/\\s+/g,' ').trim();"
-            "if(label!=='New Trade')continue;"
-            "var href=as[i].href||'';"
-            "if(href.indexOf('/post.php')<0)continue;"
-            "location.href=href;return 'opened';}"
-            "return 'no-trade';})()"
-        )
-        fill = (
-            "(function(){var box=document.querySelector("
-            + json.dumps('textarea[name="Post"]') + ");"
-            "var title=document.querySelector("
-            + json.dumps('input[name="ttitle"]') + ");"
-            "if(!box||!title||!box.form)return 'no-form';"
-            "var subject=" + json.dumps(str(subject or "")) + ";"
-            "if(subject.length>50)return 'title';"
-            "title.value=subject;box.value=" + json.dumps(str(text or "")) + ";"
-            "var picked=false;var labs=document.querySelectorAll('label');"
-            "for(var i=0;i<labs.length;i++){"
-            "if((labs[i].textContent||'').indexOf('Selling Item')<0)continue;"
-            "var input=document.getElementById(labs[i].htmlFor||'');"
-            "if(input&&input.name==='sType'){input.checked=true;picked=true;}}"
-            "if(!picked)return 'no-sell';"
-            "var paid=['sItalic','sBold','sRed'];"
-            "for(var p=0;p<paid.length;p++){"
-            "var extra=box.form.querySelector('input[name=\"'+paid[p]+'\"]');"
-            "if(extra)extra.checked=false;}"
-            "var btn=box.form.querySelector("
-            + json.dumps('input[name="submit"]') + ");"
-            "if(!btn)return 'no-submit';"
-            "btn.click();return 'clicked';})()"
-        )
-        opened = False
-        sent = False
-        href = ""
-        deadline = time.time() + 25
-        while time.time() < deadline:
-            time.sleep(0.8)
-            try:
-                got = _cdp_call(ws, 60, "Runtime.evaluate", {
-                    "expression": "JSON.stringify({href:location.href,html:document.documentElement?document.documentElement.outerHTML:''})",
-                    "returnByValue": True,
-                }, wait=8)
-            except Exception:
-                continue
-            raw = ((got.get("result") or {}).get("result") or {}).get("value") or ""
-            try:
-                snap = json.loads(raw)
-            except Exception:
-                continue
-            href = str(snap.get("href") or "")
-            html = str(snap.get("html") or "")
-            if _topic(href) and not _challenge_page(html):
-                return href
-            if (not opened) and (not _challenge_page(html)) and ("New Trade" in html):
-                try:
-                    opened_msg = _cdp_call(ws, 61, "Runtime.evaluate", {
-                        "expression": open_trade,
-                        "returnByValue": True,
-                    }, wait=8)
-                    opened_word = ((opened_msg.get("result") or {}).get("result") or {}).get("value") or ""
-                    if opened_word == "opened":
-                        opened = True
-                except Exception:
-                    continue
-            if opened and (not sent) and (not _challenge_page(html)) and ('name="Post"' in html):
-                try:
-                    filled = _cdp_call(ws, 62, "Runtime.evaluate", {
-                        "expression": fill,
-                        "returnByValue": True,
-                    }, wait=8)
-                    word = ((filled.get("result") or {}).get("result") or {}).get("value") or ""
-                    if word == "title":
-                        return href
-                    if word == "clicked":
-                        sent = True
-                except Exception:
-                    continue
-        if href:
-            return href
-        raise OSError("post")
-    finally:
-        if ws is not None:
-            try:
-                ws.close()
-            except Exception:
-                pass
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except Exception:
-            try:
-                proc.kill()
-            except Exception:
-                pass
-        shutil.rmtree(prof, ignore_errors=True)
+    board = _post_board(forum) or BOARD
+    scripts = {"open-trade": _open_link_js("New Trade"), "fill": _fill_js(subject, text)}
+    with (chrome or _scratch_chrome)(cookie, "d2jsp-post-") as page:
+        return _run_flow(page, _flow_begin("post", subject, board, _board_url(board)), scripts,
+                         clock or time.monotonic, nap or time.sleep)
 
 
 def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None, chrome_fetch=None, sec_fetch_site=None):
@@ -1313,16 +1563,15 @@ def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_
 
 
 def open_quote_login_once():
-    """Open the Chrome login at most once per process. The price stays unknown either way."""
-    global quote_login_opened
-    with _quote_login_lock:
-        if quote_login_opened:
-            return False
-        quote_login_opened = True
-    try:
-        return bool(_open_chrome_login())
-    except Exception:
-        return None
+    """A price read opens no window. -> False, always
+
+    REG-2491. The room asks for prices as it opens, with no click, and a need-login answer used to
+    open the forum login in his Chrome, which came to the front over the console (GrokBot, #230,
+    v3707). The lamp click (open_d2jsp_login) and a Post click (d2jsp_send) are the only doors that
+    open the login; the price stays need-login, and the page says the forum search needs the
+    Chrome login on this machine.
+    """
+    return False
 
 
 def _post_board(forum):
@@ -1373,66 +1622,172 @@ def _public_topic(url):
     return urllib.parse.urlunparse(("https", _HOST, parts.path, "", parts.query, ""))
 
 
-def _send_edit(subject, text, cookie, topic, edit_post, open_login):
-    """Update one saved topic. A missing Edit door does not start a new trade."""
-    opener = edit_post or _chrome_edit
-    landed = None
+def _open_door(open_login):
+    """The login door a Post click opens. -> whether it opened"""
+    door = open_login or _open_chrome_login
     try:
-        landed = opener(topic, subject, text, cookie)
-    except OSError as stuck:
-        landed = stuck
-    if isinstance(landed, OSError) or not landed or landed == "no-edit":
-        if landed == "no-edit":
+        return bool(door())
+    except Exception:
+        return False
+
+
+def _as_result(got):
+    """A run's result as {landed, clicked, topic, back, stop}.
+
+    The Chrome flows return that dict. A bare URL (an older seam) is read for what it can prove: a
+    forum topic is the receipt, a forum login page stopped the run before the click, and 'no-edit'
+    or nothing at all never clicked. Any other page cannot prove the submit was not sent, so its
+    click is unknown, and an unknown click is read as a click."""
+    if isinstance(got, dict):
+        clicked = got.get("clicked")
+        return {
+            "landed": str(got.get("landed") or ""),
+            "clicked": None if clicked is None else bool(clicked),
+            "topic": str(got.get("topic") or ""),
+            "back": bool(got.get("back")),
+            "stop": str(got.get("stop") or ""),
+        }
+    url = str(got or "").strip()
+    out = {"landed": url, "clicked": None, "topic": "", "back": False, "stop": ""}
+    if not url:
+        out.update(clicked=False, stop="unread")
+    elif url == "no-edit":
+        out.update(landed="", clicked=False, stop="not-posted")
+    elif _public_topic(url):
+        out.update(clicked=True, topic=url)
+    elif _on_forum(url) and "login" in url.lower():
+        out.update(clicked=False, stop="need-login")
+    return out
+
+
+def _send_verdict(got, board, at, open_login):
+    """THE ONE PLACE A SEND'S OUTCOME BECOMES A REASON. -> (200, answer)
+
+    REG-2490. A topic on the forum is the only receipt: submitted. A run that clicked, or that
+    nobody can say did not, is maybe-sent with the board and the time, unless the board sent the
+    compose form back (not-posted). A click that landed on post.php used to read 'not-posted' and an
+    error after the click 'unread', and both told him nothing was posted. Only a run that provably
+    never clicked says not-posted, unread, title, form-unknown or need-login."""
+    res = _as_result(got)
+    topic = _public_topic(res["topic"])
+    if topic:
+        return 200, {"ok": True, "reason": "submitted", "topic": topic}
+    if res["clicked"] is not False:
+        if res["back"]:
             return 200, {"ok": False, "reason": "not-posted"}
-        return 200, {"ok": False, "reason": "unread"}
-    landed = str(landed)
-    public = _public_topic(landed)
-    if public:
-        return 200, {"ok": True, "reason": "submitted", "topic": public}
-    if _on_forum(landed) and "login" in landed.lower():
-        door = open_login or _open_chrome_login
-        opened = False
-        try:
-            opened = bool(door())
-        except Exception:
-            opened = False
-        return 200, {"ok": False, "reason": "need-login", "opened": opened}
+        return 200, {"ok": False, "reason": "maybe-sent", "board": int(board), "at": at}
+    if res["stop"] == "need-login":
+        return 200, {"ok": False, "reason": "need-login", "opened": _open_door(open_login)}
+    if res["stop"] in ("title", "form-unknown", "unread"):
+        return 200, {"ok": False, "reason": res["stop"]}
     return 200, {"ok": False, "reason": "not-posted"}
 
 
-def _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum=None):
+def _run_opener(call):
+    """Run one Chrome flow. -> (its result, None), or (None, the answer for a run that never started)
+
+    The flows raise only before anything was opened: a Chrome that could not start is chrome-start
+    with its why, and anything else is unread."""
+    try:
+        return call(), None
+    except ChromeStart as stop:
+        return None, {"ok": False, "reason": "chrome-start", "why": stop.why}
+    except Exception:
+        return None, {"ok": False, "reason": "unread"}
+
+
+def _send_edit(subject, text, cookie, topic, edit_post, open_login, forum=None, at=""):
+    """Update one saved topic. A missing Edit door does not start a new trade."""
+    opener = edit_post or _chrome_edit
+    got, refused = _run_opener(lambda: opener(topic, subject, text, cookie))
+    if refused is not None:
+        return 200, refused
+    return _send_verdict(got, _post_board(forum) or BOARD, at, open_login)
+
+
+def _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum=None, at=""):
     """One scratch-Chrome submit. A topic URL is the only submitted receipt."""
     opener = chrome_post or _chrome_post
     board = _post_board(forum) or BOARD
-    landed = None
-    try:
-        if opener is _chrome_post:
-            landed = opener(subject, text, cookie, board)
-        else:
-            landed = opener(subject, text, cookie)
-    except OSError as stuck:
-        landed = stuck
-    if isinstance(landed, OSError) or not landed:
-        return 200, {"ok": False, "reason": "unread"}
-    landed = str(landed)
-    public = _public_topic(landed)
-    if public:
-        return 200, {"ok": True, "reason": "submitted", "topic": public}
-    if _on_forum(landed) and "login" in landed.lower():
-        door = open_login or _open_chrome_login
-        opened = False
-        try:
-            opened = bool(door())
-        except Exception:
-            opened = False
-        return 200, {"ok": False, "reason": "need-login", "opened": opened}
-    return 200, {"ok": False, "reason": "not-posted"}
+    if opener is _chrome_post:
+        got, refused = _run_opener(lambda: opener(subject, text, cookie, board))
+    else:
+        got, refused = _run_opener(lambda: opener(subject, text, cookie))
+    if refused is not None:
+        return 200, refused
+    return _send_verdict(got, board, at, open_login)
 
 
-def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None, edit_post=None, sec_fetch_site=None):
-    """Post one desk draft. -> (http code, {ok, reason, opened?})
+_SEND_LOCK = threading.Lock()
+# (board, subject, sha256 of the body) -> {reason, t, at, topic, on}; this process only. `on` holds the
+# topics the send changed or made (_topic_ref); a maybe-sent new post holds none, since its topic is unknown.
+_SENT = {}
+_RESEND_S = 30 * 60
 
-    The dict never carries the cookie, the page, or the draft.
+
+def _stamp(t):
+    """An instant as the desk reads it: UTC, to the millisecond."""
+    return datetime.datetime.fromtimestamp(float(t), datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+
+
+def _sent_key(board, subject, text):
+    return (int(board), str(subject), hashlib.sha256(str(text).encode("utf-8")).hexdigest())
+
+
+def _topic_ref(url):
+    """The topic a URL names, as one value two links to it share: its t= id, else the public URL.
+    None for no topic."""
+    public = _public_topic(url)
+    if not public:
+        return None
+    tid = _topic_id(public)
+    return public if tid is None else tid
+
+
+def _sent_before(key, t, target=""):
+    """The answer to an identical re-send inside 30 minutes, or None. -> dict | None
+
+    REG-2490. The record lives in this process: a console restart forgets it. A new post (no
+    target) is answered by any record of the same draft, since posting it again would make a
+    second topic. An edit is answered only by a record of the topic it edits (REG-2495): another
+    topic's record says nothing about what this one shows, and an edit never makes a second topic."""
+    for old in [k for k, v in _SENT.items() if t - v["t"] >= _RESEND_S]:
+        del _SENT[old]
+    prior = _SENT.get(key)
+    if not prior:
+        return None
+    ref = _topic_ref(target)
+    if ref is not None and ref not in prior["on"]:
+        return None
+    if prior["reason"] == "submitted":
+        return {"ok": False, "reason": "already-posted", "topic": prior["topic"], "at": prior["at"]}
+    return {"ok": False, "reason": "maybe-sent-recently", "at": prior["at"]}
+
+
+def _remember_send(key, out, t, at, target=""):
+    """Record a send that went up or may have, under its draft.
+
+    REG-2495 (A, B, A): the record was keyed on the draft alone, so a shop list posted as A, edited
+    to B and edited back to A inside 30 minutes answered the third send already-posted with A's old
+    receipt: the edit never ran and the board still showed B. A send that changed or made a topic
+    now drops every other draft's record on that topic, because the topic no longer shows them."""
+    reason = out.get("reason")
+    if reason not in ("submitted", "maybe-sent"):
+        return
+    topic = str(out.get("topic") or "") if reason == "submitted" else ""
+    on = set(ref for ref in (_topic_ref(target), _topic_ref(topic)) if ref is not None)
+    for gone in [k for k, v in _SENT.items() if k != key and v["on"] & on]:
+        del _SENT[gone]
+    _SENT[key] = {"reason": reason, "t": t, "at": at, "topic": topic, "on": on}
+
+
+def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None, edit_post=None, sec_fetch_site=None, now=None):
+    """Post one desk draft. -> (http code, {ok, reason, ...}); the reason is one of SEND_REASONS
+
+    One send runs at a time on this console: a second one while a send runs is busy, and it reads
+    no cookie and starts no Chrome (REG-2490: the page's own `posting` flag guarded one tab, and
+    the server is threaded). The dict never carries the cookie, the page, or the draft.
     """
     if not console_may_post(origin, host, port, sec_fetch_site):
         return 403, {"ok": False, "reason": "origin"}
@@ -1451,30 +1806,56 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         return 200, {"ok": False, "reason": "no-price"}
     if len(subject) > 50:
         return 200, {"ok": False, "reason": "title"}
+    if not _SEND_LOCK.acquire(False):
+        return 200, {"ok": False, "reason": "busy"}
+    try:
+        return _send_locked(body, forum, subject, text, cookie_get, transport, open_login,
+                            chrome_post, edit_post, now)
+    finally:
+        _SEND_LOCK.release()
+
+
+def _send_locked(body, forum, subject, text, cookie_get, transport, open_login, chrome_post, edit_post, now):
+    """d2jsp_send under the send lock: the re-send record first, then one route, then the record.
+
+    REG-2490. The same draft (board, subject and body) within 30 minutes of a submit is
+    already-posted, and within 30 minutes of a maybe-sent is maybe-sent-recently; neither reads the
+    cookie or starts Chrome. An edit is held back only by a record of its own topic, and a send that
+    changes a topic retires the other drafts' records on it (REG-2495)."""
+    t = time.time() if now is None else float(now)
+    at = _stamp(t)
+    target = _public_topic(str(body.get("topic") or ""))
+    if target and not _topic_on_board(target, forum):
+        target = ""
+    key = _sent_key(forum, subject, text)
+    prior = _sent_before(key, t, target)
+    if prior is not None:
+        return 200, prior
+    code, out = _send_route(forum, subject, text, target, cookie_get, transport, open_login,
+                            chrome_post, edit_post, at)
+    _remember_send(key, out, t, at, target)
+    return code, out
+
+
+def _send_route(forum, subject, text, target, cookie_get, transport, open_login, chrome_post, edit_post, at):
+    """Read the cookie, then edit the saved topic (target), post through Chrome, or (a law's seam)
+    post through urllib."""
     get_cookie = cookie_get or live_cookie_header
     try:
         cookie, cookie_reason = get_cookie()
     except Exception:
         cookie, cookie_reason = None, "chrome-unread"
     if not cookie:
-        out = {"ok": False, "reason": cookie_reason or "chrome-unread"}
-        if out["reason"] == "need-login":
-            opener = open_login or _open_chrome_login
-            try:
-                out["opened"] = bool(opener())
-            except Exception:
-                out["opened"] = False
-        return 200, out
-    topic = _public_topic(str(body.get("topic") or ""))
-    if topic and not _topic_on_board(topic, forum):
-        topic = ""
-    if topic:
+        if cookie_reason == "need-login":
+            return 200, {"ok": False, "reason": "need-login", "opened": _open_door(open_login)}
+        return 200, {"ok": False, "reason": "chrome-unread"}
+    if target:
         opener = edit_post
         if opener is None and chrome_post is False:
             opener = lambda *args: "no-edit"
-        return _send_edit(subject, text, cookie, topic, opener, open_login)
+        return _send_edit(subject, text, cookie, target, opener, open_login, forum, at)
     if transport is None and chrome_post is not False:
-        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum)
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum, at)
     fetch = transport or _transport
     try:
         status, hdrs, raw = fetch("GET", COMPOSE_URL, _headers(cookie), None)
@@ -1485,26 +1866,16 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         if isinstance(hdrs, dict):
             loc = hdrs.get("Location") or hdrs.get("location") or ""
         if _on_forum(loc) and "login" in loc.lower():
-            opener = open_login or _open_chrome_login
-            opened = False
-            try:
-                opened = bool(opener())
-            except Exception:
-                opened = False
-            return 200, {"ok": False, "reason": "need-login", "opened": opened}
+            return 200, {"ok": False, "reason": "need-login", "opened": _open_door(open_login)}
         return 200, {"ok": False, "reason": "form-unknown"}
     raw_text = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
     if _challenge_page(raw_text) and chrome_post is not False:
-        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum)
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum, at)
     parsed = parse_compose(raw)
     if parsed["reason"] != "ready":
         out = {"ok": False, "reason": parsed["reason"]}
         if parsed["reason"] == "need-login":
-            opener = open_login or _open_chrome_login
-            try:
-                out["opened"] = bool(opener())
-            except Exception:
-                out["opened"] = False
+            out["opened"] = _open_door(open_login)
         return 200, out
     fields = list(parsed["fields"])
     fields.append(("subject", subject))
@@ -1516,32 +1887,20 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
     try:
         status, hdrs, raw = fetch("POST", COMPOSE_URL, sent_headers, encoded)
     except Exception:
-        return 200, {"ok": False, "reason": "unread"}
+        # The POST may have reached the board before its answer was lost.
+        return _send_verdict({"clicked": True}, forum, at, open_login)
     loc = ""
     if isinstance(hdrs, dict):
         loc = hdrs.get("Location") or hdrs.get("location") or ""
     if status in (301, 302, 303, 307, 308) and _topic(loc):
-        return 200, {"ok": True, "reason": "submitted"}
+        return _send_verdict({"clicked": True, "topic": urllib.parse.urljoin(COMPOSE_URL, loc)},
+                             forum, at, open_login)
     if status in (301, 302, 303, 307, 308) and _on_forum(loc) and "login" in loc.lower():
-        opener = open_login or _open_chrome_login
-        opened = False
-        try:
-            opened = bool(opener())
-        except Exception:
-            opened = False
-        return 200, {"ok": False, "reason": "need-login", "opened": opened}
-    post_text = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
-    if _challenge_page(post_text) and chrome_post is not False:
-        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum)
+        return 200, {"ok": False, "reason": "need-login", "opened": _open_door(open_login)}
     came_back = parse_compose(raw)
     if came_back["reason"] == "need-login":
-        opener = open_login or _open_chrome_login
-        opened = False
-        try:
-            opened = bool(opener())
-        except Exception:
-            opened = False
-        return 200, {"ok": False, "reason": "need-login", "opened": opened}
-    # A 200 that is not a redirect onto topic.php did not confirm a post.
-    # Saying submitted here would claim a send the board did not receipt.
-    return 200, {"ok": False, "reason": "not-posted"}
+        return 200, {"ok": False, "reason": "need-login", "opened": _open_door(open_login)}
+    # The board answered the POST with its compose form again: it did not take the post. Any other
+    # answer (a challenge, an error page, an unknown 200) cannot prove the post was refused, and the
+    # draft is never sent a second time once its POST went out.
+    return _send_verdict({"clicked": True, "back": came_back["reason"] == "ready"}, forum, at, open_login)

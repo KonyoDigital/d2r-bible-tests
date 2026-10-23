@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3790",
+  "ver": "v3791",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3790: V1 (GB-L) - pick undo, held-vault perfect base, refused map writes keep filings, no Claude CLI in gates",
+  "note": "v3791: d2jsp price backend, desk codex and drop units, signed roster publish, two triage fixes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

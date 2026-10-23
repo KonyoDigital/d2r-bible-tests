@@ -84,6 +84,7 @@ test.describe('Smoke — page loads correctly', () => {
     const slider = page.locator('#mf');
     await expect(slider).toHaveValue('699');
     const effMF = await page.locator('#eff-mf').textContent();
-    expect(effMF).toMatch(/73\.\d+%/); // ~73.66% at 699 MF
+    // REG-2508 - the game's curve, MF x 250 / (MF + 250): 699 -> 184.14% (the old cap-share line printed 73.66%)
+    expect(effMF).toMatch(/^184\.14%$/);
   });
 });

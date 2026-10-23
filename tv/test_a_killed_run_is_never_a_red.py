@@ -37,8 +37,8 @@ DRIVEN, real code and real signals:
      real prover such a run is UNKNOWN and banks nothing. The OS cannot be asked to hand a pid out again, so that next
      process's death is written as the hook writes one.
  10. REG-2357 (round 3): every case of 1-8 skips off POSIX, so on Windows a proof that declared no need filed BLIND and
-     shut every lock there. Every proof declares "posix-signals": on Windows each one is ELSEWHERE and never run (a
-     class that runs everywhere checks both).
+     shut every lock there. Every proof declares "posix-signals" (or "macos", a narrower POSIX need): on Windows each
+     one is ELSEWHERE and never run (a class that runs everywhere checks both).
 Every scenario that kills on purpose runs in a DRIVER subprocess whose environment holds no watch of its own, so the
 watch heart2 arms over THIS law's run is never fed by them. RED_PROOF below. [[unknown-stays-unknown]]
 """
@@ -793,7 +793,7 @@ print("NOT ENDED", flush=True)
 class OnWindowsEveryProofIsElsewhere(unittest.TestCase):
     """REG-2357 (the round-3 review) - every case above skips off POSIX, so on Windows the clean run and the tampered
     run both skip everything: a proof that declared no need filed BLIND there, and one BLIND shuts every lock on that
-    PC. Each proof declares "posix-signals", so REG-1686 files it ELSEWHERE there and never runs it. This class runs
+    PC. Each proof declares "posix-signals" (or "macos"), so REG-1686 files it ELSEWHERE there and never runs it. This class runs
     everywhere, Windows included."""
 
     def test_every_proof_declares_it_needs_posix_signals(self):
@@ -932,8 +932,9 @@ RED_PROOF = [
      "find": "        except ProcessLookupError:\n            return True  # macOS: a zombie and a missing pid",
      "replace": "        except ProcessLookupError:\n            return False  # macOS: a zombie and a missing pid",
      # heart2 --prove on Linux, 2026-10-23: BLIND there by construction - Linux keeps a zombie's group, so getpgid
-     # answers and zombie_on_proc (/proc says Z) catches it; only macOS reaches this ESRCH line. Measured where it runs
-     # (his Mac: PROVEN, 4 cases red), ELSEWHERE on Linux and Windows, never BLIND there.
+     # answers and zombie_on_proc (/proc says Z) catches it, so a Linux zombie never reaches this ESRCH line (a missing
+     # pid does, on any POSIX host, but no case here goes red on that). Measured where a zombie reaches it (his Mac:
+     # PROVEN, 4 cases red), ELSEWHERE on Linux and Windows, never BLIND there.
      "matches": 1, "needs": "macos"},
     {"why": "REG-2356 - a killpg of a pid that leads no group (it reached no one) explains that pid's later death",
      "file": "gate_trace/sitecustomize.py",

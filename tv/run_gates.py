@@ -6480,7 +6480,8 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_every_decision_file_is_ignored.py")], 60,
          why="#223's answers store (tv/his_answers.json) shipped with no ignore line and his first answer sat untracked "
              "in a PUBLIC repo. Fourth time for this class; every _decision_path name is now read out of the code and "
-             "asked of git check-ignore, primary and scratch form."),
+             "asked of git check-ignore, primary and scratch form. REG-2518: that git never sees a hook's GIT_DIR - "
+             "its throwaway `git init` had re-initialised the pushing repo as bare."),
     Gate("test_the_console_window_claims_its_own_board",
          [sys.executable, os.path.join(HERE, "test_the_console_window_claims_its_own_board.py")], 60,
          why="#239 - his go: wire the one synced identity from what exists. The console's claim door wrote '*' with no "
@@ -11479,6 +11480,74 @@ GATES = [
              "every live run record (heart2's _SELF_RECORDS + suite_verdict.RUN_RECORDS): untracked ones removed, "
              "a tracked one restored to HEAD's blob by the sandbox's own history, a PROOF_NEEDS-declared one kept. "
              "Driven on a fixture repo holding every record live, and TestV2414 run whole against a trap HERE."),
+    Gate("test_a_d2jsp_post_is_sent_once_and_never_called_unsent",
+         [sys.executable, os.path.join(HERE, "test_a_d2jsp_post_is_sent_once_and_never_called_unsent.py")], 60,
+         needs_app=False,
+         why="REG-2490 / REG-2491 (#106, #83) - one 25 s deadline covered the board, the form, the click and the "
+             "redirect, so a slow board that took a post read 'not-posted' (an error after the click 'unread'), the "
+             "page said nothing was posted, and the server had no lock. One send runs at a time (busy, no cookie "
+             "read); a click with no receipt is maybe-sent with the board and the time; the board list is read "
+             "again and only a new topic whose text is the subject is the receipt; the same draft is not sent "
+             "again for 30 min; a Chrome that cannot start is chrome-start. The real flow drives a board made of "
+             "strings, no Chrome."),
+    Gate("test_no_d2jsp_cookie_copy_or_window_outlives_a_read",
+         [sys.executable, os.path.join(HERE, "test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py")], 60,
+         needs_app=False,
+         why="REG-2491 / REG-2492 / REG-2493 (#112, #83) - a cookie read copied his whole Chrome cookie database "
+             "into $TMPDIR (removed only in a finally); pgrep read the sweep's pattern as an option, so no stale "
+             "Chrome was ever killed; a need-login price read brought his Chrome to the front with no click. The "
+             "read is in memory, the sweep removes and counts cookie copies and kills only an exact profile, the "
+             "room's login check sweeps, a price read opens nothing, and a scratch Chrome in flight at exit is "
+             "ended."),
+    Gate("test_a_maybe_sent_post_is_never_shown_as_unsent",
+         [sys.executable, os.path.join(HERE, "test_a_maybe_sent_post_is_never_shown_as_unsent.py")], 60,
+         needs_app=False,
+         why="REG-2500 (#106 page side) - both d2jsp send paths kept their own reason map and fell back to 'nothing was "
+             "posted' for every reason they did not name, the console's maybe-sent included, which is what sends the "
+             "second click and the duplicate topic. One map (sendWords) now gives every reason in the console's contract "
+             "its own words; a maybe is headed Maybe sent, links the board and never says nothing was posted. Runs the "
+             "room's own click handler in node for both paths."),
+    Gate("test_a_price_read_on_another_board_is_not_the_post_price",
+         [sys.executable, os.path.join(HERE, "test_a_price_read_on_another_board_is_not_the_post_price.py")], 60,
+         needs_app=False,
+         why="REG-2501 (#113) - prices are read on board 243 and posts go to 268 / 271, two economies; with no typed "
+             "price the four post callers used the board-243 median as his asking price. A reading is the post price only "
+             "when read on the post board (d2jspQuotedForBoard); the price line names its board. Node, the room's own code."),
+    Gate("test_the_d2jsp_desk_forks_with_the_profile",
+         [sys.executable, os.path.join(HERE, "test_the_d2jsp_desk_forks_with_the_profile.py")], 60,
+         needs_app=False,
+         why="REG-2502 (#114) - the six desk stores were shared by main (268) and ladder (271), so a ladder post overwrote "
+             "the saved topic and the next main post started a second one. They fork per profile now; the real router "
+             "and the real room run in node and the raw store is read key by key; a guest main keeps its pre-fork values."),
+    Gate("test_a_good_mf_never_turns_odds_into_a_percent",
+         [sys.executable, os.path.join(HERE, "test_a_good_mf_never_turns_odds_into_a_percent.py")], 60,
+         needs_app=False,
+         why="REG-2503 (#63) - one number carried two units split at 50, so a good MF printed Nagelring's 1:49 as '49%' "
+             "and dropped its 1:70 from the ranking. An event drop is a probability in (0,1], every other chance odds "
+             ">= 1 (isEventP); keys sit on Hell only with their card's band, Annihilus is 100%. The drop engine, BOSSES and "
+             "renderDetail itself run in node; the expected odds are computed in Python from PLAYER_Q."),
+    Gate("test_no_codex_number_contradicts_its_own_table",
+         [sys.executable, os.path.join(HERE, "test_no_codex_number_contradicts_its_own_table.py")], 60,
+         needs_app=False,
+         why="REG-2504..REG-2506 (#62 #68 #69, his 10-22 vanilla ruling) - Level-0 procs, notes whose absorb or "
+             "skill-count claim is not their own table's (56 rewritten or trimmed, both copies), three essence rates, "
+             "'Colossal Ancient Jewels' shown where the game says Colossal Jewels, the Summoner's two Hell levels, "
+             "Pindleskin's two ceilings, Bone Ash's unheld TC, Uber Duriel's 'Cold immune' beside a 75 resist. Swept, "
+             "not pinned: every codex proc level against its hover card, every note claim against its table."),
+    Gate("test_a_roster_publish_is_signed_and_a_forgery_is_refused",
+         [sys.executable, os.path.join(HERE, "test_a_roster_publish_is_signed_and_a_forgery_is_refused.py")], 180,
+         needs_app=False,
+         why="REG-2510..2517 (#95, #112) - the roster's write door trusted the site's public Basic password, so anyone "
+             "could overwrite any owner's row and the server re-hashed it clean. Each PC now signs the exact bytes it "
+             "posts with its own Ed25519 key (cryptography, or a pure RFC 8032 signer on PCs without it); roster.js "
+             "verifies them with crypto.subtle before parsing, registers an owner's first key (TOFU), and refuses an "
+             "unsigned, other-key or altered publish for a registered owner without storing a byte. Python signs and "
+             "node runs the real worker: RFC 8032 vectors, 200 random bodies, the refusal matrix. A verified row holds "
+             "only what its own key signed - a section planted before the key arrived is dropped, never stamped "
+             "verified. Also: the hash walks UTF-16 units (an emoji row no longer reads CORRUPT), boot posts even when "
+             "unchanged, intentVerified reaches every view, the doctor and his screen (the roster panel's buttons, its "
+             "lead line and the shadow bar, drawn by the panel's own code in node), and main() sweeps stale d2jsp "
+             "scratch once, guarded."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

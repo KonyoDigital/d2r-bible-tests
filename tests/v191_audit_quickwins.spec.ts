@@ -95,16 +95,22 @@ test.describe('v191 audit quick-wins', () => {
   test('content fixes: Stormshield +60 cold res / no CBF; Coif of Glory has no fabricated "Light Strike"; Griffon ALL skills', async ({ page }) => {
     const r = await page.evaluate(() => {
       const txt = document.body.textContent || '';
+      const info = new Function("return typeof ITEM_INFO === 'undefined' ? {} : ITEM_INFO")();
+      const griffon = String(info["Griffon's Eye"] || '');
       return {
         storm60: txt.includes('+60 cold res'),
         stormStale: txt.includes('+35 cold res'),
         lightStrike: txt.includes('Light Strike'),
-        griffonSorc: /\+1 sorc skills/.test(txt),
+        // Griffon's own curated line, not the whole page: since REG-2504 Visceratuant's note truly reads
+        // "+1 sorc skills" (its table's +1 to Sorceress Skill Levels), so a page-wide match judged the wrong item.
+        griffonSorc: /\+1 sorc skills/i.test(griffon),
+        griffonAll: /\+1 ALL skills/.test(griffon),
       };
     });
     expect(r.storm60).toBe(true);
     expect(r.stormStale).toBe(false);
     expect(r.lightStrike).toBe(false);
+    expect(r.griffonAll).toBe(true);
     expect(r.griffonSorc).toBe(false);
   });
 

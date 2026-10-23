@@ -206,6 +206,635 @@ HEART2_CACHE_PATH file of its own, writes a manifest (k, n, HEAD, dirty, plan di
 Gates are summed in name order, so the names' order cannot move a chunk boundary (second eye). Refused (exit 2)
 without --push, without HEART2_CACHE_PATH, with the cache off, or into an existing file. Law
 test_a_proof_shard_covers_every_proof_once, RED_PROOF "REG-2585".
+### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
+
+Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote
+runs functions/api/d2jsp_quote.js under node with timeout=20 and caught only OSError, so a node that did not answer raised
+subprocess.TimeoutExpired out of d2jsp_quote instead of the "unread" reading every other failure there returns. FIX: catch
+(OSError, subprocess.SubprocessError). Law: test_a_quote_parser_that_times_out_is_unread (a parser that times out on a fetched
+page reads fg None, reason "unread", no cookie in the answer). One RED_PROOF. Also the REG-2575 docstring now says the quote
+raised (it calls _headers outside its try), not that it answered "unread".
+
+### REG-2575 - A CHROME VERSION READ THAT TOOK OVER 5 S TURNED A D2JSP POST INTO "UNREAD" (M6 CI fix round)
+
+CI on ci/gbl-batch-m6 failed test_d2jsp_desk at test_a_challenge_page_is_posted_through_a_scratch_chrome ("False is not
+true", gate 7.1 s; green on the Mac and on an idle Linux box). tv/d2jsp_chrome.py chrome_user_agent asks the installed Chrome
+for its version (`google-chrome --version` on Linux, `defaults read` on a Mac) with timeout=5 and caught only OSError. On the
+loaded runner the read took longer, subprocess.TimeoutExpired rose through _headers into _send_route's cookie-to-fetch path,
+and the post answered "unread" before any page was fetched. REPRODUCED on Linux with a `google-chrome` that sleeps 6 s: the
+same case failed with the same message, plus three more. The same defect would hit a real post or quote on a slow PC.
+FIX: both version reads catch (OSError, subprocess.SubprocessError); a version that cannot be read is the default version,
+as the docstring already said. Law: test_a_chrome_version_read_that_times_out_still_names_chrome drives both halves on any
+host (the module sees the platform under test), a timing-out version read, and a challenge-page post that must still be
+submitted. Two RED_PROOFs, one per half. swallow ratchet holds at 66.
+
+### REG-2574 - M6 ADDED THE 45TH FIXED-SIZE SOURCE WINDOW AND LEFT THE MAP WITHOUT ITS EIGHT LAWS (M6 CI fix round)
+
+The CI-only gates on ci/gbl-batch-m6 read two things the pre-push hook does not run. test_a_source_window_must_reach_its_subject:
+fixed-size windows rose from 44 to 45. The one new site is T2's
+test_a_price_read_on_another_board_is_not_the_post_price.test_no_caller_hands_the_raw_reading_to_the_post_price, which reported
+each stray d2jspPriceToSend call as `s[i:i + 90]`. FIX: the call is reported up to the end of its own line, a real boundary, so
+the window count is back to 44 (ceiling 44, unchanged). test_the_blueprint_cannot_go_stale: BLUEPRINT.md named 1085 gates
+and not the eight M6 laws, nor tv/roster_sign.py. FIX: regenerated with python3 tv/blueprint.py (1093 gates, 253 modules).
+PLAYWRIGHT (Routine I on the same push, 2 failed of 222 in shard 9, both on retry too): two specs still asserted what M6's
+REG-2504..2506 corrected on purpose. tests/v78_uber_boss_cards.spec.ts expected Uber Duriel's Immune cell to match /Cold/; the
+card now says 'none' beside "Magic/Fire/Cold/Light/Poison 75" (d2emu: no resist reaches 100). tests/v191_audit_quickwins.spec.ts
+read "+1 sorc skills" anywhere on the page as Griffon's old error; Visceratuant's rewritten note now truly says it. FIX: the
+Duriel case expects 'none', the 75 line, and no "Cold immune"; the Griffon case reads Griffon's own ITEM_INFO line and also
+requires its "+1 ALL skills". Both specs: 15 passed locally.
+
+### REG-2573 - A SIGNED PUBLISH OF AN UNCHANGED ROW WAS NEVER ASKED: THE KEY-ARRIVING BRANCH HAD NO LAW (M6 T3 review fix round)
+
+functions/api/roster.js decides whether a signed publish is the owner's key arriving (upgrade) through sameIntent - same
+verdict, same whole key, same key id as the stored row. Every case in tv/test_a_roster_publish_is_signed_and_a_forgery_is_refused.py
+signed a body that differed from the stored row, so the branch was never asked: four mutants passed both roster laws, one of them
+the exact origin/main line `if (prev && prev.hash === hash) {`. Under it, on deploy day, a PC's first signed publish that carries
+the sections its pre-signing row (or its own unsigned row) already holds is answered skipped:['unchanged'] with
+intentVerified:true: no rosterkey is written, the row stays unverified, and the PC records a verified publish.
+FIX (law only - the code was right): test_a_signed_publish_of_an_unchanged_row_still_carries_the_key signs the very sections the
+stored row holds, inside the hour and not at boot, over a pre-signing row (no key yet), its own unsigned row (key placed by
+hand), another key's verified row, and a row with this key's 48-bit id but another key: each is stored verified under this key,
+the first registers it, the rest register nothing. The same publish over a row already written under this very key is still
+skipped 'unchanged' (the churn guard). Four RED_PROOF cases: the origin/main unchanged check, the hourly guard without
+!upgrade, upgrade as first-registration only, upgrade on every signed publish.
+FIX ROUND 2 (the cross-family review found four more clauses unpinned): the same law also signs the boot publish after the
+documented reset (rosterkey deleted, the row still verified under this key) - it registers the key again; a verified row with
+this key but a stale key id - the id is rewritten; and an unsigned publish of the same sections over an old pre-signing row -
+stored NOT verified, never skipped. Four more RED_PROOFs: upgrade without the first-registration clause, the unchanged check
+without !upgrade, sameIntent without the key id, sameIntent without the verdict. The churn-guard case reads its reply with
+.get, so that tamper fails on its own message.
+FIX ROUND 3 (the review of r2 found four more edits that stayed green): a signed boot of an unchanged row under its own
+registered key is skipped 'unchanged' (a boot is not a key arriving); after a rosterkey reset a changed TICK inside the hour
+registers the key and is stored (not only a boot); a boot of an unchanged row with a stale key id rewrites the id; an
+unsigned tick inside the hour over a recent pre-signing row is skipped 'within the hour' and leaves no verdict. Four more
+RED_PROOFs: upgrade || boot, register only on a boot, the key-id compare || boot, upgrade without `verified &&`.
+FIX ROUND 4 (the review of r3 found four more): a signed tick with a change under the row's own registered key is skipped
+'within the hour' (the cap holds for a verified row); a signed tick over another key's row keeps only `characters` (the
+REG-2516 heal runs on a tick, not only a boot); an unsigned boot over a recent pre-signing row is stored NOT verified; after a
+rosterkey reset an UNCHANGED tick registers the key and is stored. Five RED_PROOFs: the hourly guard && !verified, inherit ||
+!boot, the verdict compare || boot, the unchanged check (sameIntent || boot), register only on a boot or a change.
+FIX ROUND 5 (the review of r4 swept 108 single edits; six stayed green): a signed tick under the row's own key, an hour
+old, keeps the `vault` that key signed before; an unsigned tick over a pre-signing row keeps what it did not send; a row
+exactly one hour old is not held (strict <, as the PC's due()); a signed publish that read nothing is 'nothing read' and
+registers no key; a row whose `t` is not a number is not held. The law's node harness takes a per-step clock. Six RED_PROOFs:
+inherit only with a boot (verified, then unsigned), priorSections only on a boot, age <= HOUR_MS, the empty-sections
+return dropped, the non-numeric age fallback 0.
+FIX ROUND 6 (the review of r5 swept 203 single edits; seven stayed green): a signed BOOT that read nothing is 'nothing
+read' too and registers no key; every skip ('nothing read', 'unchanged', 'within the hour') answers ok:true, which the PC
+reads as reached; a row 1 ms short of the hour is held; a new day's first write counts 1 on a tick; the daily cap of 25
+refuses a tick as well as a boot. Seven RED_PROOFs: the empty guard && !boot, ok:false on each of the three skips, the hour
+ending 1 ms early, the day count || !boot, the cap && boot.
+FIX ROUND 7 (the review of r6 swept 303 single edits; seven stayed green): the daily cap of 25 refuses a signed tick and
+a key arriving, and registers no key; a signed tick counts on from today's writes; a tick whose signature fails says why
+(sigWhy), as a boot does; a failed rosterkey or row put is refused in the store's own words. The law's node harness can fail
+a named put. Seven RED_PROOFs: the cap && !verified and && !upgrade, the day count && !verified and && !upgrade, sigWhy only
+on a boot, and the swapped catch expression at each put.
+FIX ROUND 8 (the review of r7 swept 290 single edits): a failed signature's why is said in words (sigWhy is the reason,
+not 'bad'); a signed tick under the same key on a new day counts 1, not yesterday's 25; an unsigned publish that read
+nothing is 'nothing read' too; the row is put with its 400-day lapse (the harness records put options). Four RED_PROOFs.
+T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
+Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
+test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
+the thirteen git-init laws with no GIT_* variable, from a linked worktree too.
+
+### REG-2510 - ANYONE WITH THE PUBLIC SITE PASSWORD COULD OVERWRITE ANY PC'S ROSTER ROW, AND THE SERVER RE-HASHED THE FORGERY CLEAN (#95, M6 track T3)
+
+functions/api/roster.js onRequestPost checked nothing but the site's Basic password, and that password is in this public repo: _roster_post in tv/control_app.py sends it. Any POST naming an owner label overwrote that owner's row. The server re-hashed whatever it stored, so GET read a forged row corrupt:false and every console drew it as that PC's. Rows were stored as sent (shapeSection), up to 80,000 bytes. HIS RULING 2026-10-22: deploy signed publishing once the Python/JS signature test passes, trust-on-first-use, never stop a PC from publishing.
+
+FIX: each PC holds its own Ed25519 key, made by tv/roster_sign.py on its first publish at <log root>/.roster_key.json (follows TV_HIST, mode 0600, gitignored, never replaced). _roster_post signs the EXACT bytes it posts and sends X-Roster-Key and X-Roster-Sig (base64url); neither side re-serialises before the check. It signs with `cryptography` where that is installed and with a pure-Python RFC 8032 signer everywhere else: the installers do not install cryptography, so without the fallback Dean, ALT and Wife PC would never sign. On every signature both run and must write the same 64 bytes (`agree` in the receipt). roster.js reads arrayBuffer(), checks byteLength, and verifies with crypto.subtle (Ed25519, raw public key) before JSON.parse and before any KV write. Per owner, against KV rosterkey:<owner>:
+- no key + valid signature: the key is registered and the row stored intentVerified:true;
+- no key + unsigned: stored intentVerified:false, so a PC that has not updated keeps publishing;
+- no key + a signature that does not verify: stored false and NOT registered, and the reply says why. Anyone could post that row unsigned, and a signer bug must not stop a PC from publishing;
+- registered + same key + valid: stored true;
+- registered + unsigned, another key or a bad signature: refused (200, ok:false) with its own why and hint, and nothing is stored.
+A key changes only when Konyo deletes rosterkey:<owner> from the Mac; the wrangler commands (and the pre-seed form) are in roster.js's header. A row that becomes verified or changes key is written even inside the hour, once. GET passes intentVerified, keyId and signedAt only when the record holds them, so a row stored before signing reads UNKNOWN. When no key can be read or made, or the signer raises, the post goes unsigned and the receipt (.tvd_roster.json `post`) says why.
+
+DEPLOY: the server half is safe first, because it accepts unsigned bodies until an owner registers a key. functions/ ships with the integrator's push. After the deploy, GrokBot checks on #230 that every PC still publishes.
+
+LEFT, said rather than silent:
+- a PC that loses tv/.roster_key.json after registering is refused until Konyo resets its key. The refusal is kept in that PC's receipt, rides /api/roster-cache as `me` ("this PC's last publish was REFUSED: ..."), turns the doctor row MISSING (REG-2514), and leads the console's roster panel (REG-2517);
+- trust-on-first-use: whoever signs first for an unregistered label holds it until Konyo resets it, or pre-seeds the right key;
+- a captured signed body can be replayed. signedAt is stored, not enforced: a replay is an older true row of that owner, and capturing one needs the TLS session;
+- the Basic password stays, as the gate for reading the site.
+
+GUARD: tv/test_a_roster_publish_is_signed_and_a_forgery_is_refused.py. Python signs with both signers and node runs the real onRequestPost and onRequestGet against a stand-in KV: the acceptance sequence (unsigned stored false; signed registers and stores true; unsigned, another key and one flipped bit each refused with the KV byte-identical), RFC 8032 section 7.1 vectors on both signers and in node, 200 random bodies up to MAX_BODY (signed here, verified in node, byte-identical between the signers), the cut _roster_post against a stand-in urllib, and the seed in no body, header, reply, record, receipt or page. tv/test_a_roster_publish_stays_off_the_presence_beacon.py's harness now sends exact bytes and headers, and its unsigned bodies still store.
+
+### REG-2511 - AN EMOJI IN A ROSTER ROW MADE ITS OWNER READ CORRUPT FOR EVERY VIEWER (#95, M6 track T3)
+
+roster_publish.hash_of walked code points; roster.js hashOf walks UTF-16 units (charCodeAt). For 'Ber 🧿 rune' the worker gives 83534eb3 and Python gave a8b9dc5d (measured in node and python3). view_one therefore marked any owner whose rows held a character outside the BMP CORRUPT, and drew none of its rows. FIX: hash_of encodes UTF-16-LE (surrogatepass, so a lone surrogate is the one unit JavaScript sees) and walks those units. ASCII and BMP digests do not change: 'abc' 1a47e90b and 'Tal Rune ★' b51575f1 on both sides. GUARD: the same law, without node (the worker's measured digest) and with node (an emoji row through the real worker reads corrupt:false).
+
+### REG-2512 - A FORGED ROSTER ROW WAS NEVER HEALED: due() SAID "unchanged" BEFORE IT ASKED ABOUT BOOT (#95, M6 track T3)
+
+roster_publish.due returned "unchanged" whenever this PC's own last digest matched, before it looked at boot. A row someone else wrote in this PC's name stayed until this PC's rows changed. FIX: boot posts even when nothing changed here. The server skips the write when its stored hash matches, so an honest boot costs no KV write. A tick still stays quiet when unchanged, and a refusal is still not retried inside the hour. due() also adds signedAt (ms) to the body, the clock the signature covers. The existing roster law asserted "boot does not post an unchanged body", which was the defect itself; it now asserts the opposite. GUARD: the new law, both in Python and through the worker (a forged unsigned row, then the PC's signed boot publish, then the PC's row).
+WHAT A BOOT POST HEALS, exactly (corrected by the review; this entry first said "it overwrites a forged row", which held only for the sections the PC sends): a SIGNED boot publish that the server verifies replaces the row whole, so every section this PC did not send is dropped, `owned` included, which no PC sends (REG-2516). An UNSIGNED boot publish (this PC has no usable key and no key is registered for its owner) overwrites only the sections it sends. The rest of a planted row stays until this PC's first signed publish, and meanwhile the row reads NOT signature-verified on the panel (REG-2517) and in the doctor (REG-2514).
+
+### REG-2513 - WHETHER A ROSTER ROW WAS ITS OWNER'S NOW TRAVELS WITH EVERY ROSTER VIEW, AND THIS PC'S OWN LAST PUBLISH RIDES THE PANEL'S PAYLOAD (#95, M6 track T3)
+
+view_one, refresh_view, write_cache and roster_html carry each owner's intentVerified. The cache file writes the field every time, null when unknown. roster_html says "signature verified (key ...)", "NOT signature-verified" or "signature UNKNOWN: published before signing", never one answer standing in for another. /api/roster-cache adds `me`, read from .tvd_roster.json by publish_outcome: signed, unverified, unsigned, refused, unreached or unknown, each with its why and age, and roster_html leads with that line whether or not a roster was fetched. GUARD: the new law (views, cache file, page, receipt states, and the route handing `me` over before the page is drawn).
+LEFT at first, MEASURED while building this: the console's roster panel does not draw roster_html. control_ui.html `_rosterOpen` builds its own buttons from data.owners ("<owner> · published") and the shadow bar its own sentence; neither reads data.html, data.me or a row's intentVerified. So the verdict and this PC's own outcome reached the panel's payload, the doctor (REG-2514) and the shadow board's row, and were NOT drawn on his screen. CLOSED in the fix round by REG-2517, which draws them.
+
+### REG-2514 - THE DOCTOR ASKS WHETHER EVERY ROSTER PUBLISH IS SIGNED (#95, M6 track T3)
+
+A new row, "every roster publish is signed", runs every tick: two local reads and the public half of the key, no network. It is roster_publish.doctor_row over the serving console. It reads MISSING when this PC's last publish was refused or went unsigned, when its two signers disagreed, when a published owner is NOT signature-verified, or when the roster names a key for this PC's owner that is not the key on this PC. It reads UNKNOWN for a row published before signing, a corrupt row, no fetch or no receipt, never OK. Registered in CHECKS, WATCHES (declared empty) and corroborate.NO_JOINT_YET (no joint to cite; the signer pair is checked per signature inside roster_sign). GUARD: the new law (the verdict per case, doctor_row over a stand-in console reading real files, and the row present in CHECKS).
+
+### REG-2515 - A CONSOLE KILLED MID d2jsp OP LEFT ITS SCRATCH CHROME AND PROFILE UNTIL THE NEXT OP (#112, M6 track T3)
+
+d2jsp_chrome._sweep_stale_scratch ran only at the top of the next quote or post, so a scratch Chrome holding his decrypted d2jsp session stayed running after a console was killed mid-op until he next used the desk. main() now calls the existing sweep once at boot: synchronously, beside the reel index sweep, before any lane starts, inside a guard that prints the failure (ascii, so a Windows console cannot choke on it) and never raises. Track T1 widens what the sweep removes (the stranded cookie copies). GUARD: the new law (exactly one call to the sweep in control_app.py, a direct statement of main() inside try/except Exception that prints and never re-raises, after the index sweep and before the lanes start).
+
+### REG-2516 - A SIGNED PUBLISH STAMPED SECTIONS ITS KEY NEVER SIGNED "SIGNATURE VERIFIED" (#95, M6 track T3, the review of REG-2510)
+
+roster.js onRequestPost merged EVERY section of the stored row into a signed write (`Object.assign(priorSections(prev), shaped)`) and stored the lot intentVerified:true under the owner's key. No PC sends `owned`: control_app._roster_reads reads characters, stash, vault, chronicle and reels. So a row planted with the public password before the owner's key was registered (or before the deploy, by the worker that takes anything) kept its forged `owned` for good. The owner's first signed publish registered the key and stamped the planted rows "signature verified (key ...)", GET read corrupt:false, and the doctor row read OK. That broke NEVER WRONG, and it made REG-2512's "a forged row is healed" true only for the sections a PC sends. MEASURED with the review's repro, which runs the real roster.js under node: at f27644229 both a fresh-store plant and a legacy record from before signing came back sections=['characters','owned'] with owned=[FORGED Zod rune] under intentVerified:true; after the fix both read sections=['characters'].
+FIX: a verified write carries a section over from the stored row only when that row was written under this very key. The record now keeps the whole public key (`pub`, which GET never returns) beside its 48-bit keyId, and "the same key" is asked of the key itself, not of an id two keys can share. Otherwise the row becomes exactly what this publish signed, at once: a key arriving is written even inside the hour, and the daily cap holds. The same key keeps a section it signed before and could not read this time. An unsigned write still merges; it is stored NOT verified and says so.
+GUARD: tv/test_a_roster_publish_is_signed_and_a_forgery_is_refused.py test_a_verified_row_holds_only_what_its_own_key_signed, through the real worker: a plant made unsigned, then the PC's first signed publish; a row written before signing; another key's verified row whose key was reset; a verified row carrying this key's 48-bit id but another key; the same key's next publish keeping its own sections; and GET, view_of and roster_html carrying no planted row. RED_PROOFs: the unconditional merge back, the id-only comparison, and a record that stops keeping its key.
+
+### REG-2517 - THE SIGNATURE NEVER REACHED HIS SCREEN: THE ROSTER PANEL AND THE SHADOW BAR DREW A FORGED ROW LIKE HIS OWN (#95, M6 track T3, the review of REG-2513)
+
+control_ui.html _rosterOpen built '<owner> · published|stale' buttons from data.owners alone, and the shadow bar wrote '<owner> · published · read only'. Neither read a row's intentVerified, data.me or data.html, so a NOT-verified or UNKNOWN row drew exactly like a verified one, and this PC's own refused or unsigned publish was said only by the doctor row. The brief's "carry intentVerified all the way to the screen" was unmet.
+FIX: /api/roster-cache runs roster_publish.panel_words over its answer. Each PUBLISHED row gets `sig` {cls, words} from signature_words ("signature verified (key ...)", "NOT signature-verified: ...", "signature UNKNOWN: published before signing"; a corrupt row says its signature cannot be read). The answer gets `meLine` {cls, words} from _me_line. Both are the functions roster_html uses, so the panel, the bar and the page cannot say different things. The panel now leads with this PC's own last publish (REFUSED, went UNSIGNED, or signed, with why), whether or not a roster was fetched. Each button carries its row's signature under the owner's name, and the shadow bar's sentence carries it too ('Dean · published · NOT signature-verified: ... · read only'). A published row the console sent no words for reads 'signature UNKNOWN: the console did not say', never silent. Four colour classes (verified, unverified, refused, unknown) use the existing status tokens.
+GUARD: the same law, TheSignatureReachesHisScreen. The route's own lines, cut from control_app.py, serve real cache files and a real receipt; the panel's own code, cut from control_ui.html, runs in node against a stand-in page (no browser) and draws them. RED_PROOFs: the button's words dropped; the bar's sentence back to 'published · read only'; the lead line dropped; the UNKNOWN fallback turned silent; panel_words not called, or not giving a row its words; the NOT-verified colour dropped.
+NOT YET SEEN: no pixel of it. Browser suites run on GitHub CI, never on his Mac, and no Playwright spec opens the Roster panel. A render pass has to click #roster-open (and enter one owner's console for the shadow bar) to see it; GrokBot checks his live console after the deploy.
+
+### REG-2518 - THE DECISION-FILE LAW'S THROWAWAY `git init` RE-INITIALISED THE PUSHING REPO AS BARE (M6 track T3, the review; the REG-2392 class)
+
+tv/test_every_decision_file_is_ignored.py ran `git init -q <tmp>` and `git check-ignore` with the inherited environment. A pre-push hook of a push from a linked worktree runs with GIT_DIR=<main>/.git/worktrees/<name> exported; one run from the main checkout has none (both measured on a stand-in repo). GIT_DIR beats cwd= and -C. T3 changes both of this law's inputs (control_app.py names .roster_key.json, and .gitignore), so the M6 push re-proves it. MEASURED on a stand-in checkout: the law at f27644229 printed "Ran 5 tests ... OK" while the stand-in's core.bare went false -> true.
+FIX: every git the law runs goes through _git, which hands git os.environ without one GIT_* variable, and refuses before git runs if one is still there. Same stand-in after the fix: 7 tests OK, core.bare stayed false. GUARD: the law's own cases. test_a_hooks_git_dir_never_reaches_git plants GIT_DIR at a stand-in checkout's linked worktree and asserts the checkout is untouched and the answer is the throwaway's; test_every_git_call_goes_through_the_scrub checks with AST that every subprocess call goes through _git. RED_PROOFs: the scrub returns the inherited environment; a subprocess call skips the door.
+THE CLASS, MEASURED, AND WHOSE FIX IT IS: the same probe (GIT_DIR planted at a stand-in checkout's linked worktree, each law run whole) found thirteen more laws in this tree's push scope that `git init` a throwaway repo with the inherited environment. All thirteen left the stand-in core.bare=true and committed their fixtures onto its branch; three printed OK while doing it. They are test_a_gate_proven_on_these_bytes_is_carried and the five laws that use its helpers, test_a_landed_update_is_not_an_edit, test_a_stale_git_lock_is_cleared_and_said, test_a_stamp_is_not_a_blind_spot, test_a_version_bump_carries_the_gates_that_ignore_the_version, test_the_bump_refuses_a_tree_that_does_not_parse, test_the_eye_sees_the_blocks_around_a_big_files_hunks and test_the_gates_load_on_windows. They are NOT changed here. Push A2 closes the class where it starts (REG-2360, REG-2394..2397): the hook unsets the repository variables before any stage, heart2 runs every law with a GIT_*-free environment, and the commit-stamps law gets the pushed commit by name. A2 chose to fix it in the hook and heart2 rather than in each law, and it already edits three of these files. So the M6 push from a linked worktree must come AFTER Push A2 has landed and M6 has been rebased onto it. Two parts take effect at different times. heart2 is run from the pushing tree, so its GIT_*-free law runs arrive with the rebase. The hook's own scrub runs from his main checkout (core.hooksPath names its hooks/), so it applies only once that checkout holds A2's hooks/pre-push. Before the rebase, those thirteen laws run in the M6 push's hook with the leak.
+
+### REG-2572 - TWO M6 T2 REVIEW DEFECTS: A SHOWN ITEM COPY THE CODEX LAW NEVER READ, AND A LIVE LADDER TOPIC A MAIN POST ERASED (M6 T2 fix round)
+
+1. Codex truth. ITEM_INFO held two lines with more than one entry (Tarnhelm + Stealskull + Rockstopper; Boneflame +
+Wizardspike). The law's reader took one entry per line, so it never saw Stealskull, Rockstopper or Boneflame, and their
+contradicting copies stayed on screen while the rewrite landed in ITEM_INFO_EXTRA duplicates the page never shows (ITEM_INFO_EXTRA
+is read only for a name ITEM_INFO lacks). v83_sync_audit failed on the branch.
+FIX: tv/test_no_codex_number_contradicts_its_own_table.py reads every "name":"note" pair on a line and fails on any line it
+cannot read in full. bible.html splits the two lines one entry per line, and the three shown copies now agree with their codex
+notes. Two RED_PROOF cases put a stale copy back on a shared line.
+2. The live ladder topic. The bare board-271 topic was copied into the ladder key only when a page loaded on ladder. When ladder
+posted last before the update and his first list post after it was on main, the main receipt overwrote the bare key and the 271
+topic was gone; the next ladder "Post the list" sent no topic and opened a second live topic on board 271.
+FIX: rescueLadderTopic (desk block) copies a bare 271 topic into the ladder key (_D2R_LPFX, while that key is empty) on every
+load, main included, and writeTopic runs it again on main just before it writes the bare key (a page on an older build may save
+a 271 topic bare after this page loaded). Never a main key, never a 268 topic, never over a saved ladder topic, and the bare key
+is copied, not moved. tv/test_the_d2jsp_desk_forks_with_the_profile.py drives a main post first, then the ladder post, and reads
+the topic the console is sent; three RED_PROOF cases cover the load rescue, the receipt rescue, and the prefix.
+
+### REG-2500 - A D2JSP POST THE BOARD MAY ALREADY HOLD WAS SHOWN AS "NOT SENT ... NOTHING WAS POSTED" (#106 page side, M6 T2)
+
+The room has two send paths, one item (a card's Post) and the list (Post the list), and each kept its own copy of the reason
+map. Both fell back to "The board did not confirm the post, so nothing was posted." under a "Not sent" heading for every reason
+they did not name. The console now answers maybe-sent when the submit was clicked and no receipt came back, maybe-sent-recently
+when such a send is younger than its window, and busy when another send holds the lock (T1, tv/d2jsp_chrome.py SEND_REASONS).
+Shown as unsent, a post that may be live invites the second click, and the second click is the duplicate topic - GrokBot's two
+live Post attempts read as failures.
+FIX: one map, sendWords (between its own markers under the click handler), serves both paths. Every reason in the contract has
+its own words: maybe-sent and maybe-sent-recently are headed "Maybe sent", say the board may already have the post, link
+https://forums.d2jsp.org/forum.php?f=<board> and never say nothing was posted; already-posted is Confirmed with its topic (and a
+list topic is kept, so the next list post updates it); busy says this click started no second post; chrome-start and unread say
+the failure came before the post was submitted; an answer the page does not know is a maybe, never a no. D2JSP_SEND_REASONS (desk
+block) is the contract list; it equals T1's SEND_REASONS tuple at the time of writing - the integrator adds the assertion that
+pins the two together once T1 merges.
+FIX ROUND (the adversarial review): an answer that never arrives was still "Not sent ... This console has not loaded the Chrome
+connection, so nothing was posted." on both paths - the fetch rejecting (the connection dropped, the console restarted or crashed
+mid-send) and a reply that is not JSON (a 5xx page). By then the POST had reached /api/d2jsp_send, the console may have clicked
+submit, and its re-send record lives only in that process (a restart forgets it), so the click that receipt invited could post a
+second topic. The review's probe: three sends reached the stubbed console and all three painted "Not sent". Now answerWords (in
+the same marked block) reads the answer as it arrived - HTTP status plus parsed body: a contract reason always speaks for itself;
+a 404 that names no reason is the one answer that proves the send never ran ("This console has no post route (it answered 404),
+so nothing was posted."); an answer that never came ("The console did not answer") or could not be read ("The answer from the
+console (HTTP 500) could not be read") is a MAYBE that links the board: "... so the post may be up. Check board N before you
+post again." The old transport sentence is gone from the page.
+GUARD: tv/test_a_maybe_sent_post_is_never_shown_as_unsent.py drives the room's own click handler in node for both paths with a
+stubbed /api/d2jsp_send and reads the receipt it paints - the contract reasons, plus a rejected fetch, a 500 whose body is not
+JSON and a 404, on both paths; 15 red-proofs.
+
+### REG-2501 - THE POSTED PRICE WAS A READING TAKEN ON ANOTHER BOARD (#113, M6 T2)
+
+The public price is read on board 243, D2:R Switch Ladder Trading (tv/d2jsp_chrome.py QUOTE_BOARD; functions/api/d2jsp_quote.js
+BOARD - whose own header says posts go to 268 and "the two are different economies"). A post goes to board 268 (main) or 271
+(ladder). With no typed price, d2jspPriceToSend fell back to the quoted number and all four callers - shopDraftNow, cardHtml,
+paintPrices and the one-item post - handed it the board-243 median, so a cross-economy figure went up as his asking price; the
+price line said "Public price N fg" and named no board.
+FIX: d2jspQuotedForBoard(q, board) returns a reading's fg only when it was read on the post board; the four callers route through
+sendOf, and d2jspPriceToSend keeps its own contract. d2jspPriceLine names the reading's board ("Board 243 (D2:R Switch Ladder
+Trading) price 40 fg ...") and d2jspPriceNote adds "This post goes to board 268, a different economy, so it does not carry that
+price. Type your own." With no typed price the card shows "The post waits for a price." and Post stays disabled.
+GUARD: tv/test_a_price_read_on_another_board_is_not_the_post_price.py (6 red-proofs). test_d2jsp_cards_stay_cheap's paintPrices
+fake gained a sendOf stand-in beside its other desk helpers.
+
+### REG-2502 - MAIN AND LADDER SHARED ONE SAVED D2JSP TOPIC (#114, M6 T2)
+
+None of the six desk stores (d2r_d2jsp_topic, _fg, _sold, _hide, _gear, _mods) was in window._LP_FORKED, so main (268) and ladder
+(271) shared them: post on main, then on ladder (which overwrote the saved topic), then on main again, and a second 268 topic
+went up while the first was live; a price typed for 268 filled a 271 draft.
+FIX: the six keys are their own block at the head of the Set (no apostrophe and no double quote in its note - test_store_isolation
+pairs the Set's quote characters). No migration between profiles: the owner's main keeps its bare values and ladder starts empty,
+because ladder is a separate item pool; the room says so once a session on ladder. A GUEST world (an unclaimed browser) wrote the
+desk keys bare too and now reads them under its install prefix, so its main copies each bare value once into its own key, only
+where that key is still empty - never on ladder, never for the owner, never over a value it holds (a guest topic left behind would
+have started a second topic, the defect this entry closes). Routing needed no change: the desk's store() returns LS, and LS is
+window.LSR.
+FIX ROUND (the adversarial review): the fork stranded the ladder's LIVE topic. Bare, both profiles shared one saved topic, which
+held whichever board posted last; when that was ladder, the bare key held a topic on board 271. Forked, the owner ladder reads
+L·d2r_d2jsp_topic (a guest ladder IL·<id>·...), which was empty, so the next ladder "Post the list" sent {subject, body, forum:
+271} with NO topic and the console opened a second 271 topic while the first was live (the review's probe; the same probe on
+origin/main sent topic=...f=271). The no-migration reason covers main's filings and prices, not a topic that names board 271
+itself. Now, on ladder, a bare topic whose f= is 271 is copied into the ladder key while that key is empty (owner and guest; a
+copy, not a move, so a page still on an older build keeps reading it); a 271 topic is never adopted into a main key (the guest
+main copy skips it) and a topic of any other board never onto ladder. d2jspTopicBoard reads a topic link's board for both the copy
+and topicUrl. The ladder notice ("Ladder keeps its own trade list, prices and saved topic for board 271") is true again.
+GUARD: tv/test_the_d2jsp_desk_forks_with_the_profile.py runs the real fork sets, the real LSR router and the real room in node and
+reads the raw store key by key for owner main, owner ladder, guest main and guest ladder, and drives the real "Post the list"
+click to read the topic the console is sent: owner and guest ladder update the live 271 topic, a 271 topic never lands in a
+main key, a saved ladder topic is never replaced, a 268 topic never moves onto ladder (10 red-proofs).
+
+### REG-2503 - A GOOD MF PRINTED A 1:N AS A PERCENT AND DROPPED IT FROM THE RANKING (#63, M6 T2)
+
+One number carried two units and its SIZE decided which: at or below EVENT_PCT_MAX (50) it was an event percent, above it 1:N
+odds - and the drop math reads ADJUSTED values. Measured on the shipped arithmetic, Nagelring from Normal Andariel (raw 1:79): at
+his MF 699 /players 1 it is 1:70 and renderDetail's adjustedChance >= 100 filter dropped it from its own ranking; at MF 1000
+/players 8 it is 1:49 and fmt printed "49%". effChance skipped /players for any MF-adjusted value <= 50, runsFor / hoursFor /
+runHoursFor answered null at or below 50, and renderAidCard kept its own "raw chance < 100 is a percent" rule (Nagelring's 79 was
+timed as one run). The silospen pull had already put REAL odds under 50 in the raw rows (Isenhart's Case 1:32, Cathan's Seal
+1:39-40, the Countess's low runes 1:3-1:28), which printed as percents. The four real events were 12 / 36 / 36 / 42 on every
+difficulty, though the keys drop on Hell only and Diablo Clone always drops Annihilus.
+FIX: isEventP (beside hoursFor): an event drop is held as a PROBABILITY in (0,1], every other chance as ODDS >= 1; they meet only
+at exactly 1, where 1:1 and 100% are the same quantity. adjustChance, effChance (players now scale every 1:N), fmt, runsFor,
+hoursFor, runHoursFor, perRunChance (an event's per-run chance is p), findRate (an untimed event adds no rate), the renderDetail /
+boss-table / active-bar filters, the aid card, the seven raw scans, _adjC and the forge's fmtOdds all read the one rule. An event
+drop is not timed: the keys print their card's band (fmtDrop) and Diablo Clone is not a run. Data: the keys are null on Normal and
+Nightmare and hold silospen's RotW 3.0 /players 1 figure on Hell (Terror 0.0714, Hate 0.0862, Destruction 0.0793 - the cards
+print their bands ~8-9% / ~9-13% / ~10%, and the key card's note now gives silospen's per-players range); Annihilus is 1 (100%,
+labelled vanilla D2R on the Diablo Clone card). EVENT_PCT_MAX stays only as test_one_hunt_clock's cut anchor.
+SITES CHANGED: adjustChance, effChance, fmt, runsFor, perRunChance, hoursFor, findRate, runHoursFor, the seven
+`s.chance <= EVENT_PCT_MAX` scans (grail suggestions, starred hunt, item card sources, two per-boss best tables, best-per-boss,
+wishlist), _bossDropRowsHtml (filter + event cell), renderDetail (filter + event row), the active-item bar, renderAidCard
+(runs / hours / valid / three prints), the boss detail's top-12 cells, bossTopDropsHtml, _adjC, the forge's fmtOdds.
+LEFT ALONE, and why: getRarityClass (every value under 500 is rare-5 already); sparkline, runGicSim, the deep dive and the MF
+comparison (they receive only odds, after the filters); the Countess rune table and the rune card (odds by construction, now
+printed as 1:N). No call site sits in V1's vault code.
+SOURCES: silospen RotW 3.0 drop calculator, https://dropcalc.silospen.com (atomic TC, version D2R_ROW_3_0, Hell, /players 1-8:
+Key of Terror 7.1% -> 9.8%, Key of Hate 8.6% -> 12.8%, Key of Destruction 7.9% -> 11.4%, none on Normal or Nightmare);
+d2emu https://d2emu.com/db/misc/key-of-terror , https://d2emu.com/db/misc/key-of-hate , https://d2emu.com/db/misc/key-of-destruction
+(7.4-10.2%, 8.9-13.5%, 8.2-11.9%); Annihilus: https://d2runewizard.com/quests/diablo-clone ("always drops the Annihilus").
+FIX ROUND (the adversarial review): the key cards still printed picked figures - Terror "~8-9%" (it excludes silospen's own
+/players 1 value, 7.1%) and Destruction "~10%" (a single pick) - and fmtDrop now carried them into every boss drop cell, the
+top-12, the aid card and the active bar; the key note quoted a second /players 1 figure for Terror (d2runewizard ~8% beside
+silospen 7.1%); and the same picked "~10%", "~8-9%" or "~9-13%" sat in every other copy (the Halls zone card and its TZ
+row, the Uber Step 1 table, the Summoner card and his two Hell diff rows, the zone chip, the Pindleskin card, Nihlathak's
+super-unique card, the Pandemonium hub's tiles, rate stat and footnote, the endgame road). Measured again on silospen (atomicTcProbabilities, D2R_ROW_3_0, Hell, party 1, decimal mode):
+Terror 0.0714 / 0.0908 / 0.0961 / 0.0980, Hate 0.0862 / 0.1161 / 0.1248 / 0.1280, Destruction 0.0793 / 0.1041 / 0.1110 /
+0.1135 at /players 1-2, 3-4, 5-6, 7-8 (it steps at /players 3, 5 and 7). Every surface now prints the band - Terror 7.1-9.8%,
+Hate 8.6-12.8%, Destruction 7.9-11.4% - labelled "silospen RotW 3.0, /players 1-8"; the d2runewizard figure is gone. The
+Summoner's Hell TZ row says the band is the unterrorized one (silospen does not model a terrorized Summoner).
+GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py drives the drop engine, BOSSES and renderDetail itself in node.
+Its expected figures are silospen's measured values written into the law (SILOSPEN, KEY_SILOSPEN), never the code's own
+formula re-typed: the first version of this law re-typed the page's MF line and pinned 1:70 / 1:49 as "premise" figures,
+and this entry called that independent - it was not (REG-2508). The key cards must equal the measured bands and every
+drop cell prints them (17 red-proofs). test_the_bible_text_agrees_with_its_own_cards (REG-2117) reads every key figure
+after a key's name - 21 sites - against the card, with or without a tilde. Specs v44_event_boss_audit and
+routing_and_data_integrity move to the new unit.
+OPEN: d2runewizard and d2emu both say Diablo Clone is met in Hell games only; BOSSES still lists him on all six difficulties
+("Any difficulty"). Not changed here - its own sourcing pass.
+
+### REG-2504 - CODEX PROCS READ "LEVEL 0" AND NOTES CONTRADICTED THEIR OWN PROPS (#62, M6 T2)
+
+Seven chance-to-cast props read "Level 0" - the raw table value; the game computes the level from the item level. The page's own
+hover card (ITEM_TIP, transcribed from diablo2.io's RotW DB) and the Arreat Summit (vanilla) print the same levels, so the RotW
+figure is sourced: The Rising Sun 13-19 Meteor, Snowclash 7-19 Blizzard, Stormrider 13-20 Charged Bolt, Lightsabre 14-20 Chain
+Lightning, Stormspire 20 Charged Bolt, Hellslayer 16-20 Fire Ball, Boneslayer Blade 12-20 Holy Bolt (65 codex procs compared to
+their hover cards; these were the only 7 that disagreed). A note is a second copy of its props (and a third in ITEM_INFO /
+ITEM_INFO_EXTRA): The Rising Sun "+30% fire absorb, +12-25 fire res" over "+0.75 Fire Absorb (per level)" and no fire res;
+Steel Shade "+30% fire absorb" over "Fire Absorb 5-11"; Tal Rasha "4-pc = +5 sorc skills, +65% FCR, +120-200 mana" over a set
+table of +3 full / +1 at two pieces / +2 on Adjudication. Swept: 11 absorb notes and 45 skill-count clauses no table holds.
+FIX: the seven procs carry their hover card's level; the three named notes and nine more absorb notes are rewritten to their
+table's figures; the 45 skill-count clauses are removed (his ruling: remove contradicting duplicates - several of those props'
+own skill-tab lines look mis-mapped, so the note does not restate them). Both copies of every note move together.
+SOURCES: https://classic.battle.net/diablo2exp/items/normal/uamulets.shtml , .../exceptional/ubelts.shtml ,
+.../exceptional/uaxes.shtml , .../elite/uswords.shtml , .../elite/upolearms.shtml , .../elite/uaxes.shtml ,
+.../elite/uhelms.shtml (Steel Shade +5-11 Fire Absorb); d2emu https://d2emu.com/db/unique/the-rising-sun (raw "Level 0").
+GUARD: tv/test_no_codex_number_contradicts_its_own_table.py - every codex proc level equals its hover card's; every absorb and
+skill-count claim in a note (both copies) is its own table's figure; a codex note and its duplicate agree.
+FIX ROUND (the adversarial review): the skill reader the law certified read a claim only when it ended in the word "skills"
+after at most two letter-only words, so five contradicted notes passed green in both copies - Frostburn "+1-2 cold sorc" (no
+skill line), Bane Ash "+1 fire sorc" (+5 Fire Bolt, +2 Warmth), Eschuta's Temper "+1-3 fire/light skills" (+1-3 Sorceress),
+Seraph's Hymn "+2 paladin auras" (+2 All Skills, +1 Masteries), Homunculus "+1 nec auras" (no aura line, and "+20% fcr" with no
+FCR line); Death's Fathom's "+3 cold sorc skills" over +3 Sorceress turned up with the wider reader. And the OPEN list above
+undercounted: measured with the law's readers on the notes as this branch first shipped them, 138 of the 320 codex notes
+printed a number their own table does not hold, 62 more named a stat with a figure its table line does not print, and 7 gave
+a skill count no line holds - 203 in all (Gheed's Fortune printed its gold as MF and its MF as gold; Atma's Wail gave
+"+8-10% LL" to an item with no leech; Nosferatu's Coil 8% LL over 5-7%; Crushflange 25% CB over 33%; Duriel's Shell +20-40%
+cold res over +50%; Skin of the Flayed One "+15-20 LL" over 5-7%; Crow Caw 40 / 25 / 50 over 15 / 15 / 35). FIX: those 203
+notes (and Shaftstop's "+250 def", which is defense vs missile) were rewritten from their own tables, clause by clause - a figure restated from its table line, or the clause removed (his
+ruling: a contradicting copy is removed) - in the codex and in every ITEM_INFO / ITEM_INFO_EXTRA copy (and the alias key
+"Bul-Kathos Wedding Band"). Non-numeric claims a rewritten note's table contradicts went with them (a "CTC Frost Nova" no table
+line holds, "cold dmg" on a lightning weapon, "LL" with no leech, "the small charm" on a grand charm). The keys' notes no
+longer say three keys open Uber Tristram (one of each opens a mini-uber portal), and Polaris Spear and The Scourge - RotW
+uniques with no props on record - say so instead of a picked "+200% ED". The law now reads every copy (codex, ITEM_INFO,
+and the runtime uniques' notes) three ways: every number a note prints is one its own table prints (a rune reads the rune
+table; a note with no table prints no number) - 2,028 numbers in 645 copies; a stat it names with a figure carries that
+table line's figure - 1,030 claims; a skill count, read with the widened '+N[-M] <class or tree words> skills | sorc |
+auras | ...' reader and its slash forms, is a table line that names that class or tree. 20 red-proofs.
+OPEN (measured, not swept): non-numeric descriptors in notes the readers passed (a role word such as "merc fave" or "MF helm")
+are not read against anything; the ITEM_INFO_EXTRA key blurbs and "Ist rune ... trade value ~5 Pul" are not copies of a codex
+note and are not read; several props look mis-mapped on skill-tab lines (Wolfhowl "+2 to Fire Skills", Halaberd's Reign "+1
+to Lightning Skills", Arreat's Face "+2 to Cold Skills"), so the rewritten notes do not restate those lines.
+
+### REG-2505 - ESSENCES CARRIED THREE RATES, AND THE JEWEL WORE A NAME THE GAME DOES NOT USE (#69, M6 T2)
+
+The essence rate was stated three ways: the blurb "~4% per kill", four rows "~1:25", the hub card "~10-15% (~12% per essence)"
+and tiles "~12%". And the item the game calls Colossal Jewel(s) - the #69 source, and the game's own stash view - was shown as
+"Colossal Ancient Jewels" on the material card, the special-drops grid, the RotW links, the uber cards, the Most Wanted list, the
+endgame road and the search palette.
+FIX: one source on every essence surface - silospen's RotW 3.0 drop calculator for a non-quest Hell kill at /players 1: Andariel
+13%, Duriel 11%, Mephisto / Diablo / Baal 7% (rising at more /players: 22.5%, 14.7%, 8.6% at /players 7-8), MF unaffected (d2emu
+says so too). The rows, the hub tiles (from one rate field), the chip, the stat and the note agree. The jewel's shown name is
+"Colossal Jewels" through one display map, MAT_SHOWN / _matShown, which the material card, the grid, the uber card link, the search
+palette and the floating card's label (through _setPieceShown) ask; the material label is display-only, so it reads Colossal
+Jewels. "Colossal Ancient Jewels" stays the KEY: his material stash, findMaterial, openDrop, data-arttip, data-art-logo, the art
+map, CAT_ART / CAT_ROUTE, ENDGAME_RELICS, UBER_BOSSES.drop and the Most Wanted drop.
+SOURCES: https://dropcalc.silospen.com (D2R_ROW_3_0, Hell, /players 1/3/5/7); d2emu https://d2emu.com/db/misc/charged-essence-of-hatred
+(MF does not affect essences).
+GUARD: tv/test_no_codex_number_contradicts_its_own_table.py (essence rows = hub tiles; no shown text outside a key position names
+"Colossal Ancient Jewel"). Specs v54 / v56 / v81 read the shown name.
+
+### REG-2506 - THE SUMMONER HAD TWO HELL LEVELS, PINDLESKIN TWO CEILINGS, UBER DURIEL AN IMMUNITY HIS RESISTS DENY (#68, M6 T2)
+
+The Summoner's Hell mlvl was 83 on his boss card and his super-unique card, with no source. Pindleskin's super-unique card said
+"TC84/TC85 unique pool" beside his boss card's "Hell mlvl 86 = TC87 access". Bone Ash claimed "Cathedral terrors to mlvl 96 /
+TC85" for a zone no terror table in the file holds. Uber Duriel read "Magic/Fire/Cold/Light/Poison 75 (Cold immune)" beside
+immune:'Cold', typed "Act 5" while Lilith and Izual carry their own model's act; the Events table called him cold-immune too.
+FIX (his ruling of 10-22: an RotW number with no source shows the vanilla figure, labelled): the Summoner's Hell mlvl is 80 on
+both cards, labelled "vanilla D2R · RotW unconfirmed" (silospen's own superunique entry reads 82, its boss entry 80 - so RotW is
+unconfirmed). Pindleskin: TC87 every kill, never an item above qlvl 86, on both cards. Bone Ash: no terror ceiling is claimed.
+Uber Duriel: d2emu's Hell resists (physical 50, everything else 75 - no immunity), immune 'none', Act 2 (Duriel's model, fought in
+the Forgotten Sands, Act 5), and the Events row says 75 cold resist.
+SOURCES: https://d2emu.com/db/monster/the-summoner (Level 80); https://diablo2.diablowiki.net/The_Summoner (80, per the #68 notes;
+not re-read here - the page is behind a challenge); https://dropcalc.silospen.com (summoner boss 80, The Summoner superunique 82,
+Pindleskin 86); https://d2emu.com/db/monster/pindleskin ("treasure class of 87 ... can't drop items that have a qlvl greater than
+86"); https://almarsguides.com/Computer/Games/Diablo2/Farming/Locations/Act5/Pindleskin/ (TC87, not Tyrael's Might, Arachnid Mesh,
+Azurewrath); https://d2emu.com/db/monster/bone-ash (the Cathedral); https://d2emu.com/db/monster/duriel (its Uber Duriel variant).
+GUARD: tv/test_no_codex_number_contradicts_its_own_table.py. Spec v83_sync_audit pins the labelled 80.
+
+### REG-2507 - THE D2JSP DRAFT CALLED ITSELF A DEMONSTRATION (#83 copy, M6 T2)
+
+openDraft said "This is a demonstration of the post. Nothing was posted." GrokBot read that as a demo-only mode. It now says
+"This is the draft. Nothing posts until Post this draft." (inside the old law's 1400-character openDraft window).
+NOT DONE: the optional floating tip on the card art and name (window.d2Tip / window._mtEntryFor). The board's #arttip lane
+already floats a card for a .d2art-wrap[aria-label] anchor, and only the vault lane's D2TIP_OWNS / D2TIP_SEL decide which lane owns
+a hover - so a second box would open beside the first unless that lane learned the desk's anchors, which is an edit to the lane.
+"Base not recorded" stays (an honest UNKNOWN after a66f08dfe's catalogBase).
+
+### REG-2508 - EVERY 1:N MOVED OFF ITS MF-300 BASE BY THE WRONG CURVE; HIS SCREEN SAID 1:70 WHERE THE GAME SAYS 1:66 (#63 review, M6 T2)
+
+His note: "i see it not 66 i se 70". The page's effMF was (MF x 100) / (MF + 250) - the game's diminishing-returns curve divided
+by 2.5, a share of the 250 cap rather than an effective MF - while the MF card on the same page states the game's curve, "effMF =
+MF x 250 / (MF + 250) ... 699% = 184% effective", and so does the drop-calc explainer. The dock printed "eff unique: 73.66%" at MF
+699 and the MF math section said 28.6% / 54.5% / 73.7% / 85.7% at MF 100 / 300 / 699 / 1500. adjustChance moves every stored 1:N
+(silospen RotW 3.0 at MF 300) by (1 + effMF(300)/100) / (1 + effMF(mf)/100), so the error was in every odds cell at every MF but
+300. Two surfaces disagreeing was the finding; silospen's own calculator settled it - the source of every stored 1:N, queried
+live on 2026-10-22 (dropcalc.php type=monsterProbabilities, version D2R_ROW_3_0, UNIQUE, /players 1, party 1): Nagelring from
+Normal Andariel MF 0 / 300 / 699 / 1000 = 1:186 / 79 / 66 / 62, Crushflange 1:199 / 84 / 70 / 66, Shako from Hell Mephisto MF 0
+/ 300 / 699 = 1:1974 / 836 / 695. The game's curve gives 187 / 79 / 66 / 62 and 1976 / 836 / 695 (the stored base is itself
+rounded); the old line gave 122 / 79 / 70 / 68 and 1292 / 836 / 744. So the 1:70 on his screen was the old line, and the game's
+figure at his MF is 1:66.
+FIX: effMF = MF x factor / (MF + factor). The dock's first paint reads 184.14% and the MF math section states the curve, with
+71.4% / 136.4% / 184.1% / 214.3% at MF 100 / 300 / 699 / 1500. The #63 law's first version re-typed the old line in Python and
+pinned (70, 49) as its "premise" - it would have gone red on this fix, and its claim to compute the figure independently was
+false; it now pins silospen's measured figures. Specs 01_smoke (184.14%) and bug110_149 (136.36) move with it; bug110_149 read
+`window.effMF`, which never existed, so it skipped itself on every run - it now reads the bare name and a miss is red.
+SOURCES: https://dropcalc.silospen.com (the queries above); the page's own MF card and drop-calc explainer.
+GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py - the page's adjustChance reproduces silospen at MF 0 / 300 / 699 /
+1000 for three items, and every surface states one curve (4 red-proofs for this entry).
+
+### REG-2509 - THE /PLAYERS MODEL UNDER-SCALES AND STEPS ON THE WRONG COUNTS (OPEN, found in the M6 T2 fix round)
+
+Measured while settling REG-2508, not fixed: effChance divides by playerMult, which models one top-level NoDrop per boss
+(PLAYER_Q) with k = 1 + floor(players / 2). silospen (same queries, /players 1-8) differs twice. The steps: silospen's
+/players 1 = 2, 3 = 4, 5 = 6, 7 = 8 (Nagelring from Normal Andariel at MF 300: 1:79, 79, 54, 54, 46, 46, 44, 44; the keys step the
+same way), while the model steps at /players 2, 4, 6 and 8 - and the page's "What the P# slider actually does" section says so.
+The size, at /players 8 (MF 300, uniques): Hell Mephisto agrees (silospen x1.22, the model x1.22), Normal and Hell Andariel do
+not (silospen x1.79, the model x1.39 - so at MF 1000 /players 8 Nagelring prints 1:44 where silospen says 1:35), and Hell
+Duriel, which the model holds at x1.00 as a q = 0 "guaranteed dropper", moves x1.37 on silospen.
+The default /players 1 is right in both. A fix means silospen's per-boss, per-difficulty, per-/players factors (a data pull) and
+a new model, so it is its own track; the #63 law certifies only that a 1:N stays a 1:N under /players, never this factor.
+
+### REG-2498 - TWO NEW SPOTS WHERE A FAILED READ BECAME DATA: A pgrep THAT COULD NOT RUN READ "NO HOLDER", A ps THAT COULD NOT RUN READ "GONE" (2026-10-22, M6 integration)
+
+MEASURED on the M6 merge (T1 onto v3785), `python3 tv/run_gates.py --only swallow_ratchet`: RANK 1 baseline 66, now 68, and
+the two new sites were both T1's. CI runs this gate and the pre-push hook does not, so the push would have gone through and CI
+would have gone red after the publish.
+- tv/d2jsp_chrome.py `_kill_profile_holders`: `except Exception: return []` around its pgrep. [] means "no Chrome held this
+  profile", and a pgrep that never ran measured nothing. Its one caller (`_sweep_stale_scratch`) ignores the value, so nothing
+  read it wrong yet. The return value is still the shape the next caller would trust.
+- tv/test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py `_command_of`: `except Exception: return ""` around its ps.
+  `assertNotIn(token, _command_of(pid))` in test_a_scratch_chrome_in_flight_at_exit_is_ended read "" as "the scratch Chrome is
+  gone". So a ps that could not run, or gave no answer in 10 s, passed the case without asking anything.
+FIX: `_kill_profile_holders` returns None when pgrep could not be asked. `_command_of` returns None when ps could not be asked.
+Both cases that read it assert it is not None first ("UNKNOWN, not a pass"). The wait loop and the cleanup read None as "not
+shown". Nothing else changed: the sweep still kills, removes and counts exactly as before.
+GUARD: the cookie law's new case test_a_pgrep_that_cannot_run_is_unknown_not_no_holder (pgrep raises; the answer must be
+None) with RED proof [9], `return []` put back. Applied by hand to a scratch copy, it fails that one case on its own message
+("[] is not None : a pgrep that never ran read as 'no Chrome held this profile'"). The class is also guarded by swallow_ratchet
+(tv/swallow_census.py --check), which reads baseline 66, now 66 after the fix. The cookie law runs 8 tests OK with none
+skipped. The send-once law runs 13 OK and the desk law 18 OK.
+LEFT: the law's own `_command_of` has no RED proof. It is the law's reader, not the code under test, so the ratchet is the
+only thing that counts it.
+
+### REG-2497 - THE REG-2490 LAW NEVER RAN THE CLICK MARK OR THE EDIT HALF: DELETING EITHER STAYED GREEN (2026-10-22, M6 T1 review)
+
+The T1 review mutated a scratch copy, and all three d2jsp laws stayed green under each change:
+- `window.__d2jspClicked=1;btn.click();` became `btn.click();` in `_fill_js`, or `mark:!!window.__d2jspClicked,` became
+  `mark:false,` in `_SNAPSHOT_JS`. The mark is the only thing that tells the compose page a slow submit has not left
+  yet from the form the board sent back. The law's fake board set its own mark on any fill and returned its own
+  snapshot dict, so neither script ever ran. Driven through the real `_chrome_post` over a board that honours the
+  scripts (the submit leaves post.php after 3 s, and the board takes the post), HEAD said submitted. The mutated module
+  said not-posted, which is the REG-2490 lie back.
+- Dropping readyState from the snapshot: green.
+- `_send_edit` put back in its pre-REG-2490 shape (an edit with no topic receipt is not-posted), or the edit flow's
+  no-receipt branch read as no click: green. No case drove `_chrome_edit`, or `_flow_step` with kind 'edit'.
+- Also green: the re-send key without the board, a zero budget for the board list read after the click, a topic
+  receipt that skips the freshness test, and the urllib seam reading a lost POST answer as unread.
+FIX (the law only): every flow case now drives the REAL `_Page` over a fake DevTools socket, so `_cdp_call`,
+`_SNAPSHOT_JS`, `_open_link_js` and `_fill_js` are what run. The board reads those expressions the way a page does:
+- each document has its own window, so the mark the fill sets is gone on the next document;
+- a form still loading has no button yet, and the board list read after the click can be slow to load;
+- CDP events arrive before the replies;
+- an expression it cannot read fails the case.
+New cases: the 3 s submit (submitted), and the mark read back through the page itself. A fill answered with an
+error. Five edit outcomes, a topic with no Edit link, and the edit through d2jsp_send on 268 and 271. A-B-A. A slow
+board list. The clicked-on topic page. The per-board record. The urllib seam's four POST answers.
+MEASURED: Ran 13, OK. Each of the 21 RED proofs turns it red by hand (it had 9), and heart2 --prove on these bytes
+gives 33/33 PROVEN (this law 21/21, the desk law 3/3, the cookie law 9/9). Of the review's 20 mutations, 19
+are now red. The one still green is `_kill_profile_holders` skipping its own pid. The anchored `--user-data-dir=`
+pattern cannot match the console's own command line, so that skip only guards a case that cannot happen.
+
+### REG-2496 - A FILL THAT DEVTOOLS ANSWERED WITH AN ERROR READ AS NO CLICK (2026-10-22, M6 T1 review)
+
+`_Page.act` read `got.get("result") or {}`. When the submit's own navigation tears the page down while the fill's
+Runtime.evaluate is in flight, Chrome answers with a protocol error ("Execution context was destroyed") instead of a
+result. act then returned '', the same answer as a script that ran and clicked nothing.
+MEASURED (the review's probe: the real `_chrome_post` and `_Page` over a fake DevTools socket): the browser clicked and
+landed on topic.php?t=951, and the run came back {clicked: False, stop: 'form-unknown'}. The answer was 'form-unknown',
+which tells him nothing was posted for a post the board took, and the run never looked for a receipt.
+FIX: a reply with no result raises `_ErrorReply` (an OSError). `_run_flow` then reads the fill as unanswered
+(`_NO_ANSWER`, which counts as clicked) and carries the run on to its receipt. `snapshot()` still reads such a reply as
+no snapshot, and the search flow still counts its submit as sent, so neither changes.
+GUARD: test_a_d2jsp_post_is_sent_once_and_never_called_unsent (a post and an edit each end submitted with the topic).
+1 RED proof.
+LEFT: a fill whose script threw (exceptionDetails) still reads as no click, since everything in it that can throw
+runs before `btn.click()`.
+
+### REG-2495 - THE RE-SEND RECORD ANSWERED A, B, A ON ONE TOPIC 'already-posted' WHILE THE BOARD SHOWED B (2026-10-22, M6 T1 review)
+
+REG-2490's re-send record was keyed on (board, subject, sha256 of the body) alone, and a later send that changed the
+same topic left it in place. Take a shop list posted as A (topic T), edited to B, then edited back to A inside 30
+minutes. The third send answered {reason: 'already-posted', topic: T, at: <A's time>}, so the edit never ran and the
+board still listed B. The desk said the list was posted while the board still showed the sold item.
+MEASURED (the review's probe, through d2jsp_send): calls new=1, edit=1, and the board showed 45 fg. The maybe-sent
+answer had the same hole.
+FIX:
+- Each record holds the topics its send changed or made (`on`, by t= id).
+- A send that went up, or may have, drops every other draft's record on those topics.
+- An edit is answered only by a record of the topic it edits. Another topic's record says nothing about this one,
+  and an edit cannot make a second topic.
+- A new post is still answered by any record of the same draft.
+MEASURED after: new=1, edit=2, and the board shows 30 fg. The identical edit sent right after is already-posted and
+starts no Chrome.
+GUARD: test_a_d2jsp_post_is_sent_once_and_never_called_unsent: A-B-A with B submitted and with B maybe-sent, and a
+maybe-sent new post followed by an edit of the saved topic. 2 RED proofs.
+LEFT: once A's topic has been edited to B, a new post of A runs, because that record is gone. The board can then hold
+A and B as two topics with the same subject. That send is the page's choice: the page edits its saved topic and sends
+a new post only when it has none.
+
+### REG-2494 - THE D2JSP LAW RAN ZERO TESTS FOR NINE DAYS: a66f08dfe DROPPED ITS __main__ BLOCK (2026-10-22, M6 T1)
+
+tv/test_the_d2jsp_desk_reads_a_price_before_it_posts.py lost its `if __name__ == "__main__": unittest.main()` block in a66f08dfe
+(2026-10-13). Gate test_d2jsp_desk runs `python3 <file>`, which then defines 18 tests, runs none and exits 0, and
+run_gates printed `✅ test_d2jsp_desk 0.0s` (CI job 119651077701 on 7285e7efc, log line 529). It was the only tv/test_*.py without the block.
+REG-2188, REG-2190 and REG-2196 name this law as their guard, so none of those guards ran in the gate set. Run by hand at
+7285e7efc it was red: Ran 18, FAILED (failures=2), both on `post_end - post_fn < 7200` over the window between
+`def _chrome_post(` and `def d2jsp_quote(`, which REG-2190's sweep (e29faa5c8) took from 7199 to 7226 characters.
+
+FIX: the block is back (verbosity 2). The backend stub cases read the REG-2490 contract: a click that stayed on post.php
+is maybe-sent with the board and the time, a run that never clicked is not-posted, and a receipt off the forum host is
+never the topic. The capped window is gone. It stood in for "this text is the post function and nothing beside it", so
+the post flow is now read with `_code_of` (inspect.getsource of its own functions, comments and docstrings dropped),
+which cannot reach a neighbour and has no number to outgrow. The behaviour is asserted in the new law below. Every
+backend send starts with an empty re-send record (`_send_fresh`), and the login-status cases stub the sweep, so the
+law touches nothing in his temp dir. 3 RED proofs (REG-2188 cross-site refusal, REG-2190 age gate, REG-2490
+maybe-sent) show that the guards it carries run again.
+MEASURED: Ran 18, OK (0.7 s); heart2 --prove 3/3 PROVEN.
+LEFT: the class gap is open. A tv/test_*.py with test cases and no main block runs nothing and still prints a tick.
+TestNoOrphanSuite (test_control.py) checks registration and classes BELOW the guard, never a missing guard. A RED proof
+cannot pin it either: the tampered law runs nothing and exits 0, which reads green. The check belongs in
+TestNoOrphanSuite, or in run_gates' verdict (exit 0 with no `Ran N tests` line); neither file is this track's.
+
+### REG-2493 - THE REG-2190 SWEEP NEVER KILLED A STALE CHROME: pgrep READ ITS PATTERN AS AN OPTION (2026-10-22, M6 T1)
+
+`_sweep_stale_scratch` ran `pgrep -f --user-data-dir=<profile>`. pgrep parses `--user-data-dir=...` as an option of its own:
+MEASURED on his Mac, that argv prints `pgrep: illegal option -- -` and its usage, exits 2, and lists nothing, while
+`pgrep -f -- <same pattern>` found the planted process. Linux procps rejects an unknown long option the same way (not
+measured here). So since e29faa5c8 (2026-10-13) the sweep removed a stale profile and left the headless Chrome holding
+his decrypted d2jsp session running. The pattern was also an unanchored substring: a live profile whose path only
+starts with a stale one would have been a match.
+FIX: `["pgrep", "-f", "--", "--user-data-dir=" + _ere(profile) + "( |$)"]`. The pattern goes after `--`, is escaped as
+an extended regex, and ends at a space or at the end of the command line.
+GUARD: tv/test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py. A planted sleeper carrying a stale profile's
+--user-data-dir is SIGKILLed, and one whose profile path only starts with it survives. 2 RED proofs.
+
+### REG-2492 - A KILLED CONSOLE LEFT A COPY OF HIS WHOLE CHROME COOKIE DATABASE IN $TMPDIR (#112, 2026-10-22, M6 T1)
+
+`_read_rows` backed the Chrome Cookies database up into `tempfile.NamedTemporaryFile(prefix='d2jsp-cookies-',
+delete=False)` and removed it only in a finally. A console killed mid-read left every site's encrypted cookies in
+$TMPDIR, and on Linux that is under Chromium's published fallback key. `_SCRATCH_PREFIXES` did not name that file, and
+`shutil.rmtree(ignore_errors=True)` cannot remove a file but counted it as removed. Nothing ended a scratch Chrome
+that the console still had in flight when it exited.
+FIX:
+- The backup goes into `sqlite3.connect(':memory:')`, so no copy touches the disk.
+- The sweep removes d2jsp-cookies-* files with os.remove, and counts a profile or a copy only when it is gone.
+- `d2jsp_login_status()` sweeps too. GET /api/d2jsp_login asks it every time the room opens.
+- Each scratch Chrome and its profile are tracked from Popen until the end of the block, and an atexit handler
+  (`_reap_in_flight`) kills and removes whatever is still tracked.
+- `_sweep_stale_scratch(now=None, tmp=None) -> int` keeps its name and signature for T3's boot call.
+GUARD: tv/test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py:
+- a cookie read leaves its temp folder's mtime alone (premise: a made-and-removed file moves it);
+- a planted stale copy and its journal are removed and counted, while a fresh one and another name stay;
+- a copy in a folder it cannot write stays and is not counted;
+- opening the room's login check sweeps;
+- a child python that exits with a tracked scratch process ends it and removes its profile.
+9 RED proofs (this law also holds REG-2491's quote door and REG-2493's two), heart2 --prove: 9/9 PROVEN. A first cut
+of the exit case hung under its own tamper: the helper held the law's stdout pipe, so subprocess.run waited on it
+past the 60 s gate (UNPROVABLE). The law's helpers now get DEVNULL for all three streams.
+LEFT: atexit runs on a normal interpreter exit only. An os.execv relaunch (control_app's _before_exec sites), os._exit
+(the console's exit path) and kill -9 all skip it. The stale sweep at the next boot (T3) or the next room open takes
+what those leave once it is 5 minutes old. Calling `_reap_in_flight` from control_app's exit and exec paths is not in
+this track, because control_app.py is T3's file.
+
+### REG-2491 - A PRICE READ BROUGHT HIS CHROME TO THE FRONT, AND A CHROME THAT COULD NOT START KILLED THE ROUTE (#83, 2026-10-22, M6 T1)
+
+control_app.py:45617-45620 calls `open_quote_login_once()` whenever a price comes back need-login, and refreshQuotes
+asks for prices when the room opens, with no click. So the forum login opened in his Chrome and Chrome came to the front
+over the console. GrokBot, #230, 6139959314 (v3707): "That frame shows Chrome's forums.d2jsp.org page covering the
+whole console". On the post side, `import websocket` raised ImportError, which `_send_through_chrome` (it caught only
+OSError) let escape: the route died and the page said "This console has not loaded the Chrome connection". A missing
+Chrome binary, or DevTools not up in 12 s, read 'unread'.
+FIX: `open_quote_login_once()` opens nothing and returns False. The lamp click and a Post click are the only doors to
+the login, and the price stays need-login (the page already says the forum search needs the Chrome login). The route's
+call is now harmless, and control_app.py is untouched. `_scratch_chrome` raises `ChromeStart` for a missing websocket
+module, a missing Chrome, a Chrome that will not start, or no DevTools connection. Each becomes reason 'chrome-start'
+with a short `why`, and nothing was posted.
+GUARD: both new laws (a need-login price read opens nothing while the lamp and Post still do; all three ways a Chrome
+cannot start are chrome-start and leave no profile). 3 RED proofs.
+LEFT: the v3708 Linux cookie read (b3da2a019) has never been checked live; that is blocked as 83.live-post, not
+builder work. The words the page shows for chrome-start, busy and maybe-sent are T2's.
+
+### REG-2490 - A CLICKED d2jsp POST COULD READ "NOTHING WAS POSTED", AND TWO SENDS COULD RUN AT ONCE (#106, 2026-10-22, M6 T1)
+
+MEASURED at v3784 (7285e7efc):
+- One 25 s deadline in `_chrome_post` covered loading the board, opening New Trade, filling the form, the submit and
+  the redirect. After the click, a run that had not reached topic.php returned the post.php URL, which
+  `_send_through_chrome` called 'not-posted'. Any OSError after the click (the websocket dying) was 'unread'.
+- `_chrome_edit` had the same shape.
+- The urllib seam turned an error after its POST into 'unread' and a 200 that was not a receipt into 'not-posted'. A
+  challenge page answering the POST posted the same draft a second time, through Chrome.
+- Each of those told him "nothing was posted", and he clicks again.
+- There was no server lock. d2jsp_send ran once per request on a ThreadingHTTPServer, so a board reload or a second
+  tab started a second Chrome post. Only the page's `posting` flag guarded it.
+FIX (tv/d2jsp_chrome.py; the reasons are exported as SEND_REASONS, and T2 shows them):
+- One send at a time. A second send while one runs answers 200 {ok:false, reason:'busy'}, reads no cookie and starts
+  no Chrome. The lock is released in a finally.
+- The flows return {landed, clicked, topic, back, stop}, and `_send_verdict` decides the reason in one place. A
+  forum topic is the only receipt: submitted, with the topic. Clicked with no receipt is maybe-sent, with the board
+  and `at`. A run that provably never clicked says not-posted, unread, title, form-unknown or need-login. So does one
+  the board sent the compose form back to, on a document loaded after the click: not-posted.
+- A fill script that was sent and never answered counts as clicked. A topic page seen before the click is never a
+  receipt.
+- Two budgets: 25 s to reach the form and click, then 35 s for the receipt. With no receipt, the board list is loaded
+  again (20 s). A topic whose link text is exactly the subject, that was not listed before the click, and whose id is
+  newer than every topic listed then, is the receipt. An older same-subject topic never is, a same-title link that
+  names another board (a sidebar) never is, and two new ones are maybe-sent.
+- The same draft (board, subject, sha256 of the body) inside 30 minutes of a submit is already-posted (topic, at),
+  and inside 30 minutes of a maybe-sent is maybe-sent-recently (at). Neither reads the cookie or starts Chrome. A send
+  that changes a topic retires the other drafts' records on it (REG-2495).
+- The urllib seam never posts twice. After its POST, a lost answer or an unknown page is maybe-sent. Only the compose
+  form coming back is not-posted.
+- The three copies of the scratch-Chrome start are one `_scratch_chrome`. The flow's decisions are `_flow_step`, a
+  pure function over page snapshots, so a law drives the real flow with a page made of strings and no Chrome.
+GUARD: tv/test_a_d2jsp_post_is_sent_once_and_never_called_unsent.py (two threads and an Event for the lock; for the
+flow, the real `_Page` over a fake DevTools socket (REG-2497); a fake clock), plus the restored law's maybe-sent
+proof. It had 9 RED proofs and has 21 since the T1 review; heart2 --prove: 21/21 PROVEN.
+LEFT:
+- The re-send record lives in the console process. A restart (or an os.execv relaunch) forgets it, so the same
+  draft sent right after a restart runs again.
+- A stranger's topic with exactly the same title, posted in the same minute while his own post failed, would read as
+  the receipt. Ids and listing order cannot tell authors apart. The answer carries the topic link, so he sees whose it is.
+- A board that renders the title differently in its list (a prefix, a cut) never matches, so the result stays
+  maybe-sent, never a false submitted.
+- maybe-sent holds the same draft for 30 minutes even when the post really failed. The board read narrows that, but it
+  cannot prove a failure.
+- Not measured live: no Chrome runs on his Mac for this track. The flow reads the same New Trade link, form and topic
+  redirect as before, plus the board list after the click.
+
 ### REG-2571 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
 
 vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with

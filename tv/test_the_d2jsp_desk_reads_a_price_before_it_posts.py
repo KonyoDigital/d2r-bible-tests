@@ -7,6 +7,13 @@ The console reads the d2jsp cookie when he clicks Post. It is not stored
 and not returned. A missing login, an unreadable cookie, or a board that
 does not redirect to the topic does not become a sent post. A challenge
 page or a page with no fg number does not become a price.
+
+REG-2494 - THIS LAW DID NOT RUN FROM 2026-10-13 TO 2026-10-22. a66f08dfe dropped its
+`if __name__ == "__main__"` block, so the gate's `python3 <file>` ran 0 tests and printed a
+green tick; REG-2188, REG-2190 and REG-2196 named it as their guard the whole time. Run by
+hand it had been red since e29faa5c8, on a 7200-character cap over a window between two
+`def` anchors. The block is back, the backend cases read the REG-2490 send contract, and the
+post flow is read from its own functions (_code_of), so no size cap is needed. RED_PROOF below.
 """
 from __future__ import annotations
 
@@ -51,6 +58,50 @@ def _between(src, start, end):
     return src[i + len(start):j]
 
 
+def _code_of(*objs):
+    """The objects' own source, comments and docstrings dropped. -> str
+
+    REG-2494 - inspect.getsource is the function and only it, so an assertion over it cannot
+    drift onto a neighbour the way a window between two `def` anchors did, and it needs no size
+    cap to stay honest. With the prose dropped, a sentence about the code can neither satisfy
+    nor trip an assertion meant for the code. [[source-reading-guard]]"""
+    import ast
+    import inspect
+    import io as _io
+    import textwrap
+    import tokenize
+    parts = []
+    for obj in objs:
+        src = textwrap.dedent(inspect.getsource(obj))
+        doc = set()
+        for node in ast.walk(ast.parse(src)):
+            body = getattr(node, "body", None)
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) or not body:
+                continue
+            first = body[0]
+            if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+                    and isinstance(first.value.value, str)):
+                doc.update(range(first.lineno, first.end_lineno + 1))
+        cut = {}
+        for tok in tokenize.generate_tokens(_io.StringIO(src).readline):
+            if tok.type == tokenize.COMMENT:
+                cut[tok.start[0]] = tok.start[1]
+        for n, line in enumerate(src.splitlines(), 1):
+            if n not in doc:
+                parts.append(line[:cut[n]] if n in cut else line)
+    return "\n".join(parts)
+
+
+def _send_fresh(desk,*args, **kwargs):
+    """One d2jsp_send with nothing remembered from the case before it.
+
+    REG-2490 - the same draft is not sent again for 30 minutes after it was posted or may have
+    been. Each case here asks what ONE outcome is called, so the record starts empty; the record
+    itself is test_a_d2jsp_post_is_sent_once_and_never_called_unsent's law."""
+    desk._SENT.clear()
+    return desk.d2jsp_send(*args, **kwargs)
+
+
 def _node(prelude, body):
     prog = prelude + "\n;(function(){\n" + body + "\n})();\n"
     r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
@@ -60,6 +111,11 @@ def _node(prelude, body):
 
 
 class TheD2jspDeskReadsAPriceBeforeItPosts(unittest.TestCase):
+
+    def setUp(self):
+        import d2jsp_chrome as desk
+        desk._SENT.clear()
+        self.addCleanup(desk._SENT.clear)
 
     @classmethod
     def setUpClass(cls):
@@ -864,7 +920,7 @@ process.stdout.write(JSON.stringify({
             calls["cookie"] += 1
             return None, "need-login"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief", "body": "WTS Grief\n30 fg", "forum": 268},
             "https://evil.example", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=open_login,
@@ -874,7 +930,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(calls["cookie"], 0)
         self.assertEqual(calls["open"], 0)
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief", "body": "WTS Grief\n30 fg", "forum": 243},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=open_login,
@@ -882,7 +938,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["reason"], "wrong-board")
         self.assertEqual(calls["cookie"], 0)
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief", "body": "WTS Grief", "forum": 268},
             None, "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=open_login,
@@ -890,7 +946,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["reason"], "no-price")
         self.assertEqual(calls["cookie"], 0)
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "ISO Grief", "body": "ISO Grief\n30 fg", "forum": 268},
             None, "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=open_login,
@@ -901,7 +957,7 @@ process.stdout.write(JSON.stringify({
         def refuse_chrome(subject, text, cookie):
             raise AssertionError("a title past 50 characters must not open Chrome")
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS " + ("A" * 47), "body": "WTS\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=open_login, chrome_post=refuse_chrome,
@@ -917,7 +973,7 @@ process.stdout.write(JSON.stringify({
             self.assertEqual(url, desk.COMPOSE_URL)
             return 200, {}, logged_out.encode()
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n+damage\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=no_cookie, transport=transport, open_login=open_login,
@@ -932,7 +988,7 @@ process.stdout.write(JSON.stringify({
             self.assertEqual(method, "GET")
             return 200, {}, logged_out.encode()
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, transport=transport_logged_out, open_login=open_login,
@@ -961,7 +1017,7 @@ process.stdout.write(JSON.stringify({
             posted["body"] = data.decode()
             return 302, {"Location": "https://forums.d2jsp.org/topic.php?t=9&f=268"}, b""
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling Grief Phase Blade", "body": "Selling Grief Phase Blade\n+damage\n30 fg", "forum": 268},
             "http://localhost:17772", "localhost:17772", 17772,
             cookie_get=cookie_get, transport=transport_ok, open_login=open_login,
@@ -977,7 +1033,7 @@ process.stdout.write(JSON.stringify({
         def transport_back(method, url, headers, data):
             return 200, {}, form.encode()
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, transport=transport_back, open_login=open_login,
@@ -988,7 +1044,7 @@ process.stdout.write(JSON.stringify({
         def transport_down(method, url, headers, data):
             raise OSError("down")
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, transport=transport_down, open_login=open_login,
@@ -1014,7 +1070,7 @@ process.stdout.write(JSON.stringify({
             self.assertNotIn("SECRETCOOKIE", text)
             return "https://forums.d2jsp.org/topic.php?t=9&f=268"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
@@ -1031,7 +1087,7 @@ process.stdout.write(JSON.stringify({
         def chrome_post_login(subject, text, cookie):
             return "https://forums.d2jsp.org/login.php?redirect=post"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
@@ -1041,24 +1097,43 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["reason"], "need-login")
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
 
+        # REG-2490 - the submit was clicked and the board never left post.php. That post may be up,
+        # so it is maybe-sent with the board and the time, never the "not-posted" that read as
+        # "nothing was posted" and invited a second post. Only a run that never clicked is not-posted.
         def chrome_post_stay(subject, text, cookie):
-            return "https://forums.d2jsp.org/post.php?mode=post&f=268"
+            return {"landed": "https://forums.d2jsp.org/post.php?mode=post&f=268", "clicked": True}
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
             transport=transport, open_login=lambda: False, chrome_post=chrome_post_stay,
         )
         self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "maybe-sent")
+        self.assertEqual(out["board"], 268)
+        self.assertRegex(out["at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$")
+        self.assertNotIn("topic", out)
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+        def chrome_post_never(subject, text, cookie):
+            return {"landed": "https://forums.d2jsp.org/post.php?mode=post&f=268", "clicked": False}
+
+        code, out = _send_fresh(desk,
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            transport=transport, open_login=lambda: False, chrome_post=chrome_post_never,
+        )
+        self.assertFalse(out["ok"])
         self.assertEqual(out["reason"], "not-posted")
 
-        with open(os.path.join(os.path.dirname(desk.__file__), "d2jsp_chrome.py"), encoding="utf-8") as handle:
-            src = handle.read()
-        post_fn = src.index("def _chrome_post(")
-        post_end = src.index("def d2jsp_quote(", post_fn)
-        self.assertLess(post_end - post_fn, 7200)
-        box = src[post_fn:post_end]
+        # REG-2494 - the window src[def _chrome_post : def d2jsp_quote] was held under 7200
+        # characters so that it stayed the post function and nothing beside it. REG-2190's sweep
+        # took it to 7226 and the law went red on its own number. The post flow is now read from
+        # its own functions, which cannot reach a neighbour, so there is no number to outgrow.
+        box = _code_of(desk._chrome_post, desk._scratch_chrome, desk._fill_js,
+                       desk._open_link_js, desk._board_url)
         self.assertIn("--user-data-dir=%s", box)
         self.assertIn("forum.php?f=", box)
         self.assertIn("New Trade", box)
@@ -1074,16 +1149,15 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("mode=post", box)
         self.assertNotIn("form.submit", box)
         self.assertNotIn("9222", box)
-        door = src.index("def _send_through_chrome(")
-        door_end = src.index("def d2jsp_send(", door)
-        gate = src[door:door_end]
-        self.assertIn("_public_topic(landed)", gate)
-        self.assertLess(gate.index("_public_topic(landed)"), gate.index('"submitted"'))
-        self.assertIn('"topic": public', gate)
-        send = src[src.index("def d2jsp_send("):]
+        gate = _code_of(desk._send_through_chrome, desk._send_verdict)
+        self.assertIn("_send_verdict(got, board, at, open_login)", gate)
+        self.assertIn('topic = _public_topic(res["topic"])', gate)
+        self.assertLess(gate.index('topic = _public_topic(res["topic"])'), gate.index('"submitted"'))
+        self.assertIn('"topic": topic', gate)
+        send = _code_of(desk.d2jsp_send, desk._send_locked, desk._send_route)
         self.assertIn("_send_through_chrome(", send)
         self.assertLess(send.index("transport is None and chrome_post is not False"), send.index('fetch("GET", COMPOSE_URL'))
-        self.assertLess(send.index("_challenge_page(raw_text)"), send.index('reason": "not-posted"'))
+        self.assertLess(send.index("_challenge_page(raw_text)"), send.index("parse_compose(raw)"))
         receipt = self.bible.index("function showReceipt(")
         receipt_end = self.bible.index("function closeDraft(", receipt)
         self.assertLess(receipt_end - receipt, 1400)
@@ -1097,7 +1171,7 @@ process.stdout.write(JSON.stringify({
             self.assertIn("SECRETCOOKIE", cookie)
             return "https://forums.d2jsp.org/topic.php?t=44&f=268#top"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
@@ -1108,18 +1182,22 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["topic"], "https://forums.d2jsp.org/topic.php?t=44&f=268")
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
 
+        # REG-2490 - a run that clicked and landed on another host has no receipt: the foreign
+        # topic is never shown as his, and the click is maybe-sent, never "not-posted".
         def evil_post(subject, text, cookie):
-            return "https://evil.example/topic.php?t=1"
+            return {"landed": "https://evil.example/topic.php?t=1", "clicked": True,
+                    "topic": "https://evil.example/topic.php?t=1"}
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
             open_login=lambda: False, chrome_post=evil_post,
         )
         self.assertFalse(out["ok"])
-        self.assertEqual(out["reason"], "not-posted")
+        self.assertEqual(out["reason"], "maybe-sent")
         self.assertNotIn("topic", out)
+        self.assertNotIn("evil.example", json.dumps(out))
 
     def test_a_shop_list_updates_the_saved_topic_and_does_not_start_another(self):
         import d2jsp_chrome as desk
@@ -1137,7 +1215,7 @@ process.stdout.write(JSON.stringify({
 
         long_body = "Selling Grief Phase Blade\n" + ("+1 to life\n" * 500) + "30 fg"
         self.assertGreater(len(long_body), 4000)
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling 1 item", "body": long_body, "forum": 268},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=lambda: False,
@@ -1159,7 +1237,7 @@ process.stdout.write(JSON.stringify({
             self.assertIn("SOLD Guardian's Thunder", text)
             return "no-edit"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling 1 item", "body": shop, "forum": 268,
              "topic": "https://forums.d2jsp.org/topic.php?t=9&f=268"},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
@@ -1177,7 +1255,7 @@ process.stdout.write(JSON.stringify({
             calls["edit"] += 1
             return "https://forums.d2jsp.org/topic.php?t=9&f=268#top"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling 1 item", "body": shop, "forum": 268,
              "topic": "https://forums.d2jsp.org/topic.php?t=9&f=268"},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
@@ -1196,7 +1274,7 @@ process.stdout.write(JSON.stringify({
             calls["new"] += 1
             return "https://forums.d2jsp.org/topic.php?t=9&f=268"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling 1 item", "body": shop, "forum": 268,
              "topic": "https://evil.example/topic.php?t=1"},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
@@ -1207,12 +1285,9 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(calls["new"], 1)
         self.assertEqual(out["topic"], "https://forums.d2jsp.org/topic.php?t=9&f=268")
 
-        with open(os.path.join(os.path.dirname(desk.__file__), "d2jsp_chrome.py"), encoding="utf-8") as handle:
-            src = handle.read()
-        edit_at = src.index("def _chrome_edit(")
-        post_at = src.index("def _chrome_post(", edit_at)
-        edit = src[edit_at:post_at]
-        self.assertIn("label!=='Edit'", edit)
+        edit = _code_of(desk._chrome_edit, desk._scratch_chrome, desk._fill_js, desk._open_link_js)
+        self.assertIn('_open_link_js("Edit")', edit)
+        self.assertIn('label!=="Edit"', desk._open_link_js("Edit"))
         self.assertIn("/post.php", edit)
         self.assertIn('textarea[name="Post"]', edit)
         self.assertIn('input[name="ttitle"]', edit)
@@ -1223,15 +1298,12 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("mode=post", edit)
         self.assertNotIn("form.submit", edit)
         self.assertNotIn("9222", edit)
-        send = src[src.index("def d2jsp_send("):]
+        send = _code_of(desk.d2jsp_send, desk._send_locked, desk._send_route)
         self.assertLess(
             send.index('_public_topic(str(body.get("topic")'),
             send.index("transport is None and chrome_post is not False"),
         )
-        self.assertLess(send.index("_challenge_page(raw_text)"), send.index('reason": "not-posted"'))
-        post_fn = src.index("def _chrome_post(")
-        post_end = src.index("def d2jsp_quote(", post_fn)
-        self.assertLess(post_end - post_fn, 7200)
+        self.assertLess(send.index("_challenge_page(raw_text)"), send.index("parse_compose(raw)"))
 
     def test_the_cookie_header_is_only_the_d2jsp_host(self):
         import d2jsp_chrome as desk
@@ -1417,7 +1489,11 @@ process.stdout.write(JSON.stringify({
         self.assertLess(app.rindex('if path == "/api/d2jsp_login":'), send_at)
         import d2jsp_chrome as desk
         saved = desk.live_cookie_header
+        saved_sweep = desk._sweep_stale_scratch
         try:
+            # REG-2492 - the login check sweeps stale scratch Chromes in this machine's temp dir. That
+            # is the console's job; this law reads the answer and touches nothing of his.
+            desk._sweep_stale_scratch = lambda now=None, tmp=None: 0
             desk.live_cookie_header = lambda now_utc=None: ("sid=SECRET", "ok")
             on = desk.d2jsp_login_status()
             self.assertEqual(on["state"], "on")
@@ -1432,6 +1508,7 @@ process.stdout.write(JSON.stringify({
             self.assertEqual(unknown["state"], "unknown")
         finally:
             desk.live_cookie_header = saved
+            desk._sweep_stale_scratch = saved_sweep
         seen = []
 
         def run(argv, capture_output=False, timeout=0):
@@ -1670,7 +1747,7 @@ process.stdout.write(JSON.stringify({
         def chrome_post(subject, text, cookie):
             return "https://forums.d2jsp.org/topic.php?t=2&f=271"
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling Grief", "body": "Selling Grief\n30 fg", "forum": 271,
              "topic": "https://forums.d2jsp.org/topic.php?t=9&f=268"},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
@@ -1683,7 +1760,7 @@ process.stdout.write(JSON.stringify({
         self.assertIn("f=271", out["topic"])
         self.assertEqual(edited, [])
 
-        code, out = desk.d2jsp_send(
+        code, out = _send_fresh(desk,
             {"subject": "Selling Grief", "body": "Selling Grief\n30 fg", "forum": 243},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
@@ -1719,3 +1796,130 @@ process.stdout.write(JSON.stringify({
         self.assertIn("pointerdown", self.bible[self.bible.rindex("document.addEventListener('pointerdown'", 0, keys):keys])
         self.assertIn("function catalogBase(", self.bible)
         self.assertIn("_cbItemsNamed", self.bible[self.bible.index("function catalogBase("):self.bible.index("function baseOf(", self.bible.index("function catalogBase("))])
+
+
+    def test_a_chrome_version_read_that_times_out_still_names_chrome(self):
+        # REG-2575 - `google-chrome --version` (Linux) or `defaults read` (Mac) that does not answer in 5 s
+        # raised subprocess.TimeoutExpired through _headers, so a challenge-page post answered "unread"
+        # before anything was fetched. CI's loaded runner hit it. A version that cannot be read is the
+        # default version, and the send goes on. Both halves are asked on every host: the module sees
+        # the platform under test, so neither proof below needs a Mac or a Linux box.
+        import d2jsp_chrome as desk
+        real_sys = sys
+
+        class _Host(object):
+            def __init__(self, platform):
+                self.platform = platform
+
+            def __getattr__(self, name):
+                return getattr(real_sys, name)
+
+        def transport(method, url, headers, data):
+            return 200, {}, b"<title>Just a moment...</title>"
+
+        for platform in ("linux", "darwin"):
+            asked = []
+
+            def slow_run(argv, *args, **kwargs):
+                asked.append(list(argv))
+                raise subprocess.TimeoutExpired(argv, kwargs.get("timeout", 5))
+
+            real_run, real_bin, real_mod_sys = desk.subprocess.run, desk._chrome_bin, desk.sys
+            desk.subprocess.run = slow_run
+            desk._chrome_bin = lambda platform=None, which=None: "/opt/chrome/chrome"
+            desk.sys = _Host(platform)
+            try:
+                agent = desk.chrome_user_agent()
+                code, out = _send_fresh(desk,
+                    {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+                    "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+                    cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+                    transport=transport, open_login=lambda: True,
+                    chrome_post=lambda subject, text, cookie: "https://forums.d2jsp.org/topic.php?t=9&f=268",
+                )
+            finally:
+                desk.subprocess.run, desk._chrome_bin, desk.sys = real_run, real_bin, real_mod_sys
+            self.assertTrue(asked, "%s: the version read was never asked, so this case proved nothing" % platform)
+            self.assertIn("Chrome/131.0.0.0", agent, platform)
+            self.assertEqual((code, out.get("reason")), (200, "submitted"), (platform, out))
+            self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+    def test_a_quote_parser_that_times_out_is_unread(self):
+        # REG-2576 - the quote's node parser runs with a 20 s timeout and caught only OSError, so a
+        # node that did not answer raised subprocess.TimeoutExpired out of d2jsp_quote instead of the
+        # "unread" reading every other failure on that path gives. A page that was not parsed is unread.
+        import d2jsp_chrome as desk
+        asked = []
+
+        def slow_node(prog, page):
+            asked.append(page)
+            raise subprocess.TimeoutExpired(["node", "-e"], 20)
+
+        def transport(method, url, headers, data):
+            return 200, {}, b"Grief 40 fg"
+
+        real_ua = desk.chrome_user_agent
+        desk.chrome_user_agent = lambda *a, **k: "Mozilla/5.0 Chrome/131.0.0.0"
+        try:
+            code, out = desk.d2jsp_quote(
+                "Grief", "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+                cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"), transport=transport,
+                node_run=slow_node, chrome_fetch=False,
+            )
+        finally:
+            desk.chrome_user_agent = real_ua
+        self.assertEqual(asked, ["Grief 40 fg"], "the parser was never asked, so this case proved nothing")
+        self.assertEqual((code, out.get("fg"), out.get("reason")), (200, None, "unread"), out)
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+RED_PROOF = [
+    {
+        "why": "REG-2188 - a no-Origin request the browser marks cross-site or same-site is trusted on Host alone again, "
+               "so any page he visits can make the console read his cookies and start a scratch Chrome",
+        "file": "tv/d2jsp_chrome.py",
+        "find": '    if str(sec_fetch_site or "").strip().lower() in {"cross-site", "same-site"}:\n        return False\n',
+        "replace": "    pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2190 - the sweep's age gate is gone, so a scratch profile an op still holds is swept from under it",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "        return now - os.lstat(path).st_mtime >= _SCRATCH_STALE_S\n",
+        "replace": "        return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2490 - a click that stayed on post.php is reported not-posted again, the 'nothing was posted' "
+               "that invites a duplicate",
+        "file": "tv/d2jsp_chrome.py",
+        "find": '        return 200, {"ok": False, "reason": "maybe-sent", "board": int(board), "at": at}\n',
+        "replace": '        return 200, {"ok": False, "reason": "not-posted"}\n',
+        "matches": 1,
+    },
+    {
+        "why": "REG-2575 - a Chrome version read that times out raises through the send again, so a "
+               "challenge-page post answers unread before anything is fetched",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "except (OSError, subprocess.SubprocessError):\n                    proc = None\n",
+        "replace": "except OSError:\n                    proc = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2575 - the Mac half: a `defaults read` that times out raises through the send again",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "            except (OSError, subprocess.SubprocessError):\n                proc = None\n",
+        "replace": "            except OSError:\n                proc = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2576 - a quote parser that times out raises out of d2jsp_quote again instead of reading unread",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "        proc = node_run(prog, str(html or \"\"))\n    except (OSError, subprocess.SubprocessError):\n",
+        "replace": "        proc = node_run(prog, str(html or \"\"))\n    except OSError:\n",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

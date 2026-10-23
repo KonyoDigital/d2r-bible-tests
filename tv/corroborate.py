@@ -2797,6 +2797,15 @@ NO_JOINT_YET = {
     'a fleet refusal names an action':
         'the row reads the cached roster and asks the capability helper; the second source would '
         'be the RENDERED refusal on the panel, which no target captures yet.',
+    # #95 (REG-2514) — NO_JOINT_YET, not COVERED_BY: there is no joint id to cite. The row compares
+    # this PC's own key file with the key id the fetched roster names for its owner, but both other
+    # inputs (the publish receipt and the roster cache) are answers from ONE server. The signers'
+    # own corroboration (cryptography against the RFC 8032 signer) runs inside roster_sign, per
+    # signature, and reaches this row as the receipt's `agree`.
+    'every roster publish is signed':
+        "the row reads this PC's publish receipt and its fetched roster cache, both the site's own "
+        "answers, against the public half of this PC's key; an independent second witness would be "
+        "a read of the KV store itself (rosterkey:<owner>) from the Mac, which nothing runs yet.",
     # v3358 (#99) — the row reads the ASSEMBLY ORDER out of control_ui.html. The real joint is a
     # RENDERED one: the first reel card's top against the viewport height at his real 1120x660,
     # which is the measurement that actually caught this (708px in a 660px window). It is NOT
