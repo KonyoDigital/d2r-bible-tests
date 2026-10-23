@@ -1861,6 +1861,38 @@ def _tv_files(sandbox_tv):
     return out
 
 
+# REG-2631 - AN ALL-HIT PROVE RE-READ EVERY INPUT OF EVERY PROOF. MEASURED on the box, 19 gates / 226 proofs all served
+# from the cache, 0 clean runs: 266 s wall, 563,770 _sha_file reads (~1,250 inputs x 452 keys: the wave's peek and the
+# main pass's lookup each key every proof), every read under the cache's one lock, so four lanes hashed one at a time.
+# v3792's hook on his Mac: 303 of 303 hits, 2m39 proving. The digest of a file cannot change while nothing writes it,
+# and in the prover only _prove_one writes a sandbox (its tamper and restore, and the law it runs). So the keyer's digests
+# are served within a QUIET STRETCH: keyed on (path, size, mtime_ns, ctime_ns, inode, generation), and _prove_one bumps
+# the generation on entry and on exit. _sha_file itself still always reads (a same-size rewrite with a frozen mtime).
+_QUIET = {"gen": 0}
+_QUIET_LOCK = threading.Lock()
+
+
+def _quiet_bump():
+    with _QUIET_LOCK:
+        _QUIET["gen"] += 1
+
+
+def _quiet_stretch(fn):
+    """REG-2631 - `fn` writes a sandbox or runs a law: the quiet stretch ends on its entry and on its exit, so a digest the
+    keyer took before it is never served after it."""
+    import functools
+
+    @functools.wraps(fn)
+    def run(*a, **k):
+        _quiet_bump()
+        try:
+            return fn(*a, **k)
+        finally:
+            _quiet_bump()
+    return run
+
+
+@_quiet_stretch                         # REG-2631 - a law run (in or outside _prove_one) ends the quiet stretch
 def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
     """REG-1876 (#144) - a tracked file once vanished from a lane's sandbox mid-run ("No module named ..." read as a law
     failure) and no writer was ever caught. Until one is, every run is bracketed by a census of the sandbox's tv/*.py: a
@@ -3403,6 +3435,22 @@ def _sha_file(path, memo=None):
     return d
 
 
+def _sha_quiet(path, memo):
+    """REG-2631 - _sha_file, served from `memo` while no _prove_one has started or ended since it was read. -> hex | None"""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    gen = _QUIET["gen"]
+    k = ("REG-2631", path, st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino, gen)
+    d = memo.get(k)
+    if d is None:
+        d = _sha_file(path)
+        if d is not None and _QUIET["gen"] == gen:
+            memo[k] = d
+    return d
+
+
 def _inside(root, path):
     try:
         return os.path.commonpath([os.path.realpath(root), os.path.realpath(path)]) == os.path.realpath(root)
@@ -3753,8 +3801,7 @@ class _VerdictCache(object):
                 d, gone = self._masked_sha(p, rel)
                 away.append((rel, gone or ""))
             else:
-                with self.lock:
-                    d = _sha_file(p, self.memo)
+                d = _sha_quiet(p, self.memo)          # REG-2631 - outside the lock, served within a quiet stretch
             if d is None:
                 return None, [], "%s cannot be read" % rel
             h.update(rel.encode("utf-8", "replace") + b"\0" + d.encode("ascii") + b"\0")
@@ -4238,6 +4285,35 @@ def _owes_here(run, name):
     gate is what kept every imported proof from saving a minute on his Mac."""
     direct = getattr(run, "direct", None)
     return direct is None or name in direct
+
+
+def _wave_owed(gates, by, run):
+    """REG-2631 - the gates the clean wave would actually run, in order. -> [name]
+
+    _wave_gate returns at once for a gate whose every proof the cache serves on this tree's word, but only after the
+    wave has built a sandbox per lane for it: MEASURED on the box, 19 gates / 226 proofs all served, the wave ran 0 clean
+    runs in 41-52 s of copying and deleting trees. The same question is asked here over the checkout's own tv/ - the
+    bytes every sandbox copies - so a gate it leaves out is one the wave would have skipped. The wave is fail-fast
+    ORDER, never a verdict: a gate wrongly left out is still proved, served or run by the main pass, as before."""
+    cache = getattr(run, "cache", None)
+    if cache is None:
+        return list(gates)
+    out = []
+    for n in gates:
+        _n, f, proofs = by[n]
+        served = bool(proofs)
+        for i in (run.order.get(n) or list(range(len(proofs)))):
+            try:
+                key = cache.key_for(HERE, n, f, proofs[i])[0]
+            except Exception:
+                key = None
+            hit = cache.peek(key) if key is not None else None          # asked, not served: marks nothing
+            if hit is None or (hit.get("tree") != TREE_ID and _owes_here(run, n)):
+                served = False
+                break
+        if not served:
+            out.append(n)
+    return out
 
 
 def _push_facts(have, say):
@@ -5009,13 +5085,18 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
         # Only when gates outnumber lanes: with as many lanes as gates, every gate's first clean run already starts
         # at the run's first second, and a wave would only add a run.
         _lanes = prove_workers(len(gates))
-        if len(gates) > _lanes:
+        _wave = _wave_owed(gates, by, run) if len(gates) > _lanes else []   # REG-2631 - only what the wave would run
+        if len(gates) > _lanes and not _wave:
+            say("  REG-2631 CLEAN WAVE SKIPPED: every proof of all %d gate(s) is served from the cache on this tree's "
+                "own keys and none owes a clean run here, so the wave would build its lanes to run nothing" % len(gates))
+        elif len(gates) > _lanes:
             _w0 = time.time()
             say("  REG-1992 CLEAN WAVE: %d gate(s) over %d lane(s) - every gate's untampered run first, so a law "
-                "already red refuses in minutes" % (len(gates), _lanes))
+                "already red refuses in minutes%s" % (len(_wave), _lanes, (" (REG-2631: %d gate(s) served whole from "
+                "the cache are left out)" % (len(gates) - len(_wave))) if len(_wave) < len(gates) else ""))
             run.wave = True
             try:
-                _prove_gates([by[n] for n in gates], say, blank=set())
+                _prove_gates([by[n] for n in _wave], say, blank=set())
             finally:
                 run.wave = False
                 run._items = None              # take() drains the main pass's own queue
@@ -5750,6 +5831,7 @@ def _at_widths(widths):
     return " at %s" % _LW.label(widths)
 
 
+@_quiet_stretch                         # REG-2631 - every law run and tamper write closes the keyer's quiet stretch
 def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, clean_only=False, dry=False):
     # REG-1686 — a proof that declared what this PC must have is judged only where it is (see ELSEWHERE above)
     _need = pr.get("needs") if isinstance(pr, dict) else None

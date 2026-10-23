@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2631 - AN ALL-HIT PUSH STILL SPENT MINUTES PROVING (heart2 keyer, GB-box, 2026-10-24)
+v3792's hook served 303 of 303 proofs from the cache and still spent 2m39 proving. MEASURED on the box (19 gates, 226
+proofs, all served, 0 clean runs): 563,770 file reads - ~1,250 inputs for each of 452 keys, since the clean wave's peek
+and the main pass's lookup each key every proof - every read under the cache's one lock, plus a clean wave that built
+and deleted a sandbox per lane to run nothing. Fix: the keyer serves a digest only within a QUIET STRETCH keyed on
+(path, size, mtime_ns, ctime_ns, inode, generation); _run_gate and _prove_one end it on entry and exit, so no digest
+outlives a law run or a tamper write; hashing left the lock. The clean wave leaves out a gate the cache serves whole on
+this tree's keys with no REG-2599 clean run owed (the wave is order, never a verdict). Keys are byte-identical to before
+(checked on 278 proofs). Law: tv/test_an_all_hit_push_reads_each_input_once.py (5 RED_PROOFs).
+
 ### REG-2630 - A PROOF THE BOX OR THE CENSUS BANKED NEVER REACHED THE MAC'S HOOK (proof-keys import, GB-box, 2026-10-24)
 --import-shards takes only a complete 1..N census set, and the census of a pushed commit takes 45-52 min - longer than
 the hook it was meant to shorten; the box's own --prove --push cache had no import path at all, so a push touching

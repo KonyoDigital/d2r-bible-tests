@@ -11562,6 +11562,13 @@ GATES = [
              "unchanged, intentVerified reaches every view, the doctor and his screen (the roster panel's buttons, its "
              "lead line and the shadow bar, drawn by the panel's own code in node), and main() sweeps stale d2jsp "
              "scratch once, guarded."),
+    Gate("test_an_all_hit_push_reads_each_input_once",
+         [sys.executable, os.path.join(HERE, "test_an_all_hit_push_reads_each_input_once.py")], 60,
+         needs_app=False,
+         why="REG-2631 - an all-hit push reads each input once: the keyer's digests are served only within a quiet "
+             "stretch that every law run and tamper write ends (inode-change time in the key), and the clean wave "
+             "leaves out only a gate the cache serves whole on this tree's keys with no clean run owed here. Temp "
+             "files, a fake cache."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
