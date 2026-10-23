@@ -102,10 +102,11 @@ const seeded = (seed) => new Map(Object.entries(seed || {}).map(([k, v]) => [k, 
 let store = seeded(CFG.seed);
 let puts = [];
 let failPut = [];
+let putOpts = {};
 const kv = {
   async get(n) { return store.has(n) ? store.get(n) : null; },
   // a step may name the keys whose put fails, the way a KV outage answers
-  async put(n, v) { if (failPut.includes(n)) throw new Error('KV put failed'); puts.push(n); store.set(n, v); },
+  async put(n, v, o) { if (failPut.includes(n)) throw new Error('KV put failed'); puts.push(n); putOpts[n] = o || null; store.set(n, v); },
 };
 const snap = () => { const o = {}; for (const [k, v] of store.entries()) o[k] = digest(v); return o; };
 const parsed = (v) => { try { return JSON.parse(v); } catch (e) { return v; } };
@@ -115,6 +116,7 @@ for (const step of (CFG.steps || [])) {
   if (step.fresh) store = seeded(step.seed);
   puts = [];
   failPut = step.failPut || [];
+  putOpts = {};
   // a step may name the server's clock (an exact-hour edge); every other step runs on the real one
   const realNow = Date.now;
   if (typeof step.now === 'number') Date.now = () => step.now;
@@ -125,7 +127,7 @@ for (const step of (CFG.steps || [])) {
   const res = await mod.onRequestPost({ request: req, env: { TZ_HISTORY: kv }, waitUntil() {} });
   const reply = JSON.parse(await res.text());
   Date.now = realNow;
-  const one = { status: res.status, reply: reply, puts: puts, before: before, after: snap() };
+  const one = { status: res.status, reply: reply, puts: puts, putOpts: putOpts, before: before, after: snap() };
   if (CFG.everyRecord) { one.records = {}; for (const [k, v] of store.entries()) one.records[k] = parsed(v); }
   out.steps.push(one);
 }
@@ -663,6 +665,7 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
             empty_heads = RS.sign_headers(path_a, empty_raw)[0]
             empty_boot_raw = _raw({"owner": OWNER, "boot": True, "signedAt": 1790000000004, "sections": {}})
             empty_boot_heads = RS.sign_headers(path_a, empty_boot_raw)[0]
+            empty_tick_raw = _raw({"owner": OWNER, "boot": False, "sections": {}})
             vault = {"asOf": 2000, "counts": 3}
             both = {"characters": mine, "vault": vault}
             at = int(time.time() * 1000)
@@ -763,6 +766,12 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                     t=10, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}, fail_put=[kk]),
                 # 29 an unsigned tick when the row put fails: refused with the store's own words
                 _step(moved_raw, {}, fresh=True, seed={rk: record(t=10)}, fail_put=[rk]),
+                # r8 (the review of r7 swept 290 single edits):
+                # 30 an UNSIGNED publish that read nothing: 'nothing read', no row
+                _step(empty_tick_raw, {}, fresh=True, seed={}),
+                # 31 a signed tick under the row's own key on a NEW day, after yesterday's 25 writes: stored as today's 1st
+                _step(moved_raw, moved_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    t=10, day="2000-01-01", n=25, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}), now=at),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -865,12 +874,23 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                          "a signed tick did not count on from today's writes: %r" % rec26)
         r27 = s[27]["reply"]
         self.assertEqual((r27.get("sig"), r27.get("intentVerified")), ("bad", False), r27)
-        self.assertTrue(r27.get("sigWhy"), "a tick with a failed signature does not say why: %r" % r27)
+        self.assertEqual(r27.get("sigWhy"), "the signature does not match these bytes",
+                         "a tick with a failed signature does not say why: %r" % r27)
         failed = "roster would not take this publish: KV put failed"
         for i, what in ((28, "rosterkey"), (29, "roster row")):
             r = s[i]["reply"]
             self.assertEqual((r.get("ok"), r.get("why"), s[i]["puts"]), (False, failed, []),
                              "a failed %s put was not refused in the store's own words: %r" % (what, r))
+        r30 = s[30]["reply"]
+        self.assertEqual((r30.get("ok"), r30.get("stored"), r30.get("skipped"), s[30]["puts"]),
+                         (True, [], ["nothing read"], []),
+                         "an unsigned publish that read nothing was written: %r" % r30)
+        rec31 = s[31]["records"][rk]
+        self.assertEqual((s[31]["reply"].get("stored"), rec31["day"], rec31["n"]), (["roster"], today, 1),
+                         "a signed tick on a new day was held to yesterday's count: %r" % s[31]["reply"])
+        # the row is kept 400 days in the store, then it lapses
+        self.assertEqual(s[26]["putOpts"].get(rk), {"expirationTtl": 60 * 60 * 24 * 400},
+                         "the roster row is not stored for 400 days: %r" % s[26]["putOpts"])
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1643,6 +1663,26 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  if (sig.state === \"bad\") said.sigWhy = sig.why;",
      "replace": "  if (sig.state === \"bad\" && boot) said.sigWhy = sig.why;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r8: sigWhy says only 'bad', not why the signature failed",
+     "file": "functions/api/roster.js",
+     "find": "  if (sig.state === \"bad\") said.sigWhy = sig.why;",
+     "replace": "  if (sig.state === \"bad\") said.sigWhy = sig.state;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r8: a signed publish under the same key keeps yesterday's count on a new day",
+     "file": "functions/api/roster.js",
+     "find": "(prev && prev.day === today && typeof prev.n === \"number\") ? prev.n : 0;",
+     "replace": "(prev && (prev.day === today || sameIntent) && typeof prev.n === \"number\") ? prev.n : 0;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r8: 'nothing read' holds only for a signed publish, so an unsigned empty one writes a row",
+     "file": "functions/api/roster.js",
+     "find": "  if (!Object.keys(sections).length) {",
+     "replace": "  if (!Object.keys(sections).length && verified) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r8: the roster row is stored with no lapse",
+     "file": "functions/api/roster.js",
+     "find": "    await kv.put(key, JSON.stringify(rec), { expirationTtl: TTL_S });",
+     "replace": "    await kv.put(key, JSON.stringify(rec));",
      "matches": 1, "needs": "node"},
     {"why": "M6 T3 review r7: a failed put is refused as 'Error: ...' rather than the store's own words",
      "file": "functions/api/roster.js",

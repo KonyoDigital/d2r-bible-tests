@@ -90,6 +90,9 @@ a key arriving, and registers no key; a signed tick counts on from today's write
 (sigWhy), as a boot does; a failed rosterkey or row put is refused in the store's own words. The law's node harness can fail
 a named put. Seven RED_PROOFs: the cap && !verified and && !upgrade, the day count && !verified and && !upgrade, sigWhy only
 on a boot, and the swapped catch expression at each put.
+FIX ROUND 8 (the review of r7 swept 290 single edits): a failed signature's why is said in words (sigWhy is the reason,
+not 'bad'); a signed tick under the same key on a new day counts 1, not yesterday's 25; an unsigned publish that read
+nothing is 'nothing read' too; the row is put with its 400-day lapse (the harness records put options). Four RED_PROOFs.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
