@@ -48,10 +48,24 @@ class _R:
 class _Win:
     """A fake Windows that answers schtasks like the real one."""
 
-    def __init__(self, exists=False, create_rc=0, query_says=None):
+    def __init__(self, exists=False, create_rc=0, query_says=None, encoding=None):
         self.exists, self.create_rc, self.query_says, self.calls, self.xml = exists, create_rc, query_says, [], None
+        self.encoding = encoding   # None: answers str (the logic laws); "utf-16" etc.: answers bytes like a pipe
 
     def run(self, argv, **kw):
+        r = self._run(argv, **kw)
+        if self.encoding is None:
+            return r
+        # a real pipe: bytes in the console's encoding; text=True decodes them with the ANSI page (cp1255 on
+        # the ALT), strictly - which is what raised on a UTF-16 list (review r2)
+        def enc(x):
+            return x.encode(self.encoding) if isinstance(x, str) else x
+        out, err = enc(r.stdout), enc(r.stderr)
+        if kw.get("text"):
+            out, err = out.decode("cp1255"), err.decode("cp1255")
+        return _R(r.returncode, out, err)
+
+    def _run(self, argv, **kw):
         self.calls.append(list(argv))
         verb = argv[1]
         if verb == "/Query":
@@ -364,10 +378,63 @@ class Task(unittest.TestCase):
             return _R(1, "", "Fehler beim Abfragen")
         self.assertIsNone(CD._keepalive_task_exists(_list_fails), "a list that failed was read as 'no task'")
 
+    def test_a_utf16_or_oem_list_still_settles_the_task(self):
+        # review r2: piped, schtasks writes UTF-16 (BOM or NUL stride) or the OEM page, never reliably ANSI
+        for enc in ("utf-16", "utf-16-le", "cp862", "utf-8"):
+            w = _Win(encoding=enc)
+            self.assertIs(CD._keepalive_task_exists(w.run), False, "%s: the near-name decoy was taken" % enc)
+            w.exists = True
+            self.assertIs(CD._keepalive_task_exists(w.run), True, "%s: the task in the list was not seen" % enc)
+        for enc in ("utf-16", "utf-16-le"):
+            if os.path.exists(self.marker):
+                os.remove(self.marker)          # each Windows starts with no record of a keepalive
+            w = _Win(encoding=enc)
+            r = self._go(w)
+            self.assertEqual(r["did"], "created", "%s: a UTF-16 Windows never gets its keepalive: %s" % (enc, r))
+            self.assertIn("/Create", w.verbs())
+
+    def test_a_list_that_cannot_be_parsed_is_unknown_not_a_crash(self):
+        w = _Win(encoding="utf-16")
+        with mock.patch.object(CD, "_schtasks_text", side_effect=__import__("csv").Error("line contains NUL")):
+            self.assertIsNone(CD._keepalive_task_exists(w.run), "a list that cannot be read raised or read as 'no'")
+
+    def test_a_utf16_refusal_is_said_in_words(self):
+        w = _Win(create_rc=1, encoding="utf-16")
+        r = self._go(w)
+        self.assertEqual(r["did"], "failed")
+        self.assertIn("Access is denied", r["why"], r)
+
+    def test_the_decoder(self):
+        row = '"\\TV DIABLO keepalive","N/A","\u05de\u05d5\u05db\u05df"\r\n'
+        for enc in ("utf-16", "utf-16-le", "utf-8"):
+            self.assertEqual(CD._schtasks_text(row.encode(enc)), row, enc)
+        self.assertTrue(CD._schtasks_text(row.encode("cp862")).startswith('"\\TV DIABLO keepalive",'))
+        self.assertEqual(CD._schtasks_text(None), "")
+        self.assertEqual(CD._schtasks_text("a\x00b"), "ab")
+
     def test_pythonw_beside_python(self):
         self.assertEqual(CD._keepalive_pythonw(WIN_PY, isfile=lambda p: True),
                          r"C:\Program Files\Python312\pythonw.exe")
         self.assertEqual(CD._keepalive_pythonw(WIN_PY, isfile=lambda p: False), WIN_PY)
+
+
+class PassDeadline(unittest.TestCase):
+    def test_a_hung_pass_ends_itself(self):
+        # review r2: the task has no time limit and IgnoreNew, so only this timer stops a hung pass holding every
+        # later one off. Driven in a child: the timer's os._exit would end the test runner.
+        import subprocess as _sp
+        import time as _t
+        code = ("import sys, time; sys.path.insert(0, %r); import console_keepalive as k; "
+                "sys.exit(k.main(run=lambda: time.sleep(30) or {'action': 'leave'}, deadline_s=1))" % HERE)
+        t0 = _t.time()
+        r = _sp.run([sys.executable, "-c", code], capture_output=True, timeout=25)
+        self.assertEqual(r.returncode, 3, "a hung pass was not ended by its deadline (rc %s)" % r.returncode)
+        self.assertLess(_t.time() - t0, 20)
+        self.assertEqual(KA.PASS_DEADLINE_S, 90)
+
+    def test_a_pass_that_ends_returns_its_code(self):
+        self.assertEqual(KA.main(run=lambda: {"action": "leave"}, deadline_s=60), 0)
+        self.assertEqual(KA.main(run=lambda: {"action": "error"}, deadline_s=60), 1)
 
 
 class ConsoleSide(unittest.TestCase):
@@ -446,6 +513,21 @@ class ConsoleSide(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "        lst = run([\"schtasks\", \"/Query\", \"/FO\", \"CSV\", \"/NH\"], capture_output=True, timeout=60)",
+     "replace": "        lst = run([\"schtasks\", \"/Query\", \"/FO\", \"CSV\", \"/NH\"], capture_output=True, text=True, timeout=60)",
+     "why": "review r2: the list decoded with the ANSI page raises on a UTF-16 pipe, so the task is never made"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "    if len(b) >= 4 and b[1:2] == b\"\\x00\" and b[3:4] == b\"\\x00\":\n", "replace": "    if False:\n",
+     "why": "review r2: a BOM-less UTF-16 list is read as NUL-strided text and never matches"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "    if b[:2] == b\"\\xff\\xfe\" or b[:2] == b\"\\xfe\\xff\":\n", "replace": "    if False:\n",
+     "why": "review r2: a UTF-16 list with a BOM is never matched"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "    except Exception:                   # csv.Error, a decode, a timeout: UNKNOWN, never a guessed \"no\"",
+     "replace": "    except OSError:", "why": "review r2: a list that cannot be parsed raises out of the sign-in setup"},
+    {"matches": 1, "file": "console_keepalive.py", "find": "    _t.start()\n", "replace": "",
+     "why": "review r2: a hung pass is never ended, and IgnoreNew holds every later pass off for ever"},
     {"matches": 1, "file": "console_keepalive.py", "find": '    except (socket.timeout, TimeoutError):\n        return "slow"',
      "replace": '    except (socket.timeout, TimeoutError):\n        return "gone"',
      "why": "a slow console read as gone would be relaunched under load (the ALT stalls for minutes)"},
@@ -473,7 +555,7 @@ RED_PROOF = [
     {"matches": 1, "file": "console_doctor.py", "find": "    consent = sign_in_did in (\"created\", \"already\")\n",
      "replace": "    consent = sign_in_did in (\"created\", \"already\", \"left\")\n",
      "why": "a PC that said no to the sign-in start still gets a self-starting console"},
-    {"matches": 1, "file": "console_doctor.py", "find": "    if getattr(lst, \"returncode\", 1) != 0:\n        return None\n",
+    {"matches": 1, "file": "console_doctor.py", "find": "        if getattr(lst, \"returncode\", 1) != 0:\n            return None\n",
      "replace": "", "why": "an RPC error read as 'no task' - UNKNOWN acted on"},
     {"matches": 1, "file": "console_doctor.py", "find": "'<Hidden>true</Hidden>",
      "replace": "'<Hidden>false</Hidden>", "why": "the task shows in his Task Scheduler list as an unexplained entry"},
@@ -498,8 +580,8 @@ RED_PROOF = [
      "replace": "        if row and want in row[0].strip().lower():\n",
      "why": "review r1: a near-name task in the list is taken for the keepalive, so it is never made"},
     {"matches": 1, "file": "console_doctor.py",
-     "find": "                                        % ((\"%s %s\" % (getattr(r, \"stdout\", \"\") or \"\", getattr(r, \"stderr\", \"\") or \"\"))\n",
-     "replace": "                                        % ((\"%s\" % (getattr(r, \"stderr\", \"\") or \"\"))\n",
+     "find": "% ((\"%s %s\" % (_schtasks_text(getattr(r, \"stdout\", None)),\n",
+     "replace": "% ((\"%s %s\" % (\"\",\n",
      "why": "review r1: a refusal schtasks prints on stdout is logged as 'no reason given'"},
     {"matches": 1, "file": "control_app.py", "find": " or str(reason or \"\") in _WINDOW_LOOP_EXITS:\n", "replace": ":\n",
      "why": "review r1: a WebView crash that returns the window loop is marked 'closed on purpose'"},
