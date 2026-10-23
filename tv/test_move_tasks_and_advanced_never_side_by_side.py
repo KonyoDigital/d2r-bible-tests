@@ -94,6 +94,8 @@ class MoveTasksAndAdvancedNeverSideBySide(unittest.TestCase):
     def test_move_tasks_is_an_overlay_that_takes_no_room(self):
         o = board().run(SEEN + "var m = by('#mule-vault-card .vault-main'), card = by('#mule-vault-card');"
                         "await tick(800); /* the tab's entry animation (gildRise) settles first, so only the overlay can move anything */"
+                        "var snap = function(){ var q = m.getBoundingClientRect(); return [q.left, q.top, q.width, q.height, card.getBoundingClientRect().height, document.documentElement.scrollHeight].map(Math.round).join(); };"
+                        "for (var w = 0, last = snap(); w < 40; w++) { await tick(100); var nw = snap(); if (nw === last) break; last = nw; } /* under a loaded box the settle can outlast 800ms */"
                         "var r0 = m.getBoundingClientRect(), h0 = card.getBoundingClientRect().height, sh0 = document.documentElement.scrollHeight;"
                         "by('#vault-tasks-fab').click(); await tick(300);"
                         "var r1 = m.getBoundingClientRect(), a = by('#vault-tasks'), p = a.getBoundingClientRect();"
@@ -146,6 +148,33 @@ class MoveTasksAndAdvancedNeverSideBySide(unittest.TestCase):
         self.assertNotEqual(o["n0"], o["n1"], "the FAB badge does not count down on a tick: %r" % o)
         self.assertTrue(o["u"] and o["back1"], "the line's Undo does not put the task back: %r" % o)
         self.assertTrue(o["tu"] and o["back2"], "the toast's Undo does not put the task back: %r" % o)
+
+    def test_a_no_room_tick_keeps_its_undo(self):
+        """Grok review r1 (MEDIUM): a hand tick on a row with no target cell lost its undo snapshot - _vaultMoveEnsure
+        rebuilt the task without it on the next paint - and the row left both the open list and Done."""
+        o = board().run("var stored = { name: 'Demon Limb', status: 'moved-manual', manual: true, evidence: [],"
+                        " from: { holder: null, location: null, cell: null }, to: { holder: 'SHARED STASH', location: 'shared', cell: null },"
+                        " undo: { status: 'to-move', manual: true } };"
+                        "var e = window._vaultMoveEnsure('Demon Limb', 0, { map: { 'Demon Limb\\u00000': stored } });"
+                        "OUT.fresh = e.fresh; OUT.status = e.task.status; OUT.undo = e.task.undo || null;"
+                        "OUT.shown = window._vaultMoveShown(e.task);"
+                        "var s2 = Object.assign({}, stored); delete s2.undo; OUT.shownNoUndo = window._vaultMoveShown(s2);")
+        self.assertTrue(o["fresh"], "PREMISE: a no-cell row is rebuilt by _vaultMoveEnsure: %r" % o)
+        self.assertEqual(o["status"], "moved-manual", o)
+        self.assertEqual(o["undo"], {"status": "to-move", "manual": True}, "the rebuild dropped his tick's undo snapshot: %r" % o)
+        self.assertTrue(o["shown"], "a ticked no-room row that can be unticked left the list (and Done): %r" % o)
+        self.assertFalse(o["shownNoUndo"], "a no-room row with nothing to undo is still hidden as before: %r" % o)
+
+    def test_escape_closes_the_overlay_and_returns_to_the_fab(self):
+        board().run(SEEN + "window.vaultTasksTog(true); await tick(); by('#vault-tasks .vtp-x').focus(); OUT.ok = 1;")
+        t = board().t
+        for kind in ("keyDown", "keyUp"):
+            t.send("Input.dispatchKeyEvent", type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
+        o = board().run(SEEN + "await tick(200); OUT.open = tasksOpen(); OUT.focus = document.activeElement && document.activeElement.id;"
+                        "OUT.exp = by('#vault-tasks-fab').getAttribute('aria-expanded'); window.vaultTasksTog(false);")
+        self.assertFalse(o["open"], "Escape inside MOVE TASKS left it open: %r" % o)
+        self.assertEqual(o["focus"], "vault-tasks-fab", o)
+        self.assertEqual(o["exp"], "false", o)
 
     def test_the_open_overlay_survives_a_reload(self):
         board().run("window.vaultTasksTog(true); OUT.ok = 1;")
@@ -202,6 +231,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      try { if (localStorage.getItem('vaultTasksOpen') === '1') window.vaultTasksTog(true, true); } catch (e) {}",
      "replace": "",
+     "matches": 1},
+    {"why": "A no-cell rebuild drops the undo snapshot of his tick (Grok review r1).",
+     "file": "bible.html",
+     "find": "      undo: stored ? stored.undo : null   /*",
+     "replace": "      undo: null   /*",
+     "matches": 1},
+    {"why": "A ticked no-room row leaves the list, so it can never be unticked (Grok review r1).",
+     "file": "bible.html",
+     "find": "    if (t.status === 'moved-manual' && t.undo && t.to && t.to.holder != null && t.to.cell == null) return true;",
+     "replace": "    if (false) return true;",
+     "matches": 1},
+    {"why": "Escape inside MOVE TASKS no longer closes it.",
+     "file": "bible.html",
+     "find": "          if (!e || e.key !== 'Escape' || tp.hidden) return;",
+     "replace": "          return;",
      "matches": 1},
     {"why": "The FAB floats over every tab.",
      "file": "bible.html",

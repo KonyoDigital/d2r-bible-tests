@@ -53,6 +53,10 @@ def key(name, vk):
         p = dict(type=kind, key=name, code=name, windowsVirtualKeyCode=vk, nativeVirtualKeyCode=vk)
         if kind == "keyDown" and name == "Enter":
             p["text"] = "\r"
+        if name == " ":
+            p["code"] = "Space"
+            if kind == "keyDown":
+                p["text"] = " "
         t.send("Input.dispatchKeyEvent", **p)
     time.sleep(0.4)
 
@@ -152,6 +156,36 @@ class DangerMenuDefaultsToCancel(unittest.TestCase):
                 self.assertTrue(a["same"] and a["has"], "%s RAN on Enter (focus on %s): %r" % (fn, "OK" if on_ok else "Cancel", a))
             board().run("window.vaultDangerMenuTog(false); window._setFolderConnectedUI(false); OUT.ok = 1;")
 
+    def test_space_on_the_red_ok_changes_nothing(self):
+        """Grok review r1 (MEDIUM): Space activates a focused <button> - Tab from Cancel onto OK + Space ran the door."""
+        for fn, how in (DOORS[0], DOORS[3]):
+            board().run(WORLD + "OUT.ok = 1;")
+            o = self._open(how)
+            self.assertTrue(o["up"], "%s did not ask: %r" % (fn, o))
+            board().run("document.querySelector('.ui-confirm-ok').focus(); OUT.ok = 1;")
+            key(" ", 32)
+            a = self._after()
+            self.assertFalse(a["up"], "%s: Space did not close the confirm: %r" % (fn, a))
+            self.assertTrue(a["same"] and a["has"], "%s RAN on Space with the red OK focused: %r" % (fn, a))
+            board().run("window.vaultDangerMenuTog(false); OUT.ok = 1;")
+
+    def test_escape_and_tabbing_away_close_the_menu(self):
+        """Grok review r1 (LOW): Escape did nothing and Tab out of the zone left the 560px menu open over the page."""
+        board().run(H_ + "window.vaultDangerMenuTog(false); by('#vault-danger-tog').click(); OUT.ok = 1;")
+        key("Escape", 27)
+        o = board().run(H_ + "OUT.open = !by('#vault-danger-menu').hidden; OUT.focus = document.activeElement && document.activeElement.id;"
+                        "OUT.exp = by('#vault-danger-tog').getAttribute('aria-expanded');")
+        self.assertFalse(o["open"], "Escape left the danger menu open: %r" % o)
+        self.assertEqual(o["focus"], "vault-danger-tog", "Escape did not hand focus back to the toggle: %r" % o)
+        self.assertEqual(o["exp"], "false")
+        o = board().run(H_ + "by('#vault-danger-tog').click(); OUT.open0 = !by('#vault-danger-menu').hidden;"
+                        "by('#vault-danger-menu .vdm-name').dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));"
+                        "OUT.openText = !by('#vault-danger-menu').hidden;"
+                        "by('#vault-find-input').focus(); await new Promise(function(r){ setTimeout(r, 100); });"
+                        "OUT.openAfter = !by('#vault-danger-menu').hidden; window.vaultDangerMenuTog(false);")
+        self.assertTrue(o["open0"] and o["openText"], "a click on plain menu text closed the menu: %r" % o)
+        self.assertFalse(o["openAfter"], "focus left the danger zone and the menu stayed open: %r" % o)
+
     def test_a_deliberate_click_on_ok_still_runs_the_door(self):
         o = self._open(DOORS[0][1])
         self.assertTrue(o["up"], o)
@@ -205,7 +239,22 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A click outside the menu no longer closes it.",
      "file": "bible.html",
-     "find": "      try { document.addEventListener('mousedown', _vaultDangerOutside, true); } catch (e1) {}",
+     "find": "document.addEventListener('mousedown', _vaultDangerOutside, true); document.addEventListener('keydown'",
+     "replace": "document.addEventListener('keydown'",
+     "matches": 1},
+    {"why": "Space on the focused red OK confirms a danger door again (Grok review r1).",
+     "file": "bible.html",
+     "find": "      else if(cancelFirst && (e.key === ' ' || e.key === 'Spacebar')){ e.preventDefault(); close(false); } }",
+     "replace": "      }",
+     "matches": 1},
+    {"why": "Escape no longer closes the danger menu.",
+     "file": "bible.html",
+     "find": "document.addEventListener('keydown', _vaultDangerKey, true);",
+     "replace": "",
+     "matches": 1},
+    {"why": "Focus leaving the danger zone no longer closes the menu.",
+     "file": "bible.html",
+     "find": "if (z) z.addEventListener('focusout', _vaultDangerLeave);",
      "replace": "",
      "matches": 1},
 ]
