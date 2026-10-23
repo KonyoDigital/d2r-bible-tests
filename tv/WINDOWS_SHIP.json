@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3789",
+  "ver": "v3790",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3789: A barren held reel now cools (6 h doubling to 7 days) and a relaunch or padlock open no longer restarts it",
+  "note": "v3790: V1 (GB-L) - pick undo, held-vault perfect base, refused map writes keep filings, no Claude CLI in gates",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

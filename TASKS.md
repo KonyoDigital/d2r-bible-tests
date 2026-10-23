@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3789** | `(this commit)` | v3789 — A barren held reel now cools (6 h doubling to 7 days) and a relaunch or padlock open no longer restarts it |
+| **v3790** | `(this commit)` | v3790 — V1 (GB-L) - pick undo, held-vault perfect base, refused map writes keep filings, no Claude CLI in gates |
+| **v3789** | `21a78ff6` | v3789 — A barren held reel now cools (6 h doubling to 7 days) and a relaunch or padlock open no longer restarts it |
 | **v3788** | `ab7065bb` | v3788 — REG-2556 to 2558 from the Grok CLI look on v3787, REG-2559 a triage law never launches claude (189) |
 | **v3787** | `b442f403` | v3787 — perfect bases file to the socketed mule and the console tip survives a warm-up scroll |
 | **v3785** | `1df066f9` | v3785 — T3 REG-2360 to 2366, six BLIND re-aims REG-2371 to 2376, REG-2392 corrected, REG-2393 (Push A2) |
