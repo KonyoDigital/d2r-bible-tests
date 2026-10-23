@@ -10680,6 +10680,9 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vault-advanced .vadv-tab{background:none;border:1px solid rgba(212,168,71,.3);border-radius:999px;color:var(--text-dim);cursor:pointer;font-size:var(--fs-micro);padding:2px 10px}
 .vault-advanced .vadv-tab[aria-selected=true]{color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold));border-color:rgba(240,192,96,.85)}
 .vault-advanced .vadv-pane{padding:4px 13px 10px}
+/* Vault v2 - the routing ledger keeps the full card width it had before it moved here: its two columns are sized to fit
+   art + name + copies + value + destination + receipt + remove (v2267), and 26px of pane padding pushed that tail past the row */
+.vault-advanced .vadv-pane[data-adv="registered"]{padding-left:0;padding-right:0}
 /* Vault v2 - the vault card passed 400 nodes, so it no longer counts as one contained card (d2jsp-cards-stay-cheap):
    each art row in the Advanced lists is its own contained card, the way #tab-d2jsp .d2jsp-card is. The pane stays live. */
 .vault-advanced .vmk-row,.vault-advanced .vrg-row{content-visibility:auto;contain-intrinsic-size:auto 36px}
