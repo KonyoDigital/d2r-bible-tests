@@ -149,6 +149,13 @@ def git_free_env(base=None, **extra):
 def law_env(needs_app, base=None):
     """The environment a gate runs in. -> dict (a copy; `base` defaults to os.environ; no GIT_* variable - REG-2396)"""
     env = git_free_env(base)
+    # REG-2569 - A GATE NEVER CALLS THE CLAUDE CLI (Elad 2026-10-22: his plan sits at 98%). test_screen_parity's console
+    # import asked `claude auth status`. Every gate runs with D2R_NO_CLAUDE=1 (claude_signin answers UNKNOWN without
+    # spawning) and a refusing `claude` first on PATH.
+    env["D2R_NO_CLAUDE"] = "1"
+    _ncb = os.path.join(HERE, "no_claude_bin")
+    if not env.get("PATH", "").startswith(_ncb + os.pathsep):
+        env["PATH"] = _ncb + os.pathsep + env.get("PATH", "")
     if not needs_app and env.get("TV_CONTROL_PORT", "") in ("", "17772"):
         env["TV_CONTROL_PORT"] = dead_console_port()
     return env
@@ -11042,6 +11049,377 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_reload_never_drops_what_he_owns",
+         [sys.executable, os.path.join(HERE, "test_a_reload_never_drops_what_he_owns.py")], 120,
+         needs_app=False,
+         why="REG-2400 (#162 item 1 + #144 item 6) - GrokBot #230 on v3783/v3784: one reload took d2r_owned 272 -> 113, no "
+             "journal row, no undo. The load-time prune read 'no catalogue knows this name' as 'he does not own it' and "
+             "persisted it: rolled-name keepers (Death Loop, Wraith Grasp, Chaotic Grand Charm of Pestilence...) and the "
+             "typed runewords Ancient's Pledge / Breath of the Dying. Now the prune's filter is a question and the owned-load "
+             "doctor answers it: a name it would drop is KEPT, named in window._ownedLoadReceipt, warned and painted on the "
+             "Vault (#vault-owned-kept); only a non-name entry is set aside, and said. The shipped prune runs in node over "
+             "his lost names through two reloads."),
+    Gate("test_a_frame_is_read_again_when_its_item_is_gone",
+         [sys.executable, os.path.join(HERE, "test_a_frame_is_read_again_when_its_item_is_gone.py")], 120,
+         needs_app=False,
+         why="REG-2401 (#162 item 2) - after the reload loss, re-feeding all 292 frames added 0: d2r_intakeSeen keyed the "
+             "skip on 'this file was ever read'. A file that read something now records what it put in the vault, and the "
+             "skip asks whether that is still his: still owned -> skipped; gone with no removal on record -> read again; "
+             "removed by him -> skipped; UNKNOWN -> skipped and said; a legacy mark keeps its old meaning. A re-read never "
+             "counts a second copy, and the folder poll never re-reads on its own. The shipped verdict block runs in node."),
+    Gate("test_grasp_is_a_gloves_suffix",
+         [sys.executable, os.path.join(HERE, "test_grasp_is_a_gloves_suffix.py")], 60,
+         needs_app=False,
+         why="REG-2402 (#162 item 4) - 'Wraith Grasp' routed as 'Wraith + Grasp: ring'. The rolled-name grammar had no "
+             "gloves row; the game's RareSuffix table (RotW) gives hand/fist/claw/clutches/knuckle to gloves and "
+             "grip/grasp/hold/touch/finger to gloves AND ring. The Gloves row is the game's, so Grasp reads 'gloves / "
+             "ring'; routing to MAGIC & RARE is unchanged."),
+    Gate("test_a_scan_reads_what_it_marks",
+         [sys.executable, os.path.join(HERE, "test_a_scan_reads_what_it_marks.py")], 120,
+         needs_app=False,
+         why="REG-2403 (review of REG-2401) - with one gone screenshot waiting, his manual Scan sent two new "
+             "screenshots to the menu, and the menu marked them read before he chose: a '♻ Read again' pick, Skip or a "
+             "closed menu left them never read (v584.1's restart trap, back). Now 1-12 new files are read at once and "
+             "the gone ones are said; the menu marks nothing, a pick writes what it means, merged into the ledger as it "
+             "is; the 12 s poll never reads a gone file. The shipped scan code runs in node over a stubbed folder."),
+    Gate("test_every_removal_door_leaves_his_word",
+         [sys.executable, os.path.join(HERE, "test_every_removal_door_leaves_his_word.py")], 120,
+         needs_app=False,
+         why="REG-2404 + REG-2405 (review of REG-2400/2401) - two of his removal doors wrote no journal row, so a "
+             "re-read brought the item back over his word: the non-grail un-tick, and the socket-count fix (a rename). "
+             "And the Magic & Rare ✕ left the owned name behind, which REG-2400's doctor then kept for good ('1 item you "
+             "own'). Now the un-tick and the ✕ go through the removal door (the ✕'s batch carries the Magic & Rare "
+             "record, so the undo is whole) and the rename rewrites the scan ledger. Each shipped door runs in node."),
+    Gate("test_a_reread_is_the_same_file",
+         [sys.executable, os.path.join(HERE, "test_a_reread_is_the_same_file.py")], 120,
+         needs_app=False,
+         why="REG-2401/2405 (review M2, M4, M5, M7) - promises REG-2401 pinned only by call-site text: vaultIntake reads "
+             "only 'fresh' and 'gone' files, each read is handed what its file read last time, a name the same file "
+             "read never bumps a copy (multi-keep, socketed base, base-copy branch), the Last-scan card says what was "
+             "read again - and a renamed label read again is the renamed item. The shipped intake code runs in node."),
+    Gate("test_a_store_that_will_not_read_is_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_a_store_that_will_not_read_is_kept_aside.py")], 120,
+         needs_app=False,
+         why="#152 items 2-3 (REG-2410) - d2r_owned saved as {\"a\":1} threw at `new Set(...)` and every name after it in "
+             "the main script never existed; a store that would not parse read as the default and persist() wrote it "
+             "over his bytes. Every boot loader of a store persist() writes back reads by shape (_storeRead); one that "
+             "will not read is quarantined at the one storage door (window.LSR): its bytes are copied aside as "
+             "d2r_quarantine~<key>~<hash> and read back, every write and remove of the key is refused (persist() still "
+             "writes the rest), release() lets go only while the bytes are kept aside (his restore, Start it fresh), "
+             "and the notice says each held store on the board."),
+    Gate("test_a_wrong_shaped_mule_store_never_stops_the_vault",
+         [sys.executable, os.path.join(HERE, "test_a_wrong_shaped_mule_store_never_stops_the_vault.py")], 120,
+         needs_app=False,
+         why="#152 item 2 (REG-2411) - d2r_muleRoster saved as {} parsed, roster.find threw, and the vault script stopped "
+             "before renderVault and vaultHandAdd existed, on every reload. _muleShape quarantines a roster or mule map of "
+             "the wrong shape, and while d2r_owned, the roster, the mule map or the copy counts is quarantined the vault "
+             "is HELD: saveA, the render prune, the records persist and refresh write nothing from the page's default, "
+             "persistOwned does not call a refused write a write, + Add an item refuses in words, the population line "
+             "says owned UNKNOWN, and a fresh roster keeps every mule the map names."),
+    Gate("test_a_corrupt_records_store_is_said_and_kept",
+         [sys.executable, os.path.join(HERE, "test_a_corrupt_records_store_is_said_and_kept.py")], 120,
+         needs_app=False,
+         why="#152 item 3 (REG-2412) - a corrupt d2r_vaultRecords was refused silently: no tasks, no warning, hand-adds "
+             "said 'is yours'. Every unreadable shape is now named and kept aside at the door, which refuses every "
+             "writer; the move list says the saved tasks are UNKNOWN, not done; + Add an item is held (the mule map is "
+             "not); Start it fresh goes through the records undo, which lets go only while the bytes are kept aside and "
+             "reports a refused remove as partial; another tab's fresh store lifts the quarantine here."),
+    Gate("test_another_tabs_write_is_merged_not_clobbered",
+         [sys.executable, os.path.join(HERE, "test_another_tabs_write_is_merged_not_clobbered.py")], 120,
+         needs_app=False,
+         why="#153 item 11 (REG-2413) - no storage listener watched the stores the page writes back whole, so another "
+             "tab's owned write was lost on this tab's next hand-add. A storage event now applies that write's change "
+             "(against ev.oldValue) to this tab's copy in place, removals included; the tab holding both halves of a race "
+             "writes the merge back once; bytes that will not parse are quarantined here too; a roster both tabs changed "
+             "and a cleared storage hold the key until reload; a quarantine here lifts when the other tab's store reads; "
+             "only this world's key is merged."),
+    Gate("test_a_store_another_tab_removed_reads_as_its_default",
+         [sys.executable, os.path.join(HERE, "test_a_store_another_tab_removed_reads_as_its_default.py")], 120,
+         needs_app=False,
+         why="REG-2414 (review of REG-2413) - a storage event with newValue null (another tab's 'Erase all saved "
+             "progress', a harness, devtools) was merged as an EMPTY store: the roster became [], the W6 prune dropped "
+             "every filing and the other tab's next filing made this tab write the pruned map back; saveR stored \"[]\" "
+             "and persist() stored multiKeep {}, so a reload never brought the defaults back. A removed store, and an "
+             "absent value it replaced, is now what a reload reads (the default lockers, multiKeep's targets, the "
+             "owner's Chronicle seed or a fresh one, the empty container otherwise) - in the merge, a lifted quarantine "
+             "and the 'same' check - and an erase in another tab leaves this tab as a reload would, writing nothing."),
+    Gate("test_a_witness_store_that_will_not_read_holds_the_vault",
+         [sys.executable, os.path.join(HERE, "test_a_witness_store_that_will_not_read_holds_the_vault.py")], 120,
+         needs_app=False,
+         why="REG-2415 (review of REG-2410, r1) - d2r_vaultProv that would not parse read as {}, and one frame filing "
+             "wrote {its own row} over every witness row he had (Grief's and Shako's gone, ok:true). It is now UNKNOWN "
+             "and quarantined at the door as the vault module loads (kept aside, said on the board), it is in "
+             "VAULT_BASIS so the vault is held (no map write, no prune), every branch of window.vaultFile and the "
+             "removal / TV unvault / sorter / socket fix / mule delete refuse in words, a refused write is never read "
+             "back as saved, the tile and evidence say UNKNOWN, the owned door names it too, another tab's good store "
+             "lifts it."),
+    Gate("test_his_hand_spots_that_will_not_read_are_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_his_hand_spots_that_will_not_read_are_kept_aside.py")], 120,
+         needs_app=False,
+         why="REG-2416 (review of REG-2410, r2) - d2r_mulePos that would not parse read as {}, and one drop wrote {its "
+             "own spot} over every spot he placed (Shako's gone, ok:true). It is now UNKNOWN and quarantined at the "
+             "door (kept aside, said), the drop / unlock / move refuse in their own words, the writer throws on UNKNOWN "
+             "and on a held key, the packer lays every item itself without throwing, another tab's good spots lift it."),
+    Gate("test_what_a_mule_wears_that_will_not_read_is_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_what_a_mule_wears_that_will_not_read_is_kept_aside.py")], 120,
+         needs_app=False,
+         why="REG-2417 (review of REG-2410) - d2r_muleEquip that would not parse read as {}, so the next pick, removal "
+             "or drag wrote {its own entry} over every doll and inventory. It is now UNKNOWN and quarantined at the door "
+             "(kept aside, said), its one writer throws on UNKNOWN and on a held key and files nothing, the picker and "
+             "unequip say 'could not be saved (why)', the doll shows nothing from it and never throws, another tab's "
+             "good store lifts it."),
+    Gate("test_a_hand_add_is_not_quadratic",
+         [sys.executable, os.path.join(HERE, "test_a_hand_add_is_not_quadratic.py")], 300,
+         needs_app=False,
+         why="V1c (#152 item 4, #111 item 6; REG-2420..REG-2427) - GrokBot on v3784: hand adds were QUADRATIC (30 ms at 50 "
+             "items, 2.7 s at 600; his 550-item test ~7.5 min). One add at 300 asked the router 15 times per owned name, "
+             "ran the fuzzy fold 861 times, walked the catalogue, the saved moves and ITEMS per item, and read "
+             "d2r_plannerMade 1,341 times (_itemCells read it before its cache); a paint rebuilt the records 3x per locker. "
+             "The whole page runs in node (tv/vault_page_node.py) and one add at 40 and at 160, a copy add and a paint are "
+             "COUNTED, never clocked: router asks < 4 per name and linear, folds <= 2, catalogue walks <= 4, keeper walks "
+             "<= 8, ITEMS walks <= 12, set-piece folds <= 60, planner parses <= 1, records rebuilds per paint <= 8."),
+    Gate("test_the_vault_memo_changes_no_answer",
+         [sys.executable, os.path.join(HERE, "test_the_vault_memo_changes_no_answer.py")], 900,
+         needs_app=False,
+         why="V1c (#152 item 4, #111 item 6; REG-2420..REG-2427) - the speed fix is eight memos, and a memo that changes an "
+             "answer is a defect wearing a speed-up. The same fixture (84 names of every kind, copies past the war cap, share "
+             "switches, hand filings, a lane lock, sightings, auto intake, a planner record written / changed / corrupted / "
+             "cleared, a drain, FIND, a throw-out keep, a catalogue that grows) runs on the whole page in node as it ships "
+             "and with window._vaultMemoOff = true; every door's answer, every name's router / seam / footprint / picture / "
+             "keeper / home / canon, the MOVE TASKS, dock and shelf HTML, the records and every store must be identical. "
+             "ITEMS and ITEM_REGISTRY keep their one writer (the BOSSES build), which the catalogue memos lean on."),
+    Gate("test_a_door_that_refuses_is_never_walked_around",
+         [sys.executable, os.path.join(HERE, "test_a_door_that_refuses_is_never_walked_around.py")], 120,
+         needs_app=False,
+         why="V1 merge join (V1a REG-2404 x V1b REG-2415) - merged, the Magic & Rare toss read the removal door's REFUSAL "
+             "(the witness store held) as 'took nothing' and fell back: the record dropped, the owned name deleted with no "
+             "journal row and persisted - a loss no undo could reach while the board said the vault is held. The toss now "
+             "waits with the door (record back, name kept, refusal said); with the store readable it still goes through "
+             "the door. The shipped door, journal, vaultRemove and vaultThrowFind run in node."),
+    Gate("test_a_frame_verdict_reads_a_quarantined_store_as_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_frame_verdict_reads_a_quarantined_store_as_unknown.py")], 120,
+         needs_app=False,
+         why="V1 merge join (V1a REG-2401 x V1b REG-2410) - merged, the frame verdict read the DEFAULT the page runs on for a "
+             "quarantined d2r_owned / d2r_magicFinds as his vault, so every recorded screenshot read 'gone': the poll said "
+             "his items had left and a Scan offered to read them again (an AI read). held() now answers UNKNOWN for a "
+             "store the door quarantined, so the verdict says 'unknown', never 'gone'; with nothing quarantined a silent "
+             "loss still reads 'gone'. The shipped door, boot readers and verdict block run in node."),
+    Gate("test_every_vault_store_reads_unknown_never_empty",
+         [sys.executable, os.path.join(HERE, "test_every_vault_store_reads_unknown_never_empty.py")], 120,
+         needs_app=False,
+         why="REG-2520 (V1 round 3; #162, #152) - the scan ledger, the removal journal and its per-name record and the "
+             "Recently-registered log each read bytes cut short as EMPTY and the next write went over every row (old "
+             "screenshots re-billed, his undo history lost); the boot prune read a mule map cut short as {}. Every vault "
+             "store is now read by ONE rule (window.LSR.read): UNKNOWN (null), quarantined as the module loads, bytes kept "
+             "aside, writes refused, said on the board, the vault held. The shipped readers run in node over each store "
+             "cut short, wrong-shaped, absent and good."),
+    Gate("test_the_vault_hold_refuses_at_the_one_door",
+         [sys.executable, os.path.join(HERE, "test_the_vault_hold_refuses_at_the_one_door.py")], 120,
+         needs_app=False,
+         why="REG-2521 (review of REG-2411, rv2) - while a store the vault stands on was quarantined, vaultFile answered "
+             "{ok, moved/filed} over a refused write, Auto-Sort said 'filed 1 witnessed item', a hand register was "
+             "answered ok and the Chronicle inbox's 'Vault only' DELETED his row with nothing saved; un-ticks walked "
+             "around a refused removal. The hold is now asked at the one door (vaultFile, the sorter, every register, the "
+             "removal door and its undo) and every caller keeps what it holds and says why. The shipped doors and "
+             "toggleOwned run in node, per held store."),
+    Gate("test_a_roster_without_its_core_lockers_is_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_roster_without_its_core_lockers_is_unknown.py")], 120,
+         needs_app=False,
+         why="REG-2522 (review of REG-2411, rv6) - a roster saved as \"[]\" (the REG-2414 bytes) passed the shape check, the "
+             "migrations saved three lockers over it and the W6 prune dropped every filing on the other eight. An empty "
+             "roster, or one that lacks a mule its map still files to, is now quarantined at load (another tab's write is "
+             "held to every core locker too), the vault held, the prune drops nothing; his real roster (11 core lockers + "
+             "his own mules) reads as before. (Fix round: a roster that only lacks a core locker reads - the next law.)"),
+    Gate("test_this_tabs_last_good_copy_can_be_kept",
+         [sys.executable, os.path.join(HERE, "test_this_tabs_last_good_copy_can_be_kept.py")], 120,
+         needs_app=False,
+         why="REG-2523 (review of REG-2413, r4) - another tab's bad write quarantined the key with the BAD bytes aside, "
+             "the notice said 'runs on a default' and both exits dropped this tab's good copy. The hold now carries "
+             "lastGood / cleared, the notice says 'this tab still holds your last good copy' and offers Keep this tab's "
+             "copy: asked, anything not kept aside goes aside first, then his copy is written and read back. The shipped "
+             "tab sync and notice run in node."),
+    Gate("test_a_scan_asks_the_gate_before_it_marks",
+         [sys.executable, os.path.join(HERE, "test_a_scan_asks_the_gate_before_it_marks.py")], 120,
+         needs_app=False,
+         why="REG-2524 (review of REG-2403, r1) - with AUTO INTAKE off (the default) the scan, the poll and every pick "
+             "marked new screenshots read and the gate then refused the read: 'seen' for ever, '0 new' after he turned it "
+             "on. The gate is now asked before anything is marked, a file handed to a read is marked 'reading' (offered as "
+             "Finish, never read by the poll), an unreadable ledger reads nothing and says so, and UNKNOWN / pre-record "
+             "files are said. Shipped scan in node."),
+    Gate("test_a_real_unique_is_never_a_rare_combo",
+         [sys.executable, os.path.join(HERE, "test_a_real_unique_is_never_a_rare_combo.py")], 120,
+         needs_app=False,
+         why="REG-2525 (review of REG-2402) - the Gloves row put 'Claw' in RARE_NAME_POOLS, so the console's harvest made "
+             "the grail unique Raven Claw a rare combo and the /kai_verdict grail gate journaled a toss on it (Rune Master "
+             "and Death Cleaver were already there). No catalogued unique / set / grail-seed name is a rare combo now "
+             "(control_app._kai_fullnames subtracts the roster), and the page asks the same catalogues first "
+             "(_rolledQuality); rolled names stay tossable."),
+    Gate("test_a_refused_write_is_said_as_it_happens",
+         [sys.executable, os.path.join(HERE, "test_a_refused_write_is_said_as_it_happens.py")], 120,
+         needs_app=False,
+         why="REG-2526 (review of REG-2410, r5 + storage full) - a refused write of a quarantined store was counted only "
+             "in the console: an edited rune count looked saved all session. The first refusal repaints the notice at "
+             "once, the rest within 250 ms; a store whose bytes could not be copied aside says there is no way out in the "
+             "page, offers its bytes as a download, and no footer promises a restore that would refuse it."),
+    Gate("test_entries_that_are_not_names_are_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_entries_that_are_not_names_are_kept_aside.py")], 120,
+         needs_app=False,
+         why="REG-2527 (review of REG-2400) - the owned-load doctor 'set aside' a non-name entry by deleting it (persist() "
+             "wrote owned without it, kept nowhere) while the Vault said 'set aside'. The entries are now copied aside "
+             "(content-addressed, read back) before persist() and the Vault says where; when the copy cannot be made they "
+             "stay in the saved list, held at the door, and memory runs on the names. The shipped load and doctor run in "
+             "node, including a full storage."),
+    Gate("test_his_reset_is_on_record_and_read_once_a_scan",
+         [sys.executable, os.path.join(HERE, "test_his_reset_is_on_record_and_read_once_a_scan.py")], 120,
+         needs_app=False,
+         why="REG-2528 (review of REG-2405 r3 + REG-2401 r6) - RESET UNIQUES left no removal on record, so a screenshot "
+             "that read the unique read 'gone' and came back over his reset; and every file's verdict re-parsed both "
+             "removal stores (5.4 s at 2000/2000 on the poll). The reset is noted per name (lane unique-reset, verdict "
+             "'removed'), and a scan builds one index of his removals - this law COUNTS the store reads: one per scan, "
+             "never one per file."),
+    Gate("test_a_renamed_item_comes_back_as_his_fix",
+         [sys.executable, os.path.join(HERE, "test_a_renamed_item_comes_back_as_his_fix.py")], 120,
+         needs_app=False,
+         why="REG-2529 (review of REG-2405 r4 + REG-2401) - a re-read of a renamed item that had itself left added the "
+             "MISREAD label back over his socket-count fix and dropped the rename from the record; the Nothing-new card "
+             "claimed every file is read again once its item leaves, false for the bare marks written before records "
+             "existed. Now his label comes back and `as` is kept; the card and the scan menu count and say the files "
+             "registered without a record of what they read."),
+    Gate("test_a_roster_this_board_wrote_is_read_and_keeps_his_mules",
+         [sys.executable, os.path.join(HERE, "test_a_roster_this_board_wrote_is_read_and_keeps_his_mules.py")], 120,
+         needs_app=False,
+         why="REG-2522 fix round (review of REG-2522, major) - every roster lacking a core locker was quarantined as 'did "
+             "not come from this board', false: until REG-2195 (2026-10-14) every locker but SHARED STASH had a delete "
+             "button. A pre-10-14 roster held the whole vault on upgrade and Start it fresh renamed his mules to their "
+             "ids. Now a missing core locker comes back (the v404/v342.5/v360 way), a roster is held only when its map "
+             "still files items to a mule it lacks, the held page shows his mules, and Start it fresh rebuilds over the "
+             "bytes kept aside. The shipped vault head, migrations, prune and notice run in node."),
+    Gate("test_the_socket_doors_wait_for_a_held_vault",
+         [sys.executable, os.path.join(HERE, "test_the_socket_doors_wait_for_a_held_vault.py")], 120,
+         needs_app=False,
+         why="REG-2521 fix round (review of REG-2521, major + minor) - the socket fix dropped the old label's filing and "
+             "its 2-look witness row FIRST, then vaultFile refused at its top (the vault held by d2r_magicFinds / "
+             "d2r_copies): the row was gone for good and the status said 'fixed'. The socket doors, the cell X and the "
+             "mule window now ask the hold first and say it; the fix refiles the new label before the old one lets go "
+             "(a refusal leaves everything as it was), and no door answers ok over a refused map write. In node, per "
+             "held store."),
+    Gate("test_a_refused_removal_is_never_walked_around_or_stamped",
+         [sys.executable, os.path.join(HERE, "test_a_refused_removal_is_never_walked_around_or_stamped.py")], 120,
+         needs_app=False,
+         why="REG-2521 fix round (review of REG-2521, S1-S5 + the reconcile) - five REG-2520/2521 behaviours no law could "
+             "see (the TV unvault's hold and refused-batch return, Delete unsorted's refusal, vaultFile's not-written "
+             "rollbacks, the seed cleanse's no-stamp, the re-tick redo's UNKNOWN journal), and the one-time set-piece "
+             "reconcile stamped itself done over a refused removal (the pair double-counted for good). Each now has a "
+             "red-proofed case; the reconcile and the seed cleanse neither stamp over a refusal nor run while held."),
+    Gate("test_a_cleared_storage_keeps_this_tabs_only_copy",
+         [sys.executable, os.path.join(HERE, "test_a_cleared_storage_keeps_this_tabs_only_copy.py")], 120,
+         needs_app=False,
+         why="REG-2523 fix round (review of REG-2523, minor) - after another tab cleared the storage the headline still "
+             "said 'reload before you change anything here' and every row carried an unasked 'Reload this tab': the one "
+             "click that drops the only copy of every store. Now the headline says this tab holds the only copy and to "
+             "keep it first, no row offers the reload, and 'Keep all of this tab's copies' asks once and keeps each. In "
+             "node, firing the storage events another document would."),
+    Gate("test_a_read_in_another_tab_is_not_offered_again",
+         [sys.executable, os.path.join(HERE, "test_a_read_in_another_tab_is_not_offered_again.py")], 120,
+         needs_app=False,
+         why="REG-2524 fix round (review of REG-2524, minor b) - the 'reading' mark was judged by this tab's "
+             "_vIntakeBusy alone, so tab B called tab A's read in flight 'a read that never finished' and its ⏯ Finish "
+             "re-read and re-billed A's files. The mark now carries its time and tab ('reading@<ms>@<tab>'): another "
+             "tab's recent mark is in flight (said, never offered), an old one never finished, and ⏯ Finish re-stamps "
+             "what it reads. The shipped scan runs in node over a stubbed folder."),
+    Gate("test_a_second_planner_pick_keeps_the_first_picks_copy",
+         [sys.executable, os.path.join(HERE, "test_a_second_planner_pick_keeps_the_first_picks_copy.py")], 300,
+         needs_app=False,
+         why="#183 (REG-2530) - GrokBot V0 on v3784: Grief already filed, a planner pick files copy 2, a pick of a DIFFERENT "
+             "item in the same open, and d2r_copies had no Grief (v3740:63, v3742r:72: expected 2, actual undefined). "
+             "REG-2267 had dropped the id check from the name-change undo, and REG-2240's name check compares the first "
+             "pick's own name. Only a re-roll (same id) or a clear of the pick that made a copy takes it back, and the "
+             "undo now writes d2r_copies itself (it changed only the live count, so after a clear, or a re-roll that "
+             "stops at the white-base sentence, the next load put the copy back). The whole page runs in node with the "
+             "specs' own seed and stubs."),
+    Gate("test_a_dead_bare_copies_key_folds_by_max",
+         [sys.executable, os.path.join(HERE, "test_a_dead_bare_copies_key_folds_by_max.py")], 300,
+         needs_app=False,
+         why="#184 (REG-2531) - GrokBot filed v3753:95 (fold of a dead bare key gave 3, not MAX(1,4)=4) as data loss. "
+             "Measured on the whole page in node: the fold is right; the spec's second seedLoad redefined "
+             "navigator.webdriver inside its one try, threw, and landed nothing, so the load ran on the FIRST seed "
+             "({helm:3, bare:2}) and MAX(3,2)=3 was correct. Pins the fold by MAX (dead key above, below and beside an "
+             "absent keeper; an owned pair) on disk and in the live count, and runs the spec's own seed body twice "
+             "to prove its second seed lands."),
+    Gate("test_a_perfect_base_files_from_the_planner",
+         [sys.executable, os.path.join(HERE, "test_a_perfect_base_files_from_the_planner.py")], 300,
+         needs_app=False,
+         why="#185 (REG-2532) - REG-2250 shipped dead in his world: _cbPerfectBaseMule named the keeper, but with his "
+             "Chronicle seeded (99 runewords forged) suggestMule answers a 4os Monarch 'nothing left - vendor it', "
+             "_vpRoute refused, and the planner printed the white-base sentence (v3746pb:150 x4). His 10-13 ruling now "
+             "outranks that one advice: the perfect base is filed to SOCKETED and the sentence says why; it is one name "
+             "before the re-roll checks and walks the common road (copy count, ledger row, deferred draw - counted, and "
+             "every filing survives it); a board with no SOCKETED mule refuses in the real reason; a later open's copy "
+             "re-rolled to a plain white is taken back on disk. The whole page runs in node."),
+    Gate("test_a_filed_pick_counts_a_copy_whatever_the_router_says",
+         [sys.executable, os.path.join(HERE, "test_a_filed_pick_counts_a_copy_whatever_the_router_says.py")], 300,
+         needs_app=False,
+         why="REG-2533 (the #183 sweep) - _vpRoute answered 'already filed' only after its advice checks, so a planner "
+             "pick of an item he had filed by hand whose router verdict had turned to throw-out (Axe of Fechmar, 'trade "
+             "value TRASH') said it 'stays unfiled' and a later open counted no copy. A filed name now answers 'already' "
+             "before the router is asked: the copy is counted, the filing is not moved, and a router that cannot answer "
+             "no longer refuses a filed pick. The whole page runs in node, real doors."),
+    Gate("test_a_held_picks_undo_takes_back_only_its_own_copy",
+         [sys.executable, os.path.join(HERE, "test_a_held_picks_undo_takes_back_only_its_own_copy.py")], 300,
+         needs_app=False,
+         why="REG-2534 (V1 round-3 review of REG-2530) - a held planner pick's clear or re-roll put back the copy count "
+             "it had seen at pick time, so a copy another tab counted (merged by _tabSyncMerge), his own HAVE stepper or "
+             "this tab's low-base register counted while the pick was held went with it, and the undo's write put the "
+             "loss on disk (Grief 3 -> gone, "
+             "expected 2). One copy now comes off the live count, only while it is above the count the pick started "
+             "from; a count already walked down is left alone and the answer says so. The whole page runs in node."),
+    Gate("test_a_socketed_tome_files_as_a_base",
+         [sys.executable, os.path.join(HERE, "test_a_socketed_tome_files_as_a_base.py")], 300,
+         needs_app=False,
+         why="REG-2535 (V1 round-3 review of REG-2532) - the furniture law matched the WORD 'tome', so the Warlock's "
+             "Tome, Dark Tome and Occult Tome (2 sockets: Rhyme, Splendor, Vigilance) were locked to his MAIN and the "
+             "door refused every perfect one (11 of 1,506 perfect bases, all tomes). A socket label - (2os), (Larzuk "
+             "base) - is a base, never furniture, on the board and in inventory_law alike (one pattern, pinned equal); "
+             "the perfect tomes file to SOCKETED, survive the draw on close, and the audit does not call them kit."),
+    Gate("test_the_planner_plate_says_what_the_pick_did",
+         [sys.executable, os.path.join(HERE, "test_the_planner_plate_says_what_the_pick_did.py")], 300,
+         needs_app=False,
+         why="REG-2536 (V1 round-3 review) - the planner plate read its headline off the pick's sentence with "
+             "/filed to|already filed/, and a refusal reads '... never filed to a mule': a pick the door refused (locked "
+             "to his MAIN) lit 'Saved into the vault' over nothing on disk. The headline is the pick's result now (filed, "
+             "a copy, already filed). The planner is opened, written and painted through its own doors in node."),
+    Gate("test_want_never_writes_have",
+         [sys.executable, os.path.join(HERE, "test_want_never_writes_have.py")], 300,
+         needs_app=False,
+         why="REG-2537 (V1 round-3 review) - the Multi-copy Keepers WANT controls wrote d2r_copies: lowering a target "
+             "below HAVE clamped the count to it, and removing a target deleted the count - counted copies dropped with "
+             "no word. A target now moves or goes and the count stays; the one reset of an inflated count (a row with "
+             "no target) asks first, in words, and a no changes nothing. The panel's functions run on the whole page "
+             "in node."),
+    Gate("test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns",
+         [sys.executable, os.path.join(HERE, "test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py")], 300,
+         needs_app=False,
+         why="REG-2566/2561 (V1 round-3 review 2) - a fresh planner pick's clear or re-roll deleted the name outright, "
+             "taking a copy this tab's reader (or another tab, or his HAVE stepper) had counted while it was held; and a "
+             "held vault answered 'copy 2 filed to bases' over a refused write. One copy comes off and the name stays "
+             "owned and filed; the pick's own single copy leaves through the removal door (journaled, undoable); every "
+             "pick asks the hold first. The whole page runs in node, real doors."),
+    Gate("test_a_refused_map_write_never_drops_a_filing",
+         [sys.executable, os.path.join(HERE, "test_a_refused_map_write_never_drops_a_filing.py")], 300,
+         needs_app=False,
+         why="REG-2570 (focused second eye on the r3a fix round) - a refused or throwing mule-map write left the filing "
+             "deleted in the live map, a refused restore answered ok, and another tab's roster dropping a filed mule was "
+             "adopted. Whole page in node, real doors."),
+    Gate("test_a_refused_socket_filing_is_never_said_registered",
+         [sys.executable, os.path.join(HERE, "test_a_refused_socket_filing_is_never_said_registered.py")], 300,
+         needs_app=False,
+         why="REG-2571 - set sockets / keep as base said \"registered\" and ok over a refused filing. Whole page in node."),
+    Gate("test_no_gate_calls_the_claude_cli",
+         [sys.executable, os.path.join(HERE, "test_no_gate_calls_the_claude_cli.py")], 300,
+         needs_app=False,
+         why="REG-2569 (Elad 2026-10-22, his plan at 98%) - test_screen_parity's console import ran `claude auth status`. "
+             "Every gate now runs with D2R_NO_CLAUDE=1 (claude_signin answers UNKNOWN without spawning) and a refusing, "
+             "logging `claude` first on PATH; the screen-parity gate run in law_env calls no claude."),
     Gate("test_a_leaked_git_dir_never_writes_the_real_repo",
          [sys.executable, os.path.join(HERE, "test_a_leaked_git_dir_never_writes_the_real_repo.py")], 300,
          needs_app=False,

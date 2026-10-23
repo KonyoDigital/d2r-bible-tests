@@ -64,6 +64,12 @@ SAY_START = "  var MP_SRC_SAY = { manual: 'placed by hand'"
 WHOLESALE_OK = {
     "var assign = load(AK, {});": "the boot read of the store itself — the map as it was saved, not a filing",
 }
+# REG-2570 - a named put-back, not a filing: vaultUnassign deleted the name, the save was REFUSED, and the witness row was
+# never demoted (a Shift+✕ release may have been written, a demote never), so the live map gets back the filing its row describes.
+ROLLBACK_OK = {
+    "    if (!_okU){\n      if (_prevU !== undefined) assign[name] = _prevU;":
+        "vaultUnassign's put-back after a refused save - the row was never demoted, so the filing it witnesses returns",
+}
 
 
 def _src():
@@ -284,6 +290,9 @@ class ThereIsOneDoorIntoTheMap(unittest.TestCase):
         s = _src()
         d = _door(s)
         rest = s.replace(d, "\n" * d.count("\n"))
+        for k in ROLLBACK_OK:
+            self.assertEqual(1, rest.count(k), "a named put-back no longer exists - prune ROLLBACK_OK: %r" % k)
+            rest = rest.replace(k, k.replace("assign[name] = _prevU", "_prevU"))
         code = _code_only(rest)
         hits = []
         for m in re.finditer(r"\bassign\s*\[[^\]\n]+\]\s*=(?!=)", code):

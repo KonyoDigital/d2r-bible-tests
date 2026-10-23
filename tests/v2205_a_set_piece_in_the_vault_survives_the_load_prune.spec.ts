@@ -115,7 +115,7 @@ test('a seeded unique survives when it is filed to a mule, which the vault alway
     }
   });
 
-test('the fixture is not vacuous — the prune really does still delete a bogus name',
+test('the fixture is not vacuous — the prune still tells a bogus name from a set piece (REG-2400 keeps and names it)',
   async ({ page }) => {
     // ⚠ Without this, the test above passes on a build where the prune was simply disabled, and a
     // prune that keeps EVERYTHING is a different defect wearing this fix's name.
@@ -130,12 +130,16 @@ test('the fixture is not vacuous — the prune really does still delete a bogus 
     await ready(page);
     await page.waitForTimeout(1200);
 
-    const own = await page.evaluate(() =>
-      JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]') as string[]);
-    expect(own, 'the real item was dropped').toContain(SET_PIECES[1]);
-    expect(own, 'a name no catalogue and no resolver recognises SURVIVED the prune — the prune is '
-      + 'no longer pruning, so the test above proves nothing')
-      .not.toContain('Zzzz Not A Real Item At All');
+    const r = await page.evaluate(() => ({
+      own: JSON.parse((window as any).LSR.getItem('d2r_owned') || '[]') as string[],
+      kept: (((window as any)._ownedLoadReceipt || {}).kept || []) as string[] }));
+    expect(r.own, 'the real item was dropped').toContain(SET_PIECES[1]);
+    /* REG-2400 (V1) - a catalogue's silence is not his removal: the load doctor puts back what the filter would drop
+       and NAMES it. So the filter still answers - the bogus name is the one it would have dropped, the set piece is not. */
+    expect(r.kept, 'the load filter no longer tells a name no catalogue and no resolver recognises from a real one, '
+      + 'so the test above proves nothing').toContain('Zzzz Not A Real Item At All');
+    expect(r.kept, 'the set piece was one the load filter would have dropped').not.toContain(SET_PIECES[1]);
+    expect(r.own, 'the load dropped a name he owns (REG-2400)').toContain('Zzzz Not A Real Item At All');
   });
 
 test('findSetPiece is what decides it, not another hand-written list', async ({ page }) => {

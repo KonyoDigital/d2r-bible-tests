@@ -729,7 +729,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "M-3: 'Delete unsorted' takes the names out beside the removal journal again",
      "file": "bible.html",
-     "find": "    try { window.vaultRemove(unsorted, { lane: 'clear-unsorted', quiet: true, why: 'Delete unsorted — the dock button' }); } catch(e){}\n",
+     "find": "    try { _vrCU = window.vaultRemove(unsorted, { lane: 'clear-unsorted', quiet: true, why: 'Delete unsorted — the dock button' }); } catch(e){}\n",
      "replace": "    unsorted.forEach(function(name){ try{ owned.delete(name); }catch(e){} delete assign[name]; });\n    try { _provDrop(unsorted); } catch(e){}\n",
      "matches": 1},
     {"why": "M-3: the menu-page import takes the names out beside the removal journal again",

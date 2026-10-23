@@ -178,6 +178,704 @@ HEART2_CACHE_PATH file of its own, writes a manifest (k, n, HEAD, dirty, plan di
 Gates are summed in name order, so the names' order cannot move a chunk boundary (second eye). Refused (exit 2)
 without --push, without HEART2_CACHE_PATH, with the cache off, or into an existing file. Law
 test_a_proof_shard_covers_every_proof_once, RED_PROOF "REG-2585".
+### REG-2571 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
+
+vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with
+"registered" / "kept" and {ok:true}. A refusal is now said as "not filed" with its reason and answered
+{ok:false, refused, why}; the label stays on the owned list, unfiled. Law:
+tv/test_a_refused_socket_filing_is_never_said_registered.py (2 red-proofs).
+CI round (ci/gbl-v1, 2026-10-23): the REG-2521 law still asked for the old "registered ... · not filed to a mule"
+sentence. It now asks for the "not filed:" refusal and that neither "registered" nor "kept UNSOCKETED" is said; its
+red-proof [3] tampers the new sentence. The witness census names vaultUnassign's REG-2570 put-back (ROLLBACK_OK), the
+prune law's harness gives the shipped prune a `window`, and the sandbox law expects REG-2569's no_claude_bin before the
+caller's PATH. A stray second REG-2392 heading from the V1 merge is gone.
+
+### REG-2570 - A MULE-MAP WRITE THAT DID NOT STICK DROPPED A FILING; ANOTHER TAB'S ROSTER SKIPPED THE MAP RULE - focused second eye on ede52513c
+
+The r3a fix round (ede52513c) was never reviewed; a focused Grok CLI review (2026-10-23) failed it with three majors:
+vaultUnassign deleted the filing from the live map before a write that could be refused or throw (quota), so the next good
+save dropped it; the restore door ignored saveA() and answered ok, so vaultFixSockets let the old label go after a refile
+that never landed (and with no refile at all for a filed label it had no home for); and the roster tab sync adopted another
+tab's roster that drops a mule the map files to - bytes the load path holds - so the paint prune dropped those filings.
+Fixed: the live map files it again on a refused or thrown write; a refused restore is undone and answered not-written;
+vaultFixSockets treats "filed, but no refile" as a refusal; the paint's mule-rule prune waits while another tab's roster
+is ahead of its map (holding that roster, as the review proposed, would quarantine every legit delete from another tab -
+its delete writes the roster first). Law:
+tv/test_a_refused_map_write_never_drops_a_filing.py (3 red-proofs). Open minors from that review: vaultSetSockets /
+vaultKeepAsBase still say "registered" over a refused filing; the in-flight reading window (15 min) is shorter than a 40-file
+read, and a duplicated tab inherits the scan session id.
+
+Round 2 (Grok CLI review of REG-2570, 2026-10-23, FAIL, 3 majors 2 minors): the map hook forced the wait off for ANY map
+(now: it stays while the map still files the missing mule, and lifts at the prune once roster and map agree - never stuck);
+the vaultFixSockets refusal and the witness rollback had no case (now pinned, 6 red-proofs); the rollback snapshot was the
+live row object (now a copy, and no undo when it could not be read); the restore throw path is now driven. Finding 1 (a
+refused restore drops an existing filing) does not apply: the restore door returns 'already' for any filed name first.
+
+### REG-2569 - A GATE CALLED THE CLAUDE CLI (test_screen_parity, `claude auth status`) - Elad 2026-10-22: never
+
+A run_gates --changed logged "test_screen_parity not stored - the gate started claude". Traced with a logging fake `claude`
+first on PATH: the gate's console import (control_app._claude_auth_state -> claude_signin.status) ran `claude auth status
+--json`. His ruling: no gate ever calls the Claude CLI (his plan sits at ~98%); a gate that needs a model uses Grok CLI or a stub.
+FIX: law_env (every gate's environment) sets D2R_NO_CLAUDE=1, which claude_signin.status answers as UNKNOWN without spawning,
+and puts tv/no_claude_bin first on PATH: a `claude` that logs to $D2R_NO_CLAUDE_LOG, says so and exits 1.
+LAW: tv/test_no_gate_calls_the_claude_cli.py (3 cases, 2 red-proofs).
+
+### REG-2566 - A FRESH PLANNER PICK'S UNDO DROPPED THE ITEM OUTRIGHT, WITH A COPY ANOTHER DOOR HAD COUNTED (V1 round-3 review 2 of track B, major)
+
+The review (merged A+B+C tree, the whole page in node): a fresh pick files Monarch (4os) to SOCKETED; this tab's own reader
+then counts a re-read one (_autoRegisterLowBase, copy 2); a clear or a re-roll of the held pick ran _vpDrop, which deleted the
+name outright (owned.delete, vaultUnassign, no journal row). Both Monarchs left d2r_owned and SOCKETED and the d2r_copies key
+was orphaned. Pre-existing (identical on 0ea211717); REG-2534 had fixed only the COPY-pick undo.
+FIX: _vpDrop applies REG-2534's rule. When the live count is above 1, one copy comes off, the name stays owned and filed, and
+the clear / re-roll answer says so ("the copy of X this pick added is taken back; N counted now, still filed"). Only the
+pick's own single copy is removed, and through window.vaultRemove (lane planner-take-back, exact) so it is dated, journaled
+and undoable; a refused removal leaves everything as it was and says why.
+LAW: tv/test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py (5 cases, 3 red-proofs).
+
+### REG-2567 - A HELD VAULT ANSWERED "COPY 2 FILED TO BASES" FOR A PERFECT-BASE PICK THAT SAVED NOTHING (V1 round-3 review 2, major)
+
+With d2r_copies cut short (quarantined, the vault held), a perfect-base pick of an already filed label skipped vaultHandAdd
+(the door that refuses while held) and never reached vaultFile: the copy bump answered ok/filed/mode copy and the plate lit
+"Saved into the vault" while the store door refused the write; the 2 came from the empty default of a store that would not
+parse. New with REG-2532/2533.
+FIX: vaultPlannerFile asks window._vaultHeld() for every pick that is not a clear, before any road, and refuses in the hold's
+words ({ok:false, refused:'held'}, "... nothing was added"), writing nothing. LAW: the same file, test_4.
+
+### REG-2568 - THE PERFECT-BASE LAW'S "NO SOCKETED MULE" CASE WENT RED ON THE MERGED V1 TREE (V1 round-3 review 2, major)
+
+test_a_perfect_base_files_from_the_planner test_5 seeded a roster without SOCKETED; after track A's fix round a missing core
+locker comes back, so the premise failed and the gate failed the merged push. The case now pins the merged rule: SOCKETED comes
+back and the perfect base files there. The "no mule on this board has id bases" refusal is unreachable from a seeded roster,
+so its red-proof (the white-base sentence put back for a refused perfect base) is retired; a refused pick's words are pinned by
+REG-2567's law instead.
+
+### REG-2520 - THE SCAN LEDGER, THE REMOVAL JOURNAL AND THE RECENTLY-REGISTERED LOG READ BYTES CUT SHORT AS EMPTY AND WROTE OVER THEM (V1 round 3, #162 + #152)
+
+Round 2's reviews found REG-2410's defect alive in the stores the vault reads on demand, each through its own
+`JSON.parse(raw || '[]')` with `catch -> []`. d2r_intakeSeen cut short read as {}: every screenshot he ever read became 'fresh', the
+12 s poll handed old ones back to the AI 12 at a time, and the next mark wrote bare marks over every record (what each file read,
+lost). d2r_vaultRemoved read as [] and the next removal - every un-tick and Magic & Rare ✕ since REG-2404/2405 - wrote [its one
+batch] over his undo history; d2r_intakeLog the same with this session. The boot prune read a mule map cut short through
+_safeJsonParse, so it was not even quarantined. MEASURED on the merged V1 tree (0ea211717) with the reviewers' scripts: one quiet
+poll over a ledger cut short read [old_1, old_2, old_3, new_1] and stored {"old_1.jpg":1,...}; a removal over a journal cut short
+left only its own batch, nothing quarantined or kept aside.
+FIX: ONE READER, window.LSR.read(k, shape, absent) (⟦ONE STORE READER⟧): nothing saved is the caller's empty container; bytes of the
+right shape are the value; bytes that will not parse or of the wrong shape are UNKNOWN (null) and the key is quarantined at the door
+(kept aside, every write refused, said). _storeRead, the vault module's roster / mule map load, seenLedger, _vrRead, _rmRead, journal()
+and the boot prune's mule-map read all ask it; the vault module reads the on-demand stores once as it loads, so a bad one is held
+before any door is asked; d2r_intakeSeen / d2r_intakeLog / d2r_vaultRemoved / d2r_vaultRemovedAt are VAULT_STORES and named in
+_STORE_SAY. Every writer refuses in words while UNKNOWN (the scans, the end-of-batch mark, journalAdd, vaultRemove, Clear scan
+history, the Recently-registered list). The round-2 readers (_provAll, _mulePosAll, _mpEqAll, the records store) already keep this
+rule with their own code and are unchanged. His every ledger snapshot reads clean under it (shapes only, read-only).
+GUARD: tv/test_every_vault_store_reads_unknown_never_empty.py (4 cases over each store cut short, wrong-shaped, absent and good, and
+the boot prune; 11 RED proofs, heart2 11/11 PROVEN).
+
+### REG-2521 - WHILE THE VAULT WAS HELD, FOUR DOORS ANSWERED OK OVER A REFUSED WRITE - AND "VAULT ONLY" DELETED HIS INBOX ROW (review of REG-2411, rv2)
+
+Only + Add an item and frame reads refused while a store the vault stands on was quarantined. vaultFile asked only about the witness
+store: with d2r_copies, the roster or owned quarantined, a move answered {ok, mode:'moved'} and a reader filing {ok, mode:'filed'} -
+the witness row written, saveA() refused, the row saying uni-armor while the saved map said uni-weap. Auto-Sort put "⚖️ filed 1
+witnessed item" on the status line over an unchanged map. tvVaultRegister skipped the gate for a hand witness, so the Chronicle inbox's
+"Vault only" (kaiVaultFileOnly) was answered {ok, vault:'filed'} and deleted his inbox row while nothing was saved. And the un-tick,
+Delete unsorted and the TV unvault fell back to owned.delete whenever vaultRemove "took nothing" - a refusal looked exactly like that.
+MEASURED on the merged tree (rv2 / rv2b / rv2c): all of the above reproduced; the control run with readable stores filed and saved.
+FIX: the hold is asked at the one door. vaultFile refuses on _vaultBasisHeld() (Magic & Rare joins VAULT_BASIS) and a refused saveA()
+is never answered ok; vaultAutoAssign / Auto-Sort refuse before sorting; tvVaultRegister refuses every witness, his hand included,
+while any vault store is held (kaiVaultFileOnly keeps the row and says which store); the removal door and its undo wait while a store
+they write is UNKNOWN or held (window._vaultRemovalHeld) and say so even for a quiet caller; toggleOwned (both branches), Delete
+unsorted, the TV unvault, the card's un-own, the menu import and the seed cleanse never walk around a refusal and never bury its words;
+the one-time provenance backfill waits instead of stamping itself done over refusals.
+GUARD: tv/test_the_vault_hold_refuses_at_the_one_door.py (6 cases: every door per held basis store, the removal door and undo, the
+callers' words, toggleOwned, the backfill; 11 RED proofs, heart2 11/11 PROVEN).
+
+FIX ROUND (review of REG-2521: 1 major + 3 minors, each re-run on the track head b0b64ba73 first). MAJOR - the socket fix
+(vaultFixSockets) dropped the old label's filing and its witness row FIRST, then asked vaultFile - which refuses at its top while
+the vault is held - to put them back. MEASURED (p3, d2r_magicFinds or d2r_copies cut short): d2r_vaultProv went {} (his 2-look
+stash row gone for good), d2r_owned ["Grief","Monarch (4os)"], the map in memory {Grief:uni-weap}, status "🔩 Monarch → 4 sockets
+— fixed"; the merge base carried the row. MINORS - vaultSetSockets / vaultKeepAsBase said "registered" / "kept" over a refused
+filing, the cell ✕ (vaultUnassign) demoted the row and answered {ok:true} over a refused saveA, the mule window said only a
+'hardened' / 'prov-unreadable' refusal; the one-time set-piece reconcile stamped itself done over a refused removal (p4:
+stamped:true, removed:[], next load 'already'); and five REG-2520/2521 behaviours had no law (sabotage S1-S5: 16 laws green).
+FIX: the socket doors ask _vaultBasisHeld() first and wait, in words; the socket fix refiles the new label before the old one
+lets go, and a refile the door refuses for any reason puts back what the click added (old label, filing and row untouched,
+"did not land"); the throw-out doors say a refused filing; the ✕ asks the hold, writes the map before it demotes the row and
+answers 'not-written' over a refused map; the mule window says 'held' / 'not-written'; a refused vaultFile move puts the row
+back too; the reconcile and the seed cleanse neither stamp over a refused removal nor run while the vault is held.
+MEASURED after (p3): held by either store, the row stays under 'Monarch (Larzuk base)', owned and the map unchanged, status
+"⚠ the socket fix waits - the vault is held - d2r_magicFinds will not parse"; p4: ran:false, no stamp, it asks again.
+GUARD: tv/test_the_socket_doors_wait_for_a_held_vault.py (6 cases, every basis store held; 7 RED proofs) and
+tv/test_a_refused_removal_is_never_walked_around_or_stamped.py (7 cases: S1-S5, the reconcile, the held one-time runs; 11 RED
+proofs).
+
+### REG-2522 - A MULE ROSTER SAVED AS "[]" WAS READ AS A ROSTER, AND THE PRUNE DROPPED EVERY FILING ON THE EIGHT LOCKERS IT LACKED (review of REG-2411, rv6)
+
+REG-2411's shape check asked only that every element is a mule, and every element of "[]" is - "[]" is exactly what REG-2414's merge
+bug stored. The migrations then saved a three-locker roster over it (runewords, magic-rare, shared), the eight other core lockers
+(undeletable since REG-2195) never came back, and the W6 prune dropped every filing on them; saveA wrote the pruned map. A roster
+missing one core locker did the same to that locker. MEASURED on the merged tree (rv6): map {Grief:uni-weap, Shako:uni-armor,
+Enigma:runewords} + roster "[]" -> quarantined [], held null, prune -> {Enigma:runewords}, saveA() true.
+FIX: _muleShapeWhy - one shape rule asked by the reader at load, by the tab sync for another tab's write, and by the harness path: a
+roster must be a list of mules holding every DEFAULT_ROSTER locker; one that lacks any is quarantined (bytes kept aside), the vault is
+held, the prune drops nothing, and the notice names the missing lockers. Every one of his ledger snapshots that holds a roster holds
+all 11 core lockers, so nothing of his is held by it.
+GUARD: tv/test_a_roster_without_its_core_lockers_is_unknown.py (4 cases incl. his real shape with his own mule and another tab's
+"[]"; 3 RED proofs, heart2 3/3 PROVEN); browser half (CI): tests/reg2522_reg2523_a_bad_store_never_costs_his_good_copy.spec.ts.
+
+FIX ROUND (review of REG-2522, major) - "every roster this board saves holds them, so these bytes did not come from it" was
+FALSE: until REG-2195 (b32f373f2, 2026-10-14) every locker but SHARED STASH had a 🗑 and vaultDeleteMule saved the roster without
+it. MEASURED on the track head (p1 / p1b): the ten core lockers without 'wip' + his WAR-1 -> quarantined, _vaultHeld()
+{keys:[d2r_muleRoster]}, the page drew the 11 defaults (WAR-1 gone), and Start it fresh wrote WAR-1 as 'M1K9ZQ2X' and dropped
+PVP-2 (an added mule with no filing). His 29 ledger snapshots that hold a roster (read-only): all 11 core lockers, no added
+mule, and no map names a mule its roster lacks.
+FIX: a roster is held only when this board could not have written it - not a list of mules, EMPTY ("[]"), or (_rosterMapWhy,
+asked once both stores read) its map still files items to a mule it lacks: the delete door has taken a mule's filings with it
+since v203, and the prune would drop them. A missing core locker the map files nothing to comes back at its default place,
+the v404 / v342.5 / v360 way, his mules kept, the roster saved. Another tab's write is still held to every core locker
+(_rosterCoreWhy); an added mule another tab deletes is a write it makes. While held the page shows the roster rebuilt over its
+own bytes; Start it fresh rebuilds over the bytes kept aside (every mule verbatim, every core locker, a stand-in for each mule
+the map names); nothing saved + a map filing to an added mule keeps a stand-in. The "did not come from it" sentence is gone.
+MEASURED after (p1 / p1b): not quarantined, not held, WIP back after GRAIL-DUPES, WAR-1 and PVP-2 verbatim in the saved roster.
+GUARD: tv/test_a_roster_this_board_wrote_is_read_and_keeps_his_mules.py (5 cases; 4 RED proofs);
+tv/test_a_roster_without_its_core_lockers_is_unknown.py re-pointed ("[]" and a map-named missing locker stay held; 5 RED
+proofs); the CI spec's "[]" reason re-pointed.
+
+### REG-2523 - ANOTHER TAB'S BAD WRITE LEFT THIS TAB'S GOOD COPY WITH NO WAY OUT (review of REG-2413, r4 - reproduced twice)
+
+_tabSyncMerge quarantined the key, but the copy kept aside was the other tab's bad bytes; both exits on the notice dropped this tab's
+good copy (Start it fresh empties the store, a restore loses everything since the backup), and the notice said "the page runs on a
+default in its place" - false, this tab runs on his copy. A storage another tab cleared offered only "Reload this tab", which drops the
+only copy. MEASURED on the merged tree (rv4): owned [Grief, Enigma, Shako], another tab writes '["Grief","Eni' -> afterwards no key in
+storage held the good list.
+FIX: the hold carries lastGood (another tab's bad write over a store this tab read fine) or cleared; the notice says "This tab still
+holds your last good copy" and offers Keep this tab's copy (window._storeKeepThisTab): he is asked; anything in the key that is not
+kept aside yet (a second bad write, bytes written after a clear) goes aside first through the door's own content-addressed slot; only
+then is his copy written, read back and the hold lifted. Start it fresh's question says the good copy is lost that way.
+GUARD: tv/test_this_tabs_last_good_copy_can_be_kept.py (5 cases; 5 RED proofs, heart2 5/5 PROVEN); browser half (CI):
+tests/reg2522_reg2523_a_bad_store_never_costs_his_good_copy.spec.ts (a real storage event between two pages).
+
+FIX ROUND (review of REG-2523, minor) - after another tab cleared the storage the headline still said "reload before you change
+anything here" and every cleared row carried an unasked "Reload this tab" - the one click that drops the only copy of every store
+(p6). FIX: the headline says this tab holds the only copy of N stores and to keep them before reloading; no row offers the
+whole-page reload while any row holds the only copy; "Keep all of this tab's copies (N)" asks once and keeps each store the one
+store's way; a store this tab never loaded is not offered as its "last good copy".
+GUARD: tv/test_a_cleared_storage_keeps_this_tabs_only_copy.py (4 cases; 6 RED proofs).
+
+### REG-2524 - A FOLDER SCAN MARKED SCREENSHOTS READ AND THE AUTO INTAKE GATE THEN REFUSED TO READ THEM: "SEEN" FOR EVER (review of REG-2403, r1)
+
+_seenRegister ran BEFORE window.vaultIntake, whose first statement is the v3767 AUTO INTAKE gate, and AUTO INTAKE is off by default.
+His manual Scan, the 12 s poll, the menu with no report element and the ✨ New / 🕐 Latest picks marked new screenshots with a bare 1
+and the read was refused - "📂 2 new screenshots — reading…" over a silent refusal - and a bare 1 reads 'seen' for ever: after he
+turned AUTO INTAKE on the folder said "0 new". A page closed mid-read left the same marks (v584.1's restart trap). A file whose items'
+status could not be read ('unknown') was skipped with no word (the review's S8 sabotage left every V1a law green). MEASURED on the
+merged tree (r1, the real gate and scan): read=[], ledger {new_1.jpg:1,new_2.jpg:1}; after AUTO INTAKE on, read=[], every verdict 'seen'.
+FIX (⟦SCAN MARKS⟧): the gate is asked before anything is marked, by every scan and every pick; refused, nothing is marked or read and
+the scan says how many wait and why. A file handed to a read is marked 'reading' - the read's own end-of-batch mark replaces it; a read
+that never closed leaves it offered by a manual Scan as "⏯ Finish N", never read by the poll. An unreadable ledger reads and marks
+nothing, said. 'unknown' files are counted and said on the poll's line and in the menu.
+GUARD: tv/test_a_scan_asks_the_gate_before_it_marks.py (8 cases incl. the pre-record files of REG-2529 and an unreadable switch
+said as UNKNOWN, never 'off'; 8 RED proofs, heart2 8/8 PROVEN);
+tv/test_a_scan_reads_what_it_marks.py re-pointed (the hand-off mark is now 'reading').
+
+FIX ROUND (review of REG-2524, minor b) - the 'reading' mark was judged by this tab's _vIntakeBusy alone, so tab B's poll called tab
+A's read in flight "a read that never finished" and B's ⏯ Finish re-read and re-billed A's files. FIX: the mark carries when and
+which tab handed the file over ('reading@<ms>@<tab>', the tab id kept in sessionStorage across reloads of the same tab):
+another tab's mark younger than 15 minutes is in flight - counted and said ("being read in another tab right now"), never
+offered; an older one never finished; this tab's own is in flight while this tab reads; ⏯ Finish re-stamps what it reads.
+GUARD: tv/test_a_read_in_another_tab_is_not_offered_again.py (3 cases; 5 RED proofs);
+tv/test_a_scan_asks_the_gate_before_it_marks.py re-pointed (the stamped mark).
+
+### REG-2525 - THE GRAIL UNIQUE RAVEN CLAW WAS READ AS A ROLLED RARE ON THE CONSOLE AND JOURNALED AS TOSS (review of REG-2402)
+
+REG-2402 gave RARE_NAME_POOLS the game's Gloves row ('Claw' among it) and 'Raven' is a rare prefix; the console harvests that literal
+(control_app._kai_fullnames) into its rare-combo set, which the /kai_verdict grail gate never promotes - so a toss / border on Raven
+Claw went into the append-only journal as toss while the page kept it (v948.19's split-brain). Rune Master and Death Cleaver (listed
+in CRAFT_NAME_EXAMPLES) were already there. MEASURED on the merged tree with its own control_app.py: 'raven claw' in the rare set,
+gate('Raven Claw','toss') -> 'toss'; grail-seed names in the rare set: death cleaver, raven claw, rune master.
+FIX - THE RULE, NOT THE NAME: the console's harvest subtracts every name the page's unique/set roster carries (ITEM_VALUE + _UNI_EXTRA
+and ITEM_CODEX's uniques and set pieces) from the combo space - a minimal console edit, in _kai_fullnames only; the page asks the same
+catalogues before it calls a name rolled (_rolledQuality -> _rareRealName). Raven Claw and Rune Master now lift to 'grail'; Death
+Cleaver moves from 'toss' to 'keep' through the console's runeword-glue reading (Death + Cleaver), the pre-existing class 38 other real
+uniques already sit in - never destructive, LEFT below.
+GUARD: tv/test_a_real_unique_is_never_a_rare_combo.py (console + page; 3 RED proofs, heart2 3/3 PROVEN).
+LEFT: 39 real uniques / set pieces whose words begin or end with a runeword name (Spirit Ward, Highlord's Wrath, Death Cleaver ...)
+read 'keep' at the console's grail gate, not 'grail' (control_app._kai_runeword_bare) - measured, not this track.
+
+### REG-2526 - A REFUSED WRITE WAS NEVER SAID WHILE HE WORKED, AND A STORE WITH NO WAY OUT WAS TOLD IT HAD ONE (review of REG-2410, r5 + storage full)
+
+The door counted every refused write only into its registry and the console; the notice was painted once, when the store was
+quarantined, so an edited rune / gem / material count looked accepted all session and was gone on the reload. MEASURED on the merged
+tree (rv5): d2r_runeStash cut short, persist() x3 -> refused=3, the notice identical. And when the bytes could not be copied aside (a
+full storage), Start it fresh and a restore rightly refuse the key, yet the footer still said a restore "puts a good copy back".
+FIX: the first refusal repaints the notice at once, the rest within 250 ms; a store whose bytes could not be kept aside says there is
+no way out in the page and what to do, offers "Download its bytes", and the restore footer shows only for stores kept aside.
+GUARD: tv/test_a_refused_write_is_said_as_it_happens.py (3 cases; 4 RED proofs, heart2 4/4 PROVEN).
+
+### REG-2527 - THE OWNED-LOAD DOCTOR "SET ASIDE" AN ENTRY THAT IS NOT A NAME BY DELETING IT (review of REG-2400)
+
+persist() wrote d2r_owned without the non-name entries and nothing kept them anywhere, while the Vault said they "were set aside".
+FIX: they are copied aside before persist() (content-addressed beside the store's quarantine slots, read back) and the Vault says
+where; when the copy cannot be made they stay in the saved list - the door quarantines d2r_owned - while memory runs on the names.
+GUARD: tv/test_entries_that_are_not_names_are_kept_aside.py (2 cases incl. a full storage; 3 RED proofs, heart2 3/3 PROVEN).
+
+### REG-2528 - RESET UNIQUES LEFT NO REMOVAL ON RECORD, AND EVERY FILE'S VERDICT RE-READ HIS WHOLE REMOVAL HISTORY (review of REG-2405 r3 + REG-2401 r6)
+
+RESET UNIQUES wrote d2r_owned whole with no journal row or note, so a screenshot that read one of those uniques read 'gone' and was
+offered again (folder) or read without asking (a drop, the TV) - the unique came back over his confirmed reset. MEASURED on the merged
+tree (r3): journal null, note null, verdict 'gone', the drop read crest.jpg. And each held name that had left owned asked
+_removedAfter once per file, each ask parsing both removal stores: 288 ms at 300/300, 1.7 s at 1000/1000, 5.4 s at 2000/2000 on the
+merged tree, on the 12 s poll.
+FIX: the reset notes each name it takes out (window._vaultRemovalNote, lane 'unique-reset') -> 'removed'; a scan builds one index of
+his removals (window._removedAfterIndex) on its first ask and every file reads it (8 / 18 / 27 ms, the same verdicts).
+GUARD: tv/test_his_reset_is_on_record_and_read_once_a_scan.py (2 cases; it COUNTS store reads; 3 RED proofs, heart2 3/3 PROVEN).
+
+### REG-2529 - A RE-READ ADDED THE MISREAD LABEL BACK OVER HIS SOCKET FIX, AND THE CARD PROMISED A RE-READ FOR FILES IT NEVER RE-READS (review of REG-2405 r4 + REG-2401)
+
+REG-2405's rename guard fired only while the renamed item was still owned; when the renamed item itself was the silent loss, the
+'♻ Read again' of the same file added the misread label back and the record dropped `as`. MEASURED on the merged tree (r4): owned
+['Monarch (Larzuk base)'], no `as`. And a bare 1 (every mark written before records existed) reads 'seen' for ever, yet the "Nothing
+new" card said every file is read again once its item leaves.
+FIX: the re-read brings back HIS label and the record keeps `as`; the card and the folder Scan menu count the pre-record files and say
+they are never read again on their own.
+GUARD: tv/test_a_renamed_item_comes_back_as_his_fix.py (2 cases; 3 RED proofs, heart2 3/3 PROVEN) and the scan-menu case in
+tv/test_a_scan_asks_the_gate_before_it_marks.py.
+LEFT: offering the pre-record files as their own "read again" choice, or seeding their records from the Recently-registered log's
+per-shot breakdown (last 20 sessions) - a fresh read never asks his removals, so a re-read of such a file could bring back an item he
+removed; not built.
+
+FIX ROUND (review of REG-2529, minor a) - a bare 1 is also what Skip and 🕐 Latest N write today for a file they leave unread, so
+"read before this board kept a record" was false for those: the Nothing-new card and the Scan menu now say "registered without
+a record of what it read". GUARD: tv/test_a_renamed_item_comes_back_as_his_fix.py and the scan-menu case in
+tv/test_a_scan_asks_the_gate_before_it_marks.py, re-pointed.
+### REG-2530 - A SECOND, DIFFERENT PLANNER PICK TOOK BACK THE COPY THE FIRST PICK HAD JUST FILED (#183, vault batch V1 round 3)
+
+GrokBot's V0 triage (2026-10-22, Routine I run 39726369389 on v3784, 2/2 headless, and the same assertion in that run's CI log):
+v3740:63 and v3742r:72 - Grief already filed, a planner pick of it files copy 2 ("Grief - copy 2 filed to uni-weap"), then a
+pick of a DIFFERENT item in the same open (same token, a different builder id) and d2r_copies has no Grief: expected 2, actual
+undefined. REG-2227 (v3740) had put `_vpMade.id === entry.id` on vaultPlannerFile's name-change undo; REG-2267 (v3753) dropped it
+to undo a "swap", trusting REG-2240's name check - which compares the FIRST pick's own name, so it could not hold. MEASURED on
+the merged V1 tree (0ea211717), the whole page in node with the specs' own seed and stubs: after the second pick d2r_copies held
+no Grief, on disk and in the live count. The planner had two rules for one gesture: a fresh first pick survives a different
+second pick (_vpDrop has always required the same id; test_a_hand_added_item_stays_his asserts it for Gamma/Delta) while a copy
+pick was taken back by it. The sentence he had read stayed on screen and the copy was gone without a word.
+FIX: the id check is back on the name-change undo - only a RE-ROLL of the same pick (same id, a new composed name) or a clear of
+the held pick takes back what that pick made; a different item in one open is a second add. A copy he did mean to swap away is
+walked down with the HAVE stepper, in his hands - never dropped for him. Measured in the same runs: an undo changed only the live
+count, so after a clear d2r_copies still said copy 2 and the next load put the cleared copy back - and so did a re-roll whose new
+pick stops before the pick's own write (a perfect base turned back into a plain white stops at the white-base sentence).
+_vpCopyUndo now writes d2r_copies itself, whichever door asked, and tells an open planner to draw on close. REG-2267's own guard,
+test_a_hand_added_item_stays_his `griefAfterSwap`, asserted the opposite of v3740/v3742r on the same gesture; it now asserts 2,
+and `griefEnd` 3 (the later open files the next copy beside the first two); its red-proofs re-proven 20/20 PROVEN.
+GUARD: tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py (7 cases: v3740:63 with its own stubs, v3742r:72, a clear of
+the second pick, a re-roll and a clear of the copy pick itself - on disk, a re-roll that stops early, same-open and later-open
+counting; 2 RED proofs, heart2 2/2 PROVEN). Browser half (CI, unchanged - their assertions read against the fixed code):
+tests/v3740_planner_copy_survives_second_pick.spec.ts, tests/v3742_planner_copy_survives_second_item_reroll.spec.ts.
+
+### REG-2531 - "THE RECONCILE FOLD LOSES A COPY" WAS THE SPEC'S FIRST SEED: ITS SECOND SEED NEVER LANDED (#184, vault batch V1 round 3)
+
+GrokBot filed v3753:95 as REAL data loss: after the reconcile folds a dead bare copies key the slotted keeper read 3, not
+MAX(1,4) = 4. MEASURED on the whole page in node: the fold is right - {"Natalya's Totem": 4} beside an owned "Natalya's Totem
+(helm)" folds to 4, and so does every other shape (a dead key above, below and beside an absent keeper; an owned pair). The 3 is
+the spec's own first seed. Its second seedLoad registers a second init script on the same page and both run on the next load;
+navigator.webdriver is by then the page's own non-configurable property, so the second Object.defineProperty threw ("Cannot
+redefine property: webdriver"), the one catch swallowed it, and every storage write after it was skipped. The "MAX(1,4)" load
+ran on {helm: 3, bare: 2} and answered MAX(3,2) = 3, correctly - reproduced in node by running the spec's original seed body
+twice over a Chromium-shaped navigator. The run's CI log shows a race beside it: the retry failed at :86 with no dead key at
+all, because the page's own load-time reconcile (1.5 s after load) had already swept it before the test's forced pass.
+FIX (the spec, not the product): seedLoad writes the seed in its own step and flags webdriver after it, only when the page does
+not already own the property; the sweep test seeds a done-stamp so the load-time pass does not race the forced one.
+GUARD: tv/test_a_dead_bare_copies_key_folds_by_max.py (6 cases: the four fold shapes on disk and in the live count with their
+receipts, and the spec's seed body cut from the spec and run twice over a prototype-getter navigator as Chromium's is; 3 RED
+proofs - each MAX turned into "keep the keeper's", and the spec's flag put back inside its seed - heart2 3/3 PROVEN). Browser
+half (CI): tests/v3753_set_piece_recount_and_sweep.spec.ts (parsed with Playwright's own --list: 4 tests in 1 file).
+
+### REG-2532 - A PERFECT BASE PICKED IN THE PLANNER WAS CALLED A WHITE BASE AND LEFT UNFILED IN HIS WORLD (REG-2250 shipped dead, #185, vault batch V1 round 3)
+
+GrokBot's V0 triage: v3746pb:150 x4 - a 4os Monarch, a 4os Archon Plate, a 5os War Scepter and an eth Berserker Axe all
+"stay unfiled - a white, superior or low base is not given a mule from its name"; the probe said _cbPerfectBaseMule returns
+null. It never did: the spec's own helper assertion (:141) passed before :150 failed, and MEASURED on the whole page in node it
+named "Monarch (4os)", "Archon Plate (4os)", "War Scepter (5os)" and "Eth Berserker Axe (Larzuk base)". The planner routed that
+label, and in the world a spec runs in - the owner's seeded Chronicle, 99 runewords forged, which is HIS world - suggestMule
+answers each "nothing left for it: its runewords are forged -> vendor it". _vpRoute refused on that advice and vaultPlannerFile
+threw the reason away and printed the white-base sentence about a perfect base. On a fresh install (nothing forged) the same
+pick filed to SOCKETED, which is why REG-2250 looked done. The early return also skipped the copy count, the ledger row and the
+deferred draw every other pick gets.
+FIX: his 2026-10-13 ruling (a perfect base is never vendored) outranks that one advice: _vpRoute takes _cbPerfectBaseMule's
+answer as `keeper`, and only a throw-out verdict for it becomes SOCKETED (VP_PERFECT_HOME 'bases', the drawer the router itself
+names for a socketed keeper), with the sentence saying the ruling and what the router said. The perfect base is now ONE name
+before the re-roll checks compare names and walks the common road: a later open counts copy 2, the same open does not, a re-roll
+of that pick back to a plain white takes the copy back on disk; the ledger records the filing; the open planner draws it on
+close, and every filing survives that draw. A board with no SOCKETED mule refuses in the real reason ("no mule on this board has
+id bases"), never the white-base sentence. A plain base keeps its sentence. The router's advice is unchanged everywhere else:
+the vault audit will still show a filed perfect base as should-review until suggestMule learns the rule (routing, V2/V5).
+GUARD: tv/test_a_perfect_base_files_from_the_planner.py (9 cases in his world, a board with no SOCKETED mule and a fresh
+install; 4 RED proofs - the override off, the white-base sentence put back, the label not registered as a socketed base (v324),
+the undo's write removed - heart2 4/4 PROVEN). Browser half (CI, unchanged): tests/v3746_perfect_base_auto_mules.spec.ts.
+
+### REG-2533 - A PLANNER PICK OF AN ITEM HE HAD FILED SAID IT "STAYS UNFILED", AND ITS NEXT COPY WAS LOST (the #183 sweep, vault batch V1 round 3)
+
+Found sweeping #183's class (a copy that never reaches d2r_copies). _vpRoute answered "already filed" only after its advice
+checks, so a pick of an item he had filed by hand whose router verdict had since become throw-out, keep-on-MAIN or Unsorted
+answered "<name> stays unfiled - ..." about an item sitting in his mule, and a later open counted no copy. MEASURED on the
+merged V1 tree (0ea211717), the whole page in node through the real doors: Axe of Fechmar, owned and filed by hand to
+uni-weap, is "trade value TRASH" to the router; two later planner opens each answered "Axe of Fechmar stays unfiled -
+throw-out advice - trade value TRASH ..." about the axe sitting in uni-weap, and d2r_copies never moved; with the router
+unable to answer, the same pick said "the router could not be asked, so nothing was filed".
+FIX: a filed name answers 'already' before the router is even asked, so the copy is counted ("copy 2 filed to uni-weap"), the
+filing is not moved, and a router that cannot answer at all (it throws) no longer turns a filed pick into "nothing was filed";
+the duplicate check below the advice is gone. The router's disagreement stays the vault audit's to show.
+GUARD: tv/test_a_filed_pick_counts_a_copy_whatever_the_router_says.py (4 cases through the real doors, the router taken down by a
+patch to its own function; 2 RED proofs - the early answer removed, the router asked first again - heart2 2/2 PROVEN).
+
+### REG-2534 - A HELD PLANNER PICK'S UNDO TOOK BACK A COPY ANOTHER TAB HAD COUNTED, AND WROTE THE LOSS TO DISK (the V1 round-3 review of REG-2530)
+
+The round-3 review of track B (ed832f3d9), reproduced with the whole page in node through the real doors: Grief filed, a planner
+pick counts copy 2 (disk 2); another tab of the board writes d2r_copies {Grief: 3} and this tab merges it through its own
+window._tabSyncMerge (what the 'storage' listener calls) - live and disk 3; then a clear of the held pick, or a re-roll of it,
+left Grief gone from the live count AND from disk (= 1). Expected 2. _vpCopyUndo put back the count it had SEEN AT PICK TIME, so
+a copy any other door counted while the pick was held went with the pick's own, and REG-2530's write in the undo put that over
+the other tab's write at once. The same shape in one tab (the review read it in the code; MEASURED here): the low-base
+register counts a re-read 4os Monarch while a planner pick of it is held (copy 3), and the clear left it gone (= 1). Nothing
+was said. The absolute restore predates REG-2530 (on 0ea211717 the re-roll wrote 1 at once and the clear left disk at 3 until
+the next write), in the function this track rewrote.
+FIX: the undo takes ONE copy off the live count, and only while that count is above the one the pick started from. At or below it
+(his HAVE stepper walked it down, another tab lowered it) nothing more is taken, and the status line and the pick's answer say
+so ("nothing more of Grief was taken back: 3 counted now, not above the 3 there were before this pick, so the count was already
+lowered elsewhere"); a clear says what it took ("the copy of Grief this pick counted is taken back (2 counted now)").
+GUARD: tv/test_a_held_picks_undo_takes_back_only_its_own_copy.py (7 cases, the whole page in node: another tab's +1 merged, then a
+clear and a re-roll - 2 on disk and live; his HAVE stepper's +1, then a clear - 2; this tab's low-base register re-reading the
+held 4os Monarch, then a clear - 2; the control clear - 1; a count walked down to where the pick started, then a clear and a
+re-roll - left at 3 and said; 2 RED proofs - the pick-time restore put back, the guard removed - heart2 2/2 PROVEN). Red on
+ed832f3d9's page (6 of 7). REG-2530's two laws re-proven (2/2, 4/4).
+
+### REG-2535 - A PERFECT WARLOCK TOME WAS REFUSED AS "INVENTORY FURNITURE" (the V1 round-3 review of REG-2532)
+
+The review swept all 1,506 perfect-base candidates through the planner in his world (ed832f3d9): 1,495 filed; the 11 refused were
+all the Warlock's Tome (wa2), Dark Tome (wa7) and Occult Tome (wac) - 2 max sockets, runeword bases for Rhyme, Splendor and
+Vigilance. _cbPerfectBaseMule names them and suggestMule routes them to SOCKETED, but window.vaultFile refused each as locked to
+his MAIN: the furniture law (bible.html _furnitureLocked and tv/inventory_law.is_locked) matches the WORD 'tome' - there for a
+Tome of Town Portal whose suffix the OCR lost - so _laneLocked('Tome (2os)') = 'inventory'. suggestMule's own kit check had
+already taken 'tome' out of its list for exactly this; the lock never had. #185's ruling still left 11 perfect labels unfiled.
+FIX: furniture is never socketed. A name carrying the board's own socket label - "(Nos)", "(Nos low base)", "(Larzuk base)", the
+label _ensureSocketBaseEntry registers - is a base, never furniture, in BOTH copies of the law: bible.html's
+_FURNITURE_SOCKET_LABEL and inventory_law.SOCKET_LABEL, one pattern character for character (the console doctor's MAIN-lock arm
+asks inventory_law about the board's own filings, so a filed tome is not "a MAIN item sitting in a mule" there either). A bare
+Tome, the Tome of Town Portal and of Identify, the Cube, Wirt's Leg and a Key stay furniture. MEASURED after, the same sweep: all
+1,506 picks file, and the 11 tomes are filed to SOCKETED, owned, in ownedPool, through the planner's draw on close.
+GUARD: tv/test_a_socketed_tome_files_as_a_base.py (5 cases, the whole page in node in his world: the board's predicate and MAIN
+lock on 8 socket labels and 8 kit names, inventory_law answering each the same from the same pattern, 4 perfect tome picks filed
+to SOCKETED through the close draw, and no audit 'kit-in-mule' finding for them; 2 RED proofs - the board's exemption removed,
+inventory_law's removed - heart2 2/2 PROVEN). test_main_gear_never_files_to_a_mule (7/7) and
+test_furniture_filed_in_a_mule_is_an_integrity_finding (8/8) re-proven on the changed lock.
+
+### REG-2536 - THE PLANNER'S PLATE SAID "SAVED INTO THE VAULT" OVER A PICK THE DOOR HAD REFUSED (the V1 round-3 review)
+
+The plate (_vpPlateHtml) chose its headline with /filed to|already filed/ on the pick's sentence, and the door's refusal of a
+MAIN-locked name reads "... carries it, so it is never filed to a mule". The review drove vaultPlannerOpen, ctx.write and
+vaultPlannerPaint and read #vault-planner-host: a 2os Tome and an eth 2os Occult Tome (REG-2535) were refused - writeOk false,
+nothing on disk - under "Saved into the vault" with the saved class. Any MAIN-locked pick did the same; on 0ea211717 the tome's
+plate said "Not in a locker yet" for the wrong reason.
+FIX: the headline is the pick's RESULT: ctx.write keeps what vaultPlannerFile itself counts as kept (filed - a copy too - or
+already filed), and the plate reads that, never a word in the sentence.
+GUARD: tv/test_the_planner_plate_says_what_the_pick_did.py (5 cases through the planner's own doors in node: a 3-session MAIN lock's
+refusal - its sentence says "filed to" - reads "Not in a locker yet"; a filing, an "already filed" and a later open's copy read
+saved; a plain white and a clear do not; the review's own pick, a 2os Tome, files to SOCKETED and its plate agrees with the disk;
+2 RED proofs - the regex put back, the result not kept - heart2 2/2 PROVEN). Red on ed832f3d9's page (the lock case, and the tome
+read "Saved into the vault" with nothing on disk).
+
+### REG-2537 - THE MULTI-COPY KEEPERS' WANT CONTROLS DROPPED COPIES HE HAD COUNTED (the V1 round-3 review; pre-existing)
+
+The review (on ed832f3d9, the whole page in node): Harlequin Crest at copies 3, want 3 - vaultTargetBump(-1) left copies 2 (the
+lowered target clamped the count), and vaultMultiKeepRemove then left the copies key gone (= 1). Both are d2r_copies writers on a
+control about what he WANTS, and the copies they dropped include the ones intake and the planner count. Nothing asked or said so.
+Older than this track; found because d2r_copies is its store.
+FIX: WANT never writes HAVE - a target moves or goes and the count stays, and a WANT step below two removes the target itself
+instead of going through the ✕. The one click that lowers a count is the ✕ on a row with NO target (an inflated set piece, #76
+v3753): it asks first, in words ("Reset X to one copy? 3 are counted now, and the other 2 come off the count."), and a no changes
+nothing and says so on the status line. Each ✕ title says what it does.
+GUARD: tv/test_want_never_writes_have.py (6 cases, the panel's own functions on the whole page in node, d2r_copies on disk and
+live; 4 RED proofs - the WANT clamp put back, the target ✕ deleting the count, the reset without asking, a WANT step sent
+through the ✕ again - heart2 4/4 PROVEN). Red on ed832f3d9's page (5 of 6).
+
+### REG-2400 - A RELOAD SILENTLY DELETED ~55% OF THE ITEMS FRAMES HAD READ, FOR GOOD (#162 item 1 + #144 item 6, vault batch V1)
+
+GrokBot #230 on v3783, 292 of his real frames x 3 rounds headless, and again on v3784: d2r_owned went 272 -> 113 on ONE reload (the
+60-frame repro 61 -> 30), d2r_vaultRemoved stayed null - no journal row, no undo. The load-time prune (_v42_sanitizeWishlistOwned)
+asks every catalogue whether an owned name is real and read "no catalogue knows it" as "he does not own it", then persist() wrote that
+over d2r_owned. The names lost are the keepers the router itself sends to MAGIC & RARE - rolled names (Chaotic Grand Charm of
+Pestilence, Sullied Grand Charm of Blight, Death Loop, Wraith Grasp, Havoc Finger, Jewel of Daring) that no catalogue carries by
+construction - and (#144 item 6) the runewords typed "Ancient's Pledge" / "Breath of the Dying", which RUNEWORDS spells "Ancients'
+Pledge" / "Breath of the Dying (BotD)". v2082, v2128, v2208, v2234 and #75 each added one more catalogue and closed one victim.
+MEASURED on the shipped origin/main prune (cut whole, run in node with the page's real _norm and RUNEWORDS): one reload drops all
+eight of those names and keeps Harlequin Crest, Enigma, "Ancients' Pledge" and a mule-filed Dread Grasp.
+FIX: the filter stays a question and an owned-load doctor answers it: it compares owned before the filter with owned after, puts back
+every name the filter would drop, names them in window._ownedLoadReceipt.kept, warns "[bible] KEPT ..." and paints them on the Vault
+(#vault-owned-kept, existing organizer classes). Only an entry that is not a non-empty string is set aside, and that is said with the
+entry. The wishlist prune is unchanged. (This entry also said "a name leaves owned through the removal door or not at all" - false on
+this tree; the review found two doors that wrote no row and one that left a leftover: REG-2404, REG-2405.)
+GUARD: tv/test_a_reload_never_drops_what_he_owns.py (6 cases, 5 RED proofs, heart2 5/5 PROVEN) runs the whole shipped prune through
+two reloads over his lost names. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+
+### REG-2401 - A FRAME WHOSE ITEM WAS SILENTLY LOST COULD NEVER BE READ AGAIN (#162 item 2, vault batch V1)
+
+GrokBot #230 on v3783: after the reload took 159 names, re-feeding all 292 frames added 0 ("ok 0"). d2r_intakeSeen held 1 for a file
+that read something - THAT it read, never WHAT - so vaultIntake's skip was "this file name was ever read" and the loss could not heal.
+FIX: a file that read something records what it put in the vault ({held: names owned or in MAGIC & RARE when its batch closed, unr:
+its throw-outs, at}); one verdict (⟦INTAKE SEEN VERDICT⟧) asks the vault: every held name still his -> skipped as before; one gone
+with no removal on record -> read again; one he removed after the read (_removedAfter) -> skipped, "your removal stands"; owned or the
+removal journal unreadable -> skipped and said, never guessed; a legacy 1 / number / name|mtime mark keeps its old meaning (what it
+read is UNKNOWN, so it is not re-billed); a record carries its world, so ladder - which seeds its ledger once from main's - never
+re-reads main's history. A re-read is the same file: a name it read last time never bumps a copy. vaultIntake's
+filter, its marking and both folder scans ask this verdict; the 12 s folder poll never re-reads a gone file on its own (v567) - it
+says how many, and a manual Scan offers them as "♻ Read again N". An extra copy or an over-cap read now counts as a read (it was
+marked 'retry', so a manual rescan could re-bump the copy). tests/v567_intake_rescan_loop.spec.ts moves with the mark's new shape.
+GUARD: tv/test_a_frame_is_read_again_when_its_item_is_gone.py (6 cases, 7 RED proofs, heart2 7/7 PROVEN) on GrokBot's frame
+f_1790549355102.jpg. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+LEFT: the console feeds vaultIntake fixed file names ('kai-vault.jpg', 'drv-vault.jpg' in control_app.py), so once one of those names
+holds a record every later frame under it is skipped while that record's items are still owned - the dedupe keys a FILE NAME that is
+not a frame identity there. That is the V2 lane (#158: every frame read is filed like a hand-add), not changed here.
+
+### REG-2402 - "WRAITH GRASP" ROUTED AS A RING: THE ROLLED-NAME GRAMMAR HAD NO GLOVES ROW (#162 item 4, vault batch V1)
+
+GrokBot #230: _rolledQuality("Wraith Grasp") -> rare, slots Ring; the route sentence said "Wraith + Grasp: ring". RARE_NAME_POOLS
+(v332) had Amulet, Ring and Jewel rows only. The game's RareSuffix table (RotW raresuffix.txt, itype columns) gives hand, clutches and
+knuckle to glov, fist and claw to glov + h2h, and grip, grasp, hold, touch and finger to glov AND ring.
+FIX: a Gloves row with exactly the game's glov words; Grip/Grasp/Hold/Touch/Finger stay in Ring as the table says, so "Wraith Grasp"
+now reads "gloves / ring" (the name alone cannot say which). The brief said "not a ring"; the table says ring too, and the table wins.
+Routing is unchanged (every rolled name still files to MAGIC & RARE); the console's rare-name combo space grows by the five
+gloves-only words (1,550 combos, still tossable). tests/v332_rare_name_pools.spec.ts moves with the new row.
+GUARD: tv/test_grasp_is_a_gloves_suffix.py (2 cases, 2 RED proofs, heart2 2/2 PROVEN).
+
+### REG-2403 - WITH ONE GONE SCREENSHOT WAITING, HIS MANUAL SCAN MARKED HIS NEW SCREENSHOTS READ WITHOUT READING THEM (review of REG-2401)
+
+REG-2401 sent every manual Scan that found a 'gone' screenshot (its item left the vault with no removal on record) to the
+pick-a-batch menu, and the menu (v224) registered every new file the moment it appeared, before he chose. A pick of the new
+'♻ Read again', Skip, or a menu he closed left the new screenshots marked read and never read: the 12 s poll skips them and the next
+Scan says '0 new'. That is v584.1's restart trap exactly (after a browser restart the poll cannot run until he re-authorises the folder
+by clicking Scan); tests/v212_folder_watch.spec.ts' guard for it has no gone file. MEASURED by the reviewer, the scan code cut from
+origin/main and from the branch and run in node: origin/main read [new_1, new_2] at once; the branch read nothing, showed the menu,
+and the stored ledger already said new_1=1, new_2=1.
+FIX: a manual Scan with 1-12 new files reads them at once whether or not a gone file waits (v584.1), and SAYS the gone ones (status,
+the poll, the Last-scan card); the next Scan with nothing new offers them as '♻ Read again N'. The menu marks nothing: a PICK writes
+what it means - New registers what it reads, Latest N and Skip register the new files as v224 always did, '♻ Read again' leaves them
+new (and says so). A mark is merged into the ledger as it is at that moment (_seenRegister), never the scan's stale snapshot written
+back over reads that landed meanwhile, and never over a record. The poll still never reads a gone file on its own.
+GUARD: tv/test_a_scan_reads_what_it_marks.py (5 cases, 6 RED proofs, heart2 6/6 PROVEN) runs the shipped scan code in node over a
+stubbed folder - on the pre-fix page 4 of its 5 cases are red. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+
+### REG-2404 - A MAGIC & RARE TOSS CAME BACK AS "1 ITEM YOU OWN" FOR GOOD (review of REG-2400)
+
+The ✕ on a MAGIC & RARE row (window.vaultThrowFind) deleted magicFinds[name] only - its comment still said a keeper "lives in
+magicFinds, not grail owned", which stopped being true at #75: data.finds, aicMule, aicJudgeApply and the planner own the name beside
+its record. The load-time prune used to sweep that owned leftover on the next reload; REG-2400's doctor keeps a name no catalogue
+knows, so the tossed item stayed in d2r_owned for ever and the Vault said "1 item you own is a name no catalogue on this page knows ...
+a reload never drops what you own: Death Loop". MEASURED by the reviewer on the shipped prune + vaultThrowFind: origin/main ->
+owned [Harlequin Crest]; branch -> owned still holds Death Loop, receipt.kept = [Death Loop].
+FIX: the ✕ takes the owned name out through the removal door (vaultRemove, lane card-click: dated, journaled, undoable); the batch
+carries the Magic & Rare record (batch.magic) and vaultRestoreLast puts it back, so an undo returns the keeper WHOLE, never a bare
+name; a keeper Magic & Rare held alone gets the per-name removal note, so his ✕ is on record either way and a frame that read it is
+'removed', never read again over it. Swept the other doors that clear a Magic & Rare record (the vault audit's fixes, _vpDrop, the
+runeword migration): each keeps the item in another home or takes the owned name too - only the ✕ left a leftover.
+GUARD: tv/test_every_removal_door_leaves_his_word.py (toss, toss-alone, toss -> reload -> not kept, undo whole; 10 RED proofs in all,
+heart2 10/10 PROVEN).
+Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+
+### REG-2405 - HIS UN-TICK AND HIS SOCKET-COUNT FIX WERE NOT ON RECORD, SO A RE-READ BROUGHT THE ITEM BACK (review of REG-2401)
+
+REG-2401's verdict reads a frame 'gone' whenever a name it read has left owned with no removal on record, and vaultIntake reads a
+gone frame again without asking on every door but the folder (drag-drop, upload, the console's fromTv feeds). Two of his removal
+doors wrote no journal row: toggleOwned's non-grail un-tick (runewords, set pieces, EXTRA_ITEMS, socketed bases - the branch's own
+comment names Enigma, Aldur's Advance, Marshal's Amulet, Monarch (4os)) deleted straight out of owned; vaultFixSockets corrects a
+misread socket count by RENAMING the label (old out, new in). On origin/main the frame stayed 'seen' for ever, so his word held.
+MEASURED by the reviewer on the page's real removal predicate: card-click and forge consume -> 'removed'; the non-grail un-tick ->
+'gone'; the socket fix 'Monarch (Larzuk base)' -> 'Monarch (4os)' -> 'gone' (gone = the old label: a re-read puts the misread label
+back beside the fixed one).
+FIX: the non-grail un-tick goes through the removal door exactly as the grail branch has since M-3 (lane 'un-tick', keepFiling - his
+ruling, the un-tick never deletes a mule filing; the receipt still goes with it; the old delete is only the fallback). The socket fix
+tells the scan ledger (_intakeSeenRename): every record that held the old label holds the new one and keeps the old under `as`; a
+re-read hands that to the read (_intakePrevOf -> _intakeRenamed), so the old label read again off the same file is the renamed item,
+a record a re-read writes keeps the rename, an older rename follows the newest, and an unreadable ledger is left exactly as it is and
+said. The doctor's "a name leaves owned through the removal door or not at all" comment now names every door that does.
+ALSO (review finding 4): the REG-2401 promises the reviewer's sabotages left green - M1 the poll reads a gone file, M2 vaultIntake
+reads an 'unknown' file, M4 the base-copy branch counts a second copy off the same file, M5 the per-file line hands the read
+prev: null, M7 the card no longer says a file was read again - each now turns a node law red (re-run of the reviewer's M1-M8 against
+all six V1a laws: 8 of 8 caught).
+GUARD: tv/test_every_removal_door_leaves_his_word.py (6 cases, the real toggleOwned / vaultFixSockets / vaultThrowFind / _vpDrop /
+vaultRemove / vaultRestoreLast cut from the page; 10 RED proofs) and tv/test_a_reread_is_the_same_file.py (6 cases: vaultIntake's
+filter, per-file line, data.items loop, base-copy branch and Last-scan note cut from the page; 11 RED proofs) - heart2 21/21 PROVEN.
+Browser half (CI):
+tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+LEFT: a no-proof TV unvault (lane 'tv-unvault' without a frame) and the seed-cleanse / backfill-undo lanes are not his word by
+doctrine (H-1, M-3), so a frame that read such a name still reads 'gone' and is re-read - the doctrine's choice, not changed here. The
+reviewer's other notes stay open too: an undo leaves the per-name note (d2r_vaultRemovedAt), so a later silent loss of that name reads
+'removed'; a failed re-read of a gone file writes 'retry' over its record. Keeping the record there instead would make the console's
+fixed-name feeds ('kai-vault.jpg') re-read every frame while reads fail - v567's money loop - so it was not done here.
+
+### REG-2417 - A MULE'S DOLL AND INVENTORY STORE THAT WOULD NOT PARSE WAS READ AS EMPTY, AND THE NEXT PICK WROTE OVER IT (review of REG-2410, vault batch V1)
+
+The review of REG-2410 measured its sibling d2r_mulePos (REG-2416); d2r_muleEquip (each mule's doll and inventory as he set them in
+the mule window) had the same reader: `JSON.parse(raw || '{}')` with `catch -> {}`. Bytes cut short mid-write, or a store that parsed
+to a list, read as EMPTY, and the next pick, removal or drag wrote {its own entry} over every doll and inventory he had - not
+quarantined, not kept aside, not said.
+FIX: _mpEqAll is whole in itself: {} when nothing is saved, null (UNKNOWN) when the bytes will not read, and the key goes to the door's
+quarantine (REG-2410: kept aside, every write refused, the notice says "what each mule wears and carries"). _mpEqWrite, the store's
+one writer, throws on UNKNOWN and on a key the door holds (and files nothing), so every picker door's existing catch says "the
+equipment could not be saved (why)"; _mpHostWrite refuses before it indexes; the doll's slot reads show nothing and never throw.
+Another tab's store that reads lifts the quarantine (the store joins ⟦TAB SYNC⟧ as a 'store' kind).
+GUARD: tv/test_what_a_mule_wears_that_will_not_read_is_kept_aside.py (9 RED proofs, heart2 9/9 PROVEN).
+
+### REG-2416 - HIS HAND SPOTS THAT WOULD NOT PARSE WERE READ AS EMPTY, AND ONE DROP WROTE OVER EVERY SPOT HE PLACED (review of REG-2410 r2, vault batch V1)
+
+Review of REG-2410 (r2_mulepos_store.py, reproduced): a d2r_mulePos cut short mid-write read as {} in _mulePosAll, window._mpPlace
+returned ok:true and the stored value was only {uni-armor:{Enigma:...}} - Shako's hand spot gone, nothing quarantined, nothing kept
+aside, nothing said. The rule "a store that will not parse is NAMED and QUARANTINED, never read as empty, never overwritten" stopped at
+the stores persist() writes back.
+FIX: _mulePosAll is whole in itself: {} when nothing is saved, null when the bytes will not read, and the key is quarantined at the
+door (kept aside, every write refused, the notice says "your hand spots on the mule grids"). The drop (_mpPlace, also while the door
+holds the key), the unlock and the move refuse in their own words (the move no longer says "no room" after every cell's refusal);
+_mulePosWrite throws on UNKNOWN and on a held key; the packer lays every item itself while the spots are UNKNOWN and never throws on
+them. Another tab's spots that read lift the quarantine.
+GUARD: tv/test_his_hand_spots_that_will_not_read_are_kept_aside.py (11 RED proofs, heart2 11/11 PROVEN); the browser half (the
+whole page booting over spots cut short) is tests/reg2414_a_removed_store_reads_as_its_default.spec.ts on CI.
+
+### REG-2415 - A WITNESS STORE THAT WOULD NOT PARSE WAS READ AS EMPTY: ONE FRAME FILING WROTE OVER EVERY WITNESS ROW, AND THE VAULT WAS NOT HELD (review of REG-2410 r1, vault batch V1)
+
+Review of REG-2410 (r1_witness_store.py, reproduced): d2r_vaultProv holds the witness row beside every mule filing. _provAll read it
+through `JSON.parse(raw || '{}')` with `catch -> {}`, and vaultFile refused an unreadable store only inside `if (hand)`: the reader /
+frame / sorter / rebuild / restore / move paths did `var pa = _provAll(); pa[nm] = row; _provWrite(pa)`, so one frame filing over a
+truncated store (Grief's and Shako's rows) returned ok:true mode:'filed' and the store became {Enigma} alone. The W6 render prune read
+every filing as unwitnessed; nothing was quarantined, kept aside or said; the vault was not held (the store was not in VAULT_BASIS).
+FIX (⟦VAULT STORE READ⟧): _provAll answers {} for nothing saved and null (UNKNOWN) for bytes that will not parse or are not a map,
+quarantining the key at the door (kept aside, every write refused, the notice says "the vault witness rows"); the module asks it once
+as it loads, and the owned door's own reader (_read) quarantines the same key. d2r_vaultProv is in VAULT_BASIS, so the vault is HELD:
+the mule map is not written, the prune drops nothing, + Add an item refuses. window.vaultFile refuses every branch in words while the
+store is UNKNOWN or held; the removal (vaultRemove, unless it keeps the filing), the TV unvault (whose residue loop would otherwise
+un-own names with no journal), the sorter, the socket fix (it was a silent catch) and the mule delete refuse in words; _provDrop /
+_provDemote / _hardUnlock write nothing over it; _provWrite never writes UNKNOWN and answers false for a write the door refused,
+dropping its parse caches so an unsaved row is never read back as saved. The tile, the evidence line and the evidence panel say
+UNKNOWN, never "NO WITNESS" / "No provenance". Another tab's store that reads (or its removal) lifts the quarantine (the store joins
+⟦TAB SYNC⟧ as a 'store' kind - the REG-2413 entry's "LEFT" for it is closed).
+GUARD: tv/test_a_witness_store_that_will_not_read_holds_the_vault.py (20 RED proofs, heart2 20/20 PROVEN), driving the whole
+⟦#246 VAULTFILE⟧ block with the real door in node; the browser half is tests/reg2414_a_removed_store_reads_as_its_default.spec.ts on CI.
+LEFT (measured, not fixed here): 114 sites in bible.html parse a store as `JSON.parse(LS.getItem(k) || '{}')` with a default on a
+throw; 16 are in the vault module, and the ones that write the same key back are the next of this class - the removal journal
+(d2r_vaultRemoved: _vrRead -> [] -> _vrWrite([batch]) drops the undo history), the Recently-registered journal and the scan ledger.
+
+### REG-2414 - A STORE ANOTHER TAB REMOVED WAS MERGED AS AN EMPTY ONE: HIS ROSTER BECAME [], THE PRUNE DROPPED EVERY FILING, THE MAP WAS WIPED (review of REG-2413, vault batch V1)
+
+Review of REG-2413 (r3_roster_removed.py / r3b, reproduced): a storage event whose newValue is null is another document REMOVING the
+key - the footer's "Erase all saved progress" (LSR.wipeProfile) removes every key one by one; a harness or devtools removes one.
+⟦TAB SYNC⟧ merged it as `theirs.v || []`, though the page reads an absent roster as the default lockers (the comment two lines up said
+so). The roster went from 11 to [], the next paint's W6 prune found no mule for any filing and deleted every one, and the other tab's
+next filing ("Arachnid Mesh") made this tab write its pruned map back: stored d2r_muleAssign = {"Arachnid Mesh":"uni-armor"}, Grief,
+Shako and Enigma gone, with no action in this tab. saveR stored "[]" (truthy on reload), so the 8 other default lockers never came
+back; d2r_multiKeep merged a removal to {} and persist() stored "{}", so the 9 MULTI_KEEP_DEFAULT targets were gone for good.
+FIX: a removed store, and an absent value it replaced, is what a reload of this tab reads - spec.absent() where the boot loader has a
+default (the roster's default lockers, multiKeep's targets, the owner's forged-runeword seed or an empty Chronicle on a fresh
+profile, asked at merge time), the empty container otherwise - in the list branch, the three-way merge (both sides, so a first save
+in another tab is merged against this tab's default), a quarantine it lifts, and the "same" check (nothing is written back for it).
+A 'store' kind lifts its quarantine when another tab removes the bad bytes. "Erase all saved progress" in another tab now leaves this
+tab exactly as a reload would and this tab writes nothing.
+GUARD: tv/test_a_store_another_tab_removed_reads_as_its_default.py (10 RED proofs, heart2 10/10 PROVEN); the real cross-page removal
+is tests/reg2414_a_removed_store_reads_as_its_default.spec.ts on CI (not run on the Mac). The REG-2413 law's three anchors moved to
+the new lines (re-proved 11/11), the REG-2412 law's one (re-proved 8/8).
+LEFT: an absent roster with a mule map that names a mule he ADDED orphans that filing at the next paint, on a reload as on a removal
+(the boot's default is DEFAULT_ROSTER); _vaultRosterFresh keeps such mules, but only "Start it fresh" uses it.
+
+### REG-2413 - ANOTHER TAB'S VAULT WRITE WAS LOST ON THIS TAB'S NEXT ADD: NO STORAGE LISTENER (#153 item 11, vault batch V1)
+
+GrokBot's sweep (#230, 10-21): two browser tabs of the board, an add in one, an add in the other, and the first add was gone. Every
+store the page holds in memory (owned, the mule map, the roster, copies, multiKeep, Magic & Rare, the stashes, set pieces, the
+runeword ledgers) is read ONCE at boot and written back WHOLE by persist(), persistOwned() and saveA(), and no `storage` listener
+watched any of them (the two in the file serve the builder), so the second tab's next write carried its boot-time copy over the
+other tab's item. His console can hold two boards of one origin (the board and its engine frame), so it is not only a two-tab story.
+FIX: ⟦TAB SYNC⟧ in bible.html. Each in-memory store is registered with its shape (the vault module adds the mule map and the roster,
+the records block its store). A storage event from another document applies THAT write's change - what it added, removed or changed
+against ev.oldValue - to this tab's copy in place: what this tab holds that the write did not touch stays, and what the write removed
+does not come back. When both wrote at once, the tab holding both halves writes the merge back once and the other side adopts it (no
+ping-pong). Nothing is guessed: bytes that will not parse are quarantined here too (REG-2410), a roster both tabs changed and a
+cleared storage HOLD the key (the door refuses this tab's writes, the notice asks for a reload), a store this tab had quarantined
+lifts when the other tab writes one that reads, and only this world's physical key is merged.
+GUARD: tv/test_another_tabs_write_is_merged_not_clobbered.py (11 RED proofs, heart2 11/11 PROVEN), driving the shipped listener,
+merge, boot loaders and persist() in node. The real cross-page delivery is the browser's: tests/reg2410_stores_never_bricked.spec.ts
+drives two pages on CI (not run on the Mac). LEFT: a store a door reads straight from storage on every use (d2r_vaultProv, the
+records) needs no merge and has none.
+
+### REG-2412 - A CORRUPT d2r_vaultRecords WAS REFUSED SILENTLY: NO TASKS, NO WARNING, AND HAND-ADDS SAID "IS YOURS" (#152 item 3, vault batch V1)
+
+GrokBot's sweep (#230, 10-21), unchanged on v3784: corrupt d2r_vaultRecords "silently empties the vault forever: no records/tasks, no
+warning; every hand-add says 'is yours' but writes nothing ... never self-heals". REG-2272 had made the persist REFUSE to write over a
+store it could not read, and that refusal was the only thing that knew: the move list read the unreadable store as no saved tasks,
+the board said nothing, + Add an item landed its name and lost its move row, and nothing offered a way back.
+FIX: _vrRecLoadRaw hands every unreadable shape (will not parse, [], {"v":1}, {"records":{}}) to the door's quarantine (REG-2410),
+which keeps the bytes aside and refuses every writer, including one that skips the module's own unread mark (_vrRecGuardedSet now
+reads the door's false). The move list says the saved tasks are UNKNOWN, not done, and where the bytes are kept. + Add an item is held
+while the records store is (the mule map is not: the records are derived from it). "Start it fresh" goes through
+_vaultRecordsMigrateUndo, which now releases the door first (only while the bytes are kept aside) and reports a refused remove as
+partial, never "cleared"; the next page load re-arms the records from owned/copies/assign. Another tab's fresh store lifts the
+quarantine here.
+GUARD: tv/test_a_corrupt_records_store_is_said_and_kept.py (8 RED proofs, heart2 8/8 PROVEN).
+
+### REG-2411 - A MULE ROSTER SAVED AS {} STOPPED THE VAULT SCRIPT ON EVERY RELOAD; A PAGE THAT SURVIVED WOULD PRUNE HIS MAP AGAINST A DEFAULT (#152 item 2, vault batch V1)
+
+GrokBot's sweep (#230, 10-21), unchanged on v3784: d2r_muleRoster saved as {} parses, so the mule store's load() (which caught only a
+parse failure) handed it on, roster.find threw on the next migration, and the vault script stopped before renderVault and
+vaultHandAdd existed. And a page that SURVIVES a quarantined store is the next danger: with d2r_owned or the roster replaced by the
+page's default in memory, the render prune drops every filing "whose name left the pool" or "whose mule is not on the roster", the
+next saveA() writes that over his mule map, and a records persist writes an empty vault over the last good records.
+FIX: load() is the shape door too (_loadParsed + _muleShape in ⟦VAULT HOLD⟧): a roster that is not a list of mules with ids, or a
+mule map that is not a map, is marked like a parse failure, quarantined (REG-2410), and the module runs on the default roster / an
+empty map. THE HOLD: while d2r_owned, the roster, the mule map or the copy counts is quarantined or held, saveA() refuses, the render
+prune drops nothing, _vaultRecordsPersist/_vaultRecordsRefresh persist nothing and mark nothing dirty, persistOwned does not call a
+refused write a write, + Add an item refuses in words before anything is touched, the frame doors (vaultIntake, tvVaultRegister and
+tvVaultAutoIntake share _vaultIntakeGate) read nothing in - a frame read into a refusing store would also be marked read and never
+offered again - and the population line says owned UNKNOWN, never 0.
+A reset pressed while the vault is held says "could not clear" for each part the door kept. "Start it fresh" on the roster keeps one
+mule for every mule id his map still names, so no filing is orphaned.
+GUARD: tv/test_a_wrong_shaped_mule_store_never_stops_the_vault.py (11 RED proofs, heart2 11/11 PROVEN); the whole-page boot over {} is
+tests/reg2410_stores_never_bricked.spec.ts on CI.
+
+### REG-2410 - ONE BAD SAVED VALUE BRICKED THE PAGE, AND A STORE THAT WOULD NOT PARSE WAS READ AS EMPTY AND WRITTEN OVER (#152 items 2-3, vault batch V1)
+
+GrokBot's sweep (#230, 10-21, cov*.py), unchanged on v3784: d2r_owned saved as {"a":1} made `let owned = new Set(...)` throw "object
+is not iterable", so `owned`, `multiKeep` and every name declared after it in the main script never existed: "owned is not defined",
+the vault dead on every reload. The quiet half was older: _safeJsonParse handed back the default for bytes that would not parse, and
+the next persist() wrote that default over them. The mule store (_muleUnread, 2026-09-29) and the records store (REG-2272) each had a
+private refusal; the twenty stores persist() writes back had none.
+FIX: one door. window.LSR (the router every writer already uses) gains quarantine(k, why): the exact bytes are copied to
+<world prefix>d2r_quarantine~<key>~<hash> (content-addressed: a reload never writes a second copy, two bad copies never share a
+slot) and read back, and from then on setItem and removeItem of that key answer false - whoever calls them - so persist() still writes
+the other stores. release() lets go only while the bytes are kept aside, or once they are no longer the bytes in the key. Every boot
+loader of a store persist() writes back now reads `_storeRead(kind, fallback).getItem(key)`: absent is a fresh store, a parse failure
+or the wrong container is quarantined, and the page runs on the default in memory. ⟦STORE NOTICE⟧ says each held store on every tab:
+which store in his words, why, where the bytes are kept, how many writes were refused, and the ways out - a backup restore (which now
+lets go of a quarantine kept aside, and names one it could not) or "Start it fresh" (asks first, keeps the bytes aside, reloads;
+the roster waits while the mule map is quarantined too, and the owned confirm says a filing stays only where a sighting witnessed it).
+Container shape only: a list with one odd element still reads. His real store was read from a copy before this was written: every one
+of these stores holds the right container, so nothing of his is quarantined by it.
+GUARD: tv/test_a_store_that_will_not_read_is_kept_aside.py (9 RED proofs, heart2 9/9 PROVEN), driving the shipped door, readers,
+persist(), notice and restore in node; tests/reg2410_stores_never_bricked.spec.ts boots the whole page over {"a":1} on CI.
+A Wipe or a reset pressed while a store is quarantined leaves that store as it is, and its receipt says "could not clear" for each
+part the door kept (without that check it would have reported a clean reset: persistOwned swallows a refused write); the notice's
+Start it fresh is the way to empty it.
+LEFT: rebuilding a corrupt d2r_owned from the last good records store is possible and not built.
+
+### REG-2420..REG-2427 - A HAND ADD WAS QUADRATIC: ONE ADD AT 300 ITEMS ASKED THE ROUTER ~15 TIMES PER OWNED NAME AND RAN THE FUZZY FOLD 861 TIMES (V1c, #152 item 4, #111 item 6)
+
+GrokBot on v3784 (perf3.py, relayed 2026-10-22): the 550-item speed test finishes but takes ~7.5 min; a hand add costs 30 ms at 50 items, 145 ms at 250, 0.9 s at 350, 2.0 s at 450, 2.7 s at 600. MEASURED on the shipped page in node (the whole page, tv/vault_page_node.py), one add at 300 items: 4,595 router asks (_vaultSeamAsk, ~15 per owned name - every pack of every home rescans the pool, the dock and the records each ask, every throw route asks again, and the paint memo `_seamPaint` exists only inside renderVault), 861 runs of the 398-name Ratcliff-Obershelp fold (suggestMule's hop: every runeword is 'unknown' to d2rResolveItem; 64% of the add), a 867-name catalogue walk in d2rItemLookup for every such ask, a walk of every saved move for every war keeper (O(N^2) per paint), 5,400 ITEMS walks in ownedPool, and 1,341 reads of d2r_plannerMade, each a parse once a planner pick is stored (#111 item 6: _itemCells asked _vpMadeOf BEFORE its own cache; artOr asked _vpMadeBase per picture). A paint rebuilt every record three times per locker card (36 rebuilds per paint with ten lockers).
+FIX - eight memos, each with the reason it cannot change an answer in its comment:
+- REG-2420 suggestMule's fold hop keeps the canonical per trimmed string name (_sugFoldCanon); dropped if the engine, resolver, roster or fold is replaced; capped at 5,000.
+- REG-2421 _vaultWarKeeper's walk of the saved moves runs once per bag object (_vaultWarKeeperIx, a WeakMap on the bag), same key order and rule.
+- REG-2422 _itemCells and artOr's _vpMadeBase read the planner store through _vpMadeRec: the store is still read on every call, and parsed again only when the stored string changes; _vpMadeOf still parses fresh (its callers hold the record).
+- REG-2423 d2rItemLookup's catalogue walk runs once per trimmed name (_d2rItemLookupWalk), dropped when ITEMS or ITEM_REGISTRY is replaced or ITEMS changes length; the memo law pins that the BOSSES build is their one writer.
+- REG-2424 one router ask per name per READ PHASE outside renderVault (_vaultSeamPhase opens the paint memo for code that writes nothing - the plan of one hand row, one records pass, the collect loop before its commit, the unrouted check after it - and drops it when the phase ends; inside renderVault the paint's own memo is used unchanged). _vaultRecords re-enters with an explicit flag, so a phase that opens no memo can never recurse.
+- REG-2425 _spNorm (the set-piece fold) once per string; cleared past 5,000 or when _etherNorm is replaced.
+- REG-2426 the shelf is one records pass (window._vrFindPass, the pass FIND already used): 31 of a paint's 36 rebuilds are gone.
+- REG-2427 _vaultKeeps tests ITEMS membership with one Set (rebuilt when ITEMS is replaced or changes length; a non-object entry keeps the old walk).
+window._vaultMemoOff = true turns all eight off (the v3784 path). It is how the memo law makes its reference run, and how tv/vault_speed_bench.py measures before and after on one tree.
+MEASURED (node, his Mac under other agents' load; a report, not a gate - the gate counts work): 550 hand adds through the door 615.4 s on v3784 -> 16.5 s (2,917 ms -> 53.5 ms per add at 550); through his click (vaultHandTake, which repaints after each add) 1,087.2 s -> 33.1 s (3,744 ms -> 152 ms per add at 550); 200 adds 29.1 s -> 2.1 s (door) and 53.2 s -> 4.0 s (click); a paint at 550 1,706 ms -> 81 ms. Per add at 160 items: 480 router asks (3 per name; 1,452 with the phases off), 0-1 folds, 1 catalogue walk, 2 keeper walks, 1 ITEMS walk, 0 planner parses; one paint rebuilds the records 5 times. Node is not Chrome (no DOM cost): GrokBot re-measures with perf3.py on his screen.
+VERIFIED identical: the memo law's fixture (136 steps) gave byte-identical answers with the memos on, with them off, and on the pristine v3784 page; the 36 existing node laws that drive these functions still pass; the hook's anchor check reads all 5,301 declared red-proofs well formed.
+GUARDS: NEW tv/test_the_vault_memo_changes_no_answer.py (4 cases; 8 RED_PROOFs - a stale planner parse, the keeper's highest copy, a fold memo answering every name with the first, a catalogue memo that misses ITEMS growing, a set-piece fold keyed by length, a read phase that never ends, a shelf pass that never ends, a name set that misses ITEMS growing; 8 of 8 PROVEN), NEW tv/test_a_hand_add_is_not_quadratic.py (6 cases, counts never clocks; 9 RED_PROOFs, one per memo turned off; 9 of 9 PROVEN). NEW tv/vault_page_node.py (the whole page in node) and tv/vault_speed_bench.py (the curve), both indexed in tv/engine_index.json.
+NOT FIXED HERE (it would change a result): _itemCells stores its final answer under the bare name even when the key carried a stored base, so a planner pick whose base _cbFoot cannot size leaves a guess cached under the bare name after the record is gone.
 
 ### REG-2562 - REG-2558'S OWN-THE-NAME LINE WAS A BARE owned.add, OUTSIDE THE DOOR (CI census on v3788, GB-L, 2026-10-23, v3789)
 test_every_owned_door_writes_provenance went red in CI on ab7065bb: the perfect-base early return added to `owned`
@@ -237,6 +935,7 @@ entry covers the STALE ones. Each spec now asserts the ruling that replaced the 
 - REG-2241 (torches and anni stay in shared, gheeds gets muled): v1958, v203 taxonomy, v363, v3721, v3724, v3726 keeper.
 - REG-2242 (merc gear goes to shared): v203 Vampire Gaze, v3724 Visage. v3723 and v3726 now use Arreat's Face as
   the med-tier mule precondition.
+- ⚠ replaced by REG-2530 (10-22): a different second pick is a second add and keeps the first pick's copy; the v3740/v3742 specs follow REG-2530 on the V1 merge.
 - REG-2267 (a different pick in one planner open is a SWAP and takes back the swapped-away copy) supersedes the
   REG-2227 expectation in v3740 and v3742 reroll. The python twin is griefAfterSwap in test_a_hand_added_item_stays_his.
 - L1 war cap (2026-10-20) and the 10-22 war-gear ruling retire "every copy on the war stash": v3737, v3738.

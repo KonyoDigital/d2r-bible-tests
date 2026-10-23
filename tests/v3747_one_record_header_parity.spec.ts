@@ -71,12 +71,13 @@ test('records header byte-matches the live vault header on consistent data (REG-
 });
 
 test('a kept charm with no resolvable mule is keepInv, never an orphan (REG-2257, #76)', async ({ page }) => {
-  // Annihilus homed to a mule that does not resolve -> the page prunes the dead assign -> Annihilus is
-  // unassigned. It is KEEP_IN_INVENTORY (drawn with MAIN), so records must call it 'keepInv', not 'orphan'.
+  // Annihilus with no mule filing. (V1, REG-2522: a dead assign id is no longer the way to get here - with no roster
+  // saved the load keeps a stand-in mule for it, and a saved roster that lacks it is held, so no filing is pruned at
+  // load.) It is KEEP_IN_INVENTORY, so records must never call it an orphan.
   await seedLoad(page,
     [SOJ, ANNI, RW, SET, LOOSE],
     {},
-    { [SOJ]: 'uni-small', [ANNI]: 'dead-mule-zzz', [RW]: 'runewords', [SET]: 'sets-rest' });
+    { [SOJ]: 'uni-small', [RW]: 'runewords', [SET]: 'sets-rest' });
 
   const r = await page.evaluate(() => {
     try { if ((window as any).renderVault) (window as any).renderVault(); } catch (e) {}
@@ -87,12 +88,12 @@ test('a kept charm with no resolvable mule is keepInv, never an orphan (REG-2257
              anniKind: anni ? anni.kind : null };
   });
 
-  /* A dead assign id is not a home. The seam asks the router, and the router
+  /* No filing is not a home. The seam asks the router, and the router
      (his 2026-10-15 ruling, still in suggestMule) puts Annihilus in the shared
      stash. It must not become an orphan. It is not keepInv, because that route
      is shared. */
   expect(r.orphans).not.toContain(ANNI);
   expect(r.rhOrphans).toBe(0);
   expect(r.keepInv || 0, 'a shared-routed charm is not counted as keep-in-inventory').toBe(0);
-  expect(r.anniKind, 'the dead assign falls through to the router home').toBe('sharedStash');
+  expect(r.anniKind, 'the unfiled charm falls through to the router home').toBe('sharedStash');
 });

@@ -26,6 +26,8 @@ and vaultRestoreLast):
     switch, not a lock.
   · UNKNOWN — a witness store that will not parse makes the reader answer {unknown:true}, and every hand door refuses
     'prov-unreadable' rather than reading {} as "not locked".
+    Since REG-2415 the door refuses a store that will not read before the hand block runs, so the hand block's own
+    UNKNOWN check is driven with a lock read that throws after the door's read answered (P1b).
   · EVIDENCE LANES STAY FREE — vaultRemove (lane tv-unvault) takes a locked filing, and vaultRestoreLast puts the row
     back verbatim, lock included: a removal is journaled and undoable, so it needs no lock.
   · THE JOIN, in the source — the ✕ the mule cell renders and both hand paths (the drop, the click) carry the Shift
@@ -195,6 +197,24 @@ OUT.p1 = { hand: window.vaultFile('Arachnid Mesh', HAND(), { mule: 'uni-small', 
            x: window.vaultUnassign('Arachnid Mesh', { unlock: true }),
            move: window.vaultFile('Arachnid Mesh', null, { move: true, mule: 'uni-small', by: 'hand', unlock: true }),
            store: STORE['d2r_vaultProv'], map: map() };
+/* P1b — the door's read and the lock's read are TWO reads of storage. With REG-2415 the door refuses a store that will
+   not read before the hand block is reached, so the hand block's own UNKNOWN check is met only when the first read
+   answers and a later one throws (a storage read that fails mid-call). That check must still refuse: without it the
+   UNKNOWN answer is taken for a lock and Shift goes to the release, or a same-locker drop answers 'already'. Only the
+   lock's read fails; the release's own read answers, so a missing check shows as the lock dropped and the item moved. */
+seed();
+var _gi1b = window.LSR.getItem, _pr1b = 0, _st1b = STORE['d2r_vaultProv'];
+window.LSR.getItem = function(k){
+  if (k === 'd2r_vaultProv' && ++_pr1b === 2) throw new Error('the storage read failed');   /* the lock's read only */
+  return _gi1b.apply(this, arguments);
+};
+OUT.p1b = { shift: window.vaultFile('Arachnid Mesh', HAND(), { mule: 'uni-small', unlock: true }), shiftReads: _pr1b };
+_pr1b = 0;
+OUT.p1b.same = window.vaultFile('Arachnid Mesh', HAND(), { mule: 'uni-armor' });
+OUT.p1b.sameReads = _pr1b;
+window.LSR.getItem = _gi1b;
+OUT.p1b.storeKept = (STORE['d2r_vaultProv'] === _st1b);
+OUT.p1b.row = row('Arachnid Mesh'); OUT.p1b.map = map();
 /* P4 + P8 — a re-drop on the SAME locker, without and with Shift: an answer, never a filing */
 seed(); CHRON.length = 0; STATUS.length = 0;
 assignItem('Arachnid Mesh', 'uni-armor');
@@ -434,6 +454,20 @@ class AHardenedFilingIsLockedUntilHeReleasesIt(unittest.TestCase):
         self.assertFalse(p["move"]["ok"])
         self.assertEqual(p["store"], "{ not json", "a release under UNKNOWN wrote over the unreadable witness store")
         self.assertEqual(p["map"].get("Arachnid Mesh"), "uni-armor", "a filing moved or was deleted on UNKNOWN")
+
+    def test_13b_unknown_at_the_lock_read_refuses_even_when_the_door_read_answered(self):
+        """The hand block's own UNKNOWN check, reached: the door's read answers, the lock's read throws."""
+        p = self.out["p1b"]
+        self.assertGreaterEqual(p["shiftReads"], 2, "the premise: the lock read never reached storage after the door: %r" % p)
+        self.assertGreaterEqual(p["sameReads"], 2, "the premise: the lock read never reached storage after the door: %r" % p)
+        self.assertEqual((p["shift"]["ok"], p["shift"].get("refused")), (False, "prov-unreadable"),
+                         "Shift with the lock UNKNOWN went past the hand block's check: %s" % p["shift"])
+        self.assertIn("UNKNOWN", p["shift"].get("why") or "", "the refusal does not say UNKNOWN: %s" % p["shift"])
+        self.assertEqual((p["same"]["ok"], p["same"].get("refused")), (False, "prov-unreadable"),
+                         "a same-locker drop with the lock UNKNOWN answered as if the lock were read: %s" % p["same"])
+        self.assertTrue(p["storeKept"], "a door wrote the witness store while its lock read was UNKNOWN")
+        self.assertIs(True, (p["row"] or {}).get("locked"), "the lock evaporated on UNKNOWN: %r" % p["row"])
+        self.assertEqual(p["map"].get("Arachnid Mesh"), "uni-armor", "a filing moved on UNKNOWN: %r" % p["map"])
 
     def test_14_a_same_locker_redrop_is_an_answer_not_a_filing(self):
         p = self.out["p48"]
