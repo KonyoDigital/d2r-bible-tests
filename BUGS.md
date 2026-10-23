@@ -80,7 +80,7 @@ ledger could not have been banked there and fails the read CLOSED. score() carri
 adopted} | None} and hereSay ("nothing measured on this PC yet ..."); the UI label is M5/#180. run_gates' fold line names
 both files (LAST_FOLD). Live rows are never deferred: the per-PC file is in no work tree, so it is no gate's input.
 GUARD: tv/test_a_pc_shows_only_its_own_live_trials.py (two PCs in its own scratch; the shared fixture is a copy of the
-tracked ledger; git's own matcher on the ignore line, GIT_* scrubbed), 13 RED_PROOFs.
+tracked ledger; git's own matcher on the ignore line, GIT_* scrubbed), 16 RED_PROOFs.
 RE-AIMED (two laws the split changed the reach of): test_the_pixels_earn_the_right_to_act asserted "OPEN => three
 families" off the real ledger, and the third family was the Mac's one pixel_witness_live row. The table's rule is
 kinds_bar 1.8, which sabotage 1.0 + cross-family 0.8 clears, so on a PC that never ran the live witness
@@ -136,7 +136,7 @@ sets_base_index.build() switched to it, and the index is identical on every PC. 
 pinned load() to the Mac (a roster) and now read reference(); its evidence case skips, saying why, where the page is not
 this PC's.
 GUARD: tv/test_a_remaining_page_read_on_another_pc_is_unknown_here.py (PC-A / PC-B / unreadable stores in its own
-scratch, the reel derived from the tracked page; git's own matcher on the ignore line), 12 RED_PROOFs.
+scratch, the reel derived from the tracked page; git's own matcher on the ignore line), 25 RED_PROOFs.
 LEFT: the doctor's calibration row (console_doctor._remaining_page_reading) and the console card read the SAVED sweep
 result (chron_last_result.json), so a PC keeps showing the old comparison until its next chronicle sweep recomputes it.
 counter_ledger.whose(reading) now answers the read-time question (REG-2474); calling it from console_doctor and the card
