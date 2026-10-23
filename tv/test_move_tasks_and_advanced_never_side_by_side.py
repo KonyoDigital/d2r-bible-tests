@@ -183,6 +183,17 @@ class MoveTasksAndAdvancedNeverSideBySide(unittest.TestCase):
             t.send("Input.dispatchKeyEvent", type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
         o = board().run(SEEN + "await tick(200); OUT.open = tasksOpen(); window.vaultTasksTog(false);")
         self.assertFalse(o["open"], "Escape with focus on the FAB left MOVE TASKS open: %r" % o)
+        # Grok review r3: a mule window opened above the overlay (focus still on the FAB) owns the first Escape
+        o = board().run(SEEN + "window.vaultTasksTog(true); await tick(); by('#vault-tasks-fab').focus();"
+                        "window.openMuleCard('shared'); await tick(300); var vd = by('#vault-detail'); OUT.win0 = !!(vd && !vd.hidden);"
+                        "OUT.open0 = tasksOpen(); OUT.f0 = document.activeElement && document.activeElement.id;")
+        self.assertTrue(o["win0"] and o["open0"], "PREMISE: a mule window opened over MOVE TASKS: %r" % o)
+        for kind in ("keyDown", "keyUp"):
+            t.send("Input.dispatchKeyEvent", type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
+        o = board().run(SEEN + "await tick(200); var vd = by('#vault-detail'); OUT.win = !!(vd && !vd.hidden); OUT.open = tasksOpen();"
+                        "if (OUT.win) window.vaultCloseCard(true); window.vaultTasksTog(false); if (window.switchTab) window.switchTab('vault');")
+        self.assertFalse(o["win"], "Escape on the FAB was eaten by MOVE TASKS - the mule window above it stayed up: %r" % o)
+        self.assertTrue(o["open"], "the first Escape closed MOVE TASKS under the mule window: %r" % o)
 
     def test_the_open_overlay_survives_a_reload(self):
         board().run("window.vaultTasksTog(true); OUT.ok = 1;")
@@ -253,6 +264,11 @@ RED_PROOF = [
     {"why": "Escape with focus on the FAB no longer closes MOVE TASKS (Grok review r2).",
      "file": "bible.html",
      "find": "if (fab0 && !fab0._v2Esc) { fab0._v2Esc = 1; fab0.addEventListener('keydown', _v2EscFn); }",
+     "replace": "",
+     "matches": 1},
+    {"why": "MOVE TASKS steals the Escape of a mule window opened above it (Grok review r3).",
+     "file": "bible.html",
+     "find": "if ((_vd && !_vd.hidden) || document.querySelector('.ui-confirm-ov')) return;",
      "replace": "",
      "matches": 1},
     {"why": "Escape inside MOVE TASKS no longer closes it.",
