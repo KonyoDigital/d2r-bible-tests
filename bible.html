@@ -52270,6 +52270,8 @@ window.vaultAutoAssign = function(){
         var fab0 = document.getElementById('vault-tasks-fab');
         var _v2EscFn = function(e){
           if (!e || e.key !== 'Escape' || !tp || tp.hidden) return;
+          /* Grok review r3 — a window opened ABOVE the overlay (a mule locker, a confirm) owns this Escape: let it bubble to its own closer */
+          try { var _vd = document.getElementById('vault-detail'); if ((_vd && !_vd.hidden) || document.querySelector('.ui-confirm-ov')) return; } catch (eW) {}
           e.preventDefault(); try { e.stopPropagation(); } catch (eS) {}
           window.vaultTasksTog(false);
           try { var fb = document.getElementById('vault-tasks-fab'); if (fb) fb.focus({ preventScroll: true }); } catch (eF) {}
