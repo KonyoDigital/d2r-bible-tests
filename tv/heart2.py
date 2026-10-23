@@ -1233,6 +1233,7 @@ def _rmtree_hard(path):
 
 def _drop_sandbox(root):
     _SANDBOXES.discard(root)
+    _sweep_journal(os.path.dirname(root), root, "dropped by its own run", str(os.getpid()), time.time())   # REG-2612
     if not _rmtree_hard(root):
         sys.stderr.write("  a sandbox could not be removed (it stays on disk until the next sweep): %s\n" % root)
 
@@ -1305,9 +1306,51 @@ def sweep_stale_sandboxes(tmp=None, now=None):
             why = "%.0f h old - no proof run lives that long%s" % (age / 3600.0, (" (owner pid %s)" % owner) if owner else "")
         else:
             continue
+        _sweep_journal(tmp, root, why, owner, now)   # REG-2612 (#71) - written BEFORE the remove, so a half-done one shows
         if _rmtree_hard(root):                  # REG-1746 — a read-only git pack kept 71 of these on the ALT
             gone.append((root, why))
     return gone
+
+
+_SWEEP_JOURNAL = "heart2-sweeps.log"
+
+
+def _sweep_journal(tmp, root, why, owner, now):
+    """REG-2612 (#71) - EVERY SANDBOX A SWEEP REMOVES IS WRITTEN DOWN WHERE THE NEXT VANISH CAN READ IT.
+
+    #144's files vanished again on the Linux box (2026-10-23 01:11-02:21 IDT stage run, lane 4: every root .md/.html/.json
+    and 13 tv files, mid-run, while a gate that touches no files was running). That box has no dirhelper, cron or
+    tmpreaper, so REG-2438's macOS atime theory is not the whole cause. The deletion pattern is an rmtree's, and the
+    leftover sandbox had lost its owner file - which only an rmtree of the whole sandbox removes. A sibling prover's
+    sweep is one candidate; nothing recorded it. This journal does. One line, no repo text, in the temp dir itself."""
+    try:
+        with open(os.path.join(tmp, _SWEEP_JOURNAL), "a") as fh:
+            fh.write("%d\tswept-by-pid=%d\t%s\towner=%s\t%s\n"
+                     % (int(now), os.getpid(), os.path.basename(root), owner or "-", why))
+    except OSError:
+        pass
+
+
+def _vanish_witness(sb_root):
+    """REG-2612 (#71) - what the sandbox itself says at the moment a vanish is seen. -> str
+
+    Three readings that tell the candidates apart: whether the owner file survives (only a whole-sandbox rmtree - a
+    sweep, a signal's cleanup or the end of a run - removes it), the sandbox root's age, and any sweep journal line
+    naming this sandbox."""
+    base = os.path.dirname(sb_root)
+    parts = ["owner file %s" % ("present" if os.path.isfile(os.path.join(base, _SANDBOX_OWNER)) else "GONE")]
+    try:
+        parts.append("sandbox root %.0fs old" % (time.time() - os.path.getmtime(base)))
+    except OSError:
+        parts.append("sandbox root GONE")
+    name = os.path.basename(base)
+    try:
+        with open(os.path.join(os.path.dirname(base), _SWEEP_JOURNAL)) as fh:
+            hits = [ln.strip() for ln in fh if ("\t%s\t" % name) in ln]
+    except OSError:
+        hits = []
+    parts.append(("swept: " + " | ".join(hits[-3:])) if hits else "no sweep journal line names it")
+    return "; ".join(parts)
 
 
 def make_sandbox(say=print):
@@ -1791,6 +1834,7 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
         return res
     restored = []
     _sb_root = os.path.dirname(sandbox_tv)
+    _witness = _vanish_witness(_sb_root)     # REG-2612 (#71) - read BEFORE the restore touches the sandbox
     for n in gone:
         src = os.path.join(REPO, n)          # REG-1919 - n is relative to the repo now (tv/x.py, .claude/skills/...)
         try:
@@ -1803,8 +1847,9 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
         _VANISHED.append((filename, n, getattr(_LANE_LOCAL, "n", None)))
     note = " [#144: %s vanished from this sandbox during the run - %s]" % (
         ", ".join(gone), "restored from the real tree" if len(restored) == len(gone) else "NOT all restorable")
-    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s)\n"
-                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None)))
+    note = note[:-1] + " - " + _witness + "]"
+    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s) [%s]\n"
+                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None), _witness))
     if res[0] is True or len(restored) != len(gone):
         return res[0], str(res[1]) + note
     again = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)
