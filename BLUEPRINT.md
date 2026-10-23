@@ -1441,10 +1441,7 @@ about what a module MEANS cannot be re-derived from its AST. The drift between t
 printed below rather than hidden, because a map that quietly drops a module is the exact
 failure this section was written about.
 
-    253 modules · 1 unindexed · 0 stale entries
-
-    ⚠ UNINDEXED — on disk with no entry, so this map does NOT describe them:
-        seed_worktree.py
+    254 modules · 0 unindexed · 0 stale entries
 
 `no importer` means no OTHER MODULE IN tv/ IMPORTS IT — measured by parsing, never by
 grepping a name that may be sitting inside a comment. It is not `dead`: a CLI tool, a
@@ -2163,11 +2160,14 @@ hook and a routine are all reached without an import, so it is a question, not a
       ↪ work · stages · plan · lane_census · beat
       ⚠ It holds NO second predicate on purpose — it carries retention's own tag and why through untouched, because every serious 2026-09-10 defect was two authorities answering one question (41 vs 0, 40 vs 0, 2 vs 19). It never deletes: _PRUNE_SAFE_TO_RUN is Konyo's to arm. _beat_path() resolves at CALL time via tv_diablo._fixture_root so TV_HIST can redirect it, and REFUSES (returns None, beat records it could not persist) rather than writing into his live tv/. work() returns ok False with owed=None on a failed plan — an empty list is a measurement, never a failure.
 
-### unknown (1)
+### unknown (2)
 
 - **claude_signin.py** — REG-1617: the SIGN IN button under the CLAUDE/GROK lamps. status() asks `claude auth status --json` for the CLI's own loggedIn; start() opens `claude auth login` in a window on THIS PC (Windows: a visible console; Mac: Terminal) and he finishes in the browser. control_app.claude_login() is the origin-guarded route, _claude_auth_state() the cached background probe that lets the lamp say 'signed out' before a read has to fail.
       ↪ status · command · start · inflight
       ⚠ The console hides every child it starts on Windows (win_quiet, REG-1307), and win_quiet still hides a CREATE_NEW_CONSOLE child unless the caller hands in its own STARTUPINFO - so start() passes both, with SW_SHOWNORMAL: a sign-in he pressed for must be SEEN, or a prompt in it hangs for ever. status() None is UNKNOWN (no CLI, no answer, garbage), never 'signed out'. One sign-in in flight at a time; the command is fixed and nothing from the page reaches it.
+- **seed_worktree.py** — Seeds a fresh push worktree with the gitignored state its pre-push gates read (node_modules, tv/.heart2.json, a per-checkout second-eye ledger only where one is still kept), finding the main checkout from the worktree's own .git pointer (#143, REG-2451).
+      ↪ seed · main_checkout_of · main
+      ⚠ It copies, never links, and never overwrites: an item already in the worktree is left as it is, and it refuses (exit 2, nothing copied) on the main checkout itself, a path that is not a worktree root, or a seed that would leave free disk under the ON AIR floor (TV_SEED_FREE_BYTES is the law's seam for the free-space reading).
 
 ### vault (28)
 

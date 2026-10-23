@@ -2075,6 +2075,15 @@
     "purpose": "Runs a cold cross-family review of a shipped version end to end — finds the commit, strips the diff's comments, MEASURES the payload it is about to send, asks, and records the answer into second_eye_ledger.",
     "territory": "second-eye"
   },
+  "seed_worktree.py": {
+    "entryPoints": [
+      "seed",
+      "main_checkout_of",
+      "main"
+    ],
+    "gotcha": "It copies, never links, and never overwrites: an item already in the worktree is left as it is, and it refuses (exit 2, nothing copied) on the main checkout itself, a path that is not a worktree root, or a seed that would leave free disk under the ON AIR floor (TV_SEED_FREE_BYTES is the law's seam for the free-space reading).",
+    "purpose": "Seeds a fresh push worktree with the gitignored state its pre-push gates read (node_modules, tv/.heart2.json, a per-checkout second-eye ledger only where one is still kept), finding the main checkout from the worktree's own .git pointer (#143, REG-2451)."
+  },
   "self_arming.py": {
     "entryPoints": [
       "may",
