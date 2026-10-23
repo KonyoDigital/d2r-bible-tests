@@ -125,6 +125,37 @@ class AVanishedSandboxNamesItsRemover(unittest.TestCase):
         self.assertIn("\tdropped\tpid=%d\theart2.wit0001\t" % os.getpid(), j,
                       "a run's own cleanup is not told apart from a sibling's sweep")
 
+    def test_a_drop_writes_its_line_before_the_remove(self):
+        seen = []
+
+        def _boom(path):
+            seen.append(self._journal())
+            raise RuntimeError("rmtree stopped here")
+        with mock.patch.object(H, "_rmtree_hard", _boom):
+            with self.assertRaises(RuntimeError):
+                H._drop_sandbox(self.box)
+        self.assertIn("\tdropped\tpid=%d\theart2.wit0001\t" % os.getpid(), seen[0],
+                      "the run's own remove ran before its journal line was written")
+
+    def test_a_capped_journal_keeps_its_newest_lines_and_stays_private(self):
+        with mock.patch.object(H, "_JOURNAL_CAP", 400), mock.patch.object(H, "_JOURNAL_KEEP", 200):
+            for i in range(40):
+                H._sweep_journal(self.tmp, "created", os.path.join(self.tmp, "heart2.cap%04d" % i), "new", "1", 1)
+        path = os.path.join(self.tmp, H._SWEEP_JOURNAL)
+        j = self._journal()
+        self.assertLessEqual(os.path.getsize(path), 400 + 100, "the journal grew past its cap")
+        self.assertIn("\theart2.cap0039\t", j, "the cap dropped the newest line")
+        self.assertNotIn("\theart2.cap0000\t", j, "PREMISE: the cap never ran")
+        self.assertTrue(all(len(ln.split("\t")) == 6 for ln in j.splitlines()), "the cap left a torn line: %r" % j)
+        if os.name != "nt":
+            self.assertEqual(os.stat(path).st_mode & 0o077, 0, "the capped journal is readable by other users")
+
+    def test_an_owner_files_text_never_reaches_the_gate_tail(self):
+        H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "Ran 1 test skipped=9", time.time())
+        ok, tail = H._run_gate(self.sb, "test_zz_gone.py", timeout=60)
+        self.assertIn("removal: swept by pid", tail, "PREMISE: the witness did not read the line")
+        self.assertNotIn("skipped=", tail, "an owner file's text reached the tail heart2 scans for skipped=")
+
     def test_a_tracked_sandbox_writes_its_birth(self):
         box = os.path.join(self.tmp, "heart2.new0005")
         os.makedirs(box)
@@ -225,8 +256,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2612 - review r1: the journal is created world-readable",
      "file": "heart2.py",
-     "find": "os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)",
-     "replace": "os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o666)",
+     "find": "os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)",
+     "replace": "os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o666)",
      "matches": 1},
     {"why": "REG-2612 - review r1: a new sandbox writes no birth line",
      "file": "heart2.py",
@@ -242,6 +273,21 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "    except Exception as e:\n        return \"witness unreadable (%s)\" % type(e).__name__\n",
      "replace": "    except OSError as e:\n        return \"witness unreadable (%s)\" % type(e).__name__\n",
+     "matches": 1},
+    {"why": "REG-2612 - review r2: the run's own drop removes before its journal line",
+     "file": "heart2.py",
+     "find": "    _sweep_journal(os.path.dirname(root), \"dropped\", root, \"own-drop\", str(os.getpid()), time.time())   # REG-2612\n    if not _rmtree_hard(root):",
+     "replace": "    _gone = _rmtree_hard(root)\n    _sweep_journal(os.path.dirname(root), \"dropped\", root, \"own-drop\", str(os.getpid()), time.time())\n    if not _gone:",
+     "matches": 1},
+    {"why": "REG-2612 - review r2: the journal is never capped",
+     "file": "heart2.py",
+     "find": "            if os.fstat(fd).st_size > _JOURNAL_CAP:\n",
+     "replace": "            if False:\n",
+     "matches": 1},
+    {"why": "REG-2612 - review r2: the cap keeps a torn first line",
+     "file": "heart2.py",
+     "find": "                keep = keep[keep.find(b\"\\n\") + 1:]\n",
+     "replace": "",
      "matches": 1},
 ]
 
