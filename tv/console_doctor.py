@@ -1549,9 +1549,14 @@ def _check_his_progress_number_has_not_been_overwritten():
         else:
             _last = ("No drop episode is recorded for his world, so when and how far it fell is "
                      "UNKNOWN.")
+        # REG-2611 - a mark that came from data that was never this world's (Dean's uniques 261 from
+        # Konyo's seed) has one ruled door; the row names it so the fall is not "explained" by hiding it.
         return MISSING, ("his published progress is BELOW its own high-water mark: %s. %s "
                          "Nothing has been auto-restored, because putting the number back would "
-                         "hide whatever took it away." % ("; ".join(below), _last))
+                         "hide whatever took it away. If that mark was set by data that was never "
+                         "this world's, POST /api/board_tally_rebase {\"world\", \"lane\", \"reason\", "
+                         "\"confirm\": true} re-bases it to this reading and keeps the old mark beside it."
+                         % ("; ".join(below), _last))
     if not high:
         return UNKNOWN, ("no high-water mark banked yet — it fills on the next tally the board "
                          "posts" + ((" · " + _contested_say) if _contested_say else ""))
