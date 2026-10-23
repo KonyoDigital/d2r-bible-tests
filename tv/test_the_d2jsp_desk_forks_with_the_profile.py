@@ -110,7 +110,8 @@ var SENT = [];
 function fetch(url, opts){
   if (String(url) === '/api/d2jsp_send') {
     SENT.push(JSON.parse(opts.body));
-    return Promise.resolve({ status: 200, json: function(){ return Promise.resolve({ ok: false, reason: 'maybe-sent', board: 271, at: 'x' }); } });
+    var answer = (typeof SEND_ANSWER !== 'undefined' && SEND_ANSWER) ? SEND_ANSWER : { ok: false, reason: 'maybe-sent', board: 271, at: 'x' };
+    return Promise.resolve({ status: 200, json: function(){ return Promise.resolve(answer); } });
   }
   return Promise.resolve({ json: function(){ return Promise.resolve({ fg: null, reason: 'no prices', n: 0 }); } });
 }
@@ -225,6 +226,7 @@ POST_THE_LIST = r"""
   var out = { afterLoad: JSON.parse(JSON.stringify(RAW)) };
   window._d2jspShow();
   for (var i = 0; i < 4; i++) await flush();
+  if (typeof BEFORE_POST === 'function') BEFORE_POST();
   var b = { getAttribute: function(k){ return ({ 'data-d2jsp-shop': '1', 'data-d2jsp-send': '1' })[k] || null; } };
   b.closest = function(sel){ return (sel === '#tab-d2jsp' || sel === '[data-d2jsp-shop]') ? b : null; };
   // the first click paints the draft the room built; it is mirrored into the draft host, then the second click sends it
@@ -254,12 +256,13 @@ class TheLiveLadderTopicFollowsTheLadder(unittest.TestCase):
 
     _world = TheD2jspDeskForksWithTheProfile._world
 
-    def _post(self, profile, owner, raw):
+    def _post(self, profile, owner, raw, answer=None, before=""):
         pfx = "" if owner else "I·abcd1234·"
         lpfx = "L·" if owner else "IL·abcd1234·"
         prog = WORLD % {"raw": json.dumps(raw), "profile": json.dumps(profile), "owner": "true" if owner else "false",
                         "pfx": json.dumps(pfx), "lpfx": json.dumps(lpfx), "lp": self.lp, "wp": self.wp, "lsr": self.lsr}
-        return _node(prog + "\n" + self.script + "\n" + POST_THE_LIST)
+        head = "var SEND_ANSWER = %s;\nvar BEFORE_POST = %s;\n" % (json.dumps(answer), before or "null")
+        return _node(head + prog + "\n" + self.script + "\n" + POST_THE_LIST)
 
     def _seed(self, topic):
         return {"d2r_d2jsp_topic": topic, "d2r_d2jsp_fg": json.dumps({"Grief": "10", "Shako": "5"}),
@@ -291,9 +294,37 @@ class TheLiveLadderTopicFollowsTheLadder(unittest.TestCase):
         self.assertEqual(g["afterLoad"].get("I·abcd1234·d2r_d2jsp_fg"), json.dumps({"Grief": "10", "Shako": "5"}),
                          "the guest main stopped keeping its own filings")
         m = self._post("main", True, self._seed(LADDER_TOPIC))
-        self.assertNotIn("L·d2r_d2jsp_topic", m["afterLoad"], "the owner main copied a topic onto ladder")
+        # M6 T2 review: the owner main saves the live 271 topic into the LADDER key on load (never a main key)
+        self.assertEqual(m["afterLoad"].get("L·d2r_d2jsp_topic"), LADDER_TOPIC,
+                         "the owner main left the live 271 topic only in the bare key it is about to overwrite")
+        self.assertEqual(m["afterLoad"]["d2r_d2jsp_topic"], LADDER_TOPIC, "the bare key was moved, so an older build loses it")
         self.assertEqual(m["sent"][0]["forum"], 268)
         self.assertNotIn("topic", m["sent"][0], "a main list post was aimed at the ladder topic")
+
+    def test_a_main_post_first_after_the_update_keeps_the_live_ladder_topic(self):
+        # M6 T2 review: ladder posted last, so the bare key holds the live 271 topic, and his first list post after
+        # the update is on main. The main receipt writes the bare key; the next ladder list post must still update 271.
+        main_topic = "https://forums.d2jsp.org/topic.php?t=900&f=268"
+        m = self._post("main", True, self._seed(LADDER_TOPIC),
+                       answer={"ok": True, "reason": "submitted", "board": 268, "topic": main_topic})
+        self.assertEqual(m["raw"]["d2r_d2jsp_topic"], main_topic, "the main receipt did not save the main topic")
+        self.assertEqual(m["raw"].get("L·d2r_d2jsp_topic"), LADDER_TOPIC, "the main post erased the live ladder topic")
+        lad = self._post("ladder", True, m["raw"])
+        self.assertEqual(lad["sent"][0]["forum"], 271)
+        self.assertEqual(lad["sent"][0].get("topic"), LADDER_TOPIC,
+                         "the next ladder list post opens a second 271 topic while the first is live")
+
+    def test_a_271_topic_saved_bare_after_the_main_page_loaded_is_kept_too(self):
+        # a page still on an older build (another tab, on ladder) posts while this main page is open: its 271 topic
+        # lands bare after this page's load rescue ran, so the main receipt must rescue it before it overwrites it
+        main_topic = "https://forums.d2jsp.org/topic.php?t=901&f=268"
+        late = "function(){ RAW['d2r_d2jsp_topic'] = %s; }" % json.dumps(LADDER_TOPIC)
+        m = self._post("main", True, self._seed(TOPIC),
+                       answer={"ok": True, "reason": "submitted", "board": 268, "topic": main_topic}, before=late)
+        self.assertNotIn("L·d2r_d2jsp_topic", m["afterLoad"], "a board 268 topic was copied onto ladder")
+        self.assertEqual(m["raw"]["d2r_d2jsp_topic"], main_topic)
+        self.assertEqual(m["raw"].get("L·d2r_d2jsp_topic"), LADDER_TOPIC,
+                         "the main receipt overwrote a live 271 topic an older build saved after this page loaded")
 
     def test_a_ladder_topic_already_saved_is_never_replaced(self):
         own = self._seed(LADDER_TOPIC)
@@ -319,8 +350,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#114 - the guest copy runs on ladder too, so main filings land on board 271",
      "file": "bible.html",
-     "find": "        return;\n      }\n      if (window._D2R_OWNER) return;\n",
-     "replace": "      }\n      if (window._D2R_OWNER) return;\n",
+     "find": "      if (window.D2R_PROFILE === 'ladder') return;\n      if (window._D2R_OWNER) return;\n",
+     "replace": "      if (window._D2R_OWNER) return;\n",
      "matches": 1},
     {"why": "#114 - the guest copy writes over a value its own world already holds",
      "file": "bible.html",
@@ -334,7 +365,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#114 - the ladder strands its live 271 topic, so its next list post opens a second topic on board 271",
      "file": "bible.html",
-     "find": "        if (lt !== 'd2r_d2jsp_topic' && !R.raw.getItem(lt) && d2jspTopicBoard(bare) === D2JSP_LADDER_BOARD) R.raw.setItem(lt, String(bare));\n",
+     "find": "      if (!R.raw.getItem(lt) && d2jspTopicBoard(bare) === D2JSP_LADDER_BOARD) R.raw.setItem(lt, String(bare));\n",
      "replace": "",
      "matches": 1},
     {"why": "#114 - the ladder copy writes over a ladder topic it already saved",
@@ -351,6 +382,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "        if (k === 'd2r_d2jsp_topic' && d2jspTopicBoard(was) === D2JSP_LADDER_BOARD) return;\n",
      "replace": "",
+     "matches": 1},
+    {"why": "M6 T2 review - the rescue runs only on a ladder load, so a main post first after the update erases the live 271 topic",
+     "file": "bible.html",
+     "find": "      rescueLadderTopic();\n      if (window.D2R_PROFILE === 'ladder') return;\n",
+     "replace": "      if (window.D2R_PROFILE === 'ladder') { rescueLadderTopic(); return; }\n",
+     "matches": 1},
+    {"why": "M6 T2 review - the main receipt overwrites a 271 topic saved bare after this page loaded",
+     "file": "bible.html",
+     "find": "        if (window.D2R_PROFILE !== 'ladder') rescueLadderTopic();\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "M6 T2 review - the rescue copies the 271 topic into a MAIN key on the owner main",
+     "file": "bible.html",
+     "find": "      var lt = window._D2R_LPFX + 'd2r_d2jsp_topic';\n",
+     "replace": "      var lt = R.key('d2r_d2jsp_topic');\n",
      "matches": 1},
     {"why": "#114 - the ladder notice is never said",
      "file": "bible.html",

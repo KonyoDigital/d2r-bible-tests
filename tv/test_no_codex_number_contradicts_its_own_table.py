@@ -148,9 +148,22 @@ def _info(src):
     for table in ("ITEM_INFO", "ITEM_INFO_EXTRA"):
         a = src.index("const %s = {" % table)
         body = src[a:src.index("\n};", a)]
-        for k, v in re.findall(r'^\s*"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"\s*,?\s*$', body, re.M):
-            out.setdefault(json.loads('"%s"' % k), []).append(json.loads('"%s"' % v))
+        # M6 T2 review: ITEM_INFO holds lines with SEVERAL entries ("Tarnhelm":"..","Stealskull":"..",..). A reader anchored
+        # on one entry per line never read them, so the copies the page shows went unchecked. Every pair on a line is read,
+        # and a line the reader cannot account for in full is an error, never a skip.
+        for ln in body.split("\n")[1:]:
+            t = ln.strip()
+            if not t or t.startswith("//"):
+                continue
+            pairs = list(_INFO_PAIR.finditer(t))
+            rest = _INFO_PAIR.sub("", t).replace(",", "").strip()
+            assert pairs and not rest, "%s: a line the reader cannot read in full: %r" % (table, t[:120])
+            for m in pairs:
+                out.setdefault(json.loads('"%s"' % m.group(1)), []).append(json.loads('"%s"' % m.group(2)))
     return out
+
+
+_INFO_PAIR = re.compile(r'"((?:[^"\\]|\\.)*)"\s*:\s*"((?:[^"\\]|\\.)*)"')
 
 
 def _table(c):
@@ -582,6 +595,17 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "block:'50%', immune:'none',",
      "replace": "block:'50%', immune:'Cold',",
+     "matches": 1},
+    {"why": "M6 T2 review - a shown ITEM_INFO copy that shares its line with another entry contradicts its table again "
+            "(Stealskull's stale +5-10% LL/ML, +25-50% MF beside Tarnhelm's entry)",
+     "file": "bible.html",
+     "find": '  "Tarnhelm":"+1 ALL skills · +25-50% MF · low-lvl MF helm",\n  "Stealskull":"+10% IAS · 5% LL/ML · +30-50% MF · MF helm",\n',
+     "replace": '  "Tarnhelm":"+1 ALL skills · +25-50% MF · low-lvl MF helm","Stealskull":"+10% IAS · +5-10% LL/ML · +25-50% MF · MF helm",\n',
+     "matches": 1},
+    {"why": "M6 T2 review - Boneflame's shown copy, on a line with Wizardspike's, is a Phoenix-base blurb again, not its note",
+     "file": "bible.html",
+     "find": '  "Boneflame":"+2-3 nec skills · +20-30 all res · +20% FRW · CTC Terror · necro shield",\n  "Wizardspike":',
+     "replace": '  "Boneflame":"4 sockets · necro Phoenix base","Wizardspike":',
      "matches": 1},
 ]
 

@@ -11785,16 +11785,24 @@ function d2jspPriceLine(q) {
          empty. Never the owner, never over a value already there.
      Copies, not moves: a page still on an older build reads the bare keys. The profile switch reloads the page, so
      this runs once for the profile the page is on. */
+  /* M6 T2 review - the rescue runs on BOTH profiles, and again just before the owner main overwrites the bare key.
+     Run only on a ladder load, a bare 271 topic was lost when his first post after the update was on main: the main
+     receipt overwrote the bare key, and the next ladder list post opened a second live 271 topic. */
+  function rescueLadderTopic(){
+    try {
+      var R = window.LSR;
+      if (!R || !R.raw || typeof window._D2R_LPFX !== 'string' || !window._D2R_LPFX) return;
+      var lt = window._D2R_LPFX + 'd2r_d2jsp_topic';
+      var bare = R.raw.getItem('d2r_d2jsp_topic');
+      if (!R.raw.getItem(lt) && d2jspTopicBoard(bare) === D2JSP_LADDER_BOARD) R.raw.setItem(lt, String(bare));
+    } catch (eRescue) {}
+  }
   (function(){
     try {
       var R = window.LSR;
       if (!R || !R.raw || typeof R.key !== 'function') return;
-      if (window.D2R_PROFILE === 'ladder') {
-        var lt = R.key('d2r_d2jsp_topic');
-        var bare = R.raw.getItem('d2r_d2jsp_topic');
-        if (lt !== 'd2r_d2jsp_topic' && !R.raw.getItem(lt) && d2jspTopicBoard(bare) === D2JSP_LADDER_BOARD) R.raw.setItem(lt, String(bare));
-        return;
-      }
+      rescueLadderTopic();
+      if (window.D2R_PROFILE === 'ladder') return;
       if (window._D2R_OWNER) return;
       D2JSP_FORKED_KEYS.forEach(function(k){
         var to = R.key(k);
@@ -11923,7 +11931,10 @@ function d2jspPriceLine(q) {
     var s = store();
     if (!s) return;
     try {
-      if (url && String(url).indexOf('https://forums.d2jsp.org/topic.php') === 0) s.setItem('d2r_d2jsp_topic', String(url));
+      if (url && String(url).indexOf('https://forums.d2jsp.org/topic.php') === 0) {
+        if (window.D2R_PROFILE !== 'ladder') rescueLadderTopic();
+        s.setItem('d2r_d2jsp_topic', String(url));
+      }
     } catch (eWrite) {}
   }
   function shopDraftNow(){
@@ -17228,7 +17239,9 @@ const ITEM_INFO = {
   "Vampire Gaze":"6-8% LL · 6-8% mana leech · 15-20% DR · cold dmg vs attacker · budget tank helm",
   "Arreat's Face":"+2 barb skills · +30% FHR · 3-6% LL · +20 STR/DEX · +30 all res · the barb helm",
   "Kira's Guardian":"+50-70 all res · CBF · +20% FHR · the +res helm",
-  "Tarnhelm":"+1 ALL skills · +25-50% MF · low-lvl MF helm","Stealskull":"+10% IAS · +5-10% LL/ML · +25-50% MF · MF helm","Rockstopper":"+30% DR vs magic · -10-20% from physical · HC helmet of choice",
+  "Tarnhelm":"+1 ALL skills · +25-50% MF · low-lvl MF helm",
+  "Stealskull":"+10% IAS · 5% LL/ML · +30-50% MF · MF helm",
+  "Rockstopper":"DR by 10% · +30% FHR · +20-50% fire res · +20-40% cold/light res · HC helmet of choice",
   "Tyrael's Might":"CBF · slain monsters rest in peace · indestructible · requirements -100% — UBER GRAIL",
   "Templar's Might":"+20% FHR · +250-300 def vs missile · +10-15 STR/VIT · +1 combat skills · pala armor staple",
   "Skin of the Vipermagi":"+1 ALL skills · +20-35% all res · +30% FCR · caster early-game crown jewel",
@@ -17243,7 +17256,8 @@ const ITEM_INFO = {
   "Stormshield":"+35% DR · +60 cold res · +25 light res · indestructible · the defensive pally shield",
   "Spirit Ward":"+30 all res · +ML · niche resistance shield",
   "Homunculus":"+2 nec skills · +2 poison and bone skills · +40 all res · regen mana 33% · the necro shield chronicle",
-  "Boneflame":"4 sockets · necro Phoenix base","Wizardspike":"50% FCR · all res · +mana · the budget caster dagger",
+  "Boneflame":"+2-3 nec skills · +20-30 all res · +20% FRW · CTC Terror · necro shield",
+  "Wizardspike":"50% FCR · all res · +mana · the budget caster dagger",
   "Heart Carver":"+4 Find Item · +4 Find Potion · +4 Grim Ward · 35% deadly strike · niche barb find-item dagger",
   "Stormlash":"20% chance Tornado · 33% chance Static Field · zealer scourge",
   "Ribcracker":"+200-300% ED · 50% CB · +50% FHR · +50% IAS · the cheap staff",

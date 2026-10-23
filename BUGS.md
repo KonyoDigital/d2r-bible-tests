@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2572 - TWO M6 T2 REVIEW DEFECTS: A SHOWN ITEM COPY THE CODEX LAW NEVER READ, AND A LIVE LADDER TOPIC A MAIN POST ERASED (M6 T2 fix round)
+
+1. Codex truth. ITEM_INFO held two lines with more than one entry (Tarnhelm + Stealskull + Rockstopper; Boneflame +
+Wizardspike). The law's reader took one entry per line, so it never saw Stealskull, Rockstopper or Boneflame, and their
+contradicting copies stayed on screen while the rewrite landed in ITEM_INFO_EXTRA duplicates the page never shows (ITEM_INFO_EXTRA
+is read only for a name ITEM_INFO lacks). v83_sync_audit failed on the branch.
+FIX: tv/test_no_codex_number_contradicts_its_own_table.py reads every "name":"note" pair on a line and fails on any line it
+cannot read in full. bible.html splits the two lines one entry per line, and the three shown copies now agree with their codex
+notes. Two RED_PROOF cases put a stale copy back on a shared line.
+2. The live ladder topic. The bare board-271 topic was copied into the ladder key only when a page loaded on ladder. When ladder
+posted last before the update and his first list post after it was on main, the main receipt overwrote the bare key and the 271
+topic was gone; the next ladder "Post the list" sent no topic and opened a second live topic on board 271.
+FIX: rescueLadderTopic (desk block) copies a bare 271 topic into the ladder key (_D2R_LPFX, while that key is empty) on every
+load, main included, and writeTopic runs it again on main just before it writes the bare key (a page on an older build may save
+a 271 topic bare after this page loaded). Never a main key, never a 268 topic, never over a saved ladder topic, and the bare key
+is copied, not moved. tv/test_the_d2jsp_desk_forks_with_the_profile.py drives a main post first, then the ladder post, and reads
+the topic the console is sent; three RED_PROOF cases cover the load rescue, the receipt rescue, and the prefix.
+
 ### REG-2500 - A D2JSP POST THE BOARD MAY ALREADY HOLD WAS SHOWN AS "NOT SENT ... NOTHING WAS POSTED" (#106 page side, M6 T2)
 
 The room has two send paths, one item (a card's Post) and the list (Post the list), and each kept its own copy of the reason
