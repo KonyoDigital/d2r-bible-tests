@@ -54,17 +54,20 @@ class _Sweeps(unittest.TestCase):
         events = self.events
 
         class _Hold(object):
+            taken = True              # keep_awake.held() yields a token; a refusal is taken False, never a raise
+
             def __init__(self, why):
                 self.why = why
 
             def __enter__(self):
                 events.append(("enter", self.why))
-                return self
+                return {"taken": _Hold.taken, "why": self.why}
 
             def __exit__(self, et, ev, tb):
                 events.append(("exit", et.__name__ if et else None))
                 return False
         stub.held = _Hold
+        self.Hold = _Hold
         stub.status = lambda: {"held": False}
         vault, chron = dict(CA._VAULT_JOB), dict(CA._CHRON_JOB)
         self.addCleanup(lambda: (CA._VAULT_JOB.clear(), CA._VAULT_JOB.update(vault)))
@@ -120,6 +123,18 @@ class TheHoldLastsExactlyAsLongAsTheSweep(_Sweeps):
 
 class WithoutKeepAwakeItSaysSo(_Sweeps):
 
+    def test_a_refused_hold_is_not_recorded_as_held(self):
+        """REG-2466 round 2 - held() never raises; on Linux, or when SetThreadExecutionState answers 0, it yields
+        taken False. The record must say NOT held, and the refused hold is still left (a Windows depth unwinds)."""
+        self.Hold.taken = False
+        self.first_step()
+        CA._vault_sweep_run(self.tmp, 1)
+        self.assertEqual(self.events, [("enter", "vault sweep running"), ("step",), ("exit", None)],
+                         "a refused hold was not entered and left around the sweep: %r" % self.events)
+        rec = CA.KEEP_AWAKE_LAST
+        self.assertIs(rec["held"], False, "a refused hold was recorded as held: %r" % rec)
+        self.assertIn("NOT held", rec["why"])
+
     def test_no_keep_awake_runs_the_sweep_and_says_nothing_was_held(self):
         self.first_step()
         with mock.patch.dict(sys.modules, {"keep_awake": None}):
@@ -154,6 +169,13 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "        cm, self.cm = self.cm, None\n        if cm is not None:\n",
         "replace": "        cm, self.cm = self.cm, None\n        if cm is not None and et is None:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2466 round 2 - 'held() returned' is read as 'it holds': a refused hold (taken False) is recorded as held",
+        "file": "control_app.py",
+        "find": "            if isinstance(tok, dict) and tok.get(\"taken\") is True:\n",
+        "replace": "            if True:\n",
         "matches": 1,
     },
 ]

@@ -215,6 +215,8 @@ GUARD: tv/test_a_sweep_holds_the_pc_awake_only_while_it_runs.py (registered), wi
 
 LEFT: tv/keep_awake.py is Track C's; until it lands every sweep records "NOT held". The heart2 proof runs (the other half of "a proof/sweep") are not wrapped here - heart2 is not in this change.
 
+- **Round 2 (GrokBot, M4 second eye, 2026-10-23).** `_SweepHold` recorded `held: True` whenever `keep_awake.held()` returned - but held() never raises; a refusal (no door on Linux, SetThreadExecutionState answering 0, no caffeinate) yields `taken: False`. The record now follows `taken`, says NOT held on a refusal, and still leaves the entered hold. The law's stand-in yields a token like the real one; a taken-False case and a 4th RED_PROOF added.
+
 ### REG-2465 - A WINDOWS CONSOLE NEVER ASKED FOR NODE, SO A PC WITHOUT IT STAYED WITHOUT IT (#167, the console's half)
 
 Measured on Dean's PC (by the agent, 2026-10-21/22): no node on PATH. Every node-only law skipped there (heart2 asks PATH), the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days, and the subscription intake lane - which spawns a bare `node` - never ran, so his reads went to the hosted site. Node was put there by hand over SSH (2026-10-22). His ruling 2026-10-21: "BOTH" - the installer and the console's own dependency step fetch Node on every PC. A self-updated console never re-runs the installer (REG-1260, the Pillow lesson), so the console must ask for itself.
