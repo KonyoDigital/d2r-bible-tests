@@ -61,9 +61,13 @@ for (let i = 0; i < CFG.bodies.length; i++) {
       store.set(k, JSON.stringify(o));
     }
   }
+  // #95 - a body may arrive as EXACT bytes (base64) with its own headers (X-Roster-Key / X-Roster-Sig),
+  // so a signature made in Python is checked over the very bytes it covers. A plain body posts as before.
+  const one = CFG.bodies[i];
+  const exact = one && typeof one === 'object' && typeof one.__raw === 'string';
   const req = new Request('https://bull-4-u.com/api/roster', {
-    method: 'POST', body: JSON.stringify(CFG.bodies[i]),
-    headers: { 'content-type': 'application/json' } });
+    method: 'POST', body: exact ? new Uint8Array(Buffer.from(one.__raw, 'base64')) : JSON.stringify(one),
+    headers: Object.assign({ 'content-type': 'application/json' }, (exact && one.__headers) || {}) });
   const res = await mod.onRequestPost({ request: req, env: { TZ_HISTORY: kv }, waitUntil(){} });
   statuses.push(res.status);
   replies.push(JSON.parse(await res.text()));
@@ -202,7 +206,12 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         body, why = RP.due({}, OWNER, RP.sections_from({"characters": _char(1)}), now, False)
         self.assertEqual(why, "post")
         state = {"hash": RP.hash_of(RP.packed(RP.for_hash(body["sections"]))), "at": now}
+        # REG-2512 (#95) - boot posts even an unchanged body (the server skips the write when its hash
+        # matches, and overwrites a forged row otherwise). Only a tick stays quiet when nothing changed.
         again, why = RP.due(state, OWNER, body["sections"], now + 1000, True)
+        self.assertEqual(why, "post")
+        self.assertEqual(again["signedAt"], now + 1000)
+        again, why = RP.due(state, OWNER, body["sections"], now + 1000, False)
         self.assertIsNone(again)
         self.assertEqual(why, "unchanged")
         moved = RP.sections_from({"characters": _char(2)})
@@ -238,6 +247,29 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertNotIn("install", rec)
         self.assertNotIn("machine", rec)
         self.assertEqual(v["puts"], ["roster:" + OWNER])
+
+    def test_a_signed_publish_reads_back_verified_through_the_viewer(self):
+        """#95 - the same worker, sent EXACT bytes and the two headers: a body signed by a PC's key reads
+        back intentVerified:true through GET and view_of, and registers that key. The unsigned bodies the
+        rest of this file posts still store, said false, so a PC that has not updated keeps publishing."""
+        import base64
+        import roster_sign as RS
+        with tempfile.TemporaryDirectory(prefix="tvd_roster_key_") as d:
+            raw = json.dumps(_body(7, boot=True), ensure_ascii=False).encode("utf-8")
+            heads, signing = RS.sign_headers(RS.key_path_in(d), raw)
+        self.assertIs(signing["signed"], True, signing)
+        v = _post([{"__raw": base64.b64encode(raw).decode("ascii"), "__headers": heads}], get=True)
+        self.assertEqual(v["replies"][0]["stored"], ["roster"])
+        self.assertIs(v["replies"][0]["intentVerified"], True, v["replies"][0])
+        self.assertEqual(sorted(v["keys"]), sorted(["roster:" + OWNER, "rosterkey:" + OWNER]))
+        t = v["records"]["roster:" + OWNER]["t"]
+        mine = [r for r in RP.view_of(v["got"]["body"]["owners"], t) if r["owner"] == OWNER][0]
+        self.assertIs(mine["intentVerified"], True)
+        plain = _post([_body(7, boot=True)], get=True)
+        t = plain["records"]["roster:" + OWNER]["t"]
+        theirs = [r for r in RP.view_of(plain["got"]["body"]["owners"], t) if r["owner"] == OWNER][0]
+        self.assertIs(theirs["intentVerified"], False)
+        self.assertEqual(plain["keys"], ["roster:" + OWNER], "an unsigned publish registered a key")
 
     def test_a_hostname_is_not_a_key(self):
         v = _post([{"owner": "konyo-3", "sections": _body()["sections"]}])

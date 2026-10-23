@@ -4780,22 +4780,34 @@ def _roster_reads(now_ms):
     return reads
 
 
-def _roster_post(url, body):
+def _roster_post(url, body, key_path=None):
+    """POST one roster body. #95: the exact bytes sent are the bytes signed (roster_sign.sign_headers,
+    X-Roster-Key / X-Roster-Sig), and the answer comes back with `signing` beside it - a key id and
+    words, never the seed. A key that cannot be read or made, or a signer that fails, posts UNSIGNED
+    and says why in the receipt: never stop a PC from publishing (his 10-22 ruling). The Basic
+    password stays because the site's gate asks for it; it is no longer what lets a row be written."""
+    signing = {"signed": False, "why": "the signer was not reached"}
     try:
         import base64 as _b64
         raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
-        req = urllib.request.Request(
-            url, data=raw,
-            headers={"Content-Type": "application/json", "User-Agent": "TVD-Console/1.0",
-                     "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()},
-            method="POST")
+        headers = {"Content-Type": "application/json", "User-Agent": "TVD-Console/1.0",
+                   "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()}
+        try:
+            import roster_sign as _rs
+            signed, signing = _rs.sign_headers(key_path, raw)
+            headers.update(signed)
+        except Exception as e:
+            signing = {"signed": False, "why": "the signer raised %s" % type(e).__name__}
+        req = urllib.request.Request(url, data=raw, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=8) as resp:
             text = resp.read().decode("utf-8", "replace")
         got = json.loads(text)
     except Exception as e:
-        return {"ok": False, "why": type(e).__name__, "code": getattr(e, "code", None)}
+        return {"ok": False, "why": type(e).__name__, "code": getattr(e, "code", None), "signing": signing}
     if not isinstance(got, dict):
-        return {"ok": False, "why": "the roster answer was not a record"}
+        return {"ok": False, "why": "the roster answer was not a record", "signing": signing}
+    got = dict(got)
+    got["signing"] = signing
     return got
 
 
@@ -4820,7 +4832,9 @@ def _roster_publish_once(boot):
         state["why"] = str(reason)[:200]
         _roster_state_save(state)
         return
-    reply = _roster_post("https://bull-4-u.com/api/roster", body)
+    # #95 - this PC's key (roster_sign.KEY_FILE) sits beside its receipt, so it follows TV_HIST and a
+    # fixture never touches his. Spelled out so test_every_decision_file_is_ignored asks git about it.
+    reply = _roster_post("https://bull-4-u.com/api/roster", body, os.path.join(_log_root(), ".roster_key.json"))
     _roster_state_save(_rp.apply_reply(state, sections, reply, now_ms))
 
 
@@ -45756,7 +45770,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/roster-cache":
             data = _roster_cache_payload()
             import roster_publish as _rp
+            # #95 - this PC's own last publish (signed / unsigned / refused, with why), from its own receipt
+            data["me"] = _rp.publish_outcome(_roster_state_load(), int(time.time() * 1000))
             data["html"] = _rp.roster_html(data)
+            # REG-2517 - the words the panel's buttons and the shadow bar draw: each row's signature, and `me` as a line
+            _rp.panel_words(data)
             self._json(200, data)
             return
         if path == "/api/fleet":
@@ -48849,6 +48867,15 @@ def main():
         _reel_sweep_indexes(why="console boot")
     except Exception as _se:
         print("\u26a0 boot index sweep skipped: %s" % _se, flush=True)
+    # #112 - a console killed mid d2jsp op leaves its scratch Chrome (holding his decrypted session) and
+    # its profile behind, and nothing came back for them until the next op. Swept once here, synchronously.
+    try:
+        import d2jsp_chrome as _d2jsp_boot
+        _d2jsp_swept = _d2jsp_boot._sweep_stale_scratch()
+        if _d2jsp_swept:
+            print("boot d2jsp sweep: removed %d stale scratch item(s)" % _d2jsp_swept, flush=True)
+    except Exception as _de:
+        print("boot d2jsp scratch sweep skipped: %s" % ascii(_de)[:200], flush=True)
     # #227 — this machine's own tree, established where it lives (see _establish_tree_at_boot)
     threading.Thread(target=_establish_tree_at_boot, daemon=True, name="tvd-tree").start()
     # #227 — a self-updated console never re-runs the launcher: it makes sure it can read its frames
