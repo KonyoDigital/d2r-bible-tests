@@ -95,6 +95,16 @@ LANES = {
                   "playing (D2R is alive), the machine is loaded above its core count, a capture "
                   "is live, a paid sweep is spending, or the disk is below its floor",
     },
+    "tvd-river-warm": {
+        "does": "computes this console's river lanes into the beacon's cache a minute after start and whenever "
+                "that cache is ten minutes old, so the fleet reads every PC's river without anyone opening its shelf",
+        "touches": "an in-memory cache only - the same lanes /api/river serves",
+        "forbids": ["delete"],
+        "never": "your reels, your frames, the stamp log or the vault. It reads where the router says each reel is",
+        "when": "on a one-minute timer that does nothing while the cache is fresh",
+        "brakes": "a fresh read from the shelf or the doctor is left alone; a failed read is kept as a failure, never "
+                  "as an empty river",
+    },
     "tvd-retention": {
         "does": "accounts for what old footage COULD be freed",
         "touches": "its own accounting",
@@ -404,6 +414,7 @@ LANE_FN = {
     "tvd-runaway-watch": "_runaway_watch_loop",
     "tvd-tooltip-oracle": "_tooltip_oracle_loop",
     "tvd-orphan-fold": "_orphan_fold_loop",
+    "tvd-river-warm": "_river_warm_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed

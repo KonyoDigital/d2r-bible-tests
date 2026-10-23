@@ -89,6 +89,7 @@ the same `start_agent()`. They differ only in what they check at their own door.
     _prune_loop                every _PRUNE_POLL_S
     _retention_loop            every _RETENTION_EVERY_S
     _retro_triage_loop         every _TRIAGE_EVERY_S, _TRIAGE_EVERY_S
+    _river_warm_loop           every RIVER_WARM_FIRST_S, RIVER_WARM_TICK_S
     _roster_fetch_loop         every 20, 300
     _roster_publish_loop       every 8, 60
     _runaway_watch_loop        every _RUNAWAY_TICK_S
@@ -328,7 +329,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 
 ## GATES
 
-    1154 registered in tv/run_gates.py — every one named below with what it guards,
+    1155 registered in tv/run_gates.py — every one named below with what it guards,
     so that "does a law already exist for this?" is answered by reading this file.
 
 - **blueprint-agrees** — v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING.
@@ -885,6 +886,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_every_owned_door_writes_provenance** — 2026-09-28 - Grief and Plague sat in his vault with no provenance row, and String of Ears, read WORN, reached only the found list.
 - **test_every_pc_can_finish_its_own_proof** — REG-1626 (2026-09-30) - his directive: the same logic proven on the Mac, the ALT and GrokBot's PC, then Dean's with no SSH.
 - **test_every_pc_proves_itself** — REG-1447 - only his Mac's pre-push gate ever wrote a heart census, and a Mac proof does not speak for Windows (different fingerprints at one commit
+- **test_every_pc_reads_its_river_without_a_shelf** — REG-2641 (2026-10-24) - right after the Mac and Dean took v3792 and restarted, both fleet rows read 'river UNKNOWN': only the shelf view and the docto…
 - **test_every_push_checks_every_proof_anchor** — REG-1163 - four red-proofs went INVALID in one day because an ordinary edit changed a line another gate's proof pins, and the hook re-proves only laws…
 - **test_every_push_line_carries_its_elapsed_time** — #193 - every pre-push status line was untimed, so a gate's duration could only be BOUNDED from outside by polling ps
 - **test_every_removal_door_leaves_his_word** — REG-2404 + REG-2405 (review of REG-2400/2401) - two of his removal doors wrote no journal row, so a re-read brought the item back over his word: the n…

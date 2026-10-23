@@ -9880,6 +9880,9 @@ def start_background_watchers(why):
         # named conditions; the store it fills is what makes order_by_known_worth mean
         # anything. Without this the filter is built, joined, and never runs.
         ("tvd-retro-triage", _retro_triage_loop),
+        # REG-2641 - the beacon's river cache, computed a minute after start and every 10 min it has gone stale, so a
+        # healthy PC nobody opened the shelf on reads its river (and its stuck stations) on the fleet, never UNKNOWN.
+        ("tvd-river-warm", _river_warm_loop),
         # v2304 — shadow stops being a reader that needs someone else to press record. It looks for
         # the Diablo window through tv_diablo's finder and rolls a reel itself, so playing is
         # enough. Measured cause: an evening of play with shadow on produced ZERO reels.
@@ -16767,6 +16770,101 @@ def _capture_route_for_wire(now_ms=None):
     return out
 
 
+def _river_lanes_block():
+    """THE RIVER'S LANES - what /api/river serves as `lanes` and what the beacon's cache keeps. -> dict (never raises)
+
+    REG-2641 - lifted out of the /api/river route unchanged, so the river warmer (_river_warm_loop) computes the
+    SAME block the shelf does, and the two can never drift. [[the-unjoined-end]]"""
+    _lanes = None
+    try:
+        import river_lanes as _RL
+        # ⚠ THE SAME 8 REELS THE SHELF HIDES, SUBTRACTED FROM THE SAME SHELF.
+        # `hide=None` (an unreadable plan) leaves the river whole and says so in
+        # `hiddenWhy` rather than quietly drawing a filtered-looking river it never
+        # filtered. [[unknown-stays-unknown]]
+        _hide, _hide_why = shelf_hidden_reels()
+        _lr = _RL.lanes(hide=_hide)
+        if _lr.get("ok"):
+            # ⚠ COUNTS AND THE LANE'S OWN SENTENCE — never the reel RECORDS. The
+            # shelf already has the sessions; shipping 40 reel records again would
+            # double the payload for a strip that draws four numbers.
+            #
+            # ⚠⚠ v2791 — BUT IT NOW SHIPS THE REEL IDS, AND THAT IS NOT THE SAME THING.
+            # Konyo: *"all the reels on the bottom rendering need to be inside those
+            # same sections.. not outside of them."* The cards cannot be put inside
+            # their lanes unless the page is told WHICH reels are in WHICH lane, and
+            # the strip's counts alone cannot answer that.
+            #
+            # A record carries reel + station + why + owes; an ID is one short string.
+            # MEASURED on his store: 40 reels across the four lanes, ~1.6 KB of ids.
+            # That is the middle the original note did not consider — it refused the
+            # records, correctly, and the ids were never the expensive part.
+            #
+            # ⚠ STILL CAPPED. If the river ever grows to thousands, this must not
+            # quietly become the bulk payload the note above forbids: over the cap the
+            # ids are dropped and `idsCapped` says so, rather than a lane silently
+            # rendering a subset as if it were the whole.
+            _RIVER_ID_CAP = 600
+            _lane_rows = []
+            _capped = False
+            for l in (_lr.get("lanes") or []):
+                _ids = [str((x or {}).get("reel") or "")
+                        for x in (l.get("reels") or []) if (x or {}).get("reel")]
+                if len(_ids) > _RIVER_ID_CAP:
+                    _ids, _capped = [], True
+                # ⚠⚠ v2822 (#36) — THE CLOSED HALF TRAVELS TOO, OR THE JOIN STOPS
+                # HERE. `river_lanes` was taught to hand each lane the reels that
+                # actually closed out; this whitelist is the last place that fact can
+                # be dropped, and dropping it would leave the TOMBSTONE lane drawing
+                # the same ROUTED-only picture it drew before — a fix that exists in
+                # two files and reaches no screen. [[the-unjoined-end]]
+                # ⚠ `closedCount` is the WHOLE ledger; `closedIds` is the capped
+                # sample river_lanes drew; `closedShown` says how many that is. None
+                # is UNKNOWN — an unreadable ledger — and never 0.
+                _cr = l.get("closedReels")
+                _lane_rows.append({"name": l["name"], "why": l["why"],
+                                   "stations": l["stations"], "count": l["count"],
+                                   "byStation": l["byStation"],
+                                   "reelIds": _ids,
+                                   "closedCount": l.get("closedCount"),
+                                   "closedShown": l.get("closedShown"),
+                                   "closedWhy": l.get("closedWhy"),
+                                   "closedIds": (None if _cr is None else
+                                                 [str((x or {}).get("reel") or "")
+                                                  for x in _cr])})
+            _lanes = {"ok": True,
+                      "reconciles": _lr.get("reconciles"),
+                      "shelf": _lr.get("shelf"),
+                      # ⚠ REPORTED, NEVER RENDERED. His ruling is that the fixtures are
+                      # not mentioned ANYWHERE VISUALLY; a field in the payload is what
+                      # lets a gate and the doctor prove the subtraction happened at
+                      # all. A filter nothing can measure is a filter nothing can keep.
+                      "hidden": _lr.get("hidden"),
+                      "hiddenWhy": _hide_why,
+                      # ⚠ TWO DENOMINATORS, BOTH SHIPPED. `shelf` is reels on disk
+                      # (what `reconciles` is about); `closed` is reels that have left
+                      # it; `lifetime` is the union. Shipping only the first is how
+                      # the per-reel surfaces came to cover 41 of 469 lifetimes with
+                      # nothing on screen saying so. [[zero-needs-a-denominator]]
+                      "closed": _lr.get("closed"),
+                      "lifetime": _lr.get("lifetime"),
+                      "closedWhy": _lr.get("closedWhy"),
+                      "unknown": _lr.get("unknown"),
+                      "idsCapped": _capped,
+                      "lanes": _lane_rows}
+        else:
+            # ⚠ A REFUSAL TRAVELS AS A REFUSAL. ok:False with its reason, never an
+            # empty list that a renderer would draw as four zeroes.
+            _lanes = {"ok": False, "why": _lr.get("why") or "the lane view refused"}
+    except Exception as _le:
+        _lanes = {"ok": False,
+                  "why": "river_lanes raised %s, so the lanes are UNKNOWN and "
+                         "specifically not empty" % type(_le).__name__}
+    # ⚠ 2026-09-28 — KEPT WHERE IT IS COMPUTED, for the fleet beacon, which must never pay
+    # the 2-4 s itself. The beacon carries these counts with THIS moment's age.
+    return _lanes
+
+
 def _river_station_counts(lanes):
     """Reels per station from a /api/river `lanes` block. -> {station: n} | None (no lane answered)"""
     if not isinstance(lanes, dict) or not lanes.get("ok"):
@@ -16834,6 +16932,62 @@ def _river_remember_once(lanes, error):
             if _shelf_n is not None:
                 good["shelf"] = _shelf_n
         _RIVER_LAST["good"] = good
+
+
+#: REG-2641 - THE RIVER WARMER. 2026-10-24 01:37: the Mac and Dean updated to v3792, restarted, and both rows read "river
+#: UNKNOWN" - "this console has not computed its river since it started - nothing has asked for the river yet". Only the
+#: SHELF view and the doctor ever asked /api/river, so a healthy PC nobody sat at (Dean mid re-prove, the ALT, the box)
+#: read UNKNOWN after every restart for as long as nobody opened the shelf - and its stuck reading was never taken at all,
+#: because the beacon walks the stamp log only beside a river it already holds. The warmer computes the same lanes
+#: (_river_lanes_block) into the same cache (_river_remember) a minute after start and whenever the cache is older than
+#: RIVER_WARM_EVERY_S. A fresh cache (the shelf asked) is left alone. The beacon still never computes the river itself.
+RIVER_WARM_FIRST_S = 60
+RIVER_WARM_EVERY_S = 600
+
+
+def _river_warm_due(now_ms=None):
+    """Does the beacon's river cache need a read? -> (bool, why). Pure over _RIVER_LAST."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    g, f = _RIVER_LAST.get("good"), _RIVER_LAST.get("fail")
+    newest = max([int(r.get("ts") or 0) for r in (g, f) if isinstance(r, dict)] or [0])
+    if not newest:
+        return True, "no river computed since this console started"
+    age = (now - newest) / 1000.0
+    if age >= RIVER_WARM_EVERY_S:
+        return True, "the last river read is %.0f s old" % age
+    return False, "the last river read is %.0f s old" % age
+
+
+def _river_warm_once(now_ms=None):
+    """One warmer tick: compute the lanes into the beacon's cache when it is due. -> why (never raises)"""
+    due, why = _river_warm_due(now_ms)
+    if not due:
+        return "fresh - " + why
+    try:
+        _river_remember(_river_lanes_block())
+    except Exception as e:
+        _river_remember(error=e)
+    return "computed - " + why
+
+
+RIVER_WARM_TICK_S = 60
+
+
+def _river_warm_loop():
+    """REG-2641 - the beacon's river cache, kept warm. Reads only: river_lanes over the router, no stamp, no footage."""
+    _first = True
+    while True:
+        try:
+            # two plain sleeps, the tooltip loop's shape: BLUEPRINT's lane table reads the cadence off each constant
+            if _first:
+                time.sleep(RIVER_WARM_FIRST_S)
+            else:
+                time.sleep(RIVER_WARM_TICK_S)
+            _first = False
+            _lane_tick('tvd-river-warm', RIVER_WARM_TICK_S)
+            _river_warm_once()
+        except Exception:
+            pass
 
 
 def _triage_for_wire():
@@ -46714,93 +46868,7 @@ class Handler(BaseHTTPRequestHandler):
                 # refuses to draw at all if its map stops partitioning the router's stations.
                 # A tidy four-lane picture over a broken map is worse than none, because it
                 # looks complete while reels quietly leave the frame.
-                _lanes = None
-                try:
-                    import river_lanes as _RL
-                    # ⚠ THE SAME 8 REELS THE SHELF HIDES, SUBTRACTED FROM THE SAME SHELF.
-                    # `hide=None` (an unreadable plan) leaves the river whole and says so in
-                    # `hiddenWhy` rather than quietly drawing a filtered-looking river it never
-                    # filtered. [[unknown-stays-unknown]]
-                    _hide, _hide_why = shelf_hidden_reels()
-                    _lr = _RL.lanes(hide=_hide)
-                    if _lr.get("ok"):
-                        # ⚠ COUNTS AND THE LANE'S OWN SENTENCE — never the reel RECORDS. The
-                        # shelf already has the sessions; shipping 40 reel records again would
-                        # double the payload for a strip that draws four numbers.
-                        #
-                        # ⚠⚠ v2791 — BUT IT NOW SHIPS THE REEL IDS, AND THAT IS NOT THE SAME THING.
-                        # Konyo: *"all the reels on the bottom rendering need to be inside those
-                        # same sections.. not outside of them."* The cards cannot be put inside
-                        # their lanes unless the page is told WHICH reels are in WHICH lane, and
-                        # the strip's counts alone cannot answer that.
-                        #
-                        # A record carries reel + station + why + owes; an ID is one short string.
-                        # MEASURED on his store: 40 reels across the four lanes, ~1.6 KB of ids.
-                        # That is the middle the original note did not consider — it refused the
-                        # records, correctly, and the ids were never the expensive part.
-                        #
-                        # ⚠ STILL CAPPED. If the river ever grows to thousands, this must not
-                        # quietly become the bulk payload the note above forbids: over the cap the
-                        # ids are dropped and `idsCapped` says so, rather than a lane silently
-                        # rendering a subset as if it were the whole.
-                        _RIVER_ID_CAP = 600
-                        _lane_rows = []
-                        _capped = False
-                        for l in (_lr.get("lanes") or []):
-                            _ids = [str((x or {}).get("reel") or "")
-                                    for x in (l.get("reels") or []) if (x or {}).get("reel")]
-                            if len(_ids) > _RIVER_ID_CAP:
-                                _ids, _capped = [], True
-                            # ⚠⚠ v2822 (#36) — THE CLOSED HALF TRAVELS TOO, OR THE JOIN STOPS
-                            # HERE. `river_lanes` was taught to hand each lane the reels that
-                            # actually closed out; this whitelist is the last place that fact can
-                            # be dropped, and dropping it would leave the TOMBSTONE lane drawing
-                            # the same ROUTED-only picture it drew before — a fix that exists in
-                            # two files and reaches no screen. [[the-unjoined-end]]
-                            # ⚠ `closedCount` is the WHOLE ledger; `closedIds` is the capped
-                            # sample river_lanes drew; `closedShown` says how many that is. None
-                            # is UNKNOWN — an unreadable ledger — and never 0.
-                            _cr = l.get("closedReels")
-                            _lane_rows.append({"name": l["name"], "why": l["why"],
-                                               "stations": l["stations"], "count": l["count"],
-                                               "byStation": l["byStation"],
-                                               "reelIds": _ids,
-                                               "closedCount": l.get("closedCount"),
-                                               "closedShown": l.get("closedShown"),
-                                               "closedWhy": l.get("closedWhy"),
-                                               "closedIds": (None if _cr is None else
-                                                             [str((x or {}).get("reel") or "")
-                                                              for x in _cr])})
-                        _lanes = {"ok": True,
-                                  "reconciles": _lr.get("reconciles"),
-                                  "shelf": _lr.get("shelf"),
-                                  # ⚠ REPORTED, NEVER RENDERED. His ruling is that the fixtures are
-                                  # not mentioned ANYWHERE VISUALLY; a field in the payload is what
-                                  # lets a gate and the doctor prove the subtraction happened at
-                                  # all. A filter nothing can measure is a filter nothing can keep.
-                                  "hidden": _lr.get("hidden"),
-                                  "hiddenWhy": _hide_why,
-                                  # ⚠ TWO DENOMINATORS, BOTH SHIPPED. `shelf` is reels on disk
-                                  # (what `reconciles` is about); `closed` is reels that have left
-                                  # it; `lifetime` is the union. Shipping only the first is how
-                                  # the per-reel surfaces came to cover 41 of 469 lifetimes with
-                                  # nothing on screen saying so. [[zero-needs-a-denominator]]
-                                  "closed": _lr.get("closed"),
-                                  "lifetime": _lr.get("lifetime"),
-                                  "closedWhy": _lr.get("closedWhy"),
-                                  "unknown": _lr.get("unknown"),
-                                  "idsCapped": _capped,
-                                  "lanes": _lane_rows}
-                    else:
-                        # ⚠ A REFUSAL TRAVELS AS A REFUSAL. ok:False with its reason, never an
-                        # empty list that a renderer would draw as four zeroes.
-                        _lanes = {"ok": False, "why": _lr.get("why") or "the lane view refused"}
-                except Exception as _le:
-                    _lanes = {"ok": False,
-                              "why": "river_lanes raised %s, so the lanes are UNKNOWN and "
-                                     "specifically not empty" % type(_le).__name__}
-                # ⚠ 2026-09-28 — KEPT WHERE IT IS COMPUTED, for the fleet beacon, which must never pay
-                # the 2-4 s itself. The beacon carries these counts with THIS moment's age.
+                _lanes = _river_lanes_block()
                 _river_remember(_lanes)
                 self._json(200, {
                     "ok": bool(_cen.get("ok")),

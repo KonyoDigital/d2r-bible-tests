@@ -10236,6 +10236,14 @@ GATES = [
              "remnant filter, and the stuck reading counted them as owed. reel_retention.remnant_reels is the one answer "
              "the plan, the closer queue and the stuck reading ask: records and dotfiles the console writes back do not "
              "un-release a reel, a stray frame that is not kept does, an unreadable store hides nothing."),
+    Gate("test_every_pc_reads_its_river_without_a_shelf",
+         [sys.executable, os.path.join(HERE, "test_every_pc_reads_its_river_without_a_shelf.py")], 60,
+         needs_app=False,
+         why="REG-2641 (2026-10-24) - right after the Mac and Dean took v3792 and restarted, both fleet rows read 'river "
+             "UNKNOWN': only the shelf view and the doctor ever asked /api/river, so a healthy PC nobody sat at read "
+             "UNKNOWN after every restart and its stuck reading was never taken. The tvd-river-warm lane computes the "
+             "route's own lanes block into the beacon's cache a minute after start and whenever it is 10 min old; a "
+             "fresh read is left alone; a failure stays a failure, never an empty river; the route shares the block."),
     Gate("test_claude_signs_in_from_the_console",
          [sys.executable, os.path.join(HERE, "test_claude_signs_in_from_the_console.py")], 60,
          needs_app=False,
