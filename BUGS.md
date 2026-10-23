@@ -53,6 +53,8 @@ FIX: console_doctor.this_pc_ships() - ONE measured predicate: this PC ships if i
 
 GUARD: tv/test_an_eye_row_asks_only_a_pc_that_ships.py (registered; 4 RED proofs, among them "the predicate forced to not-shipping" and "the predicate ignores the ledger").
 
+ROUND 2 (review C3, privacy): the ships predicate's whys named the expanded EYE_CLI (a home path on Windows) in every eye row and in .eagle_slow.json. It now names the binary by its basename only (console_doctor._ntpath_base, either OS's separators).
+
 ### REG-2389 - THE DOCTOR'S SUBSCRIPTION ROW COUNTED EVERY INTAKE READ OF THE DAY AS A READ THIS HOUR
 
 console_doctor's `_check_subscription_burn` counted `now - c <= 3600` over the raw rows of tv/.subscription_budget.json. That ledger is shared with tv/intake_local.mjs, whose rows are MILLISECONDS, and for those `now - c` is hugely negative - so every intake row still in the ledger, up to a day old, read as a read "this hour". MEASURED on a fixture 2026-10-22: 30 intake rows 5-20 h old and 2 vision reads in the last 10 min -> `32 read(s) this hour of 4000`, where the cap (`_sub_budget_check`) counts 2. control_app's meter learned this in v3099 (THE SAME OPERANDS THE REFUSAL USES); the doctor's row kept the same hand filter (on origin/main too) and was never swept. REG-2387 made it worse: the intake rows now stay in milliseconds for a day instead of being rescaled by the next vision read. Found sweeping the ledger's readers for REG-2387.
@@ -353,6 +355,8 @@ FIX: one rule on every PC, Dean's included - tv/pc_settings.mjs reads this PC's 
 GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py (registered) - drives `node tv/intake_local.mjs` and the real functions/api pipeline on a fixture ledger and settings file and asserts his live ledger and settings are byte-identical after every case; 10 RED proofs (REG-2382/2383/2384). Every case needs node, so a PC without node skips it whole, and heart2 files such a tamper ELSEWHERE, never BLIND: an all-skipped tamper is ELSEWHERE only when every skip was for what that PC lacks (REG-2354, REG-2359). tv/test_this_pcs_settings_file_never_travels.py (registered, node-free) asks git's own matcher that tv/pc_settings.json is ignored; 1 RED proof.
 
 LEFT: no tv/pc_settings.json is written on any PC by this change - writing his (50/300, the GB-L stopgap now exported from the login shell) and Dean's is a step on each machine. The Grok lane's caps (tv/intake_grok_sub.mjs, G5_GROK_*_MAX) still read env only.
+
+ROUND 2 (review A2, privacy): an unreadable pc_settings.json used to put Node's e.message (which carries the absolute path) into the 429 body; it now carries e.code (or 'unreadable').
 
 ### REG-2381 - A WINDOWS CONSOLE KEPT NOTHING IT SAID: PYTHONW HAS NO STDOUT (Dean diff 04)
 
