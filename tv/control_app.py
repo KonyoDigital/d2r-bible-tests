@@ -9728,7 +9728,7 @@ def _win_tint_caption():
 # REG-2463 — and the orphan fold: a harness's loose frames are its fixture, and folding them on a timer would
 # change the footage a render or a demo is reading while it reads it.
 _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
-                      "tvd-retro-triage", "tvd-orphan-fold")
+                      "tvd-retro-triage", "tvd-orphan-fold", "tvd-river-warm")
 
 #: v3297 — lanes the roster SKIPPED at boot (TV_STUB harness), kept module-readable so a doctor
 #: row can say "stood down by design" instead of grading a deliberate absence as a dead loop.
@@ -16958,19 +16958,58 @@ def _river_warm_due(now_ms=None):
     return False, "the last river read is %.0f s old" % age
 
 
-def _river_warm_once(now_ms=None):
-    """One warmer tick: compute the lanes into the beacon's cache when it is due. -> why (never raises)"""
+def _river_warm_brake():
+    """Should a REFRESH stand down? -> why | None. The first fill after a restart never asks: a restart mid-session must
+    not read UNKNOWN for the whole session. A refresh walks the shelf twice (plan, then the router's plan), so it stands
+    down beside his game, a live capture or a loaded machine - the retro-triage brakes - and an UNKNOWN probe refuses."""
+    try:
+        _playing, _how = _d2r_running_here()
+    except Exception:
+        _playing, _how = None, "the probe raised"
+    if _playing is not False:
+        return "D2R is running here or cannot be ruled out (%s)" % _how
+    try:
+        if _capture_is_live() or _agent_alive():
+            return "a capture is live on this machine"
+    except Exception:
+        return "whether a capture is live could not be read"
+    try:
+        if os.getloadavg()[0] > (os.cpu_count() or 1):
+            return "the machine is loaded above its core count"
+    except (AttributeError, OSError):
+        pass
+    return None
+
+
+def _river_warm_once(now_ms=None, _brake=None):
+    """One warmer tick: compute the lanes into the beacon's cache when it is due. -> why (never raises)
+
+    A read the shelf or the doctor publishes WHILE this one walks is newer than it: this result is then dropped, never
+    stamped over it (r3 second eye)."""
     due, why = _river_warm_due(now_ms)
     if not due:
         return "fresh - " + why
+    if isinstance(_RIVER_LAST.get("good"), dict):
+        held = (_brake or _river_warm_brake)()
+        if held:
+            return "held - " + held
+    before = (_RIVER_LAST.get("good"), _RIVER_LAST.get("fail"))
     try:
-        _river_remember(_river_lanes_block())
+        lanes, err = _river_lanes_block(), None
     except Exception as e:
-        _river_remember(error=e)
+        lanes, err = None, e
+    if (_RIVER_LAST.get("good"), _RIVER_LAST.get("fail")) != before:
+        return "dropped - a newer read landed while this one walked"
+    if err is not None:
+        _river_remember(error=err)
+    else:
+        _river_remember(lanes)
     return "computed - " + why
 
 
 RIVER_WARM_TICK_S = 60
+#: the beat's own silence bound: one cold shelf walk (plan is ~150 s cold, twice) plus the sleep between ticks
+RIVER_WARM_DEAD_AFTER_S = 900
 
 
 def _river_warm_loop():
@@ -16984,7 +17023,7 @@ def _river_warm_loop():
             else:
                 time.sleep(RIVER_WARM_TICK_S)
             _first = False
-            _lane_tick('tvd-river-warm', RIVER_WARM_TICK_S)
+            _lane_tick('tvd-river-warm', dead_after_s=RIVER_WARM_DEAD_AFTER_S)
             _river_warm_once()
         except Exception:
             pass

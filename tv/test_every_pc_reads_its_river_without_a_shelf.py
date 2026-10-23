@@ -37,6 +37,48 @@ GOOD = {"ok": True, "shelf": 9, "unknown": 0,
 
 RED_PROOF = [
     {
+        "why": "REG-2641 (r3) - a refresh walks the shelf twice beside his game and a live capture",
+        "file": "control_app.py",
+        "find": "        held = (_brake or _river_warm_brake)()\n        if held:\n",
+        "replace": "        held = None\n        if held:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r3) - the first fill after a restart is braked too: a restart mid-session reads UNKNOWN all session",
+        "file": "control_app.py",
+        "find": "    if isinstance(_RIVER_LAST.get(\"good\"), dict):\n        held = (_brake",
+        "replace": "    if True:\n        held = (_brake",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r3) - an older warm walk is stamped over a newer shelf read",
+        "file": "control_app.py",
+        "find": "    if (_RIVER_LAST.get(\"good\"), _RIVER_LAST.get(\"fail\")) != before:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r3) - an UNKNOWN game probe reads as 'not playing'",
+        "file": "control_app.py",
+        "find": "    if _playing is not False:\n        return \"D2R is running here",
+        "replace": "    if _playing is True:\n        return \"D2R is running here",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r3) - the loop stamps its beat and never warms",
+        "file": "control_app.py",
+        "find": "            _lane_tick('tvd-river-warm', dead_after_s=RIVER_WARM_DEAD_AFTER_S)\n            _river_warm_once()\n",
+        "replace": "            _lane_tick('tvd-river-warm', dead_after_s=RIVER_WARM_DEAD_AFTER_S)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r3) - a harness console starts the warmer and walks a shelf during a gate run",
+        "file": "control_app.py",
+        "find": "\"tvd-retro-triage\", \"tvd-orphan-fold\", \"tvd-river-warm\")",
+        "replace": "\"tvd-retro-triage\", \"tvd-orphan-fold\")",
+        "matches": 1,
+    },
+    {
         "why": "REG-2641 - the warmer is never started: every restarted PC reads 'river UNKNOWN' until its shelf is opened",
         "file": "control_app.py",
         "find": "        (\"tvd-river-warm\", _river_warm_loop),\n",
@@ -60,8 +102,8 @@ RED_PROOF = [
     {
         "why": "REG-2641 - the warmer says it computed and keeps nothing for the beacon",
         "file": "control_app.py",
-        "find": "        _river_remember(_river_lanes_block())\n    except Exception as e:\n        _river_remember(error=e)\n",
-        "replace": "        _river_lanes_block()\n    except Exception as e:\n        pass\n",
+        "find": "    if err is not None:\n        _river_remember(error=err)\n    else:\n        _river_remember(lanes)\n",
+        "replace": "    pass\n",
         "matches": 1,
     },
     {
@@ -86,6 +128,10 @@ class _Cache(unittest.TestCase):
         t = mock.patch.object(ca, "_triage_for_wire", lambda: {"ok": True})
         t.start()
         self.addCleanup(t.stop)
+        self.clock = [NOW / 1000.0]
+        c = mock.patch("time.time", lambda: self.clock[0])
+        c.start()
+        self.addCleanup(c.stop)
 
 
 class AWarmerReadsTheRiver(_Cache):
@@ -95,9 +141,8 @@ class AWarmerReadsTheRiver(_Cache):
         self.assertIsNone(before["lanes"], "PREMISE: a fresh console already holds a river")
         self.assertIsNone(before["stuck"], "PREMISE: a fresh console already has a stuck reading")
         calls = []
-        with mock.patch.object(ca, "_river_lanes_block", lambda: calls.append(1) or GOOD), \
-                mock.patch("time.time", lambda: NOW / 1000.0):
-            why = ca._river_warm_once(NOW)
+        with mock.patch.object(ca, "_river_lanes_block", lambda: calls.append(1) or GOOD):
+            why = ca._river_warm_once(NOW, _brake=lambda: "playing")
             after = ca._river_for_wire(NOW)
         self.assertEqual(calls, [1], "the warmer did not compute the river of a console that has none: %s" % why)
         self.assertEqual(after["lanes"], {"EMPTY": 2, "JOIN": 1, "ROUTED": 6},
@@ -127,9 +172,33 @@ class AWarmerReadsTheRiver(_Cache):
         self.assertIsNone(out["lanes"], "a failed read became a river: %r" % out)
         self.assertIsNone(out["stuck"], "a failed read became a stuck reading: %r" % out)
         self.assertIn("could not be read", out["why"])
-        # and a failure is itself a read: no retry storm every minute
-        with mock.patch.object(ca, "_river_lanes_block", lambda: self.fail("a fresh failure was retried at once")):
-            ca._river_warm_once(NOW + 60 * 1000)
+        # and a failure is itself a read: no retry storm every minute (one clock: the cache's stamp and the tick's)
+        walked = []
+        with mock.patch.object(ca, "_river_lanes_block", lambda: walked.append(1) or GOOD):
+            self.clock[0] = NOW / 1000.0 + 60
+            why = ca._river_warm_once(NOW + 60 * 1000)
+            self.assertEqual(walked, [], "a failure 60 s old was retried at once: %s" % why)
+            self.clock[0] = NOW / 1000.0 + ca.RIVER_WARM_EVERY_S
+            ca._river_warm_once(NOW + ca.RIVER_WARM_EVERY_S * 1000)
+        self.assertEqual(walked, [1], "a failure RIVER_WARM_EVERY_S old was never read again")
+
+    def test_a_refresh_stands_down_beside_his_game_and_the_first_fill_does_not(self):
+        ca._RIVER_LAST["good"] = {"ts": NOW - (ca.RIVER_WARM_EVERY_S + 5) * 1000, "n": 1, "stations": {"EMPTY": 1}}
+        with mock.patch.object(ca, "_river_lanes_block", lambda: self.fail("a refresh walked the shelf beside his game")):
+            why = ca._river_warm_once(NOW, _brake=lambda: "D2R is running here")
+        self.assertTrue(why.startswith("held"), why)
+        with mock.patch.object(ca, "_d2r_running_here", lambda: (None, "probe")):
+            self.assertIn("cannot be ruled out", ca._river_warm_brake() or "", "an UNKNOWN game probe did not refuse")
+
+    def test_a_newer_read_is_never_overwritten_by_the_warm(self):
+        newer = {"ts": NOW, "n": 99, "stations": {"PRINTER": 4}}
+
+        def _walk():
+            ca._RIVER_LAST["good"] = newer          # the shelf published while the warm walked
+            return GOOD
+        with mock.patch.object(ca, "_river_lanes_block", _walk):
+            why = ca._river_warm_once(NOW)
+        self.assertIs(ca._RIVER_LAST["good"], newer, "the warm stamped its older walk over a newer shelf read: %s" % why)
 
 
 class TheWarmerIsWired(unittest.TestCase):
@@ -138,8 +207,10 @@ class TheWarmerIsWired(unittest.TestCase):
         import inspect
         src = inspect.getsource(ca.start_background_watchers)
         self.assertIn('("tvd-river-warm", _river_warm_loop)', src, "the warmer is not in the watcher roster")
-        self.assertIn("_lane_tick('tvd-river-warm'", inspect.getsource(ca._river_warm_loop),
-                      "the warmer stamps no beat, so a dead warmer is invisible")
+        loop = inspect.getsource(ca._river_warm_loop)
+        self.assertIn("_lane_tick('tvd-river-warm'", loop, "the warmer stamps no beat, so a dead warmer is invisible")
+        self.assertIn("            _river_warm_once()\n", loop, "the warmer ticks and never warms")
+        self.assertIn("tvd-river-warm", ca._HARNESS_ONLY_SKIP, "a harness console walks a shelf beside the gate run")
         import auto_scope
         self.assertEqual(auto_scope.LANE_FN.get("tvd-river-warm"), "_river_warm_loop", "the warmer declares no scope")
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:

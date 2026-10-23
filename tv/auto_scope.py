@@ -101,9 +101,10 @@ LANES = {
         "touches": "an in-memory cache only - the same lanes /api/river serves",
         "forbids": ["delete"],
         "never": "your reels, your frames, the stamp log or the vault. It reads where the router says each reel is",
-        "when": "on a one-minute timer that does nothing while the cache is fresh",
-        "brakes": "a fresh read from the shelf or the doctor is left alone; a failed read is kept as a failure, never "
-                  "as an empty river",
+        "when": "once a minute after start, then on a one-minute timer that does nothing while the cache is fresh",
+        "brakes": "a refresh stands down while you are playing, a capture is live or the machine is loaded (the first "
+                  "fill after a restart does not); a fresh read from the shelf or the doctor is left alone and never "
+                  "overwritten; a failed read is kept as a failure, never as an empty river; it stands down in a harness",
     },
     "tvd-retention": {
         "does": "accounts for what old footage COULD be freed",
