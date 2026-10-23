@@ -19,7 +19,8 @@ here. An entry this machine already serves is kept. Law test_an_imported_shard_k
 ### REG-2585 - ONE PROVE ACROSS N RUNNERS: EVERY PROOF IN EXACTLY ONE SHARD, AND A SHARD IS NOT A CENSUS (proof-keys build, GB-box, 2026-10-23, v3789)
 `heart2 --prove [names] --push --proof-shard K/N` proves only shard K's proofs, cut by one deterministic cost-balanced
 plan (tv/proof_shard.py: contiguous chunks per gate, LPT over N; the 41-proof character builder spreads over 8 of 16
-shards; on 21a78ff6 the heaviest of 16 shards is 1.01x the mean, 24 extra clean runs). It banks into a fresh
+shards; each proof priced at its gate's run plus 1.5 s measured overhead; on 21a78ff6 the heaviest of 16 shards is
+1.01x the mean, 24 extra clean runs). It banks into a fresh
 HEART2_CACHE_PATH file of its own, writes a manifest (k, n, HEAD, dirty, plan digest, assigned proofs) and no census.
 Refused (exit 2) without --push, without HEART2_CACHE_PATH, with the cache off, or into an existing file. Law
 test_a_proof_shard_covers_every_proof_once, RED_PROOF "REG-2585".

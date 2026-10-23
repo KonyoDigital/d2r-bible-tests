@@ -36,6 +36,10 @@ import re
 CHUNKS_PER_SHARD = 4
 #: the version of the manifest a shard writes beside its entries; the import refuses any other
 MANIFEST_V = 1
+#: seconds one tampered run costs beyond the gate's own run (sandbox, tamper, restore, the verdict). MEASURED on the
+#: box, 2026-10-23: 24 proofs of sub-second laws took 64 s on one lane; priced at the gate's run alone, a shard of
+#: cheap laws looked 5x lighter than it ran
+PROOF_OVERHEAD_S = 1.5
 _SPEC = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")
 
 
@@ -84,18 +88,19 @@ def plan(have, n, costs=None):
         if p:
             c = costs.get(str(name))
             gates.append((str(name), p, c if (c is not None and c > 0) else default))
-    total = sum(c * (p + 1) for _n, p, c in gates)
+    oh = PROOF_OVERHEAD_S
+    total = sum((c + oh) * p + c for _n, p, c in gates)        # every proof's run, and the gate's one clean run
     target = total / float(n * CHUNKS_PER_SHARD) if total > 0 else 1.0
     chunks = []
     for name, p, c in gates:
-        k = max(1, min(p, int(math.ceil(c * p / target)) if target > 0 else 1))
+        k = max(1, min(p, int(math.ceil((c + oh) * p / target)) if target > 0 else 1))
         base, extra = divmod(p, k)
         start = 0
         for j in range(k):
             size = base + (1 if j < extra else 0)
             idx = list(range(start, start + size))
             start += size
-            chunks.append((c * (size + 1), name, idx))
+            chunks.append(((c + oh) * size + c, name, idx))
     chunks.sort(key=lambda t: (-t[0], t[1], t[2][0]))
     load = [0.0] * n
     out = {}

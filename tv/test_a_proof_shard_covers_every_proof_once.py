@@ -46,8 +46,15 @@ RED_PROOF = [
     {
         "why": "REG-2585 - a gate is never cut into chunks: the 41-proof browser gate holds one runner for over an hour",
         "file": "proof_shard.py",
-        "find": "        k = max(1, min(p, int(math.ceil(c * p / target)) if target > 0 else 1))\n",
+        "find": "        k = max(1, min(p, int(math.ceil((c + oh) * p / target)) if target > 0 else 1))\n",
         "replace": "        k = 1\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2585 - a proof is priced at its gate's run alone, so a shard of many cheap laws runs far longer",
+        "file": "proof_shard.py",
+        "find": "PROOF_OVERHEAD_S = 1.5\n",
+        "replace": "PROOF_OVERHEAD_S = 0\n",
         "matches": 1,
     },
     {
@@ -128,9 +135,21 @@ class ThePlan(unittest.TestCase):
         load = dict((k, 0.0) for k in range(1, 9))
         for k in range(1, 9):
             own = proof_shard.mine(a, k)
-            load[k] = sum(COSTS[g] * (len(ix) + 1) for g, ix in own.items())
+            load[k] = sum((COSTS[g] + proof_shard.PROOF_OVERHEAD_S) * len(ix) + COSTS[g] for g, ix in own.items())
         mean = sum(load.values()) / 8.0
         self.assertLessEqual(max(load.values()), 1.5 * mean, "one shard carries far more than its share: %r" % load)
+
+    def test_many_cheap_laws_are_priced_by_their_proofs_too(self):
+        """MEASURED on the box (2026-10-23): a tampered run costs ~1.5 s beyond the gate's own run - 24 proofs of
+        sub-second laws took 64 s on one lane. Priced at the gate's run alone, 60 proofs of two 0.1 s laws weighed
+        less than nine proofs of three 4 s laws, and one shard ran 3.5x the other."""
+        have = _have([("c1", 30), ("c2", 30), ("d1", 3), ("d2", 3), ("d3", 3)])
+        costs = {"c1": 0.1, "c2": 0.1, "d1": 4.0, "d2": 4.0, "d3": 4.0}
+        for n in (2, 3):
+            a = proof_shard.plan(have, n, costs)
+            ran = [sum((costs[g] + 1.5) * len(ix) + costs[g] for g, ix in proof_shard.mine(a, k).items())
+                   for k in range(1, n + 1)]
+            self.assertLessEqual(max(ran), 1.3 * min(ran), "N=%d: the shards run %r seconds" % (n, ran))
 
     def test_the_digest_names_n_and_every_entry(self):
         have = _have(FIX)
