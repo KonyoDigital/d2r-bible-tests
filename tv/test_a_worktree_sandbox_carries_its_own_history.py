@@ -396,7 +396,8 @@ class ALawRunNeverInheritsTheCallersGitDir(_Case):
             for k in ("TV_PUSHED_GIT_DIR", "TV_PUSHED_COMMIT", "TV_CONTROL_PORT"):
                 self.assertEqual(env.get(k), base[k], "law_env dropped %s" % k)
             # REG-2569 puts the refusing `claude` first on PATH; the caller's PATH must follow it, whole
-            self.assertTrue(env.get("PATH", "").endswith(os.pathsep + base["PATH"]), "law_env dropped PATH: %r" % env.get("PATH"))
+            self.assertEqual(env.get("PATH"), os.path.join(os.path.dirname(os.path.abspath(RG.__file__)), "no_claude_bin")
+                             + os.pathsep + base["PATH"], "law_env changed PATH beyond the refusing claude: %r" % env.get("PATH"))
         self.assertEqual(base, kept, "law_env changed the caller's environment")
 
     def test_every_process_these_modules_start_gets_its_environment_from_the_one_helper(self):

@@ -65,10 +65,10 @@ WHOLESALE_OK = {
     "var assign = load(AK, {});": "the boot read of the store itself — the map as it was saved, not a filing",
 }
 # REG-2570 - a named put-back, not a filing: vaultUnassign deleted the name, the save was REFUSED, and the witness row was
-# never demoted, so the live map gets back exactly the filing its untouched row still describes.
+# never demoted (a Shift+✕ release may have been written, a demote never), so the live map gets back the filing its row describes.
 ROLLBACK_OK = {
     "    if (!_okU){\n      if (_prevU !== undefined) assign[name] = _prevU;":
-        "vaultUnassign's put-back after a refused save - the row was not touched, so the filing it witnesses returns",
+        "vaultUnassign's put-back after a refused save - the row was never demoted, so the filing it witnesses returns",
 }
 
 
