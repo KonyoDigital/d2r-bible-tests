@@ -656,9 +656,12 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
             moved_heads = RS.sign_headers(path_a, moved_raw)[0]
             empty_raw = _raw({"owner": OWNER, "boot": False, "signedAt": 1790000000003, "sections": {}})
             empty_heads = RS.sign_headers(path_a, empty_raw)[0]
+            empty_boot_raw = _raw({"owner": OWNER, "boot": True, "signedAt": 1790000000004, "sections": {}})
+            empty_boot_heads = RS.sign_headers(path_a, empty_boot_raw)[0]
             vault = {"asOf": 2000, "counts": 3}
             both = {"characters": mine, "vault": vault}
             at = int(time.time() * 1000)
+            today = time.strftime("%Y-%m-%d", time.gmtime(at / 1000))
             steps = [
                 # 0 a row written before signing (no verdict), no key registered: this PC's first signed publish
                 _step(raw, heads, fresh=True, seed={rk: record()}),
@@ -721,7 +724,7 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                     t=10, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a), sections=both)})),
                 # 17 an unsigned TICK over a row written before signing (no verdict on it, so not the same intent),
                 #   an hour old: the write is stored NOT verified and still keeps the `vault` it did not send
-                _step(moved_raw, {}, fresh=True, seed={rk: record(t=10, sections=both)}),
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t=10, sections=both)}, now=at),
                 # 18 an unsigned tick over a row EXACTLY one hour old: the hour is over, so it is stored
                 #   (due() on the PC uses the same strict <)
                 _step(moved_raw, {}, fresh=True, seed={rk: record(t=at - 3600 * 1000)}, now=at),
@@ -729,6 +732,13 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                 _step(empty_raw, empty_heads, fresh=True, seed={}),
                 # 20 a stored row whose `t` is not a number: its age is unknown, so the hour does not hold it
                 _step(moved_raw, {}, fresh=True, seed={rk: record(t="x")}),
+                # r6 (the review of r5 swept 203 single edits; seven still stayed green):
+                # 21 a signed BOOT that read nothing, no key registered: 'nothing read' on a boot too - no key, no row
+                _step(empty_boot_raw, empty_boot_heads, fresh=True, seed={}),
+                # 22 an unsigned tick over a row one millisecond short of the hour: held 'within the hour'
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t=at - 3600 * 1000 + 1)}, now=at),
+                # 23 an unsigned tick over an old row that already used today's 25 writes: refused on quota, a tick too
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t=10, day=today, n=25)}, now=at),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -802,6 +812,25 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         self.assertNotIn("registered", r19)
         self.assertEqual(s[20]["reply"].get("stored"), ["roster"],
                          "a row with no numeric time was held 'within the hour': %r" % s[20]["reply"])
+        # r6: a skip is an answer, not a refusal - the PC reads ok:false as unreached and sets the refusal
+        for i, one in enumerate(s):
+            if one["reply"].get("skipped"):
+                self.assertIs(one["reply"].get("ok"), True, "step %d skipped with ok not true: %r" % (i, one["reply"]))
+        # r6: the first write of a new day counts 1, not the old day's count plus one
+        self.assertEqual((rec17["day"], rec17["n"]), (today, 1), "a new day's first write was counted wrong: %r" % rec17)
+        r21 = s[21]["reply"]
+        self.assertEqual((r21.get("ok"), r21.get("stored"), r21.get("skipped"), s[21]["puts"]),
+                         (True, [], ["nothing read"], []),
+                         "a signed boot that read nothing was written or registered a key: %r" % r21)
+        self.assertNotIn("registered", r21)
+        r22 = s[22]["reply"]
+        self.assertEqual((r22.get("ok"), r22.get("stored"), r22.get("skipped"), s[22]["puts"]),
+                         (True, [], ["within the hour"], []),
+                         "a row one millisecond short of the hour was not held: %r" % r22)
+        r23 = s[23]["reply"]
+        self.assertEqual((r23.get("ok"), r23.get("why"), s[23]["puts"]),
+                         (False, "roster would not take this publish: quota", []),
+                         "a tick past the day's 25 writes was stored: %r" % r23)
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1514,6 +1543,41 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "typeof prev.t === \"number\" ? (now - prev.t) : HOUR_MS;",
      "replace": "typeof prev.t === \"number\" ? (now - prev.t) : 0;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: a boot that read nothing goes on, registers the key and writes an empty row",
+     "file": "functions/api/roster.js",
+     "find": "  if (!Object.keys(sections).length) {",
+     "replace": "  if (!Object.keys(sections).length && !boot) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: 'nothing read' answers ok:false, which the PC reads as a refusal",
+     "file": "functions/api/roster.js",
+     "find": "ok: true, owner: owner, stored: [], skipped: [\"nothing read\"]",
+     "replace": "ok: false, owner: owner, stored: [], skipped: [\"nothing read\"]",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: 'unchanged' answers ok:false, which the PC reads as a refusal",
+     "file": "functions/api/roster.js",
+     "find": "ok: true, owner: owner, stored: [], skipped: [\"unchanged\"]",
+     "replace": "ok: false, owner: owner, stored: [], skipped: [\"unchanged\"]",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: 'within the hour' answers ok:false, which the PC reads as a refusal",
+     "file": "functions/api/roster.js",
+     "find": "ok: true, owner: owner, stored: [], skipped: [\"within the hour\"]",
+     "replace": "ok: false, owner: owner, stored: [], skipped: [\"within the hour\"]",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: the hour ends a millisecond early, so a row 1 ms short of it is written again",
+     "file": "functions/api/roster.js",
+     "find": "  if (prev && age < HOUR_MS && !boot && !upgrade) {",
+     "replace": "  if (prev && age < (HOUR_MS - 1) && !boot && !upgrade) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: a tick carries the old day's count into a new day",
+     "file": "functions/api/roster.js",
+     "find": "(prev && prev.day === today && typeof prev.n === \"number\") ? prev.n : 0;",
+     "replace": "(prev && (prev.day === today || !boot) && typeof prev.n === \"number\") ? prev.n : 0;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r6: the daily cap holds only on a boot, so ticks past 25 are written",
+     "file": "functions/api/roster.js",
+     "find": "  if (n >= ROSTER_CAP) {",
+     "replace": "  if (n >= ROSTER_CAP && boot) {",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",

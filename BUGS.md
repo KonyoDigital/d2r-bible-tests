@@ -80,6 +80,11 @@ exactly one hour old is not held (strict <, as the PC's due()); a signed publish
 registers no key; a row whose `t` is not a number is not held. The law's node harness takes a per-step clock. Six RED_PROOFs:
 inherit only with a boot (verified, then unsigned), priorSections only on a boot, age <= HOUR_MS, the empty-sections
 return dropped, the non-numeric age fallback 0.
+FIX ROUND 6 (the review of r5 swept 203 single edits; seven stayed green): a signed BOOT that read nothing is 'nothing
+read' too and registers no key; every skip ('nothing read', 'unchanged', 'within the hour') answers ok:true, which the PC
+reads as reached; a row 1 ms short of the hour is held; a new day's first write counts 1 on a tick; the daily cap of 25
+refuses a tick as well as a boot. Seven RED_PROOFs: the empty guard && !boot, ok:false on each of the three skips, the hour
+ending 1 ms early, the day count || !boot, the cap && boot.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
