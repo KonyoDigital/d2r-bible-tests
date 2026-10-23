@@ -3572,8 +3572,20 @@ def _schtasks_csv():
                 capture_output=True, timeout=15)
     if r.returncode != 0:
         raise OSError("schtasks exited %s" % r.returncode)
-    raw = r.stdout or b""
-    for enc in ("utf-8", "mbcs"):
+    return _decode_listing(r.stdout or b"")
+
+
+def _decode_listing(raw):
+    """REG-2481 round 2 - a Windows tool's piped bytes -> text. A UTF-16 listing (a BOM, or the NUL every ASCII
+    character carries in UTF-16-LE) is decoded as UTF-16 first: read as utf-8/mbcs it 'decodes' into text with a NUL
+    between every letter, no 'Task To Run' header, and an UNKNOWN row that never ends. Otherwise utf-8, then the
+    console's OEM page, then the ANSI page (both exist only on Windows), then utf-8 with replacement."""
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in raw[:200]:
+        try:
+            return raw.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
+    for enc in ("utf-8", "oem", "mbcs"):
         try:
             return raw.decode(enc)
         except (LookupError, UnicodeDecodeError):
@@ -3620,7 +3632,10 @@ def _venue_on_windows(query=None, now=None):
         else:
             try:
                 text, age = _schtasks_csv(), 0.0
+                tasks = windows_tasks_from_csv(text)
             except Exception as e:
+                # REG-2481 round 2 - a listing that would not PARSE is a failed read too: cached on the short TTL,
+                # never kept as a good listing for an hour
                 _TASKS.update(at=now, text=None, err="%s: %s" % (type(e).__name__, str(e)[:90]))
                 raise
             _TASKS.update(at=now, text=text, err=None)
