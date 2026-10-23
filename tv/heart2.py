@@ -1332,12 +1332,14 @@ def _write_all(fd, data):
 #: Windows has no flock: msvcrt locks a byte far past any journal (Windows locks are mandatory, so a locked byte a
 #: reader reads would fail its read). Every writer locks the same byte, so writers take turns as they do under flock.
 _JOURNAL_LOCK_AT = 0x7FFFFFF0
+_JOURNAL_LOCK_WAIT_S = 30.0         # a Windows journal writer polls this long, then appends without the cap and says so
 
 
 def _journal_lock(fd):
-    """Exclusive writer lock on the journal -> unlock(). flock on POSIX, msvcrt.locking on Windows; a lock that
-    cannot be had is not a reason to lose the line, so it degrades to unlocked (a torn line fails the exact-field
-    match and never misnames)."""
+    """Exclusive writer lock on the journal -> unlock(), or None when it could not be had. flock on POSIX,
+    msvcrt.locking on Windows polled with LK_NBLCK for _JOURNAL_LOCK_WAIT_S (review r4: LK_LOCK gives up after ~10 s
+    and the old fallback then capped UNLOCKED, cutting under a holder). A lock not had is not a reason to lose the
+    line - the caller still appends it, but never caps (a torn line fails the exact-field match and never misnames)."""
     try:
         import fcntl
     except ImportError:
@@ -1347,13 +1349,21 @@ def _journal_lock(fd):
             fcntl.flock(fd, fcntl.LOCK_EX)
             return lambda: None             # released by close
         except OSError:
-            return lambda: None
+            return None
     try:
         import msvcrt
-        os.lseek(fd, _JOURNAL_LOCK_AT, os.SEEK_SET)
-        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
-    except (ImportError, OSError, ValueError):
-        return lambda: None
+    except ImportError:
+        return None
+    deadline = time.time() + _JOURNAL_LOCK_WAIT_S
+    while True:
+        try:
+            os.lseek(fd, _JOURNAL_LOCK_AT, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            break
+        except (OSError, ValueError):
+            if time.time() >= deadline:
+                return None
+            time.sleep(0.05)
 
     def _unlock():
         try:
@@ -1388,10 +1398,15 @@ def _sweep_journal(tmp, event, root, code, owner, now):
         fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
         try:
             unlock = _journal_lock(fd)
+            held = unlock is not None
+            if not held:
+                # review r4: no lock, no cap - a cut made beside a holder's cap could drop the line it just wrote
+                sys.stderr.write("  #71 the sandbox journal lock was not had: line appended, cap skipped\n")
+                unlock = lambda: None
             try:
                 os.lseek(fd, 0, os.SEEK_END)
                 _write_all(fd, line.encode("ascii", "replace"))
-                if os.fstat(fd).st_size > _JOURNAL_CAP:
+                if held and os.fstat(fd).st_size > _JOURNAL_CAP:
                     # capped IN PLACE, under the same lock (review r2): the kept tail is written at offset 0 FIRST
                     # and only then is the file cut to it (review r3), so a reader never sees it empty - at worst
                     # the kept lines followed by older ones, which are still true lines.

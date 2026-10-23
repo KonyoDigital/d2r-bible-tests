@@ -11397,6 +11397,14 @@ GATES = [
              "every live run record (heart2's _SELF_RECORDS + suite_verdict.RUN_RECORDS): untracked ones removed, "
              "a tracked one restored to HEAD's blob by the sandbox's own history, a PROOF_NEEDS-declared one kept. "
              "Driven on a fixture repo holding every record live, and TestV2414 run whole against a trap HERE."),
+    Gate("test_a_vanished_sandbox_names_its_remover",
+         [sys.executable, os.path.join(HERE, "test_a_vanished_sandbox_names_its_remover.py")], 180,
+         needs_app=False,
+         why="REG-2612 (board #71, 2026-10-23) - a vanished sandbox names its remover. Every sandbox made, swept "
+             "or dropped writes one line (integers, basename, fixed code; 0600; capped in place under a writer "
+             "lock, no O_APPEND) to heart2-sweeps.log, before any remove; a vanish note carries a witness (owner "
+             "file, root, birth line, the sweep line naming it) read before the restore, which never raises and "
+             "never copies owner-file text into the gate tail."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
