@@ -99,7 +99,7 @@ jobs:
       - name: The census - what this commit proved, and the laws the next batch fixes (REG-2595)
         if: ${{ always() }}
         run: |
-          python3 tv/proof_shard.py --census shards --head "$GITHUB_SHA" --out census.md
+          python3 tv/proof_shard.py --census shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA" --out census.md
           cat census.md >> "$GITHUB_STEP_SUMMARY"
       - name: Keep the census
         if: ${{ always() }}

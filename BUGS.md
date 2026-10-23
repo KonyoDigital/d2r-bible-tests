@@ -14,7 +14,9 @@ artifacts and writes one markdown report: assigned / PROVEN / owed / unbanked co
 each prove.log), a dir with no store named, a foreign sha flagged, and a table of every law owed a fix (law, proof,
 verdict, why, shard). It always exits 0. The fan-in job runs it with `if: always()`, appends it to the job summary and
 keeps it as the proof-census-<sha> artifact (30 days). The import / Mac-driver path is parked (#186: the Mac
-self-prover does not read the saved proofs yet). Law: test_a_proof_census_names_the_next_batch, 7 red-proofs, all RED.
+self-prover does not read the saved proofs yet). Second eye (grok-4.7): a malformed store is named, never fatal; a stop is
+listed beside the owed; with --shards N a shard that left nothing reads UNKNOWN, never a clean bill. Law:
+test_a_proof_census_names_the_next_batch, 9 red-proofs, all RED.
 
 ### REG-2594 - IMPORTED IS NOT FULL: THE MAC DRIVER SAYS HOW MANY PROOFS ARE STILL OWED (proof-keys build, GB-box, 2026-10-23)
 After `heart2 --import-shards` succeeds, `proof_keys_mac.py` re-reads the set (owed_after_import: the same check_shards

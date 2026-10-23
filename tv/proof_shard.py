@@ -400,7 +400,7 @@ def fan_in(root, n, head, say=print):
     return 0
 
 
-def census(root, head=None):
+def census(root, head=None, n=None):
     """REG-2595 - the post-push CENSUS of one 16-shard run: what each shard proved, and which laws the next batch must
     fix. Never a gate: it reads whatever the shards left (a missing or broken store is named, never fatal).
     -> (markdown text, {"assigned", "proven", "owed", "unbanked", "fix": [[gate, idx, verdict, why, shard]]})"""
@@ -423,12 +423,18 @@ def census(root, head=None):
         if not isinstance(sh, dict):
             missing.append(d)
             continue
-        asg = set((str(g), i) for g, i in (sh.get("assigned") or []))
-        got = set((str(e.get("gate")), e.get("proof")) for e in ((body.get("entries") or {}).values())
-                  if isinstance(e, dict) and e.get("verdict") == "PROVEN")
-        bad = [list(f[:4]) for f in (sh.get("owed") or [])]          # REG-2591: every failure a kept-going shard owes
-        if not bad and sh.get("stopped"):                               # a fail-fast shard names its one stop
-            bad = [list(sh["stopped"][:4])]
+        try:                            # second eye: one malformed store is named, never the end of the census
+            asg = set((str(g), int(i)) for g, i in (sh.get("assigned") or []))
+            got = set((str(e.get("gate")), int(e.get("proof"))) for e in ((body.get("entries") or {}).values())
+                      if isinstance(e, dict) and e.get("verdict") == "PROVEN")
+            bad = [list(f[:4]) for f in (sh.get("owed") or [])]      # REG-2591: every failure a kept-going shard owes
+            if sh.get("stopped") and list(sh["stopped"][:2]) not in [f[:2] for f in bad]:
+                bad.append(list(sh["stopped"][:4]))                     # a fail-fast shard's stop, never dropped
+            bad = [(f + ["?"] * 4)[:4] for f in bad]
+            bad = [[str(f[0]), f[1], str(f[2]), str(f[3])] for f in bad]
+        except (TypeError, ValueError, KeyError, AttributeError):
+            missing.append(d + " (unreadable store)")
+            continue
         for f in bad:
             fix.append(f + [sh.get("k")])
         failed = set((str(f[0]), f[1]) for f in bad)
@@ -436,6 +442,8 @@ def census(root, head=None):
             unb[g] = unb.get(g, 0) + 1
         rows.append((sh.get("k"), len(asg), len(asg & got), len(bad), str(sh.get("head") or "")[:12]))
     heads = sorted(set(r[4] for r in rows))
+    ks = set(r[0] for r in rows)
+    lost = [k for k in range(1, int(n) + 1) if k not in ks] if n else []
     tot = dict(assigned=sum(r[1] for r in rows), proven=sum(r[2] for r in rows), owed=len(fix),
                unbanked=sum(unb.values()), fix=sorted(fix, key=lambda f: (str(f[0]), f[1] if isinstance(f[1], int) else 0)))
     out = ["## Proof census at %s" % (", ".join(heads) or "(no shard store)"), ""]
@@ -444,13 +452,21 @@ def census(root, head=None):
     out.append("%d shard store(s)%s. Assigned %d proof(s): PROVEN %d · owed a fix %d · unbanked %d (ELSEWHERE on a "
                "runner, or never run)." % (len(rows), (" - %d dir(s) carry none: %s" % (len(missing), ", ".join(missing[:6])))
                                            if missing else "", tot["assigned"], tot["proven"], tot["owed"], tot["unbanked"]))
+    if lost:
+        out.append("⚠ %d of %d shard(s) left no readable store: %s - their laws are UNKNOWN, not green." % (
+            len(lost), int(n), ", ".join(str(k) for k in lost)))
     if walls:
         mean = sum(walls) / float(len(walls))
         out.append("Shard prove walls: slowest %d s, mean %.0f s (%.2fx)." % (max(walls), mean, max(walls) / mean if mean else 0))
     out += ["", "### Next batch - laws owed a fix (%d)" % len(fix)]
     if fix:
         out += ["", "| law | proof | verdict | why | shard |", "|---|---|---|---|---|"]
-        out += ["| %s | %s | %s | %s | %s |" % (f[0], f[1], f[2], str(f[3]).replace("|", "/")[:120], f[4]) for f in tot["fix"]]
+        cell = lambda v: " ".join(str(v).replace("|", "/").split())
+        out += ["| %s | %s | %s | %s | %s |" % (cell(f[0]), cell(f[1]), cell(f[2]), cell(f[3])[:120], cell(f[4]))
+                for f in tot["fix"]]
+    elif missing or lost or not rows:
+        out.append("None listed - but %s, so this is NOT a clean bill." % (
+            "no shard store was read" if not rows else "some shards left no readable store"))
     else:
         out.append("None: every assigned proof that ran is PROVEN.")
     if unb:
@@ -472,7 +488,7 @@ def main(argv=None):
     ap.add_argument("--out", default=None, help="with --census: also write the census to this file")
     a = ap.parse_args(argv)
     if a.census:
-        text, _t = census(a.census, a.head)
+        text, _t = census(a.census, a.head, a.shards)
         print(text)
         if a.out:
             with open(a.out, "w", encoding="utf-8") as fh:

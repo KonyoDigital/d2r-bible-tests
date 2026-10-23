@@ -121,6 +121,32 @@ class TheCensusNamesTheNextBatch(unittest.TestCase):
         with open(out, encoding="utf-8") as fh:
             self.assertIn("laws owed a fix (1)", fh.read())
 
+    def test_a_malformed_store_is_named_and_the_rest_still_counts(self):
+        self.shard(1, [("a", 0)], [("a", 0)])
+        self.shard(2, [("b", 0)], [])
+        p = os.path.join(self.root, "proof-shard-2", proof_shard.STORE_NAME)
+        with open(p, encoding="utf-8") as fh:
+            body = json.load(fh)
+        body["shard"]["assigned"] = [["b"]]
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(body, fh)
+        text, tot = proof_shard.census(self.root, SHA)
+        self.assertIn("proof-shard-2 (unreadable store)", text)
+        self.assertEqual(tot["proven"], 1)
+        self.assertIn("NOT a clean bill", text)
+
+    def test_a_stop_is_listed_beside_the_owed(self):
+        self.shard(1, [("a", 0), ("b", 0)], [], owed=[("a", 0, "BLIND", "x")], stopped=("b", 0, "INVALID", "y"))
+        _text, tot = proof_shard.census(self.root, SHA)
+        self.assertEqual([f[:3] for f in tot["fix"]], [["a", 0, "BLIND"], ["b", 0, "INVALID"]])
+
+    def test_a_shard_that_left_nothing_is_unknown_not_green(self):
+        self.shard(1, [("a", 0)], [("a", 0)])
+        text, _tot = proof_shard.census(self.root, SHA, 3)
+        self.assertIn("2 of 3 shard(s) left no readable store: 2, 3", text)
+        self.assertIn("NOT a clean bill", text)
+        self.assertNotIn("every assigned proof that ran is PROVEN", text)
+
 
 class TheWorkflowRunsTheCensus(unittest.TestCase):
 
@@ -130,7 +156,7 @@ class TheWorkflowRunsTheCensus(unittest.TestCase):
         i = wf.index("The census - what this commit proved")
         step = wf[i:wf.index("- name: Every shard finished", i)]
         self.assertIn("if: ${{ always() }}", step.split("- name: Keep the census")[0])
-        self.assertIn("--census shards", step)
+        self.assertIn('--census shards --shards "$PROOF_SHARDS"', step)
         self.assertIn("GITHUB_STEP_SUMMARY", step)
         self.assertIn("name: proof-census-${{ github.sha }}", step)
 
@@ -138,13 +164,23 @@ class TheWorkflowRunsTheCensus(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2595 - a kept-going shard's owed failures are dropped from the census",
      "file": "proof_shard.py",
-     "find": "        bad = [list(f[:4]) for f in (sh.get(\"owed\") or [])]          # REG-2591",
-     "replace": "        bad = []          # REG-2591",
+     "find": "            bad = [list(f[:4]) for f in (sh.get(\"owed\") or [])]      # REG-2591",
+     "replace": "            bad = []      # REG-2591",
      "matches": 1},
     {"why": "REG-2595 - a fail-fast shard's stop is not named",
      "file": "proof_shard.py",
-     "find": "        if not bad and sh.get(\"stopped\"):",
-     "replace": "        if False:",
+     "find": "            if sh.get(\"stopped\") and list(sh[\"stopped\"][:2]) not in [f[:2] for f in bad]:\n",
+     "replace": "            if sh.get(\"stopped\") and not bad:\n",
+     "matches": 1},
+    {"why": "REG-2595 - one malformed store ends the census (the law list is lost)",
+     "file": "proof_shard.py",
+     "find": "        except (TypeError, ValueError, KeyError, AttributeError):\n            missing.append(d + \" (unreadable store)\")\n            continue\n",
+     "replace": "        except ZeroDivisionError:\n            continue\n",
+     "matches": 1},
+    {"why": "REG-2595 - a shard that left nothing reads green",
+     "file": "proof_shard.py",
+     "find": "    elif missing or lost or not rows:\n",
+     "replace": "    elif False:\n",
      "matches": 1},
     {"why": "REG-2595 - every banked entry counts as PROVEN, whatever its verdict",
      "file": "proof_shard.py",
