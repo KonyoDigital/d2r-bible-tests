@@ -11096,7 +11096,7 @@ def this_pc_ships(ledger_path=None, eye_cli=None, tree=None):
             return True, "its eye binary exists (%s)" % _ntpath_base(eye_cli)   # a basename: never a home path
         said.append("no eye configured")
     except (FileNotFoundError, NotADirectoryError):
-        said.append("no eye binary (%s)" % _ntpath_base(eye_cli))   # REG-2482 round 2: a basename, never a home path
+        said.append("no eye binary (%s)" % _ntpath_base(eye_cli))   # REG-2480 round 2: a basename, never a home path
     except Exception as e:
         return None, "whether an eye is on this PC could not be read (%s)" % type(e).__name__
     try:
