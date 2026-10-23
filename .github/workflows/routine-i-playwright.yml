@@ -50,6 +50,10 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/routine-i-playwright.yml'
+    # gbl/ci-speed - a proof-keys census push runs its own 16-shard workflow; running this suite on it too
+    # only queued the census behind runners this suite held (13-24 min, census 39982880536).
+    branches-ignore:
+      - 'ci/proof-keys-**'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -168,9 +172,9 @@ jobs:
         run: npx playwright install chromium
       - name: Install system deps (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 5
+        timeout-minutes: 3
         continue-on-error: true
-        run: npx playwright install-deps chromium
+        run: bash .github/scripts/chromium-os-deps.sh
       # 2026-08-19 — BOUNDED, AND NOT ALLOWED TO BLOCK. This step shells out to apt-get, which can
       # sit forever on a dpkg lock or a slow mirror. It has hung twice in one morning: once holding
       # shard 4 for 31 minutes until the run was cancelled (so its tests never ran at all and the
@@ -184,9 +188,9 @@ jobs:
       # that names it — which is a better diagnosis than a silent half-hour on apt.
       - name: Install system deps (cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 5
+        timeout-minutes: 3
         continue-on-error: true
-        run: npx playwright install-deps chromium
+        run: bash .github/scripts/chromium-os-deps.sh
       - name: Run shard
         env:
           SHARD: ${{ matrix.shard }}
@@ -247,9 +251,9 @@ jobs:
         run: npx playwright install chromium
       - name: Install system deps (cache miss)
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 5
+        timeout-minutes: 3
         continue-on-error: true
-        run: npx playwright install-deps chromium
+        run: bash .github/scripts/chromium-os-deps.sh
       # 2026-08-19 — BOUNDED, AND NOT ALLOWED TO BLOCK. This step shells out to apt-get, which can
       # sit forever on a dpkg lock or a slow mirror. It has hung twice in one morning: once holding
       # shard 4 for 31 minutes until the run was cancelled (so its tests never ran at all and the
@@ -263,9 +267,9 @@ jobs:
       # that names it — which is a better diagnosis than a silent half-hour on apt.
       - name: Install system deps (cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
-        timeout-minutes: 5
+        timeout-minutes: 3
         continue-on-error: true
-        run: npx playwright install-deps chromium
+        run: bash .github/scripts/chromium-os-deps.sh
       - name: Run slow shard
         run: npx playwright test --project=slow --shard=${{ matrix.shard }}/2 --reporter=blob
       - name: Upload blob report

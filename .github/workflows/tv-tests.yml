@@ -9,6 +9,10 @@ on:
     paths:
       - 'tv/**'
       - '.github/workflows/tv-tests.yml'
+    # gbl/ci-speed - a proof-keys census push runs its own 16-shard workflow; running this suite on it too
+    # only queued the census behind runners this suite held (13-24 min, census 39982880536).
+    branches-ignore:
+      - 'ci/proof-keys-**'
   workflow_dispatch:
 jobs:
   agent-suite:
@@ -16,13 +20,13 @@ jobs:
     # ⚠⚠ v3472 (#184) — SHARDED, NOT RAISED. The whole gate set ran 25m18s against the 25-minute
     # ceiling on d9bdb682 and was CANCELLED: the shipped version got no verdict at all. This job's
     # own watchdog already says it — "The fix is to shard the gate set, never to raise the ceiling"
-    # — so each shard runs a deterministic, cost-balanced SLICE (tv/run_gates.py --shard K/N; 4 since #160, 2026-10-03 - 2 took 14 + 22 min) inside
+    # — so each shard runs a deterministic, cost-balanced SLICE (tv/run_gates.py --shard K/N; 4 since #160, 2026-10-03 - 2 took 14 + 22 min; 5 since gbl/ci-speed, 2026-10-23 - 4 took 13-19.5 min on a2084313) inside
     # the same 25 minutes. ⚠ N lives in TWO places — the list below and GATE_SHARDS in the verdict
     # job — and test_a_cut_off_gate_set_is_not_a_verdict goes red if they ever disagree.
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5]
     # ⚠ 25, NOT 20 — RAISED WITH THE CHROMIUM STEPS BELOW, because the pair of them is what
     # reproduces v1810 otherwise. MEASURED: the agent-suite job runs 7m18s (08:53:32 -> 09:00:50 on
     # be704dc7). The two new steps are bounded at 6 + 5 = 11, so a double stall would reach ~18.3
@@ -134,9 +138,9 @@ jobs:
       # a DECLARED reason when Chrome will not start, so an absent browser reads as a loud skip
       # rather than a pass.
       - name: OS deps for Chromium (best effort)
-        timeout-minutes: 5
+        timeout-minutes: 3
         continue-on-error: true
-        run: npx playwright install-deps chromium
+        run: bash .github/scripts/chromium-os-deps.sh
       # ONE GATE SET, ONE VERDICT.
       #
       # This step used to hand-list SEVEN suites while tv/run_gates.py knew about TWENTY-SIX, so
@@ -197,7 +201,7 @@ jobs:
           _t0=$(date -u +%s)
           set +e
           # v3768 — CI stays a full run. The local ledger is not a verdict here.
-          python3 tv/run_gates.py --shard ${{ matrix.shard }}/4
+          python3 tv/run_gates.py --shard ${{ matrix.shard }}/5
           _rc=$?
           set -e
           echo "GATE_SET_SECONDS=$(( $(date -u +%s) - _t0 ))" >> "$GITHUB_ENV"
@@ -321,7 +325,7 @@ jobs:
     timeout-minutes: 5
     env:
       # ⚠ MUST EQUAL the agent-suite matrix list — test_a_cut_off_gate_set_is_not_a_verdict pins it.
-      GATE_SHARDS: "1 2 3 4"
+      GATE_SHARDS: "1 2 3 4 5"
     steps:
       - name: Fetch every shard's gate-set fact
         continue-on-error: true

@@ -112,9 +112,9 @@ jobs:
       # really are missing the smoke run below fails on a browser launch, which names the problem
       # far better than an apt timeout does.
       - name: OS deps for Chromium (best effort)
-        timeout-minutes: 5
+        timeout-minutes: 3
         continue-on-error: true
-        run: npx playwright install-deps chromium
+        run: bash .github/scripts/chromium-os-deps.sh
       # The spec list is READ FROM hooks/pre-push, never restated here. Two copies of a gate list
       # is [[copy-drift]] with a publication attached: the hook would gain a spec, this would not,
       # and the CI gate would quietly be weaker than the local one it replaced.
