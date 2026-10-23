@@ -17,6 +17,14 @@ whole-sandbox rmtree's. Instrument, not a fix: every stale sweep and every run's
 (time, remover pid, sandbox, owner, why) to heart2-sweeps.log in the temp dir before it removes, and a vanish now
 reports whether the owner file survives, the sandbox root's age, and any journal line naming that sandbox. Law:
 tv/test_a_vanished_sandbox_names_its_remover.py (4 cases, 5 red-proofs). Rides with M2's heart2.py track.
+Round 2 (grok-4.7 review r1 FAIL, 5 findings): the witness never raises (any Exception -> "witness unreadable",
+the restore always runs); every new sandbox writes a `created` line, so its age comes from its birth, not a root mtime
+any unlink moves; the journal holds only integers, the basename and a fixed code (an owner file's raw text could have
+put `skipped=` into the gate tail heart2 parses), is 0600, written in one O_APPEND write under flock (Windows: no lock,
+a torn line fails the exact-field match), capped at 1 MB -> last 256 KB, read as a capped tail with errors replaced, and
+a failed write is said on stderr. Laws: 11 cases, 11 red-proofs (order pinned: the line exists when _rmtree_hard runs;
+root GONE read before the restore rebuilds it). Not taken: a /proc fd scan for the deleter - by the time the witness
+runs the gate has exited and an rmtree is done, so it would name nobody on the case it exists for.
 
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
