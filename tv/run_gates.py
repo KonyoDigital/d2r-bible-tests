@@ -8223,6 +8223,14 @@ GATES = [
          skip_ok=()),
     # ⚠ MIND THE SEPARATING COMMA ON EVERY Gate(...) INSERT — dropping it has produced a
     # SyntaxError twice in this file. [[gate-insert-missing-comma]]
+    Gate("test_ci_spends_no_minutes_on_a_slow_mirror",
+         [sys.executable, os.path.join(HERE, "test_ci_spends_no_minutes_on_a_slow_mirror.py")], 120,
+         needs_app=False,
+         why="gbl/ci-speed - the Chromium OS-deps apt step sat on a slow Ubuntu mirror until its 5-minute "
+             "timeout in 19 of 146 measured steps, on the shard every run waits for. The step now skips "
+             "apt when Playwright says nothing is missing and bounds it at 90 s otherwise, never red; "
+             "and census pushes (ci/proof-keys-**) no longer spend agent-test or Playwright minutes.",
+         skip_ok=()),
     Gate("test_a_tab_opener_is_bounded",
          [sys.executable, os.path.join(HERE, "test_a_tab_opener_is_bounded.py")], 120,
          needs_app=False,
