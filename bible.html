@@ -3808,13 +3808,52 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     seed.d2r_ownerClaim = '*';
     seed.d2r_installIdCache = 'tvdshadow0000000';
     seed.d2r_installId = 'tvdshadow0000000';
+    // THEIR WORLD, NOT THIS ONE. The owner's board said which world its stores were drawn in (d2r_api_world,
+    // closed values checked by tv/console_snapshot.world_of). The board's world facts are pinned to those before
+    // any of its own scripts can derive them from this browser: a Mac viewing a Windows cousin draws the cousin's
+    // ribbon and keeps the Mac's seeds out, a ladder owner is drawn on ladder, and the ledger is theirs.
+    var world = null;
+    try { world = JSON.parse(seed.d2r_api_world || 'null'); } catch (e) { world = null; }
+    if (!world || typeof world !== 'object') world = null;
+    function pin(name, value) {
+      try { Object.defineProperty(window, name, { value: value, writable: false, configurable: false, enumerable: true }); } catch (e) {}
+    }
+    if (world) {
+      if (world.machine === 'mac' || world.machine === 'windows') {
+        seed.d2r_activeMachine = world.machine; seed.d2r_machineSource = 'user'; pin('D2R_MACHINE', world.machine);
+      }
+      if (['MAC', 'WINDOWS', 'LINUX', 'ANDROID', 'THIS MACHINE'].indexOf(world.os) !== -1) pin('D2R_HOST_OS', world.os);
+      if (world.profile === 'main' || world.profile === 'ladder') {
+        seed.d2r_activeProfile = world.profile; seed.d2r_activeProfileWin = world.profile; pin('D2R_PROFILE', world.profile);
+        // the upload holds the active world under bare names; on ladder the board reads its account stores at L·
+        if (world.profile === 'ladder') Object.keys(seed).forEach(function (k) {
+          if (/^d2r_/.test(k) && k.indexOf('d2r_api_') !== 0 && !seed['L·' + k]) seed['L·' + k] = seed[k];
+        });
+      }
+      if (typeof world.ledger === 'string') pin('_D2R_LEDGER', world.ledger);
+      if (typeof world.cousin === 'boolean') pin('_isCousinShell', world.cousin);
+    }
+    // a shadow has no roster book of its own: the board's assignment of its poster lands on this no-op
+    pin('_tvdBookPost', function () { return false; });
     var mem = memoryStore(seed);
     var sess = memoryStore({});
     var ok = false;
     try {
-      Object.defineProperty(window, 'localStorage', { configurable: true, get: function () { return mem; } });
-      Object.defineProperty(window, 'sessionStorage', { configurable: true, get: function () { return sess; } });
-      ok = window.localStorage === mem && localStorage === mem && window.sessionStorage === sess;
+      // non-configurable: no later script can put this browser's real storage back
+      Object.defineProperty(window, 'localStorage', { configurable: false, get: function () { return mem; } });
+      Object.defineProperty(window, 'sessionStorage', { configurable: false, get: function () { return sess; } });
+      Object.defineProperty(window, 'indexedDB', { configurable: false, get: function () { return undefined; } });
+      ok = window.localStorage === mem && localStorage === mem && window.sessionStorage === sess &&
+           window.indexedDB === undefined;
+    } catch (e) { ok = false; }
+    // THE VIEWER'S CONSOLE IS NOT REACHABLE FROM HERE BY NAME. The snapshot was read from the parent above; from
+    // now on `parent` is this frame and `frameElement` is nothing, so no board line (it reads parent for its own
+    // console) can call into, or write the storage of, the console that is showing it. `top` is unforgeable in a
+    // same-origin frame and is left alone; the board never writes through it.
+    try {
+      Object.defineProperty(window, 'parent', { configurable: false, get: function () { return window; } });
+      Object.defineProperty(window, 'frameElement', { configurable: false, get: function () { return null; } });
+      ok = ok && window.parent === window && window.frameElement === null;
     } catch (e) { ok = false; }
     if (!ok || !stores) {
       try { window.stop(); } catch (e) {}
@@ -3861,8 +3900,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       XMLHttpRequest.prototype.open = function (method, url) { this._tvdShadowNo = blocked(url, method); return XO.apply(this, arguments); };
       XMLHttpRequest.prototype.send = function () { if (this._tvdShadowNo) { window._tvdShadowRefused++; return; } return XS.apply(this, arguments); };
     } catch (e) {}
+    try { Navigator.prototype.sendBeacon = function () { window._tvdShadowRefused++; return false; }; } catch (e) {}
     try { navigator.sendBeacon = function () { window._tvdShadowRefused++; return false; }; } catch (e) {}
-    try { Object.defineProperty(window, 'indexedDB', { configurable: true, get: function () { return undefined; } }); } catch (e) {}
+    try {
+      HTMLFormElement.prototype.submit = function () { window._tvdShadowRefused++; };
+      HTMLFormElement.prototype.requestSubmit = function () { window._tvdShadowRefused++; };
+    } catch (e) {}
     try { window.open = function () { window._tvdShadowRefused++; return null; }; } catch (e) {}
     try { window.showDirectoryPicker = undefined; } catch (e) {}
     // THE WRITE CONTROLS ARE DEAD HERE. A click reaches only what moves the view: the tabs, a fold, and the
@@ -3874,7 +3917,8 @@ tr.owned-row{background:rgba(102,255,136,.03)}
                 'openMuleCard', 'vaultCloseCard', '_muleSetPage', '_muleOpenAt', '_sharedSetPage', '_mpSet'];
     window._tvdShadowView = VIEW;
     function viewOnly(el) {
-      if (el.closest('.tab, summary, [data-shadow-view]')) return true;
+      // the control itself must be a tab or a fold: a button that only sits INSIDE a summary is still a button
+      if (el.matches && el.matches('.tab, summary, [data-shadow-view]')) return true;
       var code = (el.getAttribute && el.getAttribute('onclick')) || '';
       for (var i = 0; i < VIEW.length; i++) if (code.indexOf(VIEW[i] + '(') !== -1) return true;
       return false;
@@ -3904,15 +3948,21 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     ['change', 'input', 'submit', 'drop', 'paste', 'dragstart'].forEach(function (type) {
       document.addEventListener(type, function (ev) { window._tvdShadowStopped++; ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
     });
-    document.addEventListener('keydown', function (ev) {
-      var t = ev.target;
-      var tag = t && t.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) {
+    // Keys move the view and nothing else: the board's own shortcuts (delete, undo, a letter that opens an editor)
+    // never see a key press here. Copy and find stay the browser's.
+    var NAV = /^(Tab|Shift|Control|Alt|Meta|CapsLock|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|PageUp|PageDown|Home|End|Escape)$/;
+    window._tvdShadowKeyOk = function (ev) {
+      if (NAV.test(String(ev.key || ''))) return true;
+      return !!((ev.ctrlKey || ev.metaKey) && !ev.altKey && /^[cfa]$/i.test(String(ev.key || '')));
+    };
+    ['keydown', 'keypress', 'keyup'].forEach(function (type) {
+      document.addEventListener(type, function (ev) {
+        if (window._tvdShadowKeyOk(ev)) return;
         window._tvdShadowStopped++;
         ev.preventDefault();
         ev.stopImmediatePropagation();
-      }
-    }, true);
+      }, true);
+    });
     window._tvdShadow = { owner: String((snap && snap.owner) || ''), t: snap && snap.t, mem: mem };
     // ...and they LOOK dead: every control a click cannot reach is dimmed in place (opacity only, so the layout
     // and the text stay one-to-one with their console).
@@ -82234,7 +82284,13 @@ window.tvStashAutoIntake = async function(tab, opts){
     var stores = null;
     try { stores = window._tvdSnapCollect(); } catch (e) { stores = null; }
     if (!stores) return false;
-    var body = JSON.stringify({ stores: stores });
+    // the world these stores were drawn in, so a viewer draws them in the same one (tv/console_snapshot.world_of)
+    var world = null;
+    try {
+      world = { machine: window.D2R_MACHINE, profile: window.D2R_PROFILE, os: window.D2R_HOST_OS,
+                ledger: String(window._D2R_LEDGER || '').slice(0, 40), cousin: !!window._isCousinShell };
+    } catch (e) { world = null; }
+    var body = JSON.stringify({ stores: stores, world: world });
     var h = hashOf(body);
     if (h === last) return false;
     try {

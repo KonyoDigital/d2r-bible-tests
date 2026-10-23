@@ -5005,6 +5005,9 @@ def _snapshot_book_take(body):
     if clean is None:
         return {"ok": False, "why": "the board posted no d2r_ stores this PC may upload"}
     clean["at"] = int(time.time() * 1000)
+    world = _cs.world_of(body.get("world")) if isinstance(body, dict) else None
+    if world:
+        clean["world"] = world
     if not _snapshot_json_save(_snapshot_book_path(), clean):
         return {"ok": False, "why": "snapshot_book.json could not be written"}
     return {"ok": True, "stores": len(clean["stores"]), "dropped": clean["dropped"]}
@@ -5036,6 +5039,8 @@ def _snapshot_publish_once(boot):
                 _got = None
             if isinstance(_got, dict) and _got.get("ok") is True:
                 answers[_name] = _got
+        if isinstance(book.get("world"), dict):
+            answers["world"] = book["world"]
         stores = _cs.with_api(stores, answers)
     body, reason = _cs.due(state, owner, stores, now_ms, bool(boot))
     if body is None:
@@ -5055,7 +5060,9 @@ def _snapshot_publish_loop():
             if os.path.isfile(_snapshot_book_path()):
                 boot = False
         except Exception as e:
-            _snapshot_json_save(_snapshot_state_path(), {"why": type(e).__name__})
+            _st = _snapshot_json_load(_snapshot_state_path()) or {}
+            _st["why"] = type(e).__name__
+            _snapshot_json_save(_snapshot_state_path(), _st)
         time.sleep(120)
         _lane_tick("_snapshot_publish_loop", 120)
 
@@ -5068,6 +5075,9 @@ def _snapshot_view(owner):
         return _cs.view(owner, None, now_ms)
     cdir = _snapshot_cache_dir()
     rec, source, why = None, "worker", None
+    # This PC's last copy stands in only when the site could not be READ. A site that answers "nothing uploaded"
+    # or "corrupt" (a bad hash, or a key that is no longer theirs) is the answer: no copy is shown over it.
+    unread = True
     held = _beacon_suppressed_by()
     if held:
         why = "suppressed: " + str(held)[:80]
@@ -5080,12 +5090,14 @@ def _snapshot_view(owner):
             except Exception:
                 pass
         elif isinstance(got, dict) and got.get("ok") is True and got.get("published") is False:
-            why = "nothing uploaded"
+            why, unread = "nothing uploaded", False
+        elif isinstance(got, dict) and got.get("ok") is True and got.get("corrupt"):
+            why, unread = str(got.get("why") or "the uploaded snapshot does not match its own hash")[:120], False
+        elif isinstance(got, dict) and got.get("ok") is True:
+            why, unread = "the site's snapshot is not " + owner + "'s", False
         else:
             why = (got.get("why") if isinstance(got, dict) else None) or "the snapshot fetch failed"
-            if isinstance(got, dict) and got.get("corrupt"):
-                why = "the uploaded snapshot does not match its own hash"
-    if rec is None:
+    if rec is None and unread:
         rec = _cs.read_cache(cdir, owner)
         source = "cache"
     online = None

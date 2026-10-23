@@ -4,8 +4,8 @@
 // key already registered for that owner by a roster publish (X-Roster-Key / X-Roster-Sig over these exact
 // bytes). This endpoint never registers a key: an owner without one, an unsigned body, or another key is
 // refused before any write. Change-only, at most once per MIN_GAP_MS unless it is the boot post, and at most
-// DAY_CAP writes per owner per day: 4 PCs x 20 = 80, beside presence 768 + roster 100 = 948 of the 1000 KV
-// writes a day. Refusals are HTTP 200 {ok:false, why}, as roster's are.
+// DAY_CAP writes per owner per day: 5 owner labels x 20 = 100, beside presence 768 + roster 125 = 993 of the
+// 1000 KV writes a day (tv/console_snapshot.budget). Refusals are HTTP 200 {ok:false, why}, as roster's are.
 //
 // GET ?owner=: that owner's last upload, read only. The stores' hash is checked on the way out; a record
 // that does not match its own hash is served as corrupt, never as stores.
@@ -18,6 +18,23 @@ const MIN_GAP_MS = 30 * 60 * 1000;
 const TTL_S = 60 * 60 * 24 * 400;
 const KEY_PREFIX = "rosterkey:";
 const STORE_NAME = /^d2r_[A-Za-z0-9_]{1,60}$/;
+// A signed body is fresh for this long either side of the worker's clock, and each one must be newer than the last
+// stored: a captured upload (the boot one skips the gap) cannot be replayed to roll a console back.
+const SKEW_MS = 15 * 60 * 1000;
+// The same stores tv/console_snapshot.py keeps home (DENY, DENY_PREFIX, API_FIELDS - a law holds them equal): a
+// signed client that skipped the console's cleaning still cannot park identity, history or debug stores here.
+export const DENY = [
+  "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_chronicleInboxLog", "d2r_foundEvidence", "d2r_sessionLog",
+  "d2r_intakeLog", "d2r_intakeSeen", "d2r_intakeUrl", "d2r_lsrRoute", "d2r_tz_hist_cache",
+  "d2r_unseedBackup", "d2r_unseedReport", "d2r_unseedRestoreReport", "d2r_vaultLastReset",
+  "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV",
+  "d2r_createNowAiDate", "d2r_aicDraft", "d2r_aicQueue", "d2r_aicThrownLog", "d2r_lastTopScan",
+  "d2r_grailFarm", "d2r_storeEmptied", "d2r_installId", "d2r_installIdCache", "d2r_ownerClaim",
+  "d2r_activeProfile", "d2r_activeProfileWin", "d2r_activeMachine", "d2r_machineSource",
+  "d2r_inboxReader", "d2r_logger", "d2r_testGuest",
+];
+export const DENY_PREFIX = ["d2r_quarantine", "d2r_d2jsp_", "d2r_api_"];
+export const API_NAMES = ["chars_learned", "main_locks", "world"];
 const HINT = "this is the storage refusing a write, NOT the machine being absent";
 
 function json(obj) {
@@ -39,7 +56,17 @@ export function storesOk(stores) {
   if (!stores || typeof stores !== "object" || Array.isArray(stores)) return false;
   const names = Object.keys(stores);
   if (!names.length) return false;
-  return names.every((k) => STORE_NAME.test(k) && typeof stores[k] === "string");
+  return names.every((k) => STORE_NAME.test(k) && typeof stores[k] === "string" && nameOk(k));
+}
+
+function nameOk(k) {
+  if (k.startsWith("d2r_api_")) return API_NAMES.indexOf(k.slice(8)) !== -1;
+  if (DENY.indexOf(k) !== -1) return false;
+  return !DENY_PREFIX.some((p) => k.startsWith(p));
+}
+
+function b64uKey(v) {
+  return typeof v === "string" ? v.trim().replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") : null;
 }
 
 export function hashOfStores(stores) {
@@ -87,7 +114,7 @@ export async function onRequestPost(context) {
   }
 
   const stores = body.stores;
-  if (!storesOk(stores)) return refuse("stores must be d2r_ names holding strings");
+  if (!storesOk(stores)) return refuse("stores must be d2r_ names holding strings, none of them kept home");
   const low = JSON.stringify(stores).toLowerCase();
   if (low.indexOf("data:image") !== -1 || low.indexOf("base64,") !== -1) return refuse("pictures stay on that PC");
   const hash = hashOfStores(stores);
@@ -102,6 +129,13 @@ export async function onRequestPost(context) {
   if (!prev || typeof prev !== "object" || prev.owner !== owner) prev = null;
 
   const now = Date.now();
+  const signedAt = body.signedAt;
+  if (typeof signedAt !== "number" || !Number.isFinite(signedAt) || Math.abs(now - signedAt) > SKEW_MS) {
+    return refuse("signedAt is missing or not within 15 min of now (a replayed or stale upload)");
+  }
+  if (prev && typeof prev.signedAt === "number" && signedAt <= prev.signedAt) {
+    return refuse("signedAt is not newer than the stored upload's (a replayed upload)");
+  }
   const said = { intentVerified: true, sig: sig.state, keyId: intent.keyId };
   const samePub = !!prev && prev.pub === sig.pub;
   if (prev && prev.hash === hash && samePub) {
@@ -116,7 +150,7 @@ export async function onRequestPost(context) {
   if (n >= DAY_CAP) return refuse("quota: " + DAY_CAP + " uploads a day for " + owner);
   const rec = { owner: owner, t: now, day: today, n: n + 1, hash: hash, stores: stores,
                 intentVerified: true, keyId: intent.keyId, pub: sig.pub };
-  if (typeof body.signedAt === "number" && Number.isFinite(body.signedAt)) rec.signedAt = body.signedAt;
+  rec.signedAt = signedAt;
   try {
     await kv.put(key, JSON.stringify(rec), { expirationTtl: TTL_S });
   } catch (e) {
@@ -143,6 +177,15 @@ export async function onRequestGet(context) {
   }
   if (!storesOk(prev.stores) || prev.hash !== hashOfStores(prev.stores)) {
     return json({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t });
+  }
+  // A record signed by a key that is no longer this owner's registered one is not served as theirs.
+  let registered = null;
+  try { registered = await registeredOf(kv, owner); } catch (e) {
+    return json({ ok: false, why: "snapshot could not be read: the registered key could not be read" });
+  }
+  if (!registered || !registered.pub || b64uKey(registered.pub) !== b64uKey(prev.pub)) {
+    return json({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t,
+                  why: "the key that signed it is not " + owner + "'s registered key now" });
   }
   const out = { ok: true, owner: owner, published: true, corrupt: false, t: prev.t, hash: prev.hash,
                 stores: prev.stores, intentVerified: prev.intentVerified === true };
