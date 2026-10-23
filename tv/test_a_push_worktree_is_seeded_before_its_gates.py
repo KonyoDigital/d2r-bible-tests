@@ -215,6 +215,30 @@ class APushWorktreeIsSeededBeforeItsGates(unittest.TestCase):
         self.assertEqual(self._seed(self.wt), 2, "a linked store was priced as free: %s" % self._out())
         self.assertFalse(os.path.lexists(os.path.join(self.wt, "node_modules")))
 
+    def test_a_diamond_is_priced_twice_and_a_cycle_ends(self):
+        """REG-2451 round 3: two links reaching one store are written twice, so they are priced twice; a link back
+        into its own ancestor ends there - priced and written ONCE - instead of copying itself to the recursion
+        limit; a dangling name inside a followed store is skipped, never a failed seed."""
+        if not self.links:
+            self.skipTest("no symlink privilege on this PC")
+        store = os.path.join(self.root, "dstore")
+        _put(os.path.join(store, "shared", "blob.bin"), "z" * 250000)
+        os.symlink(os.path.join(store, "shared"), os.path.join(store, "left"))
+        os.symlink(os.path.join(store, "shared"), os.path.join(store, "right"))
+        os.symlink(os.path.join(store, "nowhere"), os.path.join(store, "dangling"))
+        cyc = os.path.join(self.root, "cstore")
+        _put(os.path.join(cyc, "f.bin"), "c" * 2000)
+        os.symlink(".", os.path.join(cyc, "loop"))
+        for name, target, want in (("diamond", store, 3 * 250000), ("cycle", cyc, 2000)):
+            src = os.path.join(self.root, "nm_" + name)
+            _put(os.path.join(src, "a.js"), "1;\n")
+            os.symlink(target, os.path.join(src, "vendor"))          # absolute: materialised by the copy
+            dst = os.path.join(self.root, "out_" + name)
+            SW._copy_tree(src, dst)
+            wrote, priced = self._written(dst), SW._tree_bytes(src)[1]
+            self.assertEqual(priced, wrote, "%s: priced %d, the copy wrote %d" % (name, priced, wrote))
+            self.assertEqual(wrote, want + 3, "%s: the copy wrote %d bytes, not %d" % (name, wrote, want + 3))
+
     # 5 ---------------------------------------------------------------------------------------------------------------
     def test_the_main_checkout_is_never_a_destination(self):
         self.assertEqual(self._seed(self.main), 2, "the main checkout was accepted as its own seed destination: %s"
@@ -245,15 +269,24 @@ RED_PROOF = [
     {"why": "REG-2451 round 2 - the floor prices a link as free again: a linked store passes the ON AIR floor short "
             "by its whole size, then the copy writes it",
      "file": "seed_worktree.py",
-     "find": "                f, b = _followed_bytes(p, set())    # per link: two links to one store are two copies\n",
+     "find": "                f, b = _link_bytes(p, src)\n",
      "replace": "                f, b = 0, 0\n",
-     "matches": 1},
+     "matches": 1,
+     "needs": "posix"},
     {"why": "REG-2451 round 2 - a linked node_modules is priced as one directory entry (its own st_size), not the "
             "store the copy walks",
      "file": "seed_worktree.py",
-     "find": "    if not os.path.isdir(src):\n        return _followed_bytes(src, set())\n",
+     "find": "    if not os.path.isdir(src):\n        return (1, os.path.getsize(src)) if os.path.exists(src) else (0, 0)\n",
      "replace": "    if not os.path.isdir(src) or os.path.islink(src):\n        return 1, os.lstat(src).st_size\n",
-     "matches": 1},
+     "matches": 1,
+     "needs": "posix"},
+    {"why": "REG-2451 round 3 - a link back into its own ancestor is followed again: the copy writes itself until the "
+            "recursion limit, and the floor priced it once",
+     "file": "seed_worktree.py",
+     "find": "        if real in ancestors:\n            return\n",
+     "replace": "        if False:\n            return\n",
+     "matches": 1,
+     "needs": "posix"},
 ]
 
 

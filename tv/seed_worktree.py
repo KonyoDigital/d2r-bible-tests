@@ -120,54 +120,67 @@ def second_eye_per_checkout(worktree):
     return False, "the second-eye ledger is one per machine (#178) - nothing to seed"
 
 
-def _followed_bytes(path, seen):
-    """(files, bytes) of `path` with every link FOLLOWED - what shutil.copytree(symlinks=False) / copy2 will write.
-    A directory already walked (its real path in `seen`) costs nothing again, so a link cycle ends."""
-    try:
-        if not os.path.isdir(path):
-            return (1, os.path.getsize(path)) if os.path.exists(path) else (0, 0)
-    except OSError:
-        return 0, 0
+def _followed(path, ancestors=frozenset()):
+    """Every entry a FOLLOWING copy of `path` writes: yields (relpath, "dir" | "file", source) - links followed, a
+    directory whose real path is already an ancestor skipped (a link cycle ends there instead of copying itself until
+    the recursion limit), a dangling name skipped (there is nothing to copy). ONE walker for the price and the copy
+    (REG-2451 round 3): a diamond - two links reaching one store - is written twice, so it is priced twice."""
+    if os.path.isdir(path):
+        real = os.path.realpath(path)
+        if real in ancestors:
+            return
+        yield "", "dir", path
+        below = ancestors | {real}
+        for name in sorted(os.listdir(path)):
+            for rel, kind, src in _followed(os.path.join(path, name), below):
+                yield (os.path.join(name, rel) if rel else name), kind, src
+    elif os.path.exists(path):
+        yield "", "file", path
+
+
+def _ancestors(root, path):
+    """The real paths of the directories from `root` down to `path`'s parent - what a link at `path` must not re-enter."""
+    out, d = set(), os.path.dirname(path)
+    root = os.path.abspath(root)
+    while True:
+        out.add(os.path.realpath(d))
+        if os.path.abspath(d) == root or os.path.dirname(d) == d:
+            return frozenset(out)
+        d = os.path.dirname(d)
+
+
+def _link_bytes(link, root):
+    """(files, bytes) a materialised copy of the link `link` (inside `root`) writes."""
     files = total = 0
-    for root, dirs, names in os.walk(path, followlinks=True):
-        real = os.path.realpath(root)
-        if real in seen:
-            dirs[:] = []
-            continue
-        seen.add(real)
-        for n in names:
-            try:
-                total += os.path.getsize(os.path.join(root, n))
-                files += 1
-            except OSError:
-                continue                          # a dangling link: copy2 is never reached for it (exists() is False)
+    for _rel, kind, src in _followed(link, _ancestors(root, link)):
+        if kind == "file":
+            files += 1
+            total += os.path.getsize(src)
     return files, total
 
 
 def _tree_bytes(src):
-    """(files, bytes) the copy of `src` that seed() WRITES will take - priced the way _copy_tree / _copy_link copy it.
+    """(files, bytes) the copy of `src` that seed() WRITES will take - priced by the walker that copy uses.
 
     REG-2451 round 2 (M2 review): this once priced links as free and a linked top-level directory as its own st_size,
     while the copy walks a linked node_modules whole and materialises every link it does not keep - so a seed passed the
     ON AIR floor short by the whole store. Now: a top-level link is followed (os.walk follows it, so does the copy); a
-    link inside the tree costs its target's FOLLOWED bytes - even one kept as a link, because on a PC with no symlink
-    privilege (Windows) _copy_link copies it instead, and the floor must hold there too."""
+    link inside the tree costs what materialising it writes (_link_bytes) - even one kept as a link, because on a PC
+    with no symlink privilege (Windows) _copy_link copies it instead, and the floor must hold there too. A read that
+    fails here raises: seed() refuses on it rather than price a copy it could not measure."""
     if not os.path.isdir(src):
-        return _followed_bytes(src, set())
+        return (1, os.path.getsize(src)) if os.path.exists(src) else (0, 0)
     files = total = 0
     for root, dirs, names in os.walk(src):
         for n in list(dirs) + list(names):
             p = os.path.join(root, n)
             if os.path.islink(p):
-                f, b = _followed_bytes(p, set())    # per link: two links to one store are two copies
+                f, b = _link_bytes(p, src)
                 files += f
                 total += b
             elif n in names:
-                try:
-                    total += os.lstat(p).st_size
-                    files += 1
-                except OSError:
-                    continue
+                files += 1
+                total += os.lstat(p).st_size
     return files, total
 
 
@@ -185,10 +198,12 @@ def _copy_link(s, t, root):
             return
         except OSError:
             pass                                  # no symlink privilege (Windows): the copy below stands in
-    if os.path.isdir(s):
-        shutil.copytree(s, t, symlinks=False)
-    elif os.path.exists(s):
-        shutil.copy2(s, t)
+    for rel, kind, src in _followed(s, _ancestors(root, s)):      # the walker _tree_bytes priced
+        dst = os.path.join(t, rel) if rel else t
+        if kind == "dir":
+            os.makedirs(dst)
+        else:
+            shutil.copy2(src, dst)
 
 
 def _copy_tree(src, dst):
@@ -283,7 +298,12 @@ def seed(worktree, say=print, dry=False, second_eye=None):
             say("seed:   %-22s ⚠ NOT SEEDED - the main checkout has no %s %s" % (rel, kind, rel))
             rc = 1
             continue
-        n, b = _tree_bytes(src)
+        try:
+            n, b = _tree_bytes(src)
+        except OSError as e:
+            say("seed: REFUSED - the size of %s could not be read (%s), so the %.0f GB floor cannot be kept. Nothing "
+                "was copied." % (rel, type(e).__name__, FLOOR_GB))
+            return 2
         plan.append((rel, kind, src, dst, n, b))
         need += b
     if not second_eye:
