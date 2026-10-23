@@ -103,13 +103,30 @@ class ThePixelsEarnTheRightToAct(unittest.TestCase):
                                 "one family of evidence could open the pixel lock")
 
     def test_it_is_LOCKED_right_now(self):
-        """*** THE SHIPPING STATE. If this ever passes as OPEN without three families having
-        attacked, something opened it that is not the arithmetic."""
+        """*** THE SHIPPING STATE. If this ever passes as OPEN without the arithmetic clearing,
+        something opened it that is not the arithmetic.
+
+        ⚠ #181 (REG-2470) - RE-AIMED AT THE RULE. This asserted "OPEN => three families", and the
+        third family was always ONE live trial measured on Konyo's Mac and carried to every PC by
+        the tracked ledger - on Dean's PC it vouched for a window it never watched. The table's own
+        rule is kinds_bar 1.8, which sabotage 1.0 + cross-family 0.8 clears, so on a PC that never
+        ran the live witness the lock is OPEN on two families BY THE ARITHMETIC. What must hold:
+        OPEN only when the arithmetic clears, never on one family (no single weight reaches the
+        bar), and a live family counted here was measured HERE. [[regression-guard]] pin the law."""
         ok, why = SA.may(LOCK)
         if ok:
+            spec = SA.LOCKS[LOCK]
             s = SA.score(LOCK)
-            self.assertGreaterEqual(len(set(r for r in (s.get("kinds") or []))), 3,
-                                    "the lock is OPEN on fewer than three families of evidence")
+            kinds = set(s.get("kinds") or [])
+            self.assertIn(s.get("state"), (SA.OPEN, SA.HARDENED), s.get("why"))
+            self.assertGreaterEqual(s.get("confluence") or 0.0, spec["kinds_bar"],
+                                    "the lock is OPEN below its own kinds bar")
+            self.assertGreater(spec["kinds_bar"], max(SA.KINDS.values()),
+                               "one family of evidence could open the pixel lock")
+            self.assertGreaterEqual(len(kinds), 2, "the lock is OPEN on a single family of evidence")
+            if "live" in kinds:
+                self.assertIsNotNone((s.get("byOrigin") or {}).get("here"),
+                                     "a live family counted on this PC was measured on another one")
         else:
             self.assertTrue(why, "it refuses without saying why")
 

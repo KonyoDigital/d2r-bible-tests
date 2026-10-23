@@ -226,6 +226,367 @@ HEART2_CACHE_PATH file of its own, writes a manifest (k, n, HEAD, dirty, plan di
 Gates are summed in name order, so the names' order cannot move a chunk boundary (second eye). Refused (exit 2)
 without --push, without HEART2_CACHE_PATH, with the cache off, or into an existing file. Law
 test_a_proof_shard_covers_every_proof_once, RED_PROOF "REG-2585".
+### REG-2484 - NODE.JS WAS NEVER INSTALLED ON A WINDOWS PC, SO EVERY NODE-ONLY LAW AND LANE WAS BLIND THERE (#167)
+
+tv/install-tvd.ps1 installed Git, Python, Claude Code and the Grok CLI, and no node. MEASURED on Dean's PC 2026-10-21: 53+ node-only laws skipped in both runs of every proof (filed BLIND until REG-2354 made them ELSEWHERE), and the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days - until an agent placed portable node v24.22.1 by hand in %LOCALAPPDATA%\Programs\nodejs, the folder cb_node_harness already looks in. His ruling 2026-10-21: the installer and the console fetch node wherever it is missing. A second gap rode along: cb_node_harness.NODE is resolved once, at import, so a node placed while the console runs stayed invisible to the tooltip-oracle lane until a relaunch.
+
+FIX: tv/node_runtime.py is the one door (`ensure(blocking=False, why="")` -> {ok, node, fetched, onPath, why}, never raises; CLI `--ensure`). Windows only: the zip tv/node_pin.json pins (version, file and SHA-256 copied from nodejs.org's SHASUMS256.txt; the x64 hash is the one verified three times on Dean's PC), its SHA-256 checked BEFORE anything is extracted, the extracted node.exe checked against the pin's exe hash, renamed into %LOCALAPPDATA%\Programs\nodejs, its folder put first on THIS process's PATH only (no setx, no registry, no profile, no admin), then cb_node_harness.refresh(). blocking=False fetches on one background thread per process. macOS and Linux resolve and never fetch. tv/install-tvd.ps1 calls it once, after the clone; a failure Warns and the install goes on. Authenticode is not asked: the pin names the exact bytes, which is stronger.
+
+GUARD: tv/test_node_is_fetched_where_it_is_missing.py (registered; 5 RED proofs: verification skipped, extraction before verification, a persistent PATH write, a fetch off Windows, the installer call removed). Verified offline against the real pinned zip (37,748,064 bytes): hash, extraction, exe hash, rename, PATH. NOTE: a push that touches tv/install-tvd.ps1 runs deploy.sh and publishes the live site.
+
+### REG-2483 - DEAN'S LAPTOP SLEPT IN THE MIDDLE OF A PROOF; NOTHING HELD IT AWAKE, AND NOTHING MAY HOLD IT LONGER THAN THE WORK (#170)
+
+MEASURED on Dean's PC 2026-10-22 (powercfg, read-only): standby never on AC or DC, hibernate after 7,200 s on battery only; the 15:30 drop that day was Kernel-Power 42 ("Button or Lid"). `git grep SetThreadExecutionState|caffeinate` found nothing: no lane ever asked the OS to stay up while a proof ran. His ruling 2026-10-21: keep the PC awake ONLY while a proof or sweep runs.
+
+FIX: tv/keep_awake.py - `held(why)` (this thread, the with-block), `hold_for_pid(pid, why)` (idempotent, ends when the process ends, normally or killed), `status()` {on, holds, lastTs, why}; none of them raises. Windows: SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) = exactly 0x80000001, released with ES_CONTINUOUS on the thread that took it (a pid hold lives on a watcher thread that waits on the process handle). macOS: `caffeinate -i -w <pid>`, spawned posix_spawn-safe. Never the display flag, away mode, powercfg or the registry. self_prove takes the hold for a prover it spawns and, every tick, for a running prover a relaunched console adopts; a law's stand-in pid is never held for real.
+
+GUARD: tv/test_the_pc_stays_awake_only_while_a_proof_runs.py (registered; a fake kernel on every PC plus one real caffeinate case; 7 RED proofs, one declares "needs": "macos").
+
+REVIEW of the first cut (2026-10-22): "real" was judged from `spawn_fn is None` alone, and the REG-1628 chain law (test_a_proof_yields_the_moment_the_game_starts) stubs SP.spawn, pid_alive and proc_birth instead of handing a spawn_fn. MEASURED: every run of it started three REAL `caffeinate -i -w 5151` through ca._self_prove_guard -> SP.guard -> tick, and with a live process on pid 5151 the caffeinate was reparented to launchd and kept the Mac awake after the law had exited, owned by nobody. FIX: self_prove captures its own doors at import (spawn, pid_alive, proc_birth, identity) and holds a pid for real only when no spawn_fn was handed and those very doors started it (spawn) or verified it (pid_alive, proc_birth, identity). The law's new AStandInProverIsNeverHeldForReal drives a stubbed SP.spawn, a stubbed process table and the chain law's own guard() route against keep_awake's REAL door replaced by a recorder - never reached - and shows a pid the real doors verify (the law's own) is still held; 2 more RED proofs (the guard dropped; the guard refusing every pid). Measured after: 0 real-door calls in each of the 16 laws that drive self_prove.
+
+### REG-2482 - 'STRAY PROCESSES' WAS UNKNOWN FOR 45 DAYS ON WINDOWS: THE RUNAWAY WATCH ASKED `ps`, WHICH WINDOWS DOES NOT HAVE (#171)
+
+MEASURED on Dean's PC 2026-10-22: "the sweep could not judge yet - `ps` could not be asked for a CPU sample ... unaskable for 45d (729 attempts)". my_orphans.suspects() sampled `ps -Ao pid,pcpu`, so on every Windows PC the 28-hour core-burner class was unwatched while the row read like an instrument hiccup. health_engine's OK sentence also re-sampled `ps` only to count it, so on Windows a clean verdict would have printed "UNKNOWN process(es) scanned".
+
+FIX: on Windows suspects() samples the kernel's own CUMULATIVE CPU time (tv_diablo's one Toolhelp32 snapshot for the process list, GetProcessTimes per process, no spawn) - two samples, the second from the previous call as on POSIX - and a process is busy only on the CPU it burned between them; age comes from child_guard's birth reader (both reused, never copied). A process born after the first sample, a reused pid, his game and its stream, and Windows' own images are not suspects - but a shell is never excused as the OS (powershell, cmd: this tree's capture runs in one, and so would an inline runaway of mine). The command line comes from ProcessCommandLineInformation, so KNOWN still reads `control_app.py`. An unreadable or empty sample is the UNMEASURED row, never `{}` and never "nothing busy", and it does not replace the last good sample. health_engine's OK sentence now reads my_orphans.last_scan(): the count and the instrument of the sweep that just ran, and on Windows that his ports cannot be read there.
+
+GUARD: tv/test_stray_processes_are_measured_on_windows.py (registered; 5 RED proofs, one of them "a sampler failure read as clean").
+
+REVIEW of the first cut (2026-10-22): Windows has no lsof, so holds_his_port fails closed and EVERY Windows suspect is NEVER MINE - yet health_engine's row said "nothing can say whose they are - not in the spawn ledger, not naming this tree, holding none of our ports": three checks that never ran, about the console's own capture_win.ps1 and a prover that names this tree. And the law stubbed the port witness to "no port of his", then banked a WARN 'OF OURS' that a real Windows PC can never produce. FIX (fail closed, and said): my_orphans._listening_ports answers "his ports could not be asked on this PC - there is no lsof on Windows" without spawning anything; health_engine says only what was established for each class - a NEVER MINE row is "never counted as mine" with its own reason and "the spawn ledger and this tree were not asked", and the three-witness sentence is kept for the rows where every witness WAS asked (the same split runs through the WARN line's tail). The law now runs the real attribution - lsof and ps raising FileNotFoundError as on Windows, the spawn ledger a tripwire, the port witness not stubbed - and asserts UNKNOWN with that reason and none of the three claims; 3 more RED proofs (the three-witness sentence back on a NEVER MINE row; lsof asked anyway; an unread port no longer failing closed). NOT BUILT: a Windows port reader (GetExtendedTcpTable) with a parent reader for the ancestry walk - until both exist, no Windows process can be WARN 'OF OURS', and a busy, old one is UNKNOWN with that reason.
+
+### REG-2481 - 'TEST VENUE' ONLY KNEW LAUNCHD AND 'CONSOLE PAINTED WHOLE' ONLY KNEW QUARTZ, SO ON WINDOWS BOTH WERE UNKNOWN FOR WEEKS (#171)
+
+MEASURED on Dean's PC 2026-10-22: 'test venue' UNKNOWN for 49 days ("this check only knows launchd, so it cannot speak for this machine") - his order that browser suites never run on a PC of his was unchecked on Windows; 'console painted whole' UNKNOWN for 45 days ("Quartz is not importable here"), worded as a look that failed this tick rather than a witness that does not exist on that OS.
+
+FIX: the venue row on Windows reads Task Scheduler (`schtasks /query /fo CSV /v`, the 'Task To Run' column, through git_quiet's windowless door, at most hourly and saying how old the listing is) and judges every task, and every script it names by an absolute path, with reaches_a_browser_suite - the ONE rule launchd's plists are judged by (widened to the Windows spellings: npx.cmd, a quoted path, node_modules\.bin\playwright.cmd). A listing that cannot be read, has no 'Task To Run' column or lists nothing is UNKNOWN. The painted-whole row stays UNKNOWN off macOS - never OK without a look - and names the Windows witness that has not been built.
+
+GUARD: tv/test_the_venue_check_reads_windows_tasks.py (registered; 5 RED proofs, one of them "the Windows venue answers OK without reading"). The listing is read at most hourly and carries its age; a listing that could not be taken is asked again only after ten minutes (tasklist hung under his game, REG-1414), so a hang costs one bounded wait per tick.
+
+- **Round 2 (GrokBot, M4 second eye, 2026-10-23).** `_schtasks_csv` decoded strict utf-8 then mbcs, so a UTF-16 listing (BOM, or bare UTF-16-LE as some piped Windows tools write) 'decoded' with a NUL between every letter: no 'Task To Run' header, UNKNOWN - and that text was cached for an hour as a GOOD listing. `_decode_listing` reads UTF-16 first when a BOM or a NUL in the first 200 bytes says so, then utf-8, oem, mbcs; a listing that will not parse is now a failed read on the 600 s TTL. Law: AUtf16ListingIsReadNotCachedAsGarbage drives the real `_schtasks_csv` through git_quiet with both shapes; 2 RED_PROOFs added.
+
+### REG-2480 - A PC THAT NEVER SHIPS WAS BILLED THIRTEEN EYE ROWS FOR THE SHIP-TIME INSTRUMENT IT DOES NOT OWN (#171)
+
+MEASURED on Dean's PC 2026-10-22 02:44 - never shipped a version, EYES Claude-only: 'this machine can get a second opinion' and 'the eye seat can be filled' MISSING ("there is no binary there" - grok.exe), and eleven second-eye-ledger rows UNKNOWN "unaskable for 31d" over a ledger that does not exist there ('second eye asked twice', 'eye reach per file', 'verdict matches the answer', 'a look keeps its evidence', 'the eye asks for every code extension', 'a verdict comes from a declared field', 'eye told what was stripped', 'the eye audit agrees with the gate', 'the eye cap is a size it has finished', 'the eye answers in a field', 'two eyes compared').
+
+FIX: console_doctor.this_pc_ships() - ONE measured predicate: this PC ships if its second-eye ledger exists, OR its eye binary exists (an eye configured as an API counts), OR self_prove.tree_state() says 'dev' (through the doctor's spawn-safe git door, asked only when neither of the first two holds). run() asks every row in SHIP_EYE_ROWS through ask_an_eye_row(): measured NOT shipping -> OK, "this PC has never shipped a version and has no eye - the second eye is the shipping PC's instrument; nothing is owed here" plus what was measured; shipping, or any input unreadable -> the row's own question, unchanged. No fifth state word. A check called on its own (every existing law) still asks its own question.
+
+GUARD: tv/test_an_eye_row_asks_only_a_pc_that_ships.py (registered; 4 RED proofs, among them "the predicate forced to not-shipping" and "the predicate ignores the ledger").
+
+ROUND 2 (review C3, privacy): the ships predicate's whys named the expanded EYE_CLI (a home path on Windows) in every eye row and in .eagle_slow.json. It now names the binary by its basename only (console_doctor._ntpath_base, either OS's separators).
+
+### REG-2473 - THE "PER-PC" STORES WERE PER CHECKOUT, AND THE TOMBSTONE READ WAS UNDECLARED (#181/#165 review, M4 track B)
+
+Found by the review of the first cut (dc9f31d4c), before it landed. TWO DEFECTS.
+1. BLOCKER: test_store_owners went RED - "1 store(s) are touched by a module nothing declares: [('reel_tombstones.json',
+['counter_ledger'])]". The provenance check read the tombstones with its own json.load and row parsing, and nothing
+declared counter_ledger a reader. The first cut's law sweep picked laws by module name and never ran it, and no push key
+can catch it: store_owners finds its modules by LISTING tv/, which is outside every law's key - the first red would have
+been on CI, after the push had published. The review reproduced it: `python3 tv/test_store_owners.py` FAILED at
+dc9f31d4c, OK at 7285e7efc. On the fixed bytes it runs 7 tests, OK.
+FIX: counter_ledger is a DECLARED reader in store_owners.STORES, with its reason, and reads through the OWNER:
+reel_retention._tombstone_path() for the path and reel_retention._load_state() for the read (absent [] / unreadable
+UNKNOWN / a shape its owner never writes UNKNOWN). The file is still named in counter_ledger's sentences - the coupling
+is real, so it is declared, not reworded away.
+THE SAME GAP HID A SECOND CI-ONLY RED, found by sweeping every law that lists tv/ or the tests (105 gates, not 77 by
+module name): test_no_pinned_footage (test_a_gate_may_not_pin_his_footage) refused the page law's fake reels
+reel_s_1999999999999_7/_8 - a real-looking id a test names is held by retention as `test-fixture` for ever. They are
+2017-epoch synthetic ids now (reel_s_15..., which no recording can carry). The sweep's other two reds:
+test_the_blueprint_cannot_go_stale (BLUEPRINT.md lists 1032 gates and the branch adds two - the brief leaves the regen to
+the integrator; a render in the worktree differs only by the gate count, the two gate rows, one self_arming quote line
+and the stamp, no LIVE snapshot section) and test_a_gate_proven_on_these_bytes_is_carried (this Mac's
+sys.pycache_prefix, red identically at 7285e7efc).
+2. MAJOR: the per-PC ledger was <checkout>/tv/.self_arming.here.jsonl and the per-PC Remaining dir <checkout>/tv/
+remaining_here/ - one per CHECKOUT. Fleet agents may write only in linked worktrees (his main tree is the running
+console), so a deliberate live bank from one (`python3 tv/vault_wilson.py --bank` against his console on :17772) landed
+in THAT worktree's gitignored file: his console never counted it, git status showed nothing to carry it, and `git
+worktree remove` deleted it. At 7285e7efc the same bank went into the tracked ledger and travelled with the ship (how
+the 49 live rows reached main), so this was a NEVER-DROP regression. The adoption door named only the file's basename,
+so run in the wrong checkout it also read as success.
+FIX: both resolve to ONE place per PC - git's COMMON dir (self_arming.here.jsonl, remaining_here/), found through
+heart2._git_common_dir (R10, REG-2340: from the files git reads, never by running git, so a hook's GIT_DIR cannot steer
+it), shared by the main checkout and every linked worktree, inside no work tree and never copied into a heart2 sandbox.
+Where no git dir exists (a heart2 sandbox, an unpacked copy) each falls back to the gitignored tv/ name and SAYS it dies
+with the checkout. TV_SELF_ARMING_HERE / TV_REMAINING_HERE still name a file outright; a fixture that redirected the
+shared queue still gets a sibling (PER-PC-FOLLOWS); a patched HERE_LEDGER is honoured rather than resolved past. The
+doors print the WHOLE path and the checkout they ran from; report()/the fold line carry words only ("in git's common dir -
+one per PC"), never a machine's path.
+GUARD: test_a_pc_shows_only_its_own_live_trials.TheLedgerIsOnePerPcNotOnePerCheckout and
+test_a_remaining_page_read_on_another_pc_is_unknown_here.ThePerPcDirIsOnePerPc (a main checkout and its linked worktree,
+laid out as git lays them out, resolve ONE location in the common dir and inside neither work tree; a tree with no git dir
+keeps its own and says why), TheTombstonesAreReadThroughTheirOwner (the declaration, and a spy on the owner's loader), and
+the door-sentence cases. RED_PROOFs: per-checkout again, a patched HERE_LEDGER resolved past, a basename sentence, a
+second json.load, the declaration removed.
+
+### REG-2474 - AN EMPTIED SWEEP MEMORY WAS READ AS "THIS PC NEVER HELD IT" (#165 review, M4 track B)
+
+MEASURED read-only on the Mac by the review: its own 2026-08-21 page's reel has no footage dir and is in none of its 762
+tombstones - ONLY chronicle_swept.json names it. control_app.chronicle_forget_swept(), his "re-read everything" control,
+writes {} there. After that the first cut read the Mac's own page as another install's: load() None, denied() withheld
+nothing - during exactly the re-read of old reels the veto exists for - and the console said "the only Remaining page on
+file was read off a reel this PC never held", which is false on the PC that filmed it. An emptied store read as proof of
+absence: a NEVER-WRONG breach.
+FIX: (1) the sentence says what was measured, and both things it can mean: "read off a reel none of this PC's stores name
+(its footage tree, its sweep memory, its reel tombstones) - another install's page, or one whose reel this PC no longer
+remembers - so it is UNKNOWN here, not evidence about this board". Never "never held". (2) A KEEP DOOR, run by a person on
+the PC that filmed the page: `python3 tv/counter_ledger.py --adopt-page sets_2026-08-21.json --reason "<why>" --confirm`
+copies the shipped page into THIS PC's own dir marked `adopted` {by, reason, at, from, vouchedBy}; from then on no cleared
+store can unmake it, and the shipped copy is listed once (as the kept one). It REFUSES unless one of this PC's stores names
+the reel RIGHT NOW - it only pins what the stores already show, so a reason alone can never make another install's page
+judge a board (on Dean's PC it refuses; in a worktree, whose stores are empty, it refuses and names the checkout it asked).
+No reason -> REFUSED; no --confirm -> DRY RUN; a kept page is never written twice and a different file of that name is
+never overwritten; the shipped file is never touched; tmp + fsync + os.replace. (3) whose(reading): the read-time answer
+for a SAVED reading (the sweep's calibration in chron_last_result.json) - a kept page, a store that names the reel, or
+UNKNOWN with the measured sentence - for console_doctor and the console card to call (not this batch).
+GUARD: test_a_remaining_page_read_on_another_pc_is_unknown_here: AClearedSweepMemoryIsNotProofOfAbsence (the review's
+scenario: clear the sweep memory, the sentence says what was measured; a kept page survives the clear and keeps its
+veto), TheKeepDoor (reason, dry run, refusal of an unvouched or UNKNOWN page, bad names, marked copy written once, never
+overwrite, the CLI names the whole path and the checkout), ASavedReadingIsJudgedAtReadTime (whose()).
+POST-LAND: main runs the keep door on his Mac (main checkout, while chronicle_swept.json still names the reel), beside
+--adopt-legacy-live.
+
+### REG-2472 - DEAN'S BOARD WAS JUDGED BY KONYO'S REMAINING PAGE (#165, M4 track B)
+
+counter_ledger._dir() resolved to the TRACKED tv/remaining/, and readings() took every page in it with no provenance.
+load() fed missing_names, owned_by_subtraction, contradicted, denied, arithmetic and audit, and through them
+control_app's chronicle calibration and the write-path veto, where `denied` WITHHOLDS set rows. The only page there is
+Konyo's 2026-08-21 Remaining filter (tv/remaining/sets_2026-08-21.json), read by eye off reel_s_1787307553811_9452 -
+a reel whose footage is released and which only the Mac's gitignored chronicle_swept.json still names. Dean's eagle,
+02:44: "Your board has 130 set pieces ticked. The last Remaining page (62 days old) still listed 19 as missing ...", and
+his calibration said 130 + 19 = 149, "14 rows the game says you do not have" - another player's page.
+FIX: provenance at READ time. A shipped page counts for THIS PC's judgement only when its reel is this PC's: the reel dir
+under the footage root (TV_HIST or tv/frames/hist), or the reel in this PC's sweep memory (TV_CHRON_SWEPT) or reel
+tombstones (reel_retention._tombstone_path) - all resolved at call time. A store that will not read, with no positive
+answer, is UNKNOWN; a page with no usable reel cannot be attributed (UNKNOWN). A TV_REMAINING_DIR world is that world's
+own. A page in a PC's own dir (TV_REMAINING_HERE; by default in git's common dir - REG-2473) needs no provenance. Every
+judge says WHY it has no page (as measured, REG-2474: "the only Remaining page on file was read off a reel none of this
+PC's stores name (...) - another install's page, or one whose reel this PC no longer remembers - so it is UNKNOWN here,
+not evidence about this board"), and carries `provenance`. denied() on another install's
+page withholds nothing. The page cannot be untracked: sets_base_index and bible.html's _SET_BASE_INDEX embed read it, and
+which base the game prints for which piece is GAME DATA - so counter_ledger.reference() reads the shipped page as data,
+sets_base_index.build() switched to it, and the index is identical on every PC. test_counter_ledger's two real-page cases
+pinned load() to the Mac (a roster) and now read reference(); its evidence case skips, saying why, where the page is not
+this PC's.
+GUARD: tv/test_a_remaining_page_read_on_another_pc_is_unknown_here.py (PC-A / PC-B / unreadable stores in its own
+scratch, the reel derived from the tracked page; git's own matcher on the ignore line), 25 RED_PROOFs.
+LEFT: the doctor's calibration row (console_doctor._remaining_page_reading) and the console card read the SAVED sweep
+result (chron_last_result.json), so a PC keeps showing the old comparison until its next chronicle sweep recomputes it.
+counter_ledger.whose(reading) now answers the read-time question (REG-2474); calling it from console_doctor and the card
+is console_doctor's / control_ui's (not this batch). control_app._chron_calibration's
+"board did not answer" branch still prints "no Remaining page has ever been recorded either" (control_app.py is not this
+batch). bible.html's embedded _SET_MISSING is the same leak on the board side (bible.html is not this batch).
+bake_seed.game_says_missing reads the tracked page for the shipped seed by design.
+
+### REG-2470 - THE SHARED PROOF QUEUE CARRIED ONE PC'S LIVE TRIALS TO EVERY PC (#181, M4 track B)
+
+tv/.self_arming.jsonl was commented "untracked" and `git ls-files` lists it: it ships to every PC with every update. At
+7285e7efc it held 657 rows - sabotage 583, cross-family 25, LIVE 49 (vault_live 28, route_lane_live 9, printer_live 3,
+frame_release_live 2, rung_accounting_live 2, disk_report_live 2, sweep_live 2, pixel_witness_live 1) - and every live row
+was measured on Konyo's Mac: his running console, his shelf, his disk history, his window. Dean's heart scored them as his
+own. frame.release read "earned 85/85": 35 code rows plus 50 of the Mac's live checks. MEASURED by scoring the HEAD ledger
+without the live rows: no lock or route changes permission. console.pixel_rescue, frame.release, reel.route, vault.apply,
+vault.sweep_start and chronicle.runeword/set/unique go HARDENED -> OPEN; printer.stream, prune.reports, fleet.* and
+roster.* stay OPEN; miniauto.run stays INCOMPLETE and vault.forget UNPROVEN.
+FIX: a live trial is a property of the PC that ran it. bank(), record() and fold_deferred() send kind 'live' to THIS PC's
+own ledger (TV_SELF_ARMING_HERE, resolved at call time; by default ONE file per PC in git's common dir - REG-2473; a
+fixture that redirected the shared queue gets a sibling of its own, never his real file). Every other kind stays in the shared ledger. _rows() = the
+shared ledger's code rows + this PC's rows. A live row in the shared file is LEGACY: counted on no PC, never edited out of
+the tracked bytes, reported as score()["legacyLive"] and report()["ledger"]["legacyLive"]. A non-live row in the per-PC
+ledger could not have been banked there and fails the read CLOSED. score() carries byOrigin {code: {k, n}, here: {k, n,
+adopted} | None} and hereSay ("nothing measured on this PC yet ..."); the UI label is M5/#180. run_gates' fold line names
+both files (LAST_FOLD). Live rows are never deferred: the per-PC file is in no work tree, so it is no gate's input.
+GUARD: tv/test_a_pc_shows_only_its_own_live_trials.py (two PCs in its own scratch; the shared fixture is a copy of the
+tracked ledger; git's own matcher on the ignore line, GIT_* scrubbed), 16 RED_PROOFs.
+RE-AIMED (two laws the split changed the reach of): test_the_pixels_earn_the_right_to_act asserted "OPEN => three
+families" off the real ledger, and the third family was the Mac's one pixel_witness_live row. The table's rule is
+kinds_bar 1.8, which sabotage 1.0 + cross-family 0.8 clears, so on a PC that never ran the live witness
+console.pixel_rescue is OPEN on two families by the arithmetic; the case now pins the rule (OPEN only when the
+arithmetic clears, never on one family, a live family counted on a PC measured on that PC). test_gate_banks' plain-audit
+case read only the shared ledger, so its v2940/L proof went BLIND - MEASURED: with that tamper, vault_wilson's
+`vault.apply / live / vault_live` row landed in the per-PC file (281 bytes) and the case stayed green. It now asks both.
+NOTE: self_arming.py is in many laws' keys, so the push that lands this re-proves a large set. On CI, in a push worktree
+and on any PC with no per-PC file the 8 surfaces above read OPEN, not HARDENED - by the rule, not a regression. Measured
+in the track's worktree on the final bytes: 75 of the 77 non-browser laws that name self_arming, counter_ledger or
+sets_base_index pass with no per-PC file (76 of 77 with the adopted ledger in place, run while the census was still
+stale); the two reds are this Mac's and red identically at 7285e7efc: test_a_gate_proven_on_these_bytes_is_carried ("PREMISE: no .pyc cache" under
+sys.pycache_prefix) and test_the_lock_derives_from_the_heart, which reads the machine's real heart2 census - current,
+with 5 BLIND instruments another prover recorded, so no lock may act there. heart2 --prove: 113 proofs PROVEN across 28
+laws (the 2 new, the 3 re-aimed, and 23 that read the ledger or the page).
+OPEN QUESTION (his, not this fix's - per-lock is parked): console.pixel_rescue replaces the window he is looking at, and on
+a PC that never ran its live witness it is still OPEN on code-only evidence (permission unchanged by this split).
+
+### REG-2471 - THE PC THAT MEASURED THE LEGACY LIVE TRIALS HAD NO WAY TO TAKE THEM BACK (#181, M4 track B)
+
+The split counts the 49 legacy live rows on NO PC - including the Mac that measured them, which would drop from HARDENED
+to OPEN on 8 surfaces. Nothing in the rows says which install ran them, so no code may decide it.
+FIX: an explicit door, run by a person on the PC that measured them:
+`python3 tv/self_arming.py --adopt-legacy-live --reason "<why>" --confirm`. It copies every legacy live row into THIS
+PC's per-PC ledger, each marked `adopted` {by, reason, at, from} and keeping its own `ts` (a trial is as old as what it
+measured). No reason -> REFUSED (exit 2). No --confirm -> a DRY RUN that writes nothing and says what it would take. A
+row already adopted is never written twice. The shared file's bytes are never touched. Nothing calls it on its own.
+After it, that PC scores exactly what it scored before the split (the law asserts k, n and state for every lock).
+POST-LAND: main runs it on Konyo's Mac with a reason; dean-pc-river checks Dean's heart reads the code rows (frame.release
+35/35) with "nothing measured on this PC yet" for live.
+GUARD: the same law's TheAdoptionDoor (function and command line).
+
+### REG-2466 - NOTHING HELD A PC AWAKE WHILE A SWEEP RAN (#170, the console's half)
+
+Dean's laptop slept in the middle of a proof (2026-10-21). Measured on his PC 2026-10-22 (read-only powercfg): standby never on AC or battery, hibernate after 7,200 s on battery only, and that day's drop was a lid close (Kernel-Power 42 "Button or Lid") - so a hold matters on battery and never overrides a lid. Low value for Dean, ruled anyway: "YES, ONLY WHILE WORKING" (no display hold, no powercfg change).
+
+FIX: control_app's vault and chronicle sweep runners (`_vault_sweep_run`, `_chron_sweep_run`) run inside `_SweepHold` (a decorator; their bodies are unchanged), which enters tv/keep_awake.py's `held(why)` (Track C: this thread, the with-block, never raises) when the sweep starts and leaves it when the sweep ends - by a return, by a failure the sweep catches, or by a crash that escapes it, which is not swallowed. Without keep_awake the sweep runs unheld and SAYS so: `KEEP_AWAKE_LAST` every time, the log once per process.
+
+GUARD: tv/test_a_sweep_holds_the_pc_awake_only_while_it_runs.py (registered), with a stand-in keep_awake and the sweeps in a fixture world stopped at their first step: each sweep is held from its start to its end; a failure inside and a crash that escapes both let go (the crash is re-raised); no keep_awake runs the sweep and records "NOT held". RED proofs: either sweep unheld; a crash never letting go.
+
+LEFT: tv/keep_awake.py is Track C's; until it lands every sweep records "NOT held". The heart2 proof runs (the other half of "a proof/sweep") are not wrapped here - heart2 is not in this change.
+
+- **Round 2 (GrokBot, M4 second eye, 2026-10-23).** `_SweepHold` recorded `held: True` whenever `keep_awake.held()` returned - but held() never raises; a refusal (no door on Linux, SetThreadExecutionState answering 0, no caffeinate) yields `taken: False`. The record now follows `taken`, says NOT held on a refusal, and still leaves the entered hold. The law's stand-in yields a token like the real one; a taken-False case and a 4th RED_PROOF added.
+
+### REG-2465 - A WINDOWS CONSOLE NEVER ASKED FOR NODE, SO A PC WITHOUT IT STAYED WITHOUT IT (#167, the console's half)
+
+Measured on Dean's PC (by the agent, 2026-10-21/22): no node on PATH. Every node-only law skipped there (heart2 asks PATH), the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days, and the subscription intake lane - which spawns a bare `node` - never ran, so his reads went to the hosted site. Node was put there by hand over SSH (2026-10-22). His ruling 2026-10-21: "BOTH" - the installer and the console's own dependency step fetch Node on every PC. A self-updated console never re-runs the installer (REG-1260, the Pillow lesson), so the console must ask for itself.
+
+FIX: control_app `_ensure_node_at_boot()`, started at boot beside the Pillow and numpy steps: Windows only, never on a scratch console; it soft-imports tv/node_runtime.py and calls `ensure(blocking=False, why="console boot")` once, keeping the answer on `NODE_BOOT` and saying it in the console log. node_runtime (Track C) does the work - resolve, or fetch the pinned portable zip on a background thread with its SHA-256 checked before it is extracted, then prepend its folder to os.environ['PATH'] for this process only, which reaches the intake lane's spawn, heart2's question and every child the console starts. A node_runtime that cannot be imported, raises, or answers no record is recorded UNKNOWN, and boot goes on.
+
+GUARD: tv/test_the_console_fetches_node_at_boot.py (registered), with a stand-in node_runtime in sys.modules: asked exactly once and not blocking on Windows; never off Windows or on a scratch console; an import failure, a raise and a non-record are UNKNOWN; main() starts the step. RED proofs: the ask removed; the boot thread removed.
+
+LEFT: this is the console's half. tv/node_runtime.py and the installer's fetch are Track C's; until node_runtime lands this step records UNKNOWN on every Windows boot ("node_runtime could not be imported"). No doctor row reads NODE_BOOT yet.
+
+### REG-2464 - THE RUNAWAY WATCH WAS BLIND TO CPU ON EVERY WINDOWS PC: `resource` IS POSIX-ONLY (#171)
+
+Seen by the agent on Dean's PC 2026-10-21: the console's runaway record read `cpu: null`. Read from the code: control_app's `_cpu_seconds()` asked only `resource.getrusage(RUSAGE_SELF)`, `resource` does not exist on Windows, so every tick's CPU was None and the CPU half of the runaway watch (REG-699, "late AND burning") could never fire there - a console spinning a core while refusing status reads would only ever read "late but idle".
+
+FIX: `_cpu_seconds()` falls back to `time.process_time()` - this process's user+system CPU on every OS (GetProcessTimes on Windows), the measure getrusage gives on POSIX, which is still asked first. None only when neither answers.
+
+GUARD: tv/test_the_runaway_watch_reads_cpu_on_every_os.py (registered) - with `resource` unimportable (sys.modules['resource'] = None, the Windows shape) the reading is a float that rises across a busy loop, and the watch's fraction is a number. RED proof: the fallback removed.
+
+LEFT: the eagle's other Windows assumptions in #171 (the Grok-only eye rows, the Quartz-only paint row, the launchd-only test venue, the `ps` stray sweep) are not in this change.
+
+### REG-2463 - NOTHING FOLDED LOOSE FRAMES ON ITS OWN ON ANY PC, SO EVERY RIVER WAS DAMMED BY FOOTAGE NO LANE COULD SEE (#168)
+
+Measured on Dean's PC 2026-10-21/22 (by the agent): 67,925 frames (2.53 GB) belonged to no reel. A fold by hand (`orphan_fold.py --apply --yes`) moved 65,457 of them into 18 reels and left 2,468 loose in 18 clusters an existing reel overlaps. Read from the code: the only automatic fold, console_healer's `_remedy_fold_orphan_footage`, runs only with TV_AUTO_HEAL=1, which no PC sets; and even armed, its still-red rule would disarm it for good after one fold, because the doctor's row stays MISSING on the frames an overlap refuses. His ruling 2026-10-21: "FOLD + LANE".
+
+FIX: `orphan_fold.run_once(hist_dir, in_flight)` is one pass of a lane, in the heart's vocabulary {on, worked, lastTs, owed, folded, reels, refused, why}. It asks what is in flight first (a refusal, a raise, or nobody to ask moves nothing), then plans and folds with apply_plan, which folds the ELIGIBLE clusters only. A window an existing reel covers (a second session id for one recording) and one whose newest frame is still inside the gap (it may still be filming) stay loose, counted and named with their reasons; the one still filming is owed, an overlap is not (a person decides). One fold at a time: apply_plan and run_once share a module lock (`_FOLD_LOCK`), so the opt-in healer remedy - unchanged - and the lane never move frames at once. control_app's `_orphan_fold_loop` (lane `tvd-orphan-fold`, in the roster beside the tooltip oracle) keeps the cadence - a first look 5 min after boot, then every 30 min - stamps its beat and leaves a lane trace; a harness console stands it down (its loose frames are its fixture). Declared in auto_scope (forbids delete), in loop_corroborate (its trace) and in shelf_driver's NOT_SHELF_LANES (no shelved reel waits on it).
+
+GUARD: tv/test_loose_frames_fold_on_their_own_lane.py (registered), on a fixture hist in the law's own scratch with every path named: a finished cluster no reel covers is folded into reel_s_<t0>_1 with its index; an overlapping one and a still-filming one stay loose and are named; an in-flight refusal, and nobody to ask, move nothing; while another fold holds the lock the lane moves nothing; the roster starts the lane, the loop stamps its own name and runs a pass that asks. RED proofs: the eligibility filter removed; the in-flight ask removed; the lane missing from the roster; the lock waited on instead of refused.
+
+LEFT: the doctor's loose-footage row (console_doctor, not in this change) still reads MISSING while overlap-refused frames sit loose; whether a person folds, keeps or bins those is his call.
+
+### REG-2461 - EVERY PC PUBLISHED HIS MAC'S SLOWEST REQUEST AS ITS OWN: THE CONSOLE'S RECORD WAS A TRACKED FILE (#181)
+
+Measured 2026-10-22 (git ls-files, and read from the code): tv/.status_worst.json is tracked. `_status_worst_path()` and `_STATUS_WORST_PATH` named it, `_status_worst_load()` read it as THIS PC's slowest request, the status epilogue kept it as the bar a new request must beat (`_prev = ... or _status_worst_load()`), and `_status_timing_payload()` published it as `worstRequest`. The committed copy is the last one his Mac's console wrote before v3406 - v3404's 1,773,092 ms request, slowest section fleetOrigin - so a fresh PC (Dean's) published his Mac's 29.5 minutes as its own worst and kept no slow request of its own below it. The .gitignore comment still called the file "the 612,893 ms request that answered #28" (overwritten long ago), and test_every_decision_file_is_ignored carried it as TRACKED_ON_PURPOSE.
+
+FIX: one per-PC gitignored name, tv/.status_worst.here.json, at both literals. The loader reads only it (absent is None - nothing measured here yet) and the writer writes only it. The tracked file stays byte-identical and nothing writes it again. It is NOT deleted here: on a PC where it is locally modified (the ALT's ` M`, REG-1837) a commit that deletes it makes `git pull --ff-only` refuse for good, and launcher_pull never resets an own record. self_prove.CONSOLE_OWN_RECORDS is unchanged. The .gitignore comment says what the file was; the dead TRACKED_ON_PURPOSE entry is gone, so the per-PC name is checked like every other state-root file, and that law now scrubs GIT_* (REG-2392) and switches off the host's global excludes for its throwaway repo.
+
+REVIEW (major, fixed before landing): the first cut let ANY process that imports control_app load and save the record. The status epilogue calls `_status_worst_save` in every law, pre-push suite and CLI that asks status_payload() with TV_HIST unset, and with the tracked 1,773,092 ms bar gone, the first test request over 750 ms became "this PC's slowest request". The review reproduced it: test_a_dead_journal_reader_says_so left a 1,141 ms record in the tree, and a fresh import then published it as `worstRequest`; read from the code, the live console loads that file whenever its own in-memory record is None. Measured again for this fix with a law-shaped process (TV_HIST unset, not the console, the agent probe held 0.8 s, the state root repointed at a temp dir): it wrote a 2,468.9 ms record, and it read a record already there as its bar and published it. Now `_status_worst_ours()` gates the loader and the writer. Only this PC's console (main() marked the console path, the primary port, not a TV_STUB harness - the rule the sign-in start already keeps) or a fixture world (TV_HIST names a root outside the tree) reads or writes the record. Any other process keeps its slowest request in memory only; after the fix the same process wrote nothing and read None.
+
+GUARD: tv/test_a_pc_keeps_its_own_slowest_request.py (registered), in a fixture world (TV_HIST set before control_app is imported): another PC's record under the tracked name and no per-PC file -> `_status_worst_load()` None and `worstRequest` None; a slow `status_payload()` request (its network, CLI and git producers stubbed, the agent probe held 0.8 s) is kept in the per-PC file and published, the tracked bytes identical; git's own matcher ignores the names the code writes, with their .tmp. `OnlyThisPCsConsoleHoldsTheRecord`, with TV_HIST unset, the state root repointed at the law's scratch and the console path unmarked: a slow `status_payload()` leaves no record and keeps its request in memory; a record already there is neither its bar nor published, and its bytes stay identical; the console (path marked, primary port) still writes its record and reads it back; a console on a private port and a TV_STUB harness console write nothing. RED proofs: the loader falls back to the tracked name; the writer targets it; the ignore line removed; the writer's gate removed; the loader's gate removed; the console arm answers False; the primary-port check removed; the TV_STUB check removed; a repointed root without TV_HIST counted as a fixture world.
+
+LEFT: the tracked tv/.status_worst.json is still in the tree (removing it waits for a pull door that resets an own record). The roster half of #181 - each PC publishing its own heart, locks and river with their age - is not in this change.
+
+### REG-2462 - THE RIVER EPOCH WROTE A TRACKED FILE, AND WROTE IT IN PLACE (#181)
+
+tv/river_epoch.py's EPOCH_PATH was the tracked tv/.river_epoch.json, so one machine's epoch over its own reels shipped to every PC. write() was `io.open(p, "w").write(json.dumps(...))`: the open truncates before dumps runs, so a record dumps could not serialise left the file EMPTY (read from the code; reproduced in the law with a record holding an object()). Nothing reads the file; only write() does.
+
+FIX: EPOCH_PATH is the per-PC gitignored tv/.river_epoch.here.json, and write() makes the text first, writes a tmp beside the record and renames it over the record. The tracked file is left as it is, for the pull reason in REG-2461.
+
+GUARD: tv/test_a_pc_keeps_its_own_slowest_request.py `TheEpochIsWrittenWhole` and its git case (the epoch's name is read from EPOCH_PATH). RED proofs: EPOCH_PATH back to the tracked file; its ignore line removed; the in-place write restored.
+
+### REG-2460 - A HIGH-WATER MARK SET BY ANOTHER BOARD'S SEED COULD NEVER COME DOWN, AND THE RULED DOOR COULD NOT REACH IT (Dean's 261, #169)
+
+Measured on Dean's PC 2026-10-21/22 by the agent, through his console's own state: both of his worlds held a uniques high-water mark of 261, set 08-28 by Konyo's seed (sets 116 / uniques 261 was Konyo's own board that week; v2692 recorded his board showing Konyo's seed). His ladder world has read 0 since 09-26, and console_doctor's progress row has said "BELOW its own high-water mark" (uniques 0, best 261) ever since. board_tally_merge's mark only ever RISES (its rule 3, Konyo's 08-28 ask), and the door Konyo ruled for this on 10-21, `/api/ledger_drop_accept`, closes `.ledger_drops.json` EPISODES - Dean has none, so it answered "no open drop for foundLog" and wrote nothing.
+
+FIX: `board_tally_rebase(world, lane, reason, confirm)` + `POST /api/board_tally_rebase` - one world and one lane at a time, DOWN only, and only to that world's own current reading. A reason is required (it is a ruling, not a reset) and so is confirm: without it the answer says what it would do and writes nothing. The old mark stays beside the new one in `rebasedFrom`, the ruling is appended to a permanent `rebases` list that no later tally removes, and the next tally ratchets up from the new mark. Found while building the door: the console answers on a ThreadingHTTPServer, so a tally the board posted while a re-base ran would load the file before it, save after it and put the seeded mark back while the door said "re-based" (two tally posts at once also shared one fixed .tmp name). Every read-modify-write of board_tally.json - the merge and the re-base - now holds one lock (`_board_tally_locked`).
+
+GUARD: tv/test_a_drop_is_an_episode.py `AMarkSetByDataThatWasNeverHisIsRebasedByRuling` (registered) on a fixture board_tally.json: no reason moves nothing; the dry run writes nothing; confirm brings the mark down and keeps the old one; it never raises a mark and names only real lanes and worlds; the next tally ratchets from the new mark and the ruling survives; the doctor's row stops saying BELOW; and a tally held between its load and its save while the re-base runs never puts the old mark back. 6 RED proofs (reason, dry run, rebasedFrom, a mark at its reading, the re-base's lock, the merge's lock).
+
+LEFT: the re-base itself on Dean's PC (his ladder world, lane uniques, his ruling as the reason; the dry run first) is a step on that PC after this lands.
+
+Round 2 (#169 board batch, Grok CLI review r1, 2026-10-23, FAIL, 1 major 2 minors): the doctor compared the PUBLISHED lanes (ownerId's world,
+else the newest pfx "" post) against the high-water mark of the first owner-shaped row of the sorted file. With no ownerId
+(Windows) that can be a different world, so re-basing the published world would never clear the row. The doctor now reads
+the published world's own mark. Also pinned: only that world and lane move, the re-based mark takes the current total, a
+mark below the reading is refused, and the HTTP route writes only on an explicit confirm. `rebasedFrom` lasts until the
+next rise; `rebases` is the permanent record. The doctor's below-mark row now names the door. 10 cases, 11 red-proofs.
+
+### REG-2390 - WITH BOTH WINDOWS FULL, THE INTAKE REFUSAL NAMED THE HOUR AND A TWO-MINUTE RETRY WHILE THE DAY CAP REFUSED FOR 20 HOURS
+
+tv/intake_local.mjs `budgetCheck()` asked the hour first and answered with it alone. With 80 intake reads today, 20 of them in the last hour (the default caps, 20/80), the refusal was `window: hour`, `(20/20, limit from the code default) — intake paused this hour`, retry_s 120 - the 429 body's promise of when the reader reads again - while the daily cap kept refusing for about 20 hours. Reproduced on a fixture ledger 2026-10-22 (the round-3 review's repro): (429, hour, 20, 20, retry_s 120); with the clock moved on by the promised 125 s, (429, day, 80, 80, retry_s 71995). With the hourly limit from env and the daily one from the settings file, it named `env TV_INTAKE_HOURLY_MAX` while the file's daily limit was the one refusing. The hour-first order and its "paused this hour" are on origin/main too (read, not run); REG-2383's retry_s and REG-2382's source turned them into a time and a source in the refusal. Two switches at 0 named only the hourly one, so raising it would leave intake off with nothing saying why. control_app's `_cap_state` (the meter) already says both windows. Found by the round-3 review of REG-2382..2389, before any of it shipped.
+
+FIX: `budgetCheck()` finds every full window. The refusal is the one whose retry is LATEST (`_late`: an unknown retry counts as latest, so no time is promised while a window's own cannot be known; a tie goes to the day), with that window's own window, used, limit, source and retry_s, and its message says the other window is full too: `subscription daily cap hit (80/80, limit from the code default) — intake paused today; the hourly cap is full too (20/20, limit from the code default)`. When the binding retry is unknown and another window is full, it says `intake paused` with no duration. The circuit names every switch at 0 with its own source. A single full window says exactly what it said before.
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `TheRefusalNamesTheWindowThatBinds` (registered; node only - nothing in it needs POSIX or a stand-in CLI) - a full day binds over a full hour (retry_s the day's), the binding window names its own source, an hour that frees last binds over a full day (the rule is the latest retry, not "the day wins"), an unknown retry is never a promise, with no window able to say when the day is named, and both 0 switches are named. 7 RED proofs. The board's own sentence for a capped read is the board batch's, not this change's: until it lands the board reads only the 429's status (REG-2383 LEFT).
+
+### REG-2388 - A BOARD THAT HUNG UP MID-ANSWER WAS READ AGAIN: ON THE NEXT LANE, AND ON THE WEBSITE'S API KEY
+
+control_app's /api/intake handler wrote its answers inside trys that read any exception as a lane failing. The cap's 429 (REG-2383) was written inside the handler's outer try, whose except falls through to the website proxy: a board that hung up as the 429 went out (BrokenPipeError - its fetch gave up, the vault batch waits 75 s against a runner allowed 150 s; or the tab closed) sent the console on to read on the site's ANTHROPIC_API_KEY, the spend the cap exists to stop. A lane's answer was written inside the per-lane try: a hang-up there sent the console on to the next lane (Grok, in shadow mode) and then to the website, for a read already made. Reproduced with stub runners 2026-10-22: a BrokenPipe on the 429 -> one website call; on an answer, off mode -> one website call; shadow mode -> Grok read again, then one website call. The 429 site was found by the round-2 review of REG-2383; the answer site is its sibling, on origin/main as well.
+
+FIX: each of the two writes has its own try - whatever happens to it, the handler returns, and a failed write closes the connection (`close_connection`) so nothing more is said on a socket the board left. A lane's unreadable status is still that lane's failure: it is read before the write.
+
+GUARD: tv/test_a_capped_read_is_answered_429.py `ABoardThatHangsUpEndsTheRead` (registered) - every header write to /api/intake raises BrokenPipeError: a capped read reaches no website, and an answered read in shadow mode runs no second lane and no website. 2 RED proofs (each write's except re-raising). Node-free, stub runners.
+
+### REG-2387 - ONE VISION READ RESET THE INTAKE CAP: TV_DIABLO WROTE THE INTAKE LANE'S ROWS BACK AS SECONDS
+
+tv/.subscription_budget.json has two writers on two clocks (REG-2385): tv_diablo's vision lane (`_sub_budget_record`, `time.time()` SECONDS) and tv/intake_local.mjs (`Date.now()` MILLISECONDS), whose cap counts only millisecond rows. `_sub_budget_record` ran every row through `_sub_budget_calls` - which divides a millisecond row by 1000 so the vision lane can window it (REG-217, v1868, "normalised on write as well as read") - and wrote the result back, so one vision read turned every intake row into a seconds row the intake cap does not count, and that cap restarted from zero. Reproduced on a fixture 2026-10-22: 20 intake rows, the 21st intake read refused 429; one vision read recorded by tv_diablo's own writer; the ledger then held 21 rows, all in seconds, and the 21st intake read was admitted. The same writer and the same count are on origin/main (read, not run). Found by the round-2 review of REG-2382..2386.
+
+FIX: `_sub_budget_calls(st, now, as_written=True)` returns the rows that still count in the unit their writer used, and `_sub_budget_record` writes those back. The window (under a day, a minute of skew) is still judged in seconds on write, so REG-217's never-expiring row cannot come back; only the unit is kept. What each lane counts is unchanged: the vision lane both kinds (rescaled), the intake cap its own millisecond rows.
+
+GUARD: tv/test_a_capped_runner_reaches_the_board_as_429.py `test_a_vision_read_on_the_same_ledger_leaves_the_cap_standing` (registered) - 20 intake rows on a fixture ledger, one `_sub_budget_record()` by tv_diablo's own writer, and the board's 21st read through the real runner is still HTTP 429 (used 20, limit 20); 2 RED proofs (the in-place normalisation restored at the writer, and in the window). tv/test_agent.py `test_the_poison_is_not_rewritten_on_every_record` drives the writer on a fixture now - it read the writer's source for `_sub_budget_calls(st, now)`, the very normalisation that reset the cap.
+
+### REG-2385 - EVERY INTAKE READ ERASED THE VISION LANE'S ROWS FROM THE SHARED SUBSCRIPTION LEDGER
+
+tv/.subscription_budget.json has two writers on two clocks: tv_diablo's vision lane (`_sub_budget_record`, `time.time()` SECONDS - the meter control_app's `_meter_state` draws) and tv/intake_local.mjs (`Date.now()` MILLISECONDS). REG-217 taught the Python side to read a millisecond row; the Node side was never fixed. Recording an intake call kept only the rows younger than a day IN MILLISECONDS - which no seconds row ever is - and wrote the file back, so every intake read deleted every vision row. Reproduced on a fixture 2026-10-21: three fresh vision rows in, one intake row out. (His live ledger that evening held 40 rows, every one in milliseconds.) The write was also in place: a torn file reads as {} on both sides and restarts both lanes' caps.
+
+FIX: `budgetRecord()` keeps the other lane's rows, aged in their own unit (tv_diablo's window: a minute of skew, under a day); the write is tmp + rename (per-process tmp; the old in-place write only where a rename is refused). What the intake cap COUNTS is unchanged - its own millisecond rows - and is now pinned: whether vision reads should count against the intake cap is a ruling nobody has made. `tv/.subscription_budget.json.*` (both writers' temp files) is ignored. The mirror - tv_diablo writing this lane's rows back as seconds, which reset the intake cap - is REG-2387.
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `TheLedgerKeepsTheOtherLanesRows` (a stand-in claude CLI admits and records a call; POSIX only, so its 3 RED proofs declare `needs: posix` and a Windows PC with node files them ELSEWHERE, never BLIND) and tv/test_this_pcs_settings_file_never_travels.py `test_the_ledgers_temp_files_are_ignored_by_git` (1 RED proof).
+
+### REG-2383 - A CAPPED READ WAS ANSWERED 200, OR READ ON THE WEBSITE'S API KEY
+
+tv/intake_local.mjs refused a call at its cap by throwing inside the fetch shim. intake.js catches every throw and answers `200 {"error":"worker-exception", ...}`, so the console handed the board a SUCCESS status for a read that never happened. ask.js does not catch: the runner died with exit 1, and control_app's /api/intake handler, finding no lane answer, fell through to the website proxy - which reads on the site's ANTHROPIC_API_KEY, the spend the subscription cap exists to stop. In shadow mode a capped Claude plus a Grok failover that could not run took the same road.
+
+FIX: the runner reports a cap hit as status 429 with {error:"subscription-cap", message, window, used, limit, source, retry_s} on both paths (REG-2382's commit). The handler forwards a runner's 429 as HTTP 429 with X-Intake-Lane; in shadow mode the Grok failover still reads, and when no lane reads the answer is the 429 - never the website proxy, never 200 with an error body.
+
+GUARD: tv/test_a_capped_read_is_answered_429.py (registered) - a private ThreadingHTTPServer on control_app.Handler with stub runners, so every case runs with or without node; the website door is stubbed in every case. 3 RED proofs. The join - the REAL runner under node on a fixture ledger at its cap, through the same handler - is tv/test_a_capped_runner_reaches_the_board_as_429.py (registered, node-only, 2 RED proofs); its PROOF_NEEDS names the JavaScript it runs (the runner, tv/pc_settings.mjs, functions/api/intake.js), because heart2's closure follows Python imports only and a review measured a PROVEN served after an edit to tv/pc_settings.mjs that turned the law red.
+
+LEFT: the board's own handling of a 429 is unchanged (bible.html is not in this change): aicUpload says "read failed (server 429)" and the vault batch says "AI service unreachable · HTTP 429" without reading the body's message. The Grok lane's own cap (tv/intake_grok_sub.mjs) still answers 200 worker-exception.
+
+### REG-2384 - TV_INTAKE_*_MAX=0 NEVER SWITCHED THE INTAKE LANE OFF
+
+tv/intake_local.mjs read each cap as `Math.max(0, parseInt(v || '20', 10) || 20)`. `parseInt('0')` is 0, and `0 || 20` is 20, so the documented off switch (`subscription circuit open (TV_INTAKE_*_MAX=0)`) was unreachable from a 0 - only a negative number opened it. The Python lanes (`TV_VISION_*_MAX`, `G5_GROK_*_MAX`) read 0 as 0.
+
+FIX: tv/pc_settings.mjs `wholeNumber()` - a whole number >= 0 is taken as it is (0 opens the circuit), anything else is ignored and SAID in the refusal.
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `test_zero_opens_the_circuit` (RED proof: a reader that drops 0).
+
+### REG-2382 - THE INTAKE READER'S CAPS LIVED ONLY IN process.env, WHICH HIS CONSOLE NEVER RECEIVES (GB-L reader caps)
+
+MEASURED 2026-10-21 on his Mac, read-only: the live console process carries `TVD_VIA_TERMINAL=1` and no `TV_INTAKE_*` variable at all - a Terminal-launched console sees neither the LaunchAgent plist nor `launchctl setenv` - and his tv/.subscription_budget.json held 20 intake reads inside the last hour. So tv/intake_local.mjs capped at its code default (20/hour, 80/day) while the caps were believed raised, and the refusal said only `subscription hourly cap hit (20/20)`: which limit, and where it came from, was not on screen. A Windows console started from its shortcut has the same blind spot.
+
+FIX: one rule on every PC, Dean's included - tv/pc_settings.mjs reads this PC's GITIGNORED tv/pc_settings.json (`{"TV_INTAKE_HOURLY_MAX": 50, "TV_INTAKE_DAILY_MAX": 300}`, env-style names; a UTF-8 BOM from Notepad is accepted). The environment stays the override: env > the file > the code default. Each limit keeps its source, and the refusal names it (`... (20/20, limit from the code default) ...`, `... limit from tv/pc_settings.json`, `... limit from env TV_INTAKE_HOURLY_MAX`); a layer holding an unusable value is passed over AND SAID. TV_PC_SETTINGS / TV_SUB_BUDGET point the runner at fixtures (TV_SUB_BUDGET is the override tv_diablo already honours).
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py (registered) - drives `node tv/intake_local.mjs` and the real functions/api pipeline on a fixture ledger and settings file and asserts his live ledger and settings are byte-identical after every case; 10 RED proofs (REG-2382/2383/2384). Every case needs node, so a PC without node skips it whole, and heart2 files such a tamper ELSEWHERE, never BLIND: an all-skipped tamper is ELSEWHERE only when every skip was for what that PC lacks (REG-2354, REG-2359). tv/test_this_pcs_settings_file_never_travels.py (registered, node-free) asks git's own matcher that tv/pc_settings.json is ignored; 1 RED proof.
+
+LEFT: no tv/pc_settings.json is written on any PC by this change - writing his (50/300, the GB-L stopgap now exported from the login shell) and Dean's is a step on each machine. The Grok lane's caps (tv/intake_grok_sub.mjs, G5_GROK_*_MAX) still read env only.
+
+ROUND 2 (review A2, privacy): an unreadable pc_settings.json used to put Node's e.message (which carries the absolute path) into the 429 body; it now carries e.code (or 'unreadable').
+
+### REG-2381 - A WINDOWS CONSOLE KEPT NOTHING IT SAID: PYTHONW HAS NO STDOUT (Dean diff 04)
+
+MEASURED on Dean's PC 2026-10-21: his console starts as `pythonw.exe tv\control_app.py --open` (start_tvd_win.log), there is no tv/control_app.log at all, and his /api/status said `no console log on this machine, so the hunt's cost cannot be read · unaskable for 48d (891 attempts)`. pythonw leaves sys.stdout and sys.stderr None, and print() to None is silent, so every line the console printed - the `🚀 CONSOLE BOOT` marker console_doctor's hunt-economy eye slices on, sign-in, the reel auto-sweep's watch line, the drift hold - went nowhere. His Mac's launcher appends the same stream to tv/control_app.log (start_tvd_mac.sh).
+
+FIX: `control_app._route_pythonw_output()`, the first statement of main(): only a stream that is None is routed, to tv/control_app.log (the file the doctor reads), line-buffered UTF-8; past 32 MB at boot it rolls to control_app.prev.log (tv/*.log ignores both). A scratch console (win_relaunch.scratch_console(): TV_STUB=1 or a non-primary port) writes a temp-dir log instead, so a harness boot never moves the doctor's CONSOLE BOOT slice. Adapted from Dean diff 04 (moved ahead of the console-path mark so its warning is kept too; scratch rule added).
+
+GUARD: tv/test_a_pythonw_console_keeps_what_it_says.py (registered) - 6 cases, one of them asks console_doctor's own eye to read what the routed console printed. 5 RED proofs. A law of its own on purpose: the #225 relaunch law keys on 7 files, and these cases import control_app (the whole-suite key) - folded into it, its proofs would re-prove on every test edit.
+
+LEFT: not run on a Windows PC; the routing is driven with the streams set to None the way pythonw leaves them.
+
+### REG-2380 - EVERY WINDOWS AGENT ANNOUNCED THE MAC'S OCR BINARY (Dean diff 03)
+
+MEASURED on a copy of Dean's tv/control_agent.log taken 2026-10-21: 139 agent boots, v2246 to v3767, every one printing `ocr lane: ON ...\tv\bin\ocr_mac`, beside an OCR lane that was reading at 34-50 ms through the PowerShell worker. The banner built its tag as `"ON " + OCR_BIN`, and OCR_BIN is always tv/bin/ocr_mac; on Windows `_ocr_worker_cmd()` runs `powershell ... -File tv/ocr_win.ps1`. The boot's missing-worker line (`ocr binary missing — Claude-only until tv/bin/ocr_mac is built`) named the Mac binary on Windows too.
+
+FIX: `tv_diablo._ocr_lane_tag()` builds the tag from the argv `_ocr_worker_cmd()` hands the spawn (what `OcrWorker._spawn` runs); OFF says `TV_OCR=0` or names the platform's missing worker (`_ocr_worker_wanted()`: tv/ocr_win.ps1 on Windows, tv/bin/ocr_mac on the Mac). main() asks the helper and no longer names OCR_BIN.
+
+GUARD: tv/test_the_ocr_banner_names_the_worker_that_runs.py (registered) - drives the helper under the Windows (worker present / missing), Mac and TV_OCR=0 branches, and pins main()'s `ocr lane:` line to the helper by AST. 4 RED proofs.
+
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
 Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote
@@ -1893,6 +2254,14 @@ with a linked worktree, GIT_DIR alone aimed at that worktree: the unscrubbed law
 in the clone's common config, committed onto the worktree's HEAD and left 1461 status lines; scrubbed, 60/60 OK and the clone
 byte-identical. T3 already scrubbed test_a_landed_update_is_not_an_edit, test_the_author_is_read_from_the_stamp and
 test_a_stale_git_lock_is_cleared_and_said.
+
+### REG-2389 - THE DOCTOR'S SUBSCRIPTION ROW COUNTED EVERY INTAKE READ OF THE DAY AS A READ THIS HOUR
+
+console_doctor's `_check_subscription_burn` counted `now - c <= 3600` over the raw rows of tv/.subscription_budget.json. That ledger is shared with tv/intake_local.mjs, whose rows are MILLISECONDS, and for those `now - c` is hugely negative - so every intake row still in the ledger, up to a day old, read as a read "this hour". MEASURED on a fixture 2026-10-22: 30 intake rows 5-20 h old and 2 vision reads in the last 10 min -> `32 read(s) this hour of 4000`, where the cap (`_sub_budget_check`) counts 2. control_app's meter learned this in v3099 (THE SAME OPERANDS THE REFUSAL USES); the doctor's row kept the same hand filter (on origin/main too) and was never swept. REG-2387 made it worse: the intake rows now stay in milliseconds for a day instead of being rescaled by the next vision read. Found sweeping the ledger's readers for REG-2387.
+
+FIX: the row counts through `tv._sub_budget_calls` - the call `_sub_budget_check` counts - with the refusal's `< 3600`, and closes the file it opens.
+
+GUARD: tv/test_the_cap_names_the_window_that_tripped.py `test_the_doctors_burn_row_counts_what_the_refusal_counts` (registered) - a two-unit fixture ledger; the hour and day the refusal sees are found by asking `_sub_budget_check` at every ceiling (its window is never re-implemented), and the doctor's row must say the same. 1 RED proof (the raw rows read again).
 
 ### REG-2359 - THE NODE RULE READ ONLY SKIP COUNTS, SO A LAW THAT SKIPPED FOR ANY REASON WAS EXCUSED ON A PC WITHOUT NODE (round-3 review of REG-2354, push-proof track T2)
 

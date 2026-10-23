@@ -47,6 +47,11 @@ sys.path.insert(0, HERE)
 
 OK, MISSING, UNKNOWN, UNMEASURED = "ok", "missing", "unknown", "unmeasured"
 
+
+def _this_os():
+    """sys.platform, through one seam (#171): a law drives a Windows-only branch of a row on any PC."""
+    return sys.platform
+
 #: ⚠ #229 — WHAT THE PASS IS DOING RIGHT NOW. MEASURED 2026-09-24 on his Windows ALT: the eagle's first
 #: pass said "not measured yet" for 14+ minutes after boot, while the SAME checks finished standalone in
 #: 229 s (cheap) + 143 s (periodic). A pass that never ends could only say "not measured yet", so nothing
@@ -388,7 +393,14 @@ def _check_disk_headroom():
 
 
 def _check_subscription_burn():
-    """Reads against the window. Not tokens — this lane bills none."""
+    """Reads against the window. Not tokens — this lane bills none.
+
+    REG-2389 — THE REFUSAL'S OPERANDS, NOT A HAND FILTER (control_app._meter_state learned it in v3099). This counted
+    `now - c <= 3600` over the raw rows, and the ledger is shared with tv/intake_local.mjs, whose rows are MILLISECONDS:
+    for those `now - c` is hugely negative, so every intake read still in the ledger - up to a day old - counted as a
+    read "this hour". MEASURED on a fixture: 30 intake rows 5-20 h old and 2 vision reads in the last 10 min said
+    "32 read(s) this hour", where the cap counts 2 - and since REG-2387 keeps those rows in milliseconds for a day, it
+    would have said so all day. The rows are counted through tv._sub_budget_calls, the call _sub_budget_check counts."""
     try:
         import tv_diablo as tv
         path = getattr(tv, "_SUB_BUDGET_PATH", "")
@@ -398,13 +410,14 @@ def _check_subscription_burn():
         return UNKNOWN, "tv_diablo will not import: %s" % str(e)[:90]
     if not path or not os.path.isfile(path):
         return UNKNOWN, "no vision read has been recorded on this machine yet"
+    now = time.time()
     try:
-        calls = [float(c) for c in (json.load(open(path, encoding="utf-8")).get("calls") or [])]
+        with open(path, encoding="utf-8") as fh:
+            calls = tv._sub_budget_calls(json.load(fh) or {}, now)
     except Exception as e:
         return UNKNOWN, "budget file unreadable: %s" % str(e)[:90]
-    now = time.time()
-    hour = sum(1 for c in calls if now - c <= 3600)
-    day = sum(1 for c in calls if now - c <= 86400)
+    hour = sum(1 for c in calls if now - c < 3600)
+    day = len(calls)
     pct = (100.0 * hour / hourly) if hourly else 0.0
     if hourly and pct >= 85:
         return MISSING, ("%d reads this hour of %d (%.0f%%) — close to the cap; a sweep started now "
@@ -1343,7 +1356,19 @@ def _check_the_console_painted_all_of_itself():
                          % type(exc).__name__)
     if not r.get("ok"):
         # a covered or unphotographable window is not evidence about painting
-        return UNKNOWN, str(r.get("why") or "the window could not be looked at")
+        _seen = str(r.get("why") or "the window could not be looked at")
+        _os = _this_os()
+        if _os != "darwin":
+            # #171 (REG-2481) - ON WINDOWS THE WITNESS IS MISSING, NOT THE PAINT. MEASURED on Dean's PC 2026-10-22:
+            # "Quartz is not importable here", unaskable for 45 days. The row stays UNKNOWN - never OK without a
+            # look - and says which witness this PC lacks, so the 45 days read as an instrument nobody built for it
+            # rather than a window that could not be seen this tick. [[quartz-only-probe-reads-as-a-verdict-on-windows]]
+            return UNKNOWN, ("no witness can look at this console's window on %s yet: the region and paint "
+                             "witnesses read macOS's window server (Quartz), and a Windows grab of the console's "
+                             "own window has not been built, so NOTHING is known about whether it painted "
+                             "whole - UNKNOWN, never OK without a look (the witness said: %s)"
+                             % ("Windows" if _os.startswith("win") else _os, _seen[:160]))
+        return UNKNOWN, _seen
     # ⚠⚠ v2752 — "NOT PARTLY DRAWN" IS TWO OPPOSITE FACTS AND THIS RETURNED OK FOR BOTH.
     # region_witness answers half=False both when everything is drawn AND when NOTHING is, because
     # a fully blank window is the whole-window witness's job. MEASURED on his black console: all six
@@ -1508,7 +1533,17 @@ def _check_his_progress_number_has_not_been_overwritten():
     # answer "whose high-water mark" is a guess wearing a measurement's clothes.
     _own = str(doc.get("ownerId") or "")
     key = ""
-    for k, row in (doc.get("byRoute") or {}).items():
+    # REG-2460 round 2 - THE MARK OF THE WORLD THAT IS PUBLISHED, NOT OF THE FIRST OWNER-SHAPED ROW.
+    # The top-level lanes compared below are the world board_tally_merge PUBLISHED (ownerId when it
+    # is known, else the newest pfx "" post). Without ownerId (Windows has no WebKit store) the
+    # first-in-dict-order row could be a different world: Dean's ladder world (newest, reads 0) was
+    # compared against his main world's 261, and re-basing the ladder world could never clear it.
+    _pub = doc.get("who") if isinstance(doc.get("who"), dict) else doc.get("route")
+    if isinstance(_pub, dict):
+        _pk = "%s|%s" % (str(_pub.get("id") or "")[:40], str(_pub.get("p") or "")[:16])
+        if _pk in (doc.get("byRoute") or {}) and (not _own or str(_pub.get("id") or "") == _own):
+            key = _pk
+    for k, row in (doc.get("byRoute") or {}).items() if not key else ():
         w = row.get("who") or row.get("route") or {}
         if isinstance(w, dict) and _own and str(w.get("id") or "") == _own:
             key = k
@@ -1549,9 +1584,14 @@ def _check_his_progress_number_has_not_been_overwritten():
         else:
             _last = ("No drop episode is recorded for his world, so when and how far it fell is "
                      "UNKNOWN.")
+        # REG-2460 - a mark that came from data that was never this world's (Dean's uniques 261 from
+        # Konyo's seed) has one ruled door; the row names it so the fall is not "explained" by hiding it.
         return MISSING, ("his published progress is BELOW its own high-water mark: %s. %s "
                          "Nothing has been auto-restored, because putting the number back would "
-                         "hide whatever took it away." % ("; ".join(below), _last))
+                         "hide whatever took it away. If that mark was set by data that was never "
+                         "this world's, POST /api/board_tally_rebase {\"world\", \"lane\", \"reason\", "
+                         "\"confirm\": true} re-bases it to this reading and keeps the old mark beside it."
+                         % ("; ".join(below), _last))
     if not high:
         return UNKNOWN, ("no high-water mark banked yet — it fills on the next tally the board "
                          "posts" + ((" · " + _contested_say) if _contested_say else ""))
@@ -3445,8 +3485,41 @@ def _check_no_panel_is_dark_with_its_content_in_hand():
 
 # `playwright test` reached the way a script actually invokes it. `playwright install` and any
 # sentence merely NAMING playwright must not match — see browser_suites_among.
+# #171 (REG-2481) — AND THE WINDOWS SPELLINGS OF THE SAME INVOCATION, because Task Scheduler is judged by this ONE rule
+# too: `npx.cmd`, a quoted `"...\npx.cmd" playwright test`, `node_modules\.bin\playwright(.cmd) test`.
 _RUNS_A_BROWSER_SUITE = re.compile(
-    r"(?:npx\s+|yarn\s+|pnpm\s+|bunx\s+|node_modules/\.bin/|bin/)playwright\s+test\b")
+    r"(?:npx(?:\.cmd|\.exe)?[\"']?\s+|yarn(?:\.cmd)?[\"']?\s+|pnpm(?:\.cmd)?[\"']?\s+|bunx(?:\.exe)?[\"']?\s+"
+    r"|node_modules[\\/]\.bin[\\/]|bin[\\/])playwright(?:\.cmd|\.exe)?[\"']?\s+test\b")
+#: a path a command line names: POSIX (/...) or Windows (C:\..., C:/...)
+_ABSOLUTE_PATH = re.compile(r"^(?:/|[A-Za-z]:[\\/])")
+
+
+def _paths_named_in(command):
+    """Every absolute path `command` names - quoted (a Windows path with spaces) or bare. -> [path]"""
+    found = [q.strip() for q in re.findall(r'"([^"]+)"', command)] + command.replace('"', " ").split()
+    return [t for t in found if _ABSOLUTE_PATH.match(t)]
+
+
+def reaches_a_browser_suite(command):
+    """#171 (REG-2481) — THE ONE RULE both schedulers are judged by. -> bool
+
+    Does `command` - with the first 200 KB of every script it names by an absolute path - INVOKE a browser suite?
+    launchd hands it a plist's arguments, Task Scheduler a task's 'Task To Run'. One rule, so a fix to it (the
+    routine_Q lesson: an invocation, not a mention) reaches both. Bounded: 200 KB per file."""
+    blob = command
+    for tok in _paths_named_in(command):
+        if os.path.isfile(tok):
+            try:
+                with open(tok, encoding="utf-8", errors="replace") as fh:
+                    blob += "\n" + fh.read(200000)
+            except OSError:
+                pass
+    # ⚠ AN INVOCATION, NOT A MENTION. The first cut matched the bare substring "npx
+    # playwright" and immediately accused routine_Q — a WATCHDOG whose only crime is the
+    # alert string `run \`npx playwright install\``. It monitors the suites; it does not run
+    # one. A guard that reads prose about the thing as the thing is the same defect that has
+    # blinded three source guards in this repo already. [[feedback-comments-vs-code]]
+    return bool(_RUNS_A_BROWSER_SUITE.search(blob))
 
 
 def browser_suites_among(labels, agents_dir=None):
@@ -3475,22 +3548,126 @@ def browser_suites_among(labels, agents_dir=None):
                 plist = fh.read(200000)
         except OSError:
             continue
-        blob = plist
-        for tok in plist.replace("<string>", " ").replace("</string>", " ").split():
-            if tok.startswith("/") and os.path.isfile(tok):
-                try:
-                    with open(tok, encoding="utf-8", errors="replace") as fh:
-                        blob += fh.read(200000)
-                except OSError:
-                    pass
-        # ⚠ AN INVOCATION, NOT A MENTION. The first cut matched the bare substring "npx
-        # playwright" and immediately accused routine_Q — a WATCHDOG whose only crime is the
-        # alert string `run \`npx playwright install\``. It monitors the suites; it does not run
-        # one. A guard that reads prose about the thing as the thing is the same defect that has
-        # blinded three source guards in this repo already. [[feedback-comments-vs-code]]
-        if _RUNS_A_BROWSER_SUITE.search(blob):
+        # #171 - the plist's arguments, judged by the one rule Task Scheduler's commands are judged by
+        if reaches_a_browser_suite(plist.replace("<string>", " ").replace("</string>", " ")):
             guilty.append(lbl)
     return guilty
+
+
+#: #171 (REG-2481) — how long one Task Scheduler listing answers for. The question changes only when somebody schedules
+#: a job, and `schtasks /v` costs seconds on a Windows PC, so the every-tick row reads it at most hourly - and says how
+#: old the listing it judged was. [[stale-reading]]
+_TASKS_TTL_S = 3600
+#: ...and a listing that could NOT be taken is asked again only after this long: a schtasks that hangs under his game
+#: (tasklist did, REG-1414) must cost one bounded wait per eagle tick, never one per row asked.
+_TASKS_FAIL_TTL_S = 600
+_TASKS = {"at": None, "text": None, "err": None}
+
+
+def _schtasks_csv():
+    """Task Scheduler's own verbose listing, as CSV. -> text. Raises when it cannot be asked.
+    Through git_quiet's door: on Windows the child gets CREATE_NO_WINDOW + SW_HIDE, never a console over his game."""
+    import git_quiet as _gq
+    r = _gq.run([_spawnable("schtasks"), "/query", "/fo", "CSV", "/v"], close_fds=False,
+                capture_output=True, timeout=15)
+    if r.returncode != 0:
+        raise OSError("schtasks exited %s" % r.returncode)
+    return _decode_listing(r.stdout or b"")
+
+
+def _decode_listing(raw):
+    """REG-2481 round 2 - a Windows tool's piped bytes -> text. A UTF-16 listing (a BOM, or the NUL every ASCII
+    character carries in UTF-16-LE) is decoded as UTF-16 first: read as utf-8/mbcs it 'decodes' into text with a NUL
+    between every letter, no 'Task To Run' header, and an UNKNOWN row that never ends. Otherwise utf-8, then the
+    console's OEM page, then the ANSI page (both exist only on Windows), then utf-8 with replacement."""
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in raw[:200]:
+        try:
+            return raw.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
+    for enc in ("utf-8", "oem", "mbcs"):
+        try:
+            return raw.decode(enc)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return raw.decode("utf-8", "replace")
+
+
+def windows_tasks_from_csv(text):
+    """`schtasks /query /fo CSV /v` -> [(task name, its 'Task To Run')], one per task. Raises ValueError when no
+    'Task To Run' column can be found - a listing this check cannot read is UNKNOWN, never an empty schedule."""
+    import csv as _csv
+    import io as _io
+    tasks, seen, cols = [], set(), None
+    for row in _csv.reader(_io.StringIO(text)):
+        if not row:
+            continue
+        if "Task To Run" in row:                       # the header, repeated once per task folder
+            cols = (row.index("TaskName") if "TaskName" in row else 1, row.index("Task To Run"))
+            continue
+        if cols is None or len(row) <= max(cols):
+            continue
+        name, cmd = row[cols[0]].strip(), row[cols[1]].strip()
+        if (name, cmd) not in seen:
+            seen.add((name, cmd))
+            tasks.append((name, cmd))
+    if cols is None:
+        raise ValueError("no 'Task To Run' column in the listing (a Windows in another language?)")
+    return tasks
+
+
+def _ntpath_base(p):
+    """The last part of a path in either OS's spelling (C:\\Users\\<name>\\...\\grok.exe -> grok.exe)."""
+    return str(p).replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+
+
+def _venue_on_windows(query=None, now=None):
+    """#171 (REG-2481) — the venue row on Windows: Task Scheduler, judged by the one rule. -> (state, why)
+    `query` is the listing seam (a law hands in its fixture CSV); None reads Task Scheduler, at most hourly."""
+    now = time.time() if now is None else now
+    try:
+        if query is not None:
+            text, age = query(), 0.0
+        elif _TASKS["text"] is not None and now - _TASKS["at"] < _TASKS_TTL_S:
+            text, age = _TASKS["text"], now - _TASKS["at"]
+        elif _TASKS["err"] is not None and now - _TASKS["at"] < _TASKS_FAIL_TTL_S:
+            return UNKNOWN, ("Task Scheduler could not be read %d min ago (%s) and is asked again within %d min, so "
+                             "whether a browser suite is scheduled on this PC is UNKNOWN"
+                             % (int((now - _TASKS["at"]) // 60), _TASKS["err"], _TASKS_FAIL_TTL_S // 60))
+        else:
+            try:
+                text, age = _schtasks_csv(), 0.0
+                tasks = windows_tasks_from_csv(text)
+            except Exception as e:
+                # REG-2481 round 2 - a listing that would not PARSE is a failed read too: cached on the short TTL,
+                # never kept as a good listing for an hour
+                _TASKS.update(at=now, text=None, err="%s: %s" % (type(e).__name__, str(e)[:90]))
+                raise
+            _TASKS.update(at=now, text=text, err=None)
+        tasks = windows_tasks_from_csv(text)
+    except Exception as e:
+        return UNKNOWN, ("Task Scheduler could not be read (%s: %s), so whether a browser suite is scheduled on "
+                         "this PC is UNKNOWN" % (type(e).__name__, str(e)[:90]))
+    if not tasks:
+        return UNKNOWN, ("Task Scheduler listed no task at all - every Windows schedules its own, so the listing "
+                         "is the suspect and the venue is UNKNOWN")
+    guilty = sorted({name for name, cmd in tasks if reaches_a_browser_suite(os.path.expandvars(cmd))})
+    when = "read just now" if age < 60 else "read %d min ago" % int(age // 60)
+    if guilty:
+        return MISSING, ("%d scheduled task(s) run a BROWSER suite on this PC instead of on GitHub: %s. They "
+                         "have CI twins; a local copy only adds heat and starves the push gate (REG-416) - "
+                         "Task Scheduler, %s" % (len(guilty), ", ".join(guilty[:6]), when))
+    # a task with several actions shows "Multiple actions" in place of its commands: unseen, so never judged clean.
+    # Windows' own folder (\Microsoft\) schedules the OS's work, never a suite of ours.
+    unseen = sorted({name for name, cmd in tasks if cmd.strip().lower() == "multiple actions"
+                     and not name.lower().startswith("\\microsoft\\")})
+    if unseen:
+        return UNKNOWN, ("%d scheduled task(s) hold several actions Task Scheduler's listing does not show (%s), so "
+                         "whether they run a browser suite here is UNKNOWN - Task Scheduler, %s"
+                         % (len(unseen), ", ".join(unseen[:6]), when))
+    return OK, ("no scheduled task runs a browser suite here \u2014 all %d Task Scheduler task(s) were judged by the "
+                "same rule as launchd's jobs ('Task To Run' and the scripts it names, %s), and the suites stay on "
+                "GitHub" % (len({n for n, _c in tasks}), when))
 
 
 def _check_no_browser_suite_is_scheduled_on_this_mac():
@@ -3518,8 +3695,12 @@ def _check_no_browser_suite_is_scheduled_on_this_mac():
     unbounded sweep of this shape once held a core at 99% for 28 hours on this same machine.
     """
     import subprocess as _sp
-    if sys.platform != "darwin":
-        return UNKNOWN, "this check only knows launchd, so it cannot speak for this machine"
+    _os = _this_os()
+    if _os.startswith("win"):
+        return _venue_on_windows()     # #171 (REG-2481) - Task Scheduler, judged by the same rule
+    if _os != "darwin":
+        return UNKNOWN, ("this check knows launchd (macOS) and Task Scheduler (Windows), and this machine is "
+                         "neither, so it cannot speak for it")
     try:
         out = _sp.run([_spawnable("launchctl"), "list"], capture_output=True, text=True,
                       close_fds=False, timeout=10)
@@ -10881,6 +11062,100 @@ def tick_caches():
         _rroute_cache["active"], _rroute_cache["got"] = False, None
 
 
+# ══ #171 (REG-2480) — AN EYE ROW ASKS ONLY A PC THAT SHIPS ══════════════════════════════════════════════════════════
+#: The thirteen rows that grade the SHIP-TIME instrument: the second eye (the cross-family look the pre-push gate takes
+#: before a version ships) and the ledger it writes. MEASURED on Dean's PC 2026-10-22 02:44 - a PC that has never
+#: shipped a version and whose EYES is Claude-only: two of them MISSING ("there is no binary there" - grok.exe) and the
+#: other eleven UNKNOWN, "unaskable for 31d" over an absent ledger. Thirteen rows billing a healthy PC, every tick, for
+#: an instrument it does not own.
+SHIP_EYE_ROWS = (
+    "this machine can get a second opinion", "the eye seat can be filled", "second eye asked twice",
+    "eye reach per file", "verdict matches the answer", "a look keeps its evidence",
+    "the eye asks for every code extension", "a verdict comes from a declared field", "eye told what was stripped",
+    "the eye audit agrees with the gate", "the eye cap is a size it has finished", "the eye answers in a field",
+    "two eyes compared")
+#: the one reason every eye row gives on a PC that does not ship - ONE predicate, one sentence, never a fifth state word
+NOT_SHIPPING_SAY = ("this PC has never shipped a version and has no eye - the second eye is the shipping PC's "
+                    "instrument; nothing is owed here")
+_EYE_API_HOSTS = ("api.x.ai", "api.openai.com", "api.anthropic.com")
+
+
+def _ship_git(*args):
+    """git for self_prove.tree_state, through this module's own spawn-safe door (git_quiet, a git with a dirname,
+    close_fds=False - the console has Quartz loaded, see _spawnable). -> (rc, stdout)"""
+    import git_quiet as _gq
+    r = _gq.run([_spawnable("git"), "-C", ROOT] + list(args), close_fds=False,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15)
+    return r.returncode, (r.stdout or "").strip()
+
+
+def this_pc_ships(ledger_path=None, eye_cli=None, tree=None):
+    """#171 (REG-2480) — ONE MEASURED PREDICATE: does THIS PC ship versions, and so owe the second eye?
+    -> (True | False | None, why)
+
+    True   its second-eye ledger exists, OR its eye binary exists (an eye configured as an API counts), OR its tree is
+           a development tree (self_prove.tree_state says 'dev' - the pre-push gate proves and ships from it)
+    False  all three were READ and none holds: it has never shipped and has no eye
+    None   one of them could not be read - and then nothing is relabelled; every eye row asks its own question, as before
+
+    The seams: `ledger_path` and `eye_cli` default to second_eye_ledger.LEDGER_PATH and second_eye_run.EYE_CLI, read
+    at call time; `tree` is a callable -> (kind, why), default self_prove.tree_state through _ship_git. Asked in the
+    order that costs least: two stats first, and git only on a PC with neither a ledger nor an eye.
+    [[unknown-stays-unknown]] [[per-pc-personal-data]]"""
+    said = []
+    try:
+        if ledger_path is None:
+            import second_eye_ledger as _sel
+            ledger_path = _sel.LEDGER_PATH
+        os.stat(ledger_path)
+        return True, "its second-eye ledger exists (%s)" % os.path.basename(str(ledger_path))
+    except (FileNotFoundError, NotADirectoryError):
+        said.append("no second-eye ledger (%s)" % os.path.basename(str(ledger_path)))
+    except Exception as e:
+        return None, "the second-eye ledger could not be read (%s)" % type(e).__name__
+    try:
+        if eye_cli is None:
+            import second_eye_run as _eye
+            eye_cli = getattr(_eye, "EYE_CLI", "") or ""
+        eye_cli = str(eye_cli or "")
+        if eye_cli and ("://" in eye_cli or any(h in eye_cli for h in _EYE_API_HOSTS)):
+            return True, "an eye is configured here as an API (%s)" % eye_cli
+        if eye_cli:
+            os.stat(eye_cli)
+            return True, "its eye binary exists (%s)" % _ntpath_base(eye_cli)   # a basename: never a home path
+        said.append("no eye configured")
+    except (FileNotFoundError, NotADirectoryError):
+        said.append("no eye binary (%s)" % _ntpath_base(eye_cli))   # REG-2480 round 2: a basename, never a home path
+    except Exception as e:
+        return None, "whether an eye is on this PC could not be read (%s)" % type(e).__name__
+    try:
+        if tree is None:
+            import self_prove as _sp
+            kind, twhy = _sp.tree_state(git=_ship_git)
+        else:
+            kind, twhy = tree()
+    except Exception as e:
+        return None, "whether this tree ships could not be read (%s)" % type(e).__name__
+    if kind == "dev":
+        return True, "its tree is a development tree (%s)" % twhy
+    if kind != "installed":
+        return None, "whether this tree ships could not be read (%s)" % twhy
+    said.append(twhy)
+    return False, "; ".join(said)
+
+
+def ask_an_eye_row(fn, ships=None):
+    """#171 — an eye row as the eagle asks it. -> (state, why)
+
+    On a PC this_pc_ships() MEASURED as not shipping: OK, with the one reason and what was measured. Anywhere else -
+    a PC that ships, or one whose answer could not be read - the row's own question, exactly as before. `ships` is
+    this_pc_ships()'s answer, asked here when None."""
+    s, swhy = ships if ships is not None else this_pc_ships()
+    if s is False:
+        return OK, "%s (measured: %s)" % (NOT_SHIPPING_SAY, swhy)
+    return fn()
+
+
 def run(include_slow=True, include_periodic=None, tick=None):
     """-> rows. `include_periodic` defaults to `include_slow` so every existing caller keeps its
     exact behaviour; the eagle passes it explicitly on its own cadence. `tick` is the eagle's
@@ -10900,6 +11175,7 @@ def run(include_slow=True, include_periodic=None, tick=None):
         _last = _load_slow()
         _last = _last if isinstance(_last, dict) else {}
         _last_by = {r.get("check"): r for r in (_last.get("rows") or []) if isinstance(r, dict)}
+        _ships = []         # #171 - this_pc_ships(), asked once per pass by the first eye row
         for name, fn in CHECKS:
             if not include_slow and name in SLOW:
                 continue
@@ -10949,7 +11225,13 @@ def run(include_slow=True, include_periodic=None, tick=None):
             t0 = time.time()
             CURRENT.update(check=name, since=t0, tick=tick)
             try:
-                state, why = fn()
+                if name in SHIP_EYE_ROWS:
+                    # #171 (REG-2480) - one predicate per pass, asked by the first eye row (whose ms carries it)
+                    if not _ships:
+                        _ships.append(this_pc_ships())
+                    state, why = ask_an_eye_row(fn, _ships[0])
+                else:
+                    state, why = fn()
             except Exception as e:
                 state, why = UNKNOWN, "this check itself threw: %s" % str(e)[:120]
             # v3404c — THE WHOLE IS MINUTES AND EVERY PART IS SECONDS. RESUME_HERE named this

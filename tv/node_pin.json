@@ -1,0 +1,19 @@
+{
+  "_why": "REG-2484 (#167) - the Node.js that tv/node_runtime.py fetches on a Windows PC where node is absent. Each sha256 is copied from https://nodejs.org/dist/v24.22.1/SHASUMS256.txt (read 2026-10-22). The win-x64 zip hash is the one verified three times on Dean's PC on 2026-10-22 (SHASUMS there, the zip's own hash, and the Mac's reading all agreed), and the zip's node.exe hashes to the exeSha256 below, which is the same file's own line in SHASUMS256.txt (win-x64/node.exe). A new version is a new pin: copy all four hashes from that version's SHASUMS256.txt.",
+  "version": "v24.22.1",
+  "base": "https://nodejs.org/dist/v24.22.1/",
+  "files": {
+    "x64": {
+      "file": "node-v24.22.1-win-x64.zip",
+      "sha256": "d2046d28c2c3dcd211ac5145c0bf30e2047ef9dfb306693c8c6e2eccd8b95fa5",
+      "top": "node-v24.22.1-win-x64",
+      "exeSha256": "d702daa815eabbff763c7d3808e235cf031cf2ca70211b56847bc72f51e240e5"
+    },
+    "arm64": {
+      "file": "node-v24.22.1-win-arm64.zip",
+      "sha256": "a0c807319fede24c4a0d8f84564c82a619bd313b16b10c007c383c2609e99171",
+      "top": "node-v24.22.1-win-arm64",
+      "exeSha256": "8bea91dc437fe01e7d92ef0efc6c9eaf654369aaba9b2d3e9841552ea7b95a00"
+    }
+  }
+}

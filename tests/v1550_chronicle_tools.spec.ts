@@ -219,6 +219,13 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
         why: '2026-09-27 - records a DELIBERATE ledger clear so the drop watch stops calling it a loss; '
            + 'walked by hand from the doctor row, confirm required. Its law drives accept/refuse/preview.',
       },
+      /* 2026-10-23 - red on M4's CI (ci/gbl-m4-1): the #169 port (REG-2460) added the ruled tally-rebase door with no
+       * owner entry. The doctor's drop row names it as the way to rule a seeded tally; its law drives the door. */
+      '/api/board_tally_rebase': {
+        owner: 'tv/test_a_drop_is_an_episode.py',
+        why: 'REG-2460 (#169) - rebases one lane of a world\'s board tally after a ruled drop; walked by hand from the '
+           + 'doctor row, confirm required. Its law drives refuse/preview/apply through the served handler.',
+      },
       '/api/vault_autosort': {
         owner: 'tv/test_every_operator_door_keeps_its_contract.py',
         why: 'v3222 - presses the board Auto-Sort from outside; confirm required.',

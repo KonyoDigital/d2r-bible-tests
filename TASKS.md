@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3791** | `(this commit)` | v3791 — d2jsp price backend, desk codex and drop units, signed roster publish, two triage fixes |
+| **v3792** | `(this commit)` | v3792 — M4 (GB-L) - per-PC console and ledgers, eagle dual logic, keep-awake, node pin, installer, faster CI |
+| **v3791** | `fb2079a3` | v3791 — d2jsp price backend, desk codex and drop units, signed roster publish, two triage fixes |
 | **v3790** | `b58879ec` | v3790 — V1 (GB-L) - pick undo, held-vault perfect base, refused map writes keep filings, no Claude CLI in gates |
 | **v3789** | `21a78ff6` | v3789 — A barren held reel now cools (6 h doubling to 7 days) and a relaunch or padlock open no longer restarts it |
 | **v3788** | `ab7065bb` | v3788 — REG-2556 to 2558 from the Grok CLI look on v3787, REG-2559 a triage law never launches claude (189) |

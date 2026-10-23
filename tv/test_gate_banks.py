@@ -93,10 +93,14 @@ class TheGateBanksWhatItScores(unittest.TestCase):
         for name in ("vault_wilson", "sweep_wilson", "prune_wilson", "hover_wilson"):
             d = tempfile.mkdtemp()
             led = os.path.join(d, "ledger.jsonl")
-            env = dict(os.environ, TV_SELF_ARMING_LEDGER=led, TV_STUB="1")
+            # ⚠ #181 (REG-2470) - A LIVE ROW NOW LANDS IN THIS PC'S OWN LEDGER, so "wrote nothing" must ask BOTH.
+            # Asking only the shared file left the v2940/L proof BLIND: the second door's `vault.apply / live /
+            # vault_live` row went to the per-PC file and this case stayed green - measured, before this line.
+            here = os.path.join(d, "ledger.here.jsonl")
+            env = dict(os.environ, TV_SELF_ARMING_LEDGER=led, TV_SELF_ARMING_HERE=here, TV_STUB="1")
             subprocess.run([sys.executable, os.path.join(HERE, name + ".py")],
                            env=env, cwd=HERE, capture_output=True, timeout=300)
-            wrote = os.path.getsize(led) if os.path.exists(led) else 0
+            wrote = sum(os.path.getsize(p) for p in (led, here) if os.path.exists(p))
             self.assertEqual(0, wrote,
                              "%s wrote %d bytes of evidence on a plain audit run — reading is not "
                              "evidence until someone decides it is" % (name, wrote))

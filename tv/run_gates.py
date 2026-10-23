@@ -4664,7 +4664,10 @@ GATES = [
              "NONE PUBLISHED) and pinned here. It also pins the mirror-image lie - an unarmed lane "
              "refuses nothing and must never read as capped - and that UNKNOWN is a VALUE rather "
              "than a missing field, since the honest-absent grok shape used to omit capWindow and "
-             "capText entirely."),
+             "capText entirely. REG-2389 - console_doctor's subscription row still hand-filtered the "
+             "raw rows, so every millisecond intake row of the day read as a read 'this hour' (a "
+             "fixture said 32 where the cap counts 2); it counts through _sub_budget_calls now, "
+             "pinned against the counts _sub_budget_check itself refuses at."),
     Gate("test_the_render_fixture_can_reach_the_card_branch",
          [sys.executable, os.path.join(HERE, "test_the_render_fixture_can_reach_the_card_branch.py")], 120,
          why="A FIXTURE THAT CANNOT EXERCISE THE BRANCH DOES NOT GO QUIETLY GREEN - IT GOES LOUDLY "
@@ -8220,6 +8223,23 @@ GATES = [
          skip_ok=()),
     # ⚠ MIND THE SEPARATING COMMA ON EVERY Gate(...) INSERT — dropping it has produced a
     # SyntaxError twice in this file. [[gate-insert-missing-comma]]
+    Gate("test_a_newer_ci_push_cancels_the_older_run",
+         [sys.executable, os.path.join(HERE, "test_a_newer_ci_push_cancels_the_older_run.py")], 60,
+         needs_app=False,
+         why="gbl/ci-speed - main v3791's Publish smoke waited 25 min for a runner behind ci/gbl-* runs a newer "
+             "push to the same branch had already replaced. Every workflow a ci/** push starts now groups by "
+             "workflow + branch and cancels the older run there; on main, schedules and PRs the shared block's "
+             "group is the run's own id, so it never cancels or drops one (Publish and Routine I keep their "
+             "own pinned rules).",
+         skip_ok=()),
+    Gate("test_ci_spends_no_minutes_on_a_slow_mirror",
+         [sys.executable, os.path.join(HERE, "test_ci_spends_no_minutes_on_a_slow_mirror.py")], 120,
+         needs_app=False,
+         why="gbl/ci-speed - the Chromium OS-deps apt step sat on a slow Ubuntu mirror until its 5-minute "
+             "timeout in 19 of 146 measured steps, on the shard every run waits for. The step now skips "
+             "apt when Playwright says nothing is missing and bounds it at 90 s otherwise, never red; "
+             "and census pushes (ci/proof-keys-**) no longer spend agent-test or Playwright minutes.",
+         skip_ok=()),
     Gate("test_a_tab_opener_is_bounded",
          [sys.executable, os.path.join(HERE, "test_a_tab_opener_is_bounded.py")], 120,
          needs_app=False,
@@ -11569,6 +11589,189 @@ GATES = [
              "stretch that every law run and tamper write ends (inode-change time in the key), and the clean wave "
              "leaves out only a gate the cache serves whole on this tree's keys with no clean run owed here. Temp "
              "files, a fake cache."),
+    Gate("test_the_ocr_banner_names_the_worker_that_runs",
+         [sys.executable, os.path.join(HERE, "test_the_ocr_banner_names_the_worker_that_runs.py")], 60,
+         needs_app=False,
+         why="REG-2380 - the agent banner printed 'ocr lane: ON ' + OCR_BIN, which is always tv/bin/ocr_mac; on Windows "
+             "_ocr_worker_cmd() runs ocr_win.ps1, so every Windows agent named a Mach-O it can never run (139 boots on a "
+             "copy of Dean's agent log, beside OCR reading at 34-50 ms). The tag is now the argv the spawn runs, an OFF "
+             "names the switch or the missing worker, and main() never names OCR_BIN."),
+    Gate("test_the_reader_cap_comes_from_this_pcs_settings",
+         [sys.executable, os.path.join(HERE, "test_the_reader_cap_comes_from_this_pcs_settings.py")], 120,
+         needs_app=False,
+         why="REG-2382 / REG-2383 / REG-2384 - the intake reader's caps were read from process.env only, and his "
+             "Terminal-launched console carries no TV_INTAKE_* (measured 2026-10-21), so it capped at the code default "
+             "20/hour while the caps were believed raised, and said so as '(20/20)' with no source. Read from the code: "
+             "the refusal was answered 200 worker-exception, on /api/ask the runner exited 1 and the handler fell "
+             "through to the website proxy (pinned with stub runners in test_a_capped_read_is_answered_429), and "
+             "TV_INTAKE_*_MAX=0 never opened the circuit (parseInt('0') || 20). One rule on every PC now "
+             "(tv/pc_settings.mjs): env override > this "
+             "PC's gitignored tv/pc_settings.json > the default; the refusal names its limit, its source and retry_s, "
+             "and is status 429. Driven through the real runner and pipeline on a fixture ledger and settings file; "
+             "the claude CLI is a path that does not exist, so no case spends a read. REG-2385 - recording an intake "
+             "call erased the vision lane's seconds rows from the shared ledger; they are kept (a stand-in CLI admits "
+             "and records a call), the intake cap still counts its own rows, and the write is atomic. Every case "
+             "needs node, so a PC without node skips the law whole; the stand-in-CLI cases also need POSIX, and the "
+             "three proofs only they catch declare needs: posix. REG-2390 - with both windows full the hour was asked "
+             "first and answered alone: 'paused this hour' with a two-minute retry_s while the day cap refused for 20 "
+             "hours more (reproduced on a fixture ledger), and the hour's source named when the day's limit came from "
+             "another layer. The refusal is now the window whose retry is latest, with its own limit, source and "
+             "retry_s, and says the other is full too; an unknown retry binds over a known one, and two switches at 0 "
+             "are both named."),
+    Gate("test_a_capped_read_is_answered_429",
+         [sys.executable, os.path.join(HERE, "test_a_capped_read_is_answered_429.py")], 120,
+         needs_app=False,
+         why="REG-2383 - a capped subscription read was answered 200 with an error body (intake.js catches the "
+             "shim's throw), and on /api/ask, or in shadow mode when the Grok failover also failed, the handler fell "
+             "through to the website proxy, which reads on the site's API key - the spend the cap exists to stop. "
+             "control_app's /api/intake handler now answers a runner's 429 as HTTP 429 with its body (limit, source, "
+             "retry_s), still lets the Grok failover read, answers the 429 when no lane reads, and never calls the "
+             "website after a cap. REG-2388 - reproduced with stub runners: a board hanging up as the 429 was written "
+             "sent the handler to the website proxy, and one hanging up on a lane's answer sent it to the next lane "
+             "and the website for a read already made; each write has its own try now and the handler returns. "
+             "Driven through a private server with stub runners, so every case "
+             "runs with or without node; the website door is always stubbed. The real runner's join is "
+             "test_a_capped_runner_reaches_the_board_as_429."),
+    Gate("test_a_pythonw_console_keeps_what_it_says",
+         [sys.executable, os.path.join(HERE, "test_a_pythonw_console_keeps_what_it_says.py")], 60,
+         needs_app=False,
+         why="REG-2381 - pythonw (every Windows console) leaves sys.stdout/stderr None, so everything the console "
+             "printed was dropped: Dean's PC had no tv/control_app.log at all and the doctor's hunt eye read 'no "
+             "console log on this machine' for 48 days. main() now routes a None stream to tv/control_app.log (the "
+             "file the Mac launcher appends to and the doctor reads) before it says anything, rolled past 32 MB; a "
+             "scratch console writes a temp log. Driven with the streams set to None, and the doctor's own eye reads "
+             "what the routed console printed."),
+    Gate("test_this_pcs_settings_file_never_travels",
+         [sys.executable, os.path.join(HERE, "test_this_pcs_settings_file_never_travels.py")], 60,
+         needs_app=False,
+         why="REG-2382 / REG-2385 - tv/pc_settings.json (this PC's intake caps) and the subscription ledger's temp "
+             "files are ignored by git, asked of git's own matcher in a throwaway repo seeded with the tree's "
+             ".gitignore files, with the host's global excludes switched off so no PC's own ignore answers for the "
+             "tree. Its own law and node-free: inside the node-only reader-cap law these two cases were the only "
+             "ones a PC without node ran, so every node-only proof there was filed BLIND: heart2 files a tamper "
+             "ELSEWHERE only when every case skipped, each for what that PC lacks (REG-2354, REG-2359)."),
+    Gate("test_a_capped_runner_reaches_the_board_as_429",
+         [sys.executable, os.path.join(HERE, "test_a_capped_runner_reaches_the_board_as_429.py")], 120,
+         needs_app=False,
+         why="REG-2383 / REG-2382 - the join: control_app's /api/intake handler spawns the REAL tv/intake_local.mjs at "
+             "its cap on a fixture ledger, and the board receives HTTP 429 with used, limit and the limit's source, "
+             "never 200 and never the website. Node-only on purpose, and its proof key names the JavaScript it runs "
+             "(the runner, tv/pc_settings.mjs, functions/api/intake.js) - heart2's closure follows Python imports "
+             "only, so an edit to the settings reader would otherwise be served a PROVEN it never ran on. REG-2387 - "
+             "tv_diablo's vision writer handed the shared ledger back in seconds, so one vision read reset the intake "
+             "cap (reproduced on a fixture ledger): 20 intake rows, one _sub_budget_record(), and the board's 21st "
+             "read is still 429."),
+    Gate("test_a_pc_keeps_its_own_slowest_request",
+         [sys.executable, os.path.join(HERE, "test_a_pc_keeps_its_own_slowest_request.py")], 120,
+         needs_app=False,
+         why="REG-2461 / REG-2462 (#181) - the console's slowest-request record and the river epoch were TRACKED "
+             "files, so every update shipped one PC's numbers to every PC: a fresh PC loaded his Mac's committed "
+             "1,773,092 ms request as its own worst, published it as worstRequest and kept it as the bar to beat. "
+             "Both are per-PC gitignored files now (.status_worst.here.json, .river_epoch.here.json); absent is None "
+             "- nothing measured here - and the tracked copies are never written again. Driven in a fixture world: "
+             "another PC's record is never this PC's, a slow status request is kept and published here only, git's "
+             "own matcher ignores the names the code writes, and an epoch that cannot be serialised leaves the last "
+             "one whole. And the record is held only by this PC's console or a fixture world (the review reproduced "
+             "a law's 1,141 ms request banked in the tree as his console's worst): with TV_HIST unset and the console "
+             "path unmarked, a slow status request writes nothing, a record already there is neither the bar nor "
+             "published, the console still keeps its own, and a private-port or TV_STUB console writes nothing."),
+    Gate("test_loose_frames_fold_on_their_own_lane",
+         [sys.executable, os.path.join(HERE, "test_loose_frames_fold_on_their_own_lane.py")], 120,
+         needs_app=False,
+         why="REG-2463 (#168) - nothing folded loose frames on its own on any PC (the healer's fold runs only with "
+             "TV_AUTO_HEAL=1, and would disarm itself after one fold), so a session that died before it sealed "
+             "dammed the river with footage no lane could see. The tvd-orphan-fold lane asks what is in flight "
+             "first, folds only the clusters apply_plan calls eligible into reel_s_<t0>_1 with an index, names what "
+             "it leaves loose (a window a reel covers, a recording that may still be filming), and never folds "
+             "beside another fold. Driven on a fixture hist with every path named; the roster is parsed, never "
+             "started."),
+    Gate("test_the_runaway_watch_reads_cpu_on_every_os",
+         [sys.executable, os.path.join(HERE, "test_the_runaway_watch_reads_cpu_on_every_os.py")], 60,
+         needs_app=False,
+         why="REG-2464 (#171) - the runaway watch read this process's CPU only through `resource`, which Windows does "
+             "not have, so its CPU half was None on every tick there (Dean's runaway cpu: null) and 'late AND "
+             "burning' could never fire. _cpu_seconds() falls back to time.process_time(); with `resource` "
+             "unimportable the reading is a float that rises across a busy loop."),
+    Gate("test_the_console_fetches_node_at_boot",
+         [sys.executable, os.path.join(HERE, "test_the_console_fetches_node_at_boot.py")], 60,
+         needs_app=False,
+         why="REG-2465 (#167) - a Windows console never asked for Node, and a self-updated console never re-runs the "
+             "installer, so a PC without node stayed without it: every node-only law skipped there and the intake "
+             "lane never ran. The boot step asks node_runtime.ensure(blocking=False) once on Windows - never off "
+             "Windows or on a scratch console - and an import failure, a raise or a non-record is UNKNOWN while boot "
+             "goes on. Driven with a stand-in node_runtime; main() starts the step."),
+    Gate("test_a_sweep_holds_the_pc_awake_only_while_it_runs",
+         [sys.executable, os.path.join(HERE, "test_a_sweep_holds_the_pc_awake_only_while_it_runs.py")], 60,
+         needs_app=False,
+         why="REG-2466 (#170) - Dean's laptop slept mid-proof, and nothing held a PC awake while work ran. His ruling: "
+             "only while working. The vault and chronicle sweeps run inside keep_awake.held(why), entered at the "
+             "sweep's start and left at its end - after a return, a failure the sweep catches, or a crash that "
+             "escapes it (not swallowed); with no keep_awake the sweep runs and the record says NOT held. Driven "
+             "with a stand-in keep_awake, the sweeps in a fixture world stopped at their first step."),
+    Gate("test_a_pc_shows_only_its_own_live_trials",
+         [sys.executable, os.path.join(HERE, "test_a_pc_shows_only_its_own_live_trials.py")], 120,
+         needs_app=False,
+         why="#181 (REG-2470, REG-2471, REG-2473) - tv/.self_arming.jsonl is TRACKED and held 49 LIVE trials measured "
+             "on Konyo's Mac, so Dean's heart scored them as his own (frame.release 'earned 85/85' = 35 code rows + 50 "
+             "Mac live checks). A live trial now goes to THIS PC's own ledger (bank, record and the deferred fold): one "
+             "file per PC in git's common dir, shared by the main checkout and every linked worktree, so a live bank "
+             "from a worktree reaches his console and survives `git worktree remove`; every other kind stays shared. "
+             "The shared file's live rows are legacy: counted on no PC, reported as legacyLive, and score() carries "
+             "byOrigin {code, here} with 'nothing measured on this PC yet'. `self_arming.py --adopt-legacy-live "
+             "--reason ... --confirm` moves them to the PC that measured them: no reason is refused, no --confirm writes "
+             "nothing, adopted rows keep their own age and are written once, and the door names the whole path."),
+    Gate("test_a_remaining_page_read_on_another_pc_is_unknown_here",
+         [sys.executable, os.path.join(HERE, "test_a_remaining_page_read_on_another_pc_is_unknown_here.py")], 120,
+         needs_app=False,
+         why="#165 (REG-2472, REG-2473, REG-2474) - counter_ledger judged every PC's board (the calibration and the "
+             "write-path veto, which WITHHOLDS set rows) by the tracked tv/remaining page Konyo filmed on 2026-08-21. A "
+             "shipped page now counts for this PC only when one of its stores names the reel (footage root, sweep "
+             "memory, or the tombstones read through their owner), all resolved at call time; an unreadable store with "
+             "no positive answer is UNKNOWN; 'no store names it' is said as measured, never as 'never held'. A page "
+             "this PC filmed is kept for good by `counter_ledger.py --adopt-page NAME --reason ... --confirm` (it "
+             "refuses unless a store names the reel now) in THIS PC's dir in git's common dir, so a cleared sweep "
+             "memory cannot unmake it. whose() re-judges a SAVED reading. sets_base_index reads the shipped page as "
+             "game data through counter_ledger.reference(), so the base index is identical on every PC."),
+    Gate("test_an_eye_row_asks_only_a_pc_that_ships",
+         [sys.executable, os.path.join(HERE, "test_an_eye_row_asks_only_a_pc_that_ships.py")], 120,
+         needs_app=False,
+         why="REG-2480 (#171) - Dean's PC, which has never shipped and whose EYES is Claude-only, read two MISSING eye "
+             "rows (grok.exe absent) and eleven UNKNOWN 'unaskable for 31d' rows over a ledger it never had. "
+             "console_doctor.this_pc_ships() is ONE measured predicate (its second-eye ledger exists, or its eye "
+             "binary exists, or self_prove.tree_state says dev) and run() asks all thirteen SHIP_EYE_ROWS through "
+             "it: measured not-shipping -> OK with one sentence; shipping or unreadable -> the row's own question, "
+             "unchanged. No fifth state word."),
+    Gate("test_the_venue_check_reads_windows_tasks",
+         [sys.executable, os.path.join(HERE, "test_the_venue_check_reads_windows_tasks.py")], 60,
+         needs_app=False,
+         why="REG-2481 (#171) - 'test venue' was UNKNOWN for 49 days on Windows ('only knows launchd'). It now reads "
+             "Task Scheduler (schtasks /query /fo CSV /v, the 'Task To Run' column and the scripts it names) and "
+             "judges every task with reaches_a_browser_suite, the ONE rule launchd plists are judged by; an "
+             "unreadable listing is UNKNOWN. 'console painted whole' stays UNKNOWN off macOS and names the Windows "
+             "witness that does not exist yet - never OK without a look."),
+    Gate("test_stray_processes_are_measured_on_windows",
+         [sys.executable, os.path.join(HERE, "test_stray_processes_are_measured_on_windows.py")], 120,
+         needs_app=False,
+         why="REG-2482 (#171) - 'stray processes' was UNKNOWN for 45 days on Windows: there is no ps. my_orphans "
+             "samples the kernel's own cumulative CPU time (Toolhelp + GetProcessTimes, no spawn) twice, the second "
+             "from the previous call, ages each process by child_guard's birth reader, and an unreadable sample is "
+             "UNMEASURED, never 'nothing busy'. health_engine's OK sentence names the count and the instrument."),
+    Gate("test_the_pc_stays_awake_only_while_a_proof_runs",
+         [sys.executable, os.path.join(HERE, "test_the_pc_stays_awake_only_while_a_proof_runs.py")], 120,
+         needs_app=False,
+         why="REG-2483 (#170) - Dean's laptop slept mid-proof; his ruling: awake ONLY while work runs. tv/keep_awake.py "
+             "holds with SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED) = exactly 0x80000001 on Windows "
+             "and `caffeinate -i -w <pid>` on macOS, released when the block or the prover ends (normally or "
+             "killed); self_prove holds a prover it spawns and one a relaunched console adopts. A fake kernel on every "
+             "PC, plus one real caffeinate case judged on macOS."),
+    Gate("test_node_is_fetched_where_it_is_missing",
+         [sys.executable, os.path.join(HERE, "test_node_is_fetched_where_it_is_missing.py")], 60,
+         needs_app=False,
+         why="REG-2484 (#167) - the Windows installer never installed node, so 53+ node-only laws skipped on Dean's PC "
+             "until an agent placed it by hand. tv/node_runtime.ensure() fetches the pinned zip (tv/node_pin.json), "
+             "checks its SHA-256 BEFORE extracting, renames it into %LOCALAPPDATA%\\Programs\\nodejs and puts it on "
+             "this process's PATH only; never off Windows, never a persistent PATH write. tv/install-tvd.ps1 calls "
+             "the door exactly once, after the clone."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
@@ -11674,7 +11877,8 @@ def _measured_cost(name):
 
 
 def _fold_deferred_bank(path):
-    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl and clear the defer env. -> bool"""
+    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl (a live trial: this PC's own
+    ledger in git's common dir, #181 / REG-2473) and clear the defer env. -> bool"""
     if not path:
         return True
     if os.environ.get("TV_SELF_ARMING_DEFER") == path:
@@ -11691,8 +11895,15 @@ def _fold_deferred_bank(path):
     except OSError:
         pass
     if _nf or _nr:
-        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s"
-              % (_nf, (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
+        # #181 (REG-2470) - a LIVE row folds into THIS PC's own ledger, so one file name for every row would be false
+        _nh = int((getattr(_SA, "LAST_FOLD", None) or {}).get("here") or 0)
+        try:
+            _hl = _SA.here_label()      # REG-2473 - in words, no path: a gate log is not his machine's to publish
+        except Exception as _hle:
+            _hl = "this PC's own ledger (where: UNKNOWN, %s)" % type(_hle).__name__
+        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s%s"
+              % (_nf - _nh, (", %d live trial row(s) into %s" % (_nh, _hl)) if _nh else "",
+                 (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
     return True
 
 

@@ -560,18 +560,24 @@ def check_orphans():
         # naming a different one. A note about a forbidden vocabulary must not speak it.
         # Describe the capability; never name the call. [[feedback-comments-vs-code]]
         # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        # ⚠ #171 (REG-2482) — THE DENOMINATOR COMES FROM THE SWEEP THAT JUST RAN, AND IT NAMES ITS INSTRUMENT.
+        # This used to take a SECOND `ps` sample only to count it: one more process-table read per tick on a Mac, and
+        # on Windows - no ps - a count of UNKNOWN printed beside a clean verdict. last_scan() is what suspects()
+        # itself measured a moment ago, and by what. None = no sweep measured, never "zero processes".
         try:
-            _s = MO._cpu_sample()
-            _n = None if _s is None else len(_s)     # None = ps unreadable, not "zero processes"
+            _scan = MO.last_scan() or {}
         except Exception:
-            _n = None
+            _scan = None
+        _n = (_scan or {}).get("n")
+        _how = (_scan or {}).get("how") or "an instrument that did not say which"
+        _ports = (_scan or {}).get("portsSay") or (
+            "Processes on his ports (%s) and their children are excluded by name, never counted as mine."
+            % ", ".join(":%d" % p for p in MO.HIS_PORTS))
         return _row("orphans", OK,
                     "nothing busy and old that is not a known system process — %s process(es) "
-                    "scanned, TWO CPU samples each, bar %.0f%% sustained and %d min old. "
-                    "Processes on his ports (%s) and their children are excluded by name, never "
-                    "counted as mine."
-                    % ("UNKNOWN" if _n is None else _n, MO.BUSY_PCT, MO.OLD_MIN,
-                       ", ".join(":%d" % p for p in MO.HIS_PORTS)), k=_atkK, n=_atkN)
+                    "scanned by %s, bar %.0f%% sustained and %d min old. %s"
+                    % ("UNKNOWN" if _n is None else _n, _how, MO.BUSY_PCT, MO.OLD_MIN, _ports),
+                    k=_atkK, n=_atkN)
 
     # ⚠⚠ v2744 — TWO ANSWERS, NOT ONE, AND THE OLD ONE CLAIMED SOMETHING IT NEVER TESTED.
     # This row said "nothing of OURS is both busy and old" while `my_orphans` had no ownership test
@@ -588,22 +594,49 @@ def check_orphans():
     # spawn ledger, named no tree path and held no port; all three positive witnesses failed on it.
     # A rule that only reported POSITIVE ownership would have said nothing about it at all.
     # [[unknown-stays-unknown]] [[i-own-everything-i-start]]
+    #
+    # ⚠ #171 (REG-2482, the review of the first cut) — SAY ONLY WHAT WAS ASKED. This sentence claimed all three
+    # witnesses for EVERY row that is not ours: "not in the spawn ledger, not naming this tree, holding none of our
+    # ports". That is true of a row the attribution answered None — every witness was asked and none could say. A
+    # row it answered False (NEVER MINE) stopped at his ports: it is on one, under his console, or its port could not
+    # be read — and on Windows, with no lsof, that is EVERY row, so the line claimed three checks that never ran
+    # about the console's own capture and a prover that names this tree. Each class now says what was established
+    # about it, in the attribution's own words. [[unknown-stays-unknown]] [[feedback-comments-vs-code]]
     def _fmt(r):
-        return "pid %s %.0f%% CPU %.0f min — %s" % (r.get("pid"), r.get("cpu", 0),
-                                                    r.get("minutes", 0), str(r.get("cmd"))[:70])
+        _w = str(r.get("whose") or "") if r.get("ours") is False else ""
+        return "pid %s %.0f%% CPU %.0f min — %s%s" % (r.get("pid"), r.get("cpu", 0), r.get("minutes", 0),
+                                                      str(r.get("cmd"))[:70], (" — " + _w[:110]) if _w else "")
+
+    def _not_ours(rs):
+        _never, _nobody = [], []
+        for r in rs:
+            (_never if r.get("ours") is False else _nobody).append(r)
+        _say = []
+        if _never:
+            _why = []
+            for r in _never:
+                _w = str(r.get("whose") or "NEVER MINE").split("NEVER MINE — ", 1)[-1].strip()
+                if _w not in _why:
+                    _why.append(_w)
+            _say.append("%d never counted as mine — %s%s; the spawn ledger and this tree were not asked"
+                        % (len(_never), _why[0][:170],
+                           (" (+%d other reason(s), each in the list)" % (len(_why) - 1)) if len(_why) > 1 else ""))
+        if _nobody:
+            _say.append("%d where nothing can say whose they are — not in the spawn ledger, not naming this tree, "
+                        "holding none of our ports" % len(_nobody))
+        return "; ".join(_say)
     mine = [r for r in rows if r.get("ours") is True]
     unattributed = [r for r in rows if r.get("ours") is not True]
     if mine:
         return _row("orphans", WARN,
                     "%d process(es) OF OURS busy and old%s"
                     % (len(mine),
-                       ("; %d more busy and old that nobody can attribute" % len(unattributed))
+                       ("; %d more busy and old, none of them ours: %s" % (len(unattributed), _not_ours(unattributed)))
                        if unattributed else ""),
                     [_fmt(r) for r in mine] + [_fmt(r) for r in unattributed], k=_atkK, n=_atkN)
     return _row("orphans", UNKNOWN,
-                "%d process(es) busy and old, and nothing can say whose they are — not in the "
-                "spawn ledger, not naming this tree, holding none of our ports. UNATTRIBUTED is "
-                "not the same as ours, and not the same as fine." % len(unattributed),
+                "%d process(es) busy and old, and none can be called ours: %s. UNATTRIBUTED is not the same as "
+                "ours, and not the same as fine." % (len(unattributed), _not_ours(unattributed)),
                 [_fmt(r) for r in unattributed], k=_atkK, n=_atkN)
 
 

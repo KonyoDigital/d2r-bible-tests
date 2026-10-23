@@ -67,6 +67,17 @@ NODE = node_path()
 BIBLE = os.path.join(ROOT, "bible.html")
 
 
+def refresh(env=None):
+    """REG-2484 (#167) - resolve NODE again. -> str | None
+
+    NODE is read once, at import. On a Windows PC that had no node, tv/node_runtime.py fetches it while the console
+    runs, and a lane that reads this module's NODE (tooltip_oracle_lane) would go on saying "node absent" until a
+    relaunch. node_runtime calls this the moment it has placed node, so the next read sees it."""
+    global NODE
+    NODE = node_path(env)
+    return NODE
+
+
 def _src():
     with io.open(BIBLE, encoding="utf-8") as f:
         return f.read()
