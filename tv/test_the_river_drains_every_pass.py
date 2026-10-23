@@ -456,6 +456,21 @@ class AVaultPictureHoldsItsReel(_Base):
         self.assertNotIn(self.cited_reel, p.get("remnants") or [],
                          "a half-trimmed reel still reads as a finished remnant - its leftover frames stay forever")
 
+    def test_a_remnant_the_console_wrote_records_into_is_not_released_again(self):
+        """REG-2640 - within a minute of a trim the KAI closer wrote index.json and kai_report.json back and stash_eye
+        dropped .stash_eye_tab.jpg; plan() then released the reel again every 15-minute pass (127 times on his Mac)."""
+        self._cite({self.cited_frame})
+        self._pass(free_gb=500.0)
+        d = os.path.join(self.w.hist, self.cited_reel)
+        self.assertIn(self.cited_reel, RR.plan(self.w.hist).get("remnants") or [], "PREMISE: no remnant was made")
+        for f in ("index.json", "kai_report.json", ".stash_eye_tab.jpg"):
+            with open(os.path.join(d, f), "wb") as fh:
+                fh.write(b"{}")
+        p = RR.plan(self.w.hist)
+        self.assertIn(self.cited_reel, p.get("remnants") or [], "the records the console wrote back un-released the reel")
+        self.assertNotIn(self.cited_reel, [c.get("reel") for c in p.get("candidates") or []],
+                         "a released reel is planned for release again")
+
     def test_freed_is_what_left_the_disk(self):
         """A trimmed reel was credited with its whole planned size. Freed = its size minus the pictures it kept."""
         d = os.path.join(self.w.hist, self.cited_reel)
@@ -922,6 +937,13 @@ class TheDeleterTakesOnlyAReelName(AVaultPictureHoldsItsReel):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-2640 - plan() goes back to its own listdir check and releases a remnant the console wrote records into",
+        "file": "reel_retention.py",
+        "find": "        _remnants = remnant_reels(hist)\n",
+        "replace": "        _remnants = set(_r for _r in remnant_reels(hist) if all(not _remnant_extra(_f) for _f in os.listdir(os.path.join(hist, _r))))\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1926 - a negative beside-shadow cap is read from the end again, so a smaller cap deletes more reels",
         "file": "control_app.py",

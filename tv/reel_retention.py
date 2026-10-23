@@ -1711,13 +1711,16 @@ def _is_child_dir(hist, name):
 #: 12 reels released every 15-minute pass since 09-29 - one of them tombstoned 127 times - each pass "freeing" ~1 MB of
 #: these records, and the fleet card read "river stuck" for them at ROUTED and CAPTURE. These are the reel's own records
 #: and scratch, never a frame: a remnant holding them beside its kept pictures is still DONE.
-REMNANT_RECORDS = frozenset(("index.json", "kai_report.json"))
+#: The second eye (grok-4.7 r1) named the siblings those writers also leave: kai_report.json.tmp / .bak_<ts>,
+#: index.json.tmp / .corrupt, and the seal's gate_pingpong.json - each a record, so each a prefix here.
+REMNANT_RECORDS = frozenset(("index.json", "kai_report.json", "gate_pingpong.json"))
 
 
 def _remnant_extra(name):
-    """True when `name` is a file the console regenerates inside a reel (REMNANT_RECORDS or a dot scratch file). Pure."""
+    """True when `name` is a file the console regenerates inside a reel (a REMNANT_RECORDS name, one of its .tmp /
+    .bak / .corrupt siblings, or a dot scratch file). Never a frame. Pure."""
     n = str(name or "")
-    return n in REMNANT_RECORDS or n.startswith(".")
+    return n.startswith(".") or any(n == r or n.startswith(r + ".") for r in REMNANT_RECORDS)
 
 
 _REMNANT_MEMO = {}
@@ -1740,13 +1743,18 @@ def remnant_reels(hist=None):
     kept_of = _REMNANT_MEMO.get(key) if key else None
     if kept_of is None:
         kept_of = {}
+        _whole = False
         try:
-            for _t in (_load(tp) or {}).get("reels") or []:
+            _rows = (_load(tp) or {}).get("reels")
+            _whole = isinstance(_rows, list)
+            for _t in _rows or []:
                 if isinstance(_t, dict) and _t.get("kept"):
                     kept_of.setdefault(_t.get("reel"), set()).update(str(x) for x in _t.get("kept") or ())
         except Exception:
-            kept_of = {}
-        if key:
+            kept_of, _whole = {}, False
+        # Only a WHOLE read of a SETTLED file is remembered: _load answers {} for a file it could not parse, and two
+        # writes inside one clock tick can leave (mtime, size) unchanged - neither may stick (plan_fingerprint's rule).
+        if key and _whole and (time.time() - _st.st_mtime) > 2.0:
             _REMNANT_MEMO.clear()
             _REMNANT_MEMO[key] = kept_of
     out = set()

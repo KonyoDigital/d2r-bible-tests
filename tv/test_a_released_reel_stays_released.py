@@ -21,6 +21,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -58,6 +59,27 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "        if d in _remnants:\n            continue\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2640 - released reels fill the stuck reading's newest-16 window and push a live reel out as owed",
+        "file": "control_app.py",
+        "find": "[r for r in _shelf_reel_names() if r not in _released]",
+        "replace": "list(_shelf_reel_names())",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2640 (r1) - a record's .tmp/.bak/.corrupt sibling un-releases the reel again",
+        "file": "reel_retention.py",
+        "find": "any(n == r or n.startswith(r + \".\") for r in REMNANT_RECORDS)",
+        "replace": "n in REMNANT_RECORDS",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2640 (r1) - an unparseable tombstone read is memoised as empty until the file's stamp changes",
+        "file": "reel_retention.py",
+        "find": "        if key and _whole and (time.time() - _st.st_mtime) > 2.0:\n",
+        "replace": "        if key:\n",
         "matches": 1,
     },
     {
@@ -128,6 +150,30 @@ class TheOneAnswer(_Shelf):
         _jpg(os.path.join(self.hist, OLD, "f_1790000000777.jpg"))
         self.assertNotIn(OLD, RR.remnant_reels(self.hist), "a frame that is not kept is hidden behind the remnant")
 
+    def test_the_records_siblings_are_records_too(self):
+        for f in ("kai_report.json.tmp", "kai_report.json.bak_1790000000999", "index.json.corrupt", "index.json.tmp",
+                  "gate_pingpong.json"):
+            with io.open(os.path.join(self.hist, OLD, f), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+        self.assertIn(OLD, RR.remnant_reels(self.hist), "a record's .tmp/.bak/.corrupt sibling un-released the reel")
+        _jpg(os.path.join(self.hist, OLD, "index.jpg"))
+        self.assertNotIn(OLD, RR.remnant_reels(self.hist), "a picture named like a record was hidden as one")
+
+    def test_an_unparseable_read_is_not_remembered(self):
+        with io.open(self.tomb, "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        old = time.time() - 60
+        os.utime(self.tomb, (old, old))
+        self.assertEqual(RR.remnant_reels(self.hist), set())
+        st = os.stat(self.tomb)
+        self.assertNotIn((self.tomb, st.st_mtime_ns, st.st_size), RR._REMNANT_MEMO,
+                         "an unparseable tombstone read was cached - a same-stamp rewrite would read as empty for ever")
+        self._write_tomb([{"reel": OLD, "kept": ["f_1790000000001.jpg", "f_1790000000002.jpg"]}])
+        os.utime(self.tomb, (old, old))
+        self.assertIn(OLD, RR.remnant_reels(self.hist), "PREMISE: the good store is not read")
+        st = os.stat(self.tomb)
+        self.assertIn((self.tomb, st.st_mtime_ns, st.st_size), RR._REMNANT_MEMO, "PREMISE: a settled whole read is not memoised")
+
     def test_an_unreadable_store_hides_nothing(self):
         with io.open(self.tomb, "w", encoding="utf-8") as fh:
             fh.write("{not json")
@@ -167,6 +213,22 @@ class TheRiverDoesNotCallItStuck(_Shelf):
             again = ca._river_stuck_for_wire(now_ms=NOW, _rows=self._rows(), _fixtures=())
         self.assertEqual([(e["station"], e["n"]) for e in again or []], [("EMPTY", 2)],
                          "PREMISE: with no tombstone both reels are on the shelf and both are stuck: %r" % again)
+
+    def test_released_reels_do_not_push_a_live_one_out_of_the_window(self):
+        """16 newer released reels must not fill the deleter's newest-16 shield: plan() drops them first, so the stuck
+        reading must too, or an older live reel resting at ROUTED reads as 'the drain owes it a tombstone'."""
+        import control_app as ca
+        rows, kept = [], []
+        for i in range(RR.KEEP_RECENT):
+            nm = "reel_s_%d_%d" % (1791000000000 + i * 1000, 10 + i)
+            os.makedirs(os.path.join(self.hist, nm))
+            _jpg(os.path.join(self.hist, nm, "f_%d.jpg" % (1791000000000 + i * 1000)))
+            kept.append({"reel": nm, "kept": ["f_%d.jpg" % (1791000000000 + i * 1000)]})
+        self._write_tomb(kept)
+        rows = [{"at": NOW - 30 * H * 1000, "seq": 1, "reel": LIVE, "station": "ROUTED", "by": "law", "byKind": "observer"}]
+        with mock.patch.object(ca, "HIST_DIR", self.hist):
+            got = ca._river_stuck_for_wire(now_ms=NOW, _rows=rows, _fixtures=())
+        self.assertEqual(got, [], "released reels filled the window and a live reel at ROUTED read as owed: %r" % got)
 
 
 if __name__ == "__main__":
