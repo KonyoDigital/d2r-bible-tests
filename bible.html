@@ -21223,7 +21223,8 @@ window.uiConfirm = function(message, opts){
     /* Vault v2 (Elad 2026-10-23) — opts.cancelFirst: a destructive door opens with CANCEL focused and Enter NEVER
        confirms (Enter = Cancel). Only a deliberate click on the red button runs it. */
     var cancelFirst = !!opts.cancelFirst;
-    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); close(false); } else if(e.key === 'Enter'){ e.preventDefault(); close(cancelFirst ? false : true); } }
+    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); close(false); } else if(e.key === 'Enter'){ e.preventDefault(); close(cancelFirst ? false : true); }
+      else if(cancelFirst && (e.key === ' ' || e.key === 'Spacebar')){ e.preventDefault(); close(false); } } /* Vault v2 — Space on a focused red OK would click it: a danger door takes only a pointer click */
     ov.addEventListener('click', function(e){ if(e.target === ov) close(false); });
     ov.querySelector('.ui-confirm-cancel').onclick = function(){ close(false); };
     ov.querySelector('.ui-confirm-ok').onclick = function(){ close(true); };
@@ -51457,7 +51458,8 @@ window.vaultAutoAssign = function(){
       name: name, from: from, to: to,
       status: stored ? stored.status : 'to-move',
       evidence: stored ? stored.evidence : [],
-      manual: stored ? stored.manual : false
+      manual: stored ? stored.manual : false,
+      undo: stored ? stored.undo : null   /* Vault v2 — a no-cell rebuild keeps his tick's undo snapshot (the sanitizer drops it off a non-hand row) */
     });
     return { task: task, copyIx: copyIx, name: name, fresh: true };
   }
@@ -51607,6 +51609,7 @@ window.vaultAutoAssign = function(){
     if (t.kind === 'throw') return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
     if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
     if (t.manual && t.status === 'to-move' && t.to && t.to.holder != null && t.to.cell == null) return true; /* L1 a hand add always has its row, even with no room */
+    if (t.status === 'moved-manual' && t.undo && t.to && t.to.holder != null && t.to.cell == null) return true; /* Vault v2 — his tick on a no-room row stays in Done, so it can be unticked */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
     var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name, t.copyIx || 0) : null;
     if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */
@@ -52181,17 +52184,32 @@ window.vaultAutoAssign = function(){
     if (z && e && e.target && z.contains(e.target)) return;
     window.vaultDangerMenuTog(false);
   }
-  window.vaultDangerMenuTog = function(open){
+  /* Escape closes the menu (focus back on its toggle); Tab out of the zone closes it too. A focusout with no
+     relatedTarget is a click on plain menu text, not a leave, so it keeps the menu open (the outside mousedown covers clicks). */
+  function _vaultDangerKey(e){
+    if (!e || e.key !== 'Escape') return;
+    var m = document.getElementById('vault-danger-menu');
+    if (!m || m.hidden) return;
+    e.preventDefault(); try { e.stopPropagation(); } catch (eS) {}
+    window.vaultDangerMenuTog(false, true);
+  }
+  function _vaultDangerLeave(e){
+    var z = document.getElementById('vault-danger'), to = e && e.relatedTarget;
+    if (!z || !to || z.contains(to)) return;
+    window.vaultDangerMenuTog(false);
+  }
+  window.vaultDangerMenuTog = function(open, refocus){
     var m = document.getElementById('vault-danger-menu'), b = document.getElementById('vault-danger-tog');
     if (!m) return false;
     var want = (typeof open === 'boolean') ? open : !!m.hidden;
     m.hidden = !want;
     if (b) b.setAttribute('aria-expanded', want ? 'true' : 'false');
-    try { document.removeEventListener('mousedown', _vaultDangerOutside, true); } catch (e0) {}
+    var z = document.getElementById('vault-danger');
+    try { document.removeEventListener('mousedown', _vaultDangerOutside, true); document.removeEventListener('keydown', _vaultDangerKey, true); if (z) z.removeEventListener('focusout', _vaultDangerLeave); } catch (e0) {}
     if (want) {
-      try { document.addEventListener('mousedown', _vaultDangerOutside, true); } catch (e1) {}
+      try { document.addEventListener('mousedown', _vaultDangerOutside, true); document.addEventListener('keydown', _vaultDangerKey, true); if (z) z.addEventListener('focusout', _vaultDangerLeave); } catch (e1) {}
       try { var c = document.getElementById('vault-danger-cancel'); if (c) c.focus({ preventScroll: true }); } catch (e2) {}
-    }
+    } else if (refocus && b) { try { b.focus({ preventScroll: true }); } catch (e3) {} }
     return want;
   };
   function _vaultTasksRemember(on){ try { localStorage.setItem('vaultTasksOpen', on ? '1' : '0'); } catch (e) {} }
@@ -52245,6 +52263,15 @@ window.vaultAutoAssign = function(){
           if (el && document.body && el.parentNode !== document.body) document.body.appendChild(el);
         });
       } catch (eB) {}
+      try {
+        var tp = document.getElementById('vault-tasks');
+        if (tp && !tp._v2Esc) { tp._v2Esc = 1; tp.addEventListener('keydown', function(e){
+          if (!e || e.key !== 'Escape' || tp.hidden) return;
+          e.preventDefault(); try { e.stopPropagation(); } catch (eS) {}
+          window.vaultTasksTog(false);
+          try { var fb = document.getElementById('vault-tasks-fab'); if (fb) fb.focus({ preventScroll: true }); } catch (eF) {}
+        }); }
+      } catch (eK) {}
       try { if (localStorage.getItem('vaultTasksOpen') === '1') window.vaultTasksTog(true, true); } catch (e) {}
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
