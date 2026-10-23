@@ -33,6 +33,11 @@ LOG = os.path.join(HERE, "console_keepalive.log")
 LOG_CAP = 256 * 1024
 LAUNCH_COOLDOWN_S = 10 * 60
 PROBE_TIMEOUT_S = 5.0
+PASS_DEADLINE_S = 90        # the task runs with no time limit (review r1: a limit's job kill takes the console with it)
+_CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+#: exit reasons a console records when its WINDOW LOOP ended under it (a WebView crash returns the loop the same way)
+#: - never a choice, so never 'on purpose'. Kept equal to control_app._WINDOW_LOOP_EXITS (a law checks).
+WINDOW_LOOP_EXITS = ("window-closed", "webview-finally", "main-after-window")
 _CREATE_NO_WINDOW = 0x08000000
 _CREATE_NEW_PROCESS_GROUP = 0x00000200
 
@@ -53,6 +58,16 @@ def probe(port=PORT, timeout=PROBE_TIMEOUT_S, connect=None):
     except Exception:
         pass
     return "up"
+
+
+def closed_on_purpose(path):
+    """-> bool. The marker is '<epoch> <reason>'; a window-loop reason is a death, not a choice (review r1)."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            words = fh.read().split()
+    except OSError:
+        return os.path.exists(path)     # there but unreadable: the cautious answer is "he closed it"
+    return (words[1] if len(words) > 1 else "") not in WINDOW_LOOP_EXITS
 
 
 def decide(state, on_purpose, paused, last_launch_s, now_s):
@@ -86,10 +101,19 @@ def launch(popen=None, here=HERE, is_win=None):
           "stderr": subprocess.DEVNULL, "close_fds": True}
     if is_win:
         kw["creationflags"] = _CREATE_NO_WINDOW | _CREATE_NEW_PROCESS_GROUP
-    try:
-        p = (popen or subprocess.Popen)(launcher_argv(here), **kw)
-    except Exception as e:
-        return False, "the launcher would not start (%s)" % type(e).__name__
+    popen = popen or subprocess.Popen
+    p = None
+    if is_win:
+        # out of the task's job (review r1): whatever ends the task's job must not end the console it started
+        try:
+            p = popen(launcher_argv(here), **dict(kw, creationflags=kw["creationflags"] | _CREATE_BREAKAWAY_FROM_JOB))
+        except OSError:
+            p = None                    # the job forbids breakaway: started inside it (no time limit ends it)
+    if p is None:
+        try:
+            p = popen(launcher_argv(here), **kw)
+        except Exception as e:
+            return False, "the launcher would not start (%s)" % type(e).__name__
     return True, "launcher pid %s" % getattr(p, "pid", "?")
 
 
@@ -147,11 +171,12 @@ def run_once(now_s=None, probe_fn=None, popen=None, here=HERE, state_path=None, 
             # a torn memory must not stop a dead console coming back for ever: the launch rewrites it, and the
             # launcher's own mutex keeps a second console off - so the cooldown alone is given up, and said
             mem = {}
-        action, why = decide(st, os.path.exists(on_purpose_path or EXITED_ON_PURPOSE),
+        action, why = decide(st, closed_on_purpose(on_purpose_path or EXITED_ON_PURPOSE),
                              os.path.exists(pause_path or PAUSE_FLAG), mem.get("lastLaunch"), now_s)
         if action == "launch":
             # the launch is booked BEFORE it is tried: a pass that dies mid-launch still holds the cooldown
-            _write_state(state_path, dict(mem, lastLaunch=now_s, launches=int(mem.get("launches") or 0) + 1))
+            mem = dict(mem, lastLaunch=now_s, launches=int(mem.get("launches") or 0) + 1)
+            _write_state(state_path, mem)
             ok, how = launch(popen=popen, here=here)
             why = "%s (%s)" % (why, how) if ok else "%s - FAILED: %s" % (why, how)
             if not ok:
@@ -161,12 +186,18 @@ def run_once(now_s=None, probe_fn=None, popen=None, here=HERE, state_path=None, 
         if action != "leave" or unread or mem.get("lastAction") not in (None, "leave"):
             _log(log_path, "%s: %s" % (action, why))       # a quiet steady state writes nothing every 5 min
         if mem.get("lastAction") != action:
-            _write_state(state_path, dict(_read_state(state_path) or {}, lastAction=action))
+            # onto the memory just read or booked, never a re-read that could come back empty (review r1)
+            _write_state(state_path, dict(mem, lastAction=action))
         return {"action": action, "why": why, "state": st}
     except Exception as e:
         return {"action": "error", "why": "the keepalive pass raised %s" % type(e).__name__, "state": None}
 
 
 if __name__ == "__main__":
+    import threading
+    # the task has no time limit and ignores a new start while one runs: a hung pass must end itself
+    _t = threading.Timer(PASS_DEADLINE_S, lambda: os._exit(3))
+    _t.daemon = True
+    _t.start()
     r = run_once()
     sys.exit(0 if r.get("action") != "error" else 1)

@@ -36,7 +36,8 @@ def main():
         q = subprocess.run(["schtasks", "/Query", "/TN", cd.KEEPALIVE_TASK, "/XML"], capture_output=True, text=True)
         x = q.stdout or ""
         for want in ("<DisallowStartIfOnBatteries>false", "<StopIfGoingOnBatteries>false", "<Hidden>true",
-                     "<Interval>PT5M", "<LogonType>InteractiveToken", "IgnoreNew", "console_keepalive.py"):
+                     "<Interval>PT5M", "<LogonType>InteractiveToken", "IgnoreNew", "console_keepalive.py",
+                     "<ExecutionTimeLimit>PT0S"):
             if want not in x:
                 bad.append("the registered task lacks %s" % want)
         again = cd.ensure_keepalive_task(os.path.join(sand, ".keepalive_task.json"), "created", run=subprocess.run,
@@ -62,6 +63,8 @@ def main():
         bad.append("passes went %s, %s with %d launches" % (a["action"], b["action"], len(launched)))
     elif not launched[0][1].get("creationflags", 0) & 0x08000000:
         bad.append("the launch was not windowless")
+    elif not launched[0][1].get("creationflags", 0) & 0x01000000:
+        bad.append("the launch did not leave the task's job")
     shutil.rmtree(sand, True)
     for b_ in bad:
         print("FAIL:", b_)

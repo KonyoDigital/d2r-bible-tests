@@ -33,6 +33,7 @@ DOCTRINE, inherited wholesale from the other two doctors and NOT re-argued here:
 FREE BY CONSTRUCTION: filesystem, git and localhost only. No model turn, no network, no paid read.
 """
 import contextlib
+import csv
 import glob
 import json
 import ntpath
@@ -4384,7 +4385,7 @@ def keepalive_task_xml(pythonw, tv_dir, start_local):
             '  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
             '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
             '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable>'
-            '<Hidden>true</Hidden><ExecutionTimeLimit>PT2M</ExecutionTimeLimit><Enabled>true</Enabled></Settings>\n'
+            '<Hidden>true</Hidden><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Enabled>true</Enabled></Settings>\n'
             '  <Actions Context="Author"><Exec><Command>%s</Command><Arguments>%s</Arguments>'
             '<WorkingDirectory>%s</WorkingDirectory></Exec></Actions>\n'
             '</Task>\n') % (KEEPALIVE_EVERY_MIN, _xml_esc(start_local), KEEPALIVE_EVERY_MIN, _xml_esc(pythonw),
@@ -4392,15 +4393,23 @@ def keepalive_task_xml(pythonw, tv_dir, start_local):
 
 
 def _keepalive_task_exists(run):
-    """-> True | False | None (UNKNOWN). schtasks says 'cannot find' for a missing task; anything else is not an answer."""
+    """-> True | False | None (UNKNOWN). A named query that answers 0 is a yes in any language. Anything else is
+    settled by the FULL list (review r1: 'cannot find' is English only - a Hebrew or German schtasks never matched,
+    so the task was never made): the name absent from a list that answered is a no; a list that failed is UNKNOWN."""
     try:
         r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK], capture_output=True, text=True, timeout=20)
+        if getattr(r, "returncode", 1) == 0:
+            return True
+        lst = run(["schtasks", "/Query", "/FO", "CSV", "/NH"], capture_output=True, text=True, timeout=60)
     except Exception:
         return None
-    if getattr(r, "returncode", 1) == 0:
-        return True
-    said = ("%s %s" % (getattr(r, "stdout", "") or "", getattr(r, "stderr", "") or "")).lower()
-    return False if ("cannot find" in said or "does not exist" in said) else None
+    if getattr(lst, "returncode", 1) != 0:
+        return None
+    want = ("\\" + KEEPALIVE_TASK).lower()
+    for row in csv.reader((getattr(lst, "stdout", "") or "").splitlines()):
+        if row and row[0].strip().lower() == want:
+            return True
+    return False
 
 
 def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
@@ -4475,7 +4484,8 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
             pass
     if getattr(r, "returncode", 1) != 0:
         return {"did": "failed", "why": "Windows refused the keepalive task: %s"
-                                        % ((str(getattr(r, "stderr", "") or "").strip()[-160:]) or "no reason given")}
+                                        % (("%s %s" % (getattr(r, "stdout", "") or "", getattr(r, "stderr", "") or ""))
+                                           .strip()[-160:] or "no reason given")}
     if _keepalive_task_exists(run) is not True:
         return {"did": "failed", "why": "the keepalive task was written but the check still cannot see it"}
     try:

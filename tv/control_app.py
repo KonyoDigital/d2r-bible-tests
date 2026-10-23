@@ -7385,12 +7385,17 @@ def _keepalive_owner(is_win=None):
     return bool(is_win and not os.environ.get("TV_STUB") and _is_primary_console())
 
 
+#: REG-2614 review r1 - reasons a console records when its WINDOW LOOP ended under it (a WebView crash returns the
+#: loop the same way). Never a choice: no on-purpose marker. Equal to console_keepalive.WINDOW_LOOP_EXITS (a law checks).
+_WINDOW_LOOP_EXITS = ("window-closed", "webview-finally", "main-after-window")
+
+
 def _note_exit_on_purpose(reason, path=None, is_win=None):
-    """REG-2614 — a console closed ON PURPOSE (✕ to quit, Esc→/api/quit, the window returning) says so, so the
+    """REG-2614 — a console closed ON PURPOSE (✕ when it quits, Esc→/api/quit) says so - a window loop that ended under it (_WINDOW_LOOP_EXITS) does not, so the
     keepalive never brings back a console he closed: a choice is not a crash. A console that DIES never gets here,
     and that is the one the keepalive brings back. Cleared at the next boot (_clear_exit_on_purpose). Never raises."""
     try:
-        if not _keepalive_owner(is_win):
+        if not _keepalive_owner(is_win) or str(reason or "") in _WINDOW_LOOP_EXITS:
             return False
         p = path or _exit_on_purpose_path()
         with open(p, "w", encoding="utf-8") as fh:
