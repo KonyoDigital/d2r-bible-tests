@@ -248,7 +248,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The open state is not restored on reload.",
      "file": "bible.html",
-     "find": "      try { if (localStorage.getItem('vaultTasksOpen') === '1') window.vaultTasksTog(true, true); } catch (e) {}",
+     "find": "      try { if (window.LSR.getItem('vaultTasksOpen') === '1') window.vaultTasksTog(true, true); } catch (e) {}",
      "replace": "",
      "matches": 1},
     {"why": "A no-cell rebuild drops the undo snapshot of his tick (Grok review r1).",
