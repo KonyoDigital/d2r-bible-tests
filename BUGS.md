@@ -21,6 +21,12 @@ hand), another key's verified row, and a row with this key's 48-bit id but anoth
 the first registers it, the rest register nothing. The same publish over a row already written under this very key is still
 skipped 'unchanged' (the churn guard). Four RED_PROOF cases: the origin/main unchanged check, the hourly guard without
 !upgrade, upgrade as first-registration only, upgrade on every signed publish.
+FIX ROUND 2 (the cross-family review found four more clauses unpinned): the same law also signs the boot publish after the
+documented reset (rosterkey deleted, the row still verified under this key) - it registers the key again; a verified row with
+this key but a stale key id - the id is rewritten; and an unsigned publish of the same sections over an old pre-signing row -
+stored NOT verified, never skipped. Four more RED_PROOFs: upgrade without the first-registration clause, the unchanged check
+without !upgrade, sameIntent without the key id, sameIntent without the verdict. The churn-guard case reads its reply with
+.get, so that tamper fails on its own message.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs

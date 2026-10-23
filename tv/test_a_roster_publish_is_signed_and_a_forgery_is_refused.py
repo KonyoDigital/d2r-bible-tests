@@ -643,6 +643,8 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
             kid_a, kid_b = RS.key_id(pub_a), RS.key_id(pub_b)
             raw = _raw({"owner": OWNER, "boot": False, "signedAt": 1790000000000, "sections": {"characters": mine}})
             heads = RS.sign_headers(path_a, raw)[0]
+            boot_raw = _raw({"owner": OWNER, "boot": True, "signedAt": 1790000000001, "sections": {"characters": mine}})
+            boot_heads = RS.sign_headers(path_a, boot_raw)[0]
             steps = [
                 # 0 a row written before signing (no verdict), no key registered: this PC's first signed publish
                 _step(raw, heads, fresh=True, seed={rk: record()}),
@@ -657,6 +659,16 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                 # 4 already written under this very key: unchanged, inside the hour - the churn guard holds
                 _step(raw, heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
                     intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))})),
+                # 5 the documented reset: rosterkey deleted from the Mac, the row still verified under this key; the
+                #   boot publish of the same sections registers the key again
+                _step(boot_raw, boot_heads, fresh=True, seed={rk: record(
+                    intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}),
+                # 6 a verified row with this key's pub but a stale key id: the id is rewritten
+                _step(raw, heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId="000000000000", pub=RS.b64u(pub_a))})),
+                # 7 no key anywhere, an unsigned publish of the same sections over a pre-signing row (an old one):
+                #   stored NOT verified, so the row stops reading "published before signing"
+                _step(raw, {}, fresh=True, seed={rk: record(t=10)}),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -673,9 +685,19 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         for i in (1, 2, 3):
             self.assertNotIn("registered", s[i]["reply"], "step %d registered over a key already there" % i)
             self.assertEqual(s[i]["puts"], [rk])
-        self.assertEqual((s[4]["reply"]["stored"], s[4]["reply"]["skipped"], s[4]["puts"]), ([], ["unchanged"], []),
+        self.assertEqual((s[4]["reply"].get("stored"), s[4]["reply"].get("skipped"), s[4]["puts"]), ([], ["unchanged"], []),
                          "an unchanged publish under the row's own key was written again: %r" % s[4]["reply"])
         self.assertIs(s[4]["reply"]["intentVerified"], True)
+        r5 = s[5]["reply"]
+        self.assertEqual((r5.get("stored"), r5.get("registered"), s[5]["puts"]), (["roster"], True, [kk, rk]),
+                         "after a rosterkey reset the boot publish of an unchanged row registered no key: %r" % r5)
+        self.assertEqual(s[5]["records"][kk]["pub"], RS.b64u(pub_a))
+        self.assertEqual((s[6]["reply"].get("stored"), s[6]["records"][rk]["keyId"]), (["roster"], kid_a),
+                         "a verified row kept a key id that is not its key's: %r" % s[6]["reply"])
+        r7, rec7 = s[7]["reply"], s[7]["records"][rk]
+        self.assertEqual((r7.get("stored"), r7["intentVerified"]), (["roster"], False),
+                         "an unsigned publish over a pre-signing row was skipped: %r" % r7)
+        self.assertIs(rec7.get("intentVerified"), False, "the row still reads 'published before signing'")
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1285,6 +1307,28 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  const upgrade = verified && (!sameIntent || intent.register === true);\n",
      "replace": "  const upgrade = verified;\n",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r2: a first registration no longer counts as a key arriving, so after a rosterkey reset the "
+            "boot publish of an unchanged verified row registers nothing",
+     "file": "functions/api/roster.js",
+     "find": "(!sameIntent || intent.register === true)",
+     "replace": "(!sameIntent)",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r2: the unchanged check ignores a key arriving, so the reset's boot publish is skipped 'unchanged'",
+     "file": "functions/api/roster.js",
+     "find": "prev.hash === hash && sameIntent && !upgrade) {",
+     "replace": "prev.hash === hash && sameIntent) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r2: 'the same intent' stops asking the key id, so a stale id stays on a verified row",
+     "file": "functions/api/roster.js",
+     "find": " && (prev.keyId || null) === keyId;",
+     "replace": ";",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r2: 'the same intent' stops asking the verdict, so an unsigned publish over a pre-signing row is "
+            "skipped and the row keeps no verdict",
+     "file": "functions/api/roster.js",
+     "find": "!!prev && prev.intentVerified === verified && prevPub",
+     "replace": "!!prev && prevPub",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",
