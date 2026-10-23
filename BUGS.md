@@ -25,6 +25,9 @@ a torn line fails the exact-field match), capped at 1 MB -> last 256 KB, read as
 a failed write is said on stderr. Laws: 11 cases, 11 red-proofs (order pinned: the line exists when _rmtree_hard runs;
 root GONE read before the restore rebuilds it). Not taken: a /proc fd scan for the deleter - by the time the witness
 runs the gate has exited and an rmtree is done, so it would name nobody on the case it exists for.
+Round 3 (review r2 PASS, 2 minors): the cap trims the journal IN PLACE under the same lock (no temp file, no replace
+another lane could race, the 0600 inode kept); laws pin the drop's line-before-remove order, the cap (newest kept, no
+torn line, still private) and that an owner file's `skipped=` never reaches the gate tail. 14 cases, 14 red-proofs.
 
 ### REG-2457 - WINDOWS: WHETHER realpath RESOLVES A DIRECTORY JUNCTION INSIDE THE SCRATCH IS STILL UNVERIFIED (#182 low 5, M2 stores-plumbing)
 
