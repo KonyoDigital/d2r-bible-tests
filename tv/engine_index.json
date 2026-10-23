@@ -2692,5 +2692,16 @@
     "purpose": "What a version stamp may not carry: a home path, an IP, a hostname, a token or this machine's identity (leak_problem), and anything but inert words (free_text_problem). bump_version refuses a leaking or non-inert name or note with them, and gate_ledger checks every added stamp line with it before a coherent bump carries a gate.",
     "gotcha": "One definition, two callers. A check that cannot load counts as dirty, never clean.",
     "territory": "gates-proofs"
+  },
+  "proof_shard.py": {
+    "entryPoints": [
+      "plan",
+      "check_shards",
+      "select",
+      "merge_into"
+    ],
+    "gotcha": "A plan is a pure function of the gate names, their proofs and tv/gate_costs.json at one commit: every shard must compute it alike, so the import refuses shards whose plan digests differ. The import is ALL OR NOTHING and re-derives every key from this checkout's bytes; it never rewrites `tree`, so #242's clean wave still runs each gate clean here.",
+    "purpose": "REG-2585/2586 - one heart2 prove split across N CI runners: the cost-balanced plan (--proof-shard K/N) and the checks that bring the shards' banked PROVENs home (--import-shards).",
+    "territory": "heart-organs"
   }
 }
