@@ -4171,8 +4171,10 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
         return per                                       # a proof of this gate ran its clean run here in this pass
     if any(ck[0] == filename and wv[0] is True for ck, wv in (getattr(run, "clean_wave", None) or {}).items()):
         return per                                       # the wave ran it clean here (a red stopped the run there)
-    v, why = None, {}
+    v, why, asked, skips = None, {}, None, set()
     for i in (run.order.get(name) or list(range(len(proofs)))):
+        if run.stop.is_set():
+            return per                                   # another gate stopped the run: it is refused already
         pr = proofs[i]
         widths = None
         if isinstance(pr, dict) and "widths" in pr:
@@ -4180,20 +4182,28 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
             try:
                 widths = _LW.declared(pr)
             except ValueError:
+                skips.add(INVALID)                       # an unreadable declaration judges nothing here
                 continue
         why = {}
         try:
             v = _prove_one(sandbox, name, filename, pr, i, say, widths=widths, why=why, clean_only=True)
         except Exception as _ce:
             v = None
-            say("     %-52s   ↳ REG-2587: its clean run here raised %s" % (name, type(_ce).__name__))
+            say("     %-52s   ↳ REG-2587: its clean run here raised %s (%s)" % (name, type(_ce).__name__,
+                                                                            str(_ce)[:120]))
         if v == ELSEWHERE or v == INVALID:
+            skips.add(v)
             continue
+        asked = i
         break
     else:
-        say("     %-52s   ↳ REG-2587: %d proof(s) were proved in another tree and no proof of it can run here, so "
-            "its clean run here is not asked - kept as served" % (name, len(foreign)))
-        return per
+        if skips == {ELSEWHERE}:
+            say("     %-52s   ↳ REG-2587: %d proof(s) were proved in another tree and no proof of it can run on this "
+                "PC (ELSEWHERE), so its clean run here is not asked - kept as served" % (name, len(foreign)))
+            return per
+        say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree and no clean run of it could be "
+            "asked here - none of them is kept" % (name, len(foreign)))
+        return [UNPROVABLE if x == PROVEN else x for x in per]
     if v == CLEAN:
         say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree; its clean run HERE is green"
             % (name, len(foreign)))
@@ -4202,7 +4212,7 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
     out = [UNPROVABLE if x == PROVEN else x for x in per]
     say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree and its clean run HERE %s - "
         "none of them is kept" % (name, len(foreign), "is RED" if red else "could not finish"))
-    if red and run.fail(name, foreign[0], UNPROVABLE, "the law is ALREADY RED untampered here, where another tree "
+    if red and run.fail(name, asked, UNPROVABLE, "the law is ALREADY RED untampered here, where another tree "
                                                        "proved it"):
         say("  ⛔ #42 FAIL FAST (REG-2587) — %s is ALREADY RED untampered in this tree; another tree's PROVENs are not "
             "kept and the push is refused on this one." % name)
@@ -5988,8 +5998,8 @@ def import_shards(paths, say=print, target=None):
     for _k in sorted(_stops):
         _st = _stops[_k]
         _at = ("%s[%s] %s" % tuple(_st[:3])) if isinstance(_st, (list, tuple)) and len(_st) >= 3 else str(_st)[:80]
-        say("    ⚠ shard %d/%d STOPPED at %s: %d of its %d assigned proof(s) NOT banked - the next push proves them "
-            "here" % (_k, len(shards), _at, _owed.get(_k, (0, 0))[0], _owed.get(_k, (0, 0))[1]))
+        say("    ⚠ shard %d/%d STOPPED at %s: %d of its %d assigned proof(s) NOT banked - never run, or not PROVEN "
+            "there; a push here still owes them" % (_k, len(shards), _at, _owed.get(_k, (0, 0))[0], _owed.get(_k, (0, 0))[1]))
     return 0
 
 

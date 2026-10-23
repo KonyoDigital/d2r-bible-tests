@@ -154,6 +154,13 @@ class TheFanInPassesOnlyAWholeSet(unittest.TestCase):
         _shard(self.root, 1, 1, {"a": _e("g1", 0), "z": _e("g9", 0)}, [("g1", 0)])
         self.assertEqual(self.fan(n=1), 2, "a stray entry passed the fan-in that the import would refuse")
 
+    def test_an_extra_dir_with_no_store_is_refused_even_when_every_shard_is_there(self):
+        """second eye - a whole set plus a dir with no store is not one importable set: refuse, don't hand it on"""
+        _shard(self.root, 1, 1, {"a": _e("g1", 0)}, [("g1", 0)])
+        os.makedirs(os.path.join(self.root, "proof-shard-stray"))
+        self.assertEqual(self.fan(n=1), 2, "the fan-in handed on a set with a dir that carries no store")
+        self.assertIn("carry no", "\n".join(self.said))
+
     def test_the_cli_reads_its_arguments(self):
         _shard(self.root, 1, 1, {"a": _e("g1", 0)}, [("g1", 0)])
         self.assertEqual(PS.main(["--fan-in", self.root, "--shards", "1", "--head", HEAD]), 0)
@@ -185,6 +192,11 @@ RED_PROOF = [
      "file": "proof_shard.py",
      "find": "        ok, why, take, skipped = select(shards)\n",
      "replace": "        take, skipped = {}, 0\n",
+     "matches": 1},
+    {"why": "REG-2588 - the fan-in hands on a set with a dir that carries no store",
+     "file": "proof_shard.py",
+     "find": "    if ok and empty:",
+     "replace": "    if False and empty:",
      "matches": 1},
     {"why": "REG-2588 - the shard runs on main too",
      "file": ".github/workflows/proof-keys-shards.yml",

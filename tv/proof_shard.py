@@ -286,6 +286,8 @@ def fan_in(root, n, head, say=print):
     for d in empty:
         say("  ⚠ %s carries no %s - that shard banked nothing it could hand on" % (d, STORE_NAME))
     ok, why, shards = check_shards(bodies, head)
+    if ok and empty:                                     # second eye: a dir with no store is not a shard of the set
+        ok, why = False, "%d artifact dir(s) carry no %s (%s)" % (len(empty), STORE_NAME, ", ".join(empty[:4]))
     if ok:
         got = set(b["shard"].get("n") for _l, b, _w in bodies)
         if got != {n} or len(shards) != n:

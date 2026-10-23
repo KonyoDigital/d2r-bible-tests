@@ -16,8 +16,9 @@ always) checks the set with `tv/proof_shard.py --fan-in` - check_shards and sele
 equal to the workflow's - and only then hands it on as one `proof-shards-<sha>` artifact; it names each shard's
 assigned and banked counts and where a shard STOPPED. Nothing is imported on CI. The cache law
 (test_a_proven_verdict_is_reused_only_on_identical_bytes) now allows this one workflow, and only `--push` lines that
-are proof shards and a cache named only as a shard's fresh HEART2_CACHE_PATH. Law:
-tv/test_the_shard_workflow_proves_every_proof_once.py.
+are proof shards and a cache named only as a shard's fresh HEART2_CACHE_PATH. Second eye (grok-4.7): an artifact
+dir with no store refuses the fan-in even when all N shards are there; `workflow_dispatch` is inert until the file is
+on the default branch. Law: tv/test_the_shard_workflow_proves_every_proof_once.py.
 
 ### REG-2587 - A GATE ANOTHER TREE PROVED RUNS CLEAN HERE EVEN ON A PUSH WITH NO CLEAN WAVE (proof-keys build, GB-box, 2026-10-23, v3789)
 #242 (REG-1996) lets the cache serve a PROVEN banked in another tree, guarded by the clean wave running that gate
@@ -28,7 +29,10 @@ blind. Fix: `_clean_here` in `_prove_gate_push` - a gate with a proof served fro
 run of its law in this pass and none green in the wave, asks one clean run here. Green keeps the verdicts; red fails
 the push fast and turns every PROVEN UNPROVABLE; a run that cannot finish turns them UNPROVABLE too. A gate no proof of
 which can run here (ELSEWHERE) keeps them and says so. Also REG-2586: each STOPPED shard now prints how many of its
-assigned proofs the import did not bank. Law: tv/test_an_imported_gate_runs_clean_here_on_a_small_push.py.
+assigned proofs the import did not bank. Second eye (grok-4.7): the fail names the proof whose clean run was red, not
+the lowest served one; a gate where no clean run could be asked for any reason but ELSEWHERE (e.g. every widths
+declaration unreadable) keeps nothing; a run already stopped is not asked. Law:
+tv/test_an_imported_gate_runs_clean_here_on_a_small_push.py.
 
 ### REG-2586 - A SHARD'S PROVENS COME HOME ALL OR NOTHING, AND KEEP THE TREE THEY WERE PROVED IN (proof-keys build, GB-box, 2026-10-23, v3789)
 `heart2 --import-shards FILE...` merges CI shard caches into this machine's verdict cache under the store lock. It

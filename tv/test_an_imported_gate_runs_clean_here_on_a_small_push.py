@@ -126,6 +126,22 @@ class AnImportedGateRunsCleanHere(unittest.TestCase):
         self.assertEqual((per, self.runs.clean), ([H.PROVEN] * 2, 0), "the wave's green clean run was asked again")
 
 
+    def test_the_failure_names_the_proof_whose_clean_run_was_red(self):
+        """second eye - run.fail names the proof the clean run was asked for (the run's order), not the lowest index"""
+        self.proofs[0]["widths"] = "not a width"        # unreadable: skipped, so proof 1 is the one asked
+        run, per = self.push("/some/other/worktree", [False])
+        self.assertEqual(run.first[:2], (GATE, 1), "the push names %r, not the proof whose clean run was red"
+                         % (run.first,))
+
+    def test_no_clean_run_that_could_be_asked_keeps_nothing(self):
+        """second eye - every proof's declaration unreadable: nothing untampered ran here, so nothing is kept"""
+        for pr in self.proofs:
+            pr["widths"] = "not a width"
+        run, per = self.push("/some/other/worktree", [True])
+        self.assertEqual(self.runs.clean, 0)
+        self.assertEqual(per, [H.UNPROVABLE] * 2, "a gate no clean run reached kept another tree's PROVENs")
+
+
 RED_PROOF = [
     {"why": "REG-2587 - a gate served from another tree runs no clean run here when no wave runs (the e2e gap)",
      "file": "heart2.py",
@@ -154,8 +170,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2587 - a law red here is said but the push is not stopped",
      "file": "heart2.py",
-     "find": "    if red and run.fail(name, foreign[0], UNPROVABLE,",
-     "replace": "    if False and run.fail(name, foreign[0], UNPROVABLE,",
+     "find": "    if red and run.fail(name, asked, UNPROVABLE,",
+     "replace": "    if False and run.fail(name, asked, UNPROVABLE,",
+     "matches": 1},
+    {"why": "REG-2587 - the push's failure names the lowest served proof, not the one whose clean run was red",
+     "file": "heart2.py",
+     "find": "    if red and run.fail(name, asked, UNPROVABLE,",
+     "replace": "    if red and run.fail(name, foreign[0], UNPROVABLE,",
+     "matches": 1},
+    {"why": "REG-2587 - a gate no clean run could reach keeps another tree's PROVENs (an unreadable declaration hole)",
+     "file": "heart2.py",
+     "find": "        if skips == {ELSEWHERE}:\n",
+     "replace": "        if True:\n",
      "matches": 1},
     {"why": "REG-2587 - a gate the wave already ran clean here is asked again",
      "file": "heart2.py",
