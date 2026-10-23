@@ -156,6 +156,20 @@ class DangerMenuDefaultsToCancel(unittest.TestCase):
                 self.assertTrue(a["same"] and a["has"], "%s RAN on Enter (focus on %s): %r" % (fn, "OK" if on_ok else "Cancel", a))
             board().run("window.vaultDangerMenuTog(false); window._setFolderConnectedUI(false); OUT.ok = 1;")
 
+    def test_the_chronicle_row_names_its_armed_step(self):
+        """Grok review r2 (LOW): after the first press only the button said "Remove N", the row's bold name still read as the unarmed step."""
+        o = board().run(H_ + "window._menuAscendingFraction = function(){ return { frac: 1, up: 9, steps: 9, matched: 10 }; };"
+                        "window._menuRunNames = function(){ return ['Obedience']; }; renderVault();"
+                        "by('#vault-danger-tog').click(); var row = by('#vault-danger-menuimport'), mb = by('#vault-menuimport-btn');"
+                        "OUT.shown = !row.hidden; OUT.n0 = row.querySelector('.vdm-name').textContent; mb.click();"
+                        "await new Promise(function(r){ setTimeout(r, 200); });"
+                        "OUT.b1 = by('#vault-menuimport-btn').textContent; OUT.n1 = by('#vault-danger-menuimport .vdm-name').textContent;"
+                        "window.vaultDangerMenuTog(false);")
+        self.assertTrue(o["shown"], "PREMISE: the chronicle-page row shows for an alphabetical loose run: %r" % o)
+        self.assertEqual(o["n0"], "These look like a chronicle page", o)
+        self.assertTrue(o["b1"].startswith("Remove "), "PREMISE: the first press arms the row: %r" % o)
+        self.assertEqual(o["n1"], o["b1"], "the row's name still reads as the unarmed step: %r" % o)
+
     def test_space_on_the_red_ok_changes_nothing(self):
         """Grok review r1 (MEDIUM): Space activates a focused <button> - Tab from Cancel onto OK + Space ran the door."""
         for fn, how in (DOORS[0], DOORS[3]):
@@ -246,6 +260,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      else if(cancelFirst && (e.key === ' ' || e.key === 'Spacebar')){ e.preventDefault(); close(false); } }",
      "replace": "      }",
+     "matches": 1},
+    {"why": "The armed chronicle row keeps its unarmed bold name (Grok review r2).",
+     "file": "bible.html",
+     "find": "var _mn = _mi.querySelector('.vdm-name'); if (_mn) _mn.textContent = _miTxt;",
+     "replace": "",
      "matches": 1},
     {"why": "Escape no longer closes the danger menu.",
      "file": "bible.html",

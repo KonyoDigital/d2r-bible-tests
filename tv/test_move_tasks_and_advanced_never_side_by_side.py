@@ -175,6 +175,14 @@ class MoveTasksAndAdvancedNeverSideBySide(unittest.TestCase):
         self.assertFalse(o["open"], "Escape inside MOVE TASKS left it open: %r" % o)
         self.assertEqual(o["focus"], "vault-tasks-fab", o)
         self.assertEqual(o["exp"], "false", o)
+        # Grok review r2: a click on the FAB leaves focus ON the FAB - Escape there closes it too
+        o = board().run(SEEN + "by('#vault-tasks-fab').focus(); by('#vault-tasks-fab').click(); await tick(); OUT.open0 = tasksOpen();"
+                        "OUT.f0 = document.activeElement && document.activeElement.id;")
+        self.assertTrue(o["open0"] and o["f0"] == "vault-tasks-fab", "PREMISE: the FAB opened MOVE TASKS and kept focus: %r" % o)
+        for kind in ("keyDown", "keyUp"):
+            t.send("Input.dispatchKeyEvent", type=kind, key="Escape", code="Escape", windowsVirtualKeyCode=27, nativeVirtualKeyCode=27)
+        o = board().run(SEEN + "await tick(200); OUT.open = tasksOpen(); window.vaultTasksTog(false);")
+        self.assertFalse(o["open"], "Escape with focus on the FAB left MOVE TASKS open: %r" % o)
 
     def test_the_open_overlay_survives_a_reload(self):
         board().run("window.vaultTasksTog(true); OUT.ok = 1;")
@@ -242,10 +250,15 @@ RED_PROOF = [
      "find": "    if (t.status === 'moved-manual' && t.undo && t.to && t.to.holder != null && t.to.cell == null) return true;",
      "replace": "    if (false) return true;",
      "matches": 1},
+    {"why": "Escape with focus on the FAB no longer closes MOVE TASKS (Grok review r2).",
+     "file": "bible.html",
+     "find": "if (fab0 && !fab0._v2Esc) { fab0._v2Esc = 1; fab0.addEventListener('keydown', _v2EscFn); }",
+     "replace": "",
+     "matches": 1},
     {"why": "Escape inside MOVE TASKS no longer closes it.",
      "file": "bible.html",
-     "find": "          if (!e || e.key !== 'Escape' || tp.hidden) return;",
-     "replace": "          return;",
+     "find": "if (tp && !tp._v2Esc) { tp._v2Esc = 1; tp.addEventListener('keydown', _v2EscFn); }",
+     "replace": "",
      "matches": 1},
     {"why": "The FAB floats over every tab.",
      "file": "bible.html",
