@@ -2435,6 +2435,7 @@ class _PushRun(object):
         self.sig0 = _SIGNAL_RUNS["n"]           # REG-2353: runs a signal ended before this run began
         self.wave_s = None                      # REG-2353: the clean wave's seconds, when one ran
         self.keys0 = _servable_keys(cache)      # REG-2353: every key the cache would serve when the run began
+        self.direct = None                      # REG-2599: gates whose own law file the push changes (None: UNKNOWN)
 
     def fail(self, name, idx, verdict, reason):
         """Record a failure. Fail fast: the FIRST stops the run -> True for the call that stopped it. Keep going
@@ -4008,18 +4009,45 @@ def _gates_for_changed(changed):
     return sorted(set(gates_for_tests(live)) | set(laws_that_read(non_test)))
 
 
-def _push_facts(have, say):
-    """#42 — what push_order needs, read from git and the tree being proved. -> (base | None, order, gates, counts)"""
+def _push_changed():
+    """#42 / REG-2599 - what this push changes: (base ref | None, {repo-relative path} | None UNKNOWN), the hook's own
+    order of bases (@{push}, else origin/main), diffed against the tree being proved (the sandbox copies it)."""
     base = None
-    for ref in ("@{push}", "origin/main"):          # the hook's own order for "what this push changes"
+    for ref in ("@{push}", "origin/main"):
         ok, out = _git("rev-parse", "--verify", "--quiet", ref)
         if ok and out.strip():
             base = ref
             break
-    changed, base_proofs = None, None
+    if base is None:
+        return None, None
+    # -z: raw paths, never core.quotePath's quoted form (second eye: a law path with a space or é read as unchanged)
+    ok, out = _git("-c", "core.quotePath=false", "diff", "--name-only", "-z", base)
+    return base, (set(p for p in out.split("\0") if p) if ok else None)
+
+
+def _direct_laws(have, changed):
+    """REG-2599 - the gates of `have` whose OWN law file the push changes. -> set | None (the change is UNKNOWN)"""
+    if changed is None:
+        return None
+    return set(n for n, filename, _p in have
+               if os.path.relpath(os.path.join(HERE, filename), REPO).replace(os.sep, "/") in changed)
+
+
+def _owes_here(run, name):
+    """REG-2599 (#242 narrowed, Elad 2026-10-23) - does a proof ANOTHER tree banked owe this gate one clean run here?
+
+    Only when the push changes the gate's own law file, or when what the push changes is unknown. A gate in the push
+    for any other reason is served over byte-identical inputs and kept on the other tree's word: one clean run per such
+    gate is what kept every imported proof from saving a minute on his Mac."""
+    direct = getattr(run, "direct", None)
+    return direct is None or name in direct
+
+
+def _push_facts(have, say):
+    """#42 — what push_order needs, read from git and the tree being proved. -> (base | None, order, gates, counts)"""
+    base, changed = _push_changed()
+    base_proofs = None
     if base:
-        ok, out = _git("diff", "--name-only", base)   # the base against the tree being proved (the sandbox copies it)
-        changed = set(l.strip() for l in out.splitlines() if l.strip()) if ok else None
         base_proofs = {}
         for _n, filename, _p in have:
             rel = os.path.relpath(os.path.join(HERE, filename), REPO).replace(os.sep, "/")
@@ -4212,7 +4240,7 @@ def _wave_gate(sandbox, name, filename, proofs, say, run):
                 _hit = cache.peek(key) if key is not None else None   # REG-2353 - asked, not served: marks nothing
                 # #242 - a proof banked in ANOTHER tree is reused, but its gate still owes this tree one clean run: a
                 # law that reads live state only main holds can be red here and green there
-                if _hit is None or _hit.get("tree") != TREE_ID:
+                if _hit is None or (_hit.get("tree") != TREE_ID and _owes_here(run, name)):   # REG-2599
                     _all = False
                     break
             if _all:
@@ -4268,6 +4296,10 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
     _CLEAN.green_here = False                            # REG-2589 - did this law run GREEN untampered in this tree?
     foreign = sorted(s[0] for s in (getattr(_CLEAN, "served", None) or []) if s[1] != TREE_ID)
     if not foreign or run.stop.is_set():
+        return per
+    if not _owes_here(run, name):
+        say("     %-52s   ↳ REG-2599: %d proof(s) were proved in another tree over byte-identical inputs - kept without a "
+            "clean run here: this push does not change its law" % (name, len(foreign)))
         return per
     if getattr(_CLEAN, "runs", None):
         # a proof of this gate ran its clean run here in this pass; the closing run (_closing_clean) still judges it
@@ -4766,6 +4798,14 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
             "they hold the lock too: %s" % (len(_unk), ", ".join(sorted(_unk)[:6])))
     by = dict((n, (n, f, p)) for n, f, p in have)
     run = _PushRun(order, browser, cache, keep_going=_keep)
+    try:
+        run.direct = _direct_laws(have, _push_changed()[1])     # REG-2599 - who still owes a clean run here
+    except Exception as _de:
+        say("  ⚠ REG-2599 which laws this push changes could not be read (%s) - every gate served from another tree "
+            "owes a clean run here, as before" % type(_de).__name__)
+    if run.direct is not None:
+        say("  REG-2599: %d of %d gate(s) have their own law file changed by this push - only those owe a clean run here "
+            "for a proof another tree banked" % (len(run.direct), len(have)))
     _prev, _PUSH = _PUSH, run
     try:
         # REG-1992 — THE CLEAN WAVE FIRST: every gate's one untampered run, across the lanes, before any tamper

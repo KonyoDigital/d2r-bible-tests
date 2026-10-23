@@ -11006,6 +11006,12 @@ GATES = [
          why="REG-2598 - a lane proves many gates in one sandbox: a run record one gate writes (hover-wilson banks a "
              "row into the tracked tv/.self_arming.jsonl) is put back as the sandbox was built before the next gate, "
              "said by name, so no later law is proved or keyed over it. Fixture repo and sandbox in temp dirs only."),
+    Gate("test_a_foreign_proof_owes_a_clean_run_only_where_the_push_changed_its_law",
+         [sys.executable, os.path.join(HERE, "test_a_foreign_proof_owes_a_clean_run_only_where_the_push_changed_its_law.py")], 120,
+         needs_app=False,
+         why="REG-2599 (#242 narrowed) - a proof another tree banked owes one clean run here only when the push changes "
+             "that gate's own law file, or when what it changes is unknown; any other gate keeps the other tree's "
+             "PROVENs without a run, in the main pass and the clean wave. Temp gate and temp cache only."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,

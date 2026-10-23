@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2599 - #242 NARROWED: A FOREIGN PROOF OWES A CLEAN RUN ONLY WHERE THE PUSH CHANGED ITS LAW (proof-keys, GB-box, 2026-10-23)
+Elad: proofs banked elsewhere (CI census, box) must become HITS in the Mac pre-push hook. #242 / REG-2587 made every gate
+served from another tree run one clean run here - so an imported hit still cost the gate's full untampered run. Now
+only a gate whose OWN law file the push changes (git diff --name-only against @{push}, else origin/main - the hook's
+base) owes it; a gate in the push for any other reason (a changed input it reads) keeps the other tree's PROVENs over
+byte-identical inputs. What the push changes being unknown keeps the old guard for every gate. Both sites: the main
+pass (_clean_here) and the clean wave (_wave_gate). ⚠ The hook derives its gates from the tv/test_*.py files the push
+changes, so on today's hook nearly every proved gate IS direct; the narrowing pays where gates are proved for a changed
+non-test input (_gates_for_changed / the V1 hook). Law: test_a_foreign_proof_owes_a_clean_run_only_where_the_push_changed_its_law,
+8 red-proofs; #242's wave red-proof re-anchored. grok-4.7 second eye: MED quoted law paths (fixed: -z), MED "the cases never set direct" (dismissed: they drive _prove_gate, not _prove_push - each red-proof goes RED).
+
 ### REG-2598 - A GATE NEVER STARTS ON A RUN RECORD THE GATE BEFORE IT WROTE (proof-keys build, GB-box, 2026-10-23)
 Root cause of the 91 imported entries in 12 laws whose keys no checkout gives (dcff7160 16-shard run): all 91 are shard
 16's, all proved after 12:42:27 UTC in one lane, right after `hover-wilson[0]` logged "the tree moved under this proof".

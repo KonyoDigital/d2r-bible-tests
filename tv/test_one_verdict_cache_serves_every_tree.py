@@ -277,7 +277,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#242 - the wave skips a gate whose proofs were banked in ANOTHER tree, so a main-only red is never run",
      "file": "heart2.py",
-     "find": "                if _hit is None or _hit.get(\"tree\") != TREE_ID:\n",
+     "find": "                if _hit is None or (_hit.get(\"tree\") != TREE_ID and _owes_here(run, name)):   # REG-2599\n",
      "replace": "                if _hit is None:\n",
      "matches": 1},
     {"why": "#242 - the pre-flight matches whole paths where the hook matches basenames, and proves a different set",
