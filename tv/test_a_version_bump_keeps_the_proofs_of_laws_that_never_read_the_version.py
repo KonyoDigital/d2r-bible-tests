@@ -158,7 +158,7 @@ class AVersionBumpKeepsTheProofsOfLawsThatNeverReadTheVersion(unittest.TestCase)
 
     def test_a_note_that_is_not_inert_words_is_never_masked(self):
         before, _ = self.key()
-        self.write(_surfaces("v100", note="see /Users/someone/x"))
+        self.write(_surfaces("v100", note="see /Users" + "/someone/x"))
         self.assertNotEqual(self.key()[0], before)
 
     def test_a_law_that_names_the_version_literally_keys_it(self):

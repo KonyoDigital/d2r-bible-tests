@@ -10980,6 +10980,12 @@ GATES = [
              "off command lines, output and the storage host, proves alongside only what a runner cannot bank "
              "(unknown counts as local; unkeyable is counted, not run), and imports only THIS commit's passed fan-in, "
              "unpacked inside its dir. git and GitHub are stand-ins."),
+    Gate("test_a_version_bump_keeps_the_proofs_of_laws_that_never_read_the_version",
+         [sys.executable, os.path.join(HERE, "test_a_version_bump_keeps_the_proofs_of_laws_that_never_read_the_version.py")],
+         60, needs_app=False,
+         why="REG-2602 - a coherent version bump leaves a proof's key only for a law that never reads the version: the "
+             "stamp lines of the stamp surfaces are masked, and any other word, a literal the law counts, a home path, "
+             "an incoherent hand bump or a version-ish proof keeps the bytes raw. Temp tree and temp cache."),
     Gate("test_a_proof_shard_keeps_going_past_a_failure",
          [sys.executable, os.path.join(HERE, "test_a_proof_shard_keeps_going_past_a_failure.py")], 60,
          needs_app=False,

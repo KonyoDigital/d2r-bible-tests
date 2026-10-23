@@ -1254,6 +1254,8 @@ def _reset_lane_records(sandbox, say):
             if data is None:
                 os.remove(p)
             else:
+                if not _inside(root, p):            # REG-2598 - a run record is put back only inside the sandbox root
+                    raise OSError("outside the sandbox root")
                 with open(p, "wb") as fh:
                     fh.write(data)
             if _read_record(p) != data:

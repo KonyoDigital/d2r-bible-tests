@@ -384,7 +384,10 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
             ok = (("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx) or ("_SANDBOX_OWNER" in ctx)
                   or ("os.path.basename(self.path) != os.path.basename(CACHE)" in ctx)
                   # #42 lever 1 (REG-1710) — the red memory: heart2's own record beside CACHE, refused by name likewise
-                  or ('os.path.basename(RED_MEMORY) != ".heart2_red.json"' in ctx))
+                  or ('os.path.basename(RED_MEMORY) != ".heart2_red.json"' in ctx)
+                  # REG-2598 - a lane's run record is put back only inside the sandbox root heart2 made; the guard
+                  # sits directly above the write. test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote drives the put-back.
+                  or ("if not _inside(root, p):" in ctx))
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))
