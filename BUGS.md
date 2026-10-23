@@ -85,6 +85,11 @@ read' too and registers no key; every skip ('nothing read', 'unchanged', 'within
 reads as reached; a row 1 ms short of the hour is held; a new day's first write counts 1 on a tick; the daily cap of 25
 refuses a tick as well as a boot. Seven RED_PROOFs: the empty guard && !boot, ok:false on each of the three skips, the hour
 ending 1 ms early, the day count || !boot, the cap && boot.
+FIX ROUND 7 (the review of r6 swept 303 single edits; seven stayed green): the daily cap of 25 refuses a signed tick and
+a key arriving, and registers no key; a signed tick counts on from today's writes; a tick whose signature fails says why
+(sigWhy), as a boot does; a failed rosterkey or row put is refused in the store's own words. The law's node harness can fail
+a named put. Seven RED_PROOFs: the cap && !verified and && !upgrade, the day count && !verified and && !upgrade, sigWhy only
+on a boot, and the swapped catch expression at each put.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs

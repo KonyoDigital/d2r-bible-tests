@@ -101,9 +101,11 @@ const digest = (s) => createHash('sha256').update(s).digest('hex');
 const seeded = (seed) => new Map(Object.entries(seed || {}).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]));
 let store = seeded(CFG.seed);
 let puts = [];
+let failPut = [];
 const kv = {
   async get(n) { return store.has(n) ? store.get(n) : null; },
-  async put(n, v) { puts.push(n); store.set(n, v); },
+  // a step may name the keys whose put fails, the way a KV outage answers
+  async put(n, v) { if (failPut.includes(n)) throw new Error('KV put failed'); puts.push(n); store.set(n, v); },
 };
 const snap = () => { const o = {}; for (const [k, v] of store.entries()) o[k] = digest(v); return o; };
 const parsed = (v) => { try { return JSON.parse(v); } catch (e) { return v; } };
@@ -112,6 +114,7 @@ const out = { steps: [], verify: [], records: null, got: null };
 for (const step of (CFG.steps || [])) {
   if (step.fresh) store = seeded(step.seed);
   puts = [];
+  failPut = step.failPut || [];
   // a step may name the server's clock (an exact-hour edge); every other step runs on the real one
   const realNow = Date.now;
   if (typeof step.now === 'number') Date.now = () => step.now;
@@ -187,8 +190,10 @@ def _body(n=1, boot=True, signed_at=1790000000000, name="Sorceress"):
                                         "rows": [{"name": name, "cls": "Sorceress", "level": n}]}}}
 
 
-def _step(raw, headers=None, fresh=False, seed=None, now=None):
+def _step(raw, headers=None, fresh=False, seed=None, now=None, fail_put=None):
     one = {"raw": _b64(raw), "headers": dict(headers or {})}
+    if fail_put:
+        one["failPut"] = list(fail_put)
     if now is not None:
         one["now"] = now
     if fresh:
@@ -739,6 +744,25 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                 _step(moved_raw, {}, fresh=True, seed={rk: record(t=at - 3600 * 1000 + 1)}, now=at),
                 # 23 an unsigned tick over an old row that already used today's 25 writes: refused on quota, a tick too
                 _step(moved_raw, {}, fresh=True, seed={rk: record(t=10, day=today, n=25)}, now=at),
+                # r7 (the review of r6 swept 303 single edits; the cap, the day count, sigWhy and the put whys stayed green):
+                # 24 a SIGNED tick under the row's own registered key over a row at today's 25: refused on quota
+                _step(moved_raw, moved_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    t=10, day=today, n=25, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}), now=at),
+                # 25 the key ARRIVING (rosterkey reset) on a tick over a row at today's 25: the cap holds for it too,
+                #   and no key is registered
+                _step(moved_raw, moved_heads, fresh=True, seed={rk: record(
+                    t=10, day=today, n=25, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}, now=at),
+                # 26 a signed tick under the row's own key over a row with 3 writes today: stored as the 4th
+                _step(moved_raw, moved_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    t=10, day=today, n=3, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}), now=at),
+                # 27 a TICK whose signature does not match its bytes, no key registered: why the signature failed is
+                #   said on a tick as on a boot
+                _step(moved_raw, heads, fresh=True, seed={rk: record(t=10)}),
+                # 28 the key arriving when the rosterkey put fails: refused with the store's own words
+                _step(moved_raw, moved_heads, fresh=True, seed={rk: record(
+                    t=10, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}, fail_put=[kk]),
+                # 29 an unsigned tick when the row put fails: refused with the store's own words
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t=10)}, fail_put=[rk]),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -831,6 +855,22 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         self.assertEqual((r23.get("ok"), r23.get("why"), s[23]["puts"]),
                          (False, "roster would not take this publish: quota", []),
                          "a tick past the day's 25 writes was stored: %r" % r23)
+        quota = (False, "roster would not take this publish: quota", [])
+        for i, what in ((24, "a signed tick"), (25, "the key arriving")):
+            r = s[i]["reply"]
+            self.assertEqual((r.get("ok"), r.get("why"), s[i]["puts"]), quota,
+                             "%s past the day's 25 writes was stored: %r" % (what, r))
+        rec26 = s[26]["records"][rk]
+        self.assertEqual((s[26]["reply"].get("stored"), rec26["day"], rec26["n"]), (["roster"], today, 4),
+                         "a signed tick did not count on from today's writes: %r" % rec26)
+        r27 = s[27]["reply"]
+        self.assertEqual((r27.get("sig"), r27.get("intentVerified")), ("bad", False), r27)
+        self.assertTrue(r27.get("sigWhy"), "a tick with a failed signature does not say why: %r" % r27)
+        failed = "roster would not take this publish: KV put failed"
+        for i, what in ((28, "rosterkey"), (29, "roster row")):
+            r = s[i]["reply"]
+            self.assertEqual((r.get("ok"), r.get("why"), s[i]["puts"]), (False, failed, []),
+                             "a failed %s put was not refused in the store's own words: %r" % (what, r))
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1578,6 +1618,41 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  if (n >= ROSTER_CAP) {",
      "replace": "  if (n >= ROSTER_CAP && boot) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: the daily cap holds only for an unsigned publish, so a signed one past 25 is written",
+     "file": "functions/api/roster.js",
+     "find": "  if (n >= ROSTER_CAP) {",
+     "replace": "  if (n >= ROSTER_CAP && !verified) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: the daily cap does not hold for a key arriving",
+     "file": "functions/api/roster.js",
+     "find": "  if (n >= ROSTER_CAP) {",
+     "replace": "  if (n >= ROSTER_CAP && !upgrade) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: a signed publish restarts the day's count at 0",
+     "file": "functions/api/roster.js",
+     "find": "(prev && prev.day === today && typeof prev.n === \"number\") ? prev.n : 0;",
+     "replace": "(prev && prev.day === today && typeof prev.n === \"number\" && !verified) ? prev.n : 0;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: a key arriving restarts the day's count at 0",
+     "file": "functions/api/roster.js",
+     "find": "(prev && prev.day === today && typeof prev.n === \"number\") ? prev.n : 0;",
+     "replace": "(prev && prev.day === today && typeof prev.n === \"number\" && !upgrade) ? prev.n : 0;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: why a signature failed is said only on a boot",
+     "file": "functions/api/roster.js",
+     "find": "  if (sig.state === \"bad\") said.sigWhy = sig.why;",
+     "replace": "  if (sig.state === \"bad\" && boot) said.sigWhy = sig.why;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: a failed put is refused as 'Error: ...' rather than the store's own words",
+     "file": "functions/api/roster.js",
+     "find": "  } catch (e) {\n    return refuse(\"roster would not take this publish: \" + String((e && e.message) || e).slice(0, 140));\n  }\n  return json(",
+     "replace": "  } catch (e) {\n    return refuse(\"roster would not take this publish: \" + String((e || e.message) && e).slice(0, 140));\n  }\n  return json(",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r7: a failed rosterkey put is refused as 'Error: ...' rather than the store's own words",
+     "file": "functions/api/roster.js",
+     "find": "      return refuse(\"roster would not take this publish: \" + String((e && e.message) || e).slice(0, 140));\n    }\n    said.registered = true;",
+     "replace": "      return refuse(\"roster would not take this publish: \" + String((e || e.message) && e).slice(0, 140));\n    }\n    said.registered = true;",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",
