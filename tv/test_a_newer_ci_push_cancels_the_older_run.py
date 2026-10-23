@@ -115,8 +115,26 @@ def concurrency_for(name, ref, run_id, workflow=None):
     return _expr(g.group(1), ctx), cancel
 
 
+#: every workflow file, NAMED - never listed: a law that lists a directory is unkeyable and re-proves on every push
+#: (test_the_unkeyable_laws_only_get_fewer, REG-2363). Each name is a string constant heart2 keys by its bytes.
+#: A NEW workflow file must be added here; the census below then decides whether a ci push can start it.
+WORKFLOW_FILES = (
+    ".github/workflows/publish.yml",
+    ".github/workflows/routine-g-audit.yml",
+    ".github/workflows/routine-h-item-sweep.yml",
+    ".github/workflows/routine-i-playwright.yml",
+    ".github/workflows/routine-j-screens.yml",
+    ".github/workflows/routine-k-perf.yml",
+    ".github/workflows/routine-l-integrity.yml",
+    ".github/workflows/routine-m-swallows.yml",
+    ".github/workflows/tv-soak.yml",
+    ".github/workflows/tv-tests.yml",
+    ".github/workflows/tv-windows-boot.yml",
+)
+
+
 def ci_workflows():
-    return sorted(n for n in os.listdir(WF) if n.endswith((".yml", ".yaml")) and _push_on_ci(_code(_read(n))))
+    return sorted(n for n in (os.path.basename(f) for f in WORKFLOW_FILES) if _push_on_ci(_code(_read(n))))
 
 
 class TheBranchRule(unittest.TestCase):
