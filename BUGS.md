@@ -127,6 +127,8 @@ copy, floor dropped, self-copy refusal dropped), heart2 3/3 PROVEN.
 
 ROUND 2 (M2 review, major): the ON AIR floor priced a different copy than the one seed() writes - links cost nothing and a linked node_modules cost its own st_size, while _copy_tree walks a linked store whole and _copy_link materialises absolute links (and, with no symlink privilege on Windows, relative ones too). _tree_bytes now prices each link at its target's followed bytes (cycle-guarded per link) and follows a linked top level. Law: test_the_floor_prices_the_copy_that_is_written (three layouts, plus a seed refused one byte under a linked store), RED_PROOF [3] and [4].
 
+ROUND 3 (M2 review r2, two majors): (1) the price and the copy still walked differently - copytree(symlinks=False) wrote a diamond (two links to one store) twice and followed a link cycle to the recursion limit, while the price counted each real path once. Now ONE walker (_followed: links followed, a directory already an ancestor skipped, a dangling name skipped) prices and copies; law case test_a_diamond_is_priced_twice_and_a_cycle_ends asserts priced == written, RED_PROOF [5]. (2) the link cases skip where os.symlink is refused, so their RED_PROOFs would read BLIND there: [3], [4] and [5] declare needs: posix and read ELSEWHERE on Windows.
+
 ### REG-2450 - THE SECOND-EYE LEDGER WAS PER CHECKOUT: A FRESH PUSH WORKTREE OWED A LOOK, AND A WORKTREE'S LOOK DIED WITH IT (#178, M2 stores-plumbing)
 
 2026-10-22 07:0x (Push A1). The ship gate (second_eye_ledger.py --check <prev> --gate, hooks/pre-push) read the PUSHING tree's own
