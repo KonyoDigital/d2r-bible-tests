@@ -2703,5 +2703,17 @@
     "gotcha": "A plan is a pure function of the gate names, their proofs and tv/gate_costs.json at one commit: every shard must compute it alike, so the import refuses shards whose plan digests differ. The import is ALL OR NOTHING and re-derives every key from this checkout's bytes; it never rewrites `tree`, so #242's clean wave still runs each gate clean here.",
     "purpose": "REG-2585/2586 - one heart2 prove split across N CI runners: the cost-balanced plan (--proof-shard K/N) and the checks that bring the shards' banked PROVENs home (--import-shards).",
     "territory": "heart-organs"
+  },
+  "proof_keys_mac.py": {
+    "entryPoints": [
+      "main",
+      "local_gates",
+      "ci_ref",
+      "fan_in_state",
+      "download_artifact"
+    ],
+    "gotcha": "Pushes only refs/heads/ci/proof-keys-<sha12>. The token is read by git's credential helper from the environment and sent only to api.github.com; the artifact redirect is followed without it. An unkeyable gate is never run alongside (never banked), so the final push still runs it.",
+    "purpose": "REG-2590 - the Mac driver: push HEAD to ci/proof-keys-<sha12>, prove alongside only the gates CI cannot bank, wait for this commit's fan-in, download its set and `heart2 --import-shards` it.",
+    "territory": "heart-organs"
   }
 }

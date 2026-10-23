@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2590 - THE MAC DRIVER: ONE COMMIT ON 16 RUNNERS, THE MAC PROVES ONLY WHAT THEY CANNOT BANK (proof-keys build, GB-box, 2026-10-23, v3789)
+`python3 tv/proof_keys_mac.py [--dry-run] [--final]`: refuses a checkout whose tracked files differ from HEAD (the import
+would refuse CI's set); pushes HEAD to refs/heads/ci/proof-keys-<sha12> and no other ref (with GITHUB_PUSH_TOKEN set, a
+credential helper reads it from the environment - never on a command line, masked out of every line said, sent to
+api.github.com only); starts `heart2 --prove <local gates> --push` on the Mac while CI runs; waits for THIS commit's
+proof-keys-shards run (head_sha) and imports only after a completed, successful fan-in: artifact proof-shards-<sha>,
+its storage redirect followed with no token, unpacked with no member leaving its dir, then `heart2 --import-shards`
+(all or nothing). The local set (local_gates): a proof needing what a runner lacks (CI_HAS: posix, posix-signals, bash,
+node, numpy, dir-link), or a PROOF_NEEDS path git does not track; unknown counts as local; an unkeyable gate is counted,
+not run alongside (never banked - the final push runs it). MEASURED on the box at 21a78ff6+: 8 gates alongside
+(d2r-install 4, macos 2, ../.git 2), 2 unkeyable (test_a_stub_agent_never_films_his_screen, test_chronicle_template),
+classified in ~15-20 s. Second eye (grok-4.7) fixed: no child (git, heart2 alongside / import / final) holds any
+token (child_env; git gets only PK_PUSH_SECRET); the token is offered only to an https://github.com origin, checked
+BEFORE the push; the run is the NEWEST of this sha's push runs on this ci ref (an old run re-attempted no longer wins);
+two fan-in jobs, or a run that completed with none, is failed, not polled to the timeout; the alongside pass is JOINED
+before the import and the checkout re-checked at the sha (no race on the cache or the clean-tree check); the artifact
+must be exactly proof-shard-1..N (N = the workflow's PROOF_SHARDS) and the only artifact of its name; up to 3 storage
+redirects, none with the token. Law: tv/test_the_mac_driver_brings_one_commits_set_home.py.
+
+### REG-2589 - A GREEN CLEAN RUN HERE BANKS ANOTHER TREE'S PROVENS AS THIS TREE'S (proof-keys build, GB-box, 2026-10-23, v3789)
+REG-2587 runs a gate whose proofs another tree banked clean HERE once per push - but a green run banked nothing, so the
+entries kept the foreign tree and every later push over the same bytes asked the same clean run again. MEASURED in the
+proof-keys e2e: pushes 2 and 3 of test_gate_banks over identical bytes each paid one clean run. Fix: `_rebank_here`,
+after `_closing_clean` in `_prove_gate_push` - when this law ran GREEN untampered in this tree in this push (REG-2587's
+own clean run, the wave's, or a clean run a proof of this pass shared), each served foreign PROVEN that is still PROVEN
+after the closing run is stored again with tree = this tree, provedAt UNCHANGED (the census age is when it was measured),
+provedIn = the tree that proved it, cleanHereAt = now. RED, UNKNOWN, no clean run asked (ELSEWHERE kept as served,
+unreadable widths), or a closing run that took the PROVEN away rebank nothing. Second eye (grok-4.7): a wave row counts
+only when it is THIS gate's clean run - same file AND argv, script and timeout (two gates may share a file) - and every
+such row is green. Law:
+tv/test_a_green_clean_run_here_banks_the_imported_proofs_here.py.
+
 ### REG-2588 - ONE PROVE ACROSS 16 RUNNERS, AND A FAN-IN THAT PASSES ONLY A SET THE IMPORT WOULD TAKE (proof-keys build, GB-box, 2026-10-23, v3789)
 `.github/workflows/proof-keys-shards.yml` (ci/proof-keys-* pushes and by hand only, never main): a 16-job matrix, each
 running `heart2 --prove --push --proof-shard K/16` into its own fresh `$RUNNER_TEMP/shard-K/.heart2_cache.json`

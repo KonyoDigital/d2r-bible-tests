@@ -10958,6 +10958,20 @@ GATES = [
              "each --proof-shard K/N into its own fresh cache, uploaded with its dot-file even on failure; the fan-in "
              "needs every shard, runs always, and checks the set with proof_shard.py --fan-in (the import's own "
              "rules) on this commit; only ci/proof-keys-*, no claude. The fan-in is driven over temp shard dirs."),
+    Gate("test_a_green_clean_run_here_banks_the_imported_proofs_here",
+         [sys.executable, os.path.join(HERE, "test_a_green_clean_run_here_banks_the_imported_proofs_here.py")], 60,
+         needs_app=False,
+         why="REG-2589 - after a GREEN clean run here (REG-2587's, the wave's, or a shared one), another tree's served "
+             "PROVENs still PROVEN after the closing run are banked under THIS tree (provedAt kept, provedIn said), so "
+             "the next push asks no clean run; red, unknown, ELSEWHERE-kept or closing-run losses rebank nothing. "
+             "Temp gate and temp cache file; the law runner is a stand-in."),
+    Gate("test_the_mac_driver_brings_one_commits_set_home",
+         [sys.executable, os.path.join(HERE, "test_the_mac_driver_brings_one_commits_set_home.py")], 60,
+         needs_app=False,
+         why="REG-2590 - tv/proof_keys_mac.py pushes only ci/proof-keys-<sha12> from a clean checkout, keeps the token "
+             "off command lines, output and the storage host, proves alongside only what a runner cannot bank "
+             "(unknown counts as local; unkeyable is counted, not run), and imports only THIS commit's passed fan-in, "
+             "unpacked inside its dir. git and GitHub are stand-ins."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,

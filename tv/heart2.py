@@ -3998,7 +3998,7 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                 cache.count("hits")
                 _srv = getattr(_CLEAN, "served", None)
                 if isinstance(_srv, list):
-                    _srv.append((idx, hit.get("tree")))          # REG-2587 - which tree proved what this gate reuses
+                    _srv.append((idx, hit.get("tree"), key, hit))  # REG-2587 - which tree proved what this gate reuses
                 _mark(f="hit", a="hit")                          # REG-2353 - forecast and taken: served, not run
                 # the census keeps the age this proof was MEASURED at, never this run's clock [[stale-reading]]
                 cache.reused_at(name, idx, hit["provedAt"])
@@ -4164,12 +4164,21 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
     and every PROVEN becomes UNPROVABLE; a clean run that cannot finish turns them UNPROVABLE too (never kept on a
     guess). A gate no proof of which can be asked here (ELSEWHERE everywhere) keeps them and SAYS so.
     -> per (verdicts in RED_PROOF order)"""
-    foreign = sorted(i for i, t in (getattr(_CLEAN, "served", None) or []) if t != TREE_ID)
+    _CLEAN.green_here = False                            # REG-2589 - did this law run GREEN untampered in this tree?
+    foreign = sorted(s[0] for s in (getattr(_CLEAN, "served", None) or []) if s[1] != TREE_ID)
     if not foreign or run.stop.is_set():
         return per
     if getattr(_CLEAN, "runs", None):
-        return per                                       # a proof of this gate ran its clean run here in this pass
-    if any(ck[0] == filename and wv[0] is True for ck, wv in (getattr(run, "clean_wave", None) or {}).items()):
+        # a proof of this gate ran its clean run here in this pass; the closing run (_closing_clean) still judges it
+        _CLEAN.green_here = any(r.get("ok") is True for r in _CLEAN.runs.values())
+        return per
+    # second eye (REG-2589): the wave's row must be THIS gate's clean run - its file AND its argv, script and timeout
+    # (two gates may share a file) - and every such row green; a wave row of another gate on the same file proves nothing
+    _ex, _to, _sc = gate_spec(name)
+    _mine = [wv for ck, wv in (getattr(run, "clean_wave", None) or {}).items()
+             if ck[0] == filename and ck[1] == repr(_ex) and ck[2] == repr(_sc) and ck[4] == _to]
+    if _mine and all(wv[0] is True for wv in _mine):
+        _CLEAN.green_here = True
         return per                                       # the wave ran it clean here (a red stopped the run there)
     v, why, asked, skips = None, {}, None, set()
     for i in (run.order.get(name) or list(range(len(proofs)))):
@@ -4207,6 +4216,7 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
     if v == CLEAN:
         say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree; its clean run HERE is green"
             % (name, len(foreign)))
+        _CLEAN.green_here = True
         return per
     red = v == UNPROVABLE and bool(why.get("red"))
     out = [UNPROVABLE if x == PROVEN else x for x in per]
@@ -4217,6 +4227,25 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
         say("  ⛔ #42 FAIL FAST (REG-2587) — %s is ALREADY RED untampered in this tree; another tree's PROVENs are not "
             "kept and the push is refused on this one." % name)
     return out
+
+
+def _rebank_here(cache, name, per, say):
+    """REG-2589 - after this law ran GREEN untampered in THIS tree, the PROVENs another tree banked for it are banked
+    again under this tree, so the next push over the same bytes owes #242 nothing more (REG-2587 asked its clean run on
+    EVERY push until a tampered run here re-proved them). Only a proof still PROVEN after the closing clean run; the
+    entry keeps the provedAt it was MEASURED at (the census age) and says where it was proved. -> how many"""
+    if cache is None or not getattr(_CLEAN, "green_here", False):
+        return 0
+    n, now = 0, int(time.time() * 1000)
+    for _s in (getattr(_CLEAN, "served", None) or []):
+        if len(_s) < 4 or _s[1] == TREE_ID or not isinstance(_s[3], dict) or per[_s[0]] != PROVEN:
+            continue
+        cache.store(_s[2], dict(_s[3], tree=TREE_ID, provedIn=_s[1], cleanHereAt=now))
+        n += 1
+    if n:
+        say("     %-52s   ↳ REG-2589: %d proof(s) another tree proved are banked under THIS tree - its clean run here "
+            "was green, so the next push over these bytes does not ask it again" % (name, n))
+    return n
 
 
 def _prove_gate_push(sandbox, name, filename, proofs, say, run):
@@ -4282,10 +4311,12 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                     run.cache.count("moved")
                     say("     %-52s   ↳ #42 P3: not banked - the gate's closing clean run took its PROVEN away"
                         % ("%s[%d]" % (name, _i)))
+            _rebank_here(run.cache, name, per, say)      # REG-2589 - after the closing run, never before it
     finally:
         _CLEAN.pending = None
         _CLEAN.runs = None
         _CLEAN.served = None
+        _CLEAN.green_here = False
     if run.cache is not None:
         run.cache.flush()          # P3: what this gate proved reaches the disk now, not only at the end of the run
     return _push_gate_verdict(per), per

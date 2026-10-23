@@ -122,7 +122,7 @@ class AnImportedGateRunsCleanHere(unittest.TestCase):
 
     def test_a_gate_the_wave_ran_clean_here_is_not_asked_twice(self):
         run, per = self.push("/some/other/worktree", [False],
-                             wave={("fake_gate.py", "()", "None", "", 180): (True, "Ran 1 test | OK")})
+                             wave={("fake_gate.py", "[]", "None", "", 180): (True, "Ran 1 test | OK")})
         self.assertEqual((per, self.runs.clean), ([H.PROVEN] * 2, 0), "the wave's green clean run was asked again")
 
 
@@ -150,13 +150,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2587 - the tree a served proof was proved in is never noted, so no gate is ever asked",
      "file": "heart2.py",
-     "find": "                    _srv.append((idx, hit.get(\"tree\")))",
+     "find": "                    _srv.append((idx, hit.get(\"tree\"), key, hit))",
      "replace": "                    pass",
      "matches": 1},
     {"why": "REG-2587 - a gate proved in THIS tree is run clean again on every push",
      "file": "heart2.py",
-     "find": "    foreign = sorted(i for i, t in (getattr(_CLEAN, \"served\", None) or []) if t != TREE_ID)\n",
-     "replace": "    foreign = sorted(i for i, t in (getattr(_CLEAN, \"served\", None) or []))\n",
+     "find": "    foreign = sorted(s[0] for s in (getattr(_CLEAN, \"served\", None) or []) if s[1] != TREE_ID)\n",
+     "replace": "    foreign = sorted(s[0] for s in (getattr(_CLEAN, \"served\", None) or []))\n",
      "matches": 1},
     {"why": "REG-2587 - a law RED here keeps another tree's PROVENs",
      "file": "heart2.py",
