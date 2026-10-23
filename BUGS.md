@@ -28,6 +28,13 @@ runs the gate has exited and an rmtree is done, so it would name nobody on the c
 Round 3 (review r2 PASS, 2 minors): the cap trims the journal IN PLACE under the same lock (no temp file, no replace
 another lane could race, the 0600 inode kept); laws pin the drop's line-before-remove order, the cap (newest kept, no
 torn line, still private) and that an owner file's `skipped=` never reaches the gate tail. 14 cases, 14 red-proofs.
+Round 4 (review r3 FAIL, 1 major + 3 minors): the journal is opened WITHOUT O_APPEND - every write is placed by lseek
+under the lock, so the cap's kept tail really lands at offset 0 on every OS - and the cap writes the kept tail FIRST and
+cuts the file to it after, so a reader never sees it empty. Every write is finished (a short os.write is looped). On
+Windows the writers lock one byte at 0x7FFFFFF0 with msvcrt (a lock on a byte a reader reads would fail its read). Laws
+add: a keep size off the line length (an older line kept, size within the cap), no empty journal at the cut, a short
+write finished, the Windows lock byte, and owner-file text driven through the real owner file into
+_skipped_every_law. 17 cases, 19 red-proofs.
 
 ### REG-2457 - WINDOWS: WHETHER realpath RESOLVES A DIRECTORY JUNCTION INSIDE THE SCRATCH IS STILL UNVERIFIED (#182 low 5, M2 stores-plumbing)
 
