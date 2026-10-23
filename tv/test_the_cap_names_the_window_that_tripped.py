@@ -290,6 +290,52 @@ class TestTheCapNamesTheWindowThatTripped(unittest.TestCase):
                           "a lane that could not be read must be UNKNOWN, never a comfortable "
                           "False")
 
+    # ── 10. the doctor's subscription row counts with the refusal's operands too (REG-2389) ───
+    def test_the_doctors_burn_row_counts_what_the_refusal_counts(self):
+        """REG-2389 - console_doctor._check_subscription_burn hand-filtered `now - c <= 3600` over
+        the raw rows. The ledger is shared with tv/intake_local.mjs, which writes MILLISECONDS (and
+        since REG-2387 those rows stay in milliseconds for a day): for them `now - c` is hugely
+        negative, so every intake read of the day was a read "this hour". Driven on a two-unit
+        fixture ledger. What the refusal counts is found by asking _sub_budget_check itself at
+        every ceiling - its window is never re-implemented here. [[the-unjoined-end]]"""
+        import json as _json
+        import re
+        import shutil
+        import tempfile
+        import time as _time
+        import console_doctor as CD
+        import tv_diablo as TV
+
+        now = _time.time()
+        rows = ([(now - 3600.0 * (5 + 0.5 * i)) * 1000.0 for i in range(30)]   # intake, 5-20 h old (ms)
+                + [(now - 1200.0) * 1000.0]                                      # intake, 20 min old (ms)
+                + [now - 600.0, now - 300.0])                                    # vision, last 10 min (s)
+        sand = tempfile.mkdtemp(prefix="doctor-burn-")
+        self.addCleanup(shutil.rmtree, sand, True)
+        path = os.path.join(sand, "ledger.json")
+        with io.open(path, "w", encoding="utf-8") as fh:
+            fh.write(_json.dumps({"calls": rows}))
+        p0, h0, d0, armed0 = TV._SUB_BUDGET_PATH, TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX, TV._vision_budget_armed
+
+        def refused_at(hm, dm):
+            TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX = hm, dm
+            return TV._sub_budget_check() is not None
+        try:
+            TV._SUB_BUDGET_PATH, TV._vision_budget_armed = path, (lambda: True)
+            hour = next((n for n in range(50) if not refused_at(n + 1, 10 ** 6)), None)
+            day = next((n for n in range(50) if not refused_at(10 ** 6, n + 1)), None)
+            TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX = 4000, 20000
+            state, said = CD._check_subscription_burn()
+        finally:
+            TV._SUB_BUDGET_PATH, TV._SUB_HOURLY_MAX, TV._SUB_DAILY_MAX = p0, h0, d0
+            TV._vision_budget_armed = armed0
+        print("   the refusal counts hour=%r day=%r · the doctor says %r" % (hour, day, said))
+        self.assertEqual((hour, day), (3, 33), "premise: the refusal does not see the fixture it was handed")
+        m = re.match(r"(\d+) read\(s\) this hour of \d+ · (\d+) today", said or "")
+        self.assertTrue(m, "the doctor's subscription row changed shape: %r (%r)" % (said, state))
+        self.assertEqual((int(m.group(1)), int(m.group(2))), (hour, day),
+                         "the doctor counts the ledger with its own operands, not the refusal's: %r" % said)
+
 
 RED_PROOF = [
     {
@@ -344,6 +390,14 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    if not enforced:\n        return False, None, \"\"",
         "replace": "    if False:\n        return False, None, \"\"",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2389 - the doctor's subscription row reads the ledger's raw rows again: every "
+               "millisecond intake row of the day counts as a read this hour",
+        "file": "console_doctor.py",
+        "find": "            calls = tv._sub_budget_calls(json.load(fh) or {}, now)\n",
+        "replace": "            calls = [float(c) for c in (json.load(fh).get(\"calls\") or [])]\n",
         "matches": 1,
     },
 ]

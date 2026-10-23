@@ -1039,6 +1039,17 @@
     "purpose": "Loads bible.html and tv/control_ui.html in a real JS engine (Chromium via CDP, or node) and fails on any SyntaxError — one bad escape or mid-line comment blanks the whole 37k-line page.",
     "territory": "gates-proofs"
   },
+  "keep_awake.py": {
+    "entryPoints": [
+      "held",
+      "hold_for_pid",
+      "status",
+      "caffeinate_argv"
+    ],
+    "gotcha": "The Windows execution state is PER THREAD and the OS drops it when that thread ends, so a pid hold lives on its own watcher thread (take, WaitForSingleObject on the process handle, release with ES_CONTINUOUS alone - all on that thread); a release from any other thread releases nothing. The flags are exactly 0x80000001 - never ES_DISPLAY_REQUIRED (his screen still turns off), never away mode, never powercfg or the registry. macOS is `caffeinate -i -w <pid>`, spawned with an absolute executable and close_fds=False because the console has Quartz loaded (#150's fork deadlock). A lid close still sleeps the PC: that stays the OS's call. self_prove holds a pid for real only when its OWN doors (spawn, pid_alive, proc_birth, identity - captured at import) started or verified it: a law that stubs any of them hands a stand-in pid, and a real caffeinate on that number holds whatever process owns it (the first cut started three a run from the REG-1628 chain law, one outliving the law).",
+    "purpose": "#170 (REG-2483): keeps this PC awake ONLY while a proof or sweep runs - held(why) for a with-block on this thread, hold_for_pid(pid, why) for a process (idempotent, ends by itself when the pid ends, normally or killed), status() in the shared vocabulary {on, holds, lastTs, why}. self_prove takes a hold for the prover it spawns and for one a relaunched console adopts.",
+    "territory": "routines-infra"
+  },
   "lane_census.py": {
     "entryPoints": [
       "census",
@@ -1306,8 +1317,19 @@
       "holds_his_port",
       "main"
     ],
-    "gotcha": "holds_his_port() is the whole point of the file and DID NOT EXIST for a long time: HIS_PORTS (17772, 17781, 17955, 9222, 9223, 8848) was declared with a comment claiming it protected his console and `grep -c HIS_PORTS` returned 1 — its own definition. It FAILS CLOSED: if lsof cannot answer, the port is UNKNOWN and the process is NOT-MINE. KNOWN is not a convenience list — it is what keeps the sweep from becoming furniture, and D2R.exe/CrossOver/wineserver are in it because HIS GAME IS NOT AN ORPHAN (334% CPU for 100 minutes while he played).",
+    "gotcha": "holds_his_port() is the whole point of the file and DID NOT EXIST for a long time: HIS_PORTS (17772, 17781, 17955, 9222, 9223, 8848) was declared with a comment claiming it protected his console and `grep -c HIS_PORTS` returned 1 — its own definition. It FAILS CLOSED: if lsof cannot answer, the port is UNKNOWN and the process is NOT-MINE. On Windows there is no lsof, so EVERY process fails closed there (none is ever counted as mine, and the spawn ledger and the tree are never asked) - the orphans row says exactly that instead of claiming the three witnesses (REG-2482). KNOWN is not a convenience list — it is what keeps the sweep from becoming furniture, and D2R.exe/CrossOver/wineserver are in it because HIS GAME IS NOT AN ORPHAN (334% CPU for 100 minutes while he played).",
     "purpose": "Reports busy, long-lived processes I started and left running (>20% CPU, >20 min) so he is never the one who notices his Mac is hot; it KILLS nothing.",
+    "territory": "routines-infra"
+  },
+  "node_runtime.py": {
+    "entryPoints": [
+      "ensure",
+      "load_pin",
+      "target_dir",
+      "main"
+    ],
+    "gotcha": "Fetches ONLY on Windows (macOS and Linux resolve and say so), and only the zip tv/node_pin.json pins for this PC's architecture: its SHA-256 is checked BEFORE anything is extracted, and the extracted node.exe against the pin's own exe hash, before the rename into %LOCALAPPDATA%\\Programs\\nodejs. PATH changes for THIS process only (os.environ) - no setx, no registry, no profile, no admin; its children (the prover) inherit it. blocking=False fetches on ONE background thread per process and answers ok None while it runs; a failed fetch is said and not retried in a loop. It never spawns a process. A new node version is a new pin: copy every hash from that version's SHASUMS256.txt.",
+    "purpose": "#167 (REG-2484): the ONE door that puts Node.js on a Windows PC where it is missing - for tv/install-tvd.ps1 (`--ensure`, exactly one call, after the clone) and for the console (ensure(blocking=False)) - so the node-only laws and the tooltip-oracle lane run on every PC, not only where an agent placed node by hand. It re-resolves cb_node_harness.NODE after placing it, so no relaunch is needed.",
     "territory": "routines-infra"
   },
   "one_funnel.py": {

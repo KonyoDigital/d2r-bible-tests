@@ -4664,7 +4664,10 @@ GATES = [
              "NONE PUBLISHED) and pinned here. It also pins the mirror-image lie - an unarmed lane "
              "refuses nothing and must never read as capped - and that UNKNOWN is a VALUE rather "
              "than a missing field, since the honest-absent grok shape used to omit capWindow and "
-             "capText entirely."),
+             "capText entirely. REG-2389 - console_doctor's subscription row still hand-filtered the "
+             "raw rows, so every millisecond intake row of the day read as a read 'this hour' (a "
+             "fixture said 32 where the cap counts 2); it counts through _sub_budget_calls now, "
+             "pinned against the counts _sub_budget_check itself refuses at."),
     Gate("test_the_render_fixture_can_reach_the_card_branch",
          [sys.executable, os.path.join(HERE, "test_the_render_fixture_can_reach_the_card_branch.py")], 120,
          why="A FIXTURE THAT CANNOT EXERCISE THE BRANCH DOES NOT GO QUIETLY GREEN - IT GOES LOUDLY "
@@ -11540,6 +11543,46 @@ GATES = [
              "refuses unless a store names the reel now) in THIS PC's dir in git's common dir, so a cleared sweep "
              "memory cannot unmake it. whose() re-judges a SAVED reading. sets_base_index reads the shipped page as "
              "game data through counter_ledger.reference(), so the base index is identical on every PC."),
+    Gate("test_an_eye_row_asks_only_a_pc_that_ships",
+         [sys.executable, os.path.join(HERE, "test_an_eye_row_asks_only_a_pc_that_ships.py")], 120,
+         needs_app=False,
+         why="REG-2480 (#171) - Dean's PC, which has never shipped and whose EYES is Claude-only, read two MISSING eye "
+             "rows (grok.exe absent) and eleven UNKNOWN 'unaskable for 31d' rows over a ledger it never had. "
+             "console_doctor.this_pc_ships() is ONE measured predicate (its second-eye ledger exists, or its eye "
+             "binary exists, or self_prove.tree_state says dev) and run() asks all thirteen SHIP_EYE_ROWS through "
+             "it: measured not-shipping -> OK with one sentence; shipping or unreadable -> the row's own question, "
+             "unchanged. No fifth state word."),
+    Gate("test_the_venue_check_reads_windows_tasks",
+         [sys.executable, os.path.join(HERE, "test_the_venue_check_reads_windows_tasks.py")], 60,
+         needs_app=False,
+         why="REG-2481 (#171) - 'test venue' was UNKNOWN for 49 days on Windows ('only knows launchd'). It now reads "
+             "Task Scheduler (schtasks /query /fo CSV /v, the 'Task To Run' column and the scripts it names) and "
+             "judges every task with reaches_a_browser_suite, the ONE rule launchd plists are judged by; an "
+             "unreadable listing is UNKNOWN. 'console painted whole' stays UNKNOWN off macOS and names the Windows "
+             "witness that does not exist yet - never OK without a look."),
+    Gate("test_stray_processes_are_measured_on_windows",
+         [sys.executable, os.path.join(HERE, "test_stray_processes_are_measured_on_windows.py")], 120,
+         needs_app=False,
+         why="REG-2482 (#171) - 'stray processes' was UNKNOWN for 45 days on Windows: there is no ps. my_orphans "
+             "samples the kernel's own cumulative CPU time (Toolhelp + GetProcessTimes, no spawn) twice, the second "
+             "from the previous call, ages each process by child_guard's birth reader, and an unreadable sample is "
+             "UNMEASURED, never 'nothing busy'. health_engine's OK sentence names the count and the instrument."),
+    Gate("test_the_pc_stays_awake_only_while_a_proof_runs",
+         [sys.executable, os.path.join(HERE, "test_the_pc_stays_awake_only_while_a_proof_runs.py")], 120,
+         needs_app=False,
+         why="REG-2483 (#170) - Dean's laptop slept mid-proof; his ruling: awake ONLY while work runs. tv/keep_awake.py "
+             "holds with SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED) = exactly 0x80000001 on Windows "
+             "and `caffeinate -i -w <pid>` on macOS, released when the block or the prover ends (normally or "
+             "killed); self_prove holds a prover it spawns and one a relaunched console adopts. A fake kernel on every "
+             "PC, plus one real caffeinate case judged on macOS."),
+    Gate("test_node_is_fetched_where_it_is_missing",
+         [sys.executable, os.path.join(HERE, "test_node_is_fetched_where_it_is_missing.py")], 60,
+         needs_app=False,
+         why="REG-2484 (#167) - the Windows installer never installed node, so 53+ node-only laws skipped on Dean's PC "
+             "until an agent placed it by hand. tv/node_runtime.ensure() fetches the pinned zip (tv/node_pin.json), "
+             "checks its SHA-256 BEFORE extracting, renames it into %LOCALAPPDATA%\\Programs\\nodejs and puts it on "
+             "this process's PATH only; never off Windows, never a persistent PATH write. tv/install-tvd.ps1 calls "
+             "the door exactly once, after the clone."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
