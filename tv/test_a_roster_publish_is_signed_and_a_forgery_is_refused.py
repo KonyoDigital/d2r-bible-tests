@@ -112,12 +112,16 @@ const out = { steps: [], verify: [], records: null, got: null };
 for (const step of (CFG.steps || [])) {
   if (step.fresh) store = seeded(step.seed);
   puts = [];
+  // a step may name the server's clock (an exact-hour edge); every other step runs on the real one
+  const realNow = Date.now;
+  if (typeof step.now === 'number') Date.now = () => step.now;
   const before = snap();
   const req = new Request('https://bull-4-u.com/api/roster', {
     method: 'POST', body: bytes(step.raw),
     headers: Object.assign({ 'content-type': 'application/json' }, step.headers || {}) });
   const res = await mod.onRequestPost({ request: req, env: { TZ_HISTORY: kv }, waitUntil() {} });
   const reply = JSON.parse(await res.text());
+  Date.now = realNow;
   const one = { status: res.status, reply: reply, puts: puts, before: before, after: snap() };
   if (CFG.everyRecord) { one.records = {}; for (const [k, v] of store.entries()) one.records[k] = parsed(v); }
   out.steps.push(one);
@@ -183,8 +187,10 @@ def _body(n=1, boot=True, signed_at=1790000000000, name="Sorceress"):
                                         "rows": [{"name": name, "cls": "Sorceress", "level": n}]}}}
 
 
-def _step(raw, headers=None, fresh=False, seed=None):
+def _step(raw, headers=None, fresh=False, seed=None, now=None):
     one = {"raw": _b64(raw), "headers": dict(headers or {})}
+    if now is not None:
+        one["now"] = now
     if fresh:
         one["fresh"] = True
         one["seed"] = seed or {}
@@ -648,6 +654,11 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
             moved = {"asOf": 2001, "counts": 1, "rows": [{"name": "Sorceress", "cls": "Sorceress", "level": 91}]}
             moved_raw = _raw({"owner": OWNER, "boot": False, "signedAt": 1790000000002, "sections": {"characters": moved}})
             moved_heads = RS.sign_headers(path_a, moved_raw)[0]
+            empty_raw = _raw({"owner": OWNER, "boot": False, "signedAt": 1790000000003, "sections": {}})
+            empty_heads = RS.sign_headers(path_a, empty_raw)[0]
+            vault = {"asOf": 2000, "counts": 3}
+            both = {"characters": mine, "vault": vault}
+            at = int(time.time() * 1000)
             steps = [
                 # 0 a row written before signing (no verdict), no key registered: this PC's first signed publish
                 _step(raw, heads, fresh=True, seed={rk: record()}),
@@ -703,6 +714,21 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
                 # 15 rosterkey reset, then an UNCHANGED tick (not a boot), the row still verified under this key:
                 #   a registration is written even when the body is unchanged
                 _step(raw, heads, fresh=True, seed={rk: record(intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))}),
+                # r5 (the review of r4 swept 108 single edits; six still stayed green):
+                # 16 a signed TICK under the key that wrote the row, an hour old, sending only `characters`: the
+                #   `vault` this key signed before is kept - a verified tick inherits as a boot does
+                _step(moved_raw, moved_heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    t=10, intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a), sections=both)})),
+                # 17 an unsigned TICK over a row written before signing (no verdict on it, so not the same intent),
+                #   an hour old: the write is stored NOT verified and still keeps the `vault` it did not send
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t=10, sections=both)}),
+                # 18 an unsigned tick over a row EXACTLY one hour old: the hour is over, so it is stored
+                #   (due() on the PC uses the same strict <)
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t=at - 3600 * 1000)}, now=at),
+                # 19 a signed publish that read nothing, no key registered: 'nothing read', and no key is registered
+                _step(empty_raw, empty_heads, fresh=True, seed={}),
+                # 20 a stored row whose `t` is not a number: its age is unknown, so the hour does not hold it
+                _step(moved_raw, {}, fresh=True, seed={rk: record(t="x")}),
             ]
             v = _node({"steps": steps, "everyRecord": True})
         s = v["steps"]
@@ -760,6 +786,22 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         r15 = s[15]["reply"]
         self.assertEqual((r15.get("stored"), r15.get("registered"), s[15]["puts"]), (["roster"], True, [kk, rk]),
                          "after a rosterkey reset an unchanged tick registered no key: %r" % r15)
+        rec16 = s[16]["records"][rk]
+        self.assertEqual((s[16]["reply"].get("stored"), sorted(rec16["sections"]), rec16["sections"]["characters"]["asOf"]),
+                         (["roster"], ["characters", "vault"], 2001),
+                         "a signed tick under the row's own key dropped a section that key signed before: %r" % rec16)
+        rec17 = s[17]["records"][rk]
+        self.assertEqual((s[17]["reply"].get("stored"), sorted(rec17["sections"]), rec17["intentVerified"]),
+                         (["roster"], ["characters", "vault"], False),
+                         "an unsigned tick dropped a section it did not send: %r" % rec17)
+        self.assertEqual(s[18]["reply"].get("stored"), ["roster"],
+                         "a row exactly one hour old was held 'within the hour': %r" % s[18]["reply"])
+        r19 = s[19]["reply"]
+        self.assertEqual((r19.get("stored"), r19.get("skipped"), s[19]["puts"]), ([], ["nothing read"], []),
+                         "a signed publish that read nothing was written or registered a key: %r" % r19)
+        self.assertNotIn("registered", r19)
+        self.assertEqual(s[20]["reply"].get("stored"), ["roster"],
+                         "a row with no numeric time was held 'within the hour': %r" % s[20]["reply"])
 
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
@@ -1441,6 +1483,37 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "(!sameIntent || intent.register === true)",
      "replace": "(!sameIntent || (intent.register === true && (boot || prev.hash !== hash)))",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r5: a verified tick inherits only on a boot, so a signed tick drops every section its own key "
+            "signed before and did not send this time",
+     "file": "functions/api/roster.js",
+     "find": "  const inherit = !verified || sameIntent;",
+     "replace": "  const inherit = !verified || (sameIntent && boot);",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r5: an unsigned write merges only on a boot, so an unsigned tick drops what it did not send",
+     "file": "functions/api/roster.js",
+     "find": "  const inherit = !verified || sameIntent;",
+     "replace": "  const inherit = (!verified && boot) || sameIntent;",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r5: a tick inherits nothing at all",
+     "file": "functions/api/roster.js",
+     "find": "Object.assign(inherit ? priorSections(prev) : {}, shaped)",
+     "replace": "Object.assign((inherit && boot) ? priorSections(prev) : {}, shaped)",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r5: a row exactly one hour old is still held 'within the hour', against the PC's strict <",
+     "file": "functions/api/roster.js",
+     "find": "  if (prev && age < HOUR_MS && !boot && !upgrade) {",
+     "replace": "  if (prev && age <= HOUR_MS && !boot && !upgrade) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r5: a publish that read nothing goes on, so an empty signed publish registers a key",
+     "file": "functions/api/roster.js",
+     "find": "  if (!Object.keys(sections).length) {",
+     "replace": "  if (false) {",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review r5: a row with no numeric time counts as written just now, so the hour holds it",
+     "file": "functions/api/roster.js",
+     "find": "typeof prev.t === \"number\" ? (now - prev.t) : HOUR_MS;",
+     "replace": "typeof prev.t === \"number\" ? (now - prev.t) : 0;",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",

@@ -74,6 +74,12 @@ FIX ROUND 4 (the review of r3 found four more): a signed tick with a change unde
 REG-2516 heal runs on a tick, not only a boot); an unsigned boot over a recent pre-signing row is stored NOT verified; after a
 rosterkey reset an UNCHANGED tick registers the key and is stored. Five RED_PROOFs: the hourly guard && !verified, inherit ||
 !boot, the verdict compare || boot, the unchanged check (sameIntent || boot), register only on a boot or a change.
+FIX ROUND 5 (the review of r4 swept 108 single edits; six stayed green): a signed tick under the row's own key, an hour
+old, keeps the `vault` that key signed before; an unsigned tick over a pre-signing row keeps what it did not send; a row
+exactly one hour old is not held (strict <, as the PC's due()); a signed publish that read nothing is 'nothing read' and
+registers no key; a row whose `t` is not a number is not held. The law's node harness takes a per-step clock. Six RED_PROOFs:
+inherit only with a boot (verified, then unsigned), priorSections only on a boot, age <= HOUR_MS, the empty-sections
+return dropped, the non-numeric age fallback 0.
 T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
 Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
 test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
