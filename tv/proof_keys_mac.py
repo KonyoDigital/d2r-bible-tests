@@ -37,6 +37,10 @@ import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402  (it prints non-ASCII)
+_console_safe_enable()
 WORKFLOW = "proof-keys-shards.yml"
 FAN_IN_JOB = "fan-in"                                  # the fan-in job's name starts with this (REG-2588's workflow)
 REF_PREFIX = "refs/heads/ci/proof-keys-"

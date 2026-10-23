@@ -32,6 +32,8 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402  (it prints non-ASCII)
+_console_safe_enable()
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import heart2        # noqa: E402

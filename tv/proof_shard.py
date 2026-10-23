@@ -31,6 +31,15 @@ import json
 import math
 import os
 import re
+import sys
+
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from console_safe import enable as _console_safe_enable   # it prints non-ASCII; a cp1255 console must not crash
+    _console_safe_enable()
+except Exception:
+    pass
 
 #: a chunk is no costlier than this fraction of one shard's fair share, so the largest gates spread across shards
 CHUNKS_PER_SHARD = 4
