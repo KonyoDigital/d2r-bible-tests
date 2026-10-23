@@ -3616,6 +3616,11 @@ def windows_tasks_from_csv(text):
     return tasks
 
 
+def _ntpath_base(p):
+    """The last part of a path in either OS's spelling (C:\\Users\\<name>\\...\\grok.exe -> grok.exe)."""
+    return str(p).replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+
+
 def _venue_on_windows(query=None, now=None):
     """#171 (REG-2481) — the venue row on Windows: Task Scheduler, judged by the one rule. -> (state, why)
     `query` is the listing seam (a law hands in its fixture CSV); None reads Task Scheduler, at most hourly."""
@@ -11088,10 +11093,10 @@ def this_pc_ships(ledger_path=None, eye_cli=None, tree=None):
             return True, "an eye is configured here as an API (%s)" % eye_cli
         if eye_cli:
             os.stat(eye_cli)
-            return True, "its eye binary exists (%s)" % eye_cli
+            return True, "its eye binary exists (%s)" % _ntpath_base(eye_cli)   # a basename: never a home path
         said.append("no eye configured")
     except (FileNotFoundError, NotADirectoryError):
-        said.append("no eye binary at %s" % eye_cli)
+        said.append("no eye binary (%s)" % _ntpath_base(eye_cli))   # REG-2482 round 2: a basename, never a home path
     except Exception as e:
         return None, "whether an eye is on this PC could not be read (%s)" % type(e).__name__
     try:
