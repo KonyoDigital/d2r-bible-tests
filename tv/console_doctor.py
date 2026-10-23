@@ -4369,7 +4369,8 @@ def keepalive_task_xml(pythonw, tv_dir, start_local):
 
     Every KEEPALIVE_EVERY_MIN minutes, for ever, as the signed-in user (InteractiveToken - no password is stored and
     no administrator is needed), hidden, ON BATTERY TOO (schtasks /SC MINUTE would default to AC-only, and Dean's PC is
-    a laptop), never two at once, killed after 2 minutes. A pass is console_keepalive.py: it launches only a console
+    a laptop), never two at once, with NO time limit (PT0S: a limit job-kills the console a pass starts, review r1 -
+    a pass ends itself after console_keepalive.PASS_DEADLINE_S instead). A pass is console_keepalive.py: it launches only a console
     that is GONE (REG-2614). XML rather than /TR: /TR is capped at 261 characters and a repo under a long path with
     spaces would not fit."""
     script = ntpath.join(tv_dir, "console_keepalive.py")
@@ -4392,24 +4393,54 @@ def keepalive_task_xml(pythonw, tv_dir, start_local):
                              _xml_esc('"%s"' % script), _xml_esc(tv_dir))
 
 
+def _schtasks_text(out):
+    """bytes | str | None -> str. schtasks output read in whatever it was written in (review r2).
+
+    Piped, schtasks may write UTF-16 LE (BOM or a NUL every other byte) or the console's OEM code page - never
+    reliably the ANSI page text=True decodes with: on a Hebrew Windows (cp1255) that decode RAISED, so the list
+    read as UNKNOWN and the task was never made; on cp1252 it passed NULs to csv, which raised. So the bytes are
+    taken raw: UTF-16 when they look like it, else UTF-8, else the locale page with every bad byte replaced. Only
+    the ASCII task name is ever matched, so a replaced localized status word costs nothing."""
+    if out is None:
+        return ""
+    if isinstance(out, str):
+        return out.replace("\x00", "")
+    b = bytes(out)
+    if b[:2] == b"\xff\xfe" or b[:2] == b"\xfe\xff":
+        return b.decode("utf-16", "replace").replace("\x00", "")
+    if len(b) >= 4 and b[1:2] == b"\x00" and b[3:4] == b"\x00":
+        return b.decode("utf-16-le", "replace").replace("\x00", "")
+    try:
+        return b.decode("utf-8").replace("\x00", "")
+    except UnicodeDecodeError:
+        pass
+    import locale
+    enc = locale.getpreferredencoding(False) or "latin-1"
+    try:
+        return b.decode(enc, "replace").replace("\x00", "")
+    except LookupError:
+        return b.decode("latin-1").replace("\x00", "")
+
+
 def _keepalive_task_exists(run):
     """-> True | False | None (UNKNOWN). A named query that answers 0 is a yes in any language. Anything else is
     settled by the FULL list (review r1: 'cannot find' is English only - a Hebrew or German schtasks never matched,
     so the task was never made): the name absent from a list that answered is a no; a list that failed is UNKNOWN."""
     try:
-        r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK], capture_output=True, text=True, timeout=20)
+        # raw bytes, never text=True: the decode is _schtasks_text's, and the parse is inside this try (review r2)
+        r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK], capture_output=True, timeout=20)
         if getattr(r, "returncode", 1) == 0:
             return True
-        lst = run(["schtasks", "/Query", "/FO", "CSV", "/NH"], capture_output=True, text=True, timeout=60)
-    except Exception:
+        lst = run(["schtasks", "/Query", "/FO", "CSV", "/NH"], capture_output=True, timeout=60)
+        if getattr(lst, "returncode", 1) != 0:
+            return None
+        want = ("\\" + KEEPALIVE_TASK).lower()
+        for row in csv.reader(_schtasks_text(getattr(lst, "stdout", None)).splitlines()):
+            if row and row[0].strip().lower() == want:
+                return True
+        return False
+    except Exception:                   # csv.Error, a decode, a timeout: UNKNOWN, never a guessed "no"
         return None
-    if getattr(lst, "returncode", 1) != 0:
-        return None
-    want = ("\\" + KEEPALIVE_TASK).lower()
-    for row in csv.reader((getattr(lst, "stdout", "") or "").splitlines()):
-        if row and row[0].strip().lower() == want:
-            return True
-    return False
 
 
 def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
@@ -4447,8 +4478,7 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
     if not consent:
         if exists and rec.get("madeMs"):
             try:
-                r = run(["schtasks", "/Delete", "/TN", KEEPALIVE_TASK, "/F"], capture_output=True, text=True,
-                        timeout=30)
+                r = run(["schtasks", "/Delete", "/TN", KEEPALIVE_TASK, "/F"], capture_output=True, timeout=30)
                 ok = getattr(r, "returncode", 1) == 0
             except Exception:
                 ok = False
@@ -4474,7 +4504,7 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
             with open(xml_path, "w", encoding="utf-16") as fh:   # the BOM Task Scheduler expects
                 fh.write(xml)
         r = run(["schtasks", "/Create", "/TN", KEEPALIVE_TASK, "/XML", xml_path, "/F"],
-                capture_output=True, text=True, timeout=30)
+                capture_output=True, timeout=30)
     except Exception as e:
         return {"did": "failed", "why": "the keepalive task could not be written (%s)" % type(e).__name__}
     finally:
@@ -4484,7 +4514,8 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
             pass
     if getattr(r, "returncode", 1) != 0:
         return {"did": "failed", "why": "Windows refused the keepalive task: %s"
-                                        % (("%s %s" % (getattr(r, "stdout", "") or "", getattr(r, "stderr", "") or ""))
+                                        % (("%s %s" % (_schtasks_text(getattr(r, "stdout", None)),
+                                                       _schtasks_text(getattr(r, "stderr", None))))
                                            .strip()[-160:] or "no reason given")}
     if _keepalive_task_exists(run) is not True:
         return {"did": "failed", "why": "the keepalive task was written but the check still cannot see it"}

@@ -33,8 +33,9 @@ def main():
         print("ensure_keepalive_task:", r)
         if r.get("did") != "created":
             bad.append("the task was not made: %s" % r)
-        q = subprocess.run(["schtasks", "/Query", "/TN", cd.KEEPALIVE_TASK, "/XML"], capture_output=True, text=True)
-        x = q.stdout or ""
+        # raw bytes through the same decoder the console uses (review r2: text=True misreads a UTF-16 pipe)
+        q = subprocess.run(["schtasks", "/Query", "/TN", cd.KEEPALIVE_TASK, "/XML"], capture_output=True)
+        x = cd._schtasks_text(q.stdout)
         for want in ("<DisallowStartIfOnBatteries>false", "<StopIfGoingOnBatteries>false", "<Hidden>true",
                      "<Interval>PT5M", "<LogonType>InteractiveToken", "IgnoreNew", "console_keepalive.py",
                      "<ExecutionTimeLimit>PT0S"):

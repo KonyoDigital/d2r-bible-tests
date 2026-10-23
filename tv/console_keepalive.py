@@ -193,11 +193,19 @@ def run_once(now_s=None, probe_fn=None, popen=None, here=HERE, state_path=None, 
         return {"action": "error", "why": "the keepalive pass raised %s" % type(e).__name__, "state": None}
 
 
-if __name__ == "__main__":
+def main(run=None, deadline_s=None):
+    """The task's entry. -> exit code (0 ok, 1 the pass erred; a pass past its deadline is ended with 3).
+
+    The task has no time limit and ignores a new start while one runs (IgnoreNew), so a pass that hung would
+    hold every later pass off for ever: a daemon timer ends the process itself (review r1; driven by the law,
+    review r2)."""
     import threading
-    # the task has no time limit and ignores a new start while one runs: a hung pass must end itself
-    _t = threading.Timer(PASS_DEADLINE_S, lambda: os._exit(3))
+    _t = threading.Timer(PASS_DEADLINE_S if deadline_s is None else deadline_s, lambda: os._exit(3))
     _t.daemon = True
     _t.start()
-    r = run_once()
-    sys.exit(0 if r.get("action") != "error" else 1)
+    r = (run or run_once)()
+    return 0 if r.get("action") != "error" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
