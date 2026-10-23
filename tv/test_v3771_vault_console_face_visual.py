@@ -315,6 +315,9 @@ _OPEN = _wrap(r"""
   if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
     window.toggleCardCollapse('mule-vault-card');
   window.renderVault();
+  /* Vault v2 (Elad 2026-10-23): MOVE TASKS is an overlay behind the 📦 FAB - open it the way he does (a FAB press is
+     remembered, so the reload below lands with it open again) */
+  if (typeof window.vaultTasksTog === 'function') window.vaultTasksTog(true);
   var tab = document.getElementById('tab-vault');
   var list = document.getElementById('vault-move-list');
   var r = list ? list.getBoundingClientRect() : { width: 0, height: 0 };

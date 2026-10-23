@@ -535,6 +535,9 @@ _STEP_BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.switchTab('vault');
   window.renderVault();
+  /* Vault v2 (Elad 2026-10-23): the move list lives in the MOVE TASKS overlay behind the 📦 FAB - open it as he does
+     (a FAB press is remembered, so the reload step below lands with it open again) */
+  if (typeof window.vaultTasksTog === 'function') window.vaultTasksTog(true);
   var tiles = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     var img = el.querySelector('img');
     return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
@@ -640,6 +643,7 @@ _STEP_REOPEN = _wrap(r"""
   if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
     window.toggleCardCollapse('mule-vault-card');
   if (typeof window.renderVault === 'function') window.renderVault();
+  if (typeof window.vaultTasksTog === 'function') window.vaultTasksTog(true);   /* Vault v2: the overlay, via its FAB */
   var list = document.getElementById('vault-move-list');
   var r = list ? list.getBoundingClientRect() : { width: 0, height: 0 };
   var tab = document.getElementById('tab-vault');

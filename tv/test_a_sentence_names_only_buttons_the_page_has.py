@@ -3,7 +3,7 @@
 
 GrokBot tick 415 (#230, console v3621): the Vault's bottom line read "nothing loose — but some filed items sit in the
 wrong locker: see VAULT INTEGRITY, or press Auto-Sort ✦" - and no button is called Auto-Sort. The button is
-"⚖️ Auto-assign unsorted" (vaultAutoSortByHand), which since #269 also moves what sits in the wrong locker. Two more
+"⚖️ Auto-assign unsorted" (vaultAutoSortByHand; "🪄 Sort to mules" since Vault v2), which since #269 also moves what sits in the wrong locker. Two more
 sentences (the unsorted row's "would go to … — press Auto-Sort to file it" and the organizer header) named the same
 missing control; the integrity "Fix" and "Fix all safe" buttons had no tooltip.
 
@@ -43,8 +43,10 @@ class ASentenceNamesOnlyButtonsThePageHas(unittest.TestCase):
     def test_every_vault_press_names_the_real_auto_assign_button(self):
         src = _page()
         labels = _button_labels(src)
-        self.assertIn("⚖️ Auto-assign unsorted", labels, "the Auto-assign button itself is gone - re-point this law")
-        named = re.findall(r"press (⚖️ [A-Za-z][A-Za-z \-]*?)(?= to | to$|\)|\"|<|$)", src)
+        # Vault v2 (Elad 2026-10-23): "⚖️ Auto-assign unsorted" and the dock bar's "🪄 Auto-Sort to Mules" became ONE
+        # toolbar button, "🪄 Sort to mules" (still vaultAutoSortByHand). A press of either icon must name it.
+        self.assertIn("🪄 Sort to mules", labels, "the Sort to mules button itself is gone - re-point this law")
+        named = re.findall(r"press ((?:⚖️|🪄) [A-Za-z][A-Za-z \-]*?)(?= to | to$|\)|\"|<|$)", src)
         # L1 (Elad 2026-10-20: moves come from the rules, no Fix/Auto-assign press) cut the last 'press' from the
         # unsorted row: it now says it files on its own. That row must say so (never a press of a missing control),
         # and any 'press ⚖️ ...' that remains must still name the real button.
