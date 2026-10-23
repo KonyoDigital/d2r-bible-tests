@@ -113,8 +113,15 @@ RED_PROOF = [
     {
         "why": "REG-2630 r1 - a file that claims an entry was proved in THIS tree is believed, so REG-2599 owes no clean run",
         "file": "proof_shard.py",
-        "find": "                e = dict(e, tree=FOREIGN_TREE)",
-        "replace": "                e = e",
+        "find": "                e[\"tree\"] = FOREIGN_TREE",
+        "replace": "                pass",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2630 r2 - a shard plan row whose index is a list reaches a set and the import tracebacks",
+        "file": "proof_shard.py",
+        "find": "            if type(row[1]) is not int:\n                return None\n",
+        "replace": "            if False:\n                return None\n",
         "matches": 1,
     },
     {
@@ -315,6 +322,34 @@ class AForeignOrUntrustedFileIsRefused(_Fixture):
 
     def test_no_file(self):
         self.assertRefused([], "no file")
+
+    def test_a_plan_row_whose_index_is_not_a_whole_number(self):
+        """r2: a list index in a shard's `assigned` rows used to raise TypeError while the plan was read - on both paths"""
+        a = self.shard_file(1, 1, {"k1": _e("g1", 0)})
+        with io.open(a, encoding="utf-8") as fh:
+            body = json.load(fh)
+        for bad in ([0], {"i": 0}, "0", True):
+            body["shard"]["assigned"] = [["g1", 0], ["g1", bad]]
+            with io.open(a, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(body))
+            self.said[:] = []
+            self.assertRefused([a], "not a whole number")
+            self.said[:] = []
+            self.assertEqual(heart2.import_shards([a], say=self.said.append, target=self.target), 2, self.said)
+            self.assertIn("not a whole number", " ".join(self.said))
+            self.assertIsNone(self.home(), "a refused import wrote")
+
+    def test_a_claimed_here_entry_still_counts_as_banked_for_a_stopped_shard(self):
+        """r2: the tree rewrite must not hide a banked proof from unbanked() (it asks `take.get(key) is e`)"""
+        a = self.shard_file(1, 1, {"k1": dict(_e("g1", 0), tree=heart2.TREE_ID)}, assigned=[("g1", 0), ("g1", 1)])
+        with io.open(a, encoding="utf-8") as fh:
+            body = json.load(fh)
+        ok, why, sets = proof_shard.check_proved([("s1", body, None)], HEAD)
+        self.assertTrue(ok, why)
+        ok, why, take, _sk = proof_shard.select(sets, keyer=lambda g, i: self.keys.get((g, i)), here=heart2.TREE_ID)
+        self.assertTrue(ok, why)
+        self.assertEqual(take["k1"]["tree"], proof_shard.FOREIGN_TREE)
+        self.assertEqual(proof_shard.unbanked(sets, take), {1: (1, 2)})
 
     def test_a_proof_index_that_is_not_a_whole_number(self):
         """r1: a list or dict index used to raise TypeError mid-import; a bool or text one names no proof either"""

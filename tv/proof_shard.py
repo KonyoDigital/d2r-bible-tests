@@ -241,6 +241,18 @@ def servable(e):
     return e.get("verdict") == "PROVEN"
 
 
+def plan_rows(raw):
+    """REG-2630 r2 - a manifest's `assigned` rows -> {(gate, index)}, or None when a row's index is not a whole number
+    (a list or dict index would not even hash; a bool or text one names no proof). Rows of another shape are skipped."""
+    out = set()
+    for row in raw or []:
+        if isinstance(row, list) and len(row) == 2:
+            if type(row[1]) is not int:
+                return None
+            out.add((str(row[0]), row[1]))
+    return out
+
+
 def check_shards(bodies, head):
     """Is this a complete, consistent set of finished shards of HEAD? -> (ok, why | None, [(k, entries, assigned)])
 
@@ -267,10 +279,9 @@ def check_shards(bodies, head):
             return False, "shard %d/%d is given twice" % (k, n), []
         ns.add(n)
         plans.add(m.get("plan"))
-        assigned = set()
-        for row in m.get("assigned") or []:
-            if isinstance(row, list) and len(row) == 2:
-                assigned.add((str(row[0]), row[1]))
+        assigned = plan_rows(m.get("assigned"))
+        if assigned is None:
+            return False, "%s assigns a proof index that is not a whole number, so it names no proof" % label, []
         ent = body.get("entries")
         if not isinstance(ent, dict):
             return False, "%s has no 'entries' map" % label, []
@@ -328,8 +339,9 @@ def check_proved(bodies, head):
             done = sh.get("finished") is True
             if not done:
                 return False, "%s is a shard that never finished" % label, []
-            m, assigned = sh, set((str(r[0]), r[1]) for r in (sh.get("assigned") or [])
-                                  if isinstance(r, list) and len(r) == 2)
+            m, assigned = sh, plan_rows(sh.get("assigned"))
+            if assigned is None:
+                return False, "%s assigns a proof index that is not a whole number, so it names no proof" % label, []
         else:
             return False, "%s carries no export or shard manifest (or both) - nothing says where it was proved" % label, []
         if not head or head != m.get("head"):
@@ -384,7 +396,7 @@ def select(shards, keyer=None, dropped=None, here=None):
                 return False, "shard %d files %s[%s] under a key this checkout's bytes do not give it" % (
                     k, e.get("gate"), e.get("proof")), {}, 0
             if here is not None and e.get("tree") == here:
-                e = dict(e, tree=FOREIGN_TREE)     # REG-2630 - "proved here" is this tree's word, never a file's
+                e["tree"] = FOREIGN_TREE           # REG-2630 - "proved here" is this tree's word, never a file's (same dict: unbanked() asks `is`)
             take[key] = e                   # KEPT as the shard wrote it - its tree above all
     return True, None, take, skipped
 
