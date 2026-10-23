@@ -560,6 +560,11 @@ def chrome_user_agent(platform=None, version=None):
     When the version cannot be read, the header still names Chrome and a
     challenge page stays unread. It is not reported as a post. Mac and Linux
     name themselves, because a cookie from one does not travel as the other.
+
+    REG-2575: a version read that does not answer in 5 s is a version that cannot be read. Only
+    OSError was caught, so subprocess.TimeoutExpired rose through _headers into the send and the
+    quote, which answered "unread" before any page was fetched: CI's loaded runner, where
+    `google-chrome --version` took longer than 5 s, failed the desk law that way.
     """
     plat = sys.platform if platform is None else platform
     if version is None:
@@ -573,7 +578,7 @@ def chrome_user_agent(platform=None, version=None):
                     capture_output=True, timeout=5, text=True,
                     encoding="utf-8", errors="replace",
                 )
-            except OSError:
+            except (OSError, subprocess.SubprocessError):
                 proc = None
             if proc is not None and proc.returncode == 0:
                 got = (proc.stdout or "").strip()
@@ -588,7 +593,7 @@ def chrome_user_agent(platform=None, version=None):
                         capture_output=True, timeout=5, text=True,
                         encoding="utf-8", errors="replace",
                     )
-                except OSError:
+                except (OSError, subprocess.SubprocessError):
                     proc = None
                 if proc is not None and proc.returncode == 0:
                     got = (proc.stdout or "").strip().rsplit(" ", 1)[-1]

@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2575 - A CHROME VERSION READ THAT TOOK OVER 5 S TURNED A D2JSP POST INTO "UNREAD" (M6 CI fix round)
+
+CI on ci/gbl-batch-m6 failed test_d2jsp_desk at test_a_challenge_page_is_posted_through_a_scratch_chrome ("False is not
+true", gate 7.1 s; green on the Mac and on an idle Linux box). tv/d2jsp_chrome.py chrome_user_agent asks the installed Chrome
+for its version (`google-chrome --version` on Linux, `defaults read` on a Mac) with timeout=5 and caught only OSError. On the
+loaded runner the read took longer, subprocess.TimeoutExpired rose through _headers into _send_route's cookie-to-fetch path,
+and the post answered "unread" before any page was fetched. REPRODUCED on Linux with a `google-chrome` that sleeps 6 s: the
+same case failed with the same message, plus three more. The same defect would hit a real post or quote on a slow PC.
+FIX: both version reads catch (OSError, subprocess.SubprocessError); a version that cannot be read is the default version,
+as the docstring already said. Law: test_a_chrome_version_read_that_times_out_still_names_chrome drives both halves on any
+host (the module sees the platform under test), a timing-out version read, and a challenge-page post that must still be
+submitted. Two RED_PROOFs, one per half. swallow ratchet holds at 66.
+
 ### REG-2574 - M6 ADDED THE 45TH FIXED-SIZE SOURCE WINDOW AND LEFT THE MAP WITHOUT ITS EIGHT LAWS (M6 CI fix round)
 
 The CI-only gates on ci/gbl-batch-m6 read two things the pre-push hook does not run. test_a_source_window_must_reach_its_subject:

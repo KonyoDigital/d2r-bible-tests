@@ -1798,6 +1798,52 @@ process.stdout.write(JSON.stringify({
         self.assertIn("_cbItemsNamed", self.bible[self.bible.index("function catalogBase("):self.bible.index("function baseOf(", self.bible.index("function catalogBase("))])
 
 
+    def test_a_chrome_version_read_that_times_out_still_names_chrome(self):
+        # REG-2575 - `google-chrome --version` (Linux) or `defaults read` (Mac) that does not answer in 5 s
+        # raised subprocess.TimeoutExpired through _headers, so a challenge-page post answered "unread"
+        # before anything was fetched. CI's loaded runner hit it. A version that cannot be read is the
+        # default version, and the send goes on. Both halves are asked on every host: the module sees
+        # the platform under test, so neither proof below needs a Mac or a Linux box.
+        import d2jsp_chrome as desk
+        real_sys = sys
+
+        class _Host(object):
+            def __init__(self, platform):
+                self.platform = platform
+
+            def __getattr__(self, name):
+                return getattr(real_sys, name)
+
+        def transport(method, url, headers, data):
+            return 200, {}, b"<title>Just a moment...</title>"
+
+        for platform in ("linux", "darwin"):
+            asked = []
+
+            def slow_run(argv, *args, **kwargs):
+                asked.append(list(argv))
+                raise subprocess.TimeoutExpired(argv, kwargs.get("timeout", 5))
+
+            real_run, real_bin, real_mod_sys = desk.subprocess.run, desk._chrome_bin, desk.sys
+            desk.subprocess.run = slow_run
+            desk._chrome_bin = lambda platform=None, which=None: "/opt/chrome/chrome"
+            desk.sys = _Host(platform)
+            try:
+                agent = desk.chrome_user_agent()
+                code, out = _send_fresh(desk,
+                    {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+                    "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+                    cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+                    transport=transport, open_login=lambda: True,
+                    chrome_post=lambda subject, text, cookie: "https://forums.d2jsp.org/topic.php?t=9&f=268",
+                )
+            finally:
+                desk.subprocess.run, desk._chrome_bin, desk.sys = real_run, real_bin, real_mod_sys
+            self.assertTrue(asked, "%s: the version read was never asked, so this case proved nothing" % platform)
+            self.assertIn("Chrome/131.0.0.0", agent, platform)
+            self.assertEqual((code, out.get("reason")), (200, "submitted"), (platform, out))
+            self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
 RED_PROOF = [
     {
         "why": "REG-2188 - a no-Origin request the browser marks cross-site or same-site is trusted on Host alone again, "
@@ -1820,6 +1866,21 @@ RED_PROOF = [
         "file": "tv/d2jsp_chrome.py",
         "find": '        return 200, {"ok": False, "reason": "maybe-sent", "board": int(board), "at": at}\n',
         "replace": '        return 200, {"ok": False, "reason": "not-posted"}\n',
+        "matches": 1,
+    },
+    {
+        "why": "REG-2575 - a Chrome version read that times out raises through the send again, so a "
+               "challenge-page post answers unread before anything is fetched",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "except (OSError, subprocess.SubprocessError):\n                    proc = None\n",
+        "replace": "except OSError:\n                    proc = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2575 - the Mac half: a `defaults read` that times out raises through the send again",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "            except (OSError, subprocess.SubprocessError):\n                proc = None\n",
+        "replace": "            except OSError:\n                proc = None\n",
         "matches": 1,
     },
 ]
