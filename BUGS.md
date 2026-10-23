@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2612 - #144 RECURRED ON LINUX AND NOTHING RECORDED WHO REMOVED THE SANDBOX - board #71
+
+The 2026-10-23 01:11-02:21 IDT stage prove on the Linux box lost every root .md/.html/.json and 13 tv files from lane 4's
+sandbox in one gate, while a gate that touches no files ran; later gates read "bible.html is not in the sandbox", and the
+sandbox left behind had lost its owner file. That box has no dirhelper, cron or tmpreaper, so REG-2438's macOS atime
+theory (on Claude's unshipped M2 branch, marked "root cause UNVERIFIED") is not the whole cause. The pattern is a
+whole-sandbox rmtree's. Instrument, not a fix: every stale sweep and every run's own drop writes one line
+(time, remover pid, sandbox, owner, why) to heart2-sweeps.log in the temp dir before it removes, and a vanish now
+reports whether the owner file survives, the sandbox root's age, and any journal line naming that sandbox. Law:
+tv/test_a_vanished_sandbox_names_its_remover.py (4 cases, 5 red-proofs). Rides with M2's heart2.py track.
+
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
 Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote
