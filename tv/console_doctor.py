@@ -4545,7 +4545,7 @@ def _keepalive_pythonw(python=None, isfile=os.path.isfile):
     return py
 
 
-def keepalive_task_xml(pythonw, tv_dir, start_local):
+def keepalive_task_xml(pythonw, tv_dir, start_local, run_as=None):
     """PURE. The Task Scheduler definition of the keepalive. -> str
 
     Every KEEPALIVE_EVERY_MIN minutes, for ever, as the signed-in user (InteractiveToken - no password is stored and
@@ -4553,8 +4553,20 @@ def keepalive_task_xml(pythonw, tv_dir, start_local):
     a laptop), never two at once, with NO time limit (PT0S: a limit job-kills the console a pass starts, review r1 -
     a pass ends itself after console_keepalive.PASS_DEADLINE_S instead). A pass is console_keepalive.py: it launches only a console
     that is GONE (REG-2614). XML rather than /TR: /TR is capped at 261 characters and a repo under a long path with
-    spaces would not fit."""
+    spaces would not fit.
+
+    run_as (REG-2616, his 2026-10-23 ruling): the UNATTENDED mode - the task runs whether or not anyone is signed in
+    (LogonType Password, as that account), so a console that dies, or a PC that reboots to the sign-in screen, still
+    gets its console back. The XML names only the account; the password is given to Task Scheduler at install time
+    (install_unattended_keepalive) and is never in the XML, the repo or a log. None = the default, signed-in or
+    locked only (InteractiveToken)."""
     script = ntpath.join(tv_dir, "console_keepalive.py")
+    if run_as:
+        principal = ('<Principal id="Author"><UserId>%s</UserId><LogonType>Password</LogonType>'
+                     '<RunLevel>LeastPrivilege</RunLevel></Principal>' % _xml_esc(run_as))
+    else:
+        principal = ('<Principal id="Author"><LogonType>InteractiveToken</LogonType>'
+                     '<RunLevel>LeastPrivilege</RunLevel></Principal>')
     return ('<?xml version="1.0" encoding="UTF-16"?>\n'
             '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
             '  <RegistrationInfo><Description>TV DIABLO - brings the console back within %d minutes if it dies '
@@ -4562,15 +4574,14 @@ def keepalive_task_xml(pythonw, tv_dir, start_local):
             '  <Triggers><TimeTrigger><StartBoundary>%s</StartBoundary><Enabled>true</Enabled>'
             '<Repetition><Interval>PT%dM</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>'
             '</TimeTrigger></Triggers>\n'
-            '  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType>'
-            '<RunLevel>LeastPrivilege</RunLevel></Principal></Principals>\n'
+            '  <Principals>%s</Principals>\n'
             '  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
             '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
             '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable>'
             '<Hidden>true</Hidden><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Enabled>true</Enabled></Settings>\n'
             '  <Actions Context="Author"><Exec><Command>%s</Command><Arguments>%s</Arguments>'
             '<WorkingDirectory>%s</WorkingDirectory></Exec></Actions>\n'
-            '</Task>\n') % (KEEPALIVE_EVERY_MIN, _xml_esc(start_local), KEEPALIVE_EVERY_MIN, _xml_esc(pythonw),
+            '</Task>\n') % (KEEPALIVE_EVERY_MIN, _xml_esc(start_local), KEEPALIVE_EVERY_MIN, principal, _xml_esc(pythonw),
                              _xml_esc('"%s"' % script), _xml_esc(tv_dir))
 
 
@@ -4709,6 +4720,76 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
         return {"did": "created", "why": "made, but its record could not be kept (%s)" % type(e).__name__}
     return {"did": "created", "why": "the '%s' task now brings this console back within %d minutes if it dies"
                                      % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN)}
+
+
+#: Register-ScheduledTask reading the password from STDIN (never argv: a command line is readable by every process on
+#: the PC through WMI / Task Manager), the other values from the environment (no quoting of a user or path).
+_UNATTENDED_PS = ("$ErrorActionPreference='Stop'; $p=[Console]::In.ReadLine(); "
+                  "Register-ScheduledTask -TaskName $env:TVD_KA_TASK -Xml (Get-Content -Raw -LiteralPath $env:TVD_KA_XML) "
+                  "-User $env:TVD_KA_USER -Password $p -Force | Out-Null")
+
+
+def _without_secret(text, secret):
+    """-> text with every copy of the secret replaced. Whatever Windows says back is said - the password never is."""
+    text = str(text or "")
+    return text.replace(secret, "***") if secret else text
+
+
+def install_unattended_keepalive(user, password, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
+                                 write_xml=None, isfile=os.path.isfile, env=None):
+    """REG-2616 - THE KEEPALIVE THAT ALSO RUNS WITH NOBODY SIGNED IN. -> {"did", "why"}  (never the password)
+
+    His 2026-10-23 ruling: the ALT must get its console back after a reboot that stops at the sign-in screen, which
+    the default task (signed-in or locked only) cannot do. An install-time act by the owner, not the console's: run
+    once (console_keepalive.py --install-unattended USER), it (re)registers the same task as USER with the stored
+    password. Nothing in the console calls this; with no password the default mode stays exactly as it was.
+
+      did "created"   registered and the check SEES it
+      did "failed"    refused / could not be checked - Windows' words are said, the password is replaced by ***
+      did None        not Windows, or no user / no password given - nothing is done on a guess
+
+    The password goes to PowerShell on STDIN only - never argv, the XML, the marker, a log or the return value. A
+    task this installs is the owner's: ensure_keepalive_task finds it 'already' there and never removes it (it
+    records no madeMs)."""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    if not is_win:
+        return {"did": None, "why": "only a Windows console has a keepalive task"}
+    if not user or not password:
+        return {"did": None, "why": "the unattended keepalive needs the account and its password - nothing is done"}
+    if run is None:
+        import git_quiet as _gq
+        run = _gq.run
+    tv_dir = tv_dir or os.path.dirname(os.path.abspath(__file__))
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    start = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now_ms / 1000.0))
+    xml = keepalive_task_xml(_keepalive_pythonw(python, isfile), tv_dir, start, run_as=user)
+    import tempfile
+    fd, xml_path = tempfile.mkstemp(prefix="tvd-keepalive-", suffix=".xml")
+    os.close(fd)
+    try:
+        if write_xml is not None:
+            write_xml(xml_path, xml)
+        else:
+            with open(xml_path, "w", encoding="utf-16") as fh:
+                fh.write(xml)
+        e = dict(os.environ if env is None else env, TVD_KA_TASK=KEEPALIVE_TASK, TVD_KA_XML=xml_path, TVD_KA_USER=user)
+        r = run(["powershell", "-NoProfile", "-NonInteractive", "-Command", _UNATTENDED_PS],
+                input=(password + "\n").encode("utf-8"), capture_output=True, timeout=60, env=e)
+    except Exception as ex:
+        return {"did": "failed", "why": "the unattended keepalive could not be registered (%s)" % type(ex).__name__}
+    finally:
+        try:
+            os.remove(xml_path)
+        except OSError:
+            pass
+    if getattr(r, "returncode", 1) != 0:
+        said = ("%s %s" % (_schtasks_text(getattr(r, "stdout", None)), _schtasks_text(getattr(r, "stderr", None))))
+        return {"did": "failed", "why": "Windows refused the unattended keepalive: %s"
+                                        % (_without_secret(said, password).strip()[-200:] or "no reason given")}
+    if _keepalive_task_exists(run) is not True:
+        return {"did": "failed", "why": "the unattended keepalive was registered but the check still cannot see it"}
+    return {"did": "created", "why": "the '%s' task now runs every %d minutes as %s, signed in or not"
+                                     % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN, user)}
 
 
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.
