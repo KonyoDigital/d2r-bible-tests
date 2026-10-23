@@ -7374,6 +7374,45 @@ def _arm_force_exit(reason="quit", delay=None):
     return True
 
 
+def _exit_on_purpose_path():
+    """REG-2614 — where the Windows keepalive (console_keepalive.py) looks for "closed on purpose"."""
+    return os.path.join(HERE, ".tvd_exited_on_purpose")
+
+
+def _keepalive_owner(is_win=None):
+    """Only the primary Windows console speaks to the keepalive: never a harness, never a scratch port, never a Mac."""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    return bool(is_win and not os.environ.get("TV_STUB") and _is_primary_console())
+
+
+def _note_exit_on_purpose(reason, path=None, is_win=None):
+    """REG-2614 — a console closed ON PURPOSE (✕ to quit, Esc→/api/quit, the window returning) says so, so the
+    keepalive never brings back a console he closed: a choice is not a crash. A console that DIES never gets here,
+    and that is the one the keepalive brings back. Cleared at the next boot (_clear_exit_on_purpose). Never raises."""
+    try:
+        if not _keepalive_owner(is_win):
+            return False
+        p = path or _exit_on_purpose_path()
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("%d %s\n" % (int(time.time()), str(reason or "quit")[:60]))
+        return True
+    except Exception:
+        return False
+
+
+def _clear_exit_on_purpose(path=None, is_win=None):
+    """REG-2614 — a console that is running again was not closed on purpose any more. Never raises."""
+    try:
+        if not _keepalive_owner(is_win):
+            return False
+        os.remove(path or _exit_on_purpose_path())
+        return True
+    except OSError:
+        return False
+    except Exception:
+        return False
+
+
 def _request_console_exit(reason="quit", hard_delay=None):
     """v1420 — single exit surface for ✕, Esc→/api/quit, and webview-return.
 
@@ -7397,6 +7436,7 @@ def _request_console_exit(reason="quit", hard_delay=None):
     # background (close_means_background); destroy() below fires the same `closing` event, and this is how
     # that handler knows to let the window go instead of minimizing it.
     globals()["_EXIT_REQUESTED"] = str(reason or "quit")[:60]
+    _note_exit_on_purpose(reason)
     win = globals().get("_MAIN_WIN")
     errs = []
     marked = False
@@ -25797,6 +25837,12 @@ def _sign_in_setup_once():
             out.update(did=r.get("did"), why=r.get("why") or "")
             if r.get("did") in ("created", "failed", "left"):
                 print("[sign-in] %s - %s" % (r.get("did"), str(r.get("why"))[:160]), flush=True)
+            # REG-2614 — the keepalive rides the same consent: it exists only while the sign-in start does
+            _clear_exit_on_purpose()
+            k = _cd_si.ensure_keepalive_task(_decision_path(".keepalive_task.json"), r.get("did"))
+            out.update(keepalive=k.get("did"), keepaliveWhy=k.get("why") or "")
+            if k.get("did") in ("created", "failed", "left", "withdrawn"):
+                print("[keepalive] %s - %s" % (k.get("did"), str(k.get("why"))[:160]), flush=True)
     except Exception as e:
         out["why"] = "the sign-in setup raised %s" % type(e).__name__
     globals()["_SIGN_IN_SETUP"] = out
