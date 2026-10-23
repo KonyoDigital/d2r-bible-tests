@@ -494,12 +494,14 @@ class TheWorker(unittest.TestCase):
 
     def test_a_record_that_fails_its_own_hash_is_served_as_corrupt(self):
         seed = dict(self.seed)
-        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_wstores()), "pub": None,
+        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_wstores()),
+                                     "pub": seed["rosterkey:" + OWNER]["pub"],
                                      "stores": dict(_wstores(), d2r_owned='["planted"]')}
         out = _node({"steps": [{"get": OWNER, "seed": seed}, {"get": "Wife PC"}, {"get": "Somebody"}]})
         corrupt, none, bad = (s["get"] for s in out["steps"])
         self.assertTrue(corrupt["corrupt"])
         self.assertNotIn("stores", corrupt)
+        self.assertNotIn("registered key", corrupt.get("why", ""), "the key check, not the hash, refused it")
         self.assertEqual((none["ok"], none["published"]), (True, False))
         self.assertFalse(bad["ok"])
 
@@ -976,7 +978,7 @@ RED_PROOF = [
      "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: the frame boots with no snapshot instead of failing closed",
      "file": "bible.html",
-     "find": "    if (!ok || !stores) {\n",
+     "find": "    if (!ok || !stores || !world) {\n",
      "replace": "    if (!ok) {\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: a write button is let through the click veil",
      "file": "bible.html",
