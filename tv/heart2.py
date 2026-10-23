@@ -1199,6 +1199,7 @@ def _track_sandbox(root):
             f.write(str(os.getpid()))
     except OSError:
         pass
+    _sweep_journal(os.path.dirname(root), "created", root, "new", str(os.getpid()), time.time())   # REG-2612
     return root
 
 
@@ -1233,7 +1234,7 @@ def _rmtree_hard(path):
 
 def _drop_sandbox(root):
     _SANDBOXES.discard(root)
-    _sweep_journal(os.path.dirname(root), root, "dropped by its own run", str(os.getpid()), time.time())   # REG-2612
+    _sweep_journal(os.path.dirname(root), "dropped", root, "own-drop", str(os.getpid()), time.time())   # REG-2612
     if not _rmtree_hard(root):
         sys.stderr.write("  a sandbox could not be removed (it stays on disk until the next sweep): %s\n" % root)
 
@@ -1306,51 +1307,115 @@ def sweep_stale_sandboxes(tmp=None, now=None):
             why = "%.0f h old - no proof run lives that long%s" % (age / 3600.0, (" (owner pid %s)" % owner) if owner else "")
         else:
             continue
-        _sweep_journal(tmp, root, why, owner, now)   # REG-2612 (#71) - written BEFORE the remove, so a half-done one shows
+        _sweep_journal(tmp, "swept", root, "owner-dead" if age < SANDBOX_STALE_S else "stale-24h", owner, now)  # REG-2612
+        #           ^ written BEFORE the remove, so a half-done one shows
         if _rmtree_hard(root):                  # REG-1746 — a read-only git pack kept 71 of these on the ALT
             gone.append((root, why))
     return gone
 
 
 _SWEEP_JOURNAL = "heart2-sweeps.log"
+_JOURNAL_CAP = 1024 * 1024          # past this the journal keeps only its last _JOURNAL_KEEP bytes
+_JOURNAL_KEEP = 256 * 1024
 
 
-def _sweep_journal(tmp, root, why, owner, now):
-    """REG-2612 (#71) - EVERY SANDBOX A SWEEP REMOVES IS WRITTEN DOWN WHERE THE NEXT VANISH CAN READ IT.
+def _sweep_journal(tmp, event, root, code, owner, now):
+    """REG-2612 (#71) - EVERY SANDBOX THAT IS MADE OR REMOVED IS WRITTEN DOWN WHERE THE NEXT VANISH CAN READ IT.
 
     #144's files vanished again on the Linux box (2026-10-23 01:11-02:21 IDT stage run, lane 4: every root .md/.html/.json
     and 13 tv files, mid-run, while a gate that touches no files was running). That box has no dirhelper, cron or
     tmpreaper, so REG-2438's macOS atime theory is not the whole cause. The deletion pattern is an rmtree's, and the
     leftover sandbox had lost its owner file - which only an rmtree of the whole sandbox removes. A sibling prover's
-    sweep is one candidate; nothing recorded it. This journal does. One line, no repo text, in the temp dir itself."""
+    sweep is one candidate; nothing recorded it. This journal does.
+
+    One line per event: `<epoch s>\t<created|swept|dropped>\tpid=<n>\t<heart2.* basename>\towner=<n|->\t<code>`. Only
+    integers, the basename and a fixed code: no repo text, and nothing an owner file holds is copied (the vanish note
+    rides the gate tail heart2 parses). Mode 0600; one O_APPEND write under an exclusive lock where the OS has flock;
+    capped. A write that fails is SAID on stderr - a silent one is what would make a real sweep read as "no line"."""
+    own = str(owner or "").strip()
+    line = "%d\t%s\tpid=%d\t%s\towner=%s\t%s\n" % (
+        int(now), event, os.getpid(), os.path.basename(root), own if own.isdigit() else ("?" if own else "-"), code)
+    path = os.path.join(tmp, _SWEEP_JOURNAL)
     try:
-        with open(os.path.join(tmp, _SWEEP_JOURNAL), "a") as fh:
-            fh.write("%d\tswept-by-pid=%d\t%s\towner=%s\t%s\n"
-                     % (int(now), os.getpid(), os.path.basename(root), owner or "-", why))
-    except OSError:
-        pass
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        try:
+            try:
+                import fcntl
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            except (ImportError, OSError):
+                pass                       # Windows: no flock - a torn line fails the exact-field match, never misnames
+            os.write(fd, line.encode("ascii", "replace"))
+            big = os.fstat(fd).st_size > _JOURNAL_CAP
+        finally:
+            os.close(fd)                   # closed before any replace: Windows refuses to replace an open file
+        if big:
+            with open(path, "rb") as fh:
+                fh.seek(-_JOURNAL_KEEP, os.SEEK_END)
+                keep = fh.read()
+            keep = keep[keep.find(b"\n") + 1:]
+            tmp_path = path + ".%d.tmp" % os.getpid()
+            with open(tmp_path, "wb") as fh:
+                fh.write(keep)
+            os.chmod(tmp_path, 0o600)
+            os.replace(tmp_path, path)
+    except Exception as e:
+        try:
+            sys.stderr.write("  #71 the sandbox journal was not written (%s %s %s)\n"
+                             % (event, os.path.basename(root), type(e).__name__))
+        except Exception:
+            pass
 
 
-def _vanish_witness(sb_root):
-    """REG-2612 (#71) - what the sandbox itself says at the moment a vanish is seen. -> str
+def _journal_lines_for(tmp, name):
+    """The journal's lines naming exactly this sandbox, parsed -> [(epoch, event, pid, owner, code)]. Reads only the
+    last _JOURNAL_KEEP bytes, decoded with errors replaced; a line that does not parse is skipped."""
+    path = os.path.join(tmp, _SWEEP_JOURNAL)
+    with open(path, "rb") as fh:
+        try:
+            fh.seek(-_JOURNAL_KEEP, os.SEEK_END)
+        except OSError:
+            fh.seek(0)
+        text = fh.read().decode("utf-8", "replace")
+    out = []
+    for ln in text.splitlines():
+        f = ln.split("\t")
+        if len(f) != 6 or f[3] != name or not f[0].isdigit() or not f[2].startswith("pid=") \
+                or not f[2][4:].isdigit() or not f[4].startswith("owner="):
+            continue
+        out.append((int(f[0]), f[1], int(f[2][4:]), f[4][6:], f[5]))
+    return out
 
-    Three readings that tell the candidates apart: whether the owner file survives (only a whole-sandbox rmtree - a
-    sweep, a signal's cleanup or the end of a run - removes it), the sandbox root's age, and any sweep journal line
-    naming this sandbox."""
-    base = os.path.dirname(sb_root)
-    parts = ["owner file %s" % ("present" if os.path.isfile(os.path.join(base, _SANDBOX_OWNER)) else "GONE")]
+
+_JOURNAL_SAYS = {"owner-dead": "its owner pid was dead", "stale-24h": "over a day old", "own-drop": "its own run's end",
+                 "new": "made"}
+
+
+def _vanish_witness(sb_root, now=None):
+    """REG-2612 (#71) - what the sandbox and the journal say at the moment a vanish is seen. -> str, never raises.
+
+    Whether the owner file and the sandbox root survive, when and by which pid the sandbox was CREATED (from the journal
+    - the root's mtime moves whenever a direct child is unlinked, so it cannot date the sandbox), and every removal the
+    journal names for exactly this sandbox. Owner gone with no removal line is said as that: an unlink inside the
+    sandbox, an outside rmtree, or a sweep whose line failed (said on stderr then) - not guessed."""
     try:
-        parts.append("sandbox root %.0fs old" % (time.time() - os.path.getmtime(base)))
-    except OSError:
-        parts.append("sandbox root GONE")
-    name = os.path.basename(base)
-    try:
-        with open(os.path.join(os.path.dirname(base), _SWEEP_JOURNAL)) as fh:
-            hits = [ln.strip() for ln in fh if ("\t%s\t" % name) in ln]
-    except OSError:
-        hits = []
-    parts.append(("swept: " + " | ".join(hits[-3:])) if hits else "no sweep journal line names it")
-    return "; ".join(parts)
+        now = time.time() if now is None else now
+        base = os.path.dirname(sb_root)
+        name = os.path.basename(base)
+        parts = ["owner file %s" % ("present" if os.path.isfile(os.path.join(base, _SANDBOX_OWNER)) else "GONE"),
+                 "sandbox root %s" % ("present" if os.path.isdir(base) else "GONE")]
+        try:
+            rows = _journal_lines_for(os.path.dirname(base), name)
+        except OSError:
+            rows = []
+        made = [r for r in rows if r[1] == "created"]
+        parts.append(("created %ds ago by pid %d" % (max(0, int(now) - made[-1][0]), made[-1][2])) if made
+                     else "no created line")
+        rm = ["%s by pid %d (%s, owner %s)" % (r[1], r[2], _JOURNAL_SAYS.get(r[4], "?"), r[3] if r[3].isdigit() else "-")
+              for r in rows if r[1] in ("swept", "dropped")]
+        parts.append(("removal: " + " | ".join(rm[-3:])) if rm else "no sweep journal line names it")
+        return "; ".join(parts)
+    except Exception as e:
+        return "witness unreadable (%s)" % type(e).__name__
 
 
 def make_sandbox(say=print):
@@ -1834,7 +1899,7 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
         return res
     restored = []
     _sb_root = os.path.dirname(sandbox_tv)
-    _witness = _vanish_witness(_sb_root)     # REG-2612 (#71) - read BEFORE the restore touches the sandbox
+    _witness = _vanish_witness(_sb_root)     # REG-2612 (#71) - read BEFORE the restore touches it; never raises
     for n in gone:
         src = os.path.join(REPO, n)          # REG-1919 - n is relative to the repo now (tv/x.py, .claude/skills/...)
         try:
