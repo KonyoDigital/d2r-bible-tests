@@ -7,6 +7,201 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2497 - THE REG-2490 LAW NEVER RAN THE CLICK MARK OR THE EDIT HALF: DELETING EITHER STAYED GREEN (2026-10-22, M6 T1 review)
+
+The T1 review mutated a scratch copy, and all three d2jsp laws stayed green under each change:
+- `window.__d2jspClicked=1;btn.click();` became `btn.click();` in `_fill_js`, or `mark:!!window.__d2jspClicked,` became
+  `mark:false,` in `_SNAPSHOT_JS`. The mark is the only thing that tells the compose page a slow submit has not left
+  yet from the form the board sent back. The law's fake board set its own mark on any fill and returned its own
+  snapshot dict, so neither script ever ran. Driven through the real `_chrome_post` over a board that honours the
+  scripts (the submit leaves post.php after 3 s, and the board takes the post), HEAD said submitted. The mutated module
+  said not-posted, which is the REG-2490 lie back.
+- Dropping readyState from the snapshot: green.
+- `_send_edit` put back in its pre-REG-2490 shape (an edit with no topic receipt is not-posted), or the edit flow's
+  no-receipt branch read as no click: green. No case drove `_chrome_edit`, or `_flow_step` with kind 'edit'.
+- Also green: the re-send key without the board, a zero budget for the board list read after the click, a topic
+  receipt that skips the freshness test, and the urllib seam reading a lost POST answer as unread.
+FIX (the law only): every flow case now drives the REAL `_Page` over a fake DevTools socket, so `_cdp_call`,
+`_SNAPSHOT_JS`, `_open_link_js` and `_fill_js` are what run. The board reads those expressions the way a page does:
+- each document has its own window, so the mark the fill sets is gone on the next document;
+- a form still loading has no button yet, and the board list read after the click can be slow to load;
+- CDP events arrive before the replies;
+- an expression it cannot read fails the case.
+New cases: the 3 s submit (submitted), and the mark read back through the page itself. A fill answered with an
+error. Five edit outcomes, a topic with no Edit link, and the edit through d2jsp_send on 268 and 271. A-B-A. A slow
+board list. The clicked-on topic page. The per-board record. The urllib seam's four POST answers.
+MEASURED: Ran 13, OK. Each of the 21 RED proofs turns it red by hand (it had 9), and heart2 --prove on these bytes
+gives 33/33 PROVEN (this law 21/21, the desk law 3/3, the cookie law 9/9). Of the review's 20 mutations, 19
+are now red. The one still green is `_kill_profile_holders` skipping its own pid. The anchored `--user-data-dir=`
+pattern cannot match the console's own command line, so that skip only guards a case that cannot happen.
+
+### REG-2496 - A FILL THAT DEVTOOLS ANSWERED WITH AN ERROR READ AS NO CLICK (2026-10-22, M6 T1 review)
+
+`_Page.act` read `got.get("result") or {}`. When the submit's own navigation tears the page down while the fill's
+Runtime.evaluate is in flight, Chrome answers with a protocol error ("Execution context was destroyed") instead of a
+result. act then returned '', the same answer as a script that ran and clicked nothing.
+MEASURED (the review's probe: the real `_chrome_post` and `_Page` over a fake DevTools socket): the browser clicked and
+landed on topic.php?t=951, and the run came back {clicked: False, stop: 'form-unknown'}. The answer was 'form-unknown',
+which tells him nothing was posted for a post the board took, and the run never looked for a receipt.
+FIX: a reply with no result raises `_ErrorReply` (an OSError). `_run_flow` then reads the fill as unanswered
+(`_NO_ANSWER`, which counts as clicked) and carries the run on to its receipt. `snapshot()` still reads such a reply as
+no snapshot, and the search flow still counts its submit as sent, so neither changes.
+GUARD: test_a_d2jsp_post_is_sent_once_and_never_called_unsent (a post and an edit each end submitted with the topic).
+1 RED proof.
+LEFT: a fill whose script threw (exceptionDetails) still reads as no click, since everything in it that can throw
+runs before `btn.click()`.
+
+### REG-2495 - THE RE-SEND RECORD ANSWERED A, B, A ON ONE TOPIC 'already-posted' WHILE THE BOARD SHOWED B (2026-10-22, M6 T1 review)
+
+REG-2490's re-send record was keyed on (board, subject, sha256 of the body) alone, and a later send that changed the
+same topic left it in place. Take a shop list posted as A (topic T), edited to B, then edited back to A inside 30
+minutes. The third send answered {reason: 'already-posted', topic: T, at: <A's time>}, so the edit never ran and the
+board still listed B. The desk said the list was posted while the board still showed the sold item.
+MEASURED (the review's probe, through d2jsp_send): calls new=1, edit=1, and the board showed 45 fg. The maybe-sent
+answer had the same hole.
+FIX:
+- Each record holds the topics its send changed or made (`on`, by t= id).
+- A send that went up, or may have, drops every other draft's record on those topics.
+- An edit is answered only by a record of the topic it edits. Another topic's record says nothing about this one,
+  and an edit cannot make a second topic.
+- A new post is still answered by any record of the same draft.
+MEASURED after: new=1, edit=2, and the board shows 30 fg. The identical edit sent right after is already-posted and
+starts no Chrome.
+GUARD: test_a_d2jsp_post_is_sent_once_and_never_called_unsent: A-B-A with B submitted and with B maybe-sent, and a
+maybe-sent new post followed by an edit of the saved topic. 2 RED proofs.
+LEFT: once A's topic has been edited to B, a new post of A runs, because that record is gone. The board can then hold
+A and B as two topics with the same subject. That send is the page's choice: the page edits its saved topic and sends
+a new post only when it has none.
+
+### REG-2494 - THE D2JSP LAW RAN ZERO TESTS FOR NINE DAYS: a66f08dfe DROPPED ITS __main__ BLOCK (2026-10-22, M6 T1)
+
+tv/test_the_d2jsp_desk_reads_a_price_before_it_posts.py lost its `if __name__ == "__main__": unittest.main()` block in a66f08dfe
+(2026-10-13). Gate test_d2jsp_desk runs `python3 <file>`, which then defines 18 tests, runs none and exits 0, and
+run_gates printed `✅ test_d2jsp_desk 0.0s` (CI job 119651077701 on 7285e7efc, log line 529). It was the only tv/test_*.py without the block.
+REG-2188, REG-2190 and REG-2196 name this law as their guard, so none of those guards ran in the gate set. Run by hand at
+7285e7efc it was red: Ran 18, FAILED (failures=2), both on `post_end - post_fn < 7200` over the window between
+`def _chrome_post(` and `def d2jsp_quote(`, which REG-2190's sweep (e29faa5c8) took from 7199 to 7226 characters.
+
+FIX: the block is back (verbosity 2). The backend stub cases read the REG-2490 contract: a click that stayed on post.php
+is maybe-sent with the board and the time, a run that never clicked is not-posted, and a receipt off the forum host is
+never the topic. The capped window is gone. It stood in for "this text is the post function and nothing beside it", so
+the post flow is now read with `_code_of` (inspect.getsource of its own functions, comments and docstrings dropped),
+which cannot reach a neighbour and has no number to outgrow. The behaviour is asserted in the new law below. Every
+backend send starts with an empty re-send record (`_send_fresh`), and the login-status cases stub the sweep, so the
+law touches nothing in his temp dir. 3 RED proofs (REG-2188 cross-site refusal, REG-2190 age gate, REG-2490
+maybe-sent) show that the guards it carries run again.
+MEASURED: Ran 18, OK (0.7 s); heart2 --prove 3/3 PROVEN.
+LEFT: the class gap is open. A tv/test_*.py with test cases and no main block runs nothing and still prints a tick.
+TestNoOrphanSuite (test_control.py) checks registration and classes BELOW the guard, never a missing guard. A RED proof
+cannot pin it either: the tampered law runs nothing and exits 0, which reads green. The check belongs in
+TestNoOrphanSuite, or in run_gates' verdict (exit 0 with no `Ran N tests` line); neither file is this track's.
+
+### REG-2493 - THE REG-2190 SWEEP NEVER KILLED A STALE CHROME: pgrep READ ITS PATTERN AS AN OPTION (2026-10-22, M6 T1)
+
+`_sweep_stale_scratch` ran `pgrep -f --user-data-dir=<profile>`. pgrep parses `--user-data-dir=...` as an option of its own:
+MEASURED on his Mac, that argv prints `pgrep: illegal option -- -` and its usage, exits 2, and lists nothing, while
+`pgrep -f -- <same pattern>` found the planted process. Linux procps rejects an unknown long option the same way (not
+measured here). So since e29faa5c8 (2026-10-13) the sweep removed a stale profile and left the headless Chrome holding
+his decrypted d2jsp session running. The pattern was also an unanchored substring: a live profile whose path only
+starts with a stale one would have been a match.
+FIX: `["pgrep", "-f", "--", "--user-data-dir=" + _ere(profile) + "( |$)"]`. The pattern goes after `--`, is escaped as
+an extended regex, and ends at a space or at the end of the command line.
+GUARD: tv/test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py. A planted sleeper carrying a stale profile's
+--user-data-dir is SIGKILLed, and one whose profile path only starts with it survives. 2 RED proofs.
+
+### REG-2492 - A KILLED CONSOLE LEFT A COPY OF HIS WHOLE CHROME COOKIE DATABASE IN $TMPDIR (#112, 2026-10-22, M6 T1)
+
+`_read_rows` backed the Chrome Cookies database up into `tempfile.NamedTemporaryFile(prefix='d2jsp-cookies-',
+delete=False)` and removed it only in a finally. A console killed mid-read left every site's encrypted cookies in
+$TMPDIR, and on Linux that is under Chromium's published fallback key. `_SCRATCH_PREFIXES` did not name that file, and
+`shutil.rmtree(ignore_errors=True)` cannot remove a file but counted it as removed. Nothing ended a scratch Chrome
+that the console still had in flight when it exited.
+FIX:
+- The backup goes into `sqlite3.connect(':memory:')`, so no copy touches the disk.
+- The sweep removes d2jsp-cookies-* files with os.remove, and counts a profile or a copy only when it is gone.
+- `d2jsp_login_status()` sweeps too. GET /api/d2jsp_login asks it every time the room opens.
+- Each scratch Chrome and its profile are tracked from Popen until the end of the block, and an atexit handler
+  (`_reap_in_flight`) kills and removes whatever is still tracked.
+- `_sweep_stale_scratch(now=None, tmp=None) -> int` keeps its name and signature for T3's boot call.
+GUARD: tv/test_no_d2jsp_cookie_copy_or_window_outlives_a_read.py:
+- a cookie read leaves its temp folder's mtime alone (premise: a made-and-removed file moves it);
+- a planted stale copy and its journal are removed and counted, while a fresh one and another name stay;
+- a copy in a folder it cannot write stays and is not counted;
+- opening the room's login check sweeps;
+- a child python that exits with a tracked scratch process ends it and removes its profile.
+9 RED proofs (this law also holds REG-2491's quote door and REG-2493's two), heart2 --prove: 9/9 PROVEN. A first cut
+of the exit case hung under its own tamper: the helper held the law's stdout pipe, so subprocess.run waited on it
+past the 60 s gate (UNPROVABLE). The law's helpers now get DEVNULL for all three streams.
+LEFT: atexit runs on a normal interpreter exit only. An os.execv relaunch (control_app's _before_exec sites), os._exit
+(the console's exit path) and kill -9 all skip it. The stale sweep at the next boot (T3) or the next room open takes
+what those leave once it is 5 minutes old. Calling `_reap_in_flight` from control_app's exit and exec paths is not in
+this track, because control_app.py is T3's file.
+
+### REG-2491 - A PRICE READ BROUGHT HIS CHROME TO THE FRONT, AND A CHROME THAT COULD NOT START KILLED THE ROUTE (#83, 2026-10-22, M6 T1)
+
+control_app.py:45617-45620 calls `open_quote_login_once()` whenever a price comes back need-login, and refreshQuotes
+asks for prices when the room opens, with no click. So the forum login opened in his Chrome and Chrome came to the front
+over the console. GrokBot, #230, 6139959314 (v3707): "That frame shows Chrome's forums.d2jsp.org page covering the
+whole console". On the post side, `import websocket` raised ImportError, which `_send_through_chrome` (it caught only
+OSError) let escape: the route died and the page said "This console has not loaded the Chrome connection". A missing
+Chrome binary, or DevTools not up in 12 s, read 'unread'.
+FIX: `open_quote_login_once()` opens nothing and returns False. The lamp click and a Post click are the only doors to
+the login, and the price stays need-login (the page already says the forum search needs the Chrome login). The route's
+call is now harmless, and control_app.py is untouched. `_scratch_chrome` raises `ChromeStart` for a missing websocket
+module, a missing Chrome, a Chrome that will not start, or no DevTools connection. Each becomes reason 'chrome-start'
+with a short `why`, and nothing was posted.
+GUARD: both new laws (a need-login price read opens nothing while the lamp and Post still do; all three ways a Chrome
+cannot start are chrome-start and leave no profile). 3 RED proofs.
+LEFT: the v3708 Linux cookie read (b3da2a019) has never been checked live; that is blocked as 83.live-post, not
+builder work. The words the page shows for chrome-start, busy and maybe-sent are T2's.
+
+### REG-2490 - A CLICKED d2jsp POST COULD READ "NOTHING WAS POSTED", AND TWO SENDS COULD RUN AT ONCE (#106, 2026-10-22, M6 T1)
+
+MEASURED at v3784 (7285e7efc):
+- One 25 s deadline in `_chrome_post` covered loading the board, opening New Trade, filling the form, the submit and
+  the redirect. After the click, a run that had not reached topic.php returned the post.php URL, which
+  `_send_through_chrome` called 'not-posted'. Any OSError after the click (the websocket dying) was 'unread'.
+- `_chrome_edit` had the same shape.
+- The urllib seam turned an error after its POST into 'unread' and a 200 that was not a receipt into 'not-posted'. A
+  challenge page answering the POST posted the same draft a second time, through Chrome.
+- Each of those told him "nothing was posted", and he clicks again.
+- There was no server lock. d2jsp_send ran once per request on a ThreadingHTTPServer, so a board reload or a second
+  tab started a second Chrome post. Only the page's `posting` flag guarded it.
+FIX (tv/d2jsp_chrome.py; the reasons are exported as SEND_REASONS, and T2 shows them):
+- One send at a time. A second send while one runs answers 200 {ok:false, reason:'busy'}, reads no cookie and starts
+  no Chrome. The lock is released in a finally.
+- The flows return {landed, clicked, topic, back, stop}, and `_send_verdict` decides the reason in one place. A
+  forum topic is the only receipt: submitted, with the topic. Clicked with no receipt is maybe-sent, with the board
+  and `at`. A run that provably never clicked says not-posted, unread, title, form-unknown or need-login. So does one
+  the board sent the compose form back to, on a document loaded after the click: not-posted.
+- A fill script that was sent and never answered counts as clicked. A topic page seen before the click is never a
+  receipt.
+- Two budgets: 25 s to reach the form and click, then 35 s for the receipt. With no receipt, the board list is loaded
+  again (20 s). A topic whose link text is exactly the subject, that was not listed before the click, and whose id is
+  newer than every topic listed then, is the receipt. An older same-subject topic never is, a same-title link that
+  names another board (a sidebar) never is, and two new ones are maybe-sent.
+- The same draft (board, subject, sha256 of the body) inside 30 minutes of a submit is already-posted (topic, at),
+  and inside 30 minutes of a maybe-sent is maybe-sent-recently (at). Neither reads the cookie or starts Chrome. A send
+  that changes a topic retires the other drafts' records on it (REG-2495).
+- The urllib seam never posts twice. After its POST, a lost answer or an unknown page is maybe-sent. Only the compose
+  form coming back is not-posted.
+- The three copies of the scratch-Chrome start are one `_scratch_chrome`. The flow's decisions are `_flow_step`, a
+  pure function over page snapshots, so a law drives the real flow with a page made of strings and no Chrome.
+GUARD: tv/test_a_d2jsp_post_is_sent_once_and_never_called_unsent.py (two threads and an Event for the lock; for the
+flow, the real `_Page` over a fake DevTools socket (REG-2497); a fake clock), plus the restored law's maybe-sent
+proof. It had 9 RED proofs and has 21 since the T1 review; heart2 --prove: 21/21 PROVEN.
+LEFT:
+- The re-send record lives in the console process. A restart (or an os.execv relaunch) forgets it, so the same
+  draft sent right after a restart runs again.
+- A stranger's topic with exactly the same title, posted in the same minute while his own post failed, would read as
+  the receipt. Ids and listing order cannot tell authors apart. The answer carries the topic link, so he sees whose it is.
+- A board that renders the title differently in its list (a prefix, a cut) never matches, so the result stays
+  maybe-sent, never a false submitted.
+- maybe-sent holds the same draft for 30 minutes even when the post really failed. The board read narrows that, but it
+  cannot prove a failure.
+- Not measured live: no Chrome runs on his Mac for this track. The flow reads the same New Trade link, form and topic
+  redirect as before, plus the board list after the click.
+
 ### REG-2571 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
 
 vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with
