@@ -35,6 +35,41 @@ export const DENY = [
 ];
 export const DENY_PREFIX = ["d2r_quarantine", "d2r_d2jsp_", "d2r_api_"];
 export const API_NAMES = ["chars_learned", "main_locks", "world"];
+// the fields each console answer may carry (console_snapshot.API_FIELDS) and the world's closed values (world_of)
+export const API_FIELDS = {
+  chars_learned: ["ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel"],
+  main_locks: ["ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"],
+  world: ["machine", "profile", "ledger", "os", "cousin"],
+};
+const WORLD = { machine: ["mac", "windows"], profile: ["main", "ladder"],
+                os: ["MAC", "WINDOWS", "LINUX", "ANDROID", "THIS MACHINE"] };
+// what console_snapshot._PRIVATE blanks: a signed body that still carries one was not cleaned, and is refused
+const PRIVATE = [
+  /(?:\/Users\/|\/home\/|\/private\/|\/var\/folders\/)/,
+  /[A-Za-z]:\\{1,2}(?:Users|Documents and Settings)\\/,
+  /(?<![0-9a-fA-F])[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}(?![0-9a-fA-F])/,
+  /(?<![0-9a-fA-F])[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![0-9a-fA-F])/,
+  /\b(?:ghp_|gho_|ghs_|github_pat_|xox[abposr]-|sk-)[A-Za-z0-9_\-]{16,}/,
+  /\b[A-Za-z0-9][A-Za-z0-9\-]{0,62}\.local\b/,
+];
+
+export function worldOk(text) {
+  let w;
+  try { w = JSON.parse(text); } catch (e) { return false; }
+  if (!w || typeof w !== "object" || Array.isArray(w)) return false;
+  if (Object.keys(w).some((k) => API_FIELDS.world.indexOf(k) === -1)) return false;
+  for (const k of Object.keys(WORLD)) if (WORLD[k].indexOf(w[k]) === -1) return false;
+  return typeof w.cousin === "boolean" && typeof w.ledger === "string" && w.ledger.length <= 40 &&
+         !/[\x00-\x1f"<>\\]/.test(w.ledger);
+}
+
+function apiOk(name, text) {
+  if (name === "world") return worldOk(text);
+  let v;
+  try { v = JSON.parse(text); } catch (e) { return false; }
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  return Object.keys(v).every((k) => API_FIELDS[name].indexOf(k) !== -1);
+}
 const HINT = "this is the storage refusing a write, NOT the machine being absent";
 
 function json(obj) {
@@ -117,6 +152,11 @@ export async function onRequestPost(context) {
   if (!storesOk(stores)) return refuse("stores must be d2r_ names holding strings, none of them kept home");
   const low = JSON.stringify(stores).toLowerCase();
   if (low.indexOf("data:image") !== -1 || low.indexOf("base64,") !== -1) return refuse("pictures stay on that PC");
+  for (const k of Object.keys(stores)) {
+    if (PRIVATE.some((rx) => rx.test(stores[k]))) return refuse(k + " carries a path, an install id or a token");
+    if (k.startsWith("d2r_api_") && !apiOk(k.slice(8), stores[k])) return refuse(k + " is not the console answer it names");
+  }
+  if (typeof stores.d2r_api_world !== "string") return refuse("the world these stores were drawn in is missing");
   const hash = hashOfStores(stores);
   if (body.hash !== hash) return refuse("the stores do not match the hash that was signed");
 
@@ -125,7 +165,10 @@ export async function onRequestPost(context) {
   try {
     const raw = await kv.get(key);
     prev = raw ? JSON.parse(raw) : null;
-  } catch (e) { prev = null; }
+  } catch (e) {
+    // an unreadable record would skip the replay, gap and daily checks: refuse rather than start over
+    return refuse("the stored snapshot could not be read");
+  }
   if (!prev || typeof prev !== "object" || prev.owner !== owner) prev = null;
 
   const now = Date.now();

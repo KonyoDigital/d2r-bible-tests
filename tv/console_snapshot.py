@@ -161,10 +161,9 @@ def world_of(raw):
         if raw.get(k) not in allowed:
             return None
         out[k] = raw[k]
+    # a ledger name the closed set cannot carry is sent as "" (unnamed) rather than losing the whole world
     ledger = raw.get("ledger")
-    if not isinstance(ledger, str) or not _LEDGER.match(ledger):
-        return None
-    out["ledger"] = ledger
+    out["ledger"] = ledger if isinstance(ledger, str) and _LEDGER.match(ledger) else ""
     if not isinstance(raw.get("cousin"), bool):
         return None
     out["cousin"] = raw["cousin"]
