@@ -134,8 +134,8 @@ RED_PROOF = [
     {
         "why": "REG-2596 - the import refuses the whole set over one law's differing key",
         "file": "heart2.py",
-        "find": "keyer=_shard_keyer(target), dropped=_dropped)",
-        "replace": "keyer=_shard_keyer(target), dropped=None)",
+        "find": "keyer=_shard_keyer(target), dropped=_dropped,",
+        "replace": "keyer=_shard_keyer(target), dropped=None,",
         "matches": 1,
     },
     {

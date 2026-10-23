@@ -43,8 +43,8 @@ RED_PROOF = [
     {
         "why": "REG-2630 - the import banks each entry under the key the FILE claims, never asking this checkout's bytes",
         "file": "heart2.py",
-        "find": "_PS.select(sets, keyer=_shard_keyer(target), dropped=_gone)",
-        "replace": "_PS.select(sets, keyer=None, dropped=_gone)",
+        "find": "_PS.select(sets, keyer=_shard_keyer(target), dropped=_gone,",
+        "replace": "_PS.select(sets, keyer=None, dropped=_gone,",
         "matches": 1,
     },
     {
@@ -110,6 +110,20 @@ RED_PROOF = [
         "replace": "    elif False:\n",
         "matches": 1,
     },
+    {
+        "why": "REG-2630 r1 - a file that claims an entry was proved in THIS tree is believed, so REG-2599 owes no clean run",
+        "file": "proof_shard.py",
+        "find": "                e = dict(e, tree=FOREIGN_TREE)",
+        "replace": "                e = e",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2630 r1 - a proof index that is a list reaches a set lookup and the import tracebacks",
+        "file": "proof_shard.py",
+        "find": "            if type(e.get(\"proof\")) is not int:\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+    },
 ]
 
 HEAD = "1234567890abcdef1234567890abcdef12345678"
@@ -151,7 +165,8 @@ class _Fixture(unittest.TestCase):
         os.makedirs(d)
         path = os.path.join(d, os.path.basename(heart2.CACHE))
         for key, e in entries.items():
-            self.keys.setdefault((e["gate"], e["proof"]), key)
+            if type(e["proof"]) is int:
+                self.keys.setdefault((e["gate"], e["proof"]), key)
         man = proof_shard.export_manifest(HEAD, False, len(entries), 1761200000000)
         man.update(m)
         with io.open(path, "w", encoding="utf-8") as fh:
@@ -246,6 +261,16 @@ class ABoxExportComesHome(_Fixture):
         self.assertEqual(sorted(self.home()["entries"]), ["k1", "k2"])
 
 
+    def test_a_file_that_claims_this_trees_own_id_is_banked_as_foreign(self):
+        """r1: `tree` is the file's word. Only this tree may say a proof ran here, or REG-2599 skips its clean run"""
+        p = self.export_file({"k1": dict(_e("g1", 0), tree=heart2.TREE_ID), "k2": _e("g1", 1)})
+        self.assertEqual(self.run_import([p]), 0, self.said)
+        ent = self.home()["entries"]
+        self.assertEqual(ent["k1"]["tree"], proof_shard.FOREIGN_TREE)
+        self.assertNotEqual(ent["k1"]["tree"], heart2.TREE_ID)
+        self.assertEqual(ent["k2"]["tree"], BOX_TREE, "an honest foreign tree was rewritten")
+
+
 class AForeignOrUntrustedFileIsRefused(_Fixture):
     def test_an_export_of_another_head(self):
         self.assertRefused([self.export_file({"k1": _e("g1", 0)}, head="f" * 40)], "keyed at")
@@ -290,6 +315,12 @@ class AForeignOrUntrustedFileIsRefused(_Fixture):
 
     def test_no_file(self):
         self.assertRefused([], "no file")
+
+    def test_a_proof_index_that_is_not_a_whole_number(self):
+        """r1: a list or dict index used to raise TypeError mid-import; a bool or text one names no proof either"""
+        for i, bad in enumerate(([0], {"i": 0}, True, "0")):
+            p = self.export_file({"k1": _e("g1", 0), "k2": _e("g1", bad)}, name="bad%d" % i)
+            self.assertRefused([p], "not a whole number")
 
 
 class TheExportShipsOnlyWhatItsBytesKey(_Fixture):

@@ -338,14 +338,19 @@ def check_proved(bodies, head):
         if not (m.get("dirty") is False):
             return False, "%s was proved on a tree whose tracked files differed from its HEAD" % label, []
         if assigned is None:                 # an export has no plan: every entry it holds is its own claim
-            assigned = set((str(e.get("gate")), e.get("proof")) for e in ent.values() if isinstance(e, dict))
+            assigned = set((str(e.get("gate")), e.get("proof")) for e in ent.values()
+                           if isinstance(e, dict) and type(e.get("proof")) is int)   # REG-2630 - a list index never hashes
         out.append((i, ent, assigned))
     if not out:
         return False, "no file was given", []
     return True, None, out
 
 
-def select(shards, keyer=None, dropped=None):
+#: REG-2630 - the tree an imported entry is banked under when its file claims THIS checkout's own tree id.
+FOREIGN_TREE = "imported:claimed-this-tree"
+
+
+def select(shards, keyer=None, dropped=None, here=None):
     """The entries an import may bank. -> (ok, why | None, {key: entry}, skipped count)
 
     An entry outside its shard's plan refuses the whole import; one that is not servable is skipped (counted).
@@ -353,13 +358,19 @@ def select(shards, keyer=None, dropped=None):
             filed under any other key refuses the import: the shard's key is a claim, this tree's key is the fact.
     dropped REG-2596: a list -> such an entry is DROPPED instead (appended as (shard, gate, proof)) and never banked:
             a key this tree never gives can never be served here, so leaving it out costs nothing, and one law whose
-            bytes differ on a runner no longer throws away the other 2,700 proofs. None -> the strict refusal."""
+            bytes differ on a runner no longer throws away the other 2,700 proofs. None -> the strict refusal.
+    here    REG-2630 - THIS checkout's tree id. A file that claims an entry was proved HERE is not believed: the entry is
+            banked under FOREIGN_TREE, so REG-2599 still owes this tree its clean run. None -> trees kept as written.
+    A proof index that is not a whole number (a list, a dict, a bool, text) refuses the whole file: it names no proof."""
     take, skipped = {}, 0
     for k, ent, assigned in shards:
         for key, e in ent.items():
             if not isinstance(e, dict):
                 skipped += 1
                 continue
+            if type(e.get("proof")) is not int:
+                return False, "file %d holds %s with proof index %r - not a whole number, so it names no proof" % (
+                    k, e.get("gate"), e.get("proof")), {}, 0
             if (str(e.get("gate")), e.get("proof")) not in assigned:
                 return False, "shard %d holds %s[%s], a proof its plan never gave it" % (
                     k, e.get("gate"), e.get("proof")), {}, 0
@@ -372,6 +383,8 @@ def select(shards, keyer=None, dropped=None):
                     continue
                 return False, "shard %d files %s[%s] under a key this checkout's bytes do not give it" % (
                     k, e.get("gate"), e.get("proof")), {}, 0
+            if here is not None and e.get("tree") == here:
+                e = dict(e, tree=FOREIGN_TREE)     # REG-2630 - "proved here" is this tree's word, never a file's
             take[key] = e                   # KEPT as the shard wrote it - its tree above all
     return True, None, take, skipped
 

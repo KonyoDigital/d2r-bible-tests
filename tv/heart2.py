@@ -6376,7 +6376,7 @@ def import_shards(paths, say=print, target=None):
             ok, why = False, "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
     if ok:
         _dropped = []                                  # REG-2596 - a key this tree never gives is left out, named
-        ok, why, take, skipped = _PS.select(shards, keyer=_shard_keyer(target), dropped=_dropped)
+        ok, why, take, skipped = _PS.select(shards, keyer=_shard_keyer(target), dropped=_dropped, here=TREE_ID)
     if not ok:
         say("  ✗ REG-2586 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
         return 2
@@ -6495,7 +6495,7 @@ def import_proved(paths, say=print, target=None):
             ok, why = False, "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
     _gone = []
     if ok:
-        ok, why, take, skipped = _PS.select(sets, keyer=_shard_keyer(target), dropped=_gone)
+        ok, why, take, skipped = _PS.select(sets, keyer=_shard_keyer(target), dropped=_gone, here=TREE_ID)
     if not ok:
         say("  ✗ REG-2630 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
         return 2
