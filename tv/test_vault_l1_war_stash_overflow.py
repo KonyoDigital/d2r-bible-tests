@@ -111,6 +111,12 @@ class WarStashOverflow(unittest.TestCase):
         # the 600-copy fill leaves its page busy for minutes; the next test opens a fresh board instead of timing out on it
         self.addCleanup(T.tearDownModule)
         roster_with(["war1", "WAR2"])     # case-insensitive names
+        # PREMISE before the 601-copy fill: the filler keeps every copy. A capped filler spills all but 4 to the WAR
+        # mules and re-plans a full vault per add - the census's tampered run of red-proof [21] hit its 960 s timeout
+        # there (UNPROVABLE, and it set the shard's wall time). Asked here, it fails in one call.
+        cap = T.board().run("var c = window._vaultWarCap(%s); OUT.c = c === Infinity ? 'all' : c;" % json.dumps(BELT))["c"]
+        self.assertEqual(cap, "all", "PREMISE: %s (the page-fill filler) must keep every copy in the war stash, got %r - "
+                         "the fill would measure a spill, not the 5 pages" % (BELT, cap))
         n = 5 * BELT_PER_GRID + BELT_PER_GRID + 1
         add_many([BELT] * n, step=5)  # each add re-plans every copy; small batches keep each CDP call short late in the fill
         o = T.board().run(READ + "OUT.m = mv(/^The Stone of Jordan$/); OUT.full = window._vaultWarFull || [];"

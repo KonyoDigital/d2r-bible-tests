@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2601 - THE MAC DRIVER COUNTS A PROOF THE IMPORT DROPPED AS OWED (proof-keys, GB-box, 2026-10-23)
+REG-2596 made --import-shards drop (and name) entries this checkout's bytes do not key; the driver's REG-2594 owed count
+still called select() with no keyer, so a dropped proof read as banked by CI and a PARTIAL set could read FULL.
+owed_after_import now takes the import's own keyer (heart2._shard_keyer, over a throwaway store) and counts every dropped
+entry as owed. Law: test_the_mac_driver_brings_one_commits_set_home (+2 cases, +2 red-proofs).
+
+### REG-2600 - A TAMPERED WAR-STASH FILL RAN 960 s INSTEAD OF FAILING (census 39967137185, GB-box, 2026-10-23)
+Red-proof [21] of test_vault_l1_war_stash_overflow caps rings/amulets at 4. The 601-copy page fill uses The Stone of
+Jordan, so under that tamper every copy past 4 spilled and each add re-planned a full vault: the tampered run hit its
+960 s timeout (UNPROVABLE) and set shard 15's 51 min wall. The fill test now asks its premise first - the filler keeps
+every copy (_vaultWarCap === Infinity) - so the tamper fails in one page call (measured 6.2 s on the box).
+
 ### REG-2599 - #242 NARROWED: A FOREIGN PROOF OWES A CLEAN RUN ONLY WHERE THE PUSH CHANGED ITS LAW (proof-keys, GB-box, 2026-10-23)
 Elad: proofs banked elsewhere (CI census, box) must become HITS in the Mac pre-push hook. #242 / REG-2587 made every gate
 served from another tree run one clean run here - so an imported hit still cost the gate's full untampered run. Now
