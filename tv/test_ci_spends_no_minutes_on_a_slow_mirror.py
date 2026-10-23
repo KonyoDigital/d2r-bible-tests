@@ -59,19 +59,21 @@ class TheBoundedStep(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.d, True)
         self.log = os.path.join(self.d, "calls")
 
-    def npx(self, dry_out, install_sleep=0, install_rc=0):
+    def npx(self, dry_out, install_sleep=0, install_rc=0, dry_rc=None):
+        if dry_rc is None:   # Playwright >= 1.60 exits 1 when it names a missing package
+            dry_rc = 0 if dry_out.startswith("All system") else 1
         p = os.path.join(self.d, "npx")
         with io.open(p, "w", encoding="utf-8") as fh:
             fh.write("#!/bin/sh\necho \"$*\" >> %s\n"
-                     "case \"$*\" in *--dry-run*) printf '%%s\\n' %s; exit 0;; esac\n"
-                     "sleep %s\nexit %d\n" % (self.log, "'" + dry_out + "'", install_sleep, install_rc))
+                     "case \"$*\" in *--dry-run*) printf '%%s\\n' %s; exit %d;; esac\n"
+                     "sleep %s\nexit %d\n" % (self.log, "'" + dry_out + "'", dry_rc, install_sleep, install_rc))
         os.chmod(p, os.stat(p).st_mode | stat.S_IEXEC)
 
     def run_script(self, bound=None):
         env = dict(os.environ, PATH=self.d + os.pathsep + os.environ.get("PATH", ""))
         src = io.open(SCRIPT, encoding="utf-8").read()
         if bound is not None:   # the case may not wait 90 s: the bound under test is rewritten to 2 s, and asserted below
-            src = src.replace("timeout 90 ", "timeout %d " % bound)
+            src = src.replace("timeout -k 10 90 ", "timeout -k 1 %d " % bound)
         p = os.path.join(self.d, "s.sh")
         io.open(p, "w", encoding="utf-8").write(src)
         t = time.time()
@@ -80,11 +82,20 @@ class TheBoundedStep(unittest.TestCase):
         return r, [c for c in calls if c], time.time() - t
 
     def test_nothing_missing_runs_no_apt(self):
-        self.npx("")
+        self.npx("All system dependencies are installed.")
         r, calls, _ = self.run_script()
         self.assertEqual(r.returncode, 0)
         self.assertEqual(len(calls), 1, "apt ran though the dry run named nothing missing: %r" % calls)
         self.assertIn("--dry-run", calls[0])
+
+    def test_an_answer_that_is_not_all_installed_installs(self):
+        # Playwright < 1.60 prints the apt-get command and exits 0; an empty answer is not "nothing missing" either.
+        for out in ("sudo -- sh -c \"apt-get update&& apt-get install -y --no-install-recommends fonts-unifont\"", ""):
+            if os.path.exists(self.log):
+                os.remove(self.log)
+            self.npx(out, dry_rc=0)
+            _r, calls, _t = self.run_script()
+            self.assertEqual([c for c in calls if "--dry-run" not in c], ["playwright install-deps chromium"], out)
 
     def test_something_missing_installs(self):
         self.npx("Missing system dependencies (1):\n  fonts-unifont")
@@ -94,9 +105,9 @@ class TheBoundedStep(unittest.TestCase):
 
     def test_the_install_is_bounded_at_90_seconds_and_a_cut_is_not_red(self):
         src = io.open(SCRIPT, encoding="utf-8").read()
-        m = re.search(r"^timeout (\d+) npx playwright install-deps chromium", src, re.M)
+        m = re.search(r"^timeout -k \d+ (\d+) npx playwright install-deps chromium", src, re.M)
         self.assertIsNotNone(m, "the install is not under a `timeout N` bound")
-        self.assertLessEqual(int(m.group(1)), 120, "the bound is %s s - the measured hangs start past 97 s" % m.group(1))
+        self.assertEqual(int(m.group(1)), 90, "the bound is %s s - the measured hangs start past 97 s" % m.group(1))
         self.npx("Missing system dependencies (1):\n  fonts-unifont", install_sleep=30)
         r, _calls, took = self.run_script(bound=2)
         self.assertLess(took, 20, "a hung apt was not cut by the bound (%.0f s)" % took)
@@ -145,6 +156,13 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        "why": "gbl/ci-speed review - the skip reads 'no word missing' again, so an older Playwright's apt-get line skips apt",
+        "file": "../.github/scripts/chromium-os-deps.sh",
+        "find": "grep -qx 'All system dependencies are installed\\.'",
+        "replace": "! grep -qi 'missing'",
+        "matches": 1,
+    },
+    {
         "why": "gbl/ci-speed - apt runs even when nothing is missing",
         "file": "../.github/scripts/chromium-os-deps.sh",
         "find": "  exit 0\nfi\n",
@@ -154,7 +172,7 @@ RED_PROOF = [
     {
         "why": "gbl/ci-speed - the install is unbounded again",
         "file": "../.github/scripts/chromium-os-deps.sh",
-        "find": "timeout 90 npx playwright install-deps chromium; rc=$?",
+        "find": "timeout -k 10 90 npx playwright install-deps chromium; rc=$?",
         "replace": "npx playwright install-deps chromium; rc=$?",
         "matches": 1,
     },
