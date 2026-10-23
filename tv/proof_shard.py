@@ -76,28 +76,33 @@ def _proof_key(pr):
 
 
 def gate_costs(path=None):
-    """{gate name: seconds per run} from gate_costs.json (run_gates' measured CI rows). -> dict ({} when unreadable)"""
+    """{gate name: seconds per run} from gate_costs.json (run_gates' measured CI rows). -> dict ({} when absent), None
+    when there and unreadable (REG-2597)"""
     path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "gate_costs.json")
     try:
         with open(path, encoding="utf-8") as fh:
             c = json.load(fh).get("costs") or {}
         return dict((str(k), float(v)) for k, v in c.items()
                     if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0)
-    except Exception:
-        return {}
+    except FileNotFoundError:
+        return {}                       # never measured: nothing to price from, the same fact as an empty file
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None                     # REG-2597 - there and unreadable is UNKNOWN, never "no costs"
 
 
 def proof_costs(path=None):
     """REG-2593 - {gate: seconds per proof ON A RUNNER} from proof_costs.json (measure_costs' rows). -> dict ({} when
-    unreadable: the plan then prices every gate from gate_costs, as it did)"""
+    absent: the plan then prices every gate from gate_costs, as it did), None when there and unreadable (REG-2597)"""
     path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "proof_costs.json")
     try:
         with open(path, encoding="utf-8") as fh:
             c = json.load(fh).get("perProof") or {}
         return dict((str(k), float(v)) for k, v in c.items()
                     if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0)
-    except Exception:
-        return {}
+    except FileNotFoundError:
+        return {}                       # never measured: nothing to price from, the same fact as an empty file
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None                     # REG-2597 - there and unreadable is UNKNOWN, never "no costs"
 
 
 def measure_costs(bodies):
@@ -291,12 +296,15 @@ def check_shards(bodies, head):
     return True, None, [(k, shards[k][0], shards[k][1]) for k in sorted(shards)]
 
 
-def select(shards, keyer=None):
+def select(shards, keyer=None, dropped=None):
     """The entries an import may bank. -> (ok, why | None, {key: entry}, skipped count)
 
     An entry outside its shard's plan refuses the whole import; one that is not servable is skipped (counted).
     keyer   (gate, proof index) -> the key THIS checkout's bytes give that proof (None: unkeyable here). A servable entry
-            filed under any other key refuses the import: the shard's key is a claim, this tree's key is the fact."""
+            filed under any other key refuses the import: the shard's key is a claim, this tree's key is the fact.
+    dropped REG-2596: a list -> such an entry is DROPPED instead (appended as (shard, gate, proof)) and never banked:
+            a key this tree never gives can never be served here, so leaving it out costs nothing, and one law whose
+            bytes differ on a runner no longer throws away the other 2,700 proofs. None -> the strict refusal."""
     take, skipped = {}, 0
     for k, ent, assigned in shards:
         for key, e in ent.items():
@@ -310,6 +318,9 @@ def select(shards, keyer=None):
                 skipped += 1                # ELSEWHERE, BLIND, UNPROVABLE, undated, traced: never banked
                 continue
             if keyer is not None and keyer(str(e.get("gate")), e.get("proof")) != key:
+                if dropped is not None:
+                    dropped.append((k, str(e.get("gate")), e.get("proof")))
+                    continue
                 return False, "shard %d files %s[%s] under a key this checkout's bytes do not give it" % (
                     k, e.get("gate"), e.get("proof")), {}, 0
             take[key] = e                   # KEPT as the shard wrote it - its tree above all

@@ -121,8 +121,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1992 - a red in the wave is said but never stops the run: every tamper ahead of it runs anyway",
      "file": "heart2.py",
-     "find": "                if run.fail(name, i, UNPROVABLE, \"the law is ALREADY RED untampered, so no proof of it can be judged\"):\n",
-     "replace": "                if (lambda *a: False)(name, i, UNPROVABLE, \"the law is ALREADY RED untampered, so no proof of it can be judged\"):\n",
+     "find": "                if run.fail(name, i, UNPROVABLE, _why):\n",
+     "replace": "                if (lambda *a: False)(name, i, UNPROVABLE, _why):\n",
      "matches": 1},
 ]
 

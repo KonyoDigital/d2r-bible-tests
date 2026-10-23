@@ -7,6 +7,34 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2598 - A GATE NEVER STARTS ON A RUN RECORD THE GATE BEFORE IT WROTE (proof-keys build, GB-box, 2026-10-23)
+Root cause of the 91 imported entries in 12 laws whose keys no checkout gives (dcff7160 16-shard run): all 91 are shard
+16's, all proved after 12:42:27 UTC in one lane, right after `hover-wilson[0]` logged "the tree moved under this proof".
+hover_wilson.py banks a row into tv/.self_arming.jsonl - a run record git tracks (suite_verdict.RUN_RECORDS) and a
+named input of every law that reaches self_arming. _drop_run_records cleaned the sandbox once, at build; the lane then
+proved every later gate over the row, so those laws were keyed (and proved) on bytes no checkout has. Reproduced on the
+box: one hover-wilson run in a clean clone leaves ` M tv/.self_arming.jsonl`. heart2 now remembers each sandbox's
+records' BYTES as _drop_run_records left them (the ones a gate keeps too) and, before every gate, writes back or
+removes any that moved, said by name; one that could not be put back is said and tried again before the next gate,
+never re-armed as the baseline (grok-4.7 second eye: HIGH re-arm, MED deleted record, MED kept record - all fixed).
+Law: test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote, 10 cases, 9 red-proofs.
+
+### REG-2597 - AN UNREADABLE COST FILE IS UNKNOWN, NOT "NO COSTS" (proof-keys build, GB-box, 2026-10-23)
+The 34824045 census: shard 6 was red on swallow_ratchet (tv/proof_shard.py 0 -> 2 rank-1 sites): gate_costs and
+proof_costs handed back {} for a file that was there and unreadable. Absent stays {} (never measured); present and
+unreadable is None, which plan() already reads as "no measurement". The same census: shards 12 and 15 owed INVALID
+proofs (test_a_push_proof_runs_only_where_its_defect_shows[18], test_a_red_law_refuses_before_any_tamper[2]) and
+shard 5 the law that checks every anchor - both anchors named heart2 lines REG-2593 / REG-2591 had rewritten
+(_push_browser, the `_why` of the clean-wave refusal). Re-anchored; each proof RED again.
+
+### REG-2596 - THE IMPORT DROPS AN ENTRY THESE BYTES DO NOT KEY, AND NAMES IT (proof-keys build, GB-box, 2026-10-23)
+`heart2 --import-shards` refused the whole 16-shard set over 91 entries in 12 laws whose shard key this checkout's
+bytes do not give - 2,758 servable proofs thrown away over 91 that could never be served here anyway. select() now takes
+a `dropped` list: such an entry (or one unkeyable here) is left out and appended, and the import says
+"REG-2596 N PROVEN entr(ies) in M law(s) DROPPED" with each law and its proof indexes. Without the list select still
+refuses. A plan violation, a foreign head or a dirty checkout still refuses the whole set. Law:
+test_an_imported_shard_keeps_its_tree (3 new cases, 3 new red-proofs).
+
 ### REG-2595 - THE 16-SHARD RUN IS A POST-PUSH CENSUS THAT NAMES THE NEXT BATCH (proof-keys build, GB-box, 2026-10-23)
 Elad's ruling 17:04: the shard run no longer blocks a push; it runs after it, on ci/proof-keys-<sha12> at the pushed
 sha, and its findings are the next version's fixes. `proof_shard.py --census DIR [--head SHA] [--out F]` reads the shard

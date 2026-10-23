@@ -11000,6 +11000,12 @@ GATES = [
              "law a shard owes a fix (or the one stop of a fail-fast shard), the PROVEN/owed/unbanked counts and the "
              "shard walls, never exits red, and the workflow runs it with if: always() into the job summary and a "
              "proof-census-<sha> artifact. Temp dirs only."),
+    Gate("test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote",
+         [sys.executable, os.path.join(HERE, "test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote.py")], 120,
+         needs_app=False,
+         why="REG-2598 - a lane proves many gates in one sandbox: a run record one gate writes (hover-wilson banks a "
+             "row into the tracked tv/.self_arming.jsonl) is put back as the sandbox was built before the next gate, "
+             "said by name, so no later law is proved or keyed over it. Fixture repo and sandbox in temp dirs only."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,

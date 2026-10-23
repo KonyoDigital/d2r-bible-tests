@@ -131,7 +131,8 @@ class TheMeasuredCosts(unittest.TestCase):
         self.assertEqual(PS.proof_costs(p), {"a": 2.5, "e": 7.0})
         with open(p, "w", encoding="utf-8") as fh:
             fh.write("{not json")
-        self.assertEqual(PS.proof_costs(p), {})
+        self.assertIsNone(PS.proof_costs(p))            # REG-2597 - unreadable is UNKNOWN, never "no costs"
+        self.assertEqual(PS.proof_costs(os.path.join(tmp, "never_written.json")), {})
 
 
 class HeartTwosCutUsesIt(unittest.TestCase):
@@ -163,6 +164,11 @@ RED_PROOF = [
      "find": "            k = min(range(n), key=lambda s: (max((tot[s] + cost) / lanes, brw[s] + (cost if b else 0.0)), tot[s], s))\n",
      "replace": "            k = min(range(n), key=lambda s: (tot[s], s))\n",
      "matches": 1},
+    {"why": "REG-2597 - an unreadable cost file is handed back as \"no costs\", a measurement nobody took",
+     "file": "proof_shard.py",
+     "find": "        return None                     # REG-2597 - there and unreadable is UNKNOWN, never \"no costs\"\n",
+     "replace": "        return {}\n",
+     "matches": 2},
     {"why": "REG-2593 - the median is misread (the largest gap)",
      "file": "proof_shard.py",
      "find": "            out[g] = round(v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2.0, 3)\n",

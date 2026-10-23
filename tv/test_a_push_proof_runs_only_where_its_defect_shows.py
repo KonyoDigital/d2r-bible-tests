@@ -739,8 +739,8 @@ RED_PROOF = [
     {
         "why": "REG-1442 - _prove_push builds its lock from the one-file read again, not the import closure",
         "file": "heart2.py",
-        "find": "    browser = browser_gates([(n, f) for n, f, _p in have], unclassified=_unk) | set(\n",
-        "replace": "    browser = pixel_gates([(n, f) for n, f, _p in have]) | set(\n",
+        "find": "    return browser_gates([(n, f) for n, f, _p in have], unclassified=unk) | set(\n",
+        "replace": "    return pixel_gates([(n, f) for n, f, _p in have]) | set(\n",
         "matches": 1,
     },
     {

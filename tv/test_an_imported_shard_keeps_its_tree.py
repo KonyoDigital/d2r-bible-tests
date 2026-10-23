@@ -118,6 +118,27 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        "why": "REG-2596 - a key these bytes do not give is banked anyway when the import drops instead of refusing",
+        "file": "proof_shard.py",
+        "find": "                    dropped.append((k, str(e.get(\"gate\")), e.get(\"proof\")))\n                    continue\n",
+        "replace": "                    dropped.append((k, str(e.get(\"gate\")), e.get(\"proof\")))\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2596 - the import drops entries silently: nobody learns which laws' keys differ",
+        "file": "heart2.py",
+        "find": "    if _dropped:\n        _dg = {}\n",
+        "replace": "    if False:\n        _dg = {}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2596 - the import refuses the whole set over one law's differing key",
+        "file": "heart2.py",
+        "find": "keyer=_shard_keyer(target), dropped=_dropped)",
+        "replace": "keyer=_shard_keyer(target), dropped=None)",
+        "matches": 1,
+    },
+    {
         "why": "REG-2586 - two shards that both claim one proof are imported, the later entry silently wins",
         "file": "proof_shard.py",
         "find": "            if row in owner:\n",
@@ -312,10 +333,35 @@ class APartOrForeignSetIsRefused(_Fixture):
         a = self.shard(1, 1, {"k1": _e("g1", 0), "k9": _e("g9", 4)}, assigned=[("g1", 0)])
         self.assertRefused([a], "never gave")
 
-    def test_an_entry_filed_under_a_key_these_bytes_do_not_give_it(self):
+    def test_an_entry_filed_under_a_key_these_bytes_do_not_give_it_is_dropped_and_named(self):
+        """REG-2596 - the entry is never banked, the rest of the set is, and the line names the law and the proof"""
         paths = self.two()
         self.keys[("g1", 1)] = "the-key-this-tree-gives"
-        self.assertRefused(paths, "do not give it")
+        self.assertEqual(self.run_import(paths), 0, self.said)
+        self.assertEqual(sorted(self.home()["entries"]), ["k1", "k3"])
+        text = " ".join(self.said)
+        self.assertIn("REG-2596 1 PROVEN entr(ies) in 1 law(s) DROPPED", text)
+        self.assertIn("g1 [1]", text)
+
+    def test_an_unkeyable_entry_is_dropped_too(self):
+        paths = self.two()
+        self.keys[("g2", 0)] = None
+        self.assertEqual(self.run_import(paths), 0, self.said)
+        self.assertEqual(sorted(self.home()["entries"]), ["k1", "k2"])
+
+    def test_without_a_dropped_list_select_still_refuses(self):
+        a = self.shard(1, 1, {"k1": _e("g1", 0)})
+        with io.open(a, encoding="utf-8") as fh:
+            body = json.load(fh)
+        ok, why, shards = proof_shard.check_shards([("s1", body, None)], HEAD)
+        self.assertTrue(ok, why)
+        ok, why, take, _sk = proof_shard.select(shards, keyer=lambda g, i: "other")
+        self.assertFalse(ok)
+        self.assertIn("do not give it", why)
+        got = []
+        ok, why, take, _sk = proof_shard.select(shards, keyer=lambda g, i: "other", dropped=got)
+        self.assertTrue(ok, why)
+        self.assertEqual((take, got), ({}, [(1, "g1", 0)]))
 
     def test_one_proof_assigned_to_two_shards(self):
         a = self.shard(1, 2, {"k1": _e("g1", 0)})

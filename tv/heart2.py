@@ -1163,6 +1163,7 @@ def _drop_run_records(dest, keep, say):
     present = sorted(r for r in recs - set(keep or ())
                      if os.path.lexists(os.path.join(root, *r.split("/"))))
     if not present:
+        _arm_lane_records(dest, keep, recs)
         return {}
     env = _git_free_env(GIT_OPTIONAL_LOCKS="0")
     gd = os.path.join(root, ".git")
@@ -1201,7 +1202,73 @@ def _drop_run_records(dest, keep, say):
     if kept:
         say("  ⚠ %d live run record(s) stay in the sandbox, so a law that reads one reads a live value: %s"
             % (len(kept), "; ".join(kept)))
+    _arm_lane_records(dest, keep, recs)
     return done
+
+
+#: REG-2598 - {sandbox root: {record: its bytes | None (absent)} as _drop_run_records left the sandbox}
+_LANE_RECORDS = {}
+
+
+def _read_record(path):
+    try:
+        with open(path, "rb") as fh:
+            return fh.read()
+    except FileNotFoundError:
+        return None
+
+
+def _arm_lane_records(dest, keep, recs):
+    """REG-2598 - remember the BYTES of every run record of the sandbox at `dest` as _drop_run_records just left it,
+    the records a gate keeps included (second eye: a kept record a gate rewrites is put back too)."""
+    root = os.path.normpath(dest)
+    snap = {}
+    for r in sorted(set(recs)):                 # every record, the ones a gate keeps too
+        p = os.path.normpath(os.path.join(root, *str(r).split("/")))
+        if p.startswith(root + os.sep):
+            snap[str(r)] = _read_record(p)
+    _LANE_RECORDS[root] = snap
+
+
+def _reset_lane_records(sandbox, say):
+    """REG-2598 - A GATE NEVER STARTS ON A RUN RECORD THE GATE BEFORE IT WROTE. -> [records put back] | None (unarmed)
+
+    MEASURED on the dcff7160 16-shard run: shard 16's lane ran hover-wilson, whose hover_wilson.py banks a row into
+    tv/.self_arming.jsonl - a run record git tracks, and a named input of every law that reaches self_arming. Every law
+    that lane proved after it (91 proofs in 12 laws) was keyed and proved over that row, so its key matched no checkout's
+    bytes and the import could not serve one of them. _drop_run_records cleaned the sandbox once, when it was built; a
+    lane proves many gates in it. Each gate now starts from the exact bytes the sandbox was built with - written back, or
+    removed where the build left none. The baseline is never re-armed: a record that could not be put back is said and
+    tried again before the next gate (second eye: re-arming a failed put-back made it the new truth)."""
+    root = os.path.dirname(os.path.normpath(sandbox))
+    was = _LANE_RECORDS.get(root)
+    if was is None:
+        return None
+    moved, stuck = [], []
+    for rel, data in sorted(was.items()):
+        p = os.path.join(root, *rel.split("/"))
+        try:
+            if _read_record(p) == data:
+                continue
+            moved.append(rel)
+            if data is None:
+                os.remove(p)
+            else:
+                with open(p, "wb") as fh:
+                    fh.write(data)
+            if _read_record(p) != data:
+                stuck.append(rel)
+        except OSError:
+            if rel not in moved:
+                moved.append(rel)
+            stuck.append(rel)
+    if moved:
+        say("     ↺ REG-2598 a gate before this one wrote %s in this lane's sandbox - put back as the sandbox was built, "
+            "so no later law is proved or keyed over it" % ", ".join(moved))
+    if stuck:
+        say("     ⚠ REG-2598 %s could NOT be put back - the next law in this lane runs over what the last gate wrote"
+            % ", ".join(stuck))
+    return moved
 
 
 def _track_sandbox(root):
@@ -4792,6 +4859,11 @@ def _prove_gate(sandbox, name, filename, proofs, say):
     #42 — at push time (and only then) the gate goes to _prove_gate_push: the same per-proof rule, plus the order, the
     declared widths and the stop.
     """
+    try:
+        _reset_lane_records(sandbox, say)                # REG-2598 - the gate before this one's records never reach it
+    except Exception as _re:
+        say("     ⚠ REG-2598 the run records a gate before %s may have written could not be checked (%s) - its proofs "
+            "may be keyed over them" % (name, type(_re).__name__))
     if _PUSH is not None:
         return _prove_gate_push(sandbox, name, filename, proofs, say, _PUSH)
     verdicts = []
@@ -6066,7 +6138,8 @@ def import_shards(paths, say=print, target=None):
         if not ok_d or dirty.strip():
             ok, why = False, "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
     if ok:
-        ok, why, take, skipped = _PS.select(shards, keyer=_shard_keyer(target))
+        _dropped = []                                  # REG-2596 - a key this tree never gives is left out, named
+        ok, why, take, skipped = _PS.select(shards, keyer=_shard_keyer(target), dropped=_dropped)
     if not ok:
         say("  ✗ REG-2586 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
         return 2
@@ -6093,6 +6166,14 @@ def import_shards(paths, say=print, target=None):
            (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else "",
            (" ⚠ %d shard(s) STOPPED on a failure: what they banked is sound, what they never ran is not banked, "
             "and the failure itself is still owed a fix." % _halted) if _halted else ""))
+    if _dropped:
+        _dg = {}
+        for _s, _g, _i in _dropped:
+            _dg.setdefault(_g, []).append(_i)
+        say("    ⚠ REG-2596 %d PROVEN entr(ies) in %d law(s) DROPPED, never banked: this checkout's bytes give them another "
+            "key, so they could never be served here (a push still proves them): %s" % (
+                len(_dropped), len(_dg), "; ".join("%s %s" % (g, sorted(v, key=str)[:6]) for g, v in sorted(
+                    _dg.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:12])))
     for _k in sorted(_stops):
         _st = _stops[_k]
         _at = ("%s[%s] %s" % tuple(_st[:3])) if isinstance(_st, (list, tuple)) and len(_st) >= 3 else str(_st)[:80]
