@@ -36,6 +36,8 @@ add: a keep size off the line length (an older line kept, size within the cap), 
 write finished, the Windows lock byte, and owner-file text driven through the real owner file into
 _skipped_every_law. 17 cases, 19 red-proofs.
 
+Round 5 (review r4 PASS, 1 nit): on Windows the journal lock was taken with LK_LOCK, which gives up after about ten seconds, and the writer then capped UNLOCKED beside a holder - a cut that could drop the line just written. The lock is now polled with LK_NBLCK for up to 30 s (as _win_lock does); a writer that still has no lock appends its line, skips the cap, and says so on stderr. Two new cases and two new red-proofs (lock not had never cuts; the lock is polled, not tried once).
+
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
 Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote
