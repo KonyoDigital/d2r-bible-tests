@@ -1508,7 +1508,17 @@ def _check_his_progress_number_has_not_been_overwritten():
     # answer "whose high-water mark" is a guess wearing a measurement's clothes.
     _own = str(doc.get("ownerId") or "")
     key = ""
-    for k, row in (doc.get("byRoute") or {}).items():
+    # REG-2611 round 2 - THE MARK OF THE WORLD THAT IS PUBLISHED, NOT OF THE FIRST OWNER-SHAPED ROW.
+    # The top-level lanes compared below are the world board_tally_merge PUBLISHED (ownerId when it
+    # is known, else the newest pfx "" post). Without ownerId (Windows has no WebKit store) the
+    # first-in-dict-order row could be a different world: Dean's ladder world (newest, reads 0) was
+    # compared against his main world's 261, and re-basing the ladder world could never clear it.
+    _pub = doc.get("who") if isinstance(doc.get("who"), dict) else doc.get("route")
+    if isinstance(_pub, dict):
+        _pk = "%s|%s" % (str(_pub.get("id") or "")[:40], str(_pub.get("p") or "")[:16])
+        if _pk in (doc.get("byRoute") or {}) and (not _own or str(_pub.get("id") or "") == _own):
+            key = _pk
+    for k, row in (doc.get("byRoute") or {}).items() if not key else ():
         w = row.get("who") or row.get("route") or {}
         if isinstance(w, dict) and _own and str(w.get("id") or "") == _own:
             key = k

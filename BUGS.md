@@ -20,6 +20,13 @@ doctor's below-mark row now names the door. Law: tv/test_a_drop_is_an_episode.py
 (AMarkSetByDataThatWasNeverHisIsRebasedByRuling, 6 cases, 6 red-proofs). Built from Claude's draft
 (scratchpad/dean/05_board_tally_rebase_door.diff). After ship, the ruling itself is run on Dean's PC (ladder world, uniques).
 
+Round 2 (Grok CLI review r1, 2026-10-23, FAIL, 1 major 2 minors): the doctor compared the PUBLISHED lanes (ownerId's world,
+else the newest pfx "" post) against the high-water mark of the first owner-shaped row of the sorted file. With no ownerId
+(Windows) that can be a different world, so re-basing the published world would never clear the row. The doctor now reads
+the published world's own mark. Also pinned: only that world and lane move, the re-based mark takes the current total, a
+mark below the reading is refused, and the HTTP route writes only on an explicit confirm. `rebasedFrom` lasts until the
+next rise; `rebases` is the permanent record. 10 cases, 10 red-proofs.
+
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
 Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote
