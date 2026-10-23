@@ -36086,9 +36086,19 @@ class _SweepHold(object):
         try:
             import keep_awake as _ka
             cm = _ka.held("%s running" % self.what)
-            cm.__enter__()
-            self.cm = cm
-            rec.update(held=True, why="this PC is held awake for the %s" % self.what)
+            tok = cm.__enter__()
+            self.cm = cm              # entered, so __exit__ always unwinds it (a Windows depth), taken or not
+            # REG-2466 round 2 - held() never raises: a refusal (no door on this OS, SetThreadExecutionState 0, no
+            # caffeinate) comes back as taken False. "It returned" is not "it holds".
+            if isinstance(tok, dict) and tok.get("taken") is True:
+                rec.update(held=True, why="this PC is held awake for the %s" % self.what)
+            else:
+                _r = (tok.get("err") or "no door on this PC") if isinstance(tok, dict) else "no token"
+                rec["why"] = ("NOT held - keep_awake refused the hold (%s), so this PC may sleep in the middle of the %s"
+                              % (_r, self.what))
+                if self.what not in _SweepHold._said:
+                    _SweepHold._said.add(self.what)
+                    print("\u26a0 %s" % rec["why"], flush=True)
         except Exception as e:
             rec["why"] = ("NOT held - keep_awake is unavailable (%s: %s), so this PC may sleep in the middle of the %s"
                           % (type(e).__name__, str(e)[:100], self.what))
