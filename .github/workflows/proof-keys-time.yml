@@ -1,6 +1,7 @@
 name: proof-keys time (throwaway, ci/proof-keys-time only)
 # De-risk timing for sharding heart2 --prove: one fat gate and three typical gates on a
-# standard runner. Never on main. Nothing here calls the Claude CLI (law_env + no_claude_bin).
+# standard runner. Never on main. Nothing here may call the Claude CLI: D2R_NO_CLAUDE=1 and a `claude` on PATH that
+# refuses (the tv/no_claude_bin this first named does not exist in the repo).
 on:
   push:
     branches: ['ci/proof-keys-time']
@@ -39,6 +40,12 @@ jobs:
         timeout-minutes: 5
         continue-on-error: true
         run: npx playwright install-deps chromium
+      - name: A claude that refuses
+        run: |
+          mkdir -p "$RUNNER_TEMP/noclaude"
+          printf '#!/bin/sh\necho "claude is not called on CI (proof-keys time)" >&2\nexit 97\n' > "$RUNNER_TEMP/noclaude/claude"
+          chmod +x "$RUNNER_TEMP/noclaude/claude"
+          echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"
       - name: Environment
         run: |
           echo "setup_seconds=$(( $(date +%s) - T0 ))"
@@ -46,7 +53,6 @@ jobs:
       - name: Prove
         timeout-minutes: 150
         run: |
-          export PATH="$GITHUB_WORKSPACE/tv/no_claude_bin:$PATH"
           export HEART2_CACHE_PATH="$RUNNER_TEMP/cache-${{ matrix.set }}.json"
           if [ "${{ matrix.set }}" = fat ]; then
             G="test_the_character_builder_fits_at_every_width"
