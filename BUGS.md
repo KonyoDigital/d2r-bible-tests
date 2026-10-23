@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2615 - THE STATUS CALL WAITED ON A SCAN OF EVERY REEL FOR ITS FORENSICS BADGE - 2026-10-23
+
+The ALT's status call took about 30 s, almost all in forensicsSummary; Dean's measured 423 ms of a 432 ms call there
+(worst 38.8 s, task 172). _newest_forensics_summary asked the disk about every reel_* (an isfile each) on every
+/api/status, then took the newest. Now _newest_sealed_reel walks newest first and stops at the first reel with a
+kai_report.json, and the badge is refreshed on ONE background thread at most once per 30 s; /api/status only reads the
+last counts (None on the first call after boot, the badge on the next poll). /api/forensics uses the same scan.
+GUARD: tv/test_the_status_never_waits_on_forensics.py (5 cases, 5 red-proofs).
+
 ### REG-2571 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
 
 vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with
