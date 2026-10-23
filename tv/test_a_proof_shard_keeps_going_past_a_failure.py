@@ -190,7 +190,7 @@ class WhatTheShardWritesAndSays(unittest.TestCase):
                     res[n], per[n] = PROVEN, [PROVEN]
             return res, per
         said, stopped = [], []
-        with mock.patch.dict(heart2._SHARD, {"spec": spec}, clear=True), \
+        with mock.patch.dict(heart2._SHARD, {"spec": spec} if spec else {}, clear=True), \
                 mock.patch.object(heart2, "_heart2_seams", lambda: {}), \
                 mock.patch.object(heart2, "_push_facts", lambda h, say: (
                     None, {"a": [1, 0], "b": [0]}, ["a", "b"], {"anchor": 0, "entry": 0, "target": 0})), \
