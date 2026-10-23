@@ -952,8 +952,8 @@ def spawn(log_path, python=None, workers=None, popen=None, names=None, door=None
         # ⚠ `nice` THE COMMAND, not preexec_fn: this runs inside the console's threaded server, and
         # Python documents preexec_fn as unsafe when threads are running.
         kw["start_new_session"] = True
-    cmd = [py] + list(PROVER_MARK) + [os.path.join(HERE, "heart2.py"), "--prove"] + (
-        (list(names) + ["--slice"]) if names else [])
+    cmd = ([py] + list(PROVER_MARK) + [os.path.join(HERE, "heart2.py"), "--prove"]
+           + ((list(names) + ["--slice"]) if names else []))
     if not IS_WIN and os.path.exists("/usr/bin/nice"):
         cmd = ["/usr/bin/nice", "-n", "15"] + cmd
     log = open(log_path, "ab")

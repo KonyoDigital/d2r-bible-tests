@@ -11722,6 +11722,15 @@ GATES = [
              "call took about 30 s, Dean's 423 ms of 432 (task 172), almost all in forensicsSummary scanning every "
              "reel. The scan now stops at the newest reel with a report and runs on one background thread at most "
              "once per TTL; the status call only reads the last answer."),
+    Gate("test_the_prover_is_owned_by_its_console",
+         [sys.executable, os.path.join(HERE, "test_the_prover_is_owned_by_its_console.py")], 120,
+         needs_app=False,
+         why="REG-2613 (board #34, 2026-10-23) - the background prover goes through child_guard's one door: the "
+             "console that starts it owns it. On Windows it lands in a Job Object with KILL_ON_JOB_CLOSE, on POSIX "
+             "it leads its own session; the watchdog knows a self-prover only by the -X tvd_self_prove marker "
+             "(Windows paths with spaces included) and never takes a pre-push or hand-run heart2 --prove for one; "
+             "an orphan is ended, a live console's prover is not; a prover that ended with its console is booked a "
+             "stand-aside, never the 3 h failure backoff."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
