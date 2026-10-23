@@ -617,6 +617,66 @@ class TheWorkerChecksTheBytesItWasSent(unittest.TestCase):
         self.assertNotIn("FORGED", page, "the page still draws a planted row under a verified key")
         self.assertIn("signature verified (key %s)" % kid_a, page)
 
+    def test_a_signed_publish_of_an_unchanged_row_still_carries_the_key(self):
+        """M6 T3 review - every case above signs a body that differs from the stored row, so the sameIntent/upgrade
+        branch was never asked. On deploy day a PC's first signed publish usually carries the very sections its
+        pre-signing row (or its own unsigned row) already holds, inside the hour and not at boot. Answered
+        skipped:['unchanged'] or ['within the hour'] with intentVerified:true, no key is registered and the stored row
+        stays unverified while the PC records a verified publish. An unchanged publish under the key the row was
+        already written with is still skipped - that is the churn guard, not a key arriving."""
+        _need_node(self)
+        import time
+        rk, kk = "roster:" + OWNER, "rosterkey:" + OWNER
+        mine = {"asOf": 2000, "counts": 1, "rows": [{"name": "Sorceress", "cls": "Sorceress", "level": 90}]}
+        recent = int(time.time() * 1000) - 60000
+
+        def record(**extra):
+            sections = {"characters": mine}
+            rec = {"owner": OWNER, "t": recent, "day": "2000-01-01", "n": 1, "sections": sections,
+                   "hash": RP.hash_of(RP.packed(RP.for_hash(sections)))}
+            rec.update(extra)
+            return rec
+
+        with tempfile.TemporaryDirectory(prefix="tvd_roster_key_") as d:
+            path_a, _seed_a, pub_a = _key(os.path.join(d, "a"))
+            _path_b, _seed_b, pub_b = _key(os.path.join(d, "b"))
+            kid_a, kid_b = RS.key_id(pub_a), RS.key_id(pub_b)
+            raw = _raw({"owner": OWNER, "boot": False, "signedAt": 1790000000000, "sections": {"characters": mine}})
+            heads = RS.sign_headers(path_a, raw)[0]
+            steps = [
+                # 0 a row written before signing (no verdict), no key registered: this PC's first signed publish
+                _step(raw, heads, fresh=True, seed={rk: record()}),
+                # 1 its own unsigned row, its key put there by hand from the Mac
+                _step(raw, heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(intentVerified=False)})),
+                # 2 another key's verified row, this PC's key since registered
+                _step(raw, heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId=kid_b, pub=RS.b64u(pub_b))})),
+                # 3 a verified row carrying this key's 48-bit id but another key
+                _step(raw, heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_b))})),
+                # 4 already written under this very key: unchanged, inside the hour - the churn guard holds
+                _step(raw, heads, fresh=True, seed=dict(_registered(pub_a), **{rk: record(
+                    intentVerified=True, keyId=kid_a, pub=RS.b64u(pub_a))})),
+            ]
+            v = _node({"steps": steps, "everyRecord": True})
+        s = v["steps"]
+        for i, case in ((0, "a pre-signing row, no key yet"), (1, "its own unsigned row, key placed by hand"),
+                        (2, "another key's row"), (3, "same 48-bit id, another key")):
+            r, rec = s[i]["reply"], s[i]["records"][rk]
+            self.assertEqual((r["ok"], r["stored"], r["intentVerified"], r.get("keyId")), (True, ["roster"], True, kid_a),
+                             "%s - an unchanged signed publish was answered %r, so the stored row never became this "
+                             "key's" % (case, r))
+            self.assertEqual((rec["intentVerified"], rec["keyId"], rec["pub"]), (True, kid_a, RS.b64u(pub_a)), case)
+        self.assertIs(s[0]["reply"].get("registered"), True, "the first signed publish registered no key")
+        self.assertEqual(s[0]["puts"], [kk, rk])
+        self.assertEqual(s[0]["records"][kk]["pub"], RS.b64u(pub_a))
+        for i in (1, 2, 3):
+            self.assertNotIn("registered", s[i]["reply"], "step %d registered over a key already there" % i)
+            self.assertEqual(s[i]["puts"], [rk])
+        self.assertEqual((s[4]["reply"]["stored"], s[4]["reply"]["skipped"], s[4]["puts"]), ([], ["unchanged"], []),
+                         "an unchanged publish under the row's own key was written again: %r" % s[4]["reply"])
+        self.assertIs(s[4]["reply"]["intentVerified"], True)
+
     def test_an_emoji_round_trips_without_reading_corrupt(self):
         _need_node(self)
         body = _body(1, name="Ber \U0001f9ff rune")
@@ -1201,6 +1261,30 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "prevPub === pub && ",
      "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review: the origin/main unchanged check returns, so a PC's first signed publish of the sections its "
+            "pre-signing row already holds is skipped 'unchanged' - no key registered, the row stays unverified",
+     "file": "functions/api/roster.js",
+     "find": "  if (prev && prev.hash === hash && sameIntent && !upgrade) {\n",
+     "replace": "  if (prev && prev.hash === hash) {\n",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review: the hourly guard skips a key arriving, so a signed publish inside the hour is answered "
+            "'within the hour' and the row never becomes the key's",
+     "file": "functions/api/roster.js",
+     "find": "  if (prev && age < HOUR_MS && !boot && !upgrade) {\n",
+     "replace": "  if (prev && age < HOUR_MS && !boot) {\n",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review: only a first registration counts as a key arriving, so a key placed by hand (or a row "
+            "written under another key) is never stamped onto an unchanged row",
+     "file": "functions/api/roster.js",
+     "find": "  const upgrade = verified && (!sameIntent || intent.register === true);\n",
+     "replace": "  const upgrade = verified && intent.register === true;\n",
+     "matches": 1, "needs": "node"},
+    {"why": "M6 T3 review: every signed publish counts as a key arriving, so an unchanged row under its own key is "
+            "rewritten on every tick (the churn guard is gone)",
+     "file": "functions/api/roster.js",
+     "find": "  const upgrade = verified && (!sameIntent || intent.register === true);\n",
+     "replace": "  const upgrade = verified;\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2516 (#95): a verified row stops recording its key, so the same PC's next signed publish drops every "
             "section it signed before and could not read this time",

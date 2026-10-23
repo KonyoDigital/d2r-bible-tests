@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2573 - A SIGNED PUBLISH OF AN UNCHANGED ROW WAS NEVER ASKED: THE KEY-ARRIVING BRANCH HAD NO LAW (M6 T3 review fix round)
+
+functions/api/roster.js decides whether a signed publish is the owner's key arriving (upgrade) through sameIntent - same
+verdict, same whole key, same key id as the stored row. Every case in tv/test_a_roster_publish_is_signed_and_a_forgery_is_refused.py
+signed a body that differed from the stored row, so the branch was never asked: four mutants passed both roster laws, one of them
+the exact origin/main line `if (prev && prev.hash === hash) {`. Under it, on deploy day, a PC's first signed publish that carries
+the sections its pre-signing row (or its own unsigned row) already holds is answered skipped:['unchanged'] with
+intentVerified:true: no rosterkey is written, the row stays unverified, and the PC records a verified publish.
+FIX (law only - the code was right): test_a_signed_publish_of_an_unchanged_row_still_carries_the_key signs the very sections the
+stored row holds, inside the hour and not at boot, over a pre-signing row (no key yet), its own unsigned row (key placed by
+hand), another key's verified row, and a row with this key's 48-bit id but another key: each is stored verified under this key,
+the first registers it, the rest register nothing. The same publish over a row already written under this very key is still
+skipped 'unchanged' (the churn guard). Four RED_PROOF cases: the origin/main unchanged check, the hourly guard without
+!upgrade, upgrade as first-registration only, upgrade on every signed publish.
+T3's integration hazard (REG-2518's push order): resolved by where M6 lands. gbl/batch descends from 8ddee4d18, which holds
+Push A2 - the hook's scrub-git-env block and heart2's GIT_*-free law runs (REG-2394..2397, law
+test_a_leaked_git_dir_never_writes_the_real_repo) - and the hooks path his checkout runs is that A2 hook. So the M6 push runs
+the thirteen git-init laws with no GIT_* variable, from a linked worktree too.
+
 ### REG-2510 - ANYONE WITH THE PUBLIC SITE PASSWORD COULD OVERWRITE ANY PC'S ROSTER ROW, AND THE SERVER RE-HASHED THE FORGERY CLEAN (#95, M6 track T3)
 
 functions/api/roster.js onRequestPost checked nothing but the site's Basic password, and that password is in this public repo: _roster_post in tv/control_app.py sends it. Any POST naming an owner label overwrote that owner's row. The server re-hashed whatever it stored, so GET read a forged row corrupt:false and every console drew it as that PC's. Rows were stored as sent (shapeSection), up to 80,000 bytes. HIS RULING 2026-10-22: deploy signed publishing once the Python/JS signature test passes, trust-on-first-use, never stop a PC from publishing.
