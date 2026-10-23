@@ -7,6 +7,11 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2603 - THE FAN-IN'S always() WAS READ ANYWHERE IN THE JOB (census 39982880536 shard 6, GB-box, 2026-10-23)
+test_the_shard_workflow_proves_every_proof_once[2] went BLIND: REG-2595 gave the fan-in's census steps their own
+`if: ${{ always() }}`, so dropping the JOB's `if:` left the string in the job and the law stayed green. The case now reads
+the job header (before `steps:`) only. Law: test_the_shard_workflow_proves_every_proof_once (RED_PROOF[2] red again).
+
 ### REG-2601 - THE MAC DRIVER COUNTS A PROOF THE IMPORT DROPPED AS OWED (proof-keys, GB-box, 2026-10-23)
 REG-2596 made --import-shards drop (and name) entries this checkout's bytes do not key; the driver's REG-2594 owed count
 still called select() with no keyer, so a dropped proof read as banked by CI and a PARTIAL set could read FULL.

@@ -80,7 +80,8 @@ class TheWorkflowRunsEveryShardOnce(unittest.TestCase):
         job = _job(_wf(), "fan-in")
         self.assertTrue(job, "the fan-in job is gone")
         self.assertIn("needs: [shard]", job)
-        self.assertIn("if: ${{ always() }}", job, "a failed shard skips the fan-in, and nothing says the set is broken")
+        head = job[:job.find("\n    steps:")]   # REG-2603 - the JOB's own if: the census steps carry always() too
+        self.assertIn("\n    if: ${{ always() }}\n", head, "a failed shard skips the fan-in, and nothing says the set is broken")
         self.assertIn("pattern: proof-shard-*", job)
         self.assertNotIn("merge-multiple: true", job, "merged, the shards' one-named caches overwrite each other")
         self.assertIn('python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA"', job)
