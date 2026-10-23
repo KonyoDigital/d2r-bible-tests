@@ -146,6 +146,37 @@ class TheListingIsReadAtMostOnceAnHour(unittest.TestCase):
         self.assertEqual(len(self.asked), 2, "a failing schtasks was asked again at once - a hang would repeat")
 
 
+class AUtf16ListingIsReadNotCachedAsGarbage(unittest.TestCase):
+    """REG-2481 round 2 (second eye) - a Windows tool piped to a file may write UTF-16. Decoded as utf-8/mbcs it is a
+    NUL between every letter, no 'Task To Run' header, UNKNOWN for ever - and that garbage was cached for an hour as a
+    GOOD listing. The real _schtasks_csv is driven here through its git_quiet door with both UTF-16 shapes."""
+
+    def setUp(self):
+        saved = dict(CD._TASKS)
+        self.addCleanup(lambda: (CD._TASKS.clear(), CD._TASKS.update(saved)))
+        CD._TASKS.update(at=None, text=None, err=None)
+
+    def _run_with(self, raw):
+        import git_quiet
+        r = mock.Mock(returncode=0, stdout=raw)
+        return mock.patch.object(git_quiet, "run", lambda *a, **k: r)
+
+    def test_both_utf16_shapes_read_as_the_listing(self):
+        text = _listing(_task("\\TVD sweep", "C:\\Python312\\python.exe C:\\r\\run_gates.py"))
+        for label, raw in (("BOM", text.encode("utf-16")), ("bare LE", text.encode("utf-16-le"))):
+            CD._TASKS.update(at=None, text=None, err=None)
+            with self._run_with(raw):
+                st, why = CD._venue_on_windows(now=1000.0)
+            self.assertEqual(st, CD.OK, "%s UTF-16 listing: %s" % (label, why))
+
+    def test_a_listing_that_will_not_parse_is_a_failure_on_the_short_ttl(self):
+        with self._run_with(b"not a listing at all\r\n"):
+            st, _why = CD._venue_on_windows(now=2000.0)
+        self.assertEqual(st, CD.UNKNOWN)
+        self.assertIsNone(CD._TASKS["text"], "an unparseable listing was cached as a good one")
+        self.assertTrue(CD._TASKS["err"], "an unparseable listing was not recorded as a failed read")
+
+
 class TheRowAsksTheSchedulerThisPcHas(unittest.TestCase):
 
     def test_windows_asks_task_scheduler(self):
@@ -222,6 +253,21 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "        if _os != \"darwin\":\n            # #171 (REG-2481) - ON WINDOWS THE WITNESS IS MISSING",
         "replace": "        if False:\n            # #171 (REG-2481) - ON WINDOWS THE WITNESS IS MISSING",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2481 round 2 - a UTF-16 listing is decoded as utf-8/mbcs again: a NUL between every letter, no "
+               "header, the venue row UNKNOWN on every Windows PC",
+        "file": "console_doctor.py",
+        "find": "    if raw[:2] in (b\"\\xff\\xfe\", b\"\\xfe\\xff\") or b\"\\x00\" in raw[:200]:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2481 round 2 - a listing that will not parse is cached for an hour as a good one again",
+        "file": "console_doctor.py",
+        "find": "                text, age = _schtasks_csv(), 0.0\n                tasks = windows_tasks_from_csv(text)\n",
+        "replace": "                text, age = _schtasks_csv(), 0.0\n",
         "matches": 1,
     },
 ]
