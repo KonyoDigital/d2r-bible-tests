@@ -10986,6 +10986,14 @@ GATES = [
          why="REG-2602 - a coherent version bump leaves a proof's key only for a law that never reads the version: the "
              "stamp lines of the stamp surfaces are masked, and any other word, a literal the law counts, a home path, "
              "an incoherent hand bump or a version-ish proof keeps the bytes raw. Temp tree and temp cache."),
+    Gate("test_a_proof_proved_elsewhere_counts_only_under_this_trees_key",
+         [sys.executable, os.path.join(HERE, "test_a_proof_proved_elsewhere_counts_only_under_this_trees_key.py")], 60,
+         needs_app=False,
+         why="REG-2630 - `heart2 --export-proved` ships only servable PROVENs its own HEAD's bytes key, from a clean "
+             "tree, never into an older export; `heart2 --import-proved` banks a box export or census shard files of "
+             "THIS HEAD only under the key this checkout computes (a tampered or other-bytes key is dropped, named and "
+             "never served - driven with the real keyer on a real gate), keeps each entry's tree, and refuses another "
+             "HEAD, a dirty tree on either side, an unfinished shard or a file with no manifest. Temp stores."),
     Gate("test_a_proof_shard_keeps_going_past_a_failure",
          [sys.executable, os.path.join(HERE, "test_a_proof_shard_keeps_going_past_a_failure.py")], 60,
          needs_app=False,

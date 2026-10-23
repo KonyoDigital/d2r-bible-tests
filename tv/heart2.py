@@ -6419,6 +6419,113 @@ def import_shards(paths, say=print, target=None):
     return 0
 
 
+def export_proved(out_dir, say=print, source=None):
+    """REG-2630 - `heart2.py --export-proved DIR`: this machine's banked PROVENs that THIS checkout's bytes still key, into
+    DIR/.heart2_cache.json with an `export` manifest (HEAD, clean), for another machine's `--import-proved`. The box
+    proves the exact commit the Mac will push (`HEART2_CACHE_PATH=<dir>/.heart2_cache.json heart2 --prove <gates>
+    --push`), exports, and the Mac imports. Only what peek() would serve leaves; an entry these bytes key differently
+    (proved over other bytes) is left behind and counted. Refuses a dirty checkout, an unknown HEAD and an existing
+    file (an export is one commit's, never merged into another's). -> exit code: 0 written, 2 refused"""
+    import proof_shard as _PS
+    source = source or CACHE
+    ok_h, head = _git("rev-parse", "HEAD")
+    head = head.strip() if ok_h else ""
+    ok_d, dirty = _git("status", "--porcelain", "--untracked-files=no")
+    out = os.path.join(os.path.abspath(out_dir or "."), os.path.basename(CACHE))
+    why = None
+    if not head:
+        why = "this checkout's HEAD is UNKNOWN"
+    elif not ok_d or dirty.strip():
+        why = "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
+    elif os.path.exists(out):
+        why = "%s already exists - an export is one commit's, never merged into an older one" % out
+    body = None
+    if why is None:
+        body, rwhy = _read_store(source, _entries_shape)
+        if body is None:
+            why = "%s is unreadable (%s)" % (source, rwhy)
+    if why is not None:
+        say("  ✗ REG-2630 EXPORT REFUSED: %s. Nothing was written." % why)
+        return 2
+    keyer = _shard_keyer(source)
+    take, stale, other = {}, 0, 0
+    for key, e in (body.get("entries") or {}).items():
+        if not _PS.servable(e):
+            other += 1
+            continue
+        if keyer(str(e.get("gate")), e.get("proof")) != key:
+            stale += 1
+            continue
+        take[key] = e
+    if not os.path.isdir(os.path.dirname(out)):
+        os.makedirs(os.path.dirname(out))
+    m = _PS.export_manifest(head, False, len(take), int(time.time() * 1000))
+    w_ok, w_why = _StoreFile(out, say).commit(lambda _disk: {"format": 2, "entries": take, "export": m})
+    if not w_ok:
+        say("  ✗ REG-2630 EXPORT REFUSED: %s could not be written (%s)." % (out, w_why))
+        return 2
+    say("  ✓ REG-2630 EXPORTED %d PROVEN entr(ies) keyed at HEAD %s into %s; %d banked over other bytes and %d not "
+        "servable left behind. Import it on the pushing machine, at this same HEAD: heart2.py --import-proved <file>"
+        % (len(take), head[:12], out, stale, other))
+    return 0
+
+
+def import_proved(paths, say=print, target=None):
+    """REG-2630 - `heart2.py --import-proved FILE...`: PROVENs proved ELSEWHERE (a box export, or census shard files -
+    a partial set too) into this machine's verdict cache, served by the next push exactly like its own.
+
+    THE ONE RULE: an entry is banked only under the key THIS checkout's bytes give its (gate, proof) - recomputed here,
+    never read from the file - so it can only ever be served where the push would have proved those very bytes. An
+    entry filed under any other key (other bytes, another commit, a tampered file) is DROPPED and named; a file of
+    another HEAD, from a dirty tree, with no manifest, or into a dirty checkout is REFUSED whole. Each entry keeps the
+    tree it was proved in, so REG-2599 still owes a clean run HERE to every gate whose law file the push changes.
+    -> exit code: 0 imported, 2 refused (nothing written)"""
+    import proof_shard as _PS
+    target = target or CACHE
+    ok_h, head = _git("rev-parse", "HEAD")
+    head = head.strip() if ok_h else ""
+    bodies = []
+    for p in paths or []:
+        body, why = _read_store(p, _entries_shape)
+        bodies.append((os.path.basename(os.path.dirname(os.path.abspath(p))) + "/" + os.path.basename(p), body, why))
+    ok, why, sets = _PS.check_proved(bodies, head)
+    if ok:
+        ok_d, dirty = _git("status", "--porcelain", "--untracked-files=no")
+        if not ok_d or dirty.strip():       # REG-2630 - the importing checkout must BE its HEAD, or its keys are not
+            ok, why = False, "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
+    _gone = []
+    if ok:
+        ok, why, take, skipped = _PS.select(sets, keyer=_shard_keyer(target), dropped=_gone)
+    if not ok:
+        say("  ✗ REG-2630 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
+        return 2
+    out = {}
+
+    def merge(disk):
+        ent, added = _PS.merge_into((disk or {}).get("entries"), take)
+        out["added"], out["evicted"] = added, _cache_evict(ent, CACHE_MAX)
+        body = dict((k, v) for k, v in (disk or {}).items() if k not in ("format", "entries"))
+        body.update(format=2, entries=ent)
+        return body
+    w_ok, w_why = _StoreFile(target, say).commit(merge)
+    if not w_ok:
+        say("  ✗ REG-2630 IMPORT REFUSED: %s could not be written (%s)." % (os.path.basename(target), w_why))
+        return 2
+    say("  ✓ REG-2630 IMPORTED %d file(s) proved elsewhere at HEAD %s: %d PROVEN entr(ies) banked, %d already served "
+        "here and kept, %d not servable, %d DROPPED (keyed over other bytes)%s. A gate whose law file this push changes "
+        "still runs clean here once (REG-2599)." % (len(sets), head[:12], out.get("added", 0),
+                                                    len(take) - out.get("added", 0), skipped, len(_gone),
+                                                    (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else ""))
+    if _gone:
+        _dg = {}
+        for _s, _g, _i in _gone:
+            _dg.setdefault(_g, []).append(_i)
+        say("    ⚠ REG-2630 DROPPED, never banked - this checkout's bytes key them differently, so a push proves them: %s"
+            % "; ".join("%s %s" % (g, sorted(v, key=str)[:6]) for g, v in sorted(
+                _dg.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:12]))
+    return 0
+
+
 def prove_exit_code(results):
     """(exit_code, broken, idle) for a set of prove() verdicts. Decides; prints nothing.
 
@@ -6482,9 +6589,19 @@ def main(argv):
     ap.add_argument("--import-shards", nargs="+", default=None, metavar="FILE",
                     help="REG-2586 merge every shard's banked PROVENs into this machine's verdict cache - all shards of "
                          "this HEAD or nothing; each entry keeps its tree; exits 2 on a refusal")
+    ap.add_argument("--export-proved", default=None, metavar="DIR",
+                    help="REG-2630 write this machine's PROVENs that HEAD's bytes still key into DIR/.heart2_cache.json "
+                         "with an export manifest, for --import-proved on the pushing machine; exits 2 on a refusal")
+    ap.add_argument("--import-proved", nargs="+", default=None, metavar="FILE",
+                    help="REG-2630 bank PROVENs proved elsewhere (a box export or census shard files, partial allowed) "
+                         "of THIS HEAD, each only under the key this checkout's bytes give it; exits 2 on a refusal")
     a = ap.parse_args(argv)
     if a.import_shards is not None:
         return import_shards(a.import_shards)
+    if a.export_proved is not None:
+        return export_proved(a.export_proved)
+    if a.import_proved is not None:
+        return import_proved(a.import_proved)
     _SHARD["spec"] = None
     if a.proof_shard is not None:
         import proof_shard as _PS

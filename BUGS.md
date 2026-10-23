@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2630 - A PROOF THE BOX OR THE CENSUS BANKED NEVER REACHED THE MAC'S HOOK (proof-keys import, GB-box, 2026-10-24)
+--import-shards takes only a complete 1..N census set, and the census of a pushed commit takes 45-52 min - longer than
+the hook it was meant to shorten; the box's own --prove --push cache had no import path at all, so a push touching
+bible.html or control_app.py re-proved its whole set on the Mac. `heart2 --export-proved DIR` now writes the PROVENs a
+clean checkout's HEAD bytes still key, with an `export` manifest; `heart2 --import-proved FILE...` banks a box export
+or any finished census shard of THIS HEAD (a partial set too), each entry only under the key this checkout computes -
+a key the file claims for other bytes is dropped, named and never served. Each entry keeps its tree (REG-2599 clean run
+here still owed where the push changes the law). Law: test_a_proof_proved_elsewhere_counts_only_under_this_trees_key
+(23 cases incl. the real keyer on a real gate, 10 red-proofs).
+
 ### REG-2602 - A SHIP MOVED THE KEY OF EVERY PROOF THAT HOLDS A STAMP SURFACE (proof-keys step 4, GB-box, 2026-10-23)
 bump_version rewrites only stamp lines, but 824 of 1024 laws hold a stamp surface and the key hashed raw bytes: across
 b58879ec (v3790) 337 of 5162 keyed proofs kept their key, so a census banked on the commit before a ship was a miss on the

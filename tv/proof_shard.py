@@ -296,6 +296,54 @@ def check_shards(bodies, head):
     return True, None, [(k, shards[k][0], shards[k][1]) for k in sorted(shards)]
 
 
+EXPORT_V = 1                               # REG-2630 - the manifest `heart2 --export-proved` writes beside its entries
+
+
+def export_manifest(head, dirty, n, at_ms):
+    """REG-2630 - what an export of one machine's banked PROVENs carries: the HEAD it was keyed at, whether that tree's
+    tracked files differed from it, how many entries it holds, when it was written."""
+    return {"v": EXPORT_V, "head": str(head or ""), "dirty": bool(dirty), "entries": int(n), "at": int(at_ms)}
+
+
+def check_proved(bodies, head):
+    """REG-2630 - files proved ELSEWHERE that `heart2 --import-proved` may take: a box export (`export` manifest) or any
+    finished census shard (`shard` manifest), of THIS HEAD, from a tree that matched its HEAD. A partial census set is
+    allowed here: every entry is still keyed by this checkout's bytes in select(), so a missing shard only means its
+    proofs are proved by the push, never served unearned. -> (ok, why | None, [(i, entries, assigned)])"""
+    out = []
+    for i, (label, body, why) in enumerate(bodies or [], 1):
+        if body is None:
+            return False, "%s is unreadable (%s)" % (label, why), []
+        ent = body.get("entries") if isinstance(body, dict) else None
+        if not isinstance(ent, dict):
+            return False, "%s has no 'entries' map" % label, []
+        ex, sh = body.get("export"), body.get("shard")
+        if isinstance(ex, dict) and sh is None:
+            if ex.get("v") != EXPORT_V:
+                return False, "%s carries an export manifest of another version (%r)" % (label, ex.get("v")), []
+            m, assigned = ex, None
+        elif isinstance(sh, dict) and ex is None:
+            if sh.get("v") != MANIFEST_V:
+                return False, "%s carries a shard manifest of another version (%r)" % (label, sh.get("v")), []
+            if sh.get("finished") is not True:
+                return False, "%s is a shard that never finished" % label, []
+            m, assigned = sh, set((str(r[0]), r[1]) for r in (sh.get("assigned") or [])
+                                  if isinstance(r, list) and len(r) == 2)
+        else:
+            return False, "%s carries no export or shard manifest (or both) - nothing says where it was proved" % label, []
+        if not head or m.get("head") != head:
+            return False, "%s was keyed at %s, not this checkout's HEAD %s - prove the exact commit you push (bump it " \
+                "first)" % (label, str(m.get("head"))[:12], str(head)[:12] or "UNKNOWN"), []
+        if m.get("dirty") is not False:
+            return False, "%s was proved on a tree whose tracked files differed from its HEAD" % label, []
+        if assigned is None:                 # an export has no plan: every entry it holds is its own claim
+            assigned = set((str(e.get("gate")), e.get("proof")) for e in ent.values() if isinstance(e, dict))
+        out.append((i, ent, assigned))
+    if not out:
+        return False, "no file was given", []
+    return True, None, out
+
+
 def select(shards, keyer=None, dropped=None):
     """The entries an import may bank. -> (ok, why | None, {key: entry}, skipped count)
 
