@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2613 - THE BACKGROUND PROVER RAN OUTSIDE child_guard: A CLOSED CONSOLE LEFT IT RUNNING - board #34
+
+self_prove.spawn started `heart2.py --prove` with a bare Popen. On Windows nothing tied it to the console, so a console
+that closed or crashed left the prover, and every gate process under it, running beside his game. It now goes through
+child_guard's one door as role "prover" (scope checkout, 0..1). Windows: a Job Object with KILL_ON_JOB_CLOSE, with its
+below-normal, no-window flags unchanged. POSIX: its own session, under nice. The door ends a previous prover of this
+checkout first, and the watchdog ends an orphan whose console is gone. The watchdog knows a self-prover only by the
+`-X tvd_self_prove` marker in its argv (a free-form CPython -X option; heart2 is unchanged), never by bare
+`heart2.py --prove`, so a pre-push or hand-run prover is never ended. The store records the console that started a
+prover (startedBy); a prover that ended because its console ended is booked a stand-aside, not a failure with the 3 h
+backoff. A law's recording popen never enters the real door's ledger. child_guard is imported at spawn time only, so the
+pre-push gate loads nothing new. Measured: spawn() median 0.6-0.9 ms before, 0.9-1.3 ms after; hooks/ reference
+neither module. Scope: Dean's PC and the ALT (the Windows sync check). Law:
+tv/test_the_prover_is_owned_by_its_console.py (12 cases, 8 red-proofs; Windows command lines with spaces, the real door
+under a faked kernel32). Lands after or alongside claude/m4-perpc/c, which also edits tv/self_prove.py.
+
 ### REG-2616 - THE KEEPALIVE COULD NOT BRING A CONSOLE BACK AFTER A REBOOT WITH NOBODY SIGNED IN - 2026-10-23 (his ruling on REG-2614)
 
 REG-2614's task runs as the signed-in user (InteractiveToken), so a PC that rebooted to the sign-in screen - the ALT
