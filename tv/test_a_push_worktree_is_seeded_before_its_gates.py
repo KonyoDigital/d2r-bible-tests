@@ -170,11 +170,18 @@ class APushWorktreeIsSeededBeforeItsGates(unittest.TestCase):
 
     # 4b --------------------------------------------------------------------------------------------------------------
     def _written(self, dst):
-        n = 0
-        for root, _d, names in os.walk(dst):
-            for x in names:
-                q = os.path.join(root, x)
-                if not os.path.islink(q):
+        """-> bytes of regular files the copy left under dst (links not followed). Listed through fixture_tmp.list_own:
+        dst is this run's own scratch, so the law stays keyable (test_the_unkeyable_laws_only_get_fewer)."""
+        n, todo = 0, [dst]
+        while todo:
+            d = todo.pop()
+            for x in _fx_tmp.list_own(d):
+                q = os.path.join(d, x)
+                if os.path.islink(q):
+                    continue
+                if os.path.isdir(q):
+                    todo.append(q)
+                else:
                     n += os.lstat(q).st_size
         return n
 
