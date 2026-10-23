@@ -33,12 +33,23 @@ test('✓ created consumes the planned base from the vault; un-mark restores it'
         && typeof w._ensureSocketBaseEntry === 'function'
         && w.RUNEWORD_TIP && Object.keys(w.RUNEWORD_TIP).length > 50;
   }, null, { timeout: 20000 });
-  await page.evaluate(() => {
+  /* The Chronicle pin is written by a ONE-SHOT init script on the reloaded document, not by an
+     evaluate on the old one. Written from the old page, the pin raced that page's own pagehide flush
+     (persist() rewrites d2r_rwMade from memory when a persistSoon is pending), so about half the
+     loads came back with Insight made and no 'fresh' profile and preTaskHasBase read false — on main
+     too (5/8 locally on fb2079a3). An init script runs after the old page is gone and before the new
+     page's scripts. The sessionStorage flag keeps it one-shot, so it never stomps later writes. */
+  const made = await page.evaluate(() => {
     const w: any = window;
-    const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
-    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
-    localStorage.setItem('d2r_rwProfile', 'fresh');
+    const m: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') m[n] = 'x'; });
+    return m;
   });
+  await page.addInitScript((m: any) => {
+    if (sessionStorage.getItem('v596_pinned')) return;
+    sessionStorage.setItem('v596_pinned', '1');
+    localStorage.setItem('d2r_rwMade', JSON.stringify(m));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  }, made);
   await page.reload();
   await page.waitForFunction(() => {
     const w = window as any;
