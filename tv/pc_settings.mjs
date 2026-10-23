@@ -39,7 +39,8 @@ export function readSettings(env = process.env) {
     if (!v || typeof v !== 'object' || Array.isArray(v)) return { label, values: {}, error: 'not a JSON object' };
     return { label, values: v, error: null };
   } catch (e) {
-    return { label, values: {}, error: String((e && e.message) || e).slice(0, 120) };
+    // a code, never e.message: Node's message carries the absolute path (a home folder) into the 429 body
+    return { label, values: {}, error: String((e && (e.code || e.name)) || 'unreadable').slice(0, 120) };
   }
 }
 
