@@ -74,13 +74,26 @@ test('a roster another page removes reads as the default lockers here, and every
   expect(got.ids, 'a roster another page removed must read as the default lockers, never []').toEqual(before);
   expect(got.held).toBeNull();
   expect(got.map, 'the prune dropped his filings against an emptied roster').toEqual(FILED);
-  // the other page, which still holds his map, files one more item: this page merges it and the store keeps all four
+  // the other page, which still holds his map, files one more item: this page merges it and the store keeps all four.
+  // 2026-10-24 - it OWNS that item first, as a real filing does. Filing a name that is in neither d2r_owned nor the
+  // witness store made it a filing the W6 prune drops on this page's next paint (renderVault: an unwitnessed filing
+  // whose name left the pool goes), so the wait below raced that paint and lost about 1 run in 7 (main v3792 Routine I
+  // shard 1, red twice). The merge was never wrong; the test filed an item nobody owned.
+  await other.evaluate(() => {
+    const w = window as any, own = JSON.parse(w.LSR.getItem('d2r_owned') || '[]');
+    if (own.indexOf('Arachnid Mesh') < 0) own.push('Arachnid Mesh');
+    w.LSR.setItem('d2r_owned', JSON.stringify(own));
+  });
+  await page.waitForFunction(() => { const o = (window as any)._TAB_SYNC.d2r_owned.get(); return !!o && (o.has ? o.has('Arachnid Mesh') : o.indexOf('Arachnid Mesh') >= 0); }, null, { timeout: 8000 });
   await other.evaluate(() => {
     const w = window as any, m = JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}');
     m['Arachnid Mesh'] = 'uni-armor';
     w.LSR.setItem('d2r_muleAssign', JSON.stringify(m));
   });
   await page.waitForFunction(() => !!(window as any)._TAB_SYNC.d2r_muleAssign.get()['Arachnid Mesh'], null, { timeout: 8000 });
+  // and it stays through this page's next paint and its W6 prune: an owned filing is never dropped by it
+  const kept = await page.evaluate(() => { const w = window as any; w.renderVault(); return !!w._TAB_SYNC.d2r_muleAssign.get()['Arachnid Mesh']; });
+  expect(kept, "this page's paint dropped the other page's filing of an item he owns").toBe(true);
   const stored = await page.evaluate(() => JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}'));
   expect(Object.keys(stored).sort(), "the other page's filing came back as a map with only its own row")
     .toEqual(['Arachnid Mesh', 'Enigma', 'Grief', 'Harlequin Crest (Shako)']);
