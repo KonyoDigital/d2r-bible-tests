@@ -3815,6 +3815,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     var world = null;
     try { world = JSON.parse(seed.d2r_api_world || 'null'); } catch (e) { world = null; }
     if (!world || typeof world !== 'object') world = null;
+    // all five facts, closed values, or the frame does not open: a partial world would draw half theirs, half ours
+    if (world && !((world.machine === 'mac' || world.machine === 'windows') && (world.profile === 'main' || world.profile === 'ladder') &&
+        ['MAC', 'WINDOWS', 'LINUX', 'ANDROID', 'THIS MACHINE'].indexOf(world.os) !== -1 &&
+        typeof world.ledger === 'string' && typeof world.cousin === 'boolean')) world = null;
     function pin(name, value) {
       try { Object.defineProperty(window, name, { value: value, writable: false, configurable: false, enumerable: true }); } catch (e) {}
     }
@@ -3855,10 +3859,10 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       Object.defineProperty(window, 'frameElement', { configurable: false, get: function () { return null; } });
       ok = ok && window.parent === window && window.frameElement === null;
     } catch (e) { ok = false; }
-    if (!ok || !stores) {
+    if (!ok || !stores || !world) {
       try { window.stop(); } catch (e) {}
       document.write('<p style="font:16px sans-serif;color:#ddd;background:#111;padding:24px">Shadow could not open: ' +
-        (!stores ? 'no snapshot was handed to this frame.' : 'this browser would not isolate the board.') +
+        (!stores ? 'no snapshot was handed to this frame.' : !world ? 'the snapshot does not say which world it was drawn in (their console must upload again).' : 'this browser would not isolate the board.') +
         ' Nothing was read from or written to this PC.</p>');
       throw new Error('tvd-shadow: closed');
     }
@@ -3902,10 +3906,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     } catch (e) {}
     try { Navigator.prototype.sendBeacon = function () { window._tvdShadowRefused++; return false; }; } catch (e) {}
     try { navigator.sendBeacon = function () { window._tvdShadowRefused++; return false; }; } catch (e) {}
+    var noSend = function () { window._tvdShadowRefused++; return false; };
     try {
-      HTMLFormElement.prototype.submit = function () { window._tvdShadowRefused++; };
-      HTMLFormElement.prototype.requestSubmit = function () { window._tvdShadowRefused++; };
+      HTMLFormElement.prototype.submit = noSend;
+      HTMLFormElement.prototype.requestSubmit = noSend;
     } catch (e) {}
+    try { navigator.sendBeacon = noSend; } catch (e) {}
+    // an unpatched beacon or form submit is a way out: stop the frame rather than open it with one
+    if ((typeof navigator !== 'undefined' && navigator.sendBeacon && navigator.sendBeacon !== noSend) ||
+        (typeof HTMLFormElement !== 'undefined' && HTMLFormElement.prototype.submit !== noSend)) {
+      try { window.stop(); } catch (e) {}
+      throw new Error('tvd-shadow: closed');
+    }
     try { window.open = function () { window._tvdShadowRefused++; return null; }; } catch (e) {}
     try { window.showDirectoryPicker = undefined; } catch (e) {}
     // THE WRITE CONTROLS ARE DEAD HERE. A click reaches only what moves the view: the tabs, a fold, and the
@@ -3945,7 +3957,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         ev.stopImmediatePropagation();
       }, true);
     });
-    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart'].forEach(function (type) {
+    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu'].forEach(function (type) {
       document.addEventListener(type, function (ev) { window._tvdShadowStopped++; ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
     });
     // Keys move the view and nothing else: the board's own shortcuts (delete, undo, a letter that opens an editor)

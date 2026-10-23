@@ -5060,9 +5060,10 @@ def _snapshot_publish_loop():
             if os.path.isfile(_snapshot_book_path()):
                 boot = False
         except Exception as e:
-            _st = _snapshot_json_load(_snapshot_state_path()) or {}
-            _st["why"] = type(e).__name__
-            _snapshot_json_save(_snapshot_state_path(), _st)
+            _st = _snapshot_json_load(_snapshot_state_path())
+            if _st is not None:
+                _st["why"] = type(e).__name__
+                _snapshot_json_save(_snapshot_state_path(), _st)
         time.sleep(120)
         _lane_tick("_snapshot_publish_loop", 120)
 
@@ -5095,6 +5096,9 @@ def _snapshot_view(owner):
             why, unread = str(got.get("why") or "the uploaded snapshot does not match its own hash")[:120], False
         elif isinstance(got, dict) and got.get("ok") is True:
             why, unread = "the site's snapshot is not " + owner + "'s", False
+        elif isinstance(got, dict) and "code" not in got and got.get("why") != "the roster answer was not a record":
+            # the site answered and refused (storage unavailable, key unreadable): that is its answer, not an outage
+            why, unread = str(got.get("why") or "the site refused")[:120], False
         else:
             why = (got.get("why") if isinstance(got, dict) else None) or "the snapshot fetch failed"
     if rec is None and unread:

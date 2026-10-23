@@ -76,6 +76,14 @@ def _stores():
             "d2r_magicFinds": json.dumps({"Bone Eye": {"q": "rare", "mods": ["+22 to Life"]}})}
 
 
+WORLD = {"machine": "windows", "profile": "main", "os": "WINDOWS", "ledger": "", "cousin": True}
+
+
+def _wstores():
+    """The stores as the console uploads them: the board's, plus the world they were drawn in."""
+    return dict(_stores(), d2r_api_world=json.dumps(WORLD, separators=(",", ":"), sort_keys=True))
+
+
 def _record(owner=OWNER, stores=None, t=T0, **extra):
     stores = _stores() if stores is None else stores
     rec = {"owner": owner, "t": t, "hash": CS.digest(stores), "stores": stores}
@@ -145,8 +153,11 @@ class WhatLeavesThePC(unittest.TestCase):
         w = {"machine": "windows", "profile": "ladder", "os": "WINDOWS", "ledger": "Dean ledger", "cousin": True}
         self.assertEqual(CS.world_of(w), w)
         for bad in (dict(w, machine="linux"), dict(w, profile="hc"), dict(w, os="BeOS"), dict(w, cousin=1),
-                    dict(w, ledger="<img>"), dict(w, ledger="x" * 41), {k: v for k, v in w.items() if k != "os"}):
+                    {k: v for k, v in w.items() if k != "os"}):
             self.assertIsNone(CS.world_of(bad), bad)
+        for odd in ("<img>", "x" * 41, None):
+            self.assertEqual(CS.world_of(dict(w, ledger=odd)), dict(w, ledger=""),
+                             "a ledger name it cannot carry lost the whole world")
         got = CS.with_api(_stores(), {"world": dict(w, extra="/Users/x")})
         self.assertEqual(json.loads(got["d2r_api_world"]), w)
         self.assertNotIn("d2r_api_world", CS.with_api(_stores(), {"world": dict(w, os="BeOS")}))
@@ -346,13 +357,13 @@ class TheWorker(unittest.TestCase):
         return step
 
     def _body(self, stores=None, boot=False, **over):
-        s = _stores() if stores is None else stores
+        s = _wstores() if stores is None else stores
         b = {"owner": OWNER, "boot": boot, "signedAt": None, "hash": CS.digest(s), "stores": s}
         b.update(over)
         return b
 
     def test_the_hash_is_the_same_on_both_sides(self):
-        s = dict(_stores(), d2r_emoji=json.dumps({"icon": "🛡️ ✓ ü"}))
+        s = dict(_wstores(), d2r_emoji=json.dumps({"icon": "🛡️ ✓ ü"}))
         self.assertEqual(_node({"hashOf": s})["hash"], CS.digest(s))
 
     def test_a_signed_upload_is_stored_and_read_back_byte_for_byte(self):
@@ -361,15 +372,15 @@ class TheWorker(unittest.TestCase):
         self.assertTrue(post["reply"]["ok"], post["reply"])
         self.assertEqual(post["reply"]["stored"], ["snapshot"])
         self.assertTrue(post["reply"]["intentVerified"])
-        self.assertEqual(got["get"]["stores"], _stores())
+        self.assertEqual(got["get"]["stores"], _wstores())
         self.assertEqual(got["get"]["t"], T0)
         self.assertEqual(got["puts"], [], "a GET wrote to the store")
         self.assertTrue(CS.record_ok(dict(got["get"], owner=OWNER), OWNER),
                         "the console would not accept what the worker serves")
 
     def test_every_refusal_stores_nothing(self):
-        big = dict(_stores(), d2r_big=json.dumps(["x" * 210000]))
-        pic = dict(_stores(), d2r_pic=json.dumps({"art": "data:image/png;base64,AAAA"}))
+        big = dict(_wstores(), d2r_big=json.dumps(["x" * 210000]))
+        pic = dict(_wstores(), d2r_pic=json.dumps({"art": "data:image/png;base64,AAAA"}))
         cases = [
             ("no registered key", self._post(self._body(), self.key_a, seed={}, now=T0), "no registered roster key"),
             ("unsigned", self._post(self._body(), None, seed=self.seed, now=T0), "not signed"),
@@ -387,8 +398,8 @@ class TheWorker(unittest.TestCase):
             self.assertEqual(got["puts"], [], "%s wrote to the store" % name)
 
     def test_change_only_gap_boot_and_the_daily_cap(self):
-        s2 = dict(_stores(), d2r_owned=json.dumps(["Harlequin Crest", "Enigma"]))
-        s3 = dict(_stores(), d2r_owned=json.dumps(["Enigma"]))
+        s2 = dict(_wstores(), d2r_owned=json.dumps(["Harlequin Crest", "Enigma"]))
+        s3 = dict(_wstores(), d2r_owned=json.dumps(["Enigma"]))
         gap = 30 * 60 * 1000
         steps = [self._post(self._body(), self.key_a, seed=self.seed, now=T0),
                  self._post(self._body(), self.key_a, now=T0 + 10 * gap),
@@ -413,7 +424,7 @@ class TheWorker(unittest.TestCase):
         self.assertEqual(capped["puts"], [])
 
     def test_a_captured_upload_cannot_be_replayed(self):
-        s2 = dict(_stores(), d2r_owned=json.dumps(["Enigma"]))
+        s2 = dict(_wstores(), d2r_owned=json.dumps(["Enigma"]))
         first = self._post(self._body(boot=True), self.key_a, seed=self.seed, now=T0)
         newer = self._post(self._body(stores=s2, boot=True), self.key_a, now=T0 + 60000)
         replay = {k: v for k, v in first.items() if k != "seed"}
@@ -433,15 +444,30 @@ class TheWorker(unittest.TestCase):
             self.assertEqual(got["puts"], [])
 
     def test_a_signed_client_cannot_park_stores_the_console_keeps_home(self):
-        cases = [dict(_stores(), d2r_installId="x"), dict(_stores(), d2r_api_status="{}"),
-                 dict(_stores(), d2r_quarantine_a="{}"), dict(_stores(), d2r_tvdHist="[]")]
+        cases = [dict(_wstores(), d2r_installId="x"), dict(_wstores(), d2r_api_status="{}"),
+                 dict(_wstores(), d2r_quarantine_a="{}"), dict(_wstores(), d2r_tvdHist="[]")]
         out = _node({"steps": [self._post(self._body(stores=c), self.key_a, seed=self.seed, now=T0) for c in cases]})
         for c, got in zip(cases, out["steps"]):
             self.assertFalse(got["reply"]["ok"], "the worker stored %r" % sorted(c))
             self.assertEqual(got["puts"], [])
-        ok = _node({"steps": [self._post(self._body(stores=dict(_stores(), d2r_api_world="{}")), self.key_a,
-                                         seed=self.seed, now=T0)]})
+        bad = [dict(_wstores(), d2r_api_world="{}"), {k: v for k, v in _wstores().items() if k != "d2r_api_world"},
+               dict(_wstores(), d2r_api_world=json.dumps(dict(WORLD, machine="linux"))),
+               dict(_wstores(), d2r_api_chars_learned='{"ok":true,"status":{"tick":1}}'),
+               dict(_wstores(), d2r_notes=json.dumps({"p": "/Users/someone/x"})),
+               dict(_wstores(), d2r_notes=json.dumps({"t": "ghp_" + "A" * 30}))]
+        out = _node({"steps": [self._post(self._body(stores=c), self.key_a, seed=self.seed, now=T0) for c in bad]})
+        for c, got in zip(bad, out["steps"]):
+            self.assertFalse(got["reply"]["ok"], "the worker stored an uncleaned or worldless body: %r" % got["reply"])
+            self.assertEqual(got["puts"], [])
+        ok = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0)]})
         self.assertEqual(ok["steps"][0]["reply"].get("stored"), ["snapshot"], ok["steps"][0]["reply"])
+
+    def test_an_unreadable_stored_record_is_not_started_over(self):
+        seed = dict(self.seed)
+        seed["snapshot:" + OWNER] = "{not json"
+        got = _node({"steps": [self._post(self._body(), self.key_a, seed=seed, now=T0)]})["steps"][0]
+        self.assertFalse(got["reply"]["ok"])
+        self.assertEqual(got["puts"], [])
 
     def test_the_worker_keeps_home_what_the_console_keeps_home(self):
         js = _read(SNAPSHOT_JS)
@@ -457,7 +483,7 @@ class TheWorker(unittest.TestCase):
             pub_b = RS.unb64u(json.load(fh)["pub"])
         rotated = {"rosterkey:" + OWNER: {"pub": RS.b64u(pub_b), "keyId": RS.key_id(pub_b), "at": 2}}
         out = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0), {"get": OWNER}]})
-        self.assertEqual(out["steps"][1]["get"]["stores"], _stores())
+        self.assertEqual(out["steps"][1]["get"]["stores"], _wstores())
         rec = out["records"]["snapshot:" + OWNER]
         seed = dict(rotated)
         seed["snapshot:" + OWNER] = rec
@@ -468,8 +494,8 @@ class TheWorker(unittest.TestCase):
 
     def test_a_record_that_fails_its_own_hash_is_served_as_corrupt(self):
         seed = dict(self.seed)
-        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_stores()), "pub": None,
-                                     "stores": dict(_stores(), d2r_owned='["planted"]')}
+        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_wstores()), "pub": None,
+                                     "stores": dict(_wstores(), d2r_owned='["planted"]')}
         out = _node({"steps": [{"get": OWNER, "seed": seed}, {"get": "Wife PC"}, {"get": "Somebody"}]})
         corrupt, none, bad = (s["get"] for s in out["steps"])
         self.assertTrue(corrupt["corrupt"])
@@ -505,7 +531,7 @@ class TheConsoleDoors(unittest.TestCase):
         with mock.patch.object(self.CA, "_roster_get", lambda url: rec), self._fleet():
             v = self.CA._snapshot_view(OWNER)
         self.assertEqual((v["ok"], v["source"], v["stores"]), (True, "worker", _stores()))
-        with mock.patch.object(self.CA, "_roster_get", lambda url: {"ok": False, "why": "URLError"}), self._fleet():
+        with mock.patch.object(self.CA, "_roster_get", lambda url: {"ok": False, "why": "URLError", "code": None}), self._fleet():
             v = self.CA._snapshot_view(OWNER)
         self.assertTrue(v["ok"], "with the site down the PC's last copy was not shown")
         self.assertEqual((v["source"], v["t"], v["stores"]), ("cache", T0, _stores()))
@@ -528,6 +554,11 @@ class TheConsoleDoors(unittest.TestCase):
                 v = self.CA._snapshot_view(OWNER)
             self.assertFalse(v["ok"], "this PC's old copy was shown over the site's answer %r" % said)
             self.assertIn("the site says", v["why"])
+        with mock.patch.object(self.CA, "_roster_get",
+                               lambda url: {"ok": False, "why": "snapshot could not be read: storage unavailable"}), \
+                self._fleet():
+            v = self.CA._snapshot_view(OWNER)
+        self.assertFalse(v["ok"], "this PC's old copy was drawn over the site refusing")
         with mock.patch.object(self.CA, "_roster_get", lambda url: None), self._fleet():
             v = self.CA._snapshot_view(OWNER)
         self.assertEqual((v["ok"], v["source"]), (True, "cache"))
@@ -745,7 +776,8 @@ function run(parentSnap, search) {
     try { Object.defineProperty(w, n, { configurable: true, get: () => realLS }); res.reopen.push(n); } catch (e) {}
   }
   // THEIR WORLD: a Windows cousin on ladder with its own ledger, drawn by a Mac viewer
-  const before = w.localStorage.getItem('d2r_activeMachine');
+  const bare = Object.assign({}, CFG.snap.stores); delete bare.d2r_api_world;
+  const before = run(Object.assign({}, CFG.snap, { stores: bare }), '?tvd-shadow=1').threw;
   const theirs = Object.assign({}, CFG.snap.stores, { d2r_api_world: JSON.stringify(
     { machine: 'windows', profile: 'ladder', os: 'WINDOWS', ledger: 'Dean ledger', cousin: true }) });
   const t = run(Object.assign({}, CFG.snap, { stores: theirs }), '?tvd-shadow=1').win;
@@ -767,7 +799,7 @@ class TheShadowFrameBoot(unittest.TestCase):
         if not NODE:
             raise unittest.SkipTest("node is absent - the boot block cannot be run here, so it is UNMEASURED")
         snap = {"owner": OWNER, "t": T0,
-                "stores": dict(_stores(), d2r_api_chars_learned='{"ok":true,"chars":[{"name":"Deansorc"}]}')}
+                "stores": dict(_wstores(), d2r_api_chars_learned='{"ok":true,"chars":[{"name":"Deansorc"}]}')}
         with tempfile.TemporaryDirectory(prefix="tvd_shadow_boot_") as d:
             h = os.path.join(d, "boot.js")
             with io.open(h, "w", encoding="utf-8") as fh:
@@ -836,10 +868,30 @@ class TheShadowFrameBoot(unittest.TestCase):
                          "the shadow drew the viewer's world, or a board line re-derived it: %r" % w)
         self.assertEqual((w["stored"], w["source"], w["ptr"]), ("windows", "user", "ladder"))
         self.assertTrue(w["ladderCopy"], "a ladder owner's stores are not where the ladder board reads them")
-        self.assertIsNone(w["noWorld"], "a snapshot with no world pinned one anyway")
+        self.assertEqual(w["noWorld"], "tvd-shadow: closed", "a snapshot with no world opened in the viewer's world")
 
 
 RED_PROOF = [
+    {"why": "Shadow: the worker stores a signed body that still carries a path or a token",
+     "file": "functions/api/snapshot.js",
+     "find": "    if (PRIVATE.some((rx) => rx.test(stores[k]))) return refuse(",
+     "replace": "    if (false) return refuse(", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker stores a snapshot that does not say which world it was drawn in",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (typeof stores.d2r_api_world !== \"string\") return refuse(",
+     "replace": "  if (false) return refuse(", "matches": 1, "needs": "node"},
+    {"why": "Shadow: an unreadable stored record lets a post start the replay and quota checks over",
+     "file": "functions/api/snapshot.js",
+     "find": "    return refuse(\"the stored snapshot could not be read\");\n",
+     "replace": "    prev = null;\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a snapshot with no world opens in the viewer's own world",
+     "file": "bible.html",
+     "find": "    if (!ok || !stores || !world) {\n",
+     "replace": "    if (!ok || !stores) {\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: this PC's old copy is drawn over the site refusing",
+     "file": "tv/control_app.py",
+     "find": "            why, unread = str(got.get(\"why\") or \"the site refused\")[:120], False\n",
+     "replace": "            why = str(got.get(\"why\") or \"the site refused\")[:120]\n", "matches": 1},
     {"why": "Shadow: the board can reach the console that shows it through `parent`",
      "file": "bible.html",
      "find": "      Object.defineProperty(window, 'parent', { configurable: false, get: function () { return window; } });\n",
