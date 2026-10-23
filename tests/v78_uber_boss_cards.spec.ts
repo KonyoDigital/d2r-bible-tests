@@ -63,7 +63,9 @@ test.describe('v78 Uber Boss ID cards (9)', () => {
     expect(r.baalArt).toMatch(/baal-opt_graphic\.png(?:\?|$)/);
   });
 
-  test('verified immunities show in the stat block (Mephisto Lit+Pois, Duriel Cold)', async ({ page }) => {
+  // REG-2504..2506 (#68): Uber Duriel's Hell resists are physical 50 and 75 for the rest (d2emu) - no resist reaches
+  // 100, so the card says immune 'none' and the 75s, never "Cold immune" beside a cold resist of 75.
+  test('verified immunities show in the stat block (Mephisto Lit+Pois, Uber Duriel none - 75 resists)', async ({ page }) => {
     const r = await page.evaluate(() => {
       (window as any).toggleUberBoss('uber-mephisto');
       (window as any).toggleUberBoss('uber-duriel');
@@ -74,13 +76,16 @@ test.describe('v78 Uber Boss ID cards (9)', () => {
         mephImmune: meph.querySelector('.ubc-immune strong')!.textContent,
         mephBody: meph.textContent || '',
         durImmune: dur.querySelector('.ubc-immune strong')!.textContent,
+        durBody: dur.textContent || '',
         durMlvl: dur.querySelector('.ubc-stat strong')!.textContent,
       };
     });
     expect(r.mephOpen).toBe(true);
     expect(r.mephImmune).toMatch(/Lightning \+ Poison/);
     expect(r.mephBody).toMatch(/Conviction aura/);
-    expect(r.durImmune).toMatch(/Cold/);
+    expect(r.durImmune).toBe('none');
+    expect(r.durBody).toMatch(/Magic\/Fire\/Cold\/Light\/Poison 75/);
+    expect(r.durBody).not.toMatch(/Cold immune/);
     expect(r.durMlvl).toBe('110');
   });
 

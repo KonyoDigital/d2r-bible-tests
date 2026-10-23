@@ -28,6 +28,12 @@ test_a_price_read_on_another_board_is_not_the_post_price.test_no_caller_hands_th
 each stray d2jspPriceToSend call as `s[i:i + 90]`. FIX: the call is reported up to the end of its own line, a real boundary, so
 the window count is back to 44 (ceiling 44, unchanged). test_the_blueprint_cannot_go_stale: BLUEPRINT.md named 1085 gates
 and not the eight M6 laws, nor tv/roster_sign.py. FIX: regenerated with python3 tv/blueprint.py (1093 gates, 253 modules).
+PLAYWRIGHT (Routine I on the same push, 2 failed of 222 in shard 9, both on retry too): two specs still asserted what M6's
+REG-2504..2506 corrected on purpose. tests/v78_uber_boss_cards.spec.ts expected Uber Duriel's Immune cell to match /Cold/; the
+card now says 'none' beside "Magic/Fire/Cold/Light/Poison 75" (d2emu: no resist reaches 100). tests/v191_audit_quickwins.spec.ts
+read "+1 sorc skills" anywhere on the page as Griffon's old error; Visceratuant's rewritten note now truly says it. FIX: the
+Duriel case expects 'none', the 75 line, and no "Cold immune"; the Griffon case reads Griffon's own ITEM_INFO line and also
+requires its "+1 ALL skills". Both specs: 15 passed locally.
 
 ### REG-2573 - A SIGNED PUBLISH OF AN UNCHANGED ROW WAS NEVER ASKED: THE KEY-ARRIVING BRANCH HAD NO LAW (M6 T3 review fix round)
 
