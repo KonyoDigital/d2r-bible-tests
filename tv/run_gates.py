@@ -11698,6 +11698,14 @@ GATES = [
              "(census 3.96 s profiled, 6-11 s loaded). The parse is kept per (path, size, mtime_ns, inode, device) and "
              "the census per ledger state: one parse on the first tick, none on the next, an appended row seen at once, "
              "a file written in the last 3 s never served from memory."),
+    Gate("test_a_vanished_sandbox_names_its_remover",
+         [sys.executable, os.path.join(HERE, "test_a_vanished_sandbox_names_its_remover.py")], 180,
+         needs_app=False,
+         why="REG-2612 (board #71, 2026-10-23) - a vanished sandbox names its remover. Every sandbox made, swept "
+             "or dropped writes one line (integers, basename, fixed code; 0600; capped in place under a writer "
+             "lock, no O_APPEND) to heart2-sweeps.log, before any remove; a vanish note carries a witness (owner "
+             "file, root, birth line, the sweep line naming it) read before the restore, which never raises and "
+             "never copies owner-file text into the gate tail."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

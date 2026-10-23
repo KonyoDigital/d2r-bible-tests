@@ -65,11 +65,11 @@ class AVanishedSandboxNamesItsRemover(unittest.TestCase):
         self.addCleanup(os.environ.pop, "ALSO_OWNER", None)
 
     def _journal(self):
-        try:
-            with io.open(os.path.join(self.tmp, H._SWEEP_JOURNAL)) as fh:
-                return fh.read()
-        except OSError:
-            return ""
+        path = os.path.join(self.tmp, H._SWEEP_JOURNAL)
+        if not os.path.exists(path):
+            return ""                                   # nothing written yet - a read error still raises
+        with io.open(path) as fh:
+            return fh.read()
 
     def test_a_sweep_writes_who_removed_which_sandbox_and_why(self):
         old = os.path.join(self.tmp, "heart2.old0002")
@@ -182,13 +182,42 @@ class AVanishedSandboxNamesItsRemover(unittest.TestCase):
 
     def test_windows_writers_take_turns_on_a_byte_no_reader_reads(self):
         calls = []
-        fake = mock.Mock(LK_LOCK=2, LK_UNLCK=0)
+        fake = mock.Mock(LK_NBLCK=2, LK_UNLCK=0)
         fake.locking.side_effect = lambda fd, mode, n: calls.append((os.lseek(fd, 0, os.SEEK_CUR), mode, n))
         with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake}):
             H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "77", 5)
         self.assertEqual(calls, [(H._JOURNAL_LOCK_AT, 2, 1), (H._JOURNAL_LOCK_AT, 0, 1)])
         self.assertGreater(H._JOURNAL_LOCK_AT, H._JOURNAL_CAP * 4)
         self.assertEqual(len(H._journal_lines_for(self.tmp, "heart2.wit0001")), 1, "the line went to the lock byte")
+
+    def test_a_windows_lock_not_had_appends_but_never_cuts(self):
+        # review r4: LK_LOCK gave up after ~10 s and the writer then capped unlocked, beside a holder
+        path = os.path.join(self.tmp, H._SWEEP_JOURNAL)
+        with io.open(path, "wb") as fh:
+            fh.write(b"x" * (H._JOURNAL_CAP + 10) + b"\n")
+        fake = mock.Mock(LK_NBLCK=2, LK_UNLCK=0)
+        fake.locking.side_effect = OSError("held by another writer")
+        err = io.StringIO()
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake}), \
+                mock.patch.object(H, "_JOURNAL_LOCK_WAIT_S", 0.0), mock.patch.object(H.sys, "stderr", err):
+            H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "77", 5)
+        self.assertGreater(os.path.getsize(path), H._JOURNAL_CAP, "a writer without the lock cut the journal")
+        self.assertEqual(H._journal_lines_for(self.tmp, "heart2.wit0001"),
+                         [(5, "swept", os.getpid(), "77", "owner-dead")], "the line was lost with the lock")
+        self.assertIn("lock was not had", err.getvalue(), "a lockless write was not said")
+
+    def test_a_windows_lock_is_polled_not_given_up_on(self):
+        tries = []
+
+        def _busy_twice(fd, mode, n):
+            tries.append(mode)
+            if mode == 2 and len(tries) <= 2:
+                raise OSError("busy")
+        fake = mock.Mock(LK_NBLCK=2, LK_UNLCK=0)
+        fake.locking.side_effect = _busy_twice
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake}), mock.patch.object(H.time, "sleep"):
+            H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "77", 5)
+        self.assertEqual(tries, [2, 2, 2, 0], "the lock was not polled until free, then released")
 
     def test_an_owner_files_text_never_reaches_the_gate_tail(self):
         # review r3: the text is IN the owner file the gate's sandbox carries, and the sweep line was written
@@ -326,7 +355,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2612 - review r2: the journal is never capped",
      "file": "heart2.py",
-     "find": "                if os.fstat(fd).st_size > _JOURNAL_CAP:\n",
+     "find": "                if held and os.fstat(fd).st_size > _JOURNAL_CAP:\n",
      "replace": "                if False:\n",
      "matches": 1},
     {"why": "REG-2612 - review r2: the cap keeps a torn first line",
@@ -351,13 +380,23 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2612 - review r3: Windows writers never lock",
      "file": "heart2.py",
-     "find": "        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)\n",
-     "replace": "        pass\n",
+     "find": "            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)\n",
+     "replace": "            pass\n",
      "matches": 1},
     {"why": "REG-2612 - review r3: Windows locks byte 0, which every reader reads",
      "file": "heart2.py",
      "find": "_JOURNAL_LOCK_AT = 0x7FFFFFF0",
      "replace": "_JOURNAL_LOCK_AT = 0",
+     "matches": 1},
+    {"why": "REG-2612 - review r4: a writer that never had the lock still caps, cutting beside a holder",
+     "file": "heart2.py",
+     "find": "                if held and os.fstat(fd).st_size > _JOURNAL_CAP:\n",
+     "replace": "                if os.fstat(fd).st_size > _JOURNAL_CAP:\n",
+     "matches": 1},
+    {"why": "REG-2612 - review r4: the Windows lock is tried once and given up on",
+     "file": "heart2.py",
+     "find": "            if time.time() >= deadline:\n                return None\n",
+     "replace": "            return None\n",
      "matches": 1},
 ]
 

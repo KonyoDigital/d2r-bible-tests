@@ -36,6 +36,8 @@ add: a keep size off the line length (an older line kept, size within the cap), 
 write finished, the Windows lock byte, and owner-file text driven through the real owner file into
 _skipped_every_law. 17 cases, 19 red-proofs.
 
+Round 5 (review r4 PASS, 1 nit): on Windows the journal lock was taken with LK_LOCK, which gives up after about ten seconds, and the writer then capped UNLOCKED beside a holder - a cut that could drop the line just written. The lock is now polled with LK_NBLCK for up to 30 s (as _win_lock does); a writer that still has no lock appends its line, skips the cap, and says so on stderr. Two new cases and two new red-proofs (lock not had never cuts; the lock is polled, not tried once).
+
 ### REG-2457 - WINDOWS: WHETHER realpath RESOLVES A DIRECTORY JUNCTION INSIDE THE SCRATCH IS STILL UNVERIFIED (#182 low 5, M2 stores-plumbing)
 
 A2's list_own refuses a link out of the scratch because os.path.realpath resolves it, and REG-2455's two swap cases make their
