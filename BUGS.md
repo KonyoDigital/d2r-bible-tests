@@ -290,22 +290,6 @@ the published world's own mark. Also pinned: only that world and lane move, the 
 mark below the reading is refused, and the HTTP route writes only on an explicit confirm. `rebasedFrom` lasts until the
 next rise; `rebases` is the permanent record. The doctor's below-mark row now names the door. 10 cases, 11 red-proofs.
 
-### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
-
-2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
-edited it, so for the first time its case test_a_named_file_git_does_not_track_is_not_a_key_input ran INSIDE the pre-push hook. Its
-throwaway repo ran `git init -q` and `git add kept.txt` with cwd= only; the hook's exported GIT_DIR/GIT_WORK_TREE override cwd= and -C,
-so `git init` re-initialised his main checkout's common config with core.bare=true (every git command there then refused: "this
-operation must be run in a work tree") and `git add` staged kept.txt into the push worktree's index. heart2's clean wave read the law
-ALREADY RED (git answered for the real repo, not the throwaway) and refused the push before any tamper. The integration pre-flight had
-passed because it ran outside a hook. The case existed on origin/main; it had simply never run in a push.
-FIX: the case pops GIT_* for its own scope and restores them after (addCleanup), like test_control's grok-seat case (011d9d144).
-MEASURED in a simulated hook environment (GIT_DIR + GIT_WORK_TREE exported at the push worktree): 26 tests OK, core.bare stayed false,
-nothing staged. Repaired by hand: `git config core.bare false` in his main checkout; kept.txt unstaged.
-LEFT: the class fix - the hook unsetting GIT_* for every test stage and handing the stamps law the pushed commit by its own variable -
-ships with track T3 (REG-2360); the hook file runs from his main checkout, so it takes effect only after that lands. Until then any law
-that enters a push's scope and runs git must scrub GIT_* itself. GUARD: this case, run under the hook.
-
 ### REG-2390 - WITH BOTH WINDOWS FULL, THE INTAKE REFUSAL NAMED THE HOUR AND A TWO-MINUTE RETRY WHILE THE DAY CAP REFUSED FOR 20 HOURS
 
 tv/intake_local.mjs `budgetCheck()` asked the hour first and answered with it alone. With 80 intake reads today, 20 of them in the last hour (the default caps, 20/80), the refusal was `window: hour`, `(20/20, limit from the code default) — intake paused this hour`, retry_s 120 - the 429 body's promise of when the reader reads again - while the daily cap kept refusing for about 20 hours. Reproduced on a fixture ledger 2026-10-22 (the round-3 review's repro): (429, hour, 20, 20, retry_s 120); with the clock moved on by the promised 125 s, (429, day, 80, 80, retry_s 71995). With the hourly limit from env and the daily one from the settings file, it named `env TV_INTAKE_HOURLY_MAX` while the file's daily limit was the one refusing. The hour-first order and its "paused this hour" are on origin/main too (read, not run); REG-2383's retry_s and REG-2382's source turned them into a time and a source in the refusal. Two switches at 0 named only the hourly one, so raising it would leave intake off with nothing saying why. control_app's `_cap_state` (the meter) already says both windows. Found by the round-3 review of REG-2382..2389, before any of it shipped.
