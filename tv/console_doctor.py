@@ -4487,6 +4487,10 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
     if exists is None:
         return {"did": None, "why": "whether the '%s' task exists is UNKNOWN - nothing is done" % KEEPALIVE_TASK}
     if not consent:
+        if exists and rec.get("madeMs") and _keepalive_task_logon(run) != "InteractiveToken":
+            # review r3: the owner re-registered it unattended (or it cannot be read) - his task, never removed
+            return {"did": "left", "why": "the '%s' task is the owner's unattended install (or could not be read) - "
+                                          "left as it is" % KEEPALIVE_TASK}
         if exists and rec.get("madeMs"):
             try:
                 r = run(["schtasks", "/Delete", "/TN", KEEPALIVE_TASK, "/F"], capture_output=True, timeout=30)
@@ -4541,17 +4545,41 @@ def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=Non
                                      % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN)}
 
 
-#: Register-ScheduledTask reading the password from STDIN (never argv: a command line is readable by every process on
-#: the PC through WMI / Task Manager), the other values from the environment (no quoting of a user or path).
-_UNATTENDED_PS = ("$ErrorActionPreference='Stop'; $p=[Console]::In.ReadLine(); "
-                  "Register-ScheduledTask -TaskName $env:TVD_KA_TASK -Xml (Get-Content -Raw -LiteralPath $env:TVD_KA_XML) "
-                  "-User $env:TVD_KA_USER -Password $p -Force | Out-Null")
+#: Register-ScheduledTask taking every value from ITS OWN environment - the password included - never from argv: a
+#: command line lands in process-creation audit logs (event 4688, Sysmon) and is listed by WMI; an environment block
+#: is not logged and is readable only by the same user or an administrator. (Review r3: stdin read with
+#: [Console]::In under `-Command` is not what Windows PowerShell hands a piped line to, so the password never
+#: arrived; the environment is UTF-16 on Windows, so a non-ASCII password survives as typed.)
+_UNATTENDED_PS = ("$ErrorActionPreference='Stop'; "
+                  "$x = Get-Content -Raw -Encoding Unicode -LiteralPath $env:TVD_KA_XML; "
+                  "Register-ScheduledTask -TaskName $env:TVD_KA_TASK -Xml $x.TrimStart([char]0xFEFF) "
+                  "-User $env:TVD_KA_USER -Password $env:TVD_KA_PW -Force | Out-Null")
+#: the only parts of the caller's environment PowerShell is given - never the variable the password came from
+_UNATTENDED_ENV_KEEP = ("PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "TEMP", "TMP", "USERPROFILE",
+                        "COMSPEC", "PSMODULEPATH")
 
 
 def _without_secret(text, secret):
-    """-> text with every copy of the secret replaced. Whatever Windows says back is said - the password never is."""
-    text = str(text or "")
+    """-> text with every copy of the secret replaced. Whatever Windows says back is said - the password never is.
+    PowerShell's captured errors are CLIXML, which writes '<' as _x003C_ and non-ASCII as _xHHHH_: unescaped first,
+    or an escaped copy of the password would slip past (review r3)."""
+    import re as _re
+    text = _re.sub(r"_x([0-9A-Fa-f]{4})_", lambda m: chr(int(m.group(1), 16)), str(text or ""))
     return text.replace(secret, "***") if secret else text
+
+
+def _keepalive_task_logon(run):
+    """-> the registered task's LogonType ('InteractiveToken', 'Password', ...) or None (UNKNOWN). Read from the
+    task's own /XML through _schtasks_text."""
+    try:
+        r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK, "/XML"], capture_output=True, timeout=20)
+        if getattr(r, "returncode", 1) != 0:
+            return None
+        import re as _re
+        m = _re.search(r"<LogonType>\s*([A-Za-z0-9]+)\s*</LogonType>", _schtasks_text(getattr(r, "stdout", None)))
+        return m.group(1) if m else None
+    except Exception:                   # an unreadable task is UNKNOWN, never "not his"
+        return None
 
 
 def install_unattended_keepalive(user, password, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
@@ -4567,9 +4595,10 @@ def install_unattended_keepalive(user, password, run=None, is_win=None, tv_dir=N
       did "failed"    refused / could not be checked - Windows' words are said, the password is replaced by ***
       did None        not Windows, or no user / no password given - nothing is done on a guess
 
-    The password goes to PowerShell on STDIN only - never argv, the XML, the marker, a log or the return value. A
-    task this installs is the owner's: ensure_keepalive_task finds it 'already' there and never removes it (it
-    records no madeMs)."""
+    The password goes to that one PowerShell child in its environment only (TVD_KA_PW; the caller's variable is not
+    passed on) - never argv, the XML, the marker, a log or the return value. A task this installs is the owner's:
+    ensure_keepalive_task finds it 'already' there, and never removes a task whose LogonType is not InteractiveToken,
+    even one the console first made (review r3)."""
     is_win = sys.platform.startswith("win") if is_win is None else is_win
     if not is_win:
         return {"did": None, "why": "only a Windows console has a keepalive task"}
@@ -4591,9 +4620,11 @@ def install_unattended_keepalive(user, password, run=None, is_win=None, tv_dir=N
         else:
             with open(xml_path, "w", encoding="utf-16") as fh:
                 fh.write(xml)
-        e = dict(os.environ if env is None else env, TVD_KA_TASK=KEEPALIVE_TASK, TVD_KA_XML=xml_path, TVD_KA_USER=user)
+        src = os.environ if env is None else env
+        e = {k: v for k, v in src.items() if k.upper() in _UNATTENDED_ENV_KEEP}
+        e.update(TVD_KA_TASK=KEEPALIVE_TASK, TVD_KA_XML=xml_path, TVD_KA_USER=user, TVD_KA_PW=password)
         r = run(["powershell", "-NoProfile", "-NonInteractive", "-Command", _UNATTENDED_PS],
-                input=(password + "\n").encode("utf-8"), capture_output=True, timeout=60, env=e)
+                stdin=subprocess.DEVNULL, capture_output=True, timeout=60, env=e)
     except Exception as ex:
         return {"did": "failed", "why": "the unattended keepalive could not be registered (%s)" % type(ex).__name__}
     finally:
@@ -4605,8 +4636,9 @@ def install_unattended_keepalive(user, password, run=None, is_win=None, tv_dir=N
         said = ("%s %s" % (_schtasks_text(getattr(r, "stdout", None)), _schtasks_text(getattr(r, "stderr", None))))
         return {"did": "failed", "why": "Windows refused the unattended keepalive: %s"
                                         % (_without_secret(said, password).strip()[-200:] or "no reason given")}
-    if _keepalive_task_exists(run) is not True:
-        return {"did": "failed", "why": "the unattended keepalive was registered but the check still cannot see it"}
+    if _keepalive_task_logon(run) != "Password":
+        # review r3: read the task back - one that is missing, unreadable, or needs someone signed in is not made
+        return {"did": "failed", "why": "the '%s' task is not there running with nobody signed in" % KEEPALIVE_TASK}
     return {"did": "created", "why": "the '%s' task now runs every %d minutes as %s, signed in or not"
                                      % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN, user)}
 
