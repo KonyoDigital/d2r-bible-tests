@@ -26,6 +26,14 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
+# gbl/ci-speed - A NEWER PUSH TO THE SAME ci/ BRANCH CANCELS THE OLDER RUN; MAIN IS NEVER CANCELLED.
+# On ci/** the group is the branch, so the superseded run stops holding runners (2026-10-23: main v3791's
+# Publish smoke waited 25 min behind replaced ci/gbl-* runs). Anywhere else the group is this run's own
+# id: one run per group, so GitHub never cancels or drops a main / schedule / PR run, pending or running.
+concurrency:
+  group: ${{ github.workflow }}-${{ startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
+
 jobs:
   item-sweep:
     runs-on: ubuntu-latest
