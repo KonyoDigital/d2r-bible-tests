@@ -325,16 +325,17 @@ def check_proved(bodies, head):
         elif isinstance(sh, dict) and ex is None:
             if sh.get("v") != MANIFEST_V:
                 return False, "%s carries a shard manifest of another version (%r)" % (label, sh.get("v")), []
-            if sh.get("finished") is not True:
+            done = sh.get("finished") is True
+            if not done:
                 return False, "%s is a shard that never finished" % label, []
             m, assigned = sh, set((str(r[0]), r[1]) for r in (sh.get("assigned") or [])
                                   if isinstance(r, list) and len(r) == 2)
         else:
             return False, "%s carries no export or shard manifest (or both) - nothing says where it was proved" % label, []
-        if not head or m.get("head") != head:
+        if not head or head != m.get("head"):
             return False, "%s was keyed at %s, not this checkout's HEAD %s - prove the exact commit you push (bump it " \
                 "first)" % (label, str(m.get("head"))[:12], str(head)[:12] or "UNKNOWN"), []
-        if m.get("dirty") is not False:
+        if not (m.get("dirty") is False):
             return False, "%s was proved on a tree whose tracked files differed from its HEAD" % label, []
         if assigned is None:                 # an export has no plan: every entry it holds is its own claim
             assigned = set((str(e.get("gate")), e.get("proof")) for e in ent.values() if isinstance(e, dict))

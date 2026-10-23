@@ -6507,9 +6507,9 @@ def import_proved(paths, say=print, target=None):
         body = dict((k, v) for k, v in (disk or {}).items() if k not in ("format", "entries"))
         body.update(format=2, entries=ent)
         return body
-    w_ok, w_why = _StoreFile(target, say).commit(merge)
-    if not w_ok:
-        say("  ✗ REG-2630 IMPORT REFUSED: %s could not be written (%s)." % (os.path.basename(target), w_why))
+    ok_w, why_w = _StoreFile(target, say).commit(merge)
+    if not ok_w:
+        say("  ✗ REG-2630 IMPORT REFUSED: %s could not be written (%s)." % (os.path.basename(target), why_w))
         return 2
     say("  ✓ REG-2630 IMPORTED %d file(s) proved elsewhere at HEAD %s: %d PROVEN entr(ies) banked, %d already served "
         "here and kept, %d not servable, %d DROPPED (keyed over other bytes)%s. A gate whose law file this push changes "

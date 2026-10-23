@@ -50,22 +50,22 @@ RED_PROOF = [
     {
         "why": "REG-2630 - a file keyed at another HEAD (proved before the bump) is imported",
         "file": "proof_shard.py",
-        "find": "        if not head or m.get(\"head\") != head:\n            return False, \"%s was keyed at",
-        "replace": "        if False:\n            return False, \"%s was keyed at",
+        "find": "        if not head or head != m.get(\"head\"):\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
     {
         "why": "REG-2630 - a file proved on a tree whose tracked files differed from its HEAD is imported",
         "file": "proof_shard.py",
-        "find": "        if m.get(\"dirty\") is not False:\n            return False, \"%s was proved on a tree",
-        "replace": "        if False:\n            return False, \"%s was proved on a tree",
+        "find": "        if not (m.get(\"dirty\") is False):\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
     {
         "why": "REG-2630 - an unfinished census shard is imported as proved",
         "file": "proof_shard.py",
-        "find": "            if sh.get(\"finished\") is not True:\n                return False,",
-        "replace": "            if False:\n                return False,",
+        "find": "            done = sh.get(\"finished\") is True\n",
+        "replace": "            done = True\n",
         "matches": 1,
     },
     {
