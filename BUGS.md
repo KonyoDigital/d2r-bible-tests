@@ -23,9 +23,17 @@ a removed or refused sign-in start (only if this console made it), nothing done 
 LIMIT: "without a sign-in" means without a NEW sign-in - the task runs in the signed-in (also locked) session. A PC
 that rebooted to the sign-in screen has no session to film in; starting a console there needs a stored password or
 S4U, which also cannot capture the desktop. That is his call, not made here.
-GUARD: tv/test_a_dead_windows_console_comes_back_by_itself.py (23 cases, 17 red-proofs) and, on real Windows (run by
+GUARD: tv/test_a_dead_windows_console_comes_back_by_itself.py (31 cases, 25 red-proofs) and, on real Windows (run by
 tv/windows_boot_check.py in the tv-windows-boot job, no workflow edit), tv/windows_keepalive_check.py (the XML registered, read back, left on a second pass, deleted;
 a closed port reads gone; a pass launches once then holds).
+
+Round 2 (review r1 FAIL, 3 majors + 1 minor + 1 nit): the task runs with ExecutionTimeLimit PT0S and the launcher is
+started with CREATE_BREAKAWAY_FROM_JOB (retried inside the job if the job forbids it) - a PT2M limit's job kill took the
+console it had just started; the pass ends itself after 90 s instead. Exits recorded when the WINDOW LOOP ended under
+the console (window-closed, webview-finally, main-after-window - a WebView crash leaves that way) never write the
+on-purpose mark, and the keepalive ignores one already on disk. A missing task is settled by the full
+`schtasks /Query /FO CSV /NH` list (exact name), not English "cannot find" - a Hebrew or German schtasks never made it.
+A refusal on stdout is kept; the lastAction write builds on the booked memory, not a re-read.
 
 ### REG-2615 - THE STATUS CALL WAITED ON A SCAN OF EVERY REEL FOR ITS FORENSICS BADGE - 2026-10-23
 

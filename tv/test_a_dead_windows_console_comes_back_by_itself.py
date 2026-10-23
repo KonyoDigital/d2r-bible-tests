@@ -57,8 +57,16 @@ class _Win:
         if verb == "/Query":
             if self.query_says is not None:
                 return _R(1, "", self.query_says)
+            if "/FO" in argv:
+                # the whole list, as CSV with no header - a near-name decoy that must not count
+                rows = ['"\\Microsoft\\Windows\\Defrag\\ScheduledDefrag","N/A","Ready"',
+                        '"\\TV DIABLO keepalive old","N/A","Ready"']
+                if self.exists:
+                    rows.append('"\\TV DIABLO keepalive","10/23/2026 9:05:00 PM","Ready"')
+                return _R(0, "\n".join(rows) + "\n")
+            # review r1: a localized "not found" (German here) - no English words to match
             return _R(0, "TV DIABLO keepalive  Ready") if self.exists else _R(
-                1, "", "ERROR: The system cannot find the file specified.")
+                1, "", "FEHLER: Das System kann die angegebene Datei nicht finden.")
         if verb == "/Create":
             self.xml = self.written
             if self.create_rc == 0:
@@ -172,6 +180,33 @@ class RunOnce(unittest.TestCase):
         self.assertEqual(KA.run_once(now_s=1060, probe_fn=lambda: "gone", popen=p, **self.kw)["action"], "held",
                          "the launch did not rewrite the memory")
 
+    def test_a_window_loop_death_is_not_a_choice(self):
+        # review r1: a WebView crash returns the window loop and leaves through the same exit as a close
+        for reason in KA.WINDOW_LOOP_EXITS:
+            with open(self.kw["on_purpose_path"], "w") as fh:
+                fh.write("1700000000 %s\n" % reason)
+            self.assertFalse(KA.closed_on_purpose(self.kw["on_purpose_path"]), reason)
+        with open(self.kw["on_purpose_path"], "w") as fh:
+            fh.write("1700000000 window-closing\n")
+        self.assertTrue(KA.closed_on_purpose(self.kw["on_purpose_path"]))
+        with open(self.kw["on_purpose_path"], "w") as fh:
+            fh.write("1700000000 webview-finally\n")
+        p = _Popen()
+        self.assertEqual(KA.run_once(now_s=1000, probe_fn=lambda: "gone", popen=p, **self.kw)["action"], "launch",
+                         "a console whose window loop died is left down as if he had closed it")
+
+    def test_the_last_action_never_drops_the_booked_cooldown(self):
+        real, n = KA._read_state, []
+
+        def _flaky(path):
+            n.append(path)
+            return real(path) if len(n) == 1 else None     # any re-read after the booking comes back torn
+        with mock.patch.object(KA, "_read_state", _flaky):
+            KA.run_once(now_s=1000, probe_fn=lambda: "gone", popen=_Popen(), **self.kw)
+        with open(self.kw["state_path"]) as fh:
+            st = json.load(fh)
+        self.assertEqual((st.get("lastLaunch"), st.get("lastAction")), (1000, "launch"), st)
+
     def test_never_raises(self):
         def boom():
             raise RuntimeError("x")
@@ -184,6 +219,35 @@ class RunOnce(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(HERE, "start_tvd_win.ps1")))
         with open(os.path.join(HERE, "start_tvd_win.ps1"), encoding="utf-8-sig") as fh:
             self.assertIn("param([switch]$Background)", fh.read())
+
+
+class Breakaway(unittest.TestCase):
+    def test_the_console_leaves_the_tasks_job(self):
+        # review r1: whatever ends the task's job must not take the console it started with it
+        p = _Popen()
+        self.assertTrue(KA.launch(popen=p, here=WIN_TV, is_win=True)[0])
+        self.assertEqual(len(p.calls), 1)
+        self.assertTrue(p.calls[0][1]["creationflags"] & 0x01000000, "CREATE_BREAKAWAY_FROM_JOB")
+
+    def test_a_job_that_forbids_breakaway_still_gets_its_console(self):
+        calls = []
+
+        def _popen(argv, **kw):
+            calls.append(kw["creationflags"])
+            if kw["creationflags"] & 0x01000000:
+                raise PermissionError(5, "Access is denied")
+            return mock.Mock(pid=7)
+        ok, how = KA.launch(popen=_popen, here=WIN_TV, is_win=True)
+        self.assertTrue(ok, how)
+        self.assertEqual(len(calls), 2)
+        self.assertFalse(calls[1] & 0x01000000)
+        self.assertTrue(calls[1] & 0x08000000)
+
+    def test_no_breakaway_off_windows(self):
+        p = _Popen()
+        KA.launch(popen=p, here="/tmp/tv", is_win=False)
+        self.assertEqual(len(p.calls), 1)
+        self.assertNotIn("creationflags", p.calls[0][1])
 
 
 class Task(unittest.TestCase):
@@ -202,8 +266,8 @@ class Task(unittest.TestCase):
             w = _Win()
             r = self._go(w, did)
             self.assertEqual(r["did"], "created", r)
-            self.assertEqual(w.verbs(), ["/Query", "/Create", "/Query"])
-            self.assertEqual(w.calls[1][w.calls[1].index("/TN") + 1], CD.KEEPALIVE_TASK)
+            self.assertEqual(w.verbs(), ["/Query", "/Query", "/Create", "/Query"])
+            self.assertEqual(w.calls[2][w.calls[2].index("/TN") + 1], CD.KEEPALIVE_TASK)
             with open(self.marker, encoding="utf-8") as fh:
                 self.assertTrue(json.load(fh)["madeMs"])
             os.remove(self.marker)
@@ -217,6 +281,8 @@ class Task(unittest.TestCase):
         self.assertEqual(st.find(NS + "StopIfGoingOnBatteries").text, "false")
         self.assertEqual(st.find(NS + "MultipleInstancesPolicy").text, "IgnoreNew")
         self.assertEqual(st.find(NS + "Hidden").text, "true")
+        self.assertEqual(st.find(NS + "ExecutionTimeLimit").text, "PT0S",
+                         "a time limit's job kill would end the console the pass started (review r1)")
         pr = t.find(NS + "Principals/" + NS + "Principal")
         self.assertEqual(pr.find(NS + "LogonType").text, "InteractiveToken")
         self.assertEqual(pr.find(NS + "RunLevel").text, "LeastPrivilege")
@@ -269,6 +335,35 @@ class Task(unittest.TestCase):
         self.assertEqual(r["did"], "failed")
         self.assertFalse(os.path.exists(self.marker))
 
+    def test_a_refusal_said_on_stdout_is_kept(self):
+        w = _Win(create_rc=1)
+        real = w.run
+
+        def _run(argv, **kw):
+            r = real(argv, **kw)
+            if argv[1] == "/Create":
+                return _R(1, "ERROR: The task XML contains a value which is incorrectly formatted.", "")
+            return r
+        w.run = _run
+        r = self._go(w)
+        self.assertIn("incorrectly formatted", r["why"], r)
+
+    def test_the_list_settles_a_missing_task_in_any_language(self):
+        w = _Win()
+        self.assertIs(CD._keepalive_task_exists(w.run), False, "the near-name decoy was taken for the task")
+        w.exists = True
+        self.assertIs(CD._keepalive_task_exists(w.run), True)
+
+        def _named_fails_list_has_it(argv, **kw):
+            if "/FO" in argv:
+                return _R(0, '"\\TV DIABLO keepalive","N/A","Bereit"\n')
+            return _R(1, "", "FEHLER")
+        self.assertIs(CD._keepalive_task_exists(_named_fails_list_has_it), True)
+
+        def _list_fails(argv, **kw):
+            return _R(1, "", "Fehler beim Abfragen")
+        self.assertIsNone(CD._keepalive_task_exists(_list_fails), "a list that failed was read as 'no task'")
+
     def test_pythonw_beside_python(self):
         self.assertEqual(CD._keepalive_pythonw(WIN_PY, isfile=lambda p: True),
                          r"C:\Program Files\Python312\pythonw.exe")
@@ -304,6 +399,23 @@ class ConsoleSide(unittest.TestCase):
                 mock.patch.object(self.ca, "_is_primary_console", return_value=False):
             self.assertFalse(self.ca._note_exit_on_purpose("quit", path=p, is_win=True))
         self.assertFalse(os.path.exists(p))
+
+    def test_a_window_loop_death_writes_no_on_purpose_mark(self):
+        self.assertEqual(tuple(self.ca._WINDOW_LOOP_EXITS), tuple(KA.WINDOW_LOOP_EXITS),
+                         "the console and the keepalive disagree on which exits are deaths")
+        d = tempfile.mkdtemp(prefix="kaw-")
+        self.addCleanup(shutil.rmtree, d, True)
+        p = os.path.join(d, "purpose")
+        env = {k: v for k, v in os.environ.items() if k != "TV_STUB"}
+        with mock.patch.dict(os.environ, env, clear=True), \
+                mock.patch.object(self.ca, "_is_primary_console", return_value=True):
+            for reason in self.ca._WINDOW_LOOP_EXITS:
+                self.assertFalse(self.ca._note_exit_on_purpose(reason, path=p, is_win=True), reason)
+            self.assertFalse(os.path.exists(p))
+            self.assertTrue(self.ca._note_exit_on_purpose("window-closing", path=p, is_win=True))
+            self.assertFalse(self.ca._note_exit_on_purpose("window-closed", path=p, is_win=True))
+            with open(p) as fh:
+                self.assertIn("window-closing", fh.read(), "the death after a real close overwrote its reason")
 
     def test_the_one_exit_surface_says_on_purpose(self):
         ca = self.ca
@@ -342,8 +454,8 @@ RED_PROOF = [
     {"matches": 1, "file": "console_keepalive.py", "find": "0 <= now_s - last_launch_s < LAUNCH_COOLDOWN_S",
      "replace": "0 <= now_s - last_launch_s < 0", "why": "no cooldown: a console that dies at boot relaunched every pass"},
     {"matches": 1, "file": "console_keepalive.py",
-     "find": "            _write_state(state_path, dict(mem, lastLaunch=now_s, launches=int(mem.get(\"launches\") or 0) + 1))\n            ok, how = launch(popen=popen, here=here)",
-     "replace": "            ok, how = launch(popen=popen, here=here)\n            if ok:\n                _write_state(state_path, dict(mem, lastLaunch=now_s))",
+     "find": "            mem = dict(mem, lastLaunch=now_s, launches=int(mem.get(\"launches\") or 0) + 1)\n            _write_state(state_path, mem)\n            ok, how = launch(popen=popen, here=here)\n",
+     "replace": "            ok, how = launch(popen=popen, here=here)\n            if ok:\n                mem = dict(mem, lastLaunch=now_s)\n                _write_state(state_path, mem)\n",
      "why": "the launch booked only on success: a failing launcher is retried every pass"},
     {"matches": 1, "file": "console_keepalive.py", "find": '"-File", os.path.join(here, "start_tvd_win.ps1"), "-Background"]',
      "replace": '"-File", os.path.join(here, "start_tvd_win.ps1")]',
@@ -361,8 +473,8 @@ RED_PROOF = [
     {"matches": 1, "file": "console_doctor.py", "find": "    consent = sign_in_did in (\"created\", \"already\")\n",
      "replace": "    consent = sign_in_did in (\"created\", \"already\", \"left\")\n",
      "why": "a PC that said no to the sign-in start still gets a self-starting console"},
-    {"matches": 1, "file": "console_doctor.py", "find": "    return False if (\"cannot find\" in said or \"does not exist\" in said) else None",
-     "replace": "    return False", "why": "an RPC error read as 'no task' - UNKNOWN acted on"},
+    {"matches": 1, "file": "console_doctor.py", "find": "    if getattr(lst, \"returncode\", 1) != 0:\n        return None\n",
+     "replace": "", "why": "an RPC error read as 'no task' - UNKNOWN acted on"},
     {"matches": 1, "file": "console_doctor.py", "find": "'<Hidden>true</Hidden>",
      "replace": "'<Hidden>false</Hidden>", "why": "the task shows in his Task Scheduler list as an unexplained entry"},
     {"matches": 1, "file": "control_app.py", "find": "    _note_exit_on_purpose(reason)\n", "replace": "",
@@ -375,6 +487,28 @@ RED_PROOF = [
      "why": "a console reopened after a quit stays 'closed on purpose' and is never brought back"},
     {"matches": 1, "file": "console_keepalive.py", "find": "        unread = mem is None\n", "replace": "        unread = False\n",
      "why": "a torn memory file stops every relaunch (or crashes the pass) instead of being said and rewritten"},
+    {"matches": 1, "file": "console_doctor.py", "find": "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>",
+     "replace": "<ExecutionTimeLimit>PT2M</ExecutionTimeLimit>",
+     "why": "review r1: the task's 2-minute limit kills its job, and the console the pass started with it"},
+    {"matches": 1, "file": "console_keepalive.py", "find": "creationflags=kw[\"creationflags\"] | _CREATE_BREAKAWAY_FROM_JOB",
+     "replace": "creationflags=kw[\"creationflags\"]", "why": "review r1: the console stays in the task's job"},
+    {"matches": 1, "file": "console_keepalive.py", "find": "            p = None                    # the job forbids breakaway",
+     "replace": "            return False, \"no breakaway\"  #", "why": "review r1: a job that forbids breakaway gets no console"},
+    {"matches": 1, "file": "console_doctor.py", "find": "        if row and row[0].strip().lower() == want:\n",
+     "replace": "        if row and want in row[0].strip().lower():\n",
+     "why": "review r1: a near-name task in the list is taken for the keepalive, so it is never made"},
+    {"matches": 1, "file": "console_doctor.py",
+     "find": "                                        % ((\"%s %s\" % (getattr(r, \"stdout\", \"\") or \"\", getattr(r, \"stderr\", \"\") or \"\"))\n",
+     "replace": "                                        % ((\"%s\" % (getattr(r, \"stderr\", \"\") or \"\"))\n",
+     "why": "review r1: a refusal schtasks prints on stdout is logged as 'no reason given'"},
+    {"matches": 1, "file": "control_app.py", "find": " or str(reason or \"\") in _WINDOW_LOOP_EXITS:\n", "replace": ":\n",
+     "why": "review r1: a WebView crash that returns the window loop is marked 'closed on purpose'"},
+    {"matches": 1, "file": "console_keepalive.py",
+     "find": "    return (words[1] if len(words) > 1 else \"\") not in WINDOW_LOOP_EXITS\n", "replace": "    return True\n",
+     "why": "review r1: a window-loop death already on disk keeps the console down"},
+    {"matches": 1, "file": "console_keepalive.py", "find": "            _write_state(state_path, dict(mem, lastAction=action))\n",
+     "replace": "            _write_state(state_path, dict(_read_state(state_path) or {}, lastAction=action))\n",
+     "why": "review r1: a torn re-read rewrites the memory without the cooldown it just booked"},
 ]
 
 
