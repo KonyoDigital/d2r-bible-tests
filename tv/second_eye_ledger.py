@@ -139,11 +139,13 @@ def _worktree_roots(common):
     wt = os.path.join(common, "worktrees")
     try:
         st = os.stat(wt)
-    except OSError:
+    except FileNotFoundError:
         return []                                 # no linked worktree was ever made in this repository
-    key = (st.st_mtime_ns, st.st_ino)
+    except OSError:
+        st = None                                 # could not ask: no cache key - the listing below asks and says why
+    key = (st.st_mtime_ns, st.st_ino) if st is not None else None
     hit = _WT_ROOTS.get(common)
-    if hit is not None and hit[0] == key and time.time() - hit[1] < 30.0:
+    if key is not None and hit is not None and hit[0] == key and time.time() - hit[1] < 30.0:
         return list(hit[2])
     try:
         names = sorted(os.listdir(wt))

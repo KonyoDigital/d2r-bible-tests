@@ -155,6 +155,8 @@ GUARD: tv/test_the_second_eye_ledger_is_one_per_machine.py (fixture main + absol
 in a subprocess inside the fixture). 4 RED proofs (the HERE path, the worktree fold skipped, a set-dedupe that drops a repeated row,
 --gate honouring the variable), heart2 4/4 PROVEN. The 25 existing ledger laws and test_control's ledger classes stay green.
 
+- **Round 2 (GrokBot, M2 CI, 2026-10-23).** Routine M (swallow ratchet) went RANK 1 66 -> 67: `_worktree_roots` turned EVERY failed stat of `<common>/worktrees` into `[]`, so a permission or I/O failure read exactly like "no worktree was ever made". Only `FileNotFoundError` is that absence now; any other failure leaves no cache key and falls to the listing, which already says once why no worktree ledger was folded. The census is the law (back to 66, held).
+
 ### REG-2571 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
 
 vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with
