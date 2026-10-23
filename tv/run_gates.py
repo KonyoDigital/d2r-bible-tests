@@ -11706,6 +11706,13 @@ GATES = [
              "lock, no O_APPEND) to heart2-sweeps.log, before any remove; a vanish note carries a witness (owner "
              "file, root, birth line, the sweep line naming it) read before the restore, which never raises and "
              "never copies owner-file text into the gate tail."),
+    Gate("test_the_status_never_waits_on_forensics",
+         [sys.executable, os.path.join(HERE, "test_the_status_never_waits_on_forensics.py")], 120,
+         needs_app=False,
+         why="REG-2615 (2026-10-23) - /api/status never waits on the disk for the forensics badge. The ALT status "
+             "call took about 30 s, Dean's 423 ms of 432 (task 172), almost all in forensicsSummary scanning every "
+             "reel. The scan now stops at the newest reel with a report and runs on one background thread at most "
+             "once per TTL; the status call only reads the last answer."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

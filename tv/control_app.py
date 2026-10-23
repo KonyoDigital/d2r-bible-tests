@@ -11113,30 +11113,71 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
     return {"sid": sid, "items": items, "summary": summary, "total": len(reads)}
 
 
-_FORENSICS_SUM_CACHE = {"reel": None, "mtime": None, "val": None}
+_FORENSICS_SUM_CACHE = {"reel": None, "mtime": None, "val": None, "at": None}
+#: REG-2615 — how stale the /api/status badge may be before a refresh is STARTED (never waited for).
+FORENSICS_SUM_TTL_S = 30.0
+_FORENSICS_SUM_LOCK = threading.Lock()
+_FORENSICS_SUM_BUSY = {"on": False}
 
 
-def _newest_forensics_summary():
-    """Lean {clean,corrected,recovered,blocked,unresolved} counts from the newest sealed reel —
-    the /api/status badge. mtime-cached (the full projection only re-runs when a reel re-seals)."""
+def _newest_sealed_reel(hist):
+    """-> (reel name, kai_report path) of the newest reel holding a kai_report.json, or (None, None).
+
+    REG-2615 — NEWEST FIRST, AND STOP AT THE FIRST. This asked the disk about EVERY reel_* on every call
+    (an isfile per reel) and only then took the newest: on the ALT, months of reels on a slow disk, that was ~30 s
+    of a status call, and 423 ms a call on Dean's (worst 38.8 s, task 172). The newest reel with a report is
+    almost always the first or second name."""
+    for d in sorted((d for d in os.listdir(hist) if d.startswith("reel_")), reverse=True):
+        rp = os.path.join(hist, d, "kai_report.json")
+        if os.path.isfile(rp):
+            return d, rp
+    return None, None
+
+
+def _refresh_forensics_summary():
+    """The disk half: find the newest sealed reel and project its counts (only when it re-sealed). Never raises."""
     try:
-        hist = HIST_DIR
-        reels = sorted((d for d in os.listdir(hist)
-                        if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
-                       reverse=True)
-        if not reels:
+        reel, rp = _newest_sealed_reel(HIST_DIR)
+        if reel is None:
+            _FORENSICS_SUM_CACHE.update(reel=None, mtime=None, val=None, at=time.time())
             return None
-        rp = os.path.join(hist, reels[0], "kai_report.json")
         mt = os.path.getmtime(rp)
-        if _FORENSICS_SUM_CACHE["reel"] == reels[0] and _FORENSICS_SUM_CACHE["mtime"] == mt:
-            return _FORENSICS_SUM_CACHE["val"]
-        with open(rp, encoding="utf-8") as fh:
-            report = json.load(fh) or {}
-        val = _kai_forensics_project(report)["summary"]
-        _FORENSICS_SUM_CACHE.update(reel=reels[0], mtime=mt, val=val)
-        return val
+        if not (_FORENSICS_SUM_CACHE["reel"] == reel and _FORENSICS_SUM_CACHE["mtime"] == mt):
+            with open(rp, encoding="utf-8") as fh:
+                report = json.load(fh) or {}
+            val = _kai_forensics_project(report)["summary"]
+            _FORENSICS_SUM_CACHE.update(reel=reel, mtime=mt, val=val)
+        _FORENSICS_SUM_CACHE["at"] = time.time()
+        return _FORENSICS_SUM_CACHE["val"]
     except Exception:
-        return None
+        _FORENSICS_SUM_CACHE["at"] = time.time()    # a failing disk is retried after the TTL, not on every call
+        return _FORENSICS_SUM_CACHE["val"]
+    finally:
+        _FORENSICS_SUM_BUSY["on"] = False
+
+
+def _newest_forensics_summary(now=None, start=None):
+    """Lean {clean,corrected,recovered,blocked,unresolved} counts from the newest sealed reel — the /api/status
+    badge.
+
+    REG-2615 — THE STATUS CALL NEVER WAITS ON THE DISK FOR A BADGE. It returns the last counts at once; when they
+    are older than FORENSICS_SUM_TTL_S it starts ONE background refresh and still returns at once. The first call
+    after boot therefore says None (no badge yet) and the next poll has it. A badge up to 30 s old costs nothing;
+    a status call that took 30 s made the ALT look dead."""
+    now = time.time() if now is None else now
+    at = _FORENSICS_SUM_CACHE.get("at")
+    if at is None or not (0 <= now - at < FORENSICS_SUM_TTL_S):
+        with _FORENSICS_SUM_LOCK:
+            go = not _FORENSICS_SUM_BUSY["on"]
+            if go:
+                _FORENSICS_SUM_BUSY["on"] = True
+        if go:
+            try:
+                (start or (lambda fn: threading.Thread(target=fn, name="forensics-summary", daemon=True).start()))(
+                    _refresh_forensics_summary)
+            except Exception:
+                _FORENSICS_SUM_BUSY["on"] = False
+    return _FORENSICS_SUM_CACHE["val"]
 
 
 def _forensics_payload(sid=""):
@@ -11150,12 +11191,9 @@ def _forensics_payload(sid=""):
                 return {"ok": False, "err": "no forensics for that session", "sid": sid,
                         "items": [], "summary": {}}
         else:
-            reels = sorted((d for d in os.listdir(hist)
-                            if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
-                           reverse=True)
-            if not reels:
+            _reel, rp = _newest_sealed_reel(hist)
+            if _reel is None:
                 return {"ok": True, "sid": "", "items": [], "summary": {}, "total": 0}
-            rp = os.path.join(hist, reels[0], "kai_report.json")
         with open(rp, encoding="utf-8") as fh:
             report = json.load(fh) or {}
         out = _kai_forensics_project(report)
