@@ -87,9 +87,11 @@ def whole_set(files, n):
         len(set(got) & set(want)), n, ", ".join(sorted(set(got) ^ set(want))[:4]) or "duplicates")
 
 
-def owed_after_import(files, sha, along):
+def owed_after_import(files, sha, along, keyer=None):
     """REG-2594 - what CI's set left UNBANKED that this Mac does not prove itself, so a partial set never reads as full.
-    files: the shard caches; along: the gates the alongside pass proves here (their unbanked proofs are not owed).
+    files: the shard caches; along: the gates the alongside pass proves here (their unbanked proofs are not owed);
+    keyer: the import's own (heart2._shard_keyer) - REG-2596 the import DROPS an entry this checkout's bytes do not key,
+    so a dropped proof was never banked and is OWED (never counted as CI's).
     -> (owed [(gate, index)], assigned, failures [[gate, index, verdict, reason]] the shards said they owe)"""
     import proof_shard as PS
     bodies = []
@@ -103,14 +105,16 @@ def owed_after_import(files, sha, along):
     ok, why, shards = PS.check_shards(bodies, sha)
     if not ok:
         raise RuntimeError("the set is not one whole set (%s)" % why)
-    ok, why, _take, _skipped = PS.select(shards)
+    dropped = []
+    ok, why, _take, _skipped = PS.select(shards, keyer=keyer, dropped=dropped)
+    gone = set((str(g), i) for _k, g, i in dropped)              # REG-2596 - the import banked none of these
     if not ok:
         raise RuntimeError("the set would not import (%s)" % why)
     here, owed, assigned = set(along or ()), [], 0
     for _k, ent, asg in shards:
         # select() passed, so every servable entry of this shard is banked (under its key, even where two proofs
         # share one key and the later shard's entry is the one kept) - second eye: never `take[key] is e`
-        got = set((str(e.get("gate")), e.get("proof")) for e in (ent or {}).values() if PS.servable(e))
+        got = set((str(e.get("gate")), e.get("proof")) for e in (ent or {}).values() if PS.servable(e)) - gone
         assigned += len(asg)
         owed += [(g, i) for g, i in sorted(set(asg) - got) if g not in here]
     fails = [f for _l, b, _w in bodies for f in ((b or {}).get("shard") or {}).get("owed") or []]
@@ -413,7 +417,10 @@ def main(argv=None):
                                env=child_env())
             ok = r.returncode == 0
             if ok:                                  # REG-2594 - imported is not FULL: say what is still owed
-                full, line = owed_words(*owed_after_import(files, sha, along))
+                import heart2 as H
+                with tempfile.TemporaryDirectory(prefix="pkmac.") as ktmp:    # a key needs a store; never written
+                    keyer = H._shard_keyer(os.path.join(ktmp, ".heart2_cache.json"))
+                    full, line = owed_words(*owed_after_import(files, sha, along, keyer=keyer))
                 say(line)
                 partial = not full
         except Exception as e:

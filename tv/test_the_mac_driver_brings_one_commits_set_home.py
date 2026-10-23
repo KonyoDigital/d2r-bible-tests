@@ -225,8 +225,9 @@ class OnlyAWholeSetIsImported(unittest.TestCase):
 class TheMainFlow(unittest.TestCase):
     """main() end to end with git, GitHub and heart2 stubbed: what runs, in which order, with which environment."""
 
-    def drive(self, n_files=16, head_moves=False, owed=None, said=None):
+    def drive(self, n_files=16, head_moves=False, owed=None, said=None, keyers=None):
         events, envs = [], []
+        keyers = [] if keyers is None else keyers
         heads = [SHA, SHA if not head_moves else "e" * 40]
 
         def git(*a):
@@ -267,7 +268,7 @@ class TheMainFlow(unittest.TestCase):
                 mock.patch.object(M, "LOCAL_LOG", os.path.join(tmp, "local.log")), \
                 mock.patch.object(M.subprocess, "Popen", _Local), mock.patch.object(M.subprocess, "run", run), \
                 mock.patch.object(M.time, "sleep", lambda s: None), \
-                mock.patch.object(M, "owed_after_import", lambda f, s, a: (list(owed or []), 100, [])), \
+                mock.patch.object(M, "owed_after_import", lambda f, s, a, keyer=None: keyers.append(keyer) or (list(owed or []), 100, [])), \
                 mock.patch("builtins.print", (lambda *a, **k: said.append(" ".join(str(x) for x in a)))
                            if said is not None else print), \
                 mock.patch.dict(os.environ, {"GITHUB_PUSH_TOKEN": TOKEN, "GH_TOKEN": TOKEN}):
@@ -381,6 +382,20 @@ class ItSaysWhatIsStillOwed(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             M.owed_after_import(files, "e" * 40, [])
 
+    def test_a_proof_the_import_dropped_is_OWED(self):
+        """REG-2596 - the import drops an entry this checkout's bytes do not key; it was never banked here, so it is OWED"""
+        files = self.shards({("a", 0), ("a", 1), ("mac", 0), ("b", 0), ("b", 1)}, self.ASSIGNED)
+        keyer = lambda g, i: "elsewhere" if (g, i) == ("b", 0) else "key-%s-%d" % (g, i)   # noqa: E731
+        owed, assigned, _f = M.owed_after_import(files, self.HEAD, [], keyer=keyer)
+        self.assertEqual((owed, assigned), ([("b", 0)], 5), "a dropped proof was counted as banked by CI")
+        self.assertFalse(M.owed_words(owed, assigned, [])[0])
+
+    def test_the_driver_counts_with_the_imports_own_keyer(self):
+        keyers = []
+        TheMainFlow.drive(self, owed=[], said=[], keyers=keyers)
+        self.assertEqual(len(keyers), 1, "the owed count never ran")
+        self.assertTrue(callable(keyers[0]), "the owed count ran without the import's keyer, so a dropped proof reads banked")
+
     def test_a_partial_import_exits_3_and_runs_no_final_push(self):
         said = []
         rc, events, _e = TheMainFlow.drive(self, owed=[("b", 1)], said=said)
@@ -397,6 +412,16 @@ class ItSaysWhatIsStillOwed(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2596 - a proof the import dropped is counted as banked by CI, so a PARTIAL set reads FULL",
+     "file": "proof_keys_mac.py",
+     "find": "if PS.servable(e)) - gone\n",
+     "replace": "if PS.servable(e))\n",
+     "matches": 1},
+    {"why": "REG-2596 - the driver counts what is owed without the import's keyer, so nothing is ever dropped",
+     "file": "proof_keys_mac.py",
+     "find": "owed_after_import(files, sha, along, keyer=keyer)",
+     "replace": "owed_after_import(files, sha, along, keyer=None)",
+     "matches": 1},
     {"why": "REG-2590 - the driver pushes a ref built from anything, main included",
      "file": "proof_keys_mac.py",
      "find": "    if not re.match(r\"^[0-9a-f]{40}$\", str(sha or \"\")):\n",
