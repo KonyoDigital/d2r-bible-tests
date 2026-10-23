@@ -214,6 +214,7 @@ var document = { querySelectorAll: function(sel){
 var quoted = {}, pending = {}, reading = false;
 function priceText(n){ return quoted[n] ? ('fg ' + quoted[n].fg) : 'Public price unknown.'; }
 function d2jspPriceToSend(fg, typed){ return fg == null ? null : fg; }
+function sendOf(n){ return d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n)); }   /* #113 - the card's post price (board-checked in the page) */
 function typedOf(){ return ''; }
 function soldOf(){ return false; }
 function baseOf(){ return ''; }

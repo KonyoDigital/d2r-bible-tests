@@ -102,7 +102,7 @@ test.describe('v81 Colossal jewels + statues are searchable + clickable ID cards
       const statueAggName = (statueAgg?.querySelector('.gic-name')?.textContent || '').trim();
       return { jewelAggName, statueAggName };
     });
-    expect(r.jewelAggName).toContain('Colossal Ancient Jewels');
+    expect(r.jewelAggName).toContain('Colossal Jewels');   // #69 (REG-2505) - shown name; the key stays 'Colossal Ancient Jewels'
     expect(r.statueAggName).toContain('Colossal Ancient Statue');
   });
 

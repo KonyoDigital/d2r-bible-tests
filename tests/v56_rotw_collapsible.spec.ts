@@ -45,10 +45,11 @@ test.describe('v56 ROTW collapsible sections', () => {
     await expect(page.locator('#item-detail .material-card')).toContainText('Cold Rupture');
   });
 
-  test('statue tracker cross-links to the Colossal Ancient Jewels card', async ({ page }) => {
-    await page.locator('#tab-rotw .zd-item-click', { hasText: 'Colossal Ancient Jewels' }).first().evaluate((e:any) => e.click());
+  test('statue tracker cross-links to the Colossal Jewels card', async ({ page }) => {
+    // #69 (REG-2505) - the link and the card show the game's name; the openDrop key keeps 'Colossal Ancient Jewels'
+    await page.locator('#tab-rotw .zd-item-click', { hasText: 'Colossal Jewels' }).first().evaluate((e:any) => e.click());
     await expect(page.locator('#item-detail .material-card')).toHaveCount(1);
-    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Ancient Jewels');
+    await expect(page.locator('#item-detail .material-card')).toContainText('Colossal Jewels');
   });
 
 });

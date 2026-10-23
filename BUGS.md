@@ -7,6 +7,246 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2500 - A D2JSP POST THE BOARD MAY ALREADY HOLD WAS SHOWN AS "NOT SENT ... NOTHING WAS POSTED" (#106 page side, M6 T2)
+
+The room has two send paths, one item (a card's Post) and the list (Post the list), and each kept its own copy of the reason
+map. Both fell back to "The board did not confirm the post, so nothing was posted." under a "Not sent" heading for every reason
+they did not name. The console now answers maybe-sent when the submit was clicked and no receipt came back, maybe-sent-recently
+when such a send is younger than its window, and busy when another send holds the lock (T1, tv/d2jsp_chrome.py SEND_REASONS).
+Shown as unsent, a post that may be live invites the second click, and the second click is the duplicate topic - GrokBot's two
+live Post attempts read as failures.
+FIX: one map, sendWords (between its own markers under the click handler), serves both paths. Every reason in the contract has
+its own words: maybe-sent and maybe-sent-recently are headed "Maybe sent", say the board may already have the post, link
+https://forums.d2jsp.org/forum.php?f=<board> and never say nothing was posted; already-posted is Confirmed with its topic (and a
+list topic is kept, so the next list post updates it); busy says this click started no second post; chrome-start and unread say
+the failure came before the post was submitted; an answer the page does not know is a maybe, never a no. D2JSP_SEND_REASONS (desk
+block) is the contract list; it equals T1's SEND_REASONS tuple at the time of writing - the integrator adds the assertion that
+pins the two together once T1 merges.
+FIX ROUND (the adversarial review): an answer that never arrives was still "Not sent ... This console has not loaded the Chrome
+connection, so nothing was posted." on both paths - the fetch rejecting (the connection dropped, the console restarted or crashed
+mid-send) and a reply that is not JSON (a 5xx page). By then the POST had reached /api/d2jsp_send, the console may have clicked
+submit, and its re-send record lives only in that process (a restart forgets it), so the click that receipt invited could post a
+second topic. The review's probe: three sends reached the stubbed console and all three painted "Not sent". Now answerWords (in
+the same marked block) reads the answer as it arrived - HTTP status plus parsed body: a contract reason always speaks for itself;
+a 404 that names no reason is the one answer that proves the send never ran ("This console has no post route (it answered 404),
+so nothing was posted."); an answer that never came ("The console did not answer") or could not be read ("The answer from the
+console (HTTP 500) could not be read") is a MAYBE that links the board: "... so the post may be up. Check board N before you
+post again." The old transport sentence is gone from the page.
+GUARD: tv/test_a_maybe_sent_post_is_never_shown_as_unsent.py drives the room's own click handler in node for both paths with a
+stubbed /api/d2jsp_send and reads the receipt it paints - the contract reasons, plus a rejected fetch, a 500 whose body is not
+JSON and a 404, on both paths; 15 red-proofs.
+
+### REG-2501 - THE POSTED PRICE WAS A READING TAKEN ON ANOTHER BOARD (#113, M6 T2)
+
+The public price is read on board 243, D2:R Switch Ladder Trading (tv/d2jsp_chrome.py QUOTE_BOARD; functions/api/d2jsp_quote.js
+BOARD - whose own header says posts go to 268 and "the two are different economies"). A post goes to board 268 (main) or 271
+(ladder). With no typed price, d2jspPriceToSend fell back to the quoted number and all four callers - shopDraftNow, cardHtml,
+paintPrices and the one-item post - handed it the board-243 median, so a cross-economy figure went up as his asking price; the
+price line said "Public price N fg" and named no board.
+FIX: d2jspQuotedForBoard(q, board) returns a reading's fg only when it was read on the post board; the four callers route through
+sendOf, and d2jspPriceToSend keeps its own contract. d2jspPriceLine names the reading's board ("Board 243 (D2:R Switch Ladder
+Trading) price 40 fg ...") and d2jspPriceNote adds "This post goes to board 268, a different economy, so it does not carry that
+price. Type your own." With no typed price the card shows "The post waits for a price." and Post stays disabled.
+GUARD: tv/test_a_price_read_on_another_board_is_not_the_post_price.py (6 red-proofs). test_d2jsp_cards_stay_cheap's paintPrices
+fake gained a sendOf stand-in beside its other desk helpers.
+
+### REG-2502 - MAIN AND LADDER SHARED ONE SAVED D2JSP TOPIC (#114, M6 T2)
+
+None of the six desk stores (d2r_d2jsp_topic, _fg, _sold, _hide, _gear, _mods) was in window._LP_FORKED, so main (268) and ladder
+(271) shared them: post on main, then on ladder (which overwrote the saved topic), then on main again, and a second 268 topic
+went up while the first was live; a price typed for 268 filled a 271 draft.
+FIX: the six keys are their own block at the head of the Set (no apostrophe and no double quote in its note - test_store_isolation
+pairs the Set's quote characters). No migration between profiles: the owner's main keeps its bare values and ladder starts empty,
+because ladder is a separate item pool; the room says so once a session on ladder. A GUEST world (an unclaimed browser) wrote the
+desk keys bare too and now reads them under its install prefix, so its main copies each bare value once into its own key, only
+where that key is still empty - never on ladder, never for the owner, never over a value it holds (a guest topic left behind would
+have started a second topic, the defect this entry closes). Routing needed no change: the desk's store() returns LS, and LS is
+window.LSR.
+FIX ROUND (the adversarial review): the fork stranded the ladder's LIVE topic. Bare, both profiles shared one saved topic, which
+held whichever board posted last; when that was ladder, the bare key held a topic on board 271. Forked, the owner ladder reads
+L·d2r_d2jsp_topic (a guest ladder IL·<id>·...), which was empty, so the next ladder "Post the list" sent {subject, body, forum:
+271} with NO topic and the console opened a second 271 topic while the first was live (the review's probe; the same probe on
+origin/main sent topic=...f=271). The no-migration reason covers main's filings and prices, not a topic that names board 271
+itself. Now, on ladder, a bare topic whose f= is 271 is copied into the ladder key while that key is empty (owner and guest; a
+copy, not a move, so a page still on an older build keeps reading it); a 271 topic is never adopted into a main key (the guest
+main copy skips it) and a topic of any other board never onto ladder. d2jspTopicBoard reads a topic link's board for both the copy
+and topicUrl. The ladder notice ("Ladder keeps its own trade list, prices and saved topic for board 271") is true again.
+GUARD: tv/test_the_d2jsp_desk_forks_with_the_profile.py runs the real fork sets, the real LSR router and the real room in node and
+reads the raw store key by key for owner main, owner ladder, guest main and guest ladder, and drives the real "Post the list"
+click to read the topic the console is sent: owner and guest ladder update the live 271 topic, a 271 topic never lands in a
+main key, a saved ladder topic is never replaced, a 268 topic never moves onto ladder (10 red-proofs).
+
+### REG-2503 - A GOOD MF PRINTED A 1:N AS A PERCENT AND DROPPED IT FROM THE RANKING (#63, M6 T2)
+
+One number carried two units and its SIZE decided which: at or below EVENT_PCT_MAX (50) it was an event percent, above it 1:N
+odds - and the drop math reads ADJUSTED values. Measured on the shipped arithmetic, Nagelring from Normal Andariel (raw 1:79): at
+his MF 699 /players 1 it is 1:70 and renderDetail's adjustedChance >= 100 filter dropped it from its own ranking; at MF 1000
+/players 8 it is 1:49 and fmt printed "49%". effChance skipped /players for any MF-adjusted value <= 50, runsFor / hoursFor /
+runHoursFor answered null at or below 50, and renderAidCard kept its own "raw chance < 100 is a percent" rule (Nagelring's 79 was
+timed as one run). The silospen pull had already put REAL odds under 50 in the raw rows (Isenhart's Case 1:32, Cathan's Seal
+1:39-40, the Countess's low runes 1:3-1:28), which printed as percents. The four real events were 12 / 36 / 36 / 42 on every
+difficulty, though the keys drop on Hell only and Diablo Clone always drops Annihilus.
+FIX: isEventP (beside hoursFor): an event drop is held as a PROBABILITY in (0,1], every other chance as ODDS >= 1; they meet only
+at exactly 1, where 1:1 and 100% are the same quantity. adjustChance, effChance (players now scale every 1:N), fmt, runsFor,
+hoursFor, runHoursFor, perRunChance (an event's per-run chance is p), findRate (an untimed event adds no rate), the renderDetail /
+boss-table / active-bar filters, the aid card, the seven raw scans, _adjC and the forge's fmtOdds all read the one rule. An event
+drop is not timed: the keys print their card's band (fmtDrop) and Diablo Clone is not a run. Data: the keys are null on Normal and
+Nightmare and hold silospen's RotW 3.0 /players 1 figure on Hell (Terror 0.0714, Hate 0.0862, Destruction 0.0793 - the cards
+print their bands ~8-9% / ~9-13% / ~10%, and the key card's note now gives silospen's per-players range); Annihilus is 1 (100%,
+labelled vanilla D2R on the Diablo Clone card). EVENT_PCT_MAX stays only as test_one_hunt_clock's cut anchor.
+SITES CHANGED: adjustChance, effChance, fmt, runsFor, perRunChance, hoursFor, findRate, runHoursFor, the seven
+`s.chance <= EVENT_PCT_MAX` scans (grail suggestions, starred hunt, item card sources, two per-boss best tables, best-per-boss,
+wishlist), _bossDropRowsHtml (filter + event cell), renderDetail (filter + event row), the active-item bar, renderAidCard
+(runs / hours / valid / three prints), the boss detail's top-12 cells, bossTopDropsHtml, _adjC, the forge's fmtOdds.
+LEFT ALONE, and why: getRarityClass (every value under 500 is rare-5 already); sparkline, runGicSim, the deep dive and the MF
+comparison (they receive only odds, after the filters); the Countess rune table and the rune card (odds by construction, now
+printed as 1:N). No call site sits in V1's vault code.
+SOURCES: silospen RotW 3.0 drop calculator, https://dropcalc.silospen.com (atomic TC, version D2R_ROW_3_0, Hell, /players 1-8:
+Key of Terror 7.1% -> 9.8%, Key of Hate 8.6% -> 12.8%, Key of Destruction 7.9% -> 11.4%, none on Normal or Nightmare);
+d2emu https://d2emu.com/db/misc/key-of-terror , https://d2emu.com/db/misc/key-of-hate , https://d2emu.com/db/misc/key-of-destruction
+(7.4-10.2%, 8.9-13.5%, 8.2-11.9%); Annihilus: https://d2runewizard.com/quests/diablo-clone ("always drops the Annihilus").
+FIX ROUND (the adversarial review): the key cards still printed picked figures - Terror "~8-9%" (it excludes silospen's own
+/players 1 value, 7.1%) and Destruction "~10%" (a single pick) - and fmtDrop now carried them into every boss drop cell, the
+top-12, the aid card and the active bar; the key note quoted a second /players 1 figure for Terror (d2runewizard ~8% beside
+silospen 7.1%); and the same picked "~10%", "~8-9%" or "~9-13%" sat in every other copy (the Halls zone card and its TZ
+row, the Uber Step 1 table, the Summoner card and his two Hell diff rows, the zone chip, the Pindleskin card, Nihlathak's
+super-unique card, the Pandemonium hub's tiles, rate stat and footnote, the endgame road). Measured again on silospen (atomicTcProbabilities, D2R_ROW_3_0, Hell, party 1, decimal mode):
+Terror 0.0714 / 0.0908 / 0.0961 / 0.0980, Hate 0.0862 / 0.1161 / 0.1248 / 0.1280, Destruction 0.0793 / 0.1041 / 0.1110 /
+0.1135 at /players 1-2, 3-4, 5-6, 7-8 (it steps at /players 3, 5 and 7). Every surface now prints the band - Terror 7.1-9.8%,
+Hate 8.6-12.8%, Destruction 7.9-11.4% - labelled "silospen RotW 3.0, /players 1-8"; the d2runewizard figure is gone. The
+Summoner's Hell TZ row says the band is the unterrorized one (silospen does not model a terrorized Summoner).
+GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py drives the drop engine, BOSSES and renderDetail itself in node.
+Its expected figures are silospen's measured values written into the law (SILOSPEN, KEY_SILOSPEN), never the code's own
+formula re-typed: the first version of this law re-typed the page's MF line and pinned 1:70 / 1:49 as "premise" figures,
+and this entry called that independent - it was not (REG-2508). The key cards must equal the measured bands and every
+drop cell prints them (17 red-proofs). test_the_bible_text_agrees_with_its_own_cards (REG-2117) reads every key figure
+after a key's name - 21 sites - against the card, with or without a tilde. Specs v44_event_boss_audit and
+routing_and_data_integrity move to the new unit.
+OPEN: d2runewizard and d2emu both say Diablo Clone is met in Hell games only; BOSSES still lists him on all six difficulties
+("Any difficulty"). Not changed here - its own sourcing pass.
+
+### REG-2504 - CODEX PROCS READ "LEVEL 0" AND NOTES CONTRADICTED THEIR OWN PROPS (#62, M6 T2)
+
+Seven chance-to-cast props read "Level 0" - the raw table value; the game computes the level from the item level. The page's own
+hover card (ITEM_TIP, transcribed from diablo2.io's RotW DB) and the Arreat Summit (vanilla) print the same levels, so the RotW
+figure is sourced: The Rising Sun 13-19 Meteor, Snowclash 7-19 Blizzard, Stormrider 13-20 Charged Bolt, Lightsabre 14-20 Chain
+Lightning, Stormspire 20 Charged Bolt, Hellslayer 16-20 Fire Ball, Boneslayer Blade 12-20 Holy Bolt (65 codex procs compared to
+their hover cards; these were the only 7 that disagreed). A note is a second copy of its props (and a third in ITEM_INFO /
+ITEM_INFO_EXTRA): The Rising Sun "+30% fire absorb, +12-25 fire res" over "+0.75 Fire Absorb (per level)" and no fire res;
+Steel Shade "+30% fire absorb" over "Fire Absorb 5-11"; Tal Rasha "4-pc = +5 sorc skills, +65% FCR, +120-200 mana" over a set
+table of +3 full / +1 at two pieces / +2 on Adjudication. Swept: 11 absorb notes and 45 skill-count clauses no table holds.
+FIX: the seven procs carry their hover card's level; the three named notes and nine more absorb notes are rewritten to their
+table's figures; the 45 skill-count clauses are removed (his ruling: remove contradicting duplicates - several of those props'
+own skill-tab lines look mis-mapped, so the note does not restate them). Both copies of every note move together.
+SOURCES: https://classic.battle.net/diablo2exp/items/normal/uamulets.shtml , .../exceptional/ubelts.shtml ,
+.../exceptional/uaxes.shtml , .../elite/uswords.shtml , .../elite/upolearms.shtml , .../elite/uaxes.shtml ,
+.../elite/uhelms.shtml (Steel Shade +5-11 Fire Absorb); d2emu https://d2emu.com/db/unique/the-rising-sun (raw "Level 0").
+GUARD: tv/test_no_codex_number_contradicts_its_own_table.py - every codex proc level equals its hover card's; every absorb and
+skill-count claim in a note (both copies) is its own table's figure; a codex note and its duplicate agree.
+FIX ROUND (the adversarial review): the skill reader the law certified read a claim only when it ended in the word "skills"
+after at most two letter-only words, so five contradicted notes passed green in both copies - Frostburn "+1-2 cold sorc" (no
+skill line), Bane Ash "+1 fire sorc" (+5 Fire Bolt, +2 Warmth), Eschuta's Temper "+1-3 fire/light skills" (+1-3 Sorceress),
+Seraph's Hymn "+2 paladin auras" (+2 All Skills, +1 Masteries), Homunculus "+1 nec auras" (no aura line, and "+20% fcr" with no
+FCR line); Death's Fathom's "+3 cold sorc skills" over +3 Sorceress turned up with the wider reader. And the OPEN list above
+undercounted: measured with the law's readers on the notes as this branch first shipped them, 138 of the 320 codex notes
+printed a number their own table does not hold, 62 more named a stat with a figure its table line does not print, and 7 gave
+a skill count no line holds - 203 in all (Gheed's Fortune printed its gold as MF and its MF as gold; Atma's Wail gave
+"+8-10% LL" to an item with no leech; Nosferatu's Coil 8% LL over 5-7%; Crushflange 25% CB over 33%; Duriel's Shell +20-40%
+cold res over +50%; Skin of the Flayed One "+15-20 LL" over 5-7%; Crow Caw 40 / 25 / 50 over 15 / 15 / 35). FIX: those 203
+notes (and Shaftstop's "+250 def", which is defense vs missile) were rewritten from their own tables, clause by clause - a figure restated from its table line, or the clause removed (his
+ruling: a contradicting copy is removed) - in the codex and in every ITEM_INFO / ITEM_INFO_EXTRA copy (and the alias key
+"Bul-Kathos Wedding Band"). Non-numeric claims a rewritten note's table contradicts went with them (a "CTC Frost Nova" no table
+line holds, "cold dmg" on a lightning weapon, "LL" with no leech, "the small charm" on a grand charm). The keys' notes no
+longer say three keys open Uber Tristram (one of each opens a mini-uber portal), and Polaris Spear and The Scourge - RotW
+uniques with no props on record - say so instead of a picked "+200% ED". The law now reads every copy (codex, ITEM_INFO,
+and the runtime uniques' notes) three ways: every number a note prints is one its own table prints (a rune reads the rune
+table; a note with no table prints no number) - 2,028 numbers in 645 copies; a stat it names with a figure carries that
+table line's figure - 1,030 claims; a skill count, read with the widened '+N[-M] <class or tree words> skills | sorc |
+auras | ...' reader and its slash forms, is a table line that names that class or tree. 20 red-proofs.
+OPEN (measured, not swept): non-numeric descriptors in notes the readers passed (a role word such as "merc fave" or "MF helm")
+are not read against anything; the ITEM_INFO_EXTRA key blurbs and "Ist rune ... trade value ~5 Pul" are not copies of a codex
+note and are not read; several props look mis-mapped on skill-tab lines (Wolfhowl "+2 to Fire Skills", Halaberd's Reign "+1
+to Lightning Skills", Arreat's Face "+2 to Cold Skills"), so the rewritten notes do not restate those lines.
+
+### REG-2505 - ESSENCES CARRIED THREE RATES, AND THE JEWEL WORE A NAME THE GAME DOES NOT USE (#69, M6 T2)
+
+The essence rate was stated three ways: the blurb "~4% per kill", four rows "~1:25", the hub card "~10-15% (~12% per essence)"
+and tiles "~12%". And the item the game calls Colossal Jewel(s) - the #69 source, and the game's own stash view - was shown as
+"Colossal Ancient Jewels" on the material card, the special-drops grid, the RotW links, the uber cards, the Most Wanted list, the
+endgame road and the search palette.
+FIX: one source on every essence surface - silospen's RotW 3.0 drop calculator for a non-quest Hell kill at /players 1: Andariel
+13%, Duriel 11%, Mephisto / Diablo / Baal 7% (rising at more /players: 22.5%, 14.7%, 8.6% at /players 7-8), MF unaffected (d2emu
+says so too). The rows, the hub tiles (from one rate field), the chip, the stat and the note agree. The jewel's shown name is
+"Colossal Jewels" through one display map, MAT_SHOWN / _matShown, which the material card, the grid, the uber card link, the search
+palette and the floating card's label (through _setPieceShown) ask; the material label is display-only, so it reads Colossal
+Jewels. "Colossal Ancient Jewels" stays the KEY: his material stash, findMaterial, openDrop, data-arttip, data-art-logo, the art
+map, CAT_ART / CAT_ROUTE, ENDGAME_RELICS, UBER_BOSSES.drop and the Most Wanted drop.
+SOURCES: https://dropcalc.silospen.com (D2R_ROW_3_0, Hell, /players 1/3/5/7); d2emu https://d2emu.com/db/misc/charged-essence-of-hatred
+(MF does not affect essences).
+GUARD: tv/test_no_codex_number_contradicts_its_own_table.py (essence rows = hub tiles; no shown text outside a key position names
+"Colossal Ancient Jewel"). Specs v54 / v56 / v81 read the shown name.
+
+### REG-2506 - THE SUMMONER HAD TWO HELL LEVELS, PINDLESKIN TWO CEILINGS, UBER DURIEL AN IMMUNITY HIS RESISTS DENY (#68, M6 T2)
+
+The Summoner's Hell mlvl was 83 on his boss card and his super-unique card, with no source. Pindleskin's super-unique card said
+"TC84/TC85 unique pool" beside his boss card's "Hell mlvl 86 = TC87 access". Bone Ash claimed "Cathedral terrors to mlvl 96 /
+TC85" for a zone no terror table in the file holds. Uber Duriel read "Magic/Fire/Cold/Light/Poison 75 (Cold immune)" beside
+immune:'Cold', typed "Act 5" while Lilith and Izual carry their own model's act; the Events table called him cold-immune too.
+FIX (his ruling of 10-22: an RotW number with no source shows the vanilla figure, labelled): the Summoner's Hell mlvl is 80 on
+both cards, labelled "vanilla D2R · RotW unconfirmed" (silospen's own superunique entry reads 82, its boss entry 80 - so RotW is
+unconfirmed). Pindleskin: TC87 every kill, never an item above qlvl 86, on both cards. Bone Ash: no terror ceiling is claimed.
+Uber Duriel: d2emu's Hell resists (physical 50, everything else 75 - no immunity), immune 'none', Act 2 (Duriel's model, fought in
+the Forgotten Sands, Act 5), and the Events row says 75 cold resist.
+SOURCES: https://d2emu.com/db/monster/the-summoner (Level 80); https://diablo2.diablowiki.net/The_Summoner (80, per the #68 notes;
+not re-read here - the page is behind a challenge); https://dropcalc.silospen.com (summoner boss 80, The Summoner superunique 82,
+Pindleskin 86); https://d2emu.com/db/monster/pindleskin ("treasure class of 87 ... can't drop items that have a qlvl greater than
+86"); https://almarsguides.com/Computer/Games/Diablo2/Farming/Locations/Act5/Pindleskin/ (TC87, not Tyrael's Might, Arachnid Mesh,
+Azurewrath); https://d2emu.com/db/monster/bone-ash (the Cathedral); https://d2emu.com/db/monster/duriel (its Uber Duriel variant).
+GUARD: tv/test_no_codex_number_contradicts_its_own_table.py. Spec v83_sync_audit pins the labelled 80.
+
+### REG-2507 - THE D2JSP DRAFT CALLED ITSELF A DEMONSTRATION (#83 copy, M6 T2)
+
+openDraft said "This is a demonstration of the post. Nothing was posted." GrokBot read that as a demo-only mode. It now says
+"This is the draft. Nothing posts until Post this draft." (inside the old law's 1400-character openDraft window).
+NOT DONE: the optional floating tip on the card art and name (window.d2Tip / window._mtEntryFor). The board's #arttip lane
+already floats a card for a .d2art-wrap[aria-label] anchor, and only the vault lane's D2TIP_OWNS / D2TIP_SEL decide which lane owns
+a hover - so a second box would open beside the first unless that lane learned the desk's anchors, which is an edit to the lane.
+"Base not recorded" stays (an honest UNKNOWN after a66f08dfe's catalogBase).
+
+### REG-2508 - EVERY 1:N MOVED OFF ITS MF-300 BASE BY THE WRONG CURVE; HIS SCREEN SAID 1:70 WHERE THE GAME SAYS 1:66 (#63 review, M6 T2)
+
+His note: "i see it not 66 i se 70". The page's effMF was (MF x 100) / (MF + 250) - the game's diminishing-returns curve divided
+by 2.5, a share of the 250 cap rather than an effective MF - while the MF card on the same page states the game's curve, "effMF =
+MF x 250 / (MF + 250) ... 699% = 184% effective", and so does the drop-calc explainer. The dock printed "eff unique: 73.66%" at MF
+699 and the MF math section said 28.6% / 54.5% / 73.7% / 85.7% at MF 100 / 300 / 699 / 1500. adjustChance moves every stored 1:N
+(silospen RotW 3.0 at MF 300) by (1 + effMF(300)/100) / (1 + effMF(mf)/100), so the error was in every odds cell at every MF but
+300. Two surfaces disagreeing was the finding; silospen's own calculator settled it - the source of every stored 1:N, queried
+live on 2026-10-22 (dropcalc.php type=monsterProbabilities, version D2R_ROW_3_0, UNIQUE, /players 1, party 1): Nagelring from
+Normal Andariel MF 0 / 300 / 699 / 1000 = 1:186 / 79 / 66 / 62, Crushflange 1:199 / 84 / 70 / 66, Shako from Hell Mephisto MF 0
+/ 300 / 699 = 1:1974 / 836 / 695. The game's curve gives 187 / 79 / 66 / 62 and 1976 / 836 / 695 (the stored base is itself
+rounded); the old line gave 122 / 79 / 70 / 68 and 1292 / 836 / 744. So the 1:70 on his screen was the old line, and the game's
+figure at his MF is 1:66.
+FIX: effMF = MF x factor / (MF + factor). The dock's first paint reads 184.14% and the MF math section states the curve, with
+71.4% / 136.4% / 184.1% / 214.3% at MF 100 / 300 / 699 / 1500. The #63 law's first version re-typed the old line in Python and
+pinned (70, 49) as its "premise" - it would have gone red on this fix, and its claim to compute the figure independently was
+false; it now pins silospen's measured figures. Specs 01_smoke (184.14%) and bug110_149 (136.36) move with it; bug110_149 read
+`window.effMF`, which never existed, so it skipped itself on every run - it now reads the bare name and a miss is red.
+SOURCES: https://dropcalc.silospen.com (the queries above); the page's own MF card and drop-calc explainer.
+GUARD: tv/test_a_good_mf_never_turns_odds_into_a_percent.py - the page's adjustChance reproduces silospen at MF 0 / 300 / 699 /
+1000 for three items, and every surface states one curve (4 red-proofs for this entry).
+
+### REG-2509 - THE /PLAYERS MODEL UNDER-SCALES AND STEPS ON THE WRONG COUNTS (OPEN, found in the M6 T2 fix round)
+
+Measured while settling REG-2508, not fixed: effChance divides by playerMult, which models one top-level NoDrop per boss
+(PLAYER_Q) with k = 1 + floor(players / 2). silospen (same queries, /players 1-8) differs twice. The steps: silospen's
+/players 1 = 2, 3 = 4, 5 = 6, 7 = 8 (Nagelring from Normal Andariel at MF 300: 1:79, 79, 54, 54, 46, 46, 44, 44; the keys step the
+same way), while the model steps at /players 2, 4, 6 and 8 - and the page's "What the P# slider actually does" section says so.
+The size, at /players 8 (MF 300, uniques): Hell Mephisto agrees (silospen x1.22, the model x1.22), Normal and Hell Andariel do
+not (silospen x1.79, the model x1.39 - so at MF 1000 /players 8 Nagelring prints 1:44 where silospen says 1:35), and Hell
+Duriel, which the model holds at x1.00 as a q = 0 "guaranteed dropper", moves x1.37 on silospen.
+The default /players 1 is right in both. A fix means silospen's per-boss, per-difficulty, per-/players factors (a data pull) and
+a new model, so it is its own track; the #63 law certifies only that a 1:N stays a 1:N under /players, never this factor.
+
 ### REG-2498 - TWO NEW SPOTS WHERE A FAILED READ BECAME DATA: A pgrep THAT COULD NOT RUN READ "NO HOLDER", A ps THAT COULD NOT RUN READ "GONE" (2026-10-22, M6 integration)
 
 MEASURED on the M6 merge (T1 onto v3785), `python3 tv/run_gates.py --only swallow_ratchet`: RANK 1 baseline 66, now 68, and

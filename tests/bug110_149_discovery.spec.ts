@@ -83,11 +83,12 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
     await page.goto(BIBLE);
     await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
-    // effMF(300, 250) = 300*100/(300+250) = 54.5%
-    const eff = await page.evaluate(() => (window as any).effMF ? (window as any).effMF(300, 250) : null);
-    if (eff !== null) {
-      expect(eff).toBeCloseTo(54.5, 0);
-    }
+    // REG-2508 - effMF(300, 250) = 300*250/(300+250) = 136.36: the game's curve, the one the page's MF card states.
+    // effMF is a top-level const, not a window property, so the old `(window as any).effMF` read null and this check
+    // skipped itself on every run; a bare-name eval reaches it (as v1740 reaches effChance), and a miss is now red.
+    const eff = await page.evaluate(() => { try { return (eval('effMF') as any)(300, 250); } catch (e) { return null; } });
+    expect(eff, 'effMF is not reachable from the page').not.toBeNull();
+    expect(eff).toBeCloseTo(136.36, 1);
   });
 
   test('BUG-116 reset button confirms and reloads (no auto-trigger)', async ({ page }) => {
