@@ -13,6 +13,7 @@ go wrong unseen:
 GitHub and git are stand-ins; no network, no push.
 """
 import io
+import json
 import os
 import shutil
 import sys
@@ -24,6 +25,9 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import proof_keys_mac as M  # noqa: E402
+import fixture_tmp  # noqa: E402
+
+fixture_tmp.contain()   # its download test makes a scratch dir; contained, so a run leaves none behind
 
 SHA = "0123456789abcdef0123456789abcdef01234567"
 TOKEN = "ghp_NOT_A_REAL_TOKEN_0000000000000000"
@@ -42,7 +46,7 @@ class ItPushesOneCiRef(unittest.TestCase):
     def test_the_push_names_that_ref_and_hides_the_token(self):
         seen = {}
 
-        def run(cmd, capture_output=True, text=True, env=None):
+        def run(cmd, env=None, **_k):
             seen["cmd"], seen["env"] = cmd, env
             return mock.Mock(returncode=1, stdout="", stderr="remote: bad credentials %s for https://x:%s@github.com"
                              % (TOKEN, TOKEN))
@@ -221,7 +225,7 @@ class OnlyAWholeSetIsImported(unittest.TestCase):
 class TheMainFlow(unittest.TestCase):
     """main() end to end with git, GitHub and heart2 stubbed: what runs, in which order, with which environment."""
 
-    def drive(self, n_files=16, head_moves=False):
+    def drive(self, n_files=16, head_moves=False, owed=None, said=None):
         events, envs = [], []
         heads = [SHA, SHA if not head_moves else "e" * 40]
 
@@ -263,6 +267,9 @@ class TheMainFlow(unittest.TestCase):
                 mock.patch.object(M, "LOCAL_LOG", os.path.join(tmp, "local.log")), \
                 mock.patch.object(M.subprocess, "Popen", _Local), mock.patch.object(M.subprocess, "run", run), \
                 mock.patch.object(M.time, "sleep", lambda s: None), \
+                mock.patch.object(M, "owed_after_import", lambda f, s, a: (list(owed or []), 100, [])), \
+                mock.patch("builtins.print", (lambda *a, **k: said.append(" ".join(str(x) for x in a)))
+                           if said is not None else print), \
                 mock.patch.dict(os.environ, {"GITHUB_PUSH_TOKEN": TOKEN, "GH_TOKEN": TOKEN}):
             rc = M.main(["--poll-s", "0", "--final"])
         return rc, events, envs
@@ -306,6 +313,87 @@ class TheSetStaysInItsDir(unittest.TestCase):
                 mock.patch.object(M, "classify", lambda say=None: ([], [], {})):
             self.assertEqual(M.main([]), 2)
         self.assertEqual(pushed, [], "a dirty checkout was pushed")
+
+
+class ItSaysWhatIsStillOwed(unittest.TestCase):
+    """REG-2594 - imported is not FULL. After the import the driver counts every assigned proof CI banked nothing for
+    that this Mac does not prove itself, and says FULL or PARTIAL; a PARTIAL set exits 3 and runs no final push."""
+
+    HEAD = "f" * 40
+
+    def shards(self, banked, assigned, owed_rows=()):
+        """Two finished shards of HEAD on one plan: shard 1 holds `assigned[0]`, shard 2 `assigned[1]`. -> [file]"""
+        import proof_shard as PS
+        tmp = tempfile.mkdtemp(prefix="pkowed.")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        files = []
+        for k, rows in ((1, assigned[0]), (2, assigned[1])):
+            own = {}
+            for g, i in rows:
+                own.setdefault(g, set()).add(i)
+            ent = dict(("key-%s-%d" % (g, i), {"gate": g, "proof": i, "verdict": "PROVEN", "provedAt": 1})
+                       for g, i in rows if (g, i) in banked)
+            body = {"format": 2, "entries": ent, "shard": PS.manifest(k, 2, self.HEAD, False, "plan", own, None, None, 1,
+                                                                      owed=[r for r in owed_rows if r[4] == k])}
+            d = os.path.join(tmp, "proof-shard-%d" % k)
+            os.makedirs(d)
+            f = os.path.join(d, ".heart2_cache.json")
+            with open(f, "w", encoding="utf-8") as fh:
+                json.dump(body, fh)
+            files.append(f)
+        return files
+
+    ASSIGNED = ([("a", 0), ("a", 1), ("mac", 0)], [("b", 0), ("b", 1)])
+
+    def test_a_set_that_banks_every_proof_is_FULL(self):
+        files = self.shards({("a", 0), ("a", 1), ("mac", 0), ("b", 0), ("b", 1)}, self.ASSIGNED)
+        owed, assigned, fails = M.owed_after_import(files, self.HEAD, [])
+        self.assertEqual((owed, assigned, fails), ([], 5, []))
+        full, line = M.owed_words(owed, assigned, fails)
+        self.assertTrue(full)
+        self.assertIn("FULL", line)
+
+    def test_a_proof_ci_banked_nothing_for_is_OWED(self):
+        files = self.shards({("a", 0), ("mac", 0), ("b", 0)}, self.ASSIGNED)
+        owed, assigned, _f = M.owed_after_import(files, self.HEAD, [])
+        self.assertEqual(sorted(owed), [("a", 1), ("b", 1)])
+        full, line = M.owed_words(owed, assigned, [])
+        self.assertFalse(full, "a set that banks 3 of 5 read as full")
+        self.assertIn("PARTIAL: 2 of 5", line)
+
+    def test_what_this_mac_proves_alongside_is_not_owed(self):
+        files = self.shards({("a", 0), ("a", 1), ("b", 0), ("b", 1)}, self.ASSIGNED)
+        owed, _a, _f = M.owed_after_import(files, self.HEAD, ["mac"])
+        self.assertEqual(owed, [], "the alongside pass proves 'mac' here; it is not owed")
+        owed, _a, _f = M.owed_after_import(files, self.HEAD, [])
+        self.assertEqual(owed, [("mac", 0)])
+
+    def test_the_failures_a_shard_kept_going_past_are_named(self):
+        fails = [["b", 1, "BLIND", "the tamper ran and the law stayed GREEN", 2]]
+        files = self.shards({("a", 0), ("a", 1), ("mac", 0), ("b", 0)}, self.ASSIGNED, fails)
+        owed, assigned, got = M.owed_after_import(files, self.HEAD, [])
+        self.assertEqual(owed, [("b", 1)])
+        self.assertEqual([f[:3] for f in got], [["b", 1, "BLIND"]])
+        self.assertIn("b[1] BLIND", M.owed_words(owed, assigned, got)[1])
+
+    def test_a_set_of_another_commit_is_refused_not_counted(self):
+        files = self.shards({("a", 0)}, self.ASSIGNED)
+        with self.assertRaises(RuntimeError):
+            M.owed_after_import(files, "e" * 40, [])
+
+    def test_a_partial_import_exits_3_and_runs_no_final_push(self):
+        said = []
+        rc, events, _e = TheMainFlow.drive(self, owed=[("b", 1)], said=said)
+        self.assertEqual(rc, 3, "a PARTIAL import exited as if the set were whole")
+        self.assertNotIn("final", events, "a final push ran over a partial set")
+        self.assertTrue(any("REG-2594 PARTIAL: 1 of 100" in x for x in said), said[-4:])
+
+    def test_a_full_import_says_FULL(self):
+        said = []
+        rc, events, _e = TheMainFlow.drive(self, owed=[], said=said)
+        self.assertEqual(rc, 0)
+        self.assertIn("final", events)
+        self.assertTrue(any("REG-2594 FULL" in x for x in said), said[-4:])
 
 
 RED_PROOF = [
@@ -433,6 +521,37 @@ RED_PROOF = [
      "file": "proof_keys_mac.py",
      "find": "    if rc or rc2 or dirty:\n",
      "replace": "    if rc or rc2:\n",
+     "matches": 1},
+    # REG-2594 - the owed report after the import
+    {"why": "REG-2594 - every unbanked proof is dropped as if the Mac proved it: a partial set reads FULL",
+     "file": "proof_keys_mac.py",
+     "find": "        owed += [(g, i) for g, i in sorted(set(asg) - got) if g not in here]\n",
+     "replace": "        owed += [(g, i) for g, i in sorted(set(asg) - got) if False]\n",
+     "matches": 1},
+    {"why": "REG-2594 - the alongside gates are not subtracted: what this Mac proves itself is counted owed",
+     "file": "proof_keys_mac.py",
+     "find": "    here, owed, assigned = set(along or ()), [], 0\n",
+     "replace": "    here, owed, assigned = set(), [], 0\n",
+     "matches": 1},
+    {"why": "REG-2594 - the line says FULL whatever is owed",
+     "file": "proof_keys_mac.py",
+     "find": "    if not owed:\n        return True, ",
+     "replace": "    if True:\n        return True, ",
+     "matches": 1},
+    {"why": "REG-2594 - a PARTIAL import is never flagged: it exits 0 and the final push runs",
+     "file": "proof_keys_mac.py",
+     "find": "                partial = not full\n",
+     "replace": "                partial = False\n",
+     "matches": 1},
+    {"why": "REG-2594 - the shards' owed failures are never read",
+     "file": "proof_keys_mac.py",
+     "find": "    fails = [f for _l, b, _w in bodies for f in ((b or {}).get(\"shard\") or {}).get(\"owed\") or []]\n",
+     "replace": "    fails = []\n",
+     "matches": 1},
+    {"why": "REG-2594 - a set of another commit is counted, not refused",
+     "file": "proof_keys_mac.py",
+     "find": "    ok, why, shards = PS.check_shards(bodies, sha)\n    if not ok:\n        raise",
+     "replace": "    ok, why, shards = PS.check_shards(bodies, sha)\n    if False:\n        raise",
      "matches": 1},
 ]
 

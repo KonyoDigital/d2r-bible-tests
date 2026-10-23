@@ -22,13 +22,18 @@
                 the checkout clean at this sha - re-checked after the join); its exit is said. --final then runs `heart2 --prove --push`, which
                 serves CI's and the Mac's banked PROVENs and runs the rest (and REG-2587/2589 run each imported gate
                 clean here once).
-Exit 0 when the import took the set and the alongside pass passed; 2 otherwise. Nothing is merged, nothing goes to main.
+  8. OWED      (REG-2594) imported is not FULL: every assigned proof CI banked nothing for (ELSEWHERE there, owed a fix
+                by a shard that kept going, or never run) and this Mac's alongside pass does not prove is counted and
+                said - "FULL" or "PARTIAL: N of M owed" - so a partial set is never mistaken for a whole one.
+Exit 0 when the import took a FULL set and the alongside pass passed; 3 when the import is PARTIAL (no --final runs over
+it); 2 otherwise. Nothing is merged, nothing goes to main.
 """
 import argparse
 import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -80,6 +85,49 @@ def whole_set(files, n):
     want = sorted("proof-shard-%d" % k for k in range(1, n + 1))
     return None if got == want else "the artifact holds %d of %d shard caches (%s)" % (
         len(set(got) & set(want)), n, ", ".join(sorted(set(got) ^ set(want))[:4]) or "duplicates")
+
+
+def owed_after_import(files, sha, along):
+    """REG-2594 - what CI's set left UNBANKED that this Mac does not prove itself, so a partial set never reads as full.
+    files: the shard caches; along: the gates the alongside pass proves here (their unbanked proofs are not owed).
+    -> (owed [(gate, index)], assigned, failures [[gate, index, verdict, reason]] the shards said they owe)"""
+    import proof_shard as PS
+    bodies = []
+    for f in files:
+        try:
+            with io.open(f, encoding="utf-8") as fh:
+                body = json.load(fh)
+            bodies.append((f, body if isinstance(body, dict) else None, None if isinstance(body, dict) else "not a map"))
+        except (OSError, ValueError) as e:
+            bodies.append((f, None, type(e).__name__))
+    ok, why, shards = PS.check_shards(bodies, sha)
+    if not ok:
+        raise RuntimeError("the set is not one whole set (%s)" % why)
+    ok, why, _take, _skipped = PS.select(shards)
+    if not ok:
+        raise RuntimeError("the set would not import (%s)" % why)
+    here, owed, assigned = set(along or ()), [], 0
+    for _k, ent, asg in shards:
+        # select() passed, so every servable entry of this shard is banked (under its key, even where two proofs
+        # share one key and the later shard's entry is the one kept) - second eye: never `take[key] is e`
+        got = set((str(e.get("gate")), e.get("proof")) for e in (ent or {}).values() if PS.servable(e))
+        assigned += len(asg)
+        owed += [(g, i) for g, i in sorted(set(asg) - got) if g not in here]
+    fails = [f for _l, b, _w in bodies for f in ((b or {}).get("shard") or {}).get("owed") or []]
+    return owed, assigned, fails
+
+
+def owed_words(owed, assigned, fails):
+    """REG-2594 - the one line after the import. -> (full: bool, line)"""
+    if not owed:
+        return True, "  ✓ REG-2594 FULL: every one of the %d assigned proof(s) is banked by CI or in a gate this Mac proves alongside" % (
+            assigned)
+    gates = sorted(set(g for g, _i in owed))
+    return False, ("  ✗ REG-2594 PARTIAL: %d of %d assigned proof(s) are still OWED after the import (%d gate(s): %s)%s. "
+                   "This is not a full set - the next push pays for them." % (
+                       len(owed), assigned, len(gates), ", ".join(gates[:6]) + (" …" if len(gates) > 6 else ""),
+                       ("; CI owes a fix for %s" % ", ".join("%s[%s] %s" % tuple(f[:3]) for f in fails[:4]))
+                       if fails else ""))
 
 
 # ── the pure parts (the law drives these) ───────────────────────────────────────────────────────────────────────────
@@ -219,7 +267,7 @@ def http_get(url, token, accept="application/vnd.github+json"):
 
 
 def _repo_slug():
-    r = subprocess.run(["git", "-C", REPO, "remote", "get-url", "origin"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", REPO, "remote", "get-url", "origin"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     m = re.search(r"github\.com[:/]([^/]+/[^/.]+?)(?:\.git)?/?$", r.stdout.strip())
     if not m:
         raise SystemExit("  ✗ REG-2590: origin is not a github.com repo")
@@ -253,7 +301,7 @@ def download_artifact(slug, run_id, name, token, dest):
 
 # ── the steps ───────────────────────────────────────────────────────────────────────────────────────────────────────
 def _git(*args):
-    r = subprocess.run(["git", "-C", REPO] + list(args), capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", REPO] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace")
     return r.returncode, r.stdout.strip()
 
 
@@ -269,7 +317,7 @@ def push(ref, token, say=print):
                 "-c", "credential.helper=!f() { echo username=x-access-token; echo \"password=$PK_PUSH_SECRET\"; }; f"]
     cmd += ["push", "origin", "HEAD:" + ref]
     env = dict(child_env(), PK_PUSH_SECRET=token or "")   # git gets the push secret and no other token
-    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     say(mask((r.stdout + r.stderr).strip(), [token]))
     return r.returncode
 
@@ -278,15 +326,15 @@ def classify(say=print):
     import heart2 as H
     have = [(n, f, H.red_proofs_in(f)) for n, f in H.gate_files(say=lambda *a, **k: None)]
     have = [(n, f, p) for n, f, p in have if p]
-    cache = H._VerdictCache(path=os.path.join(tempfile.mkdtemp(prefix="pkmac."), ".heart2_cache.json"),
-                            say=lambda *a, **k: None)
+    with tempfile.TemporaryDirectory(prefix="pkmac.") as tmp:      # a key needs a store; this one is never written
+        cache = H._VerdictCache(path=os.path.join(tmp, ".heart2_cache.json"), say=lambda *a, **k: None)
 
-    def keyer(n, f, pr):
-        try:
-            return cache.key_for(HERE, n, f, pr)[0]
-        except Exception:
-            return None
-    return local_gates(have, H._tracked_files(), keyer, H.proof_needs_in)
+        def keyer(n, f, pr):
+            try:
+                return cache.key_for(HERE, n, f, pr)[0]
+            except Exception:
+                return None
+        return local_gates(have, H._tracked_files(), keyer, H.proof_needs_in)
 
 
 def main(argv=None):
@@ -323,7 +371,7 @@ def main(argv=None):
         local = subprocess.Popen([sys.executable, "-u", os.path.join(HERE, "heart2.py"), "--prove"] + along + ["--push"],
                                  cwd=HERE, stdout=logf, stderr=subprocess.STDOUT, env=child_env())
         say("  REG-2590: the alongside pass started (pid %d, log %s)" % (local.pid, os.path.basename(LOCAL_LOG)))
-    deadline, state, run = time.time() + a.timeout_min * 60, "wait", None
+    deadline, state, run, partial = time.time() + a.timeout_min * 60, "wait", None, False
     last = ""
     while time.time() < deadline:
         try:
@@ -364,10 +412,19 @@ def main(argv=None):
             r = subprocess.run([sys.executable, os.path.join(HERE, "heart2.py"), "--import-shards"] + files, cwd=HERE,
                                env=child_env())
             ok = r.returncode == 0
+            if ok:                                  # REG-2594 - imported is not FULL: say what is still owed
+                full, line = owed_words(*owed_after_import(files, sha, along))
+                say(line)
+                partial = not full
         except Exception as e:
             say("  ✗ REG-2590: the set could not be brought home (%s)" % mask(repr(e), [token]))
             ok = False
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)   # imported (copied into the store) or refused: never kept
     ok = ok and lrc == 0
+    if ok and partial:
+        say("  ✗ REG-2594: the import is PARTIAL - exit 3, and no final push runs over a set that is not whole")
+        return 3
     if ok and a.final:
         ok = subprocess.run([sys.executable, os.path.join(HERE, "heart2.py"), "--prove", "--push"], cwd=HERE,
                             env=child_env()).returncode == 0

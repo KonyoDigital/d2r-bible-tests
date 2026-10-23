@@ -7,6 +7,49 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2594 - IMPORTED IS NOT FULL: THE MAC DRIVER SAYS HOW MANY PROOFS ARE STILL OWED (proof-keys build, GB-box, 2026-10-23)
+After `heart2 --import-shards` succeeds, `proof_keys_mac.py` re-reads the set (owed_after_import: the same check_shards
+and select the import applies) and counts every assigned proof CI banked nothing for (ELSEWHERE on a runner, owed by a
+shard that kept going, never run) that this Mac does not prove alongside. It prints `✓ REG-2594 FULL` or `✗ REG-2594
+PARTIAL: N of M ... owed` with the shards' named failures; a PARTIAL set exits 3 and never runs `--final`, so a partial
+set is never mistaken for a full one. The CI fan-in prints the neutral count (it cannot know what the Mac proves).
+Second eye (grok-4.7): a proof counts as banked when its shard's entry is servable (select already refused a mixed set),
+never by `take[key] is e`, which miscounted two proofs sharing one key. Law: test_the_mac_driver_brings_one_commits_set_home
+(ItSaysWhatIsStillOwed), 6 red-proofs, all RED.
+
+### REG-2593 - THE PROOF SHARD PLAN IS PRICED BY A RUNNER'S MEASURED SECONDS AND BALANCED ON ITS WALL (proof-keys build, GB-box, 2026-10-23)
+MEASURED on the 16-shard run at dcff7160: slowest shard ~2.1x the mean. The plan priced a proof from gate_costs.json
+(his Mac's seconds per gate run) and ignored that a runner proves browser gates one at a time. Now tv/proof_costs.json
+holds seconds per proof measured on the runners (proof_shard --measure-costs DIR: the median provedAt gap of each gate's
+back-to-back proofs, 421 gates), a chunk costs per-proof x (size + 2), and each chunk goes to the shard whose wall
+(work / 2 lanes, or its serial browser queue) grows least; heart2's cut and its lock share one browser rule
+(_push_browser). MODELLED on this tree at N=16 (5,451 proofs): max 1349 s / mean 1268 s (1.06x); the old plan, same model: 2788 s (2.22x). Cutting browser gates
+finer was tried and dropped: each chunk pays its gate's two clean runs again (max 1675 s). Second eye: --measure-costs over an
+empty or wrong dir refuses (exit 2) and leaves proof_costs.json as it was; the file is written whole (tmp + replace).
+Law: test_a_proof_shard_plan_is_balanced, 5 red-proofs, all RED.
+
+### REG-2592 - A PROOF THAT ASKS ABOUT HIS VENUE IS ELSEWHERE ON A RUNNER (proof-keys build, GB-box, 2026-10-23)
+Six laws were red on Linux at dcff7160, plus one BLIND. Triaged one by one: two were CI env gaps in this build's own code
+and are FIXED (text-mode subprocess without utf-8 in proof_keys_mac/proof_shard; the Mac driver test's unconfined
+mkdtemp - and, found on the way, proof_keys_mac's own two mkdtemp sites that never cleaned up, a latent red of
+test_production_scratch_dirs_only_get_fewer); verdict_provenance[0] got its arrivals fix; the rest ask about HIS venue, not code: live_panel_gate and
+vault_wilson's live-witness door (test_gate_banks[3]) need a console on 17772, human_eyes_gate his gitignored ledger,
+reel_demo footage on his gitignored shelf, overlap_ratchet a baseline measured on his platform, and
+test_a_killed_run_is_never_a_red[22] is BLIND on Linux by construction (macOS-only ESRCH). Each now declares its need
+(live-console, human-eyes-ledger, reel-shelf, overlap-venue, macos); each probe lives in the gate's own module, since
+heart2 importing overlap_ratchet put 699 gates under the browser lock instead of 69. A runner reads ELSEWHERE; the Mac
+proves them alongside (CI_HAS names none). overlap-venue is lacking only when the committed baseline is stamped with a
+_venue another platform measured; an unstamped or unreadable baseline is judged where it runs (second eye). Law:
+test_a_proof_about_his_venue_is_elsewhere_on_a_runner, 14 red-proofs, all RED.
+
+### REG-2591 - A CI PROOF SHARD KEEPS GOING PAST A FAILURE (proof-keys build, GB-box, 2026-10-23)
+MEASURED at dcff7160: 7 of 16 shards stopped at their first red and ~300 proofs each were never run. In shard mode
+(`--proof-shard K/N`) a BLIND / INVALID / clean-run red is recorded as OWED; only the failed gate's own later proofs are
+NOT RUN, every other gate runs and banks, the manifest lists every failure (`owed`), the fan-in names them per shard and
+still takes a whole set, and the shard exits 1. The Mac's push still fails fast. The law drives _prove_push itself
+(second eye: the keep-going switch and the _owe_all hand-on were untested). Law:
+test_a_proof_shard_keeps_going_past_a_failure, 11 red-proofs, all RED.
+
 ### REG-2590 - THE MAC DRIVER: ONE COMMIT ON 16 RUNNERS, THE MAC PROVES ONLY WHAT THEY CANNOT BANK (proof-keys build, GB-box, 2026-10-23, v3789)
 `python3 tv/proof_keys_mac.py [--dry-run] [--final]`: refuses a checkout whose tracked files differ from HEAD (the import
 would refuse CI's set); pushes HEAD to refs/heads/ci/proof-keys-<sha12> and no other ref (with GITHUB_PUSH_TOKEN set, a

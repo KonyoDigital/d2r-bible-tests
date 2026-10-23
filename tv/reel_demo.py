@@ -444,6 +444,12 @@ def main(argv):
     return 0 if r["ok"] else 1
 
 
+def shelf_here():
+    """REG-2592 - heart2's PROOF_NEEDS_HOST probe for "reel-shelf". -> bool. Absent or empty is a venue with no footage;
+    present and BROKEN both say yes, so a broken recorder is still judged (and fails) rather than excused."""
+    return _shelf()[0] not in ("absent", "empty")
+
+
 RED_PROOF = [
     {
         "why": "v2889 — the tamper changes one of the counts Konyo REGISTERED as his own rulings "
@@ -456,7 +462,7 @@ RED_PROOF = [
         "file": 'reel_demo.py',
         "find": 'for kind, want in (("runeword", 99), ("set", 135), ("unique", 403)):',
         "replace": 'for kind, want in (("runeword", 98), ("set", 135), ("unique", 403)):',
-        "matches": 2,
+        "matches": 2, "needs": "reel-shelf",
     },
 ]
 

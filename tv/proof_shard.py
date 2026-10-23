@@ -38,7 +38,7 @@ if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
 try:
     from console_safe import enable as _console_safe_enable   # it prints non-ASCII; a cp1255 console must not crash
     _console_safe_enable()
-except Exception:
+except ImportError:                 # second eye: only a missing module is tolerated - a broken one is not hidden
     pass
 
 #: a chunk is no costlier than this fraction of one shard's fair share, so the largest gates spread across shards
@@ -49,6 +49,14 @@ MANIFEST_V = 1
 #: box, 2026-10-23: 24 proofs of sub-second laws took 64 s on one lane; priced at the gate's run alone, a shard of
 #: cheap laws looked 5x lighter than it ran
 PROOF_OVERHEAD_S = 1.5
+#: REG-2593 - what a proof costs ON A RUNNER, over what gate_costs + PROOF_OVERHEAD_S says. MEASURED on the 16-shard run
+#: at dcff7160 (421 gates priced from their own provedAt gaps): median 0.42 (p10 0.11, p90 0.91) - a gate this file has
+#: no measured row for is priced at that ratio, not at a desk guess
+PROOF_COST_FACTOR = 0.42
+#: REG-2593 - the lanes one runner proves on (2 cores). A shard's wall is the larger of its work over its lanes and its
+#: BROWSER work, which runs one gate at a time (#42 ONE BROWSER AT A TIME) - the old plan balanced only the first, and
+#: its slowest shard ran 2.1x the mean
+RUNNER_LANES = 2
 _SPEC = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*$")
 
 
@@ -79,43 +87,102 @@ def gate_costs(path=None):
         return {}
 
 
-def plan(have, n, costs=None):
+def proof_costs(path=None):
+    """REG-2593 - {gate: seconds per proof ON A RUNNER} from proof_costs.json (measure_costs' rows). -> dict ({} when
+    unreadable: the plan then prices every gate from gate_costs, as it did)"""
+    path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "proof_costs.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            c = json.load(fh).get("perProof") or {}
+        return dict((str(k), float(v)) for k, v in c.items()
+                    if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0)
+    except Exception:
+        return {}
+
+
+def measure_costs(bodies):
+    """REG-2593 - seconds per proof per gate, MEASURED from finished shard caches: within one shard a gate's proofs run
+    back to back on one lane, so the gap between consecutive provedAt stamps is one proof's cost (its clean run is shared).
+    Median over every gap of every shard. A gate with no gap (one proof per shard) is left out - priced by the factor.
+    bodies: [cache body]. -> {gate: seconds}"""
+    gaps = {}
+    for body in bodies:
+        per = {}
+        for e in ((body or {}).get("entries") or {}).values():
+            t = e.get("provedAt") if isinstance(e, dict) else None
+            if isinstance(t, (int, float)) and not isinstance(t, bool) and e.get("gate"):
+                per.setdefault(str(e["gate"]), []).append(t)
+        for g, ts in per.items():
+            ts.sort()
+            gaps.setdefault(g, []).extend((b - a) / 1000.0 for a, b in zip(ts, ts[1:]))
+    out = {}
+    for g, v in gaps.items():
+        if v:
+            v = sorted(v)
+            m = len(v) // 2
+            out[g] = round(v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2.0, 3)
+    return out
+
+
+def plan(have, n, costs=None, browser=None, per_proof=None, lanes=RUNNER_LANES):
     """The shard every proof belongs to. -> {(gate, index): k} covering every proof of `have` exactly once (pure).
 
-    have   [(name, filename, proofs)] as heart2.prove() holds them
-    n      how many shards
-    costs  {gate: seconds per run}; a gate it does not price costs the median of those it does (1.0 when none)"""
+    have       [(name, filename, proofs)] as heart2.prove() holds them
+    n          how many shards
+    costs      {gate: seconds per run}; a gate it does not price costs the median of those it does (1.0 when none)
+    browser    REG-2593: the gates proved one at a time (they start a browser). None: the pre-REG-2593 plan exactly
+    per_proof  REG-2593: {gate: MEASURED seconds per proof on a runner}; a gate it lacks costs PROOF_COST_FACTOR x
+               (its run + PROOF_OVERHEAD_S). A chunk of `size` proofs then costs per_proof x (size + 2): the proofs and
+               the gate's two clean runs (the wave's and the closing one)
+    lanes      a runner's lanes: a shard's wall is max(its work / lanes, its browser work)"""
     n = int(n)
     if n < 1:
         raise ValueError("a plan needs at least one shard")
     costs = dict(costs or {})
     known = sorted(v for v in costs.values() if v > 0)
     default = known[len(known) // 2] if known else 1.0
+    oh = PROOF_OVERHEAD_S
+    pp = dict(per_proof or {})
     gates = []
     for name, _f, proofs in sorted(have, key=lambda t: str(t[0])):     # one order, whatever order the names came in
         p = len(proofs or [])
         if p:
             c = costs.get(str(name))
-            gates.append((str(name), p, c if (c is not None and c > 0) else default))
-    oh = PROOF_OVERHEAD_S
-    total = sum((c + oh) * p + c for _n, p, c in gates)        # every proof's run, and the gate's one clean run
+            c = c if (c is not None and c > 0) else default
+            if per_proof is None:
+                unit, fixed = c + oh, c                                 # every proof's run, and the gate's clean run
+            else:
+                u = pp.get(str(name))
+                unit = u if u is not None else PROOF_COST_FACTOR * (c + oh)
+                fixed = 2 * unit
+            gates.append((str(name), p, unit, fixed, browser is not None and str(name) in browser))
+    total = sum(u * p + f for _n, p, u, f, _b in gates)
     target = total / float(n * CHUNKS_PER_SHARD) if total > 0 else 1.0
+    # REG-2593, MODELLED on the measured costs: cutting browser gates finer made N=16 SLOWER (max 1675s vs 1349s): each
+    # chunk pays its gate's two clean runs again. One target for every gate; the wall-aware placement below spreads them
     chunks = []
-    for name, p, c in gates:
-        k = max(1, min(p, int(math.ceil((c + oh) * p / target)) if target > 0 else 1))
+    for name, p, u, f, b in gates:
+        k = max(1, min(p, int(math.ceil(u * p / target)) if target > 0 else 1))
         base, extra = divmod(p, k)
         start = 0
         for j in range(k):
             size = base + (1 if j < extra else 0)
             idx = list(range(start, start + size))
             start += size
-            chunks.append(((c + oh) * size + c, name, idx))
-    chunks.sort(key=lambda t: (-t[0], t[1], t[2][0]))
-    load = [0.0] * n
+            chunks.append((u * size + f, b, name, idx))
+    chunks.sort(key=lambda t: (-t[0], t[2], t[3][0]))
+    tot = [0.0] * n
+    brw = [0.0] * n
+    lanes = max(1, int(lanes))
     out = {}
-    for cost, name, idx in chunks:
-        k = min(range(n), key=lambda s: (load[s], s))
-        load[k] += cost
+    for cost, b, name, idx in chunks:
+        if browser is None:
+            k = min(range(n), key=lambda s: (tot[s], s))
+        else:   # REG-2593: the shard whose WALL grows least - its work over its lanes, or its browser queue
+            k = min(range(n), key=lambda s: (max((tot[s] + cost) / lanes, brw[s] + (cost if b else 0.0)), tot[s], s))
+        tot[k] += cost
+        if b:
+            brw[k] += cost
         for i in idx:
             out[(name, i)] = k + 1
     return out
@@ -147,11 +214,13 @@ def restrict_order(order, gates, own):
     return dict((g, order2[g]) for g in gates2), gates2
 
 
-def manifest(k, n, head, dirty, digest, own, names, stopped, at_ms):
-    """What a shard writes beside its entries when it FINISHES (an unfinished shard writes none)."""
+def manifest(k, n, head, dirty, digest, own, names, stopped, at_ms, owed=None):
+    """What a shard writes beside its entries when it FINISHES (an unfinished shard writes none). `owed` (REG-2591): every
+    failure a shard that KEPT GOING found, [gate, index, verdict, reason] each."""
     return {"v": MANIFEST_V, "k": int(k), "n": int(n), "head": str(head or ""), "dirty": bool(dirty),
             "plan": str(digest), "finished": True, "names": sorted(names) if names else None,
             "stopped": list(stopped) if stopped else None, "at": int(at_ms),
+            "owed": [list(f) for f in (owed or [])],
             "assigned": sorted([g, i] for g, idx in own.items() for i in idx)}
 
 
@@ -309,15 +378,25 @@ def fan_in(root, n, head, say=print):
         return 2
     owed = unbanked(shards, take)
     stops = dict((b["shard"]["k"], b["shard"].get("stopped")) for _l, b, _w in bodies if b["shard"].get("stopped"))
+    fails = dict((b["shard"]["k"], b["shard"].get("owed")) for _l, b, _w in bodies if b["shard"].get("owed"))
     for k, _ent, assigned in shards:
         st = stops.get(k)
-        say("    shard %2d/%d: %4d assigned, %4d banked%s" % (
+        say("    shard %2d/%d: %4d assigned, %4d banked%s%s" % (
             k, n, len(assigned), len(assigned) - owed[k][0],
             (", STOPPED at %s" % ("%s[%s] %s" % tuple(st[:3]) if isinstance(st, list) and len(st) >= 3 else st))
-            if st else ""))
-    say("  ✓ REG-2588 FAN-IN: all %d shards of %s finished on one plan; %d PROVEN entr(ies) to import, %d not servable%s."
+            if st else "",
+            (", OWES %s" % ", ".join("%s[%s] %s" % tuple(f[:3]) for f in fails[k] if isinstance(f, list) and len(f) >= 3))
+            if fails.get(k) else ""))
+    _n_owed = sum(len(v) for v in fails.values())
+    _n_unb = sum(u for u, _a in owed.values())
+    say("  ✓ REG-2588 FAN-IN: all %d shards of %s finished on one plan; %d PROVEN entr(ies) to import, %d not servable%s%s."
         % (n, str(head)[:12], len(take), skipped,
-           (" - %d shard(s) STOPPED on a failure, owed a fix" % len(stops)) if stops else ""))
+           (" - %d shard(s) STOPPED on a failure, owed a fix" % len(stops)) if stops else "",
+           (" - REG-2591: %d failure(s) OWED a fix in %d shard(s)" % (_n_owed, len(fails))) if fails else ""))
+    # REG-2594 - said out loud, never left to a reader to add up: what this set does NOT bank. Which of those the Mac
+    # proves itself (ELSEWHERE here) only the Mac driver knows; it reports FULL or PARTIAL after its import
+    say("  REG-2594: %d of %d assigned proof(s) bank nothing from this set (ELSEWHERE on a runner, owed, or never run)"
+        % (_n_unb, sum(a for _u, a in owed.values())))
     return 0
 
 
@@ -325,13 +404,37 @@ def main(argv=None):
     import argparse
     import subprocess
     ap = argparse.ArgumentParser(description="REG-2588 - the CI fan-in check over N proof-shard artifacts")
-    ap.add_argument("--fan-in", dest="root", required=True, help="dir holding one sub-dir per shard artifact")
-    ap.add_argument("--shards", type=int, required=True, help="N, the workflow's shard count")
+    ap.add_argument("--fan-in", dest="root", default=None, help="dir holding one sub-dir per shard artifact")
+    ap.add_argument("--shards", type=int, default=None, help="N, the workflow's shard count")
     ap.add_argument("--head", default=None, help="the sha the shards must have run on (default: git rev-parse HEAD)")
+    ap.add_argument("--measure-costs", dest="measure", default=None,
+                    help="REG-2593: dir of finished shard artifacts -> write proof_costs.json (seconds per proof)")
     a = ap.parse_args(argv)
+    if a.measure:
+        bodies = []
+        for d in sorted(os.listdir(a.measure)):
+            f = os.path.join(a.measure, d, STORE_NAME)
+            if os.path.isfile(f):
+                with open(f, encoding="utf-8") as fh:
+                    bodies.append(json.load(fh))
+        got = measure_costs(bodies)
+        if not got:                     # second eye: an empty or wrong dir never blanks the table the plan reads
+            print("  ✗ REG-2593: no shard cache under that dir priced any gate - proof_costs.json is left as it was")
+            return 2
+        out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proof_costs.json")
+        heads = sorted(set(str(((b or {}).get("shard") or {}).get("head") or "")[:12] for b in bodies))
+        with open(out + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump({"v": 1, "measuredOn": "a GitHub runner, %d shard(s) at %s" % (len(bodies), ",".join(heads)),
+                       "perProof": dict(sorted(got.items()))}, fh, indent=2, ensure_ascii=False)
+            fh.write("\n")
+        os.replace(out + ".tmp", out)
+        print("  REG-2593: %d gate(s) priced from %d shard cache(s) -> tv/proof_costs.json" % (len(got), len(bodies)))
+        return 0
+    if not a.root or a.shards is None:
+        ap.error("--fan-in DIR and --shards N are required (or --measure-costs DIR)")
     head = a.head
     if head is None:
-        p = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
+        p = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace")
         head = p.stdout.strip() if p.returncode == 0 else ""
     return fan_in(a.root, a.shards, head)
 

@@ -39,6 +39,12 @@ except Exception:
 
 LEDGER_PATH = os.environ.get("TV_HUMAN_EYES_LEDGER") or os.path.join(HERE, ".human_eyes.jsonl")
 
+
+def ledger_here():
+    """REG-2592 - heart2's PROOF_NEEDS_HOST probe for "human-eyes-ledger": does this PC hold the ledger human_eyes_gate
+    reads? -> bool (it is gitignored: a runner never does, his Mac does where the loop has run)"""
+    return os.path.exists(LEDGER_PATH)
+
 #: the closed verdict set. A brief comes back as exactly one of these.
 LOOKED, UNKNOWN, OWED = "LOOKED", "UNKNOWN", "OWED"
 

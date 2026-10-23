@@ -10972,6 +10972,27 @@ GATES = [
              "off command lines, output and the storage host, proves alongside only what a runner cannot bank "
              "(unknown counts as local; unkeyable is counted, not run), and imports only THIS commit's passed fan-in, "
              "unpacked inside its dir. git and GitHub are stand-ins."),
+    Gate("test_a_proof_shard_keeps_going_past_a_failure",
+         [sys.executable, os.path.join(HERE, "test_a_proof_shard_keeps_going_past_a_failure.py")], 60,
+         needs_app=False,
+         why="REG-2591 - a CI proof shard never fails fast: every BLIND / INVALID / clean-run red is OWED, only the "
+             "failed gate's own later proofs are NOT RUN, every other gate runs and banks, the manifest lists every "
+             "failure, the fan-in names them and still takes the set, and the shard exits red. The Mac's push still "
+             "stops at its first failure. Scripted verdicts and temp stores; no law is run."),
+    Gate("test_a_proof_about_his_venue_is_elsewhere_on_a_runner",
+         [sys.executable, os.path.join(HERE, "test_a_proof_about_his_venue_is_elsewhere_on_a_runner.py")], 60,
+         needs_app=False,
+         why="REG-2592 - the proofs that ask about HIS venue (a console on 17772, his human-eyes ledger, footage on "
+             "his reel shelf, the platform the overlap baseline was measured on, macOS zombies) declare it, so a "
+             "runner reads ELSEWHERE and the Mac proves them alongside; each probe is the gate's own question and "
+             "heart2 imports none of their modules. Every probe input is patched."),
+    Gate("test_a_proof_shard_plan_is_balanced",
+         [sys.executable, os.path.join(HERE, "test_a_proof_shard_plan_is_balanced.py")], 60,
+         needs_app=False,
+         why="REG-2593 - the 16-shard plan prices each proof from tv/proof_costs.json (seconds MEASURED on a runner) "
+             "and places each chunk where the shard's wall (work over lanes, or its serial browser queue) grows "
+             "least: on this tree the slowest shard is within 1.2x the mean. heart2's cut plans with the same "
+             "browser set as its lock. Parses the tree's gates; nothing is run."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,

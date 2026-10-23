@@ -285,7 +285,7 @@ RED_PROOF = [
         'file': 'human_eyes_ledger.py',
         'find': '    return [r for r in st if r["verdict"] == OWED]',
         'replace': '    return []',
-        'matches': 1,
+        'matches': 1, 'needs': 'human-eyes-ledger',
     },
 ]
 

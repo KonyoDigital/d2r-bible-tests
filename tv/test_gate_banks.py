@@ -56,7 +56,7 @@ RED_PROOF = [
         "file": 'vault_wilson.py',
         "find": '    elif "--bank" not in argv:\n        # ⚠⚠ v2940 (#75) — THE SECOND DOOR, and the first fix missed it. Guarding\n        # bank_into_proof_queue() alone still left this LIVE-witness bank writing on every plain\n        # `python3 tv/vault_wilson.py`. MEASURED: three CLI audits after that fix still moved the\n        # ledger 333 -> 334, and the row that landed was exactly `vault.apply / live / vault_live`.\n        # Counting the bank CALLS per file (4/2/3/1) and guarding only the shared one is how a\n        # sweep misses the sibling — the same shape as REG-942. [[sweep-dont-ask]]\n        live_note = ("a LIVE witness was read but NOT banked — pass --bank to write it. "\n                     "Reading is not evidence until someone decides it is.")\n',
         "replace": '',
-        "matches": 1,
+        "matches": 1, "needs": "live-console",
     },
 ]
 

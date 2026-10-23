@@ -41,14 +41,14 @@ RED_PROOF = [
     {
         "why": "REG-2585 - every chunk goes to shard 1, so shards 2..N prove nothing while their runners report green",
         "file": "proof_shard.py",
-        "find": "        k = min(range(n), key=lambda s: (load[s], s))\n",
-        "replace": "        k = 0\n",
+        "find": "            k = min(range(n), key=lambda s: (tot[s], s))\n",
+        "replace": "            k = 0\n",
         "matches": 1,
     },
     {
         "why": "REG-2585 - a gate is never cut into chunks: the 41-proof browser gate holds one runner for over an hour",
         "file": "proof_shard.py",
-        "find": "        k = max(1, min(p, int(math.ceil((c + oh) * p / target)) if target > 0 else 1))\n",
+        "find": "        k = max(1, min(p, int(math.ceil(u * p / target)) if target > 0 else 1))\n",
         "replace": "        k = 1\n",
         "matches": 1,
     },

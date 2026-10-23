@@ -154,6 +154,19 @@ PROOF_NEEDS_HOST = {
     # 0 of 9 permitted there, 135 reels on disk and not one ever tombstoned. Measured where the tool is, never BLIND here.
     "node": ("heart2", "_host_has_node", "Node.js on PATH (the law runs the page's own JavaScript through node)"),
     "bash": ("heart2", "_host_has_bash", "bash on PATH (the law runs a hook script through bash)"),
+    # REG-2592 — MEASURED on the 16-shard CI run at dcff7160: five gates stranded their shard because each asks about
+    # HIS venue, not about code, and a runner has none of it. Each probe asks the gate's OWN venue question (one truth,
+    # never re-derived here), and lives in the gate's module: heart2 imports none of them (browser_gates reads heart2's
+    # imports, and overlap_ratchet's closure reaches a browser - one import here put 699 gates under the lock, not 69).
+    # live-panel and vault_wilson's live-witness door need a console on 17772; human-eyes needs
+    # his ledger; reel_demo needs footage on the shelf; overlap_ratchet needs a baseline measured on this platform.
+    "live-console": ("live_panel_gate", "console_here",
+                     "a running console on 127.0.0.1:17772 (the law reads the LIVE page, which no sandbox tamper reaches)"),
+    "human-eyes-ledger": ("human_eyes_ledger", "ledger_here",
+                          "his human-eyes ledger (a gitignored runtime record that exists only where the loop runs)"),
+    "reel-shelf": ("reel_demo", "shelf_here", "footage on his reel shelf (tv/frames is gitignored)"),
+    "overlap-venue": ("overlap_ratchet", "venue_here",
+                      "the platform the overlap baseline was measured on (font metrics differ across platforms)"),
 }
 
 
@@ -2334,8 +2347,12 @@ _CLEAN = threading.local()
 class _PushRun(object):
     """#42 — what the lanes of ONE `--prove --push` run share: the order, the browser lock, the stop."""
 
-    def __init__(self, order=None, browser=(), cache=None):
+    def __init__(self, order=None, browser=(), cache=None, keep_going=False):
         self.order = dict(order or {})          # {gate: [proof index, ...]}, the likeliest to fail first
+        # REG-2591 - a CI proof shard does not fail fast: one bad law stranded ~300 proofs of its shard (7 of 16 shards
+        # at dcff7160). It records EVERY failure, skips only the failed gate's remaining proofs, and the shard stays red
+        self.keep_going = bool(keep_going)
+        self.failures = []                      # REG-2591: every (gate, index, verdict, reason), in the order found
         self.browser = set(browser or ())       # the gates proved one at a time: they start a browser
         self.browser_lock = threading.Lock()
         self.stop = threading.Event()
@@ -2353,13 +2370,28 @@ class _PushRun(object):
         self.keys0 = _servable_keys(cache)      # REG-2353: every key the cache would serve when the run began
 
     def fail(self, name, idx, verdict, reason):
-        """Record the FIRST failure and stop the run. -> True for the call that stopped it"""
+        """Record a failure. Fail fast: the FIRST stops the run -> True for the call that stopped it. Keep going
+        (REG-2591, a CI shard): every failure is recorded, nothing stops -> True (each is announced once)."""
         with self._lock:
             first = self.first is None
             if first:
                 self.first = (name, idx, verdict, reason)
+            self.failures.append((name, idx, verdict, reason))
+        if self.keep_going:
+            return True
         self.stop.set()
         return first
+
+    def failed(self, name):
+        """REG-2591 - has this gate already failed in this run (a red clean wave, say)? -> bool"""
+        with self._lock:
+            return any(f[0] == name for f in self.failures)
+
+    def owe_line(self, name, idx, verdict, reason):
+        """REG-2591 - what a kept-going shard says where a fail-fast run would say FAIL FAST. -> str"""
+        return ("  ⚠ REG-2591 OWED — %s[%d] %s: %s. This shard KEEPS GOING: the gate's remaining proofs are NOT RUN, "
+                "every other gate still runs, and the shard ends red with this one owed a fix." % (name, idx, verdict,
+                                                                                                    reason))
 
     def browser_slot(self, name):
         """The lock a browser gate is proved under; for every other gate a context that holds nothing."""
@@ -4140,8 +4172,10 @@ def _wave_gate(sandbox, name, filename, proofs, say, run):
             if v == UNPROVABLE and why.get("red"):
                 for ln in _held:
                     say(ln)
-                if run.fail(name, i, UNPROVABLE, "the law is ALREADY RED untampered, so no proof of it can be judged"):
-                    say("  ⛔ #42 FAIL FAST (REG-1992 clean wave) — %s[%d] is ALREADY RED untampered. Found before any "
+                _why = "the law is ALREADY RED untampered, so no proof of it can be judged"
+                if run.fail(name, i, UNPROVABLE, _why):
+                    say(run.owe_line(name, i, UNPROVABLE, _why) if run.keep_going else
+                        "  ⛔ #42 FAIL FAST (REG-1992 clean wave) — %s[%d] is ALREADY RED untampered. Found before any "
                         "tampered run: every proof is NOT RUN and the push is refused on this one." % (name, i))
             break
         with run._qlock:
@@ -4222,9 +4256,10 @@ def _clean_here(sandbox, name, filename, proofs, per, say, run):
     out = [UNPROVABLE if x == PROVEN else x for x in per]
     say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree and its clean run HERE %s - "
         "none of them is kept" % (name, len(foreign), "is RED" if red else "could not finish"))
-    if red and run.fail(name, asked, UNPROVABLE, "the law is ALREADY RED untampered here, where another tree "
-                                                       "proved it"):
-        say("  ⛔ #42 FAIL FAST (REG-2587) — %s is ALREADY RED untampered in this tree; another tree's PROVENs are not "
+    _why = "the law is ALREADY RED untampered here, where another tree proved it"
+    if red and run.fail(name, asked, UNPROVABLE, _why):
+        say(run.owe_line(name, asked, UNPROVABLE, _why) if run.keep_going else
+            "  ⛔ #42 FAIL FAST (REG-2587) — %s is ALREADY RED untampered in this tree; another tree's PROVENs are not "
             "kept and the push is refused on this one." % name)
     return out
 
@@ -4256,6 +4291,10 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     the stop are new."""
     if getattr(run, "wave", False):
         return _wave_gate(sandbox, name, filename, proofs, say, run)     # REG-1992 - the clean wave's pass
+    if getattr(run, "keep_going", False) and run.failed(name):
+        # REG-2591 - its clean wave run was RED: it is owed already, and running its law again proves nothing new
+        say("     %-52s NOT RUN — REG-2591: owed a fix already (its clean run was red); the shard keeps going" % name)
+        return NOT_RUN, [None] * len(proofs)
     got = {}
     # ⚠⚠ REG-1988 — THE PUSH PATH NEVER GOT REG-1669. _prove_gate hands a push-time gate here BEFORE it sets _CLEAN.runs,
     # so at push time every proof still ran the untampered law first: a gate with N proofs paid 2N law runs where N+2 do
@@ -4287,7 +4326,8 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                 reason = "the law is ALREADY RED untampered, so no proof of it can be judged"
             if reason:
                 if run.fail(name, i, got[i], reason):
-                    say("  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, "
+                    say(run.owe_line(name, i, got[i], reason) if run.keep_going else
+                        "  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, "
                         "and the push is refused on this one." % (name, i, got[i], reason))
                 break
         per = [got.get(i) for i in range(len(proofs))]
@@ -4555,6 +4595,13 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
 _SHARD = {"spec": None, "manifest": None}
 
 
+def _push_browser(have, unk=None):
+    """#42 - the gates a push run proves one at a time: those whose import closure reaches a browser, and those that
+    declare widths. ONE rule for the run's lock and for the shard plan (REG-2593), so the two never disagree. -> set"""
+    return browser_gates([(n, f) for n, f, _p in have], unclassified=unk) | set(
+        n for n, _f, p in have if _declares_widths(p))
+
+
 def _shard_cut(have, order, gates, say):
     """REG-2585 — a push run cut down to its proof shard. -> (order, gates); unchanged when no shard is set.
 
@@ -4565,7 +4612,8 @@ def _shard_cut(have, order, gates, say):
         return order, gates
     import proof_shard as _PS
     k, n = spec
-    assignment = _PS.plan(have, n, _PS.gate_costs())
+    # REG-2593 - priced by what a proof MEASURED on a runner, and balanced on the browser queue too (it runs serially)
+    assignment = _PS.plan(have, n, _PS.gate_costs(), browser=_push_browser(have), per_proof=_PS.proof_costs())
     own = _PS.mine(assignment, k)
     order2, gates2 = _PS.restrict_order(order, gates, own)
     _SHARD["plan"] = _PS.plan_digest(have, n, assignment)
@@ -4585,9 +4633,10 @@ def _shard_finish(cache, names, stopped, say):
     import proof_shard as _PS
     ok_h, head = _git("rev-parse", "HEAD")
     ok_d, dirty = _git("status", "--porcelain", "--untracked-files=no")
+    # REG-2591 - a shard keeps going, so it never STOPS: every failure it found is OWED (stopped stays None)
     m = _PS.manifest(spec[0], spec[1], head.strip() if ok_h else "", (bool(dirty.strip()) if ok_d else True),
-                     _SHARD.get("plan") or "", _SHARD.get("own") or {}, names, stopped[0] if stopped else None,
-                     int(time.time() * 1000))
+                     _SHARD.get("plan") or "", _SHARD.get("own") or {}, names, None,
+                     int(time.time() * 1000), owed=stopped)
     cache.flush()
 
     def merge(disk):
@@ -4604,6 +4653,20 @@ def _shard_finish(cache, names, stopped, say):
     return ok
 
 
+def _owe_all(run, per_proof, say, stopped):
+    """REG-2591 - the end of a kept-going shard: say every failure it OWES, and hand them all to main (which exits red)
+    and to the manifest (`owed`). Never one only: a shard that kept going found them all."""
+    _unrun = sum(1 for _p in (per_proof or {}).values() for x in _p if x is None)
+    _gates = sorted(set(f[0] for f in run.failures))
+    say("")
+    say("  ⚠ REG-2591 SHARD KEPT GOING: %d failure(s) in %d gate(s) are OWED a fix; %d proof(s) NOT RUN (only the "
+        "failed gates' own). Every other gate ran. The shard is red on these:" % (len(run.failures), len(_gates), _unrun))
+    for _n, _i, _v, _why in run.failures:
+        say("     OWED %s[%d] %s — %s. Reproduce: python3 tv/heart2.py --prove %s --push" % (_n, _i, _v, _why, _n))
+    if stopped is not None:
+        stopped.extend(run.failures)
+
+
 def _prove_push(have, say, stopped=None, cache=None, blank=None):
     """#42 — prove() at push time. -> ({name: verdict}, {name: [verdict | None]}) | (None, None); NOT_RUN gates are left
     OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on.
@@ -4618,14 +4681,16 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
                                         "no HEART2_* variable is set - every default holds"))
     base, order, gates, counts = _push_facts(have, say)
     order, gates = _shard_cut(have, order, gates, say)                 # REG-2585 - only this shard's proofs
+    _keep = bool(_SHARD.get("spec"))                                   # REG-2591 - a CI shard keeps going
     say("  #42 FAIL FAST: likeliest to fail first - %d anchor(s) off, %d entr(ies) new or changed since %s, %d whose "
-        "tampered file changed; the run stops at the first BLIND / INVALID / clean-run red."
+        "tampered file changed; %s."
         % (counts["anchor"], counts["entry"], base or "an UNKNOWN base (neither @{push} nor origin/main resolves - "
-           "nothing ranks as changed)", counts["target"]))
+           "nothing ranks as changed)", counts["target"],
+           "REG-2591 SHARD MODE: a BLIND / INVALID / clean-run red is OWED and the shard keeps going" if _keep else
+           "the run stops at the first BLIND / INVALID / clean-run red"))
     # the import CLOSURE, not the gate's own imports: a gate that starts Chrome through a helper holds the lock too
     _unk = []
-    browser = browser_gates([(n, f) for n, f, _p in have], unclassified=_unk) | set(
-        n for n, _f, p in have if _declares_widths(p))
+    browser = _push_browser(have, _unk)
     if browser:
         say("  #42 ONE BROWSER AT A TIME: %d gate(s) reach a browser through their imports (any depth) and are proved "
             "one after another: %s" % (len(browser), ", ".join(sorted(browser)[:6]) + (" …" if len(browser) > 6 else "")))
@@ -4633,7 +4698,7 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
         say("  #42 ⚠ %d gate(s) import a file nobody could read or parse, so whether they start a browser is UNKNOWN - "
             "they hold the lock too: %s" % (len(_unk), ", ".join(sorted(_unk)[:6])))
     by = dict((n, (n, f, p)) for n, f, p in have)
-    run = _PushRun(order, browser, cache)
+    run = _PushRun(order, browser, cache, keep_going=_keep)
     _prev, _PUSH = _PUSH, run
     try:
         # REG-1992 — THE CLEAN WAVE FIRST: every gate's one untampered run, across the lanes, before any tamper
@@ -4701,7 +4766,9 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
         if _ages:
             say("  #42 P3 CACHE: %d gate(s) stand on reused proofs, so the census keeps the age each was MEASURED at "
                 "(oldest %s ago), never this run's clock" % (len(_ages), _age_say(min(_ages.values()))))
-    if run.first:
+    if run.keep_going and run.failures:
+        _owe_all(run, per_proof, say, stopped)
+    elif run.first:
         _n, _i, _v, _why = run.first
         _unrun = sum(1 for _p in per_proof.values() for x in _p if x is None)
         say("")
@@ -6261,6 +6328,11 @@ def main(argv):
             return _done(_code)
     # #42 — A STOPPED PUSH-TIME RUN IS A REFUSAL even when what stopped it is not failed above (a law ALREADY RED
     # untampered is UNPROVABLE): the proofs after it were never run, and exit 0 would pass them unseen.
+    if _stopped and _SHARD.get("spec"):
+        print("\n  ✗ REG-2591 this proof shard OWES %d failure(s) (%s) — it kept going, so every other proof ran and was "
+              "banked, but it cannot pass." % (len(_stopped), ", ".join("%s[%d] %s" % tuple(f[:3]) for f in _stopped[:4])
+                                               + (" …" if len(_stopped) > 4 else "")))
+        return _done(1)
     if _stopped:
         _n, _i, _v, _why = _stopped[0]
         print("\n  ✗ #42 the push-time run STOPPED at %s[%d] (%s: %s) — the proofs after it were NOT RUN, so this "

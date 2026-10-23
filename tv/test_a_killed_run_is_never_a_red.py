@@ -931,7 +931,10 @@ RED_PROOF = [
      "file": "gate_trace/sitecustomize.py",
      "find": "        except ProcessLookupError:\n            return True  # macOS: a zombie and a missing pid",
      "replace": "        except ProcessLookupError:\n            return False  # macOS: a zombie and a missing pid",
-     "matches": 1, "needs": "posix-signals"},
+     # heart2 --prove on Linux, 2026-10-23: BLIND there by construction - Linux keeps a zombie's group, so getpgid
+     # answers and zombie_on_proc (/proc says Z) catches it; only macOS reaches this ESRCH line. Measured where it runs
+     # (his Mac: PROVEN, 4 cases red), ELSEWHERE on Linux and Windows, never BLIND there.
+     "matches": 1, "needs": "macos"},
     {"why": "REG-2356 - a killpg of a pid that leads no group (it reached no one) explains that pid's later death",
      "file": "gate_trace/sitecustomize.py",
      "find": "        if kind == \"pgid\" and g != n:\n            return True",
