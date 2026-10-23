@@ -1844,6 +1844,34 @@ process.stdout.write(JSON.stringify({
             self.assertEqual((code, out.get("reason")), (200, "submitted"), (platform, out))
             self.assertNotIn("SECRETCOOKIE", json.dumps(out))
 
+    def test_a_quote_parser_that_times_out_is_unread(self):
+        # REG-2576 - the quote's node parser runs with a 20 s timeout and caught only OSError, so a
+        # node that did not answer raised subprocess.TimeoutExpired out of d2jsp_quote instead of the
+        # "unread" reading every other failure on that path gives. A page that was not parsed is unread.
+        import d2jsp_chrome as desk
+        asked = []
+
+        def slow_node(prog, page):
+            asked.append(page)
+            raise subprocess.TimeoutExpired(["node", "-e"], 20)
+
+        def transport(method, url, headers, data):
+            return 200, {}, b"Grief 40 fg"
+
+        real_ua = desk.chrome_user_agent
+        desk.chrome_user_agent = lambda *a, **k: "Mozilla/5.0 Chrome/131.0.0.0"
+        try:
+            code, out = desk.d2jsp_quote(
+                "Grief", "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+                cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"), transport=transport,
+                node_run=slow_node, chrome_fetch=False,
+            )
+        finally:
+            desk.chrome_user_agent = real_ua
+        self.assertEqual(asked, ["Grief 40 fg"], "the parser was never asked, so this case proved nothing")
+        self.assertEqual((code, out.get("fg"), out.get("reason")), (200, None, "unread"), out)
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
 RED_PROOF = [
     {
         "why": "REG-2188 - a no-Origin request the browser marks cross-site or same-site is trusted on Host alone again, "
@@ -1881,6 +1909,13 @@ RED_PROOF = [
         "file": "tv/d2jsp_chrome.py",
         "find": "            except (OSError, subprocess.SubprocessError):\n                proc = None\n",
         "replace": "            except OSError:\n                proc = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2576 - a quote parser that times out raises out of d2jsp_quote again instead of reading unread",
+        "file": "tv/d2jsp_chrome.py",
+        "find": "        proc = node_run(prog, str(html or \"\"))\n    except (OSError, subprocess.SubprocessError):\n",
+        "replace": "        proc = node_run(prog, str(html or \"\"))\n    except OSError:\n",
         "matches": 1,
     },
 ]

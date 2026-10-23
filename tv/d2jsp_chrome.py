@@ -562,8 +562,8 @@ def chrome_user_agent(platform=None, version=None):
     name themselves, because a cookie from one does not travel as the other.
 
     REG-2575: a version read that does not answer in 5 s is a version that cannot be read. Only
-    OSError was caught, so subprocess.TimeoutExpired rose through _headers into the send and the
-    quote, which answered "unread" before any page was fetched: CI's loaded runner, where
+    OSError was caught, so subprocess.TimeoutExpired rose through _headers: the send answered
+    "unread" before any page was fetched, and the quote raised. CI's loaded runner, where
     `google-chrome --version` took longer than 5 s, failed the desk law that way.
     """
     plat = sys.platform if platform is None else platform
@@ -757,7 +757,8 @@ def parse_public_quote(html, item, read_at, node_run=None):
     )
     try:
         proc = node_run(prog, str(html or ""))
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
+        # REG-2576: a node that does not answer in 20 s is a page that was not read, never a raise.
         return _quote_unknown(item, read_at, "unread")
     if getattr(proc, "returncode", 1) != 0:
         return _quote_unknown(item, read_at, "unread")

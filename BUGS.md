@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
+
+Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote
+runs functions/api/d2jsp_quote.js under node with timeout=20 and caught only OSError, so a node that did not answer raised
+subprocess.TimeoutExpired out of d2jsp_quote instead of the "unread" reading every other failure there returns. FIX: catch
+(OSError, subprocess.SubprocessError). Law: test_a_quote_parser_that_times_out_is_unread (a parser that times out on a fetched
+page reads fg None, reason "unread", no cookie in the answer). One RED_PROOF. Also the REG-2575 docstring now says the quote
+raised (it calls _headers outside its try), not that it answered "unread".
+
 ### REG-2575 - A CHROME VERSION READ THAT TOOK OVER 5 S TURNED A D2JSP POST INTO "UNREAD" (M6 CI fix round)
 
 CI on ci/gbl-batch-m6 failed test_d2jsp_desk at test_a_challenge_page_is_posted_through_a_scratch_chrome ("False is not
