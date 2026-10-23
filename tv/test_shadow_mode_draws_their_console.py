@@ -1,0 +1,462 @@
+# -*- coding: utf-8 -*-
+"""Shadow mode on the real console: their console, one to one, read only (headless Chrome).
+
+Elad's ruling (2026-10-24): shadow is viewing Dean's console exactly as if it were his own - the same shell, UI and
+UX, every screen, tab and layout identical, only the data swapped, read only, with a small marker saying whose console
+it is and when its snapshot was taken. No viewer page of its own, no summary.
+
+So this law serves the REAL console document (control_ui.html) and the REAL board (bible.html) and drives both the
+way he does:
+
+  A  the owner's own console: its browser holds the fixture console's stores, the shell boots its board pane
+     (#tvd-eng) and the header tabs open Characters and Vault.
+  B  a viewer's console whose browser holds a different world: the Roster door is pressed, Dean's row is pressed,
+     the console fetches /api/snapshot-view and opens the shadow (#shadow-eng), and the SAME header tabs open the
+     same rooms in it.
+
+Both rooms, every mule window and the builder's equipped / personal / shared views are read through the page's own
+functions and compared: the text, the element skeleton (tag and class of every node - the same templates and
+components drew both), and every item's tooltip with its rolled mods. Then the guarantees are measured: the shadow
+frame is the same board document as the console's own pane, the marker names the owner and the snapshot time, the
+viewer's localStorage and sessionStorage are byte-identical before and after, no /api/ request came from the frame,
+a write button click is stopped and the store it would write is unchanged, and a mule plate still opens.
+
+No Chrome is a declared skip (77), never a pass. Pure-logic and worker laws: tv/test_shadow_mode_reads_their_console.py.
+"""
+import http.server
+import json
+import os
+import shutil
+import socketserver
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import unittest
+import urllib.request
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+from test_v3769_vault_move_list_visual import _CDP, _chrome_path, _ev, _wait_fn  # noqa: E402
+
+NO_BROWSER = "no Chrome/Chromium on this machine"
+HTTP_PORT = 17975
+CDP_PORT = 17976
+OWNER = "Dean"
+
+T0 = 1792800000000
+BID = "bshadowfix001"
+def E(id, name, q, base, rolls, sockets=0, socketed=(), **kw):
+    e = {"id": id, "name": name, "q": q, "base": base, "sockets": sockets, "eth": False, "rolls": rolls,
+         "socketed": list(socketed), "ilvl": 99}
+    e.update(kw); return e
+def stores():
+    build = {"name": "Shadowfixture", "cls": "Sorceress", "level": 91, "active": 0, "notes": "fixture build",
+             "from": None, "at": T0,
+             "sets": [{"name": "Set 1", "ws": 1, "swap": {}, "slots": {
+                 "head": E("u248", "Harlequin Crest", "u", "uap", {}),
+                 "neck": E("u272", "Mara's Kaleidoscope", "u", "amu", {"p2": 27}),
+                 "tors": E("r33", "Enigma", "r", "aar", {"p1": 761}, 3, ["r31", "r06", "r30"]),
+                 "rarm": E("r130", "Spirit", "r", "bsw", {"p5": 31, "p2": 95, "p6": 5}, 4, ["r07", "r10", "r09", "r11"]),
+                 "belt": E("u376", "Verdungo's Hearty Cord", "u", "umc", {"p1": 122, "p2": 33, "p6": 11, "p3": 104, "p5": 12}),
+                 "feet": E("u240", "War Traveler", "u", "xtb", {"p6": 155, "p8": 7, "p3": 42}),
+                 "glov": E("u105", "Magefist", "u", "tgl", {"p6": 23})},
+                 "inv": [E("u381", "Annihilus", "u", "cm1", {"p2": 17, "p3": 13, "p4": 7}, x=0, y=0, w=1, h=1),
+                         E("u400", "Hellfire Torch", "u", "cm2", {"p2": 13, "p3": 11}, x=1, y=0, w=1, h=2),
+                         E("u359", "Gheed's Fortune", "u", "cm3", {"p2": 143, "p1": 33, "p3": 12}, x=2, y=0, w=1, h=3)]}],
+             "stash": [E("r47", "Grief", "r", "btx", {"p3": 33, "p2": 371, "p5": 22, "p7": 11}, 5, ["r05", "r03", "r28", "r23", "r08"])],
+             "shared": [E("u373", "Arachnid Mesh", "u", "ulc", {"p1": 105})]}
+    roster = [{"id": "fx-alpha", "name": "FIXTURE-ALPHA", "icon": "🛡️", "note": "fixture mule one"},
+              {"id": "fx-beta", "name": "FIXTURE-BETA", "icon": "💍", "note": "fixture mule two"}]
+    owned = ["Harlequin Crest", "War Traveler", "Stone of Jordan", "The Oculus", "Bone Eye"]
+    assign = {"Harlequin Crest": "fx-alpha", "War Traveler": "fx-alpha", "Stone of Jordan": "fx-beta",
+              "The Oculus": "fx-beta", "Bone Eye": "fx-beta"}
+    magic = {"Bone Eye": {"q": "rare", "base": "Ring", "mods": ["+10% Faster Cast Rate", "+22 to Life",
+                                                                  "Cold Resist +20%", "Magic Find 17%"]}}
+    learned = {"ok": True, "minVisits": 2, "tierBars": {"proven": 10, "hardened": 20, "wilson": 0.722},
+               "cPanel": "fixture", "chars": [{"name": "Shadowfixture", "key": "shadowfixture", "cls": "Sorceress",
+               "level": 91, "pendingLevel": None, "visits": 4, "title": None, "lastTs": T0, "tier": "proven",
+               "looks": 12, "trials": 12, "misses": 0, "bound": 0.8, "tierWhy": "fixture"}],
+               "gear": {"shadowfixture": {"name": "Shadowfixture", "unplaced": [], "reels": 3, "lastTs": T0,
+                        "slots": [{"slot": "head", "item": "Harlequin Crest", "sightings": 12, "tier": "proven", "ts": T0, "reel": None},
+                                  {"slot": "tors", "item": "Enigma", "sightings": 3, "tier": "watched", "ts": T0, "reel": None}]}},
+               "gearWhy": None}
+    s = {"d2r_profile": "main", "d2r_charBuilds": {BID: build}, "d2r_cbSel": BID,
+         "d2r_muleRoster": roster, "d2r_owned": owned, "d2r_muleAssign": assign, "d2r_magicFinds": magic,
+         "d2r_runeStash": {"Ber": 2, "Jah": 1, "Ist": 7}, "d2r_gemStash": {"Perfect Amethyst": 4},
+         "d2r_api_chars_learned": learned,
+         "d2r_api_main_locks": {"ok": True, "locked": [], "tracked": 0, "floor": 3, "minSightings": 3,
+                                "canEverLock": True, "blockedWhy": None}}
+    return {k: (v if isinstance(v, str) else json.dumps(v, separators=(",", ":"), sort_keys=True)) for k, v in s.items()}
+
+
+# One step of the reading, run inside the window named by `w` (the board, or the shadow frame).
+CAPTURE = r"""function (w, step) {
+  var D = w.document;
+  function norm(s) { return String(s == null ? '' : s).replace(/\d+\s*(s|sec|min|m|h|hr|hours?|days?|d)\s+ago/g, 'AGO').replace(/\s+\n/g, '\n'); }
+  function shape(sel) { var el = D.querySelector(sel); if (!el) return null; var out = [];
+    el.querySelectorAll('*').forEach(function (n) { out.push(n.tagName + '.' + String(n.getAttribute('class') || '').trim().split(/\\s+/).sort().join('.')); });
+    return out.length + ':' + out.join('|'); }
+  function txt(sel) { var el = D.querySelector(sel); return el ? norm(el.innerText) : null; }
+  function strip(h) { var d = D.createElement('div'); d.innerHTML = h || ''; return norm(d.textContent); }
+  if (step === 'chars') { w.switchTab('chars'); return { wait: 1 }; }
+  if (step === 'chars!') return { text: txt('#tab-chars'), shape: shape('#tab-chars') };
+  if (step === 'vault') { w.switchTab('vault'); return { wait: 1 }; }
+  if (step === 'vault!') return { text: txt('#tab-vault'), shape: shape('#tab-vault') };
+  if (step.indexOf('mule:') === 0) { w.openMuleCard(step.slice(5)); var t = txt('#vault-detail'), sh = shape('#vault-detail'); w.vaultCloseCard(true); return { text: t, shape: sh }; }
+  if (step === 'builder') {
+    var bid = w.LSR.getItem('d2r_cbSel');
+    w.openCharBuilder(bid); var out = { equip: txt('#cb-win'), equipShape: shape('#cb-win') };
+    w._cbOpenStash(); out.personal = txt('#cb-win');
+    w._cbStashArea('shared'); out.shared = txt('#cb-win'); out.sharedShape = shape('#cb-win');
+    w.closeCharBuilder();
+    var b = w._cbAll()[bid], s = b.sets[b.active || 0], tips = {};
+    function tip(e, where) { try { var it = w._cbItem(e.id); tips[where + ':' + e.name] = strip(w.d2Tip(w._cbTipEntry(e, it, null, where))); } catch (x) { tips[where + ':' + e.name] = 'ERR ' + x; } }
+    Object.keys(s.slots || {}).sort().forEach(function (k) { tip(s.slots[k], k); });
+    (s.inv || []).forEach(function (e) { tip(e, 'inv'); });
+    (b.stash || []).forEach(function (e) { tip(e, 'stash'); });
+    (b.shared || []).forEach(function (e) { tip(e, 'shared'); });
+    out.tips = tips;
+    return out;
+  }
+  if (step === 'mules') return JSON.parse(w.LSR.getItem('d2r_muleRoster') || '[]').map(function (m) { return m.id; });
+}"""
+
+OWN = "document.getElementById('tvd-eng').contentWindow"
+SHADOW = "document.getElementById('shadow-eng').contentWindow"
+WORDS = OWNER + " · offline · last upload 2 h ago"
+
+
+def _serve(stores, hits, mode):
+    view = {"ok": True, "owner": OWNER, "t": T0, "stores": stores, "words": WORDS, "online": False, "source": "site"}
+    roster = {"owners": [{"owner": OWNER, "published": True, "age": "fresh"}]}
+
+    class H(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *a, **k):
+            super().__init__(*a, directory=ROOT, **k)
+
+        def log_message(self, *a):
+            pass
+
+        def _send(self, body, ctype):
+            b = body.encode("utf-8") if isinstance(body, str) else body
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(b)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b)
+
+        def _note(self, method):
+            hits.append((method, self.path, self.headers.get("Referer") or ""))
+
+        def do_GET(self):
+            p = self.path.split("?")[0]
+            if p.startswith("/api/"):
+                self._note("GET")
+                if p == "/api/snapshot-view":
+                    return self._send(json.dumps(view), "application/json")
+                if p == "/api/roster-cache":
+                    return self._send(json.dumps(roster), "application/json")
+                # A's own console answers its board from the fixture; the viewer's console has nothing to say
+                k = "d2r_api_" + p[5:]
+                if mode[0] == "A" and k in stores:
+                    return self._send(stores[k], "application/json")
+                return self._send('{"ok":false}', "application/json")
+            if p in ("/", "/console"):
+                with open(os.path.join(HERE, "control_ui.html"), "rb") as fh:
+                    return self._send(fh.read(), "text/html; charset=utf-8")
+            if p == "/board":
+                with open(os.path.join(ROOT, "bible.html"), "rb") as fh:
+                    return self._send(fh.read(), "text/html; charset=utf-8")
+            if p == "/blank":
+                return self._send("<!doctype html><title>blank</title>", "text/html")
+            return super().do_GET()
+
+        def do_POST(self):
+            n = int(self.headers.get("Content-Length") or 0)
+            self.rfile.read(n)
+            self._note("POST")
+            return self._send('{"ok":false}', "application/json")
+
+    class TS(socketserver.ThreadingMixIn, http.server.HTTPServer):
+        daemon_threads = True
+        allow_reuse_address = True
+
+    srv = TS(("127.0.0.1", HTTP_PORT), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+class ShadowDrawsTheirConsole(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        chrome = _chrome_path()
+        if not chrome:
+            raise unittest.SkipTest(NO_BROWSER)
+        cls.stores = stores()
+        cls.hits = []
+        cls.mode = ["A"]
+        cls.srv = _serve(cls.stores, cls.hits, cls.mode)
+        cls.udd = tempfile.mkdtemp(prefix="tvd-shadow-chrome-")
+        cls.chrome = subprocess.Popen(
+            [chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--disable-dev-shm-usage",
+             "--remote-debugging-port=%d" % CDP_PORT, "--remote-allow-origins=*", "--user-data-dir=" + cls.udd,
+             "--window-size=1440,1200", "about:blank"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            cls._run()
+        except Exception:
+            cls._stop()
+            raise
+
+    @classmethod
+    def _stop(cls):
+        try:
+            cls.chrome.terminate()
+            cls.chrome.wait(timeout=10)
+        except Exception:
+            try:
+                cls.chrome.kill()
+            except Exception:
+                pass
+        shutil.rmtree(cls.udd, ignore_errors=True)
+        cls.srv.shutdown()
+        cls.srv.server_close()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._stop()
+
+    @classmethod
+    def _run(cls):
+        tabs = None
+        for _ in range(120):
+            try:
+                with urllib.request.urlopen("http://127.0.0.1:%d/json/list" % CDP_PORT, timeout=2) as fh:
+                    tabs = json.loads(fh.read().decode())
+                break
+            except Exception:
+                time.sleep(0.25)
+        tab = next(t for t in tabs if t.get("type") == "page")
+        cdp = _CDP(tab["webSocketDebuggerUrl"])
+        cdp.call("Page.enable")
+        cdp.call("Runtime.enable")
+        origin = "http://127.0.0.1:%d" % HTTP_PORT
+
+        def nav(u):
+            cdp.call("Page.navigate", {"url": origin + u})
+            time.sleep(0.5)
+
+        def run(win, step):
+            return _ev(cdp, "(" + CAPTURE + ")(" + win + ", " + json.dumps(step) + ")", timeout=120)
+
+        def tab(name):
+            # the header tab, pressed the way he presses it (pointerdown then click on the real button)
+            _ev(cdp, """(function(){ var b = document.querySelector('#head-tabs .ht[data-tab="%s"]');
+              b.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 0}));
+              b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return 1; })()""" % name)
+            time.sleep(4)
+
+        def read(win):
+            got = {}
+            for t in ("chars", "vault"):
+                tab(t)
+                got["route:" + t] = _ev(cdp, "(function(){var a=%s.document.querySelector('.tab.active');"
+                                             "return a ? a.getAttribute('data-tab') : null})()" % win)
+                got[t] = run(win, t + "!")
+            got["mules"] = run(win, "mules") or []
+            for m in got["mules"]:
+                got["mule:" + m] = run(win, "mule:" + m)
+            got["builder"] = run(win, "builder")
+            return got
+
+        def dump(area):
+            return _ev(cdp, "JSON.stringify(Object.keys(%s).sort().map(function(k){return [k, %s.getItem(k)]}))"
+                       % (area, area))
+
+        def ready(win):
+            _wait_fn(cdp, "(function(){try{var w=%s; return !!(w && typeof w.switchTab==='function' && "
+                          "typeof w.renderVault==='function' && typeof w.openCharBuilder==='function')}catch(e){return false}})()"
+                     % win, timeout=180)
+
+        def seed(world):
+            nav("/blank")
+            _ev(cdp, "localStorage.clear(); sessionStorage.clear(); var s=%s; "
+                     "Object.keys(s).forEach(function(k){localStorage.setItem(k,s[k])}); 1" % json.dumps(world))
+
+        # A - the owner's own console on its own stores
+        cls.mode[0] = "A"
+        seed(dict(cls.stores, d2r_ownerClaim="*", d2r_installIdCache="tvdshadow0000000",
+                  d2r_installId="tvdshadow0000000"))
+        nav("/")
+        ready(OWN)
+        time.sleep(8)
+        cls.a = read(OWN)
+        # B - a viewer's console with a world of its own opens Dean's shadow through the Roster door
+        cls.mode[0] = "B"
+        seed({"d2r_ownerClaim": "*", "d2r_installIdCache": "viewer0000000000", "d2r_installId": "viewer0000000000",
+              "d2r_charBuilds": json.dumps({"vw1": {"name": "ViewerGuy", "cls": "Paladin", "level": 12,
+                                                    "sets": [{"name": "Set 1", "slots": {}, "inv": [], "swap": {},
+                                                              "ws": 1}],
+                                                    "active": 0, "notes": "", "stash": [], "from": None, "at": 1}}),
+              "d2r_owned": json.dumps(["Shako"]), "viewer_sentinel": "keep-me"})
+        _ev(cdp, "sessionStorage.setItem('viewer_sess','1'); 1")
+        nav("/")
+        ready(OWN)
+        time.sleep(8)
+        cls.before, cls.sess_before = dump("localStorage"), dump("sessionStorage")
+        # His own console and its own board keep living while he looks (the tally beat rewrites d2r_tally), so
+        # every write to this browser's real storage from here on is recorded with the script that made it: a
+        # write made from the shadow frame's scripts (their URL carries tvd-shadow=1) is the breach.
+        _ev(cdp, """(function(){ window._realWrites = [];
+          function tag(w){ var P = w.Storage.prototype;
+            ['setItem', 'removeItem', 'clear'].forEach(function(m){ var f = P[m];
+              P[m] = function(){ var st = ''; try { st = String(new Error().stack); } catch (e) {}
+                window._realWrites.push({ m: m, k: String(arguments[0]), shadow: st.indexOf('tvd-shadow=1') >= 0,
+                                          area: this === w.sessionStorage ? 'session' : 'local' });
+                return f.apply(this, arguments); }; }); }
+          tag(window); tag(document.getElementById('tvd-eng').contentWindow); return 1; })()""")
+        n0 = len(cls.hits)
+        _ev(cdp, "window._rosterOpen(); 1")
+        _wait_fn(cdp, "!!document.querySelector('#roster-body .roster-person[data-owner=\"%s\"]')" % OWNER, timeout=30)
+        _ev(cdp, "document.querySelector('#roster-body .roster-person[data-owner=\"%s\"]').click(); 1" % OWNER)
+        ready(SHADOW)
+        time.sleep(8)
+        cls.door = _ev(cdp, """(function(){ var s = document.getElementById('shadow-eng'), o = document.getElementById('tvd-eng');
+          function path(f){ var u = new URL(f.src, location.href); var q = new URLSearchParams(u.search);
+            return u.pathname + '?app=' + q.get('app') + '&engine=' + q.get('engine'); }
+          var bar = document.getElementById('shadow-bar');
+          return { same: path(s) === path(o), shadowPath: path(s), ownPath: path(o),
+                   marker: (document.getElementById('shadow-who') || {}).textContent || '',
+                   barShown: !!(bar && !bar.hidden && bar.getBoundingClientRect().height > 0),
+                   covers: (function(){ var r = s.getBoundingClientRect(); return r.width > 800 && r.height > 500; })() }; })()""")
+        cls.b = read(SHADOW)
+        # every header tab routes in the shadow, the console-native ones included
+        cls.routes = {}
+        for t in ("session", "forge", "crafts", "funi", "fsets", "tools", "d2jsp", "tvd", "chars"):
+            tab(t)
+            cls.routes[t] = _ev(cdp, "(function(){var a=%s.document.querySelector('.tab.active'), s=document.getElementById('shadow-eng');"
+                                     "return {active: a ? a.getAttribute('data-tab') : null, shown: !!(s && s.getBoundingClientRect().height > 500)}})()" % SHADOW)
+        # a write button: "Delete" on the simulation card, clicked the way he would
+        cls.click = _ev(cdp, """(function(){ var w=%s, d=w.document; w.switchTab('chars');
+          var before = w.localStorage.getItem('d2r_charBuilds'), s0 = w._tvdShadowStopped;
+          var del = Array.prototype.filter.call(d.querySelectorAll('#tab-chars button'), function(b){
+            return /^\\s*Delete\\s*$/.test(b.textContent); })[0];
+          if (del) del.click();
+          var stopped = w._tvdShadowStopped - s0, same = w.localStorage.getItem('d2r_charBuilds') === before;
+          w.switchTab('vault'); w.renderVault();
+          var plate = d.querySelector('.vault-mule[data-vault-mule="fx-alpha"] .vm-plate'), det = d.getElementById('vault-detail');
+          if (plate) plate.click();
+          var opened = !!(det && !det.hidden && /FIXTURE-ALPHA/.test(det.innerText));
+          try { w.vaultCloseCard(true); } catch (e) {}
+          return { found: !!del, stopped: stopped, same: same, plate: !!plate, opened: opened,
+                   dimmed: del ? w.getComputedStyle(del).opacity : null }; })()""" % SHADOW)
+        cls.flags = _ev(cdp, "(function(){var w=%s; return {snap: !!w._tvdShadow, refused: w._tvdShadowRefused, "
+                             "cls: w.document.documentElement.className}})()" % SHADOW)
+        time.sleep(5)
+        cls.after, cls.sess_after = dump("localStorage"), dump("sessionStorage")
+        cls.writes = _ev(cdp, "window._realWrites")
+        cls.frame_hits = [h for h in cls.hits[n0:] if "tvd-shadow=1" in h[2]]
+
+    def _same(self, key):
+        self.assertIn(key, self.a)
+        self.assertEqual(self.b.get(key), self.a[key], "%s draws differently in shadow" % key)
+
+    def test_it_is_their_console_in_this_consoles_own_shell(self):
+        d = self.door
+        self.assertTrue(d["same"], "the shadow is not the console's own board document: %r" % d)
+        self.assertEqual(d["shadowPath"], "/board?app=1&engine=1")
+        self.assertTrue(d["covers"], "the shadow does not fill the pane his own board fills")
+        self.assertTrue(d["barShown"], "no marker on screen")
+        self.assertTrue(d["marker"].startswith(OWNER + " · offline · last upload"), d["marker"])
+        self.assertIn(" · snapshot ", d["marker"], "the marker does not say when the snapshot was taken")
+        self.assertTrue(d["marker"].endswith(" · read only"), d["marker"])
+        for t in ("chars", "vault"):
+            self.assertEqual(self.a["route:" + t], t, "his own console's header did not open " + t)
+            self.assertEqual(self.b["route:" + t], t, "the same header did not open %s in the shadow" % t)
+
+    def test_every_header_tab_opens_its_room_in_the_shadow(self):
+        for t, r in sorted(self.routes.items()):
+            self.assertEqual(r["active"], t, "header tab %s did not route the shadow: %r" % (t, r))
+            self.assertTrue(r["shown"], "header tab %s left the shadow pane: %r" % (t, r))
+
+    def test_the_same_templates_drew_both(self):
+        for k in ["chars", "vault"] + ["mule:" + m for m in self.a["mules"]]:
+            self.assertTrue(self.a[k]["shape"], k)
+            self.assertEqual(self.b[k]["shape"], self.a[k]["shape"], "%s is built from different elements" % k)
+        for k in ("equipShape", "sharedShape"):
+            self.assertTrue(self.a["builder"][k])
+            self.assertEqual(self.b["builder"][k], self.a["builder"][k], "builder %s differs" % k)
+
+    def test_the_characters_room_is_theirs(self):
+        self._same("chars")
+        t = self.a["chars"]["text"]
+        for want in ("Shadowfixture", "Sorceress · level 91 in game", "7 worn", "3 in inventory"):
+            self.assertIn(want, t)
+        self.assertNotIn("ViewerGuy", self.b["chars"]["text"], "the viewer's own world leaked into the shadow")
+
+    def test_the_vault_and_every_mule_window_are_theirs(self):
+        self._same("vault")
+        self.assertIn("FIXTURE-ALPHA", self.a["vault"]["text"])
+        self.assertIn("FIXTURE-BETA", self.a["vault"]["text"])
+        self.assertEqual(self.b["mules"], self.a["mules"])
+        self.assertIn("fx-alpha", self.a["mules"])
+        for m in self.a["mules"]:
+            self._same("mule:" + m)
+        self.assertIn("FIXTURE-BETA", self.a["mule:fx-beta"]["text"])
+
+    def test_equipped_inventory_and_stash_are_theirs_with_every_mod(self):
+        self._same("builder")
+        tips = self.a["builder"]["tips"]
+        self.assertEqual(len(tips), 12, sorted(tips))
+        for where, want in (("tors:Enigma", "+761 Defense"), ("neck:Mara's Kaleidoscope", "All Resistances +27"),
+                            ("rarm:Spirit", "+95 to Mana"), ("inv:Annihilus", "+17 to all Attributes"),
+                            ("inv:Annihilus", "+7% to Experience Gained")):
+            self.assertIn(want, tips[where], "%s lost its rolled mod %r" % (where, want))
+        for k, v in tips.items():
+            self.assertFalse(v.startswith("ERR"), "%s: %s" % (k, v))
+        self.assertIn("Arachnid Mesh", self.a["builder"]["shared"])
+
+    def test_the_viewers_own_storage_is_untouched(self):
+        self.assertTrue(self.flags["snap"], self.flags)
+        a, b = dict(json.loads(self.before)), dict(json.loads(self.after))
+        moved = sorted(k for k in set(a) | set(b) if a.get(k) != b.get(k))
+        self.assertEqual([w for w in self.writes if w["shadow"]], [], "the shadow frame wrote this browser's storage")
+        own = set(w["k"] for w in self.writes if not w["shadow"] and w["area"] == "local" and w["m"] != "clear")
+        self.assertFalse([w for w in self.writes if w["m"] == "clear"], "something cleared this browser's storage")
+        moved = [k for k in moved if k not in own]
+        self.assertEqual(moved, [], "the shadow wrote this browser's localStorage: %r" % [(k, str(a.get(k))[:120], str(b.get(k))[:120]) for k in moved])
+        self.assertEqual(self.sess_after, self.sess_before, "the shadow wrote this browser's sessionStorage")
+
+    def test_nothing_left_the_frame_for_the_console(self):
+        # Only the board's own font file (a CSS @font-face GET the console serves to every page) is fetched by the frame
+        fonts = [h for h in self.frame_hits if h[0] == "GET" and h[1].split("?")[0].startswith("/api/d2r_font/")]
+        rest = [h for h in self.frame_hits if h not in fonts]
+        self.assertEqual(rest, [], "the shadow frame reached the console: %r" % rest)
+        self.assertGreater(self.flags["refused"], 0, "the frame never had a request to refuse")
+        self.assertIn("tvd-shadow-snap", self.flags["cls"])
+        self.assertNotIn("tvd-shadow ", self.flags["cls"] + " ")
+
+    def test_a_write_button_is_dead_and_dimmed_and_a_mule_still_opens(self):
+        c = self.click
+        self.assertTrue(c["found"], "no Delete button to press - the fixture changed")
+        self.assertEqual(c["stopped"], 1, "the write click reached the page")
+        self.assertTrue(c["same"], "the build store changed under a dead Delete")
+        self.assertLess(float(c["dimmed"]), 0.5, "a dead control is drawn as live")
+        self.assertTrue(c["plate"] and c["opened"], "a mule plate no longer opens its window in shadow: %r" % c)
+
+
+if __name__ == "__main__":
+    if _chrome_path() is None:
+        sys.stderr.write("SKIP - %s. UNMEASURED, declared as a skip (77), never a pass.\n" % NO_BROWSER)
+        raise SystemExit(77)
+    unittest.main(verbosity=1)

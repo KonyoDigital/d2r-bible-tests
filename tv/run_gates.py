@@ -11861,6 +11861,28 @@ GATES = [
              "(Windows paths with spaces included) and never takes a pre-push or hand-run heart2 --prove for one; "
              "an orphan is ended, a live console's prover is not; a prover that ended with its console is booked a "
              "stand-aside, never the 3 h failure backoff."),
+    Gate("test_shadow_mode_reads_their_console",
+         [sys.executable, os.path.join(HERE, "test_shadow_mode_reads_their_console.py")], 240,
+         needs_app=False,
+         why="Shadow mode - another console one to one and read only. Shadow drew another PC from its roster row, "
+             "which strips builds to name/x/y/w/h: no mods, no mule names, no vault. Each console now uploads its "
+             "account stores (cleaned by console_snapshot: d2r_ only, history/identity/debug stay home, paths and "
+             "install ids blanked) signed with its registered roster key to functions/api/snapshot.js; a viewer "
+             "boots the same board on them in a frame whose storage is memory. Laws: what leaves, change-only + "
+             "gap + boot + KV budget, the worker in node (no key, unsigned, other key, hash, picture, size, cap: "
+             "nothing stored; GET reads only, a record failing its hash is corrupt), live/offline/UNKNOWN words "
+             "with the upload's age and the PC's last copy when the site is down, the console doors and lane, the "
+             "panel's roster-row fallback, and the frame's boot block run in node (memory storage, fail closed, "
+             "no /api/ or non-GET request, the write veil)."),
+    Gate("test_shadow_mode_draws_their_console",
+         [sys.executable, os.path.join(HERE, "test_shadow_mode_draws_their_console.py")], 420,
+         needs_app=False,
+         why="Shadow mode on the real page in headless Chrome: board A on a fixture console's stores vs a viewer "
+             "with its own world opening the shadow of A's snapshot. Characters (with the learned in-game card), "
+             "the vault, every mule window, the builder's equipped/personal/shared views and every item's tooltip "
+             "with its rolled mods read the same; the viewer's real localStorage and sessionStorage are unchanged, "
+             "no /api/ request leaves the frame, a write button click is stopped and a mule plate opens. No "
+             "browser is a declared skip."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
