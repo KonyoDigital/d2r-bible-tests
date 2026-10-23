@@ -155,6 +155,8 @@ GUARD: tv/test_the_second_eye_ledger_is_one_per_machine.py (fixture main + absol
 in a subprocess inside the fixture). 4 RED proofs (the HERE path, the worktree fold skipped, a set-dedupe that drops a repeated row,
 --gate honouring the variable), heart2 4/4 PROVEN. The 25 existing ledger laws and test_control's ledger classes stay green.
 
+- **Round 2 (GrokBot, M2 CI, 2026-10-23).** Routine M (swallow ratchet) went RANK 1 66 -> 67: `_worktree_roots` turned EVERY failed stat of `<common>/worktrees` into `[]`, so a permission or I/O failure read exactly like "no worktree was ever made". Only `FileNotFoundError` is that absence now; any other failure leaves no cache key and falls to the listing, which already says once why no worktree ledger was folded. The census is the law (back to 66, held).
+
 ### REG-2484 - NODE.JS WAS NEVER INSTALLED ON A WINDOWS PC, SO EVERY NODE-ONLY LAW AND LANE WAS BLIND THERE (#167)
 
 tv/install-tvd.ps1 installed Git, Python, Claude Code and the Grok CLI, and no node. MEASURED on Dean's PC 2026-10-21: 53+ node-only laws skipped in both runs of every proof (filed BLIND until REG-2354 made them ELSEWHERE), and the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days - until an agent placed portable node v24.22.1 by hand in %LOCALAPPDATA%\Programs\nodejs, the folder cb_node_harness already looks in. His ruling 2026-10-21: the installer and the console fetch node wherever it is missing. A second gap rode along: cb_node_harness.NODE is resolved once, at import, so a node placed while the console runs stayed invisible to the tooltip-oracle lane until a relaunch.
