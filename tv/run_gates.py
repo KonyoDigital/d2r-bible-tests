@@ -11516,6 +11516,30 @@ GATES = [
              "sweep's start and left at its end - after a return, a failure the sweep catches, or a crash that "
              "escapes it (not swallowed); with no keep_awake the sweep runs and the record says NOT held. Driven "
              "with a stand-in keep_awake, the sweeps in a fixture world stopped at their first step."),
+    Gate("test_a_pc_shows_only_its_own_live_trials",
+         [sys.executable, os.path.join(HERE, "test_a_pc_shows_only_its_own_live_trials.py")], 120,
+         needs_app=False,
+         why="#181 (REG-2470, REG-2471, REG-2473) - tv/.self_arming.jsonl is TRACKED and held 49 LIVE trials measured "
+             "on Konyo's Mac, so Dean's heart scored them as his own (frame.release 'earned 85/85' = 35 code rows + 50 "
+             "Mac live checks). A live trial now goes to THIS PC's own ledger (bank, record and the deferred fold): one "
+             "file per PC in git's common dir, shared by the main checkout and every linked worktree, so a live bank "
+             "from a worktree reaches his console and survives `git worktree remove`; every other kind stays shared. "
+             "The shared file's live rows are legacy: counted on no PC, reported as legacyLive, and score() carries "
+             "byOrigin {code, here} with 'nothing measured on this PC yet'. `self_arming.py --adopt-legacy-live "
+             "--reason ... --confirm` moves them to the PC that measured them: no reason is refused, no --confirm writes "
+             "nothing, adopted rows keep their own age and are written once, and the door names the whole path."),
+    Gate("test_a_remaining_page_read_on_another_pc_is_unknown_here",
+         [sys.executable, os.path.join(HERE, "test_a_remaining_page_read_on_another_pc_is_unknown_here.py")], 120,
+         needs_app=False,
+         why="#165 (REG-2472, REG-2473, REG-2474) - counter_ledger judged every PC's board (the calibration and the "
+             "write-path veto, which WITHHOLDS set rows) by the tracked tv/remaining page Konyo filmed on 2026-08-21. A "
+             "shipped page now counts for this PC only when one of its stores names the reel (footage root, sweep "
+             "memory, or the tombstones read through their owner), all resolved at call time; an unreadable store with "
+             "no positive answer is UNKNOWN; 'no store names it' is said as measured, never as 'never held'. A page "
+             "this PC filmed is kept for good by `counter_ledger.py --adopt-page NAME --reason ... --confirm` (it "
+             "refuses unless a store names the reel now) in THIS PC's dir in git's common dir, so a cleared sweep "
+             "memory cannot unmake it. whose() re-judges a SAVED reading. sets_base_index reads the shipped page as "
+             "game data through counter_ledger.reference(), so the base index is identical on every PC."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
@@ -11621,7 +11645,8 @@ def _measured_cost(name):
 
 
 def _fold_deferred_bank(path):
-    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl and clear the defer env. -> bool"""
+    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl (a live trial: this PC's own
+    ledger in git's common dir, #181 / REG-2473) and clear the defer env. -> bool"""
     if not path:
         return True
     if os.environ.get("TV_SELF_ARMING_DEFER") == path:
@@ -11638,8 +11663,15 @@ def _fold_deferred_bank(path):
     except OSError:
         pass
     if _nf or _nr:
-        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s"
-              % (_nf, (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
+        # #181 (REG-2470) - a LIVE row folds into THIS PC's own ledger, so one file name for every row would be false
+        _nh = int((getattr(_SA, "LAST_FOLD", None) or {}).get("here") or 0)
+        try:
+            _hl = _SA.here_label()      # REG-2473 - in words, no path: a gate log is not his machine's to publish
+        except Exception as _hle:
+            _hl = "this PC's own ledger (where: UNKNOWN, %s)" % type(_hle).__name__
+        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s%s"
+              % (_nf - _nh, (", %d live trial row(s) into %s" % (_nh, _hl)) if _nh else "",
+                 (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
     return True
 
 

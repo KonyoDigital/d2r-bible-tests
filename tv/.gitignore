@@ -1,1 +1,8 @@
 .handoff_seen.json
+# #181 (REG-2470/2473) - THIS PC's own proof ledger: the LIVE trials it ran against its own console, shelf, disk history
+# and window. It lives in git's common dir (one per PC, every checkout shares it); this tv/ name is where it goes only
+# when no git dir can be found. The shared ledger beside it stays tracked - it holds only what is a property of the code.
+/.self_arming.here.jsonl
+# #165 (REG-2472/2473) - Remaining pages filmed on, or kept by, THIS PC: in git's common dir, and here only when no git
+# dir can be found. One player's missing list is never another's.
+/remaining_here/

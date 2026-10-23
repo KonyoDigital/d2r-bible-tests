@@ -60,6 +60,18 @@ named, never with its own score, so nobody reads a high number as "nearly there"
 It DECIDES and REPORTS. It never performs the action, never writes an unlock flag, and has no
 override parameter — an override is the hand-arming this replaces. An unreadable ledger is
 UNKNOWN, and UNKNOWN is LOCKED: fail closed, and say which of the two it is.
+
+═══ WHOSE EVIDENCE IT IS — #181, HIS RULING 2026-10-22 ═══════════════════════════════════════
+
+"deans is logically related and derived from his own console and not mimicking mine". The shared
+ledger (tv/.self_arming.jsonl) is TRACKED, so it holds only what is a property of the CODE. A LIVE
+trial is a property of the PC that ran it and goes to that PC's own ledger, which no checkout
+tracks: self_arming.here.jsonl in git's COMMON dir, one per PC and shared by the main checkout and
+every linked worktree (REG-2473; tv/.self_arming.here.jsonl, gitignored, only where no git dir can
+be found). A live row the shared file already carries is LEGACY: counted on no PC, reported as a
+count. `--adopt-legacy-live --reason "..." --confirm` moves it to the PC that measured it - a
+person's statement about where real evidence came from, never new evidence, and nothing runs it on
+its own.
 """
 
 import io
@@ -85,9 +97,26 @@ try:
 except Exception:
     pass
 
-#: runtime record of DECISIONS, like .console_scars.json and .second_eye.jsonl — untracked.
+#: THE SHARED PROOF QUEUE — and it is TRACKED. ⚠⚠ #181 (REG-2470): this line used to call it "untracked", like
+#: .console_scars.json and .second_eye.jsonl, and `git ls-files` said otherwise: it ships to EVERY PC with every
+#: update. So it may hold only what is a property of the CODE - a sabotage, a cross-family refusal, a CI red - which
+#: is equally true on any install. A LIVE trial is measured against ONE PC's running console, shelf, disk history or
+#: window, and it lives in that PC's own ledger (_here_path). MEASURED at 7285e7efc: 657 rows = sabotage
+#: 583, cross-family 25, live 49, the 49 all measured on Konyo's Mac - and Dean's heart read frame.release "earned
+#: 85/85" = 35 code rows + 50 of the Mac's live checks. [[feedback-per-pc-personal-data]] [[unknown-stays-unknown]]
 #: THE DEFAULT ONLY. Deliberately NOT `os.environ.get(...) or ...` at module level.
 LEDGER = os.path.join(HERE, ".self_arming.jsonl")
+#: THIS PC's own proof ledger's name in git's COMMON dir - one file per PC, shared by the main checkout and every
+#: linked worktree, inside no work tree (REG-2473). _here_path() resolves it at call time, as _ledger_path() does LEDGER.
+MACHINE_LEDGER = "self_arming.here.jsonl"
+#: where it lives only when no git dir can be found (a heart2 sandbox, an unpacked copy) - gitignored, and it dies with
+#: the checkout, which the door and the report SAY. A fixture may patch this attribute; a patch is honoured.
+HERE_LEDGER = os.path.join(HERE, ".self_arming.here.jsonl")
+_HERE_LEDGER_DEFAULT = HERE_LEDGER
+#: the evidence KINDS that are a property of a PC rather than of the code. Every other kind is shared.
+PER_PC_KINDS = frozenset(("live",))
+#: what the last fold_deferred() put where - run_gates' fold line names both files from it, never one for both
+LAST_FOLD = {"shared": 0, "here": 0}
 
 
 def _ledger_path():
@@ -110,6 +139,93 @@ def _ledger_path():
     return os.environ.get("TV_SELF_ARMING_LEDGER") or LEDGER
 
 
+def _here_path():
+    """THIS PC's own proof ledger, resolved at call time. -> str  (see _here_where for which kind of place it is)"""
+    return _here_where()[0]
+
+
+def _machine_dir(repo=None):
+    """THIS PC's own directory: git's COMMON dir for the checkout at `repo`. -> (dir, None) | (None, why)
+
+    heart2._git_common_dir is the one implementation (R10, REG-2340): read from the files git itself reads, never by
+    running git - inside a hook GIT_DIR is inherited, and git would answer for whichever tree set it. Asked, not
+    copied: a third copy of that walk is how two of them drift. [[copy-drift]]"""
+    try:
+        import heart2 as _h2
+        return _h2._git_common_dir(os.path.dirname(HERE) if repo is None else repo)
+    except Exception as e:  # the helper could not answer: this checkout's own file, and the door says why
+        return None, "git's common dir could not be asked (%s)" % type(e).__name__
+
+
+def _here_where(repo=None):
+    """#181 - THIS PC's own proof ledger, and what kind of place it is. -> (path, scope, why)
+
+      seam      TV_SELF_ARMING_HERE names it outright
+      follows   a fixture redirected the SHARED queue (TV_SELF_ARMING_LEDGER, or LEDGER patched) and named no per-PC
+                file: a sibling of its own queue, never this PC's real one, in either direction - its live rows must
+                not land in his ledger, and his live rows must not count in its world
+      patched   a fixture patched HERE_LEDGER: honoured, so a redirect never silently fails to take
+      machine   git's COMMON dir: ONE file per PC, shared by the main checkout and every linked worktree
+      checkout  no git dir could be found (a heart2 sandbox, an unpacked copy): this checkout's tv/ file, and why
+
+    ⚠⚠ REG-2473 - IT WAS ONE PER CHECKOUT. The first cut answered tv/.self_arming.here.jsonl of whichever checkout ran,
+    and fleet agents may write only in linked worktrees (his main tree is the running console). A deliberate live bank
+    from a worktree - `python3 tv/vault_wilson.py --bank` against his console on :17772 - landed in THAT worktree's
+    gitignored file: his console never counted it, git status showed nothing to carry it, and `git worktree remove`
+    deleted it. Before the split the same bank went into the tracked ledger and travelled with the ship, so that was a
+    NEVER-DROP regression. The common dir is the R10 precedent (heart2._shared_store): never listed by git, never
+    copied into a heart2 sandbox, never in a work tree. [[feedback-fixtures-never-touch-live-data]]
+    """
+    env = os.environ.get("TV_SELF_ARMING_HERE")
+    if env:
+        return env, "seam", ""
+    shared = _ledger_path()
+    if os.path.abspath(shared) != os.path.abspath(os.path.join(HERE, ".self_arming.jsonl")):  # PER-PC-FOLLOWS
+        return os.path.splitext(shared)[0] + ".here.jsonl", "follows", ""
+    if os.path.abspath(HERE_LEDGER) != os.path.abspath(_HERE_LEDGER_DEFAULT):  # PER-PC-PATCHED
+        return HERE_LEDGER, "patched", ""
+    common, why = _machine_dir(repo)
+    if common:  # PER-MACHINE
+        return os.path.join(common, MACHINE_LEDGER), "machine", ""
+    return (os.path.join(os.path.dirname(HERE) if repo is None else repo, "tv", os.path.basename(_HERE_LEDGER_DEFAULT)),
+            "checkout", why)
+
+
+def here_label():
+    """Where THIS PC's own ledger is, in words and with no path - a gate log or a status poll is not his machine's to
+    publish. -> str"""
+    p, scope, why = _here_where()
+    if scope == "machine":
+        return "%s in git's common dir - one per PC, shared by every checkout of this repo" % os.path.basename(p)
+    if scope == "checkout":
+        return "this checkout's own tv/%s - no git dir was found, so it dies with this checkout" % os.path.basename(p)
+    return "a fixture's %s (%s)" % (os.path.basename(p), scope)
+
+
+def _is_per_pc(row):
+    """Is this row a property of ONE PC (a live trial) rather than of the code? -> bool"""
+    return isinstance(row, dict) and str(row.get("kind")) in PER_PC_KINDS
+
+
+def _line_is_per_pc(ln):
+    """_is_per_pc for one ledger LINE; a line that is not JSON is not a per-PC row. -> bool"""
+    try:
+        return _is_per_pc(json.loads(ln))
+    except ValueError:
+        return False
+
+
+def _append_here(row):
+    """Append one row to THIS PC's ledger. -> dict (the row written)
+
+    ⚠ NEVER DEFERRED. TV_SELF_ARMING_DEFER exists because the SHARED queue is TRACKED: banking into it mid-run
+    dirtied an input of 147 gates (REG-2296). This file is in no work tree (git's common dir, REG-2473 - or a
+    gitignored tv/ file where no git dir exists), so it is no gate's input and nothing waits."""
+    with io.open(_here_path(), "a", encoding="utf-8") as fh:  # PER-PC-WRITE
+        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return row
+
+
 def _bank_path():
     """Where a NEW row is appended, resolved at call time. -> str
 
@@ -129,7 +245,11 @@ def _bank_path():
 def fold_deferred(path):
     """Append every row a deferred run banked into the real queue.
     A line that is not one JSON object is not testimony this run made, so it is not folded and is
-    counted as refused. -> (folded, refused)"""
+    counted as refused. -> (folded, refused)
+
+    #181 (REG-2470) - THE FOLD ROUTES EXACTLY AS bank() DOES: a LIVE row goes to THIS PC's own ledger
+    (_here_path), every other row to the shared one. LAST_FOLD says how many went where."""
+    LAST_FOLD.update(shared=0, here=0)
     try:
         with io.open(path, encoding="utf-8") as fh:
             lines = [ln for ln in fh.read().splitlines() if ln.strip()]
@@ -142,9 +262,16 @@ def fold_deferred(path):
                 good.append(ln)
         except ValueError:
             pass
-    if good:
+    here, shared = [], []
+    for ln in good:
+        (here if _line_is_per_pc(ln) else shared).append(ln)  # PER-PC-FOLD
+    if here:
+        with io.open(_here_path(), "a", encoding="utf-8") as fh:  # PER-PC-FOLD-WRITE
+            fh.write("\n".join(here) + "\n")
+    if shared:
         with io.open(_ledger_path(), "a", encoding="utf-8") as fh:  # ARMING-FOLD
-            fh.write("\n".join(good) + "\n")
+            fh.write("\n".join(shared) + "\n")
+    LAST_FOLD.update(shared=len(shared), here=len(here))  # FOLD-SAID
     return len(good), len(lines) - len(good)  # the caller removes its own scratch file
 
 #: What counts as an INDEPENDENT KIND of proof, and what each is worth. Passed to confluence()
@@ -442,6 +569,9 @@ def record(lock, kind, refused, note="", src=None):
         "lock": str(lock), "kind": str(kind), "refused": bool(refused), "src": src,
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
+    # #181 (REG-2470) - a LIVE attempt is a fact about THIS PC, so it never enters the shared (tracked) queue
+    if _is_per_pc(row):  # PER-PC-ROUTE
+        return _append_here(row)
     with io.open(_bank_path(), "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     return row
@@ -696,6 +826,11 @@ def bank(lock, kind, src, n, k, note="", ref="", attacks=None, withdrawn=False):
         "withdrawn": bool(withdrawn),
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
+    # ⚠⚠ #181 (REG-2470) - A LIVE TRIAL IS A FACT ABOUT THE PC THAT RAN IT. Banked into the shared (tracked) queue
+    # it shipped to every PC and scored there as that PC's own: Dean's heart read the Mac's 50 seals as his. It goes
+    # to THIS PC's gitignored ledger; every other kind is a property of the code and stays shared.
+    if _is_per_pc(row):  # PER-PC-ROUTE
+        return _append_here(row)
     with io.open(_bank_path(), "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     return row
@@ -841,8 +976,51 @@ def _row_fault(r):
 
 
 def _rows():
-    """-> (list|None, why). None means UNREADABLE, which is never 'no proofs'."""
-    p = _ledger_path()
+    """-> (list|None, why). None means UNREADABLE, which is never 'no proofs'.
+
+    #181 (REG-2470) - the SHARED ledger's code rows plus THIS PC's own ledger. A live row in the shared file is
+    LEGACY: measured on one install before the split, counted on no PC (score() says how many it left out)."""
+    sp = _ledger_split()
+    return sp["rows"], sp["why"]
+
+
+def _ledger_split():
+    """#181 (REG-2470) - both ledgers, read once. -> dict
+
+      rows    what THIS PC scores on: the shared ledger's code rows + this PC's own rows; None = UNREADABLE
+      why     why rows is None ("" otherwise)
+      legacy  the shared ledger's LIVE rows - measured on an install this PC cannot identify, before the split
+      here    THIS PC's own rows (its live trials: banked here, or adopted through --adopt-legacy-live)
+      code    how many shared rows are code rows
+
+    Either file failing its read fails the whole read CLOSED, exactly as one bad row always has: UNKNOWN is LOCKED.
+    """
+    shared, why = _read_ledger(_ledger_path())
+    if shared is None:
+        return {"rows": None, "why": why, "legacy": [], "here": [], "code": 0}
+    code, legacy = [], []
+    for r in shared:
+        if _is_per_pc(r):  # PER-PC-LEGACY
+            legacy.append(r)
+            continue
+        code.append(r)
+    hp = _here_path()
+    mine, hwhy = _read_ledger(hp)
+    if mine is None:
+        return {"rows": None, "why": hwhy, "legacy": legacy, "here": [], "code": len(code)}
+    for r in mine:
+        # ⚠ only this PC's live trials are ever written there (bank, record, the fold, the adoption door), so any
+        # other kind could not have been banked - and counting it would make a code proof one PC's alone
+        if not _is_per_pc(r):  # PER-PC-ONLY
+            return {"rows": None, "legacy": legacy, "here": [], "code": len(code),
+                    "why": ("%s holds a %r row, and only this PC's LIVE trials are ever written there - a row that "
+                            "could not have been banked fails the read CLOSED" % (os.path.basename(hp),
+                                                                                str(r.get("kind"))))}
+    return {"rows": code + mine, "why": "", "legacy": legacy, "here": mine, "code": len(code)}
+
+
+def _read_ledger(p):
+    """One proof ledger, every row judged by _row_fault. -> (list|None, why). None means UNREADABLE."""
     if not os.path.exists(p):
         return [], ""          # absent is legitimately empty: nothing has been proven yet
     out = []
@@ -905,29 +1083,78 @@ def _attacks_passed(k, n, attacks):
     return max(0, min(int(k), a - (int(n) - int(k))))
 
 
-def score(lock, rows=None):
+def _count(rows):
+    """(k, n) over rows _fold has already reduced - the ONE arithmetic score() and byOrigin both use. -> (k, n)
+
+    v2444 — A ROW IS EITHER ONE ATTEMPT OR AN AGGREGATE, and the two must add up the same way.
+    A row with no "n" is a single attempt worth 1 (everything record() has ever written), so the
+    old arithmetic is unchanged for it. A row WITH "n" was banked by a harness that owns its own
+    counting, and _fold has already reduced its family to the newest one — so re-running that
+    harness replaces its evidence rather than doubling it.
+    """
+    n = sum(int(r.get("n", 1) or 0) for r in rows)
+    k = sum(int(r.get("k", 1 if r.get("refused") else 0) or 0) for r in rows)
+    return k, n
+
+
+#: what a lock's evidence says about THIS PC when nothing here measured it - #181, his ruling 2026-10-22
+_HERE_NOTHING = ("nothing measured on this PC yet - every figure here is shared: proven in code, true on any "
+                 "install")
+_HERE_UNREAD = "UNKNOWN - the proof ledgers could not be read"
+
+
+def _by_origin(mine):
+    """#181 (REG-2470) - where this lock's evidence came from. -> {"code": {k, n}, "here": {k, n, adopted} | None}
+
+    `mine` is already folded. A row of a per-PC kind is THIS PC's measurement - _ledger_split drops the shared
+    ledger's live rows as legacy before any score sees them - and every other row is a property of the code."""
+    here = [r for r in mine if _is_per_pc(r)]
+    ck, cn = _count([r for r in mine if not _is_per_pc(r)])
+    h = None
+    if here:  # PER-PC-ORIGIN
+        hk, hn = _count(here)
+        h = {"k": hk, "n": hn, "adopted": sum(1 for r in here if r.get("adopted"))}
+    return {"code": {"k": ck, "n": cn}, "here": h}
+
+
+def _here_say(by):
+    """The sentence a surface prints beside byOrigin. -> str"""
+    if not by:
+        return _HERE_UNREAD
+    h = by.get("here")
+    if not h:
+        return _HERE_NOTHING
+    return ("measured on this PC: %d of %d live trial(s) refused%s"
+            % (h["k"], h["n"], (" - %d adopted from the shared ledger by --adopt-legacy-live" % h["adopted"])
+               if h.get("adopted") else ""))
+
+
+def score(lock, rows=None, legacy=None):
     """The arithmetic for ONE lock. -> dict
 
     Never returns a wilson figure when n == 0. `wilson: None` means nobody looked; `0.0` would be
     a measurement nobody took. [[unknown-stays-unknown]]
+
+    #181 (REG-2470) - `byOrigin` splits the figure into what is proven in CODE (shared by every PC) and what was
+    measured on THIS PC, and `hereSay` says "nothing measured on this PC yet" when that half is empty. `legacyLive` is
+    how many live rows the shared ledger holds for this lock and no PC counts: read here when score() reads the
+    ledger itself, handed in by report(), and None when a caller passed its own rows and no legacy (not asked).
     """
     # a route scores on the SAME arithmetic as a valve — one table lookup, one score()
     spec = LOCKS.get(lock) or ROUTES.get(lock)
     if not spec:
         return {"lock": lock, "state": UNKNOWN, "why": "no such lock is declared"}
     if rows is None:
-        rows, why = _rows()
+        sp = _ledger_split()
+        rows, why = sp["rows"], sp["why"]
         if rows is None:
             return {"lock": lock, "state": UNKNOWN, "why": why,
-                    "k": None, "n": None, "wilson": None, "kinds": None}
+                    "k": None, "n": None, "wilson": None, "kinds": None,
+                    "byOrigin": None, "hereSay": _HERE_UNREAD, "legacyLive": None}
+        legacy = sp["legacy"]  # LEGACY-COUNT
     mine = _fold([r for r in rows if r.get("lock") == lock])
-    # v2444 — A ROW IS EITHER ONE ATTEMPT OR AN AGGREGATE, and the two must add up the same way.
-    # A row with no "n" is a single attempt worth 1 (everything record() has ever written), so the
-    # old arithmetic is unchanged for it. A row WITH "n" was banked by a harness that owns its own
-    # counting, and _fold has already reduced its family to the newest one — so re-running that
-    # harness replaces its evidence rather than doubling it.
-    n = sum(int(r.get("n", 1) or 0) for r in mine)
-    k = sum(int(r.get("k", 1 if r.get("refused") else 0) or 0) for r in mine)
+    k, n = _count(mine)
+    _origin = _by_origin(mine)
     # a kind counts as evidence only where something was actually REFUSED under it
     kinds = sorted({str(r.get("kind")) for r in mine
                     if int(r.get("k", 1 if r.get("refused") else 0) or 0) > 0})
@@ -973,7 +1200,10 @@ def score(lock, rows=None):
            "attacksPassed": (None if not attacks else _attacks_passed(k, n, attacks)),
            "repetition": (None if not attacks else round(float(n) / attacks, 1)),
            "k": k, "n": n, "kinds": kinds, "confluence": conf,
-           "bar": spec["bar"], "kindsBar": spec["kinds_bar"], "after": list(spec["after"])}
+           "bar": spec["bar"], "kindsBar": spec["kinds_bar"], "after": list(spec["after"]),
+           # #181 (REG-2470) - shape law again: on every path, so "nothing measured here" is said, not inferred
+           "byOrigin": _origin, "hereSay": _here_say(_origin),
+           "legacyLive": (None if legacy is None else sum(1 for r in legacy if r.get("lock") == lock))}
     if n == 0:
         out["wilson"] = None
         out["state"] = UNPROVEN
@@ -1430,9 +1660,10 @@ def _verdict(lock, spec, rows, _hok, _hwhy):
 
 def report():
     """Every lock, for a surface that must show its work. -> dict"""
-    rows, why = _rows()
+    sp = _ledger_split()
+    rows, why = sp["rows"], sp["why"]
     if rows is None:
-        return {"ok": False, "why": why,
+        return {"ok": False, "why": why, "ledger": _ledger_summary(sp),
                 "locks": [{"lock": k, "state": UNKNOWN, "why": why, "permitted": False,
                            "permittedWhy": why} for k in sorted(LOCKS)]}
     # ⚠ ROUTES RIDE THE SAME REPORT, not a second one. The heart reads ONE self_arming.report(),
@@ -1444,15 +1675,120 @@ def report():
     # upstream chain as well). They differ on a PC whose census is missing, and the padlock used to
     # be drawn from `state` alone. Both are published; a surface draws open only when both agree.
     heart = _heart_for_report()
-    out = [_with_permit(score(k, rows), k, LOCKS[k], rows, heart) for k in sorted(LOCKS)]
-    out += [dict(_with_permit(score(k, rows), k, ROUTES[k], rows, heart), kind="route")
+    _leg = sp["legacy"]
+    out = [_with_permit(score(k, rows, legacy=_leg), k, LOCKS[k], rows, heart) for k in sorted(LOCKS)]
+    out += [dict(_with_permit(score(k, rows, legacy=_leg), k, ROUTES[k], rows, heart), kind="route")
             for k in sorted(ROUTES)]
     return {"ok": True, "locks": out,
             "open": len([x for x in out if x.get("state") in (OPEN, HARDENED)]),
             "hardened": len([x for x in out if x.get("state") == HARDENED]),
             "permitted": len([x for x in out if x.get("permitted")]),
             "heartOk": bool(heart[0]), "heartWhy": heart[1] or "",
+            "ledger": _ledger_summary(sp),
             "total": len(out)}
+
+
+def _ledger_summary(sp):
+    """#181 (REG-2470) - which ledgers this report stands on, for a surface that must say so. -> dict
+
+    File NAMES only, never paths: a report rides the status poll and the roster, and a path is a machine's."""
+    legacy, here = sp.get("legacy") or [], sp.get("here") or []
+    n = len(legacy)
+    _took = set(_identity(r) for r in here if r.get("adopted"))
+    taken = sum(1 for r in legacy if _identity(r) in _took)
+    if not n:
+        lsay = ""
+    elif taken >= n:
+        lsay = ("%d live trial row(s) in the shared ledger were measured before the per-PC split; THIS PC adopted all "
+                "of them (--adopt-legacy-live) and counts them as its own. No other PC counts them." % n)
+    else:
+        lsay = ("%d live trial row(s) in the shared ledger were measured on an install this PC cannot identify, before "
+                "the per-PC split - counted on no PC%s. Only the PC that measured them may take them, through "
+                "`python3 tv/self_arming.py --adopt-legacy-live --reason \"<why>\" --confirm`."
+                % (n, (" (this PC adopted %d of them)" % taken) if taken else ""))
+    _hp, _hscope, _ = _here_where()
+    return {"shared": os.path.basename(_ledger_path()), "here": os.path.basename(_hp),
+            # REG-2473 - WHICH KIND of place it is, in words: one per PC (git's common dir), or one per checkout
+            "hereScope": _hscope, "hereWhere": here_label(),
+            "codeRows": sp.get("code") or 0, "hereRows": len(here),
+            "hereAdopted": sum(1 for r in here if r.get("adopted")),
+            "hereSay": (_HERE_NOTHING if not here else
+                        "this PC has measured %d live trial row(s) of its own" % len(here)),
+            "legacyLive": n, "legacyAdoptedHere": taken, "legacyLiveSay": lsay}
+
+
+def _identity(r):
+    """A row as it was banked, without the adoption mark - so an adopted copy matches its original. -> str"""
+    return json.dumps(dict((k, v) for k, v in r.items() if k != "adopted"), sort_keys=True, ensure_ascii=False)
+
+
+def adopt_legacy_live(reason, confirm=False):
+    """#181 (REG-2471) - THE DOOR FOR THE PC THAT MEASURED THE LEGACY LIVE TRIALS. -> dict
+
+    The split leaves the shared ledger's live rows counted on NO PC - including the Mac that measured them, which
+    drops from HARDENED to OPEN on every surface whose third kind was live. Nothing in the rows says which install
+    ran them, so no code may decide that; a person does, on that PC, and says why:
+
+        python3 tv/self_arming.py --adopt-legacy-live --reason "<why this PC measured them>" --confirm
+
+    It copies every legacy live row into THIS PC's own ledger, each marked `adopted` (the reason, the moment, the
+    file it came from) and keeping its own `ts` - a trial is as old as what it measured, never as old as the copy.
+    No reason -> REFUSED. No --confirm -> a DRY RUN that writes nothing and says what it would take. A row already
+    adopted here is never written twice. The shared file's bytes are never touched. Nothing calls this on its own.
+    [[unknown-stays-unknown]] [[stale-reading]]
+    """
+    why = str(reason or "").strip()
+    if why.startswith("--"):
+        why = ""                # a flag swallowed as the reason is no reason
+    if not why:  # ADOPT-REASON
+        return {"ok": False, "refused": True, "dryRun": not confirm, "wrote": 0, "would": None, "byLock": {},
+                "say": ("REFUSED: adopting live trials needs --reason \"<why this PC measured them>\". Nothing in the "
+                        "rows says which install ran them, so the person who knows must say it - nothing written.")}
+    sp = _ledger_split()
+    if sp["rows"] is None:
+        return {"ok": False, "refused": True, "dryRun": not confirm, "wrote": 0, "would": None, "byLock": {},
+                "say": ("REFUSED: the proof ledgers could not be read (%s) - UNKNOWN is not permission to copy "
+                        "anything. Nothing written." % sp["why"])}
+    have = set(_identity(r) for r in sp["here"])
+    todo = [r for r in sp["legacy"] if _identity(r) not in have]  # ADOPT-ONCE
+    by_lock = {}
+    for r in todo:
+        by_lock[str(r.get("lock"))] = by_lock.get(str(r.get("lock")), 0) + 1
+    _list = ", ".join("%s %d" % kv for kv in sorted(by_lock.items())) or "none"
+    # ⚠ REG-2473 - THE SENTENCE NAMES THE WHOLE PATH AND THE CHECKOUT IT RAN FROM, never a basename: run in the wrong
+    # checkout, a basename reads as success. This sentence goes to his terminal only - report() carries names.
+    dest = _here_path()
+    where = "%s (%s; run from the checkout at %s)" % (dest, here_label(), os.path.dirname(HERE))  # ADOPT-WHERE
+    if not confirm:  # ADOPT-DRY
+        return {"ok": True, "refused": False, "dryRun": True, "wrote": 0, "would": len(todo), "byLock": by_lock,
+                "dest": dest,
+                "say": ("DRY RUN - nothing written. %d legacy live row(s) would be adopted into %s - %s; %d already "
+                        "adopted here. Pass --confirm to write them." % (len(todo), where, _list,
+                                                                         len(sp["legacy"]) - len(todo)))}
+    stamp = {"by": "--adopt-legacy-live", "reason": why[:400], "at": int(time.time() * 1000),
+             "from": os.path.basename(_ledger_path())}
+    rows = [dict(r, adopted=dict(stamp)) for r in todo]  # ADOPT-KEEPS-TS
+    if rows:
+        with io.open(dest, "a", encoding="utf-8") as fh:  # ADOPT-WRITE
+            fh.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
+    return {"ok": True, "refused": False, "dryRun": False, "wrote": len(rows), "would": len(todo), "byLock": by_lock,
+            "dest": dest,
+            "say": ("adopted %d legacy live row(s) into %s - %s - each marked with this reason and keeping its own "
+                    "age; %d were already here. The shared ledger was not touched."
+                    % (len(rows), where, _list, len(sp["legacy"]) - len(todo)))}
+
+
+def _adopt_cli(argv):
+    """`--adopt-legacy-live [--reason WHY] [--confirm]` -> exit code: 0 done or dry run, 2 refused"""
+    reason = ""
+    for i, a in enumerate(argv):
+        if a == "--reason":
+            reason = argv[i + 1] if i + 1 < len(argv) else ""
+        elif a.startswith("--reason="):
+            reason = a[len("--reason="):]
+    res = adopt_legacy_live(reason, confirm="--confirm" in argv)
+    print(res["say"])
+    return 0 if res.get("ok") else 2
 
 
 #: REG-1737 - report() rides the status poll; asking the heart costs 0.2-0.6 s (the gate digest),
@@ -1504,9 +1840,18 @@ def _held_by(why, heart):
 
 
 def main(argv):
+    if "--adopt-legacy-live" in argv:
+        return _adopt_cli(argv)      # #181 (REG-2471) - the only writer this command line has, and it asks first
     rep = report()
     print("SELF-ARMING LOCKS — %s" % ("%d of %d open" % (rep.get("open", 0), rep.get("total", 0))
                                       if rep.get("ok") else "UNREADABLE: " + rep.get("why", "")))
+    _led = rep.get("ledger") or {}
+    if _led:
+        print("  ledgers: %s (shared: proven in code, %d rows) + %s (this PC: %d rows, %d adopted) - %s"
+              % (_led.get("shared"), _led.get("codeRows") or 0, _led.get("hereWhere") or _led.get("here"),
+                 _led.get("hereRows") or 0, _led.get("hereAdopted") or 0, _led.get("hereSay") or ""))
+        if _led.get("legacyLive"):
+            print("  %s" % _led.get("legacyLiveSay"))
     for l in rep["locks"]:
         # ⚠ THE HEADER MUST PRINT THE FIGURE THAT DECIDED. It read `l["wilson"]` — the raw,
         # repetition-inflated score — beside a state derived from `wilsonByAttack`, so the glance

@@ -7,6 +7,160 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2470 - THE SHARED PROOF QUEUE CARRIED ONE PC'S LIVE TRIALS TO EVERY PC (#181, M4 track B)
+
+tv/.self_arming.jsonl was commented "untracked" and `git ls-files` lists it: it ships to every PC with every update. At
+7285e7efc it held 657 rows - sabotage 583, cross-family 25, LIVE 49 (vault_live 28, route_lane_live 9, printer_live 3,
+frame_release_live 2, rung_accounting_live 2, disk_report_live 2, sweep_live 2, pixel_witness_live 1) - and every live row
+was measured on Konyo's Mac: his running console, his shelf, his disk history, his window. Dean's heart scored them as his
+own. frame.release read "earned 85/85": 35 code rows plus 50 of the Mac's live checks. MEASURED by scoring the HEAD ledger
+without the live rows: no lock or route changes permission. console.pixel_rescue, frame.release, reel.route, vault.apply,
+vault.sweep_start and chronicle.runeword/set/unique go HARDENED -> OPEN; printer.stream, prune.reports, fleet.* and
+roster.* stay OPEN; miniauto.run stays INCOMPLETE and vault.forget UNPROVEN.
+FIX: a live trial is a property of the PC that ran it. bank(), record() and fold_deferred() send kind 'live' to THIS PC's
+own ledger (TV_SELF_ARMING_HERE, resolved at call time; by default ONE file per PC in git's common dir - REG-2473; a
+fixture that redirected the shared queue gets a sibling of its own, never his real file). Every other kind stays in the shared ledger. _rows() = the
+shared ledger's code rows + this PC's rows. A live row in the shared file is LEGACY: counted on no PC, never edited out of
+the tracked bytes, reported as score()["legacyLive"] and report()["ledger"]["legacyLive"]. A non-live row in the per-PC
+ledger could not have been banked there and fails the read CLOSED. score() carries byOrigin {code: {k, n}, here: {k, n,
+adopted} | None} and hereSay ("nothing measured on this PC yet ..."); the UI label is M5/#180. run_gates' fold line names
+both files (LAST_FOLD). Live rows are never deferred: the per-PC file is in no work tree, so it is no gate's input.
+GUARD: tv/test_a_pc_shows_only_its_own_live_trials.py (two PCs in its own scratch; the shared fixture is a copy of the
+tracked ledger; git's own matcher on the ignore line, GIT_* scrubbed), 13 RED_PROOFs.
+RE-AIMED (two laws the split changed the reach of): test_the_pixels_earn_the_right_to_act asserted "OPEN => three
+families" off the real ledger, and the third family was the Mac's one pixel_witness_live row. The table's rule is
+kinds_bar 1.8, which sabotage 1.0 + cross-family 0.8 clears, so on a PC that never ran the live witness
+console.pixel_rescue is OPEN on two families by the arithmetic; the case now pins the rule (OPEN only when the
+arithmetic clears, never on one family, a live family counted on a PC measured on that PC). test_gate_banks' plain-audit
+case read only the shared ledger, so its v2940/L proof went BLIND - MEASURED: with that tamper, vault_wilson's
+`vault.apply / live / vault_live` row landed in the per-PC file (281 bytes) and the case stayed green. It now asks both.
+NOTE: self_arming.py is in many laws' keys, so the push that lands this re-proves a large set. On CI, in a push worktree
+and on any PC with no per-PC file the 8 surfaces above read OPEN, not HARDENED - by the rule, not a regression. Measured
+in the track's worktree on the final bytes: 75 of the 77 non-browser laws that name self_arming, counter_ledger or
+sets_base_index pass with no per-PC file (76 of 77 with the adopted ledger in place, run while the census was still
+stale); the two reds are this Mac's and red identically at 7285e7efc: test_a_gate_proven_on_these_bytes_is_carried ("PREMISE: no .pyc cache" under
+sys.pycache_prefix) and test_the_lock_derives_from_the_heart, which reads the machine's real heart2 census - current,
+with 5 BLIND instruments another prover recorded, so no lock may act there. heart2 --prove: 113 proofs PROVEN across 28
+laws (the 2 new, the 3 re-aimed, and 23 that read the ledger or the page).
+OPEN QUESTION (his, not this fix's - per-lock is parked): console.pixel_rescue replaces the window he is looking at, and on
+a PC that never ran its live witness it is still OPEN on code-only evidence (permission unchanged by this split).
+
+### REG-2471 - THE PC THAT MEASURED THE LEGACY LIVE TRIALS HAD NO WAY TO TAKE THEM BACK (#181, M4 track B)
+
+The split counts the 49 legacy live rows on NO PC - including the Mac that measured them, which would drop from HARDENED
+to OPEN on 8 surfaces. Nothing in the rows says which install ran them, so no code may decide it.
+FIX: an explicit door, run by a person on the PC that measured them:
+`python3 tv/self_arming.py --adopt-legacy-live --reason "<why>" --confirm`. It copies every legacy live row into THIS
+PC's per-PC ledger, each marked `adopted` {by, reason, at, from} and keeping its own `ts` (a trial is as old as what it
+measured). No reason -> REFUSED (exit 2). No --confirm -> a DRY RUN that writes nothing and says what it would take. A
+row already adopted is never written twice. The shared file's bytes are never touched. Nothing calls it on its own.
+After it, that PC scores exactly what it scored before the split (the law asserts k, n and state for every lock).
+POST-LAND: main runs it on Konyo's Mac with a reason; dean-pc-river checks Dean's heart reads the code rows (frame.release
+35/35) with "nothing measured on this PC yet" for live.
+GUARD: the same law's TheAdoptionDoor (function and command line).
+
+### REG-2472 - DEAN'S BOARD WAS JUDGED BY KONYO'S REMAINING PAGE (#165, M4 track B)
+
+counter_ledger._dir() resolved to the TRACKED tv/remaining/, and readings() took every page in it with no provenance.
+load() fed missing_names, owned_by_subtraction, contradicted, denied, arithmetic and audit, and through them
+control_app's chronicle calibration and the write-path veto, where `denied` WITHHOLDS set rows. The only page there is
+Konyo's 2026-08-21 Remaining filter (tv/remaining/sets_2026-08-21.json), read by eye off reel_s_1787307553811_9452 -
+a reel whose footage is released and which only the Mac's gitignored chronicle_swept.json still names. Dean's eagle,
+02:44: "Your board has 130 set pieces ticked. The last Remaining page (62 days old) still listed 19 as missing ...", and
+his calibration said 130 + 19 = 149, "14 rows the game says you do not have" - another player's page.
+FIX: provenance at READ time. A shipped page counts for THIS PC's judgement only when its reel is this PC's: the reel dir
+under the footage root (TV_HIST or tv/frames/hist), or the reel in this PC's sweep memory (TV_CHRON_SWEPT) or reel
+tombstones (reel_retention._tombstone_path) - all resolved at call time. A store that will not read, with no positive
+answer, is UNKNOWN; a page with no usable reel cannot be attributed (UNKNOWN). A TV_REMAINING_DIR world is that world's
+own. A page in a PC's own dir (TV_REMAINING_HERE; by default in git's common dir - REG-2473) needs no provenance. Every
+judge says WHY it has no page (as measured, REG-2474: "the only Remaining page on file was read off a reel none of this
+PC's stores name (...) - another install's page, or one whose reel this PC no longer remembers - so it is UNKNOWN here,
+not evidence about this board"), and carries `provenance`. denied() on another install's
+page withholds nothing. The page cannot be untracked: sets_base_index and bible.html's _SET_BASE_INDEX embed read it, and
+which base the game prints for which piece is GAME DATA - so counter_ledger.reference() reads the shipped page as data,
+sets_base_index.build() switched to it, and the index is identical on every PC. test_counter_ledger's two real-page cases
+pinned load() to the Mac (a roster) and now read reference(); its evidence case skips, saying why, where the page is not
+this PC's.
+GUARD: tv/test_a_remaining_page_read_on_another_pc_is_unknown_here.py (PC-A / PC-B / unreadable stores in its own
+scratch, the reel derived from the tracked page; git's own matcher on the ignore line), 12 RED_PROOFs.
+LEFT: the doctor's calibration row (console_doctor._remaining_page_reading) and the console card read the SAVED sweep
+result (chron_last_result.json), so a PC keeps showing the old comparison until its next chronicle sweep recomputes it.
+counter_ledger.whose(reading) now answers the read-time question (REG-2474); calling it from console_doctor and the card
+is console_doctor's / control_ui's (not this batch). control_app._chron_calibration's
+"board did not answer" branch still prints "no Remaining page has ever been recorded either" (control_app.py is not this
+batch). bible.html's embedded _SET_MISSING is the same leak on the board side (bible.html is not this batch).
+bake_seed.game_says_missing reads the tracked page for the shipped seed by design.
+
+### REG-2473 - THE "PER-PC" STORES WERE PER CHECKOUT, AND THE TOMBSTONE READ WAS UNDECLARED (#181/#165 review, M4 track B)
+
+Found by the review of the first cut (dc9f31d4c), before it landed. TWO DEFECTS.
+1. BLOCKER: test_store_owners went RED - "1 store(s) are touched by a module nothing declares: [('reel_tombstones.json',
+['counter_ledger'])]". The provenance check read the tombstones with its own json.load and row parsing, and nothing
+declared counter_ledger a reader. The first cut's law sweep picked laws by module name and never ran it, and no push key
+can catch it: store_owners finds its modules by LISTING tv/, which is outside every law's key - the first red would have
+been on CI, after the push had published. The review reproduced it: `python3 tv/test_store_owners.py` FAILED at
+dc9f31d4c, OK at 7285e7efc. On the fixed bytes it runs 7 tests, OK.
+FIX: counter_ledger is a DECLARED reader in store_owners.STORES, with its reason, and reads through the OWNER:
+reel_retention._tombstone_path() for the path and reel_retention._load_state() for the read (absent [] / unreadable
+UNKNOWN / a shape its owner never writes UNKNOWN). The file is still named in counter_ledger's sentences - the coupling
+is real, so it is declared, not reworded away.
+THE SAME GAP HID A SECOND CI-ONLY RED, found by sweeping every law that lists tv/ or the tests (105 gates, not 77 by
+module name): test_no_pinned_footage (test_a_gate_may_not_pin_his_footage) refused the page law's fake reels
+reel_s_1999999999999_7/_8 - a real-looking id a test names is held by retention as `test-fixture` for ever. They are
+2017-epoch synthetic ids now (reel_s_15..., which no recording can carry). The sweep's other two reds:
+test_the_blueprint_cannot_go_stale (BLUEPRINT.md lists 1032 gates and the branch adds two - the brief leaves the regen to
+the integrator; a render in the worktree differs only by the gate count, the two gate rows, one self_arming quote line
+and the stamp, no LIVE snapshot section) and test_a_gate_proven_on_these_bytes_is_carried (this Mac's
+sys.pycache_prefix, red identically at 7285e7efc).
+2. MAJOR: the per-PC ledger was <checkout>/tv/.self_arming.here.jsonl and the per-PC Remaining dir <checkout>/tv/
+remaining_here/ - one per CHECKOUT. Fleet agents may write only in linked worktrees (his main tree is the running
+console), so a deliberate live bank from one (`python3 tv/vault_wilson.py --bank` against his console on :17772) landed
+in THAT worktree's gitignored file: his console never counted it, git status showed nothing to carry it, and `git
+worktree remove` deleted it. At 7285e7efc the same bank went into the tracked ledger and travelled with the ship (how
+the 49 live rows reached main), so this was a NEVER-DROP regression. The adoption door named only the file's basename,
+so run in the wrong checkout it also read as success.
+FIX: both resolve to ONE place per PC - git's COMMON dir (self_arming.here.jsonl, remaining_here/), found through
+heart2._git_common_dir (R10, REG-2340: from the files git reads, never by running git, so a hook's GIT_DIR cannot steer
+it), shared by the main checkout and every linked worktree, inside no work tree and never copied into a heart2 sandbox.
+Where no git dir exists (a heart2 sandbox, an unpacked copy) each falls back to the gitignored tv/ name and SAYS it dies
+with the checkout. TV_SELF_ARMING_HERE / TV_REMAINING_HERE still name a file outright; a fixture that redirected the
+shared queue still gets a sibling (PER-PC-FOLLOWS); a patched HERE_LEDGER is honoured rather than resolved past. The
+doors print the WHOLE path and the checkout they ran from; report()/the fold line carry words only ("in git's common dir -
+one per PC"), never a machine's path.
+GUARD: test_a_pc_shows_only_its_own_live_trials.TheLedgerIsOnePerPcNotOnePerCheckout and
+test_a_remaining_page_read_on_another_pc_is_unknown_here.ThePerPcDirIsOnePerPc (a main checkout and its linked worktree,
+laid out as git lays them out, resolve ONE location in the common dir and inside neither work tree; a tree with no git dir
+keeps its own and says why), TheTombstonesAreReadThroughTheirOwner (the declaration, and a spy on the owner's loader), and
+the door-sentence cases. RED_PROOFs: per-checkout again, a patched HERE_LEDGER resolved past, a basename sentence, a
+second json.load, the declaration removed.
+
+### REG-2474 - AN EMPTIED SWEEP MEMORY WAS READ AS "THIS PC NEVER HELD IT" (#165 review, M4 track B)
+
+MEASURED read-only on the Mac by the review: its own 2026-08-21 page's reel has no footage dir and is in none of its 762
+tombstones - ONLY chronicle_swept.json names it. control_app.chronicle_forget_swept(), his "re-read everything" control,
+writes {} there. After that the first cut read the Mac's own page as another install's: load() None, denied() withheld
+nothing - during exactly the re-read of old reels the veto exists for - and the console said "the only Remaining page on
+file was read off a reel this PC never held", which is false on the PC that filmed it. An emptied store read as proof of
+absence: a NEVER-WRONG breach.
+FIX: (1) the sentence says what was measured, and both things it can mean: "read off a reel none of this PC's stores name
+(its footage tree, its sweep memory, its reel tombstones) - another install's page, or one whose reel this PC no longer
+remembers - so it is UNKNOWN here, not evidence about this board". Never "never held". (2) A KEEP DOOR, run by a person on
+the PC that filmed the page: `python3 tv/counter_ledger.py --adopt-page sets_2026-08-21.json --reason "<why>" --confirm`
+copies the shipped page into THIS PC's own dir marked `adopted` {by, reason, at, from, vouchedBy}; from then on no cleared
+store can unmake it, and the shipped copy is listed once (as the kept one). It REFUSES unless one of this PC's stores names
+the reel RIGHT NOW - it only pins what the stores already show, so a reason alone can never make another install's page
+judge a board (on Dean's PC it refuses; in a worktree, whose stores are empty, it refuses and names the checkout it asked).
+No reason -> REFUSED; no --confirm -> DRY RUN; a kept page is never written twice and a different file of that name is
+never overwritten; the shipped file is never touched; tmp + fsync + os.replace. (3) whose(reading): the read-time answer
+for a SAVED reading (the sweep's calibration in chron_last_result.json) - a kept page, a store that names the reel, or
+UNKNOWN with the measured sentence - for console_doctor and the console card to call (not this batch).
+GUARD: test_a_remaining_page_read_on_another_pc_is_unknown_here: AClearedSweepMemoryIsNotProofOfAbsence (the review's
+scenario: clear the sweep memory, the sentence says what was measured; a kept page survives the clear and keeps its
+veto), TheKeepDoor (reason, dry run, refusal of an unvouched or UNKNOWN page, bad names, marked copy written once, never
+overwrite, the CLI names the whole path and the checkout), ASavedReadingIsJudgedAtReadTime (whose()).
+POST-LAND: main runs the keep door on his Mac (main checkout, while chronicle_swept.json still names the reel), beside
+--adopt-legacy-live.
+
 ### REG-2466 - NOTHING HELD A PC AWAKE WHILE A SWEEP RAN (#170, the console's half)
 
 Dean's laptop slept in the middle of a proof (2026-10-21). Measured on his PC 2026-10-22 (read-only powercfg): standby never on AC or battery, hibernate after 7,200 s on battery only, and that day's drop was a lid close (Kernel-Power 42 "Button or Lid") - so a hold matters on battery and never overrides a lid. Low value for Dean, ruled anyway: "YES, ONLY WHILE WORKING" (no display hold, no powercfg change).

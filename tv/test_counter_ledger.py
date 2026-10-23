@@ -187,22 +187,30 @@ class TestTheArithmeticThatStartedIt(TempDirCase):
 
 class TestAgainstTheRealRosterAndTheRealReading(unittest.TestCase):
     """No fixture — his actual files. A guard proven only on invented data is proven on invented
-    data. [[feedback-blind-fixture-green-gate]]"""
+    data. [[feedback-blind-fixture-green-gate]]
+
+    ⚠ #165 (REG-2472) - THE PAGE IS READ HERE AS WHAT IT IS ON EVERY PC: GAME DATA, through
+    counter_ledger.reference(). These cases pinned `load()`, which now answers only with a page THIS PC
+    filmed - the shipped 2026-08-21 page was read off a reel only Konyo's Mac held, so on CI, on Dean's PC
+    and in a fresh worktree load() is None BY THE RULE, and "the reading must be on file" was a roster
+    pinned to one machine. What the first two measure - the page's own rows against the roster - is true
+    on any install. The third is about HIS evidence against HIS page, so it runs where the page is this
+    PC's and says so where it is not. [[regression-guard]]"""
 
     def test_the_roster_is_135_and_the_recorded_page_is_19_and_they_subtract_to_116(self):
         ro = _res.load_set_roster()
         self.assertEqual(len(ro), 135, "his total, from the data rather than from a claim")
-        r = cl.load("sets")
+        r = cl.reference("sets")
         self.assertIsNotNone(r, "the 2026-08-21 Remaining reading must be on file")
         self.assertEqual(r["count"], 19)
-        owned, meta = cl.owned_by_subtraction(ro)
+        owned, meta = cl.owned_by_subtraction(ro, reading=r)
         self.assertTrue(meta["exact"], "unresolved rows make the subtraction inexact: %s"
                         % meta["unresolved"])
         self.assertEqual(len(owned), 116)
 
     def test_every_recorded_missing_row_is_a_real_roster_piece(self):
         ro = _res.load_set_roster()
-        r = cl.load("sets")
+        r = cl.reference("sets")
         bad = [n for n in r["names"] if _res.canonical(n, ro) is None]
         self.assertEqual(bad, [], "a missing row that is not a roster piece would silently shrink "
                                   "the subtraction and inflate the owned count")
@@ -234,6 +242,11 @@ class TestAgainstTheRealRosterAndTheRealReading(unittest.TestCase):
             ev = json.load(fh)
 
         r = cl.load("sets")
+        if r is None:
+            # #165 - his evidence against a page this PC never filmed would be two installs' facts compared
+            self.skipTest("the Remaining page on file is not this PC's (%s), so his evidence and that page "
+                          "are not one player's - this case runs where the page's reel is held"
+                          % cl.provenance("sets")["why"])
         self.assertIn("Natalya's Mark (claws)", r["names"],
                       "the corrected reading no longer names the Suwayyah row this case is about")
 
