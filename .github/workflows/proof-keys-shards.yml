@@ -96,6 +96,19 @@ jobs:
         with:
           pattern: proof-shard-*
           path: shards
+      - name: The census - what this commit proved, and the laws the next batch fixes (REG-2595)
+        if: ${{ always() }}
+        run: |
+          python3 tv/proof_shard.py --census shards --head "$GITHUB_SHA" --out census.md
+          cat census.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the census
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-census-${{ github.sha }}
+          path: census.md
+          if-no-files-found: warn
+          retention-days: 30
       - name: Every shard finished, on this commit, on one plan
         run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA"
       - name: Hand the whole set on as one artifact

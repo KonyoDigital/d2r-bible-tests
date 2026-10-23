@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2595 - THE 16-SHARD RUN IS A POST-PUSH CENSUS THAT NAMES THE NEXT BATCH (proof-keys build, GB-box, 2026-10-23)
+Elad's ruling 17:04: the shard run no longer blocks a push; it runs after it, on ci/proof-keys-<sha12> at the pushed
+sha, and its findings are the next version's fixes. `proof_shard.py --census DIR [--head SHA] [--out F]` reads the shard
+artifacts and writes one markdown report: assigned / PROVEN / owed / unbanked counts, slowest and mean shard wall (from
+each prove.log), a dir with no store named, a foreign sha flagged, and a table of every law owed a fix (law, proof,
+verdict, why, shard). It always exits 0. The fan-in job runs it with `if: always()`, appends it to the job summary and
+keeps it as the proof-census-<sha> artifact (30 days). The import / Mac-driver path is parked (#186: the Mac
+self-prover does not read the saved proofs yet). Law: test_a_proof_census_names_the_next_batch, 7 red-proofs, all RED.
+
 ### REG-2594 - IMPORTED IS NOT FULL: THE MAC DRIVER SAYS HOW MANY PROOFS ARE STILL OWED (proof-keys build, GB-box, 2026-10-23)
 After `heart2 --import-shards` succeeds, `proof_keys_mac.py` re-reads the set (owed_after_import: the same check_shards
 and select the import applies) and counts every assigned proof CI banked nothing for (ELSEWHERE on a runner, owed by a

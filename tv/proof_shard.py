@@ -400,6 +400,65 @@ def fan_in(root, n, head, say=print):
     return 0
 
 
+def census(root, head=None):
+    """REG-2595 - the post-push CENSUS of one 16-shard run: what each shard proved, and which laws the next batch must
+    fix. Never a gate: it reads whatever the shards left (a missing or broken store is named, never fatal).
+    -> (markdown text, {"assigned", "proven", "owed", "unbanked", "fix": [[gate, idx, verdict, why, shard]]})"""
+    rows, fix, walls, unb, missing = [], [], [], {}, []
+    for d in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        body = None
+        try:
+            with open(os.path.join(root, d, STORE_NAME), encoding="utf-8") as fh:
+                body = json.load(fh)
+        except (OSError, ValueError):
+            pass
+        try:
+            with open(os.path.join(root, d, "prove.log"), encoding="utf-8", errors="replace") as fh:
+                m = re.findall(r"prove_seconds=(\d+)", fh.read())
+            if m:
+                walls.append(int(m[-1]))
+        except OSError:
+            pass
+        sh = (body or {}).get("shard") if isinstance(body, dict) else None
+        if not isinstance(sh, dict):
+            missing.append(d)
+            continue
+        asg = set((str(g), i) for g, i in (sh.get("assigned") or []))
+        got = set((str(e.get("gate")), e.get("proof")) for e in ((body.get("entries") or {}).values())
+                  if isinstance(e, dict) and e.get("verdict") == "PROVEN")
+        bad = [list(f[:4]) for f in (sh.get("owed") or [])]          # REG-2591: every failure a kept-going shard owes
+        if not bad and sh.get("stopped"):                               # a fail-fast shard names its one stop
+            bad = [list(sh["stopped"][:4])]
+        for f in bad:
+            fix.append(f + [sh.get("k")])
+        failed = set((str(f[0]), f[1]) for f in bad)
+        for g, i in asg - got - failed:
+            unb[g] = unb.get(g, 0) + 1
+        rows.append((sh.get("k"), len(asg), len(asg & got), len(bad), str(sh.get("head") or "")[:12]))
+    heads = sorted(set(r[4] for r in rows))
+    tot = dict(assigned=sum(r[1] for r in rows), proven=sum(r[2] for r in rows), owed=len(fix),
+               unbanked=sum(unb.values()), fix=sorted(fix, key=lambda f: (str(f[0]), f[1] if isinstance(f[1], int) else 0)))
+    out = ["## Proof census at %s" % (", ".join(heads) or "(no shard store)"), ""]
+    if head and heads and heads != [str(head)[:12]]:
+        out += ["⚠ the shards ran on %s, not %s" % (", ".join(heads), str(head)[:12]), ""]
+    out.append("%d shard store(s)%s. Assigned %d proof(s): PROVEN %d · owed a fix %d · unbanked %d (ELSEWHERE on a "
+               "runner, or never run)." % (len(rows), (" - %d dir(s) carry none: %s" % (len(missing), ", ".join(missing[:6])))
+                                           if missing else "", tot["assigned"], tot["proven"], tot["owed"], tot["unbanked"]))
+    if walls:
+        mean = sum(walls) / float(len(walls))
+        out.append("Shard prove walls: slowest %d s, mean %.0f s (%.2fx)." % (max(walls), mean, max(walls) / mean if mean else 0))
+    out += ["", "### Next batch - laws owed a fix (%d)" % len(fix)]
+    if fix:
+        out += ["", "| law | proof | verdict | why | shard |", "|---|---|---|---|---|"]
+        out += ["| %s | %s | %s | %s | %s |" % (f[0], f[1], f[2], str(f[3]).replace("|", "/")[:120], f[4]) for f in tot["fix"]]
+    else:
+        out.append("None: every assigned proof that ran is PROVEN.")
+    if unb:
+        out += ["", "### Unbanked by law (top 20 of %d)" % len(unb), ""]
+        out += ["- %s: %d" % (g, c) for g, c in sorted(unb.items(), key=lambda kv: (-kv[1], kv[0]))[:20]]
+    return "\n".join(out) + "\n", tot
+
+
 def main(argv=None):
     import argparse
     import subprocess
@@ -409,7 +468,16 @@ def main(argv=None):
     ap.add_argument("--head", default=None, help="the sha the shards must have run on (default: git rev-parse HEAD)")
     ap.add_argument("--measure-costs", dest="measure", default=None,
                     help="REG-2593: dir of finished shard artifacts -> write proof_costs.json (seconds per proof)")
+    ap.add_argument("--census", default=None, help="REG-2595: dir of shard artifacts -> the post-push census (markdown)")
+    ap.add_argument("--out", default=None, help="with --census: also write the census to this file")
     a = ap.parse_args(argv)
+    if a.census:
+        text, _t = census(a.census, a.head)
+        print(text)
+        if a.out:
+            with open(a.out, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        return 0                        # a census informs the next batch; it never gates a push
     if a.measure:
         bodies = []
         for d in sorted(os.listdir(a.measure)):

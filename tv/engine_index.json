@@ -2701,10 +2701,11 @@
       "check_shards",
       "select",
       "merge_into",
-      "fan_in"
+      "fan_in",
+      "census"
     ],
     "gotcha": "A plan is a pure function of the gate names, their proofs, tv/gate_costs.json and tv/proof_costs.json (REG-2593: seconds per proof MEASURED on a runner; refresh with --measure-costs DIR) at one commit: every shard must compute it alike, so the import refuses shards whose plan digests differ. The import is ALL OR NOTHING and re-derives every key from this checkout's bytes; it never rewrites `tree`, so #242's clean wave still runs each gate clean here. A shard that kept going (REG-2591) lists its failures as `owed`; the fan-in names them and still passes a whole set.",
-    "purpose": "REG-2585/2586/2593 - one heart2 prove split across N CI runners: the cost-balanced plan (--proof-shard K/N) and the checks that bring the shards' banked PROVENs home (--import-shards).",
+    "purpose": "REG-2585/2586/2593/2595 - one heart2 prove split across N CI runners: the cost-balanced plan (--proof-shard K/N) and the checks that bring the shards' banked PROVENs home (--import-shards), and the post-push census (--census) that names the laws the next batch fixes.",
     "territory": "heart-organs"
   },
   "proof_keys_mac.py": {

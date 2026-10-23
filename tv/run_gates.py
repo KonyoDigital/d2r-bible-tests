@@ -10993,6 +10993,13 @@ GATES = [
              "and places each chunk where the shard's wall (work over lanes, or its serial browser queue) grows "
              "least: on this tree the slowest shard is within 1.2x the mean. heart2's cut plans with the same "
              "browser set as its lock. Parses the tree's gates; nothing is run."),
+    Gate("test_a_proof_census_names_the_next_batch",
+         [sys.executable, os.path.join(HERE, "test_a_proof_census_names_the_next_batch.py")], 60,
+         needs_app=False,
+         why="REG-2595 - the 16-shard run is a post-push census (Elad 2026-10-23): proof_shard --census lists every "
+             "law a shard owes a fix (or the one stop of a fail-fast shard), the PROVEN/owed/unbanked counts and the "
+             "shard walls, never exits red, and the workflow runs it with if: always() into the job summary and a "
+             "proof-census-<sha> artifact. Temp dirs only."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,
