@@ -6043,6 +6043,9 @@
     font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); }
   #shadow-bar[hidden] { display: none !important; }
   #shadow-bar button { margin-left: auto; }
+  /* Shadow mode: their uploaded console, booted in its own frame on an in-memory store (bible.html SHADOW MODE BOOT). */
+  #shadow-eng { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; border: 0; z-index: 945; background: #070605; }
+  body:not(.shell-open) #shadow-eng, body:not(.shadow-snap) #shadow-eng { display: none !important; }
   .roster-person { display: block; width: 100%; text-align: left; margin: 4px 0; }
   .roster-stale { color: #e9b96e; }
   /* #95 (REG-2517) - whose signature each row carries, under its name, and THIS PC's own last publish leading the
@@ -22730,7 +22733,9 @@ window._lockMark = function(isOpen, px, label){
     } catch(e){}
   }
   function _shellRoute(tab){
-    var f = document.getElementById('tvd-eng'); if (!f) return false;
+    /* Shadow mode routes the frame he is looking at: their console's board, not this PC's. */
+    var _snap = document.body.classList && document.body.classList.contains('shadow-snap');
+    var f = document.getElementById(_snap ? 'shadow-eng' : 'tvd-eng'); if (!f) return false;
     try {
       var w = f.contentWindow;
       if (!w || !w.document) return false;
@@ -27634,7 +27639,7 @@ function escC(s) {
       body.addEventListener('click', function (ev) {
         var btn = ev.target && ev.target.closest ? ev.target.closest('.roster-person') : null;
         if (!btn) return;
-        window._shadowEnter(btn.getAttribute('data-owner') || '');
+        (window._shadowOpen || window._shadowEnter)(btn.getAttribute('data-owner') || '');
       });
     }
     fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
@@ -27728,7 +27733,10 @@ function escC(s) {
 
   window._shadowLeave = function () {
     _shadowGen++;
-    document.body.classList.remove('shadow-on');
+    document.body.classList.remove('shadow-on', 'shadow-snap');
+    var snapFrame = document.getElementById('shadow-eng');
+    if (snapFrame && snapFrame.parentNode) snapFrame.parentNode.removeChild(snapFrame);
+    try { delete window._tvdShadowSnap; } catch (e) { window._tvdShadowSnap = undefined; }
     var bar = document.getElementById('shadow-bar');
     if (bar) bar.setAttribute('hidden', '');
     var f = document.getElementById('tvd-eng');
@@ -27743,6 +27751,55 @@ function escC(s) {
         if (typeof window._shellRestoreConsole === 'function') window._shellRestoreConsole();
       } catch (e) {}
     }
+  };
+
+  /* SHADOW MODE - THEIR CONSOLE, ONE TO ONE, READ ONLY. /api/snapshot-view hands the owner's last uploaded account
+     stores (tv/console_snapshot.py) and when they were uploaded; a frame of its own boots the same board on those
+     stores held in memory (bible.html SHADOW MODE BOOT), so characters, gear, inventory, stash, mules and the vault
+     draw exactly as on their console, and nothing it does reaches this PC's store or console. The bar says live or
+     offline and the upload's age. An owner with no upload falls back to the published roster row (_shadowEnter). */
+  window._shadowSnapEnter = function (owner, d) {
+    var gen = ++_shadowGen;
+    var was = document.body.classList.contains('shell-open');
+    document.body.setAttribute('data-shadow-was', was ? '1' : '0');
+    var old = document.getElementById('shadow-eng');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    window._tvdShadowSnap = { owner: owner, t: d.t, stores: d.stores };
+    var box = document.getElementById('roster-box');
+    if (box) box.setAttribute('hidden', '');
+    var bar = document.getElementById('shadow-bar');
+    var who = document.getElementById('shadow-who');
+    var h = 72;
+    try { h = (typeof window._shellHeadH === 'function') ? window._shellHeadH() : 72; } catch (e) {}
+    if (bar) { bar.style.top = h + 'px'; bar.removeAttribute('hidden'); }
+    /* The marker: whose console this is and when its snapshot was taken, as a clock time beside the age words. */
+    var at = '';
+    try { if (typeof d.t === 'number' && d.t > 0) at = ' · snapshot ' + new Date(d.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { at = ''; }
+    if (who) who.textContent = String(d.words || owner) + at + ' · read only';
+    var f = document.createElement('iframe');
+    f.id = 'shadow-eng';
+    f.setAttribute('title', owner + ' console, read only');
+    f.src = '/board?app=1&engine=1&tvd-shadow=1&v=' + Date.now() + '#chars';
+    var below = h + ((bar && bar.offsetHeight) || 34);
+    f.style.top = below + 'px';
+    f.style.height = 'calc(100vh - ' + below + 'px)';
+    document.body.appendChild(f);
+    document.body.setAttribute('data-shadow-shown', '1');
+    document.body.classList.add('shell-open', 'shadow-on', 'shadow-snap');
+    try { if (typeof window._shellLight === 'function') window._shellLight('chars'); } catch (e) {}
+    return gen;
+  };
+  window._shadowOpen = function (owner) {
+    if (!owner) return;
+    var gen = ++_shadowGen;
+    fetch('/api/snapshot-view?owner=' + encodeURIComponent(owner), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (gen !== _shadowGen) return;
+        if (d && d.ok === true && d.stores && typeof d.stores === 'object') window._shadowSnapEnter(owner, d);
+        else window._shadowEnter(owner);
+      })
+      .catch(function () { if (gen === _shadowGen) window._shadowEnter(owner); });
   };
 
   (function _fleetKick() {

@@ -4950,6 +4950,153 @@ def _roster_fetch_loop():
         time.sleep(300)
 
 
+# ── SHADOW MODE: THIS CONSOLE'S ACCOUNT STORES, UPLOADED; ANOTHER'S, READ ONLY ─────────────────────
+# The board posts its active world's stores (_collectProgress, the Backup v2 rule) to /api/snapshot-book.
+# tv/console_snapshot.py decides what may leave this PC and when; the upload is signed with the same key
+# the roster publish registered (.roster_key.json) and goes to functions/api/snapshot.js. A viewer asks
+# /api/snapshot-view?owner= and gets that owner's last upload with its time, from the site, or from this
+# PC's last copy when the site cannot be read. Nothing here writes a ledger or a board store.
+_SNAPSHOT_URL = "https://bull-4-u.com/api/snapshot"
+
+
+def _snapshot_chars_learned():
+    """This console's own /api/chars_learned answer, asked over loopback so the route stays the one place that
+    builds it (its gear and bars are pinned there)."""
+    with urllib.request.urlopen("http://127.0.0.1:%d/api/chars_learned" % int(CONTROL_PORT), timeout=8) as resp:
+        return json.loads(resp.read().decode("utf-8", "replace"))
+
+
+def _snapshot_book_path():
+    return os.path.join(_log_root(), "snapshot_book.json")
+
+
+def _snapshot_state_path():
+    return os.path.join(_log_root(), ".tvd_snapshot.json")
+
+
+def _snapshot_cache_dir():
+    return os.path.join(_log_root(), "snapshot_cache")
+
+
+def _snapshot_json_load(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _snapshot_json_save(path, data):
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception:
+        return None
+    return True
+
+
+def _snapshot_book_take(body):
+    """Store the board's cleaned stores. Never a ledger write, never a board store."""
+    import console_snapshot as _cs
+    clean = _cs.clean(body if isinstance(body, dict) else None)
+    if clean is None:
+        return {"ok": False, "why": "the board posted no d2r_ stores this PC may upload"}
+    clean["at"] = int(time.time() * 1000)
+    if not _snapshot_json_save(_snapshot_book_path(), clean):
+        return {"ok": False, "why": "snapshot_book.json could not be written"}
+    return {"ok": True, "stores": len(clean["stores"]), "dropped": clean["dropped"]}
+
+
+def _snapshot_owner():
+    import roster_publish as _rp
+    return _rp.owner_of(_roster_claimed_name(), _roster_platform())
+
+
+def _snapshot_publish_once(boot):
+    import console_snapshot as _cs
+    state = _snapshot_json_load(_snapshot_state_path()) or {}
+    held = _beacon_suppressed_by()
+    if held:
+        state["why"] = "suppressed: " + str(held)[:160]
+        _snapshot_json_save(_snapshot_state_path(), state)
+        return
+    owner = _snapshot_owner()
+    book = _snapshot_json_load(_snapshot_book_path()) or {}
+    stores = book.get("stores") if isinstance(book.get("stores"), dict) else None
+    now_ms = int(time.time() * 1000)
+    if stores:
+        answers = {}
+        for _name, _read in (("chars_learned", _snapshot_chars_learned), ("main_locks", main_locks_view)):
+            try:
+                _got = _read()
+            except Exception:
+                _got = None
+            if isinstance(_got, dict) and _got.get("ok") is True:
+                answers[_name] = _got
+        stores = _cs.with_api(stores, answers)
+    body, reason = _cs.due(state, owner, stores, now_ms, bool(boot))
+    if body is None:
+        state["why"] = str(reason)[:200]
+        _snapshot_json_save(_snapshot_state_path(), state)
+        return
+    reply = _roster_post(_SNAPSHOT_URL, body, os.path.join(_log_root(), ".roster_key.json"))
+    _snapshot_json_save(_snapshot_state_path(), _cs.apply_reply(state, stores, reply, now_ms))
+
+
+def _snapshot_publish_loop():
+    time.sleep(45)
+    boot = True
+    while True:
+        try:
+            _snapshot_publish_once(boot)
+            if os.path.isfile(_snapshot_book_path()):
+                boot = False
+        except Exception as e:
+            _snapshot_json_save(_snapshot_state_path(), {"why": type(e).__name__})
+        time.sleep(120)
+        _lane_tick("_snapshot_publish_loop", 120)
+
+
+def _snapshot_view(owner):
+    """-> what the shadow viewer draws: that owner's last upload, its time, and live/offline/unknown."""
+    import console_snapshot as _cs
+    now_ms = int(time.time() * 1000)
+    if owner not in _cs.OWNERS:
+        return _cs.view(owner, None, now_ms)
+    cdir = _snapshot_cache_dir()
+    rec, source, why = None, "worker", None
+    held = _beacon_suppressed_by()
+    if held:
+        why = "suppressed: " + str(held)[:80]
+    else:
+        got = _roster_get(_SNAPSHOT_URL + "?owner=" + urllib.parse.quote(owner))
+        if isinstance(got, dict) and got.get("ok") is True and _cs.record_ok(got, owner):
+            rec = got
+            try:
+                _cs.write_cache(cdir, got)
+            except Exception:
+                pass
+        elif isinstance(got, dict) and got.get("ok") is True and got.get("published") is False:
+            why = "nothing uploaded"
+        else:
+            why = (got.get("why") if isinstance(got, dict) else None) or "the snapshot fetch failed"
+            if isinstance(got, dict) and got.get("corrupt"):
+                why = "the uploaded snapshot does not match its own hash"
+    if rec is None:
+        rec = _cs.read_cache(cdir, owner)
+        source = "cache"
+    online = None
+    try:
+        fl, _age = fleet_presence_last_good()
+        online = _cs.online_of(owner, fl)
+    except Exception:
+        online = None
+    return _cs.view(owner, rec, now_ms, online=online, source=source, fetch_why=why)
+
+
 def _console_beacon_loop():
     _boot_beacon_wait()
     _console_beacon("boot")
@@ -46172,6 +46319,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json(200, status_payload())
             return
+        if path == "/api/snapshot-view":
+            # Shadow mode - another console's last upload, read only. GET only; nothing is written but
+            # this PC's own fetch cache.
+            _q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path or "").query)
+            self._json(200, _snapshot_view((_q.get("owner") or [""])[0]))
+            return
         if path == "/api/roster-cache":
             data = _roster_cache_payload()
             import roster_publish as _rp
@@ -47609,6 +47762,17 @@ class Handler(BaseHTTPRequestHandler):
                 body, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
                 sec_fetch_site=self.headers.get("Sec-Fetch-Site"))
             self._json(_code, _out)
+            return
+        if path == "/api/snapshot-book":
+            # Shadow mode - this PC's board hands its account stores here; _snapshot_publish_loop uploads
+            # them. The same origin gate as /api/roster-book: a no-cors post from another tab is refused.
+            import d2jsp_chrome as _d2jsp
+            if not _d2jsp.console_may_post(
+                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
+                    self.headers.get("Sec-Fetch-Site")):
+                self._json(403, {"ok": False, "reason": "local"})
+                return
+            self._json(200, _snapshot_book_take(body))
             return
         if path == "/api/roster-book":
             # The board on this PC hands its builds here. The roster route publishes
@@ -49374,6 +49538,7 @@ def main():
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
     threading.Thread(target=_roster_publish_loop, daemon=True, name="tvd-roster").start()
+    threading.Thread(target=_snapshot_publish_loop, daemon=True, name="tvd-snapshot").start()
     threading.Thread(target=_roster_fetch_loop, daemon=True, name="tvd-roster-fetch").start()
     threading.Thread(target=_fleet_change_loop, daemon=True, name="tvd-fleet-change").start()
     t = threading.Thread(target=srv.serve_forever, daemon=True)

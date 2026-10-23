@@ -1,0 +1,773 @@
+# -*- coding: utf-8 -*-
+"""Shadow mode - another console, one to one and read only, live or from its last upload.
+
+Shadow on main drew another PC from its roster row, and that row strips every build to name/x/y/w/h: no
+mods, no mule names, no vault. Now each console uploads its account stores themselves (the board's
+_collectProgress export, cleaned by tv/console_snapshot.py), signed with the key its roster publish
+registered, to functions/api/snapshot.js. A viewer's console fetches that record (or its own last copy
+when the site cannot be read) and boots the same board on it in a frame whose storage lives in memory.
+
+Proved here, without a browser:
+  * what leaves a PC: d2r_ stores only, history/evidence/debug stores and the board's own d2r_api_ names
+    stay home, paths/install ids/pictures are blanked, an untouched store leaves byte for byte, and the
+    size caps drop the largest stores first and name them
+  * when: change-only, MIN_GAP_MS apart, one boot post, a refusal waits; the KV budget stays under 1000
+  * the worker, run in node as it ships: an owner with no registered roster key, an unsigned upload,
+    another key, a hash that does not match, a picture, an oversize body and the daily cap are refused
+    with nothing stored; a signed upload is stored and read back byte for byte; GET never writes and
+    serves a record that fails its own hash as corrupt, never as stores
+  * the viewer's words: live / offline / online UNKNOWN, always with the upload's age, and the PC's
+    own last copy (with its time) when the site cannot be read - shadow works with the owner offline
+  * the console's doors: /api/snapshot-view and /api/snapshot-book, the publish lane, and the
+    console panel's _shadowOpen falling back to the roster row when no upload exists
+  * the shadow frame's boot block: memory storage, fail closed, no /api/ and no non-GET request,
+    theirs-not-ours console answers, and the click/key veil - run in node on the page's own script
+
+The headless-Chrome one-to-one proof (board A vs shadow of A's snapshot) is
+tv/test_shadow_mode_draws_their_console.py.
+"""
+import base64
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+from console_safe import enable as _enable  # noqa: E402
+_enable()
+import console_snapshot as CS  # noqa: E402
+import roster_publish as RP  # noqa: E402
+import roster_sign as RS  # noqa: E402
+
+NODE = shutil.which("node")
+SNAPSHOT_JS = os.path.join(ROOT, "functions", "api", "snapshot.js")
+APP = os.path.join(HERE, "control_app.py")
+UI = os.path.join(HERE, "control_ui.html")
+BIBLE = os.path.join(ROOT, "bible.html")
+OWNER = "Dean"
+T0 = 1792800000000
+
+
+def _read(path):
+    with io.open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _stores():
+    build = {"bx1": {"name": "Deansorc", "cls": "Sorceress", "level": 90, "active": 0, "sets": [{"name": "Set 1",
+             "slots": {"tors": {"id": "r33", "name": "Enigma", "q": "r", "base": "aar", "rolls": {"p1": 761}}},
+             "inv": [{"id": "u381", "name": "Annihilus", "rolls": {"p2": 17, "p3": 13, "p4": 7}, "x": 0, "y": 0}]}],
+             "stash": [{"id": "r47", "name": "Grief", "rolls": {"p2": 371}}], "shared": []}}
+    return {"d2r_charBuilds": json.dumps(build, separators=(",", ":")),
+            "d2r_muleRoster": json.dumps([{"id": "fx-a", "name": "DEAN-MULE-1"}]),
+            "d2r_muleAssign": json.dumps({"Harlequin Crest": "fx-a"}),
+            "d2r_owned": json.dumps(["Harlequin Crest"]),
+            "d2r_magicFinds": json.dumps({"Bone Eye": {"q": "rare", "mods": ["+22 to Life"]}})}
+
+
+def _record(owner=OWNER, stores=None, t=T0, **extra):
+    stores = _stores() if stores is None else stores
+    rec = {"owner": owner, "t": t, "hash": CS.digest(stores), "stores": stores}
+    rec.update(extra)
+    return rec
+
+
+class WhatLeavesThePC(unittest.TestCase):
+
+    def test_account_stores_leave_byte_for_byte(self):
+        s = _stores()
+        got = CS.clean({"stores": s})
+        self.assertEqual(got["stores"], s, "an account store was changed on its way out")
+        self.assertEqual(got["dropped"], [])
+
+    def test_history_evidence_identity_and_debug_stores_stay_home(self):
+        s = _stores()
+        home = {"d2r_tvdHist": "[]", "d2r_foundEvidence": "{}", "d2r_installId": "x", "d2r_ownerClaim": "*",
+                "d2r_quarantine_x": "{}", "d2r_d2jsp_draft": "{}", "d2r_api_chars_learned": "{}",
+                "d2r_sessionLog": "[]", "notd2r": "1", "d2r_bad-name": "1"}
+        s2 = dict(s, **home)
+        s2["d2r_notAString"] = 5
+        got = CS.clean({"stores": s2})
+        self.assertEqual(sorted(got["stores"]), sorted(s), "a store that must stay home left the PC")
+        for k in list(home) + ["d2r_notAString"]:
+            self.assertIn(k[:60], got["dropped"], "a dropped store was not named: %s" % k)
+
+    def test_paths_install_ids_and_pictures_are_blanked(self):
+        dirty = {"a": "/Users/someone/Library/x.png", "b": "C:\\Users\\player\\Documents\\x.d2s",
+                 "c": "0123456789abcdef0123456789abcdef", "d": "data:image/png;base64,AAAA", "keep": "Enigma"}
+        got = CS.clean({"stores": {"d2r_x": json.dumps(dirty)}})["stores"]["d2r_x"]
+        for bad in ("/Users/", "Users\\", "0123456789abcdef0123456789abcdef", "data:image"):
+            self.assertNotIn(bad, got)
+        self.assertEqual(json.loads(got)["keep"], "Enigma")
+
+    def test_the_size_caps_drop_the_largest_first_and_say_so(self):
+        s = _stores()
+        s["d2r_huge"] = json.dumps(["x" * (CS.MAX_STORE + 10)])
+        s["d2r_big1"] = json.dumps(["y" * (CS.MAX_STORE - 100)])
+        s["d2r_big2"] = json.dumps(["z" * (CS.MAX_STORE - 200)])
+        s["d2r_big3"] = json.dumps(["w" * (CS.MAX_STORE - 300)])
+        got = CS.clean({"stores": s})
+        self.assertIn("d2r_huge", got["dropped"])
+        self.assertIn("d2r_big1", got["dropped"], "the largest store was not the first to go over the total")
+        self.assertLessEqual(sum(len(k) + len(v) for k, v in got["stores"].items()), CS.MAX_TOTAL)
+        for k in _stores():
+            self.assertIn(k, got["stores"], "a small account store was dropped before a big one")
+
+    def test_the_board_may_not_post_console_answers_but_the_console_adds_them(self):
+        self.assertFalse(CS.allowed_key("d2r_api_chars_learned"))
+        self.assertTrue(CS.allowed_key("d2r_api_chars_learned", board=False))
+        self.assertFalse(CS.allowed_key("d2r_api_status", board=False))
+        got = CS.with_api(_stores(), {"chars_learned": {"ok": True, "chars": [{"name": "Deansorc"}],
+                                                        "status": {"tick": 9}, "generatedTs": 5},
+                                      "main_locks": {"ok": True, "locked": [], "generatedTs": 7}})
+        cl = json.loads(got["d2r_api_chars_learned"])
+        self.assertEqual(cl["chars"], [{"name": "Deansorc"}])
+        self.assertNotIn("status", cl, "a ticking field rides the snapshot and makes every upload 'changed'")
+        self.assertNotIn("generatedTs", json.loads(got["d2r_api_main_locks"]))
+
+    def test_the_kv_budget_stays_under_the_ceiling(self):
+        b = CS.budget()
+        self.assertLessEqual(b["together"], b["ceiling"])
+        self.assertEqual(b["snapshot"], 4 * CS.DAY_CAP)
+        self.assertGreaterEqual(CS.MIN_GAP_MS, 24 * 3600 * 1000 // CS.DAY_CAP,
+                                "the console's pace would run into the worker's daily cap")
+
+
+class WhenItUploads(unittest.TestCase):
+
+    def test_change_only_gap_boot_and_refusal(self):
+        s = _stores()
+        body, why = CS.due({}, OWNER, s, T0, boot=False)
+        self.assertEqual(why, "post")
+        self.assertEqual(body["hash"], CS.digest(s))
+        self.assertIsNone(CS.due({}, "Somebody", s, T0, False)[0])
+        self.assertIsNone(CS.due({}, OWNER, {}, T0, False)[0])
+        st = {"hash": CS.digest(s), "at": T0}
+        self.assertEqual(CS.due(st, OWNER, s, T0 + 10 * CS.MIN_GAP_MS, False), (None, "unchanged"))
+        s2 = dict(s, d2r_owned=json.dumps(["Harlequin Crest", "Enigma"]))
+        self.assertIsNone(CS.due(st, OWNER, s2, T0 + CS.MIN_GAP_MS - 1, False)[0])
+        self.assertIsNotNone(CS.due(st, OWNER, s2, T0 + CS.MIN_GAP_MS, False)[0])
+        self.assertIsNotNone(CS.due(st, OWNER, s, T0 + 1, True)[0], "the boot post was held back")
+        refused = {"refuseAt": T0, "why": "quota"}
+        self.assertEqual(CS.due(refused, OWNER, s, T0 + 1, True), (None, "quota"))
+        self.assertIsNotNone(CS.due(refused, OWNER, s, T0 + CS.MIN_GAP_MS, True)[0])
+
+    def test_the_reply_is_remembered(self):
+        s = _stores()
+        st = CS.apply_reply({}, s, {"ok": True, "stored": ["snapshot"]}, T0)
+        self.assertEqual((st["hash"], st["at"]), (CS.digest(s), T0))
+        st = CS.apply_reply(st, s, {"ok": False, "why": "quota"}, T0 + 5)
+        self.assertEqual((st["refuseAt"], st["why"]), (T0 + 5, "quota"))
+        st = CS.apply_reply(st, s, {"ok": True, "stored": ["snapshot"]}, T0 + 9)
+        self.assertNotIn("refuseAt", st)
+
+
+class WhatTheViewerIsTold(unittest.TestCase):
+
+    def test_live_offline_unknown_always_carry_the_uploads_age(self):
+        rec = _record()
+        now = T0 + 42 * 60000
+        live = CS.view(OWNER, rec, now, online=True)
+        off = CS.view(OWNER, rec, now, online=False)
+        unk = CS.view(OWNER, rec, now, online=None)
+        self.assertEqual((live["state"], off["state"], unk["state"]), ("live", "offline", "unknown"))
+        self.assertEqual(live["words"], "Dean · live · last change uploaded 42 min ago")
+        self.assertEqual(off["words"], "Dean · offline · last upload 42 min ago")
+        self.assertEqual(unk["words"], "Dean · online UNKNOWN · last upload 42 min ago")
+        for v in (live, off, unk):
+            self.assertEqual(v["stores"], rec["stores"], "the viewer was not handed the owner's stores verbatim")
+            self.assertEqual(v["t"], T0)
+
+    def test_no_upload_is_said_never_drawn_empty(self):
+        v = CS.view(OWNER, None, T0, online=True)
+        self.assertFalse(v["ok"])
+        self.assertIn("has not uploaded", v["why"])
+        self.assertNotIn("stores", v)
+        self.assertFalse(CS.view("Somebody", _record(owner="Somebody"), T0)["ok"])
+
+    def test_a_record_that_is_not_theirs_or_fails_its_hash_is_not_shown(self):
+        self.assertTrue(CS.record_ok(_record(), OWNER))
+        self.assertFalse(CS.record_ok(_record(), "Wife PC"))
+        bad = _record()
+        bad["stores"] = dict(bad["stores"], d2r_owned='["Shako"]')
+        self.assertFalse(CS.record_ok(bad, OWNER), "a record that does not match its own hash was shown")
+        self.assertFalse(CS.record_ok(_record(stores=dict(_stores(), d2r_installId="x")), OWNER))
+        self.assertFalse(CS.record_ok(_record(t=True), OWNER))
+
+    def test_the_owner_offline_and_the_site_down_still_shows_the_last_copy_with_its_time(self):
+        d = tempfile.mkdtemp(prefix="tvd_snap_cache_")
+        self.addCleanup(shutil.rmtree, d, True)
+        self.assertTrue(CS.write_cache(d, _record(intentVerified=True, keyId="abcdef012345")))
+        rec = CS.read_cache(d, OWNER)
+        self.assertEqual(rec["stores"], _stores())
+        v = CS.view(OWNER, rec, T0 + 3 * 3600 * 1000, online=False, source="cache")
+        self.assertTrue(v["ok"])
+        self.assertEqual(v["words"], "Dean · offline · last upload 3 hr ago · the site could not be read, "
+                                     "showing this PC's last copy")
+        self.assertEqual(v["t"], T0)
+        path = CS.cache_path(d, OWNER)
+        with io.open(path, encoding="utf-8") as fh:
+            held = json.load(fh)
+        held["stores"]["d2r_owned"] = '["planted"]'
+        with io.open(path, "w", encoding="utf-8") as fh:
+            json.dump(held, fh)
+        self.assertIsNone(CS.read_cache(d, OWNER), "a tampered cache was served")
+
+    def test_presence_names_the_owner_or_says_unknown(self):
+        mac = {"ok": True, "online": [], "offline": []}
+        self.assertIsNone(CS.online_of(OWNER, mac))
+        self.assertIsNone(CS.online_of(OWNER, {"ok": False}))
+        self.assertIsNone(CS.online_of(OWNER, None))
+        nick = next(n for n in ("Dean", "dean", "Dean PC") if RP.owner_of(n, "windows") == OWNER)
+        self.assertTrue(CS.online_of(OWNER, {"ok": True, "online": [{"nickname": nick, "platform": "windows"}]}))
+        self.assertFalse(CS.online_of(OWNER, {"ok": True, "offline": [{"nickname": nick, "platform": "windows"}]}))
+
+
+# The worker, run as it ships, on a fake KV. Each step posts exact bytes with its own headers.
+_HARNESS = r"""
+import { pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
+const CFG = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const bytes = (s) => new Uint8Array(Buffer.from(s || '', 'base64'));
+let store = new Map(Object.entries(CFG.seed || {}).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]));
+let puts = [];
+const kv = { async get(n) { return store.has(n) ? store.get(n) : null; },
+             async put(n, v) { puts.push(n); store.set(n, v); } };
+const mod = await import(pathToFileURL(CFG.file).href);
+const out = { steps: [], gets: [] };
+for (const step of (CFG.steps || [])) {
+  if (step.seed) store = new Map(Object.entries(step.seed).map(([k, v]) => [k, typeof v === 'string' ? v : JSON.stringify(v)]));
+  puts = [];
+  const realNow = Date.now;
+  if (typeof step.now === 'number') Date.now = () => step.now;
+  if (step.get) {
+    const res = await mod.onRequestGet({ request: new Request('https://bull-4-u.com/api/snapshot?owner=' + encodeURIComponent(step.get)),
+                                         env: { TZ_HISTORY: kv } });
+    out.steps.push({ get: JSON.parse(await res.text()), puts: puts });
+  } else {
+    const req = new Request('https://bull-4-u.com/api/snapshot', { method: 'POST', body: bytes(step.raw),
+      headers: Object.assign({ 'content-type': 'application/json' }, step.headers || {}) });
+    const res = await mod.onRequestPost({ request: req, env: { TZ_HISTORY: kv } });
+    out.steps.push({ reply: JSON.parse(await res.text()), puts: puts });
+  }
+  Date.now = realNow;
+}
+out.hash = CFG.hashOf ? mod.hashOfStores(CFG.hashOf) : null;
+const rec = {}; for (const [k, v] of store.entries()) { try { rec[k] = JSON.parse(v); } catch (e) { rec[k] = v; } }
+out.records = rec;
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _node(cfg):
+    cfg = dict(cfg, file=SNAPSHOT_JS)
+    with tempfile.TemporaryDirectory(prefix="tvd_snapshot_js_") as d:
+        h = os.path.join(d, "h.mjs")
+        with io.open(h, "w", encoding="utf-8") as fh:
+            fh.write(_HARNESS)
+        c = os.path.join(d, "cfg.json")
+        with io.open(c, "w", encoding="utf-8") as fh:
+            json.dump(cfg, fh)
+        r = subprocess.run([NODE, h, c], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=240)
+    if r.returncode != 0:
+        raise AssertionError("the snapshot harness failed rc=%s\n%s" % (r.returncode, r.stderr[-2000:]))
+    return json.loads(r.stdout)
+
+
+def _raw(body):
+    return json.dumps(body, ensure_ascii=False).encode("utf-8")
+
+
+def _b64(raw):
+    return base64.b64encode(raw).decode("ascii")
+
+
+class TheWorker(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        if not NODE:
+            raise unittest.SkipTest("node is absent - snapshot.js cannot be run on this PC, so the worker is "
+                                    "UNMEASURED here, not passed")
+        cls.dir = tempfile.mkdtemp(prefix="tvd_snapshot_keys_")
+        cls.key_a = RS.key_path_in(os.path.join(cls.dir, "a"))
+        cls.key_b = RS.key_path_in(os.path.join(cls.dir, "b"))
+        for p in (cls.key_a, cls.key_b):
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            key, why, _made = RS.load_or_create(p)
+            assert key is not None, why
+        with io.open(cls.key_a, encoding="utf-8") as fh:
+            pub = RS.unb64u(json.load(fh)["pub"])
+        cls.seed = {"rosterkey:" + OWNER: {"pub": RS.b64u(pub), "keyId": RS.key_id(pub), "at": 1}}
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.dir, True)
+
+    def _post(self, body, key=None, seed=None, now=None):
+        raw = _raw(body)
+        step = {"raw": _b64(raw), "headers": RS.sign_headers(key, raw)[0] if key else {}}
+        if seed is not None:
+            step["seed"] = seed
+        if now is not None:
+            step["now"] = now
+        return step
+
+    def _body(self, stores=None, boot=False, **over):
+        s = _stores() if stores is None else stores
+        b = {"owner": OWNER, "boot": boot, "signedAt": T0, "hash": CS.digest(s), "stores": s}
+        b.update(over)
+        return b
+
+    def test_the_hash_is_the_same_on_both_sides(self):
+        s = dict(_stores(), d2r_emoji=json.dumps({"icon": "🛡️ ✓ ü"}))
+        self.assertEqual(_node({"hashOf": s})["hash"], CS.digest(s))
+
+    def test_a_signed_upload_is_stored_and_read_back_byte_for_byte(self):
+        out = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0), {"get": OWNER}]})
+        post, got = out["steps"]
+        self.assertTrue(post["reply"]["ok"], post["reply"])
+        self.assertEqual(post["reply"]["stored"], ["snapshot"])
+        self.assertTrue(post["reply"]["intentVerified"])
+        self.assertEqual(got["get"]["stores"], _stores())
+        self.assertEqual(got["get"]["t"], T0)
+        self.assertEqual(got["puts"], [], "a GET wrote to the store")
+        self.assertTrue(CS.record_ok(dict(got["get"], owner=OWNER), OWNER),
+                        "the console would not accept what the worker serves")
+
+    def test_every_refusal_stores_nothing(self):
+        big = dict(_stores(), d2r_big=json.dumps(["x" * 210000]))
+        pic = dict(_stores(), d2r_pic=json.dumps({"art": "data:image/png;base64,AAAA"}))
+        cases = [
+            ("no registered key", self._post(self._body(), self.key_a, seed={}, now=T0), "no registered roster key"),
+            ("unsigned", self._post(self._body(), None, seed=self.seed, now=T0), "not signed"),
+            ("another key", self._post(self._body(), self.key_b, seed=self.seed, now=T0), ""),
+            ("hash mismatch", self._post(self._body(hash="0" * 8), self.key_a, seed=self.seed, now=T0), "hash"),
+            ("a picture", self._post(self._body(stores=pic), self.key_a, seed=self.seed, now=T0), "pictures"),
+            ("oversize", self._post(self._body(stores=big), self.key_a, seed=self.seed, now=T0), "larger"),
+            ("not an owner", self._post(self._body(owner="Somebody"), self.key_a, seed=self.seed, now=T0), "owner"),
+            ("a bad store name", self._post(self._body(stores={"x": "1"}), self.key_a, seed=self.seed, now=T0), "d2r_"),
+        ]
+        out = _node({"steps": [c[1] for c in cases]})
+        for (name, _step, said), got in zip(cases, out["steps"]):
+            self.assertFalse(got["reply"]["ok"], "%s was accepted: %r" % (name, got["reply"]))
+            self.assertIn(said, got["reply"]["why"], name)
+            self.assertEqual(got["puts"], [], "%s wrote to the store" % name)
+
+    def test_change_only_gap_boot_and_the_daily_cap(self):
+        s2 = dict(_stores(), d2r_owned=json.dumps(["Harlequin Crest", "Enigma"]))
+        s3 = dict(_stores(), d2r_owned=json.dumps(["Enigma"]))
+        gap = 30 * 60 * 1000
+        steps = [self._post(self._body(), self.key_a, seed=self.seed, now=T0),
+                 self._post(self._body(), self.key_a, now=T0 + 10 * gap),
+                 self._post(self._body(stores=s2), self.key_a, now=T0 + gap - 1),
+                 self._post(self._body(stores=s2, boot=True), self.key_a, now=T0 + gap - 1),
+                 self._post(self._body(stores=s3), self.key_a, now=T0 + 3 * gap)]
+        out = _node({"steps": steps})
+        r = [s["reply"] for s in out["steps"]]
+        self.assertEqual(r[0]["stored"], ["snapshot"])
+        self.assertEqual(r[1]["skipped"], ["unchanged"])
+        self.assertEqual(r[2]["skipped"], ["within 30 min"])
+        self.assertEqual(r[3]["stored"], ["snapshot"], "the boot upload was held back")
+        self.assertEqual(r[4]["stored"], ["snapshot"])
+        self.assertEqual(out["records"]["snapshot:" + OWNER]["n"], 3)
+        day = __import__("time").strftime("%Y-%m-%d", __import__("time").gmtime(T0 // 1000))
+        full = dict(self.seed)
+        full["snapshot:" + OWNER] = {"owner": OWNER, "t": T0 - 4 * gap, "day": day, "n": 20, "hash": "x",
+                                     "stores": {"d2r_owned": "[]"}, "pub": None}
+        capped = _node({"steps": [self._post(self._body(), self.key_a, seed=full, now=T0)]})["steps"][0]
+        self.assertFalse(capped["reply"]["ok"])
+        self.assertIn("quota", capped["reply"]["why"])
+        self.assertEqual(capped["puts"], [])
+
+    def test_a_record_that_fails_its_own_hash_is_served_as_corrupt(self):
+        seed = dict(self.seed)
+        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_stores()),
+                                     "stores": dict(_stores(), d2r_owned='["planted"]')}
+        out = _node({"steps": [{"get": OWNER, "seed": seed}, {"get": "Wife PC"}, {"get": "Somebody"}]})
+        corrupt, none, bad = (s["get"] for s in out["steps"])
+        self.assertTrue(corrupt["corrupt"])
+        self.assertNotIn("stores", corrupt)
+        self.assertEqual((none["ok"], none["published"]), (True, False))
+        self.assertFalse(bad["ok"])
+
+
+class TheConsoleDoors(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        import control_app as CA
+        cls.CA = CA
+        cls.src = _read(APP)
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="tvd_snapshot_console_")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        p = mock.patch.object(self.CA, "_log_root", lambda: self.tmp)
+        p.start()
+        self.addCleanup(p.stop)
+        q = mock.patch.object(self.CA, "_beacon_suppressed_by", lambda: None)
+        q.start()
+        self.addCleanup(q.stop)
+
+    def _fleet(self, rows_online=(), rows_offline=()):
+        return mock.patch.object(self.CA, "fleet_presence_last_good",
+                                 lambda: ({"ok": True, "online": list(rows_online), "offline": list(rows_offline)}, 1))
+
+    def test_the_site_answers_then_goes_down_and_the_last_copy_is_shown_with_its_time(self):
+        rec = dict(_record(), ok=True, published=True, corrupt=False, intentVerified=True)
+        with mock.patch.object(self.CA, "_roster_get", lambda url: rec), self._fleet():
+            v = self.CA._snapshot_view(OWNER)
+        self.assertEqual((v["ok"], v["source"], v["stores"]), (True, "worker", _stores()))
+        with mock.patch.object(self.CA, "_roster_get", lambda url: {"ok": False, "why": "URLError"}), self._fleet():
+            v = self.CA._snapshot_view(OWNER)
+        self.assertTrue(v["ok"], "with the site down the PC's last copy was not shown")
+        self.assertEqual((v["source"], v["t"], v["stores"]), ("cache", T0, _stores()))
+        self.assertIn("last upload", v["words"])
+        self.assertIn("showing this PC's last copy", v["words"])
+
+    def test_nothing_uploaded_is_said(self):
+        with mock.patch.object(self.CA, "_roster_get", lambda url: {"ok": True, "owner": OWNER, "published": False}), \
+                self._fleet():
+            v = self.CA._snapshot_view(OWNER)
+        self.assertFalse(v["ok"])
+        self.assertIn("has not uploaded", v["why"])
+
+    def test_the_book_takes_only_what_may_leave_and_the_lane_signs_with_the_roster_key(self):
+        got = self.CA._snapshot_book_take({"stores": dict(_stores(), d2r_installId="x", d2r_tvdHist="[]")})
+        self.assertTrue(got["ok"])
+        with io.open(os.path.join(self.tmp, "snapshot_book.json"), encoding="utf-8") as fh:
+            book = json.load(fh)
+        self.assertEqual(book["stores"], _stores())
+        posted = []
+        with mock.patch.object(self.CA, "_snapshot_owner", lambda: OWNER), \
+                mock.patch.object(self.CA, "_snapshot_chars_learned", lambda: {"ok": True, "chars": []}), \
+                mock.patch.object(self.CA, "main_locks_view", lambda: {"ok": False, "locked": None}), \
+                mock.patch.object(self.CA, "_roster_post",
+                                  lambda url, body, key: posted.append((url, body, key)) or
+                                  {"ok": True, "stored": ["snapshot"]}):
+            self.CA._snapshot_publish_once(True)
+            self.CA._snapshot_publish_once(False)
+        self.assertEqual(len(posted), 1, "an unchanged snapshot was uploaded again")
+        url, body, key = posted[0]
+        self.assertEqual(url, "https://bull-4-u.com/api/snapshot")
+        self.assertEqual(key, os.path.join(self.tmp, ".roster_key.json"))
+        self.assertIn("d2r_api_chars_learned", body["stores"])
+        self.assertNotIn("d2r_api_main_locks", body["stores"], "an unreadable console answer was uploaded")
+
+    def test_a_suppressed_pc_uploads_nothing(self):
+        self.CA._snapshot_book_take({"stores": _stores()})
+        posted = []
+        with mock.patch.object(self.CA, "_beacon_suppressed_by", lambda: "a fixture world"), \
+                mock.patch.object(self.CA, "_roster_post", lambda *a: posted.append(a)):
+            self.CA._snapshot_publish_once(True)
+        self.assertEqual(posted, [])
+
+    def test_the_routes_and_the_lane_are_wired(self):
+        src = self.src
+        self.assertEqual(src.count('if path == "/api/snapshot-view":'), 1)
+        self.assertEqual(src.count('if path == "/api/snapshot-book":'), 1)
+        door = src[src.index('if path == "/api/snapshot-book":'):]
+        door = door[:door.index("return\n", door.index("_snapshot_book_take")) + 7]
+        self.assertIn("console_may_post(", door, "the snapshot book door lost its origin gate")
+        self.assertLess(door.index("console_may_post("), door.index("_snapshot_book_take("))
+        self.assertIn('threading.Thread(target=_snapshot_publish_loop, daemon=True, name="tvd-snapshot").start()', src)
+
+
+class TheViewerPanel(unittest.TestCase):
+
+    def test_a_click_asks_for_the_snapshot_and_falls_back_to_the_roster_row(self):
+        ui = _read(UI)
+        self.assertIn("(window._shadowOpen || window._shadowEnter)(btn.getAttribute('data-owner') || '')", ui)
+        start = ui.index("  window._shadowOpen = function (owner) {")
+        body = ui[start:ui.index("  };", start)]
+        self.assertIn("/api/snapshot-view?owner=", body)
+        self.assertIn("window._shadowSnapEnter(owner, d)", body)
+        self.assertEqual(body.count("window._shadowEnter(owner)"), 2, "no fallback on a missing or failed snapshot")
+        enter = ui[ui.index("  window._shadowSnapEnter = function"):start]
+        self.assertIn("&tvd-shadow=1", enter)
+        self.assertIn("' · read only'", enter)
+
+
+class TheSameConsoleDrawsIt(unittest.TestCase):
+    """Elad's ruling (2026-10-24): shadow is his own console with Dean's data - the same shell, the same screens, tabs
+    and layout, only the data swapped. So the shadow may differ from the console in exactly two places: the boot
+    block that swaps the store (and dims the controls a click cannot reach), and the upload that a shadow never
+    makes. Everything that DRAWS is the one board, unbranched."""
+
+    def _spans(self, html):
+        b0 = html.index("/* SHADOW MODE BOOT")
+        b1 = html.index("</script>", b0)
+        u0 = html.index("/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE.")
+        u1 = html.index("</script>", u0)
+        return (b0, b1), (u0, u1)
+
+    def test_no_screen_of_the_board_branches_on_the_shadow(self):
+        html = _read(BIBLE)
+        (b0, b1), (u0, u1) = self._spans(html)
+        outside = [html.count("\n", 0, m.start()) + 1 for m in re.finditer(r"_tvdShadow|tvd-shadow-snap", html)
+                   if not (b0 <= m.start() < b1 or u0 <= m.start() < u1)]
+        self.assertEqual(outside, [], "bible.html draws something differently in shadow at line(s) %r - the shadow "
+                                      "must render through the same templates as the console" % outside)
+
+    def test_the_shadow_frame_is_the_consoles_own_board_document(self):
+        ui = _read(UI)
+        enter = ui[ui.index("  window._shadowSnapEnter = function"):ui.index("  window._shadowOpen = function")]
+        srcs = re.findall(r"f\.src = '([^']*)'", enter)
+        self.assertEqual(srcs, ["/board?app=1&engine=1&tvd-shadow=1&v="], "the shadow is not the board the console "
+                                                                           "pane loads: %r" % srcs)
+        self.assertIn("<iframe id=\"tvd-eng\" src=\"/board?app=1&engine=1&", ui)
+
+    def test_the_consoles_own_header_routes_the_shadow(self):
+        ui = _read(UI)
+        route = ui[ui.index("  function _shellRoute(tab){"):ui.index("  function _shellVeil(tab){")]
+        self.assertIn("document.getElementById(_snap ? 'shadow-eng' : 'tvd-eng')", route)
+        go = ui[ui.index("  function _headTabGo(e){"):ui.index("  if (_ht) {", ui.index("  function _headTabGo(e){"))]
+        i = go.index("contains('shadow-on')")
+        self.assertLess(i, go.index("shellHome()"), "TV·D leaves the shadow for this PC's own cockpit")
+        self.assertLess(i, go.index("showSessions()"), "Sessions leaves the shadow for this PC's own hub")
+        self.assertIn("shellOpen(b.dataset.tab);\n      return;", go[i:])
+
+    def test_the_marker_names_the_owner_and_the_snapshot_time(self):
+        ui = _read(UI)
+        enter = ui[ui.index("  window._shadowSnapEnter = function"):ui.index("  window._shadowOpen = function")]
+        self.assertIn("at = ' · snapshot ' + new Date(d.t).toLocaleString(", enter)
+        self.assertIn("who.textContent = String(d.words || owner) + at + ' · read only';", enter)
+        self.assertIn('<div id="shadow-bar" hidden><span id="shadow-who">', ui)
+
+
+# The boot block of bible.html, run in node on fake window/document objects: the page's own script.
+_BOOT = r"""
+const fs = require('fs');
+const CFG = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const html = fs.readFileSync(CFG.bible, 'utf8');
+const at = html.indexOf('/* SHADOW MODE BOOT');
+const s0 = html.lastIndexOf('<script>', at) + 8, s1 = html.indexOf('</script>', at);
+const code = html.slice(s0, s1);
+const listeners = {};
+const realLS = { setItem() { throw new Error('real localStorage touched'); }, getItem() { throw new Error('real localStorage read'); } };
+const sent = [];
+class Resp { constructor(b, o) { this.body = b; this.status = (o && o.status) || 200; } async json() { return JSON.parse(this.body); } async text() { return this.body; } }
+const doc = { documentElement: { classList: { list: [], add(c) { this.list.push(c); } } }, head: { appendChild() {} },
+  createElement() { return { textContent: '' }; }, write(t) { out.wrote = t; },
+  addEventListener(t, f, cap) { (listeners[t] = listeners[t] || []).push(f); } };
+const out = { wrote: null };
+function run(parentSnap, search) {
+  const win = { location: { search: search, href: 'http://127.0.0.1/board' + search },
+    parent: parentSnap === undefined ? null : { _tvdShadowSnap: parentSnap },
+    fetch: (u, i) => { sent.push([String(u), (i && i.method) || 'GET']); return Promise.resolve(new Resp('{}')); },
+    stop() { out.stopped = true; }, open() { sent.push(['open']); } };
+  win.parent = win.parent || win;
+  Object.defineProperty(win, 'localStorage', { configurable: true, get: () => realLS });
+  Object.defineProperty(win, 'sessionStorage', { configurable: true, get: () => realLS });
+  const XHR = function () {}; XHR.prototype.open = function () {}; XHR.prototype.send = function () { sent.push(['xhr']); };
+  const nav = { sendBeacon() { sent.push(['beacon']); return true; } };
+  const f = new Function('window', 'document', 'localStorage', 'XMLHttpRequest', 'navigator', 'Response', 'URL',
+                         'with (window) {' + code + '}');
+  let threw = null;
+  try { f(win, doc, undefined, XHR, nav, Resp, URL); } catch (e) { threw = String(e.message || e); }
+  return { win, threw, XHR, nav };
+}
+(async () => {
+  const res = {};
+  const off = run(undefined, '');
+  res.offUntouched = off.threw === null && !off.win._tvdShadow;
+  const closed = run({ owner: 'Dean' }, '?tvd-shadow=1');
+  res.closedThrew = closed.threw; res.closedStopped = !!out.stopped; res.closedWrote = out.wrote;
+  out.stopped = false;
+  const r = run(CFG.snap, '?app=1&tvd-shadow=1');
+  const w = r.win;
+  res.threw = r.threw;
+  res.memIsLocal = w.localStorage !== realLS && w.sessionStorage !== realLS;
+  res.seeded = {}; for (const k of Object.keys(CFG.snap.stores)) res.seeded[k] = w.localStorage.getItem(k);
+  w.localStorage.setItem('d2r_written', '1');
+  w.sessionStorage.setItem('x', '1');
+  res.claim = w.localStorage.getItem('d2r_ownerClaim');
+  res.install = w.localStorage.getItem('d2r_installId');
+  const asks = [['/api/chars_learned', 'GET'], ['/api/main_locks', 'GET'], ['/api/status', 'GET'],
+                ['/api/snapshot-book', 'POST'], ['/assets/x.png', 'POST'], ['http://evil.example/api/x', 'GET'],
+                ['/api/chars_learned', 'POST'], ['/fonts/a.woff2', 'GET']];
+  res.answers = [];
+  for (const [u, m] of asks) { const resp = await w.fetch(u, { method: m }); res.answers.push(await resp.text()); }
+  const x = new r.XHR(); x.open('POST', '/api/vault'); x.send();
+  r.nav.sendBeacon('/api/x', '1');
+  w.open('/x');
+  res.sent = sent;
+  res.refused = w._tvdShadowRefused;
+  res.indexedDB = typeof w.indexedDB;
+  res.cls = doc.documentElement.classList.list;
+  // the click veil: a write button is stopped, a VIEW control and a plain tab pass
+  const mk = (onclick, cls) => ({ getAttribute: (n) => (n === 'onclick' ? onclick : null),
+    closest(sel) { if (sel.indexOf('.tab') === 0) return cls === 'tab' ? this : null; return this; } });
+  const fire = (el) => { let stopped = false; const ev = { target: { closest: (sel) => el.closest(sel) },
+    preventDefault() {}, stopImmediatePropagation() { stopped = true; } };
+    for (const f of listeners.click || []) f(ev); return stopped; };
+  res.veil = { del: fire(mk("_cbDelete('bx1')")), set: fire(mk('_cbMainSet(1)')), open: fire(mk("openCharBuilder('bx1')")),
+               mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')) };
+  const keyEv = { target: { tagName: 'INPUT' }, preventDefault() {}, stopImmediatePropagation() { this.stopped = true; } };
+  for (const f of listeners.keydown || []) f(keyEv);
+  res.typing = !!keyEv.stopped;
+  res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'pointerdown'].filter((t) => (listeners[t] || []).length);
+  process.stdout.write(JSON.stringify(res));
+})();
+"""
+
+
+class TheShadowFrameBoot(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        if not NODE:
+            raise unittest.SkipTest("node is absent - the boot block cannot be run here, so it is UNMEASURED")
+        snap = {"owner": OWNER, "t": T0,
+                "stores": dict(_stores(), d2r_api_chars_learned='{"ok":true,"chars":[{"name":"Deansorc"}]}')}
+        with tempfile.TemporaryDirectory(prefix="tvd_shadow_boot_") as d:
+            h = os.path.join(d, "boot.js")
+            with io.open(h, "w", encoding="utf-8") as fh:
+                fh.write(_BOOT)
+            c = os.path.join(d, "cfg.json")
+            with io.open(c, "w", encoding="utf-8") as fh:
+                json.dump({"bible": BIBLE, "snap": snap}, fh)
+            r = subprocess.run([NODE, h, c], capture_output=True, text=True, encoding="utf-8", errors="replace",
+                               timeout=120)
+        if r.returncode != 0:
+            raise AssertionError("the boot harness failed rc=%s\n%s" % (r.returncode, r.stderr[-2000:]))
+        cls.r = json.loads(r.stdout)
+        cls.snap = snap
+
+    def test_a_normal_board_is_untouched(self):
+        self.assertTrue(self.r["offUntouched"])
+
+    def test_no_snapshot_fails_closed(self):
+        self.assertEqual(self.r["closedThrew"], "tvd-shadow: closed")
+        self.assertTrue(self.r["closedStopped"])
+        self.assertIn("Nothing was read from or written to this PC", self.r["closedWrote"])
+
+    def test_the_board_boots_on_their_stores_in_memory(self):
+        self.assertIsNone(self.r["threw"])
+        self.assertTrue(self.r["memIsLocal"], "the page was handed this browser's real storage")
+        self.assertEqual(self.r["seeded"], self.snap["stores"])
+        self.assertEqual((self.r["claim"], self.r["install"]), ("*", "tvdshadow0000000"))
+        self.assertEqual(self.r["cls"], ["tvd-shadow-snap"],
+                         "the frame took the phase-1 tvd-shadow class, which hides their reels")
+
+    def test_no_request_but_a_plain_get_leaves_and_their_answers_are_served_from_the_snapshot(self):
+        a = self.r["answers"]
+        self.assertEqual(json.loads(a[0]), {"ok": True, "chars": [{"name": "Deansorc"}]})
+        self.assertEqual(json.loads(a[1])["why"], "shadow: read only", "main_locks absent from the snapshot leaked")
+        for i in (2, 3, 4, 5, 6):
+            self.assertEqual(json.loads(a[i])["why"], "shadow: read only", "request %d left the frame" % i)
+        self.assertEqual(self.r["sent"], [["/fonts/a.woff2", "GET"]],
+                         "something other than a plain GET of a file left the frame")
+        self.assertEqual(self.r["refused"], 9)
+        self.assertEqual(self.r["indexedDB"], "undefined")
+
+    def test_write_controls_and_typing_are_stopped_view_controls_pass(self):
+        v = self.r["veil"]
+        self.assertTrue(v["del"] and v["set"], "a write button reached the page in shadow")
+        self.assertFalse(v["open"] or v["mule"] or v["tab"], "a view control was stopped: %r" % v)
+        self.assertTrue(self.r["typing"])
+        self.assertEqual(sorted(self.r["blocks"]),
+                         sorted(["change", "input", "submit", "drop", "paste", "dragstart", "pointerdown"]))
+
+
+RED_PROOF = [
+    {"why": "Shadow: a board screen draws differently in shadow (a render branch on _tvdShadow)",
+     "file": "bible.html",
+     "find": "  function renderVault(){\n",
+     "replace": "  function renderVault(){ if (window._tvdShadow) {}\n", "matches": 1},
+    {"why": "Shadow: the shadow frame loads a viewer page of its own instead of the console's board",
+     "file": "control_ui.html",
+     "find": "    f.src = '/board?app=1&engine=1&tvd-shadow=1&v=' + Date.now() + '#chars';\n",
+     "replace": "    f.src = '/shadow?tvd-shadow=1&v=' + Date.now() + '#chars';\n", "matches": 1},
+    {"why": "Shadow: TV·D in shadow drops to this PC's own cockpit",
+     "file": "control_ui.html",
+     "find": "    if (document.body.classList && document.body.classList.contains('shadow-on')) {\n",
+     "replace": "    if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }\n    if (document.body.classList && document.body.classList.contains('shadow-on')) {\n",
+     "matches": 1},
+    {"why": "Shadow: the marker loses the snapshot time",
+     "file": "control_ui.html",
+     "find": "    if (who) who.textContent = String(d.words || owner) + at + ' · read only';\n",
+     "replace": "    if (who) who.textContent = String(d.words || owner) + ' · read only';\n", "matches": 1},
+    {"why": "Shadow: the boot block hands the page the browser's real localStorage, so a shadow writes his own store",
+     "file": "bible.html",
+     "find": "      Object.defineProperty(window, 'localStorage', { configurable: true, get: function () { return mem; } });\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the fetch guard lets a POST to the console through",
+     "file": "bible.html",
+     "find": "      if (m !== 'GET' && m !== 'HEAD') return true;\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the frame boots with no snapshot instead of failing closed",
+     "file": "bible.html",
+     "find": "    if (!ok || !stores) {\n",
+     "replace": "    if (!ok) {\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a write button is let through the click veil",
+     "file": "bible.html",
+     "find": "      if (!ctl || viewOnly(ctl)) return;\n",
+     "replace": "      return;\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the frame takes the phase-1 tvd-shadow class and hides their in-game characters",
+     "file": "bible.html",
+     "find": "    document.documentElement.classList.add('tvd-shadow-snap');\n",
+     "replace": "    document.documentElement.classList.add('tvd-shadow-snap'); document.documentElement.classList.add('tvd-shadow');\n",
+     "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker stores a snapshot for an owner with no registered key (registers one)",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (registered === null) return refuse(",
+     "replace": "  if (registered === 'never') return refuse(", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker stores a snapshot whose stores do not match the signed hash",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (body.hash !== hash) return refuse(",
+     "replace": "  if (false) return refuse(", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker's daily cap is gone",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (n >= DAY_CAP) return refuse(",
+     "replace": "  if (false) return refuse(", "matches": 1, "needs": "node"},
+    {"why": "Shadow: GET serves a record that fails its own hash as stores",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (!storesOk(prev.stores) || prev.hash !== hashOfStores(prev.stores)) {\n",
+     "replace": "  if (!storesOk(prev.stores)) {\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the install id store leaves the PC",
+     "file": "tv/console_snapshot.py",
+     "find": "    \"d2r_grailFarm\", \"d2r_storeEmptied\", \"d2r_installId\", ",
+     "replace": "    \"d2r_grailFarm\", \"d2r_storeEmptied\", ", "matches": 1},
+    {"why": "Shadow: a path on disk leaves the PC inside a store",
+     "file": "tv/console_snapshot.py",
+     "find": "    re.compile(r\"(?:/Users/|/home/|/private/|/var/folders/)[^\\s\\\"']*\"),\n",
+     "replace": "", "matches": 1},
+    {"why": "Shadow: the viewer is told 'live' with no age of the upload",
+     "file": "tv/console_snapshot.py",
+     "find": "        state, words = \"live\", \"%s · live · last change uploaded %s\" % (owner, ago)\n",
+     "replace": "        state, words = \"live\", \"%s · live\" % owner\n", "matches": 1},
+    {"why": "Shadow: with the site down the viewer gets nothing instead of the PC's last copy",
+     "file": "tv/control_app.py",
+     "find": "        rec = _cs.read_cache(cdir, owner)\n",
+     "replace": "        rec = None\n", "matches": 1},
+    {"why": "Shadow: a tampered record is shown",
+     "file": "tv/console_snapshot.py",
+     "find": "    return rec.get(\"hash\") == digest(stores)\n",
+     "replace": "    return True\n", "matches": 1},
+    {"why": "Shadow: an unchanged snapshot is uploaded every pass",
+     "file": "tv/console_snapshot.py",
+     "find": "    if state.get(\"hash\") == d and not boot:\n",
+     "replace": "    if False:\n", "matches": 1},
+    {"why": "Shadow: the console panel never falls back to the roster row",
+     "file": "tv/control_ui.html",
+     "find": "      .catch(function () { if (gen === _shadowGen) window._shadowEnter(owner); });\n",
+     "replace": "      .catch(function () {});\n", "matches": 1},
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=1)

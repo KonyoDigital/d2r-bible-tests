@@ -3769,6 +3769,165 @@ tr.owned-row{background:rgba(102,255,136,.03)}
      page renders immediately in the system fallback (var(--serif-display)/var(--sans) stacks) and
      swaps to Cinzel/Playfair/Inter once they arrive (display=swap → no invisible-text flash). -->
 <script>
+  /* SHADOW MODE BOOT - ANOTHER CONSOLE'S BOARD, IN MEMORY, READ ONLY. This block runs before any other script on
+     the page and only when the URL carries tvd-shadow=. The console's #shadow-eng frame sets that, after it put
+     the other owner's uploaded stores on window._tvdShadowSnap (tv/console_snapshot.py, /api/snapshot-view).
+     The board then boots on a localStorage that lives in this frame's memory and holds only those stores, so
+     every screen (characters, equipped, inventory, stash, mules, vault) draws from them exactly as it draws from
+     its own, and every write the board makes lands in that memory and is gone when the frame closes. The real
+     localStorage, sessionStorage and IndexedDB of this browser are never handed to the page, no /api/ call and no
+     non-GET request leaves the frame, and a frame that cannot be isolated stops itself (fails closed). */
+  (function () {
+    var q = '';
+    try { q = String(window.location.search || ''); } catch (e) { q = ''; }
+    if (!/[?&]tvd-shadow=/.test(q)) return;
+    function memoryStore(seed) {
+      var data = Object.create(null);
+      var order = [];
+      function has(k) { return Object.prototype.hasOwnProperty.call(data, k); }
+      var s = {
+        getItem: function (k) { k = String(k); return has(k) ? data[k] : null; },
+        setItem: function (k, v) { k = String(k); if (!has(k)) order.push(k); data[k] = String(v); },
+        removeItem: function (k) { k = String(k); if (!has(k)) return; delete data[k]; order.splice(order.indexOf(k), 1); },
+        clear: function () { data = Object.create(null); order = []; },
+        key: function (i) { i = Number(i); return (i >= 0 && i < order.length) ? order[i] : null; }
+      };
+      Object.defineProperty(s, 'length', { get: function () { return order.length; } });
+      Object.keys(seed || {}).forEach(function (k) { if (typeof seed[k] === 'string') s.setItem(k, seed[k]); });
+      return s;
+    }
+    var snap = null;
+    try { snap = (window.parent && window.parent !== window) ? window.parent._tvdShadowSnap : null; } catch (e) { snap = null; }
+    var stores = (snap && snap.stores && typeof snap.stores === 'object') ? snap.stores : null;
+    var seed = {};
+    if (stores) Object.keys(stores).forEach(function (k) {
+      if (/^d2r_[A-Za-z0-9_]{1,60}$/.test(k) && typeof stores[k] === 'string') seed[k] = stores[k];
+    });
+    // The viewer's board is the OWNER world of this memory (bare names, the same names _collectProgress exported)
+    // under a fixed id, so it never mints or reads this browser's install id.
+    seed.d2r_ownerClaim = '*';
+    seed.d2r_installIdCache = 'tvdshadow0000000';
+    seed.d2r_installId = 'tvdshadow0000000';
+    var mem = memoryStore(seed);
+    var sess = memoryStore({});
+    var ok = false;
+    try {
+      Object.defineProperty(window, 'localStorage', { configurable: true, get: function () { return mem; } });
+      Object.defineProperty(window, 'sessionStorage', { configurable: true, get: function () { return sess; } });
+      ok = window.localStorage === mem && localStorage === mem && window.sessionStorage === sess;
+    } catch (e) { ok = false; }
+    if (!ok || !stores) {
+      try { window.stop(); } catch (e) {}
+      document.write('<p style="font:16px sans-serif;color:#ddd;background:#111;padding:24px">Shadow could not open: ' +
+        (!stores ? 'no snapshot was handed to this frame.' : 'this browser would not isolate the board.') +
+        ' Nothing was read from or written to this PC.</p>');
+      throw new Error('tvd-shadow: closed');
+    }
+    function refused() {
+      return Promise.resolve(new Response(JSON.stringify({ ok: false, why: 'shadow: read only' }),
+        { status: 200, headers: { 'content-type': 'application/json' } }));
+    }
+    function blocked(url, method) {
+      var m = String(method || 'GET').toUpperCase();
+      if (m !== 'GET' && m !== 'HEAD') return true;
+      var path = '';
+      try { path = new URL(String(url), window.location.href).pathname; } catch (e) { return true; }
+      return path.indexOf('/api/') !== -1 || path.indexOf('/api') === 0;
+    }
+    var realFetch = window.fetch;
+    window._tvdShadowRefused = 0;
+    // The two console answers the owner's screens draw beside the stores (console_snapshot.API_FIELDS) are served
+    // from the snapshot, never from this console: theirs, not ours.
+    function answered(url, method) {
+      var m = String(method || 'GET').toUpperCase();
+      if (m !== 'GET') return null;
+      var path = '';
+      try { path = new URL(String(url), window.location.href).pathname; } catch (e) { return null; }
+      var hit = /^\/api\/(chars_learned|main_locks)$/.exec(path);
+      if (!hit || typeof seed['d2r_api_' + hit[1]] !== 'string') return null;
+      return Promise.resolve(new Response(seed['d2r_api_' + hit[1]],
+        { status: 200, headers: { 'content-type': 'application/json' } }));
+    }
+    window.fetch = function (input, init) {
+      var url = input && typeof input === 'object' && 'url' in input ? input.url : input;
+      var method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
+      var theirs = answered(url, method);
+      if (theirs) return theirs;
+      if (blocked(url, method)) { window._tvdShadowRefused++; return refused(); }
+      return realFetch.apply(window, arguments);
+    };
+    try {
+      var XO = XMLHttpRequest.prototype.open, XS = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function (method, url) { this._tvdShadowNo = blocked(url, method); return XO.apply(this, arguments); };
+      XMLHttpRequest.prototype.send = function () { if (this._tvdShadowNo) { window._tvdShadowRefused++; return; } return XS.apply(this, arguments); };
+    } catch (e) {}
+    try { navigator.sendBeacon = function () { window._tvdShadowRefused++; return false; }; } catch (e) {}
+    try { Object.defineProperty(window, 'indexedDB', { configurable: true, get: function () { return undefined; } }); } catch (e) {}
+    try { window.open = function () { window._tvdShadowRefused++; return null; }; } catch (e) {}
+    try { window.showDirectoryPicker = undefined; } catch (e) {}
+    // THE WRITE CONTROLS ARE DEAD HERE. A click reaches only what moves the view: the tabs, a fold, and the
+    // handlers named in VIEW (open a character, pick a gear set, open a stash tab, scroll the vault). Every other
+    // button, link, field and form control is stopped before the page's own handler sees it, and typing goes
+    // nowhere. Writes the page makes on its own (boot repairs, timers) land in the memory store above.
+    var VIEW = ['switchTab', '_cbSetActive', '_cbView', '_cbOpenStash', '_cbCloseStash', '_cbStashTab', '_cbStashArea',
+                '_cbStashCat', '_cbStashFold', 'closeCharBuilder', '_charsOpen', 'openCharBuilder',
+                'openMuleCard', 'vaultCloseCard', '_muleSetPage', '_muleOpenAt', '_sharedSetPage', '_mpSet'];
+    window._tvdShadowView = VIEW;
+    function viewOnly(el) {
+      if (el.closest('.tab, summary, [data-shadow-view]')) return true;
+      var code = (el.getAttribute && el.getAttribute('onclick')) || '';
+      for (var i = 0; i < VIEW.length; i++) if (code.indexOf(VIEW[i] + '(') !== -1) return true;
+      return false;
+    }
+    window._tvdShadowStopped = 0;
+    document.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || !t.closest) return;
+      // the control nearest the click decides; a mule plate (opens that mule's window) counts only when no
+      // control inside it was hit
+      var ctl = t.closest('button, a, input, textarea, select, label, [onclick], [contenteditable], .vault-chip, [draggable="true"]');
+      if (!ctl || viewOnly(ctl)) return;
+      window._tvdShadowStopped++;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }, true);
+    // a press on an item starts a carry (mule window grids, the builder's tiles): stopped before it begins
+    ['pointerdown', 'mousedown'].forEach(function (type) {
+      document.addEventListener(type, function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest || !t.closest('.vd-item[data-key], .vd-item[data-dbkey], [onpointerdown], [onmousedown]')) return;
+        window._tvdShadowStopped++;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+      }, true);
+    });
+    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart'].forEach(function (type) {
+      document.addEventListener(type, function (ev) { window._tvdShadowStopped++; ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
+    });
+    document.addEventListener('keydown', function (ev) {
+      var t = ev.target;
+      var tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) {
+        window._tvdShadowStopped++;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+      }
+    }, true);
+    window._tvdShadow = { owner: String((snap && snap.owner) || ''), t: snap && snap.t, mem: mem };
+    // ...and they LOOK dead: every control a click cannot reach is dimmed in place (opacity only, so the layout
+    // and the text stay one-to-one with their console).
+    try {
+      var live = VIEW.map(function (n) { return ':not([onclick*="' + n + '("])'; }).join('');
+      var css = document.createElement('style');
+      css.id = 'tvd-shadow-dead';
+      css.textContent = 'html.tvd-shadow-snap :is(button, input, select, textarea, [contenteditable], .vault-chip)'
+        + ':not(.tab)' + live + '{opacity:.38 !important;cursor:not-allowed !important;filter:grayscale(.6)}';
+      (document.head || document.documentElement).appendChild(css);
+    } catch (e) {}
+    document.documentElement.classList.add('tvd-shadow-snap');
+  })();
+</script>
+<script>
   /* REG-1275 — "HAS THIS BOARD RUN BEFORE" IS READ BEFORE THIS BOOT WRITES ANYTHING. The loss detector
      (v2988, ~:20909) decides an empty ledger BECAME empty when one of three one-time keys exists - but THIS
      boot writes all three first (d2r_installIdCache ~:3908, d2r_chronSyncMerged_v1 ~:4550,
@@ -82044,6 +82203,49 @@ window.tvStashAutoIntake = async function(tab, opts){
     } catch (e) {}
   };
   setTimeout(function () { try { window._tvdBookPost(); } catch (e) {} }, 4000);
+})();
+</script>
+<script>
+/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE. The active world's stores, exactly as Backup
+   v2 exports them (_collectProgress: bare names, this world only, no pointer or identity key), go to POST
+   /api/snapshot-book whenever they change. The console (tv/console_snapshot.py) decides what may leave the PC and
+   uploads it, signed, so another console can show this one read only. A shadow frame never posts (it has no
+   stores of its own), and a file:// board has no console. */
+(function () {
+  var last = null;
+  function hashOf(text) {
+    var h = 2166136261;
+    for (var i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16);
+  }
+  window._tvdSnapCollect = function () {
+    if (window._tvdShadow || typeof _collectProgress !== 'function') return null;
+    var all = _collectProgress() || {};
+    var stores = {};
+    Object.keys(all).sort().forEach(function (k) {
+      if (/^d2r_[A-Za-z0-9_]{1,60}$/.test(k) && typeof all[k] === 'string') stores[k] = all[k];
+    });
+    return Object.keys(stores).length ? stores : null;
+  };
+  var gone = false;   // the website has no /api/snapshot-book: one 404 and this board stops asking
+  window._tvdSnapPost = function () {
+    if (window._tvdShadow || gone) return false;
+    try { if (location.protocol !== 'http:' && location.protocol !== 'https:') return false; } catch (e) { return false; }
+    var stores = null;
+    try { stores = window._tvdSnapCollect(); } catch (e) { stores = null; }
+    if (!stores) return false;
+    var body = JSON.stringify({ stores: stores });
+    var h = hashOf(body);
+    if (h === last) return false;
+    try {
+      fetch('/api/snapshot-book', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, cache: 'no-store'
+      }).then(function (r) { if (r.ok) last = h; else if (r.status === 404 || r.status === 405) gone = true; }).catch(function () {});
+    } catch (e) { return false; }
+    return true;
+  };
+  setTimeout(function () { try { window._tvdSnapPost(); } catch (e) {} }, 6000);
+  setInterval(function () { try { window._tvdSnapPost(); } catch (e) {} }, 60000);
 })();
 </script>
 </body>

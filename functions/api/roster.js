@@ -62,7 +62,7 @@ const KV_WRITES = 1000;
 const HOUR_MS = 3600 * 1000;
 const TTL_S = 60 * 60 * 24 * 400;
 
-const OWNERS = ["Konyo · Mac", "Konyo · ALT", "Konyo · GrokBot", "Dean", "Wife PC"];
+export const OWNERS = ["Konyo · Mac", "Konyo · ALT", "Konyo · GrokBot", "Dean", "Wife PC"];
 const SECTIONS = ["characters", "vault", "stash", "owned", "chronicle", "reels"];
 
 const QUOTA_WHY = "roster would not take this publish: quota";
@@ -87,7 +87,7 @@ function dayOf(ms) {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
-function hashOf(s) {
+export function hashOf(s) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
@@ -96,7 +96,7 @@ function hashOf(s) {
   return (h >>> 0).toString(16);
 }
 
-function stable(v) {
+export function stable(v) {
   if (v === null || typeof v !== "object") return JSON.stringify(v);
   if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
   const keys = Object.keys(v).sort();
@@ -207,7 +207,7 @@ async function keyIdOf(pub) {
 }
 
 // #95 - what the two headers prove about these exact bytes. -> {state: none | valid | bad, ...}
-async function signatureOf(request, bytes) {
+export async function signatureOf(request, bytes) {
   const keyText = request.headers.get("x-roster-key");
   const sigText = request.headers.get("x-roster-sig");
   if (!keyText && !sigText) return { state: "none" };
@@ -230,7 +230,7 @@ async function signatureOf(request, bytes) {
 
 // #95 - may this owner's row be written by this publish, and is it the owner's intent?
 // -> {refused: why, registeredKeyId} | {verified, keyId, register}
-function intentOf(owner, registered, sig) {
+export function intentOf(owner, registered, sig) {
   if (registered !== null) {
     const regPub = registered && typeof registered === "object" ? bytesOfB64u(registered.pub) : null;
     if (!regPub || regPub.length !== 32) {
