@@ -93,6 +93,123 @@ class AScratchListingReadsOnlyItsOwnScratch(unittest.TestCase):
         with self.assertRaises(ValueError, msg="a %s inside the scratch let a listing read the tree" % how):
             _fx_tmp.list_own(link)
 
+    def test_a_parent_swapped_for_a_link_lists_nothing(self):
+        """★ REG-2455 (A2's Grok low 2) - _own() re-resolved the contained parent on EVERY call, so renaming the parent
+        and putting a link to another tree in its place made that tree "the scratch" - and list_own listed it. contain()
+        now resolves the parent ONCE. Driven in a child process (its own parent, swapped for real): the listing under
+        the swapped parent raises, and the other tree is never listed."""
+        fake = tempfile.mkdtemp(prefix="fake_tree_")       # outside the CHILD's parent: this process's own scratch
+        prog = (
+            "import os, sys, tempfile, time\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import fixture_tmp as F\n"
+            "def mv(a, b):  # Windows may refuse a rename for a moment while a scanner holds a handle\n"
+            "    for i in range(25):\n"
+            "        try:\n"
+            "            return os.rename(a, b)\n"
+            "        except PermissionError:\n"
+            "            if os.name != 'nt' or i == 24:\n"
+            "                raise\n"
+            "            time.sleep(0.2)\n"
+            "parent = F.contain()\n"
+            "sub = tempfile.mkdtemp(prefix='own_')\n"
+            "open(os.path.join(sub, 'real.txt'), 'w').close()\n"
+            "fake = sys.argv[2]\n"
+            "os.makedirs(os.path.join(fake, os.path.basename(sub)))\n"
+            "open(os.path.join(fake, os.path.basename(sub), 'FAKE.txt'), 'w').close()\n"
+            "moved = parent + '.moved'\n"
+            "mv(parent, moved)\n"
+            "how = F.link_dir(fake, parent)\n"
+            "try:\n"
+            "    if not how or os.path.realpath(parent) != os.path.realpath(fake):\n"
+            "        print('NOLINK')\n"
+            "    else:\n"
+            "        try:\n"
+            "            print('LISTED %r' % sorted(F.list_own(sub)))\n"
+            "        except ValueError:\n"
+            "            print('REFUSED')\n"
+            "        try:\n"
+            "            print('MATCHED %r' % F.match_own(os.path.join(sub, '*.txt')))\n"
+            "        except ValueError:\n"
+            "            print('REFUSED')\n"
+            "finally:\n"
+            "    if how:\n"
+            "        F.unlink_dir_link(parent)\n"
+            "    mv(moved, parent)\n")
+        r = subprocess.run([sys.executable, "-B", "-c", prog, HERE, fake], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=60)
+        out = (r.stdout or "").strip().splitlines()
+        if out == ["NOLINK"]:
+            if _fx_tmp.can_link_a_directory():
+                self.fail("this PC could not swap the parent for a link, yet heart2's dir-link probe says it can make "
+                          "one - the heart judges this proof here, and a skip would file it BLIND")
+            self.skipTest("this PC can make no directory link - the swap is UNMEASURED here, not passing")
+        self.assertEqual(out, ["REFUSED", "REFUSED"],
+                         "a listing under a parent swapped for a link to another tree was answered - it listed that "
+                         "tree as this process's own scratch: %r %s" % (out, (r.stderr or "")[-400:]))
+
+    def test_a_swap_during_the_listing_answers_nothing(self):
+        """★ REG-2455 - list_own / match_own read the RESOLVED directory and check the path again AFTER the read, so a
+        directory renamed aside and replaced by a link to another tree WHILE it is being listed raises: that tree's
+        names are never handed back as this scratch's. Driven in a child process whose own listing call makes the swap
+        (os.listdir for list_own, os.scandir for match_own's glob), between fixture_tmp's check and its read."""
+        fake = tempfile.mkdtemp(prefix="fake_tree_")       # outside the CHILD's parent: this process's own scratch
+        with open(os.path.join(fake, "FAKE.txt"), "w") as fh:
+            fh.write("another tree\n")
+        prog = (
+            "import os, sys, tempfile, time\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import fixture_tmp as F\n"
+            "def mv(a, b):  # Windows may refuse a rename for a moment while a scanner holds a handle\n"
+            "    for i in range(25):\n"
+            "        try:\n"
+            "            return os.rename(a, b)\n"
+            "        except PermissionError:\n"
+            "            if os.name != 'nt' or i == 24:\n"
+            "                raise\n"
+            "            time.sleep(0.2)\n"
+            "F.contain()\n"
+            "fake = sys.argv[2]\n"
+            "def attempt(call, name):\n"
+            "    sub = tempfile.mkdtemp(prefix='own_')\n"
+            "    open(os.path.join(sub, 'real.txt'), 'w').close()\n"
+            "    real, done = getattr(os, name), {}\n"
+            "    def swapping(*a, **k):\n"
+            "        if not done:\n"
+            "            done['moved'] = sub + '.moved'\n"
+            "            mv(sub, done['moved'])\n"
+            "            done['how'] = F.link_dir(fake, sub)\n"
+            "            if not done['how']:\n"
+            "                raise RuntimeError('no link')\n"
+            "        return real(*a, **k)\n"
+            "    setattr(os, name, swapping)\n"
+            "    try:\n"
+            "        return 'LISTED %r' % (call(sub),)\n"
+            "    except ValueError:\n"
+            "        return 'REFUSED'\n"
+            "    except RuntimeError:\n"
+            "        return 'NOLINK'\n"
+            "    finally:\n"
+            "        setattr(os, name, real)\n"
+            "        if done.get('how'):\n"
+            "            F.unlink_dir_link(sub)\n"
+            "        if done.get('moved'):\n"
+            "            mv(done['moved'], sub)\n"
+            "print(attempt(lambda d: sorted(F.list_own(d)), 'listdir'))\n"
+            "print(attempt(lambda d: sorted(os.path.basename(x) for x in F.match_own(os.path.join(d, '*.txt'))),"
+            " 'scandir'))\n")
+        r = subprocess.run([sys.executable, "-B", "-c", prog, HERE, fake], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=60)
+        out = (r.stdout or "").strip().splitlines()
+        if "NOLINK" in out:
+            if _fx_tmp.can_link_a_directory():
+                self.fail("this PC could not swap the directory for a link, yet heart2's dir-link probe says it can "
+                          "make one - the heart judges this proof here, and a skip would file it BLIND")
+            self.skipTest("this PC can make no directory link - the swap is UNMEASURED here, not passing")
+        self.assertEqual(out, ["REFUSED", "REFUSED"],
+                         "a directory swapped for a link to another tree while it was being listed was answered - "
+                         "that tree's names came back as this scratch's: %r %s" % (out, (r.stderr or "")[-400:]))
+
     def test_a_wildcard_above_the_last_part_is_refused(self):
         with self.assertRaises(ValueError, msg="a wildcard directory could reach anything under the parent"):
             _fx_tmp.match_own(os.path.join(os.path.dirname(self.d), "*", "f_*.jpg"))
@@ -252,5 +369,32 @@ RED_PROOF = [
         "find": "    \"dir-link\": (\"fixture_tmp\", \"can_link_a_directory\",\n",
         "replace": "    \"dir-link-gone\": (\"fixture_tmp\", \"can_link_a_directory\",\n",
         "matches": 1,
+    },
+    {
+        "why": "REG-2455 - the contained parent is re-resolved on every call: a rename + link swap makes another tree "
+               "'the scratch', and list_own lists it",
+        "file": "fixture_tmp.py",
+        "find": "    root = _HELD.get(\"real\") or os.path.realpath(held)\n",
+        "replace": "    root = os.path.realpath(held)\n",
+        "matches": 1,
+        "needs": "dir-link",
+    },
+    {
+        "why": "REG-2455 - list_own never checks the path again after its read: a swap during the listing hands another "
+               "tree's names back as this scratch's",
+        "file": "fixture_tmp.py",
+        "find": "    _still_own(path, p)\n    return names\n",
+        "replace": "    return names\n",
+        "matches": 1,
+        "needs": "dir-link",
+    },
+    {
+        "why": "REG-2455 - match_own never checks the path again after its glob: a swap during the match hands another "
+               "tree's paths back as this scratch's",
+        "file": "fixture_tmp.py",
+        "find": "    _still_own(d, p)\n",
+        "replace": "    pass\n",
+        "matches": 1,
+        "needs": "dir-link",
     },
 ]

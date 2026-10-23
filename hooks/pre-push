@@ -336,6 +336,20 @@ while read -r _pc_lr _pc_ls _pc_rr _pc_rs; do
 done <<< "$_PUSH_REFS"
 [ -n "$TV_PUSHED_COMMIT" ] || TV_PUSHED_COMMIT="$(git rev-parse --verify -q HEAD 2>/dev/null)"
 export TV_PUSHED_COMMIT
+# REG-2456 (A2's Grok low 4) - THE STAMPS LAW READS ONE COMMIT, SO EVERY OTHER REF THAT SHIPS BYTES IS NAMED HERE. A push of
+# several refs with no main ref handed it the first ref's sha and said nothing of the rest; beside main, the others were
+# just as unread. A ref it does not read is said in this hook's own output, never silently passed.
+_pc_unseen=""
+while read -r _pc_lr _pc_ls _pc_rr _pc_rs; do
+  [ -n "$_pc_ls" ] || continue
+  [ "$_pc_ls" = "0000000000000000000000000000000000000000" ] && continue
+  [ "$_pc_ls" = "$TV_PUSHED_COMMIT" ] && continue
+  _pc_unseen="$_pc_unseen $_pc_rr@${_pc_ls:0:9}"
+done <<< "$_PUSH_REFS"
+if [ -n "$_pc_unseen" ]; then
+  echo "pre-push: [$(_pp_el)] ⚠ this push ships more than one ref: the commit-stamps law reads ONE commit,"
+  echo "          only ${TV_PUSHED_COMMIT:-?}; NOT read by it:$_pc_unseen"
+fi
 # <<< pushed-commit
 # >>> ci-only lane (#182, his go 2026-10-06) — A PUSH WHOSE EVERY REF IS refs/heads/ci/* IS GRADED ON GITHUB.
 # tv/push_lane.py reads the refs being PUSHED (never the current branch) and fails toward the FULL gate: one
