@@ -53,11 +53,38 @@ def _code(text):
 class TheBoundedStep(unittest.TestCase):
 
     def setUp(self):
-        if shutil.which("bash") is None or shutil.which("timeout") is None:
-            self.skipTest("UNMEASURED - no bash/timeout here")
+        if shutil.which("bash") is None:
+            self.skipTest("UNMEASURED - no bash here")
         self.d = tempfile.mkdtemp(prefix="osdeps_")
         self.addCleanup(shutil.rmtree, self.d, True)
         self.log = os.path.join(self.d, "calls")
+        if shutil.which("timeout") is None:
+            self.timeout_shim()
+
+    def timeout_shim(self):
+        """macOS ships no coreutils `timeout`, and a skip there left RED_PROOF [0]-[3] BLIND on his Mac's push.
+        This stands in for `timeout -k K N cmd...` with the same contract the script reads: 124 when cut, and like
+        coreutils it signals the whole process group, so a grandchild cannot hold the step open."""
+        p = os.path.join(self.d, "timeout")
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write("#!%s\n"
+                     "import os, signal, subprocess, sys\n"
+                     "a = sys.argv[1:]\n"
+                     "k = 10.0\n"
+                     "if a[0] == '-k':\n"
+                     "    k = float(a[1]); a = a[2:]\n"
+                     "n = float(a[0]); cmd = a[1:]\n"
+                     "p = subprocess.Popen(cmd, start_new_session=True)\n"
+                     "try:\n"
+                     "    sys.exit(p.wait(timeout=n))\n"
+                     "except subprocess.TimeoutExpired:\n"
+                     "    os.killpg(p.pid, signal.SIGTERM)\n"
+                     "    try:\n"
+                     "        p.wait(timeout=k)\n"
+                     "    except subprocess.TimeoutExpired:\n"
+                     "        os.killpg(p.pid, signal.SIGKILL); p.wait()\n"
+                     "    sys.exit(124)\n" % sys.executable)
+        os.chmod(p, os.stat(p).st_mode | stat.S_IEXEC)
 
     def npx(self, dry_out, install_sleep=0, install_rc=0, dry_rc=None):
         if dry_rc is None:   # Playwright >= 1.60 exits 1 when it names a missing package
