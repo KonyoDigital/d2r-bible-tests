@@ -10944,6 +10944,20 @@ GATES = [
              "shard 1..N once, finished, on this HEAD, clean, one plan; only what peek() serves (never ELSEWHERE, "
              "BLIND, undated); tree kept so #242 still runs each gate clean here; what this machine serves is kept. "
              "Temp stores only."),
+    Gate("test_an_imported_gate_runs_clean_here_on_a_small_push",
+         [sys.executable, os.path.join(HERE, "test_an_imported_gate_runs_clean_here_on_a_small_push.py")], 60,
+         needs_app=False,
+         why="REG-2587 - #242 on a push with no clean wave (gates <= lanes): a gate whose proofs the cache served from "
+             "another tree runs its clean run HERE once in the main pass; green keeps them, red fails fast and keeps "
+             "none, a run that cannot finish keeps none; a gate the wave ran clean here is not asked twice. Temp gate "
+             "and temp cache; the law runner is a stand-in."),
+    Gate("test_the_shard_workflow_proves_every_proof_once",
+         [sys.executable, os.path.join(HERE, "test_the_shard_workflow_proves_every_proof_once.py")], 60,
+         needs_app=False,
+         why="REG-2588 - .github/workflows/proof-keys-shards.yml runs shards 1..N once (N said once, <= 20 Free jobs), "
+             "each --proof-shard K/N into its own fresh cache, uploaded with its dot-file even on failure; the fan-in "
+             "needs every shard, runs always, and checks the set with proof_shard.py --fan-in (the import's own "
+             "rules) on this commit; only ci/proof-keys-*, no claude. The fan-in is driven over temp shard dirs."),
     Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
          [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
          needs_app=False,

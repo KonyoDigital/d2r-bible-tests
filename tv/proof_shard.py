@@ -238,6 +238,19 @@ def select(shards, keyer=None):
     return True, None, take, skipped
 
 
+def unbanked(shards, take):
+    """REG-2586 - per shard, how many of its ASSIGNED proofs the import banks none for. -> {k: (unbanked, assigned)}
+
+    A shard that stopped on a failure never ran what came after it; an assigned proof with no servable entry (never run,
+    ELSEWHERE, BLIND...) is a proof the next push still pays for here."""
+    out = {}
+    for k, ent, assigned in shards:
+        got = set((str(e.get("gate")), e.get("proof")) for key, e in (ent or {}).items()
+                  if take.get(key) is e)
+        out[k] = (len(set(assigned) - got), len(assigned))
+    return out
+
+
 def merge_into(disk_entries, take):
     """This machine's entries plus the imported ones; a key this machine already SERVES is kept. -> (entries, added)"""
     out = dict((k, v) for k, v in (disk_entries or {}).items() if isinstance(v, dict))
@@ -248,3 +261,69 @@ def merge_into(disk_entries, take):
         out[key] = e
         added += 1
     return out, added
+
+
+STORE_NAME = ".heart2_cache.json"          # the basename heart2's store writer accepts (heart2._StoreFile)
+
+
+def fan_in(root, n, head, say=print):
+    """REG-2588 — CI's fan-in: are the N shard artifacts under `root` (one dir per artifact, each holding the shard's
+    STORE_NAME) one complete, importable set of HEAD? The SAME rules the import applies (check_shards, select), so a set
+    the fan-in passes is a set `heart2 --import-shards` takes, and one it refuses is refused here first, on CI, where the
+    log names the shard. -> exit code: 0 a whole set, 2 refused"""
+    bodies, empty = [], []
+    for d in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        path = os.path.join(root, d, STORE_NAME)
+        if not os.path.isfile(path):
+            empty.append(d)
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                body = json.load(fh)
+            bodies.append((d, body if isinstance(body, dict) else None, None if isinstance(body, dict) else "not a map"))
+        except (OSError, ValueError) as e:
+            bodies.append((d, None, "%s: %s" % (type(e).__name__, str(e)[:80])))
+    for d in empty:
+        say("  ⚠ %s carries no %s - that shard banked nothing it could hand on" % (d, STORE_NAME))
+    ok, why, shards = check_shards(bodies, head)
+    if ok:
+        got = set(b["shard"].get("n") for _l, b, _w in bodies)
+        if got != {n} or len(shards) != n:
+            ok, why = False, "the workflow runs %d shards but the files name N=%s (%d given)" % (
+                n, ",".join(str(x) for x in sorted(got, key=str)), len(shards))
+    if ok:
+        ok, why, take, skipped = select(shards)
+    if not ok:
+        say("  ✗ REG-2588 FAN-IN REFUSED: %s. This set would be refused by `heart2 --import-shards` too." % why)
+        return 2
+    owed = unbanked(shards, take)
+    stops = dict((b["shard"]["k"], b["shard"].get("stopped")) for _l, b, _w in bodies if b["shard"].get("stopped"))
+    for k, _ent, assigned in shards:
+        st = stops.get(k)
+        say("    shard %2d/%d: %4d assigned, %4d banked%s" % (
+            k, n, len(assigned), len(assigned) - owed[k][0],
+            (", STOPPED at %s" % ("%s[%s] %s" % tuple(st[:3]) if isinstance(st, list) and len(st) >= 3 else st))
+            if st else ""))
+    say("  ✓ REG-2588 FAN-IN: all %d shards of %s finished on one plan; %d PROVEN entr(ies) to import, %d not servable%s."
+        % (n, str(head)[:12], len(take), skipped,
+           (" - %d shard(s) STOPPED on a failure, owed a fix" % len(stops)) if stops else ""))
+    return 0
+
+
+def main(argv=None):
+    import argparse
+    import subprocess
+    ap = argparse.ArgumentParser(description="REG-2588 - the CI fan-in check over N proof-shard artifacts")
+    ap.add_argument("--fan-in", dest="root", required=True, help="dir holding one sub-dir per shard artifact")
+    ap.add_argument("--shards", type=int, required=True, help="N, the workflow's shard count")
+    ap.add_argument("--head", default=None, help="the sha the shards must have run on (default: git rev-parse HEAD)")
+    a = ap.parse_args(argv)
+    head = a.head
+    if head is None:
+        p = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True)
+        head = p.stdout.strip() if p.returncode == 0 else ""
+    return fan_in(a.root, a.shards, head)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

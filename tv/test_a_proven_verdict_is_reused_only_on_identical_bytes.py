@@ -514,6 +514,16 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         for n in names:
             with io.open(os.path.join(wf, n), encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
+            if n == "proof-keys-shards.yml":
+                # REG-2588 - the ONE exception: a proof shard proves at push time into its OWN fresh cache (REG-2585
+                # refuses one that already exists), so it consults nothing banked. Every --push line must be a shard's,
+                # and the cache may be named only where its fresh per-shard path is set.
+                lines = text.splitlines()
+                self.assertTrue(all("--proof-shard" in l for l in lines if "--push" in l),
+                                "workflow %s runs a push-time prove that is not a proof shard" % n)
+                self.assertTrue(all("HEART2_CACHE_PATH=" in l for l in lines if ".heart2_cache" in l),
+                                "workflow %s names the cache other than as a shard's own fresh path" % n)
+                continue
             self.assertNotIn(".heart2_cache", text, "workflow %s names the cache" % n)
             self.assertNotIn("--push", text, "workflow %s runs a push-time prove - CI must run every proof" % n)
         with io.open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as fh:

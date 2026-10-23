@@ -3996,6 +3996,9 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
             hit = cache.lookup(key)
             if hit is not None:
                 cache.count("hits")
+                _srv = getattr(_CLEAN, "served", None)
+                if isinstance(_srv, list):
+                    _srv.append((idx, hit.get("tree")))          # REG-2587 - which tree proved what this gate reuses
                 _mark(f="hit", a="hit")                          # REG-2353 - forecast and taken: served, not run
                 # the census keeps the age this proof was MEASURED at, never this run's clock [[stale-reading]]
                 cache.reused_at(name, idx, hit["provedAt"])
@@ -4150,6 +4153,62 @@ def _wave_gate(sandbox, name, filename, proofs, say, run):
     return NOT_RUN, [None] * len(proofs)
 
 
+def _clean_here(sandbox, name, filename, proofs, per, say, run):
+    """REG-2587 (#242 on a small push) - a gate whose proofs the cache served from ANOTHER tree is run clean HERE once.
+
+    The clean wave (REG-1992) gives such a gate its clean run in this tree - but the wave runs only when a push has more
+    gates than lanes, and a gate whose every proof is served runs no law in the main pass. So a push of 1 gate (or of
+    as many gates as lanes) reused another tree's PROVENs for a law that may be red HERE (live state only this tree
+    holds) and never asked. Now: when a served proof names another tree (or none) and nothing ran this gate's law
+    untampered here in this run, its clean run is asked here. GREEN keeps the verdicts; RED fails fast as the wave does
+    and every PROVEN becomes UNPROVABLE; a clean run that cannot finish turns them UNPROVABLE too (never kept on a
+    guess). A gate no proof of which can be asked here (ELSEWHERE everywhere) keeps them and SAYS so.
+    -> per (verdicts in RED_PROOF order)"""
+    foreign = sorted(i for i, t in (getattr(_CLEAN, "served", None) or []) if t != TREE_ID)
+    if not foreign or run.stop.is_set():
+        return per
+    if getattr(_CLEAN, "runs", None):
+        return per                                       # a proof of this gate ran its clean run here in this pass
+    if any(ck[0] == filename and wv[0] is True for ck, wv in (getattr(run, "clean_wave", None) or {}).items()):
+        return per                                       # the wave ran it clean here (a red stopped the run there)
+    v, why = None, {}
+    for i in (run.order.get(name) or list(range(len(proofs)))):
+        pr = proofs[i]
+        widths = None
+        if isinstance(pr, dict) and "widths" in pr:
+            import law_widths as _LW
+            try:
+                widths = _LW.declared(pr)
+            except ValueError:
+                continue
+        why = {}
+        try:
+            v = _prove_one(sandbox, name, filename, pr, i, say, widths=widths, why=why, clean_only=True)
+        except Exception as _ce:
+            v = None
+            say("     %-52s   ↳ REG-2587: its clean run here raised %s" % (name, type(_ce).__name__))
+        if v == ELSEWHERE or v == INVALID:
+            continue
+        break
+    else:
+        say("     %-52s   ↳ REG-2587: %d proof(s) were proved in another tree and no proof of it can run here, so "
+            "its clean run here is not asked - kept as served" % (name, len(foreign)))
+        return per
+    if v == CLEAN:
+        say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree; its clean run HERE is green"
+            % (name, len(foreign)))
+        return per
+    red = v == UNPROVABLE and bool(why.get("red"))
+    out = [UNPROVABLE if x == PROVEN else x for x in per]
+    say("     %-52s   ↳ REG-2587 (#242): %d proof(s) were proved in another tree and its clean run HERE %s - "
+        "none of them is kept" % (name, len(foreign), "is RED" if red else "could not finish"))
+    if red and run.fail(name, foreign[0], UNPROVABLE, "the law is ALREADY RED untampered here, where another tree "
+                                                       "proved it"):
+        say("  ⛔ #42 FAIL FAST (REG-2587) — %s is ALREADY RED untampered in this tree; another tree's PROVENs are not "
+            "kept and the push is refused on this one." % name)
+    return out
+
+
 def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     """#42 — one gate's proofs at push time: in the run's order, each at its declared widths, the whole run stopped at
     the first failure. -> (verdict | NOT_RUN, [verdict | None per proof, in RED_PROOF order])
@@ -4167,6 +4226,7 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     # A proof proved here is banked only AFTER that closing run: a PROVEN it turns UNPROVABLE is never stored.
     _CLEAN.runs = {}
     _CLEAN.pending = []                                  # (index, key, entry) a PROVEN waits in until the closing run
+    _CLEAN.served = []                                   # REG-2587 - (index, tree) of each proof the cache served
     try:
         for i in (run.order.get(name) or list(range(len(proofs)))):
             if run.stop.is_set():
@@ -4192,6 +4252,7 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                         "and the push is refused on this one." % (name, i, got[i], reason))
                 break
         per = [got.get(i) for i in range(len(proofs))]
+        per = _clean_here(sandbox, name, filename, proofs, per, say, run)   # REG-2587 - #242 on a push with no wave
         _before = list(per)
         per = _closing_clean(name, per, say)             # REG-1988 - None (NOT RUN) passes through untouched
         _f = run.first if (run.first and run.first[0] == name) else None
@@ -4214,6 +4275,7 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     finally:
         _CLEAN.pending = None
         _CLEAN.runs = None
+        _CLEAN.served = None
     if run.cache is not None:
         run.cache.flush()          # P3: what this gate proved reaches the disk now, not only at the end of the run
     return _push_gate_verdict(per), per
@@ -5908,8 +5970,10 @@ def import_shards(paths, say=print, target=None):
         body = dict((k, v) for k, v in (disk or {}).items() if k not in ("format", "entries"))
         body.update(format=2, entries=ent)
         return body
-    _halted = sum(1 for _l, b, _w in bodies if isinstance(b, dict) and isinstance(b.get("shard"), dict)
-                  and b["shard"].get("stopped"))
+    _stops = dict((b["shard"]["k"], b["shard"].get("stopped")) for _l, b, _w in bodies
+                  if isinstance(b, dict) and isinstance(b.get("shard"), dict) and b["shard"].get("stopped"))
+    _halted = len(_stops)
+    _owed = _PS.unbanked(shards, take)
     w_ok, w_why = _StoreFile(target, say).commit(merge)            # the stores' one locked writer
     if not w_ok:
         say("  ✗ REG-2586 IMPORT REFUSED: %s could not be written (%s)." % (os.path.basename(target), w_why))
@@ -5921,6 +5985,11 @@ def import_shards(paths, say=print, target=None):
            (", %d evicted over the cap" % out["evicted"]) if out.get("evicted") else "",
            (" ⚠ %d shard(s) STOPPED on a failure: what they banked is sound, what they never ran is not banked, "
             "and the failure itself is still owed a fix." % _halted) if _halted else ""))
+    for _k in sorted(_stops):
+        _st = _stops[_k]
+        _at = ("%s[%s] %s" % tuple(_st[:3])) if isinstance(_st, (list, tuple)) and len(_st) >= 3 else str(_st)[:80]
+        say("    ⚠ shard %d/%d STOPPED at %s: %d of its %d assigned proof(s) NOT banked - the next push proves them "
+            "here" % (_k, len(shards), _at, _owed.get(_k, (0, 0))[0], _owed.get(_k, (0, 0))[1]))
     return 0
 
 

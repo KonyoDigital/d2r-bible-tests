@@ -39,6 +39,20 @@ import proof_shard   # noqa: E402
 
 RED_PROOF = [
     {
+        "why": "REG-2586 - a stopped shard's proofs that were never banked are not counted: it reads as fully imported",
+        "file": "heart2.py",
+        "find": "    for _k in sorted(_stops):\n",
+        "replace": "    for _k in []:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2586 - the count calls a stopped shard's proofs banked though the import took none of them",
+        "file": "proof_shard.py",
+        "find": "                  if take.get(key) is e)\n",
+        "replace": "                  )\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-2586 - a partial set is imported: a dead shard's proofs read as banked though nothing ran them",
         "file": "proof_shard.py",
         "find": "    if missing:\n",
@@ -206,6 +220,19 @@ class AWholeSetComesHome(_Fixture):
         self.assertEqual(self.run_import([a, b]), 0, self.said)
         self.assertEqual(sorted(self.home()["entries"]), ["k1", "k3"])
         self.assertIn("1 shard(s) STOPPED", " ".join(self.said))
+
+    def test_each_stopped_shard_says_how_many_of_its_proofs_were_not_banked(self):
+        """REG-2586 - a stopped shard is still imported, and each one names what it never banked: assigned 4, banked 1
+        (one more is BLIND, two never ran) -> 3 not banked; a shard that ran to the end says nothing"""
+        a = self.shard(1, 2, {"k1": _e("g1", 0)}, assigned=[("g1", 0), ("g1", 1)])
+        blind = dict(_e("g2", 1), verdict=heart2.BLIND)
+        b = self.shard(2, 2, {"k3": _e("g2", 0), "k4": blind},
+                       assigned=[("g2", 0), ("g2", 1), ("g2", 2), ("g2", 3)], stopped=["g2", 1, "BLIND", "stayed green"])
+        self.assertEqual(self.run_import([a, b]), 0, self.said)
+        lines = [ln for ln in self.said if "shard 2/2 STOPPED at g2[1] BLIND" in ln]
+        self.assertEqual(len(lines), 1, "the stopped shard's own line is missing: %s" % self.said)
+        self.assertIn("3 of its 4 assigned proof(s) NOT banked", lines[0])
+        self.assertFalse(any("shard 1/2 STOPPED" in ln for ln in self.said), "a shard that finished was called stopped")
 
     def test_what_peek_would_refuse_is_never_banked(self):
         a = self.shard(1, 1, {"ok": _e("g", 0), "else": _e("g", 1, verdict="ELSEWHERE"),

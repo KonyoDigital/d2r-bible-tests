@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2588 - ONE PROVE ACROSS 16 RUNNERS, AND A FAN-IN THAT PASSES ONLY A SET THE IMPORT WOULD TAKE (proof-keys build, GB-box, 2026-10-23, v3789)
+`.github/workflows/proof-keys-shards.yml` (ci/proof-keys-* pushes and by hand only, never main): a 16-job matrix, each
+running `heart2 --prove --push --proof-shard K/16` into its own fresh `$RUNNER_TEMP/shard-K/.heart2_cache.json`
+(D2R_NO_CLAUDE=1, a `claude` on PATH that exits 97), uploaded as `proof-shard-K` with `include-hidden-files: true`
+(upload-artifact drops dot-files by default) even when the prove failed. The fan-in job (needs every shard, runs
+always) checks the set with `tv/proof_shard.py --fan-in` - check_shards and select, the import's own rules, plus N
+equal to the workflow's - and only then hands it on as one `proof-shards-<sha>` artifact; it names each shard's
+assigned and banked counts and where a shard STOPPED. Nothing is imported on CI. The cache law
+(test_a_proven_verdict_is_reused_only_on_identical_bytes) now allows this one workflow, and only `--push` lines that
+are proof shards and a cache named only as a shard's fresh HEART2_CACHE_PATH. Law:
+tv/test_the_shard_workflow_proves_every_proof_once.py.
+
+### REG-2587 - A GATE ANOTHER TREE PROVED RUNS CLEAN HERE EVEN ON A PUSH WITH NO CLEAN WAVE (proof-keys build, GB-box, 2026-10-23, v3789)
+#242 (REG-1996) lets the cache serve a PROVEN banked in another tree, guarded by the clean wave running that gate
+untampered in THIS tree once. The wave runs only when a push has more gates than lanes, and in the main pass a gate
+whose every proof is served runs no law. MEASURED in the proof-keys e2e: 1 imported gate on 1 lane ran zero clean runs,
+2 gates on 1 lane ran 2. CI shards (REG-2585/2586) bank whole suites from another tree, so the small push trusted them
+blind. Fix: `_clean_here` in `_prove_gate_push` - a gate with a proof served from another tree (or none named), no clean
+run of its law in this pass and none green in the wave, asks one clean run here. Green keeps the verdicts; red fails
+the push fast and turns every PROVEN UNPROVABLE; a run that cannot finish turns them UNPROVABLE too. A gate no proof of
+which can run here (ELSEWHERE) keeps them and says so. Also REG-2586: each STOPPED shard now prints how many of its
+assigned proofs the import did not bank. Law: tv/test_an_imported_gate_runs_clean_here_on_a_small_push.py.
+
 ### REG-2586 - A SHARD'S PROVENS COME HOME ALL OR NOTHING, AND KEEP THE TREE THEY WERE PROVED IN (proof-keys build, GB-box, 2026-10-23, v3789)
 `heart2 --import-shards FILE...` merges CI shard caches into this machine's verdict cache under the store lock. It
 refuses the whole set, writing nothing, unless every shard 1..N is there once, finished, on this checkout's HEAD, clean,

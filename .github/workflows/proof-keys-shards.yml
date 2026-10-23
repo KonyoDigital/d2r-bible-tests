@@ -1,0 +1,108 @@
+name: proof-keys shards (ci/proof-keys-* only)
+# REG-2588 - ONE heart2 --prove, CUT ACROSS 16 RUNNERS. Each shard proves only its slice of the proof plan
+# (tv/proof_shard.py, REG-2585) and banks it into its OWN verdict cache; the fan-in job checks the 16 caches form one
+# whole set of this commit (the SAME rules `heart2 --import-shards` applies, REG-2586) and hands them on as ONE
+# artifact. Nothing is imported here: the import runs on the machine that pushes, and it refuses a partial set.
+# Never on main. Nothing here may call the Claude CLI: D2R_NO_CLAUDE=1 and a `claude` on PATH that refuses.
+# ⚠ N LIVES IN TWO PLACES - PROOF_SHARDS and the matrix list - and
+# tv/test_the_shard_workflow_proves_every_proof_once.py goes red if they disagree. 16 <= the Free plan's 20 jobs.
+on:
+  push:
+    branches:
+      - 'ci/proof-keys-*'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: proof-keys-shards-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PROOF_SHARDS: "16"
+jobs:
+  shard:
+    name: shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    # Planned max ~41 min of proving per shard (21a78ff6, N=16) plus setup; the step cap below fails loud first.
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    env:
+      D2R_NO_CLAUDE: "1"
+      HEART2_PROVE_WORKERS: "2"
+    steps:
+      - name: Mark start
+        run: echo "T0=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 200
+      - name: Install Pillow + numpy + websocket-client (as tv-tests)
+        run: python3 -m pip install --quiet pillow numpy websocket-client
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pw-${{ runner.os }}-
+      - name: Install Chromium
+        timeout-minutes: 6
+        run: npx playwright install chromium
+      - name: OS deps for Chromium (best effort)
+        timeout-minutes: 5
+        continue-on-error: true
+        run: npx playwright install-deps chromium
+      - name: A claude that refuses
+        run: |
+          mkdir -p "$RUNNER_TEMP/noclaude"
+          printf '#!/bin/sh\necho "claude is not called on CI (proof-keys shards)" >&2\nexit 97\n' > "$RUNNER_TEMP/noclaude/claude"
+          chmod +x "$RUNNER_TEMP/noclaude/claude"
+          echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"
+      - name: Prove this shard
+        timeout-minutes: 160
+        run: |
+          echo "setup_seconds=$(( $(date +%s) - T0 ))"
+          D="$RUNNER_TEMP/shard-${{ matrix.shard }}"
+          mkdir -p "$D"
+          export HEART2_CACHE_PATH="$D/.heart2_cache.json"
+          S=$(date +%s)
+          set +e
+          python3 -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${PROOF_SHARDS}" 2>&1 | tee "$D/prove.log"
+          rc=${PIPESTATUS[0]}
+          echo "prove_seconds=$(( $(date +%s) - S )) rc=$rc" | tee -a "$D/prove.log"
+          exit $rc
+      - name: Upload this shard's cache
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/shard-${{ matrix.shard }}/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+  fan-in:
+    name: fan-in - one whole set of this commit, or none
+    needs: [shard]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch every shard's cache
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          pattern: proof-shard-*
+          path: shards
+      - name: Every shard finished, on this commit, on one plan
+        run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA"
+      - name: Hand the whole set on as one artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof-shards-${{ github.sha }}
+          path: shards/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
