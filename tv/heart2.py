@@ -1319,6 +1319,51 @@ _JOURNAL_CAP = 1024 * 1024          # past this the journal keeps only its last 
 _JOURNAL_KEEP = 256 * 1024
 
 
+def _write_all(fd, data):
+    """os.write until every byte is down: a short write is not a whole line (review r3)."""
+    view = memoryview(data)
+    while view:
+        n = os.write(fd, view)
+        if n <= 0:
+            raise OSError("short write")
+        view = view[n:]
+
+
+#: Windows has no flock: msvcrt locks a byte far past any journal (Windows locks are mandatory, so a locked byte a
+#: reader reads would fail its read). Every writer locks the same byte, so writers take turns as they do under flock.
+_JOURNAL_LOCK_AT = 0x7FFFFFF0
+
+
+def _journal_lock(fd):
+    """Exclusive writer lock on the journal -> unlock(). flock on POSIX, msvcrt.locking on Windows; a lock that
+    cannot be had is not a reason to lose the line, so it degrades to unlocked (a torn line fails the exact-field
+    match and never misnames)."""
+    try:
+        import fcntl
+    except ImportError:
+        fcntl = None
+    if fcntl is not None:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            return lambda: None             # released by close
+        except OSError:
+            return lambda: None
+    try:
+        import msvcrt
+        os.lseek(fd, _JOURNAL_LOCK_AT, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+    except (ImportError, OSError, ValueError):
+        return lambda: None
+
+    def _unlock():
+        try:
+            os.lseek(fd, _JOURNAL_LOCK_AT, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+    return _unlock
+
+
 def _sweep_journal(tmp, event, root, code, owner, now):
     """REG-2612 (#71) - EVERY SANDBOX THAT IS MADE OR REMOVED IS WRITTEN DOWN WHERE THE NEXT VANISH CAN READ IT.
 
@@ -1330,34 +1375,39 @@ def _sweep_journal(tmp, event, root, code, owner, now):
 
     One line per event: `<epoch s>\t<created|swept|dropped>\tpid=<n>\t<heart2.* basename>\towner=<n|->\t<code>`. Only
     integers, the basename and a fixed code: no repo text, and nothing an owner file holds is copied (the vanish note
-    rides the gate tail heart2 parses). Mode 0600; one O_APPEND write under an exclusive lock where the OS has flock;
-    capped. A write that fails is SAID on stderr - a silent one is what would make a real sweep read as "no line"."""
+    rides the gate tail heart2 parses). Mode 0600; every write placed by lseek under an exclusive writer lock (flock,
+    or msvcrt on Windows); capped. A write that fails is SAID on stderr - a silent one is what would make a real
+    sweep read as "no line"."""
     own = str(owner or "").strip()
     line = "%d\t%s\tpid=%d\t%s\towner=%s\t%s\n" % (
         int(now), event, os.getpid(), os.path.basename(root), own if own.isdigit() else ("?" if own else "-"), code)
     path = os.path.join(tmp, _SWEEP_JOURNAL)
     try:
-        fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
+        # review r3: NO O_APPEND. The cap must write at offset 0, and an O_APPEND fd cannot; every write is placed by
+        # an explicit lseek under the lock instead, so no OS's idea of append decides where a line lands.
+        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
         try:
+            unlock = _journal_lock(fd)
             try:
-                import fcntl
-                fcntl.flock(fd, fcntl.LOCK_EX)
-            except (ImportError, OSError):
-                pass                       # Windows: no flock - a torn line fails the exact-field match, never misnames
-            os.write(fd, line.encode("ascii", "replace"))
-            if os.fstat(fd).st_size > _JOURNAL_CAP:
-                # capped IN PLACE, under the same lock: no second file, no replace another lane could race (review
-                # r2), and the 0600 inode is kept. O_APPEND puts the kept tail at the start of the emptied file.
-                os.lseek(fd, -_JOURNAL_KEEP, os.SEEK_END)
-                keep = b""
-                while len(keep) < _JOURNAL_KEEP:
-                    chunk = os.read(fd, _JOURNAL_KEEP - len(keep))
-                    if not chunk:
-                        break
-                    keep += chunk
-                keep = keep[keep.find(b"\n") + 1:]
-                os.ftruncate(fd, 0)
-                os.write(fd, keep)
+                os.lseek(fd, 0, os.SEEK_END)
+                _write_all(fd, line.encode("ascii", "replace"))
+                if os.fstat(fd).st_size > _JOURNAL_CAP:
+                    # capped IN PLACE, under the same lock (review r2): the kept tail is written at offset 0 FIRST
+                    # and only then is the file cut to it (review r3), so a reader never sees it empty - at worst
+                    # the kept lines followed by older ones, which are still true lines.
+                    os.lseek(fd, -_JOURNAL_KEEP, os.SEEK_END)
+                    keep = b""
+                    while len(keep) < _JOURNAL_KEEP:
+                        chunk = os.read(fd, _JOURNAL_KEEP - len(keep))
+                        if not chunk:
+                            break
+                        keep += chunk
+                    keep = keep[keep.find(b"\n") + 1:]
+                    os.lseek(fd, 0, os.SEEK_SET)
+                    _write_all(fd, keep)
+                    os.ftruncate(fd, len(keep))
+            finally:
+                unlock()
         finally:
             os.close(fd)
     except Exception as e:

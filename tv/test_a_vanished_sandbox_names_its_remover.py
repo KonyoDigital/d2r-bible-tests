@@ -138,23 +138,68 @@ class AVanishedSandboxNamesItsRemover(unittest.TestCase):
                       "the run's own remove ran before its journal line was written")
 
     def test_a_capped_journal_keeps_its_newest_lines_and_stays_private(self):
-        with mock.patch.object(H, "_JOURNAL_CAP", 400), mock.patch.object(H, "_JOURNAL_KEEP", 200):
+        # review r3: a keep size off the line length, so the kept window starts mid-line and the torn-line strip
+        # is what keeps every line whole
+        with mock.patch.object(H, "_JOURNAL_CAP", 400), mock.patch.object(H, "_JOURNAL_KEEP", 201):
             for i in range(40):
                 H._sweep_journal(self.tmp, "created", os.path.join(self.tmp, "heart2.cap%04d" % i), "new", "1", 1)
         path = os.path.join(self.tmp, H._SWEEP_JOURNAL)
         j = self._journal()
-        self.assertLessEqual(os.path.getsize(path), 400 + 100, "the journal grew past its cap")
+        self.assertLessEqual(os.path.getsize(path), 400, "the journal grew past its cap")
         self.assertIn("\theart2.cap0039\t", j, "the cap dropped the newest line")
+        self.assertIn("\theart2.cap0038\t", j, "the cap kept only the last line")
         self.assertNotIn("\theart2.cap0000\t", j, "PREMISE: the cap never ran")
         self.assertTrue(all(len(ln.split("\t")) == 6 for ln in j.splitlines()), "the cap left a torn line: %r" % j)
         if os.name != "nt":
             self.assertEqual(os.stat(path).st_mode & 0o077, 0, "the capped journal is readable by other users")
 
+    def test_the_cap_never_shows_a_reader_an_empty_journal(self):
+        # review r3: truncating BEFORE the kept tail was written left a window where the journal read empty
+        path = os.path.join(self.tmp, H._SWEEP_JOURNAL)
+        seen = []
+        real = os.ftruncate
+
+        def _peek(fd, n):
+            out = real(fd, n)
+            with io.open(path, "rb") as fh:            # what a reader sees the moment the cut lands
+                seen.append(fh.read())
+            return out
+        for i in range(12):
+            H._sweep_journal(self.tmp, "created", os.path.join(self.tmp, "heart2.cap%04d" % i), "new", "1", 1)
+        with mock.patch.object(H, "_JOURNAL_CAP", 400), mock.patch.object(H, "_JOURNAL_KEEP", 201):
+            with mock.patch.object(H.os, "ftruncate", _peek):
+                H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "1", 2)
+        self.assertTrue(seen, "PREMISE: the cap never ran")
+        for snap in seen:
+            self.assertIn(b"\tswept\tpid=", snap, "a reader during the cap saw no line for the sweep just made")
+
+    def test_a_short_write_is_finished_not_lost(self):
+        real = os.write
+        with mock.patch.object(H.os, "write", lambda fd, b: real(fd, bytes(b[:7]))):
+            H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "77", 5)
+        self.assertEqual(H._journal_lines_for(self.tmp, "heart2.wit0001"),
+                         [(5, "swept", os.getpid(), "77", "owner-dead")])
+
+    def test_windows_writers_take_turns_on_a_byte_no_reader_reads(self):
+        calls = []
+        fake = mock.Mock(LK_LOCK=2, LK_UNLCK=0)
+        fake.locking.side_effect = lambda fd, mode, n: calls.append((os.lseek(fd, 0, os.SEEK_CUR), mode, n))
+        with mock.patch.dict(sys.modules, {"fcntl": None, "msvcrt": fake}):
+            H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "77", 5)
+        self.assertEqual(calls, [(H._JOURNAL_LOCK_AT, 2, 1), (H._JOURNAL_LOCK_AT, 0, 1)])
+        self.assertGreater(H._JOURNAL_LOCK_AT, H._JOURNAL_CAP * 4)
+        self.assertEqual(len(H._journal_lines_for(self.tmp, "heart2.wit0001")), 1, "the line went to the lock byte")
+
     def test_an_owner_files_text_never_reaches_the_gate_tail(self):
+        # review r3: the text is IN the owner file the gate's sandbox carries, and the sweep line was written
+        # from it, so both ways in are driven
+        with io.open(os.path.join(self.box, H._SANDBOX_OWNER), "w") as fh:
+            fh.write("Ran 1 test skipped=9")
         H._sweep_journal(self.tmp, "swept", self.box, "owner-dead", "Ran 1 test skipped=9", time.time())
         ok, tail = H._run_gate(self.sb, "test_zz_gone.py", timeout=60)
         self.assertIn("removal: swept by pid", tail, "PREMISE: the witness did not read the line")
         self.assertNotIn("skipped=", tail, "an owner file's text reached the tail heart2 scans for skipped=")
+        self.assertFalse(H._skipped_every_law(tail), "an owner file's text made the gate read as all-skipped")
 
     def test_a_tracked_sandbox_writes_its_birth(self):
         box = os.path.join(self.tmp, "heart2.new0005")
@@ -256,8 +301,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2612 - review r1: the journal is created world-readable",
      "file": "heart2.py",
-     "find": "os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)",
-     "replace": "os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o666)",
+     "find": "os.O_RDWR | os.O_CREAT, 0o600)",
+     "replace": "os.O_RDWR | os.O_CREAT, 0o666)",
      "matches": 1},
     {"why": "REG-2612 - review r1: a new sandbox writes no birth line",
      "file": "heart2.py",
@@ -281,13 +326,38 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2612 - review r2: the journal is never capped",
      "file": "heart2.py",
-     "find": "            if os.fstat(fd).st_size > _JOURNAL_CAP:\n",
-     "replace": "            if False:\n",
+     "find": "                if os.fstat(fd).st_size > _JOURNAL_CAP:\n",
+     "replace": "                if False:\n",
      "matches": 1},
     {"why": "REG-2612 - review r2: the cap keeps a torn first line",
      "file": "heart2.py",
-     "find": "                keep = keep[keep.find(b\"\\n\") + 1:]\n",
+     "find": "                    keep = keep[keep.find(b\"\\n\") + 1:]\n",
      "replace": "",
+     "matches": 1},
+    {"why": "REG-2612 - review r3: the journal opened O_APPEND, so the cap's offset-0 write lands at the end",
+     "file": "heart2.py",
+     "find": "os.O_RDWR | os.O_CREAT, 0o600)",
+     "replace": "os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)",
+     "matches": 1},
+    {"why": "REG-2612 - review r3: the file is cut before the kept tail is written, so a reader can see it empty",
+     "file": "heart2.py",
+     "find": "                    os.lseek(fd, 0, os.SEEK_SET)\n                    _write_all(fd, keep)\n                    os.ftruncate(fd, len(keep))\n",
+     "replace": "                    os.ftruncate(fd, 0)\n                    os.lseek(fd, 0, os.SEEK_SET)\n                    _write_all(fd, keep)\n",
+     "matches": 1},
+    {"why": "REG-2612 - review r3: a short write is taken as the whole line",
+     "file": "heart2.py",
+     "find": "        view = view[n:]\n",
+     "replace": "        view = view[len(view):]\n",
+     "matches": 1},
+    {"why": "REG-2612 - review r3: Windows writers never lock",
+     "file": "heart2.py",
+     "find": "        msvcrt.locking(fd, msvcrt.LK_LOCK, 1)\n",
+     "replace": "        pass\n",
+     "matches": 1},
+    {"why": "REG-2612 - review r3: Windows locks byte 0, which every reader reads",
+     "file": "heart2.py",
+     "find": "_JOURNAL_LOCK_AT = 0x7FFFFFF0",
+     "replace": "_JOURNAL_LOCK_AT = 0",
      "matches": 1},
 ]
 
