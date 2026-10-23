@@ -37,6 +37,34 @@ GOOD = {"ok": True, "shelf": 9, "unknown": 0,
 
 RED_PROOF = [
     {
+        "why": "REG-2641 (r4) - a loaded machine does not hold a refresh",
+        "file": "control_app.py",
+        "find": "    if cpu >= _triage_max_cpu():\n        return \"the CPU is %.0f%% busy\" % cpu\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r4) - a failed boot fill is retried with no brake, beside his game",
+        "file": "control_app.py",
+        "find": "    if _RIVER_LAST.get(\"good\") is not None or _RIVER_LAST.get(\"fail\") is not None:\n",
+        "replace": "    if _RIVER_LAST.get(\"good\") is not None:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r4) - an unmeasured CPU reads as an idle machine",
+        "file": "control_app.py",
+        "find": "    if cpu is None:\n        return \"this machine's CPU could not be measured\"\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2641 (r4) - a live capture does not hold a refresh",
+        "file": "control_app.py",
+        "find": "        if _capture_is_live() or _agent_alive():\n            return \"a capture is live on this machine\"\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-2641 (r3) - a refresh walks the shelf twice beside his game and a live capture",
         "file": "control_app.py",
         "find": "        held = (_brake or _river_warm_brake)()\n        if held:\n",
@@ -46,7 +74,7 @@ RED_PROOF = [
     {
         "why": "REG-2641 (r3) - the first fill after a restart is braked too: a restart mid-session reads UNKNOWN all session",
         "file": "control_app.py",
-        "find": "    if isinstance(_RIVER_LAST.get(\"good\"), dict):\n        held = (_brake",
+        "find": "    if _RIVER_LAST.get(\"good\") is not None or _RIVER_LAST.get(\"fail\") is not None:\n        held = (_brake",
         "replace": "    if True:\n        held = (_brake",
         "matches": 1,
     },
@@ -160,7 +188,7 @@ class AWarmerReadsTheRiver(_Cache):
         ca._RIVER_LAST["good"] = {"ts": NOW - (ca.RIVER_WARM_EVERY_S + 5) * 1000, "n": 1, "stations": {"EMPTY": 1}}
         calls = []
         with mock.patch.object(ca, "_river_lanes_block", lambda: calls.append(1) or GOOD):
-            ca._river_warm_once(NOW)
+            ca._river_warm_once(NOW, _brake=lambda: None)
         self.assertEqual(calls, [1], "a river %d s old was not read again" % (ca.RIVER_WARM_EVERY_S + 5))
 
     def test_a_failed_read_stays_a_failure_never_an_empty_river(self):
@@ -176,10 +204,12 @@ class AWarmerReadsTheRiver(_Cache):
         walked = []
         with mock.patch.object(ca, "_river_lanes_block", lambda: walked.append(1) or GOOD):
             self.clock[0] = NOW / 1000.0 + 60
-            why = ca._river_warm_once(NOW + 60 * 1000)
+            why = ca._river_warm_once(NOW + 60 * 1000, _brake=lambda: None)
             self.assertEqual(walked, [], "a failure 60 s old was retried at once: %s" % why)
             self.clock[0] = NOW / 1000.0 + ca.RIVER_WARM_EVERY_S
-            ca._river_warm_once(NOW + ca.RIVER_WARM_EVERY_S * 1000)
+            why = ca._river_warm_once(NOW + ca.RIVER_WARM_EVERY_S * 1000, _brake=lambda: "playing")
+            self.assertEqual(walked, [], "a failed boot fill was retried beside his game: %s" % why)
+            ca._river_warm_once(NOW + ca.RIVER_WARM_EVERY_S * 1000, _brake=lambda: None)
         self.assertEqual(walked, [1], "a failure RIVER_WARM_EVERY_S old was never read again")
 
     def test_a_refresh_stands_down_beside_his_game_and_the_first_fill_does_not(self):
@@ -189,6 +219,14 @@ class AWarmerReadsTheRiver(_Cache):
         self.assertTrue(why.startswith("held"), why)
         with mock.patch.object(ca, "_d2r_running_here", lambda: (None, "probe")):
             self.assertIn("cannot be ruled out", ca._river_warm_brake() or "", "an UNKNOWN game probe did not refuse")
+        clear = dict(_d2r_running_here=lambda: (False, "probe"), _capture_is_live=lambda: False,
+                     _agent_alive=lambda: False, _cpu_busy_pct=lambda sample_s=None: 5.0)
+        with mock.patch.multiple(ca, **clear):
+            self.assertIsNone(ca._river_warm_brake(), "PREMISE: a quiet machine is braked")
+        for k, v, said in (("_capture_is_live", lambda: True, "capture"), ("_cpu_busy_pct", lambda sample_s=None: None,
+                           "could not be measured"), ("_cpu_busy_pct", lambda sample_s=None: 100.0, "busy")):
+            with mock.patch.multiple(ca, **dict(clear, **{k: v})):
+                self.assertIn(said, ca._river_warm_brake() or "", "%s did not hold a refresh" % k)
 
     def test_a_newer_read_is_never_overwritten_by_the_warm(self):
         newer = {"ts": NOW, "n": 99, "stations": {"PRINTER": 4}}

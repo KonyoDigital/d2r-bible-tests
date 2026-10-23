@@ -16973,11 +16973,16 @@ def _river_warm_brake():
             return "a capture is live on this machine"
     except Exception:
         return "whether a capture is live could not be read"
+    # the triage lane's own CPU reading and bar (r4: getloadavg does not exist on Windows, and an unreadable load
+    # must refuse, never read as an idle machine)
     try:
-        if os.getloadavg()[0] > (os.cpu_count() or 1):
-            return "the machine is loaded above its core count"
-    except (AttributeError, OSError):
-        pass
+        cpu = _cpu_busy_pct()
+    except Exception:
+        cpu = None
+    if cpu is None:
+        return "this machine's CPU could not be measured"
+    if cpu >= _triage_max_cpu():
+        return "the CPU is %.0f%% busy" % cpu
     return None
 
 
@@ -16989,7 +16994,7 @@ def _river_warm_once(now_ms=None, _brake=None):
     due, why = _river_warm_due(now_ms)
     if not due:
         return "fresh - " + why
-    if isinstance(_RIVER_LAST.get("good"), dict):
+    if _RIVER_LAST.get("good") is not None or _RIVER_LAST.get("fail") is not None:
         held = (_brake or _river_warm_brake)()
         if held:
             return "held - " + held
