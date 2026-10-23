@@ -49,6 +49,7 @@ def _prune():
 
 
 PROG = r"""
+var window = {};
 var PROV = %(prov)s;
 function _provAll(){ return JSON.parse(JSON.stringify(PROV)); }
 var ROSTER = { 'uni-armor': 1, 'uni-small': 1 };

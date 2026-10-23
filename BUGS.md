@@ -13,6 +13,11 @@ vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistO
 "registered" / "kept" and {ok:true}. A refusal is now said as "not filed" with its reason and answered
 {ok:false, refused, why}; the label stays on the owned list, unfiled. Law:
 tv/test_a_refused_socket_filing_is_never_said_registered.py (2 red-proofs).
+CI round (ci/gbl-v1, 2026-10-23): the REG-2521 law still asked for the old "registered ... · not filed to a mule"
+sentence. It now asks for the "not filed:" refusal and that neither "registered" nor "kept UNSOCKETED" is said; its
+red-proof [3] tampers the new sentence. The witness census names vaultUnassign's REG-2570 put-back (ROLLBACK_OK), the
+prune law's harness gives the shipped prune a `window`, and the sandbox law expects REG-2569's no_claude_bin before the
+caller's PATH. A stray second REG-2392 heading from the V1 merge is gone.
 
 ### REG-2570 - A MULE-MAP WRITE THAT DID NOT STICK DROPPED A FILING; ANOTHER TAB'S ROSTER SKIPPED THE MAP RULE - focused second eye on ede52513c
 
@@ -701,7 +706,6 @@ VERIFIED identical: the memo law's fixture (136 steps) gave byte-identical answe
 GUARDS: NEW tv/test_the_vault_memo_changes_no_answer.py (4 cases; 8 RED_PROOFs - a stale planner parse, the keeper's highest copy, a fold memo answering every name with the first, a catalogue memo that misses ITEMS growing, a set-piece fold keyed by length, a read phase that never ends, a shelf pass that never ends, a name set that misses ITEMS growing; 8 of 8 PROVEN), NEW tv/test_a_hand_add_is_not_quadratic.py (6 cases, counts never clocks; 9 RED_PROOFs, one per memo turned off; 9 of 9 PROVEN). NEW tv/vault_page_node.py (the whole page in node) and tv/vault_speed_bench.py (the curve), both indexed in tv/engine_index.json.
 NOT FIXED HERE (it would change a result): _itemCells stores its final answer under the bare name even when the key carried a stored base, so a planner pick whose base _cbFoot cannot size leaves a guess cached under the bare name after the record is gone.
 
-### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 ### REG-2562 - REG-2558'S OWN-THE-NAME LINE WAS A BARE owned.add, OUTSIDE THE DOOR (CI census on v3788, GB-L, 2026-10-23, v3789)
 test_every_owned_door_writes_provenance went red in CI on ab7065bb: the perfect-base early return added to `owned`
 without a provenance row. It now goes through window._ownedAdd with source 'hand' / 'perfect base filed'. The

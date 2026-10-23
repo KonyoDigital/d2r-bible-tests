@@ -165,11 +165,13 @@ OUT.wrote = WROTE.slice(); OUT.after = state(); OUT.before = before; OUT.status 
                  "OUT.status = STATUS.slice();", _seed())
         self.assertEqual((o["set"]["filed"] or {}).get("refused"), "locked", "PREMISE: the door did not refuse: %r" % o["set"])
         said = " | ".join(o["status"])
-        self.assertIn("registered as a runeword/craft base · not filed to a mule - Monarch (4os) is locked to your MAIN", said,
-                      "the socket count said 'registered' over a refused filing: %r" % o["status"])
-        self.assertIn("kept UNSOCKETED", said)
-        self.assertIn("· not filed to a mule - Flail (Larzuk base) is locked to your MAIN", said,
-                      "keep unsocketed said 'kept' over a refused filing: %r" % o["status"])
+        # REG-2571 - a refused filing is said as a refusal, never as "registered" / "kept"
+        self.assertIn("Monarch → 4 sockets — not filed: Monarch (4os) is locked to your MAIN", said,
+                      "the socket count did not say the refused filing: %r" % o["status"])
+        self.assertIn("Flail (Larzuk base) — not filed: Flail (Larzuk base) is locked to your MAIN", said,
+                      "keep unsocketed did not say the refused filing: %r" % o["status"])
+        self.assertNotIn("registered", said, "the socket count said 'registered' over a refused filing: %r" % o["status"])
+        self.assertNotIn("kept UNSOCKETED", said, "keep unsocketed said 'kept' over a refused filing: %r" % o["status"])
 
     def test_the_cell_x_never_answers_ok_over_a_refused_map_write(self):
         o = _run("REFUSE['d2r_muleAssign'] = true; WROTE.length = 0;"
@@ -256,8 +258,8 @@ RED_PROOF = [
      "replace": "  function _socketDoorHeld(){\n    var why = null;\n"},
     {"why": "REG-2521 fix round - the throw-out doors say 'registered' / 'kept' over a filing the door refused",
      "file": "bible.html", "matches": 1,
-     "find": "    return (vf && !vf.ok) ? ' · not filed to a mule - '",
-     "replace": "    return false ? ' · not filed to a mule - '"},
+     "find": "' sockets — not filed: ' + _why_vfS",
+     "replace": "' sockets — registered as a runeword/craft base · not filed: ' + _why_vfS"},
     {"why": "REG-2521 fix round - the cell ✕ no longer asks the hold (demotes the row, saveA refused, answers ok)",
      "file": "bible.html", "matches": 1,
      "find": "    if (_bhU){\n      var whyH",
