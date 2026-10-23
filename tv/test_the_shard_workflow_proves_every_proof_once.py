@@ -99,6 +99,19 @@ class TheWorkflowRunsEveryShardOnce(unittest.TestCase):
         self.assertIn('echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"', text)
         self.assertIn("contents: read", text)
 
+    def test_each_shard_fetches_the_commits_the_stamp_law_grades(self):
+        # A 200-commit checkout does not hold RoutineIOnRealHistory.PINNED, so that class read UNMEASURED on a shard.
+        import test_a_version_stamp_is_not_a_page_change as STAMP
+        job = _job(_wf(), "shard")
+        step = job[job.find("Fetch the commits test_a_version_stamp_is_not_a_page_change grades"):]
+        step = step[:step.find("\n      - ", 1)]
+        self.assertIn("git fetch --no-tags --depth=2 origin", step, "the shard no longer fetches the pinned commits")
+        got = re.findall(r"\b[0-9a-f]{40}\b", step)
+        for c in STAMP.RoutineIOnRealHistory.PINNED:
+            if c.endswith("^"):
+                continue  # depth=2 brings each pinned commit's parent
+            self.assertTrue([g for g in got if g.startswith(c)], "pinned commit %s is not fetched on the shard" % c)
+
 
 def _shard(root, k, n, entries, assigned, head=HEAD, stopped=None, plan="p1"):
     d = os.path.join(root, "proof-shard-%d" % k)
@@ -169,6 +182,16 @@ class TheFanInPassesOnlyAWholeSet(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "shard 16 census - the pinned-commit fetch drops one, so RoutineIOnRealHistory reads UNMEASURED again",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "          f591953451f7a0aff8db3f22938c6f1ded12ce88\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "shard 16 census - the fetch is shallow-by-one, so a8246cdf^ is missing and the class skips",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "git fetch --no-tags --depth=2 origin",
+     "replace": "git fetch --no-tags --depth=1 origin",
+     "matches": 1},
     {"why": "REG-2588 - the matrix drops a shard: its slice is never proved and every import refuses the set",
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": "        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]\n",
