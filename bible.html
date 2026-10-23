@@ -44606,7 +44606,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _isMenu = !!(unsorted.length && _mv && _mv.isMenu);
         _mi.hidden = !_isMenu;
         var _mb = document.getElementById('vault-menuimport-btn');
-        if (_mb) _mb.textContent = (_isMenu && _mv.armed) ? ('Remove ' + (_mv.names || []).length + ' menu-read names') : 'These look like a chronicle page';
+        var _miTxt = (_isMenu && _mv.armed) ? ('Remove ' + (_mv.names || []).length + ' menu-read names') : 'These look like a chronicle page';
+        if (_mb) _mb.textContent = _miTxt;
+        var _mn = _mi.querySelector('.vdm-name'); if (_mn) _mn.textContent = _miTxt;   /* Grok review r2 — the row's bold name says the armed step too */
       }
     } catch (eV2) {}
     renderVaultKeep();
@@ -52265,12 +52267,16 @@ window.vaultAutoAssign = function(){
       } catch (eB) {}
       try {
         var tp = document.getElementById('vault-tasks');
-        if (tp && !tp._v2Esc) { tp._v2Esc = 1; tp.addEventListener('keydown', function(e){
-          if (!e || e.key !== 'Escape' || tp.hidden) return;
+        var fab0 = document.getElementById('vault-tasks-fab');
+        var _v2EscFn = function(e){
+          if (!e || e.key !== 'Escape' || !tp || tp.hidden) return;
           e.preventDefault(); try { e.stopPropagation(); } catch (eS) {}
           window.vaultTasksTog(false);
           try { var fb = document.getElementById('vault-tasks-fab'); if (fb) fb.focus({ preventScroll: true }); } catch (eF) {}
-        }); }
+        };
+        if (tp && !tp._v2Esc) { tp._v2Esc = 1; tp.addEventListener('keydown', _v2EscFn); }
+        /* Grok review r2 — a click on the FAB leaves focus ON the FAB (a sibling on <body>), so Escape there closes it too */
+        if (fab0 && !fab0._v2Esc) { fab0._v2Esc = 1; fab0.addEventListener('keydown', _v2EscFn); }
       } catch (eK) {}
       try { if (localStorage.getItem('vaultTasksOpen') === '1') window.vaultTasksTog(true, true); } catch (e) {}
     };
