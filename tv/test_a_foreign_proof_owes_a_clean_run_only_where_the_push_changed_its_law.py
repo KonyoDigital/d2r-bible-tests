@@ -19,6 +19,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402  (its docstrings carry non-ASCII)
+_console_safe_enable()
 import test_an_imported_gate_runs_clean_here_on_a_small_push as B  # noqa: E402  (contains the fixture tmp)
 import test_a_push_proof_runs_only_where_its_defect_shows as P  # noqa: E402
 H = B.H
