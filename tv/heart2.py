@@ -1337,7 +1337,7 @@ def _sweep_journal(tmp, event, root, code, owner, now):
         int(now), event, os.getpid(), os.path.basename(root), own if own.isdigit() else ("?" if own else "-"), code)
     path = os.path.join(tmp, _SWEEP_JOURNAL)
     try:
-        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        fd = os.open(path, os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o600)
         try:
             try:
                 import fcntl
@@ -1345,19 +1345,21 @@ def _sweep_journal(tmp, event, root, code, owner, now):
             except (ImportError, OSError):
                 pass                       # Windows: no flock - a torn line fails the exact-field match, never misnames
             os.write(fd, line.encode("ascii", "replace"))
-            big = os.fstat(fd).st_size > _JOURNAL_CAP
+            if os.fstat(fd).st_size > _JOURNAL_CAP:
+                # capped IN PLACE, under the same lock: no second file, no replace another lane could race (review
+                # r2), and the 0600 inode is kept. O_APPEND puts the kept tail at the start of the emptied file.
+                os.lseek(fd, -_JOURNAL_KEEP, os.SEEK_END)
+                keep = b""
+                while len(keep) < _JOURNAL_KEEP:
+                    chunk = os.read(fd, _JOURNAL_KEEP - len(keep))
+                    if not chunk:
+                        break
+                    keep += chunk
+                keep = keep[keep.find(b"\n") + 1:]
+                os.ftruncate(fd, 0)
+                os.write(fd, keep)
         finally:
-            os.close(fd)                   # closed before any replace: Windows refuses to replace an open file
-        if big:
-            with open(path, "rb") as fh:
-                fh.seek(-_JOURNAL_KEEP, os.SEEK_END)
-                keep = fh.read()
-            keep = keep[keep.find(b"\n") + 1:]
-            tmp_path = path + ".%d.tmp" % os.getpid()
-            with open(tmp_path, "wb") as fh:
-                fh.write(keep)
-            os.chmod(tmp_path, 0o600)
-            os.replace(tmp_path, path)
+            os.close(fd)
     except Exception as e:
         try:
             sys.stderr.write("  #71 the sandbox journal was not written (%s %s %s)\n"
