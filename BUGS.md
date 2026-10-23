@@ -283,6 +283,13 @@ GUARD: tv/test_a_drop_is_an_episode.py `AMarkSetByDataThatWasNeverHisIsRebasedBy
 
 LEFT: the re-base itself on Dean's PC (his ladder world, lane uniques, his ruling as the reason; the dry run first) is a step on that PC after this lands.
 
+Round 2 (#169 board batch, Grok CLI review r1, 2026-10-23, FAIL, 1 major 2 minors): the doctor compared the PUBLISHED lanes (ownerId's world,
+else the newest pfx "" post) against the high-water mark of the first owner-shaped row of the sorted file. With no ownerId
+(Windows) that can be a different world, so re-basing the published world would never clear the row. The doctor now reads
+the published world's own mark. Also pinned: only that world and lane move, the re-based mark takes the current total, a
+mark below the reading is refused, and the HTTP route writes only on an explicit confirm. `rebasedFrom` lasts until the
+next rise; `rebases` is the permanent record. The doctor's below-mark row now names the door. 10 cases, 11 red-proofs.
+
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
 2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
