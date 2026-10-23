@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2602 - A SHIP MOVED THE KEY OF EVERY PROOF THAT HOLDS A STAMP SURFACE (proof-keys step 4, GB-box, 2026-10-23)
+bump_version rewrites only stamp lines, but 824 of 1024 laws hold a stamp surface and the key hashed raw bytes: across
+b58879ec (v3790) 337 of 5162 keyed proofs kept their key, so a census banked on the commit before a ship was a miss on the
+ship. heart2 now keys those surfaces with each whole stamp line replaced by its kind - only for a law gate_ledger's carry
+rule would carry (name, script and imported readers never speak of the version; its proof text names no version), only
+while every required surface carries one version, only where the line's free text passes stamp_leak, and with the law's
+own literals and regexes counted per surface over what the mask took away. Anything else keys raw, as before. Two grok
+reviews: inert-text, strict TASKS rows, literal counts (per surface, exact case, regex matches), byte-keyed memos, fixed
+gates-row words, short versions in a proof. Law: test_a_version_bump_keeps_the_proofs_of_laws_that_never_read_the_version
+(19 cases, 21 red-proofs).
+
 ### REG-2603 - THE FAN-IN'S always() WAS READ ANYWHERE IN THE JOB (census 39982880536 shard 6, GB-box, 2026-10-23)
 test_the_shard_workflow_proves_every_proof_once[2] went BLIND: REG-2595 gave the fan-in's census steps their own
 `if: ${{ always() }}`, so dropping the JOB's `if:` left the string in the job and the law stayed green. The case now reads

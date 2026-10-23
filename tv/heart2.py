@@ -3711,20 +3711,92 @@ class _VerdictCache(object):
         if not (_inside(repo, tgt) and os.path.isfile(tgt)):
             return None, [], "the tampered target %r is not a file inside the sandbox" % rel
         inputs = sorted(set(base) | {tgt})
+        # REG-2602 - the stamp lines leave this key only for a law that never reads the version, in a coherent tree
+        GL = _ledger()
+        stamped = [p for p in inputs if os.path.relpath(p, repo).replace(os.sep, "/") in GL.STAMP_SURFACES]
+        mask, lits = False, None
+        if stamped:
+            law = os.path.join(sandbox, filename)
+            with self.lock:
+                surf = tuple(_sha_file(os.path.join(repo, *r.split("/")), self.memo) for r in sorted(GL._STAMP_REQUIRED))
+                law_sha = _sha_file(law, self.memo)
+            vk, rk = ("REG-2602 version", repo) + surf, ("REG-2602 reads", sandbox, filename, law_sha)
+            if vk not in self.closures:            # keyed on the surfaces' bytes: a one-file edit mid-run is seen
+                self.closures[vk] = _tree_version(repo)
+            if rk not in self.closures:
+                reads = _law_reads_version(name, law, self._imported(base))
+                got = None
+                if not reads:
+                    try:
+                        with open(law, encoding="utf-8", errors="replace") as fh:
+                            got = GL.script_literals(fh.read())
+                    except OSError:
+                        got = None
+                self.closures[rk] = (reads or got is None, got)
+            ver = self.closures[vk]
+            reads, lits = self.closures[rk]
+            pk = _proof_key(pr)
+            mask = (ver is not None and not reads and not GL._VERSION_WORDS.search(pk)
+                    and not _PROOF_VERSIONISH.search(pk))
+            if mask:
+                inputs = sorted(set(inputs) | {os.path.join(sandbox, "gate_ledger.py"), os.path.join(sandbox, "stamp_leak.py")})
         h = hashlib.sha256(b"heart2 P3 key v1\0")
         h.update(str(filename).encode("utf-8", "replace") + b"\0")
         h.update(_proof_key(pr).encode("utf-8", "replace") + b"\0")
         h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace") + b"\0")
-        rels = []
+        rels, away = [], []
         for p in inputs:
-            with self.lock:
-                d = _sha_file(p, self.memo)
             rel = os.path.relpath(p, repo).replace(os.sep, "/")
+            if mask and rel in GL.STAMP_SURFACES:
+                d, gone = self._masked_sha(p, rel)
+                away.append((rel, gone or ""))
+            else:
+                with self.lock:
+                    d = _sha_file(p, self.memo)
             if d is None:
                 return None, [], "%s cannot be read" % rel
             h.update(rel.encode("utf-8", "replace") + b"\0" + d.encode("ascii") + b"\0")
             rels.append(rel)
+        if mask:   # the law's own literals, counted in what the mask took away
+            for rel, gone in away:   # per surface: a word moving from one file's stamp to another's is a move
+                h.update(b"REG-2602 literals\0" + rel.encode("utf-8", "replace") + b"\0"
+                         + json.dumps(_literal_counts(lits, gone), ensure_ascii=True).encode("ascii") + b"\0")
         return h.hexdigest(), rels, None
+
+    def _imported(self, paths):
+        """Every module name an import in `paths` (one closure) names, from the walk's memo. -> set. A .py the walk never
+        parsed is a file some module only NAMES (run_gates names tv/windows_boot_check.py in a description), not one
+        this law imports; one another law's walk parsed adds its imports too - more readers, never fewer."""
+        out = set()
+        for p in paths:
+            if not p.endswith(".py"):
+                continue
+            try:
+                st = os.stat(p)
+                got = self.parsed.get((os.path.normpath(p), st.st_size, st.st_mtime_ns))
+            except OSError:
+                got = None
+            if got is not None:
+                out |= set(got[0])
+        return out
+
+    def _masked_sha(self, path, rel):
+        """REG-2602 - ('m:' + sha256 of the file's bytes with its stamp lines masked, the masked-away text) | (None, None).
+        The digest never equals a raw one, so a masked key and a raw key cannot meet."""
+        try:
+            with open(path, "rb") as fh:
+                data = fh.read()
+        except OSError:
+            return None, None
+        raw = hashlib.sha256(data).hexdigest()   # the bytes are always read; only the masking is memoised, on them
+        with self.lock:
+            if ("REG-2602", rel, raw) in self.memo:
+                return self.memo[("REG-2602", rel, raw)]
+        m = _stamp_masked(rel, data)
+        d = (None, None) if m is None else ("m:" + hashlib.sha256(m[0]).hexdigest(), m[1])
+        with self.lock:
+            self.memo[("REG-2602", rel, raw)] = d
+        return d
 
     def count(self, what):
         with self.lock:
@@ -3844,6 +3916,129 @@ def _age_say(ms):
 def _declares_widths(proofs):
     """#42 — does any proof of this gate declare the viewports its defect shows at?"""
     return any(isinstance(pr, dict) and "widths" in pr for pr in (proofs or []))
+
+
+# REG-2602 (2026-10-23) - A COHERENT VERSION BUMP KEEPS THE KEYS OF THE LAWS THAT NEVER READ THE VERSION.
+# bump_version.py rewrites stamp lines in bible.html, control_app.py, tv_diablo.py, WINDOWS_SHIP.json, RESUME_HERE.md,
+# BLUEPRINT.md and the TASKS.md ship table, and 824 of 1024 laws hold one of those files, so every ship re-proved ~80%
+# of the census. gate_ledger's own rule decides who may ignore it (STAMP_SURFACES, reads_version): a law whose name or
+# script speaks of the version, whose closure holds a version-reader module, or whose proof's own text names a version
+# keeps raw bytes. The rest hash those files with each WHOLE stamp line replaced by its kind - and only while the tree's
+# stamps agree on one version, so a hand bump of one surface is a byte change like any other.
+# only the count varies: the row's words are fixed, so no free text rides through
+_STAMP_EXTRA = {"RESUME_HERE.md": (("gates", re.compile(r"^\| gates registered \| \d+ \*\(when this was written — ask run_gates for now\)\* \|$")),)}
+_PROOF_VERSIONISH = re.compile(r"\bv\d+(?:\.\d+)*\b")
+
+
+def _ledger():
+    import gate_ledger as _GL  # the stamp rule's one home; heart2 imports it only when a key asks
+    return _GL
+
+
+def _inert(m):
+    """Every free-text group of one stamp match (build name, notes, ship subjects) is inert words that leak nothing -
+    stamp_leak's own two checks, as bump_version and gate_ledger ask them. -> bool"""
+    import stamp_leak
+    for g in ("f", "g", "s", "rest"):
+        if g in m.re.groupindex and m.group(g) is not None:
+            t = m.group(g).strip()
+            while len(t) >= 2 and t[0] == t[-1] and t[0] in "'\"":
+                t = t[1:-1].strip()
+            if stamp_leak.free_text_problem(t) or stamp_leak.leak_problem(t):
+                return False
+    return True
+
+
+def _stamp_masked(rel, data):
+    """`data` (bytes) with every whole stamp line of `rel` whose free text is inert replaced by its kind -> (bytes, the
+    masked-away lines as one text) | None when it will not decode. A line with code riding on it, or a note that is
+    not inert words, is not a stamp line and stays as it is."""
+    GL = _ledger()
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    out, away = [], []
+    for line in text.split("\n"):
+        bare = line[:-1] if line.endswith("\r") else line
+        if rel == "TASKS.md":
+            m = next((m for r in (GL._TASK_NEW, GL._TASK_SHIPPED) for m in [r.match(bare)]
+                      if m), None)
+            if m is not None and _inert(m):   # the strict row forms only: a loose row's free text is unchecked
+                if not (out and out[-1] == "\0STAMP:ship"):   # a bump ADDS a row: the run of rows is one mark
+                    out.append("\0STAMP:ship")
+                away.append(bare)
+                continue
+        else:
+            k = GL.stamp_kinds(rel, bare)
+            if k is None:
+                k = next(((kind, m) for kind, pat in _STAMP_EXTRA.get(rel, ()) for m in [pat.match(bare)] if m), None)
+            if k is not None and _inert(k[1]):
+                out.append("\0STAMP:" + k[0])
+                away.append(bare)
+                continue
+        out.append(line)
+    return "\n".join(out).encode("utf-8"), "\n".join(away)
+
+
+def _literal_counts(lits, text):
+    """gate_ledger.literal_hit's measure, taken at key time over one surface's masked-away stamp text: how often each
+    literal of the law's own script occurs (gate_ledger's case-free count AND the exact one), how often each regex it
+    hands re.* matches, and each such regex's words. A string-count or forbidden-string law holds the string it checks,
+    so its verdict can move over a masked line only if one of these counts moves. -> [..]"""
+    GL = _ledger()
+    low = text.lower()
+    every, rx = lits
+    out = []
+    for lit in sorted(every):
+        out.append((lit, GL._count(low, lit.lower()), text.count(lit)))
+    for pat in sorted(rx):
+        try:
+            hits = len(re.findall(pat, text)), len(re.findall(pat, text, re.I | re.M))
+        except (re.error, RecursionError):
+            hits = None
+        out.append(("re", pat, hits))
+        for w in sorted(set(GL._WORD.findall(re.sub(r"\\[A-Za-z]", " ", pat).lower()))):
+            out.append(("re:" + w, GL._count(low, w)))
+    return out
+
+
+def _tree_version(repo):
+    """The one version every required stamp surface of `repo` carries -> 'vN' | None (a surface missing, unreadable,
+    with no stamp line, or two versions anywhere)."""
+    GL = _ledger()
+    seen = set()
+    for rel in sorted(GL._STAMP_REQUIRED - {"TASKS.md"}):
+        try:
+            with open(os.path.join(repo, rel), encoding="utf-8") as fh:
+                lines = fh.read().split("\n")
+        except (OSError, UnicodeDecodeError):
+            return None
+        got = set()
+        for line in lines:
+            k = GL.stamp_kinds(rel, line[:-1] if line.endswith("\r") else line)
+            if k is not None and "v" in k[1].re.groupindex:
+                got.add(k[1].group("v"))
+        if not got:
+            return None
+        seen |= got
+    return next(iter(seen)) if len(seen) == 1 else None
+
+
+def _law_reads_version(name, law_path, imported):
+    """gate_ledger's reads_version + scans_content, over a law file and the module names its closure IMPORTS (a
+    reader-only module a hub merely names in a string - run_gates describes windows_boot_check - is never run by the
+    law). Unreadable counts as yes."""
+    GL = _ledger()
+    if GL._VERSION_NAME.search(str(name or "")) or str(name or "") in GL._ALWAYS_RERUN:
+        return True
+    if any(os.path.basename(r)[:-3] in imported for r in GL._VERSION_READER_ONLY):
+        return True
+    try:
+        with open(law_path, encoding="utf-8", errors="replace") as fh:
+            return bool(GL._VERSION_WORDS.search(fh.read()))
+    except OSError:
+        return True
 
 
 def _proof_key(pr):
