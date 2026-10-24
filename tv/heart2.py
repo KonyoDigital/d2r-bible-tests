@@ -2692,9 +2692,9 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
                 _trace_record(filename, set(), False)
                 if not isinstance(sys.exc_info()[1], Exception):
                     raise
-    _watch = _kill_watch(env)                 # REG-2350 — which children of this run a signal ended, and who sent it
-    _tdone = False
+    _watch, _killed, _tdone = None, None, False
     try:
+        _watch = _kill_watch(env)             # REG-2350 — which children of this run a signal ended, and who sent it
         r = subprocess.run(_cmd, cwd=sandbox_tv, env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
         _tdone = _ended_by_signal(r.returncode) is None
@@ -2703,26 +2703,23 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     finally:
         try:
             _killed = _kills_in(_watch) if _watch else []
-        except BaseException:
-            if _tlog is not None:             # REG-2640 - kills unknown: this run is an incomplete trace
-                _trace_record(filename, set(), False)
-            raise
-        if _tlog is not None:                 # REG-2640 - an unfinished or killed run is an incomplete trace: nothing is dropped
-            try:
-                _tseen, _tok = _trace_read(_tlog, os.getpid())
-            except Exception:
+            _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
+        finally:
+            if _watch:
+                try:
+                    os.unlink(_watch)
+                except OSError:
+                    pass
+            if _tlog is not None:             # REG-2640 - recorded on every exit; complete only if it ran out, unkilled
                 _tseen, _tok = set(), False
-            _trace_record(filename, _tseen, bool(_tok and _tdone and not _killed))
-            try:
-                os.unlink(_tlog)
-            except OSError:
-                pass
-        _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
-        if _watch:
-            try:
-                os.unlink(_watch)
-            except OSError:
-                pass
+                try:
+                    _tseen, _tok = _trace_read(_tlog, os.getpid())
+                finally:
+                    _trace_record(filename, _tseen, bool(_tok and _tdone and _killed == []))
+                    try:
+                        os.unlink(_tlog)
+                    except OSError:
+                        pass
     _sig = _ended_by_signal(r.returncode)
     if _sig is not None or _killed:
         # REG-2350 — NOT A VERDICT, before any line of it is read: a signal from outside ended the law or a child of it
