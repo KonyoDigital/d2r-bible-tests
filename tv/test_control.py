@@ -18050,7 +18050,7 @@ class TestV2015NoBareWindowCallIntoNothing(unittest.TestCase):
         "showDirectoryPicker", "showOpenFilePicker", "showSaveFilePicker", "matchMedia",
         "requestAnimationFrame", "cancelAnimationFrame", "setTimeout", "setInterval",
         "clearTimeout", "clearInterval", "getComputedStyle", "fetch", "open", "close", "focus",
-        "blur", "confirm", "prompt", "postMessage", "btoa", "atob", "queueMicrotask",
+        "blur", "confirm", "prompt", "postMessage", "btoa", "atob", "queueMicrotask", "stop",
     }
 
     @staticmethod

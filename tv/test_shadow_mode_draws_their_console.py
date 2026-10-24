@@ -213,6 +213,7 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         cls.mode = ["A"]
         cls.srv = _serve(cls.stores, cls.hits, cls.mode)
         cls.udd = tempfile.mkdtemp(prefix="tvd-shadow-chrome-")
+        cls.addClassCleanup(shutil.rmtree, cls.udd, True)  # paired here, whatever _run or _stop does
         cls.chrome = subprocess.Popen(
             [chrome, "--headless=new", "--disable-gpu", "--no-sandbox", "--no-first-run", "--disable-dev-shm-usage",
              "--remote-debugging-port=%d" % CDP_PORT, "--remote-allow-origins=*", "--user-data-dir=" + cls.udd,

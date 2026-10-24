@@ -450,6 +450,23 @@
     "purpose": "Let his console finish moving onto the pushed code before the pre-push demos drive it (v3526 push #1 was refused by a demo 7 s after the re-exec).",
     "territory": "push"
   },
+  "console_snapshot.py": {
+    "entryPoints": [
+      "clean",
+      "due",
+      "apply_reply",
+      "record_ok",
+      "write_cache",
+      "read_cache",
+      "view",
+      "scrub_store",
+      "with_api",
+      "budget"
+    ],
+    "gotcha": "Only d2r_* stores leave the PC and DENY keeps history/film/debug stores home; a string naming a disk path or install id is blanked, nothing else re-typed, so the viewer draws the same bytes. Uploads are change-only, at most once per MIN_GAP_MS (plus boot) and DAY_CAP a day, signed with the roster key; functions/api/snapshot.js repeats the same privacy checks server side.",
+    "purpose": "Shadow mode: decides which of a console's account stores are uploaded as its snapshot, when, and what a viewer is told about its age (live / offline, last upload).",
+    "territory": "console-ui"
+  },
   "control_app.py": {
     "entryPoints": [
       "main",
