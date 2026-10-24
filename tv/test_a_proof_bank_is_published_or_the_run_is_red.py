@@ -65,7 +65,32 @@ RED_PROOF = [
     {"why": "REG-2633 - the Windows producer no longer insists on the PCs' eol conversion",
      "file": ".github/workflows/proof-bank-windows.yml",
      "find": '          test "$v" = "true" || {',
-     "replace": '          true || {', "matches": 1},
+     "replace": '          true || {', "matches": 2},
+    {"why": "REG-2633 - the scratch repo pushes without the checkout's token header (anonymous push, never lands)",
+     "file": "proof_bank.py",
+     "find": '        for line in (hdrs.splitlines() if rc == 0 else []):\n',
+     "replace": '        for line in []:\n', "matches": 1},
+    {"why": "REG-2633 - a failed first push onto a new branch aborts the retries (orphan refused)",
+     "file": "proof_bank.py",
+     "find": '                _must(work, "symbolic-ref", "HEAD", "refs/heads/%s" % branch)\n',
+     "replace": '                _must(work, "checkout", "-q", "--orphan", branch)\n', "matches": 1},
+    {"why": "REG-2633 - a retried orphan keeps the rejected commit as its parent",
+     "file": "proof_bank.py",
+     "find": '                _git(work, "update-ref", "-d", "refs/heads/%s" % branch)\n',
+     "replace": '', "matches": 1},
+    {"why": "REG-2633 - the publisher never compares what origin serves back",
+     "file": "proof_bank.py",
+     "find": "        if rc != 0 or back != text:\n",
+     "replace": "        if False:\n", "matches": 1},
+    {"why": "REG-2633 - the Windows bank job keys whatever bytes its checkout holds",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "sys.exit(0 if b'\\r\\n' in b else",
+     "replace": "sys.exit(0 if True else", "matches": 2},
+    {"why": "REG-2633 - the Linux publish step turns errexit back off",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": '          set -euo pipefail\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
+     "replace": '          set -euo pipefail\n          set +e\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
+     "matches": 1},
 ]
 
 
@@ -99,6 +124,11 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
                      "--head \"$GITHUB_SHA\" --class %s\n" % cls):
             self.assertIn(need, run + "\n", "%s: the publish step lost %r" % (label, need))
         self.assertNotIn("|| true", run, "%s: the publish step shrugs off a failure" % label)
+        self.assertNotRegex(run, r"set\s+\+[a-z]*e|set\s+\+o\s+errexit|set\s+\+o\s+pipefail",
+                            "%s: the publish step turns errexit/pipefail back off" % label)
+        last = [l.strip() for l in run.splitlines() if l.strip()][-1]
+        self.assertIn("proof_bank.py --publish", last,
+                      "%s: something runs after the publish, and its exit code is the step's" % label)
         self.assertNotRegex(run, r"\|\|\s*(exit 0|:)", "%s: the publish step shrugs off a failure" % label)
         fan = [s for s in _publish_steps(job) if "--fan-in" in s]
         for s in fan:
@@ -128,6 +158,12 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
         self.assertIn('test "$v" = "true"', shard, "the Windows producer does not insist on the PCs' autocrlf")
         self.assertLess(shard.index("core.autocrlf"), shard.index("actions/checkout"),
                         "autocrlf is asked after the checkout already converted the tree")
+        for jn, j in (("win-shard", shard), ("win-bank", _job(text, "win-bank"))):
+            self.assertIn('test "$v" = "true"', j, "%s does not insist on the PCs' autocrlf" % jn)
+            self.assertLess(j.index("core.autocrlf"), j.index("actions/checkout"), jn)
+            self.assertIn("b'\\r\\n' in b", j, "%s never looks for CRLF on disk after its checkout" % jn)
+            self.assertLess(j.index("actions/checkout"), j.index("b'\\r\\n' in b"), jn)
+            self.assertIn('test -z "$(git status --porcelain)"', j, "%s may key a dirty checkout" % jn)
         self.assertIn("claude.cmd", shard, "on Windows a `claude` sh script is not what a subprocess finds")
         self.assertIn("exit /b 97", shard)
         job = _job(text, "win-bank")
@@ -217,6 +253,8 @@ class ThePublisherDriven(unittest.TestCase):
             ("linux home", dict(path=self.export(extra="/home/box/x", name="bad6.json"))),
             ("windows path", dict(path=self.export(extra="C:\\Users\\dean\\x", name="bad7.json"))),
             ("runner path", dict(path=self.export(extra="/home/runner/work/x", name="bad8.json"))),
+            ("windows runner path", dict(path=self.export(extra="D:\\a\\repo\\x", name="bad10.json"))),
+            ("escaped windows path", dict(path=self.export(extra="C:\\\\Users\\\\x", name="bad11.json"))),
             ("other class", dict(path=self.export(name="bad9.json"), plat="windows")),
         ]
         for label, kw in cases:
@@ -253,6 +291,51 @@ class ThePublisherDriven(unittest.TestCase):
         self.assertEqual(self.remote_files(), sorted([H2 + ".linux.json", H3 + ".linux.json"]))
         self.assertEqual(PB.prune([H3 + ".linux.json", H3 + ".windows.json", H2 + ".linux.json", H1 + ".linux.json",
                                    "README"], 2), [H1 + ".linux.json"])
+
+    def _spy(self, on):
+        real = PB._git
+        def spy(cwd, *a):
+            return on(real, cwd, *a)
+        PB._git = spy
+        self.addCleanup(setattr, PB, "_git", real)
+
+    def test_the_checkout_token_header_rides_into_the_scratch_push_and_is_never_printed(self):
+        key = "http.https://github.invalid/.extraheader"
+        _git(self.repo, "config", "--local", "--add", key, "AUTHORIZATION: basic SECRETSECRET")
+        seen = []
+        def on(real, cwd, *a):
+            if a[:1] == ("push",):
+                seen.append(real(cwd, "config", "--local", "--get-all", key)[1].strip())
+            return real(cwd, *a)
+        self._spy(on)
+        self.pub(self.export())
+        self.assertEqual(seen, ["AUTHORIZATION: basic SECRETSECRET"], "the scratch push ran without the header")
+        self.assertNotIn("SECRET", "\n".join(self.out), "the token header was printed")
+        self.assertEqual(self.remote_files(), [H1 + ".linux.json"])
+
+    def test_a_failed_first_push_onto_a_new_branch_is_retried_and_lands(self):
+        hook = os.path.join(self.remote, "hooks", "pre-receive")
+        flag = os.path.join(self.d, "once")
+        with io.open(hook, "w", newline="\n") as fh:
+            fh.write('#!/bin/sh\nif [ ! -e "%s" ]; then touch "%s"; exit 1; fi\nexit 0\n' % (flag, flag))
+        os.chmod(hook, 0o755)
+        self.pub(self.export())
+        self.assertTrue(os.path.exists(flag), "BASELINE: the first push was not rejected")
+        self.assertEqual(self.remote_files(), [H1 + ".linux.json"])
+        self.assertTrue(any("1/" in o for o in self.out), "BASELINE: no retry was reported")
+        self.assertEqual(_git(self.remote, "rev-list", "--count", "proof-bank")[1].strip(), "1",
+                         "the retried orphan carried the rejected commit along")
+
+    def test_other_bytes_served_back_are_a_refusal(self):
+        def on(real, cwd, *a):
+            rc, out = real(cwd, *a)
+            if a[:1] == ("show",) and rc == 0:
+                return rc, out + " "
+            return rc, out
+        self._spy(on)
+        with self.assertRaises(PB.Refused):
+            self.pub(self.export())
+        self.assertEqual(self.remote_files(), [H1 + ".linux.json"], "BASELINE: the push itself landed")
 
     def test_the_cli_refuses_a_bad_keep_and_a_short_head(self):
         self.assertEqual(PB.main(["--publish", self.export(), "--head", H1, "--class", "linux", "--keep", "0"]), 1)

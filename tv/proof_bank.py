@@ -33,8 +33,10 @@ KEEP = 60
 PUSH_TRIES = 4
 CLASSES = ("linux", "windows", "darwin")
 #: what a published bank must never carry (the export blanks its tree to "exported:<hash>", REG-2632)
-PRIVATE = (re.compile(r"/Users/"), re.compile(r"/home/"), re.compile(r"[A-Za-z]:\\\\Users\\\\"),
-           re.compile(r"[A-Za-z]:/Users/"), re.compile(r"/runner/work/"), re.compile(r"\\\\runner\\\\"))
+# any run of backslashes: the export is JSON (one \ becomes \\), and a quoted example may be escaped again
+PRIVATE = (re.compile(r"/Users/"), re.compile(r"/home/"), re.compile(r"[A-Za-z]:\\+Users\\+"),
+           re.compile(r"[A-Za-z]:/Users/"), re.compile(r"/runner/work/"), re.compile(r"\\+runner\\+"),
+           re.compile(r"(?<![A-Za-z])[A-Za-z]:\\+a\\+"), re.compile(r"(?<![A-Za-z])[A-Za-z]:/a/"))
 NAME = re.compile(r"^([0-9a-f]{40})\.(linux|windows|darwin)\.json$")
 
 
@@ -125,6 +127,15 @@ def publish(path, head, cls, remote="origin", branch=BRANCH, keep=KEEP, repo="."
         _must(work, "config", "user.email", "proof-bank@users.noreply.github.com")
         _must(work, "config", "core.autocrlf", "false")
         _must(work, "remote", "add", "origin", url)
+        # actions/checkout keeps GITHUB_TOKEN as a LOCAL http.<url>.extraheader on the checkout; a fresh scratch repo
+        # would push anonymously and be refused. Carry those headers over (never printed, never put in the URL).
+        rc, hdrs = _git(repo, "config", "--local", "--get-regexp", r"^http\..*\.extraheader$")
+        for line in (hdrs.splitlines() if rc == 0 else []):
+            k, _, v = line.partition(" ")
+            if k and v:
+                rc2, _o = _git(work, "config", "--local", "--add", k, v)
+                if rc2 != 0:
+                    raise Refused("could not carry the checkout's push credential header into the scratch repo")
         pushed = False
         for attempt in range(1, PUSH_TRIES + 1):
             rc, out = _git(work, "fetch", "-q", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (branch, branch))
@@ -134,7 +145,13 @@ def publish(path, head, cls, remote="origin", branch=BRANCH, keep=KEEP, repo="."
             if has:
                 _must(work, "checkout", "-q", "-B", branch, "refs/remotes/origin/%s" % branch)
             else:
-                _must(work, "checkout", "-q", "--orphan", branch)
+                # a fresh orphan every try: a failed first push leaves a local branch that `--orphan` would refuse
+                _must(work, "symbolic-ref", "HEAD", "refs/heads/%s" % branch)
+                _git(work, "update-ref", "-d", "refs/heads/%s" % branch)
+                _must(work, "read-tree", "--empty")
+                for f in os.listdir(work):
+                    if f != ".git":
+                        os.remove(os.path.join(work, f))
             with io.open(os.path.join(work, name), "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(text)
             # newest first: the commit order of each bank's last touch

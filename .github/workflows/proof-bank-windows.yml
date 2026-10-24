@@ -43,6 +43,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 200
+      - name: The tree holds the PCs' bytes (CRLF on disk, clean)
+        run: |
+          python -c "import sys; b=open('tv/heart2.py','rb').read(); sys.exit(0 if b'\r\n' in b else 'tv/heart2.py holds no CRLF - not the bytes a Windows PC keys')"
+          test -z "$(git status --porcelain)" || { echo "::error::the checkout is dirty - its manifest would be refused"; git status --porcelain | head -20; exit 1; }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -80,6 +84,9 @@ jobs:
           retention-days: 7
 
   win-bank:
+    # always(): a red shard still leaves its finished manifest, and the bank holds only PROVEN entries, so the PCs get
+    # every proof that did land while the red shard keeps the whole workflow red (fan-in still refuses a missing,
+    # unfinished or other-commit shard). Same contract as the Linux bank, whose fan-in passes owed failures too.
     name: windows bank - one whole set, published as <sha>.windows.json, or red
     needs: [win-shard]
     if: ${{ always() }}
@@ -94,7 +101,16 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: The PCs' eol conversion (keys meet only over the same bytes)
+        run: |
+          v=$(git config --get core.autocrlf || true)
+          echo "core.autocrlf=$v"
+          test "$v" = "true" || { echo "::error::core.autocrlf is '$v', not the PCs' true - this bank would key other bytes"; exit 1; }
       - uses: actions/checkout@v4
+      - name: The tree holds the PCs' bytes (CRLF on disk, clean)
+        run: |
+          python -c "import sys; b=open('tv/heart2.py','rb').read(); sys.exit(0 if b'\r\n' in b else 'tv/heart2.py holds no CRLF - not the bytes a Windows PC keys')"
+          test -z "$(git status --porcelain)" || { echo "::error::the checkout is dirty - its manifest would be refused"; git status --porcelain | head -20; exit 1; }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
