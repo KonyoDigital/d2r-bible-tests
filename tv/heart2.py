@@ -2215,12 +2215,29 @@ def _h2_install():
     def _shell_ish(argv):
         return not isinstance(argv, (list, tuple))      # a string command line runs through a shell
 
+    _stdlib = _o.path.realpath(_o.path.dirname(_o.__file__))
+
+    def native(filename):
+        # a C extension outside the standard library may open a path in C (cv2.imread), where no audit event fires
+        try:
+            f = str(_fspath(filename))
+        except Exception:
+            return True
+        if not f.endswith((".so", ".pyd", ".dylib")):
+            return False
+        r = _real(f)
+        return not r.startswith(_stdlib + _o.sep) or "site-packages" in r or "dist-packages" in r
+
     def hook(ev, args):
-        if ev == "open":
+        if ev == "import":
+            if len(args) > 1 and args[1] is not None and native(args[1]):
+                emit("U", "native " + _base(str(args[1])))
+        elif ev == "open":
             names("R", args[0] if args else None)
         elif ev == "sqlite3.connect":
             names("R", args[0] if args else None)
         elif ev == "subprocess.Popen":
+            busy.popen = True          # the os.posix_spawn / fork_exec this Popen makes next is this same child
             exe, argv = args[0], args[1]
             if exe is None and argv:
                 exe = argv[0] if isinstance(argv, (list, tuple)) else str(argv).split()[0]
@@ -2241,8 +2258,13 @@ def _h2_install():
                 what = _base(str(_fspath(args[0])))
             except Exception:
                 what = "?"
-            emit("p" if (pyish(args[0], args[2] if len(args) > 2 else None, args[1]) or what in _PURE) else "U",
-                 ev + " " + what)
+            mine = getattr(busy, "popen", False)
+            busy.popen = False
+            py = pyish(args[0], args[2] if len(args) > 2 else None, args[1])
+            if mine and (py or what in _PURE):
+                emit("p", ev + " " + what)          # its Popen line already counted it
+            else:                                  # a direct os.posix_spawn: a python child is counted, all else U
+                emit("P" if py else "U", ev + " " + what)
         elif ev in ("os.system", "os.spawn", "os.startfile", "ctypes.dlopen", "ctypes.dlsym", "os.forkpty"):
             emit("U", ev)
 
@@ -2292,6 +2314,25 @@ def _h2_install():
             return _It(_scandir(*a, **k))
         scandir.__wrapped__ = _scandir
         _o.scandir = scandir
+    try:     # multiprocessing and subprocess start children through fork_exec; nothing else should
+        import _posixsubprocess as _ps
+        _fe = _ps.fork_exec
+        def fork_exec(*a, **k):
+            mine = getattr(busy, "popen", False)
+            busy.popen = False
+            if not mine:
+                try:
+                    exe = a[0][0] if a and a[0] else None
+                    emit("P" if pyish(exe, None, None) else "U", "fork_exec " + _base(str(_fspath(exe))))
+                except Exception:
+                    emit("U", "fork_exec ?")
+            return _fe(*a, **k)
+        _ps.fork_exec = fork_exec
+    except Exception:
+        pass
+    for _m in list(_s.modules.values()):        # an extension loaded before this file ran
+        if native(getattr(_m, "__file__", None) or ""):
+            emit("U", "native " + _base(_m.__file__))
     emit("H", "%d %d" % (_o.getpid(), _o.getppid()))
     _s.addaudithook(hook)
 try:

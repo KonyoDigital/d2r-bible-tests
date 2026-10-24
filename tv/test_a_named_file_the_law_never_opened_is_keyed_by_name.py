@@ -40,6 +40,11 @@ _READS = {
     "stats": "os.path.getsize(os.path.join(here, 'page' + '.css'))\n",
     "shell": "import subprocess; subprocess.run(['cat', os.path.join(here, 'page' + '.css')], capture_output=True)\n",
     "imports": "sys.path.insert(0, here); import named_mod\n",
+    "direct": ("os.posix_spawn(sys.executable, [sys.executable, '-S', '-c', 'open(%r).read()' % "
+               "os.path.join(here, 'page' + '.css')], dict(os.environ)); os.wait()\n"),
+    "forkexec": ("import multiprocessing as _mp\n"
+                 "if __name__ == '__main__':\n"
+                 "    _mp.set_start_method('spawn'); _q = _mp.Process(target=print); _q.start(); _q.join()\n"),
     "pure": "import subprocess; subprocess.run(['true'])\n",
     "python": ("import subprocess; subprocess.run([sys.executable, '-c', 'open(%r).read()' % "
                "os.path.join(here, 'page' + '.css')])\n"),
@@ -154,6 +159,16 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
+    def test_a_python_child_spawned_directly_is_counted(self):
+        """★ os.posix_spawn without subprocess: the child is counted, says no hello (-S), and nothing is dropped"""
+        results, per, stopped, runs, said = self.cold_then_edit("direct")
+        self.assertRan(runs, said, "an edit read by a directly spawned python child")
+
+    def test_a_multiprocessing_child_is_traced(self):
+        """a multiprocessing spawn child (fork_exec, no Popen event) inherits the hook and says hello: still complete"""
+        results, per, stopped, runs, said = self.cold_then_edit("forkexec")
+        self.assertReused(runs, results, said, "a law that started a multiprocessing child that read nothing")
+
     def test_a_pure_tool_child_still_lets_an_unread_file_go(self):
         """`true` opens no file of the tree: the trace stays complete and the unread file is still keyed by name"""
         results, per, stopped, runs, said = self.cold_then_edit("pure")
@@ -235,6 +250,13 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-2640 - a direct os.posix_spawn python child is never counted, so its missing hello goes unseen",
+        "file": "heart2.py",
+        "find": "                emit(\"P\" if py else \"U\", ev + \" \" + what)\n",
+        "replace": "                emit(\"p\", ev + \" \" + what)\n",
+        "matches": 1,
+    },
     {
         "why": "REG-2640 - the static import closure is dropped like a merely named file",
         "file": "heart2.py",
