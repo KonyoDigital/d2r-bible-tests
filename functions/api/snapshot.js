@@ -73,6 +73,13 @@ export function textsOf(raw) {
 export function privateIn(raw) {
   // the raw text too: JSON.parse keeps the last of two equal keys, so the first one is read only here
   if (PRIVATE.some((rx) => rx.test(raw))) return true;
+  // and every string literal in the raw text decoded on its own, so an escaped value under a dropped key is read too
+  const lits = raw.match(/"(?:[^"\\]|\\.)*"/g) || [];
+  for (const lit of lits) {
+    let t;
+    try { t = JSON.parse(lit); } catch (e) { continue; }
+    if (PRIVATE.some((rx) => rx.test(t))) return true;
+  }
   return textsOf(raw).some((t) => PRIVATE.some((rx) => rx.test(t)));
 }
 

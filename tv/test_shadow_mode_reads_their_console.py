@@ -462,7 +462,10 @@ class TheWorker(unittest.TestCase):
                dict(_wstores(), d2r_notes=json.dumps(["L·0badf00d·"])),
                dict(_wstores(), d2r_notes=json.dumps({"img": "data:image/png;x"})),
                # JSON.parse keeps the last of two equal keys: the first is only in the raw text
-               dict(_wstores(), d2r_notes='{"p":"/Users/someone/x","p":"ok"}')]
+               dict(_wstores(), d2r_notes='{"p":"/Users/someone/x","p":"ok"}'),
+               # ...and escaped under the dropped key, which neither the raw text nor the parse shows
+               dict(_wstores(), d2r_notes='{"p":"\\/Users\\/someone\\/x","p":"ok"}'),
+               dict(_wstores(), d2r_notes='{"t":"\\u0067hp_' + "A" * 30 + '","t":"ok"}')]
         out = _node({"steps": [self._post(self._body(stores=c), self.key_a, seed=self.seed, now=T0) for c in bad]})
         for c, got in zip(bad, out["steps"]):
             self.assertFalse(got["reply"]["ok"], "the worker stored an uncleaned or worldless body: %r" % got["reply"])
@@ -896,6 +899,10 @@ RED_PROOF = [
      "file": "functions/api/snapshot.js",
      "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
      "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: an escaped path under a dropped duplicate key is stored (raw literals not decoded)",
+     "file": "functions/api/snapshot.js",
+     "find": "    if (PRIVATE.some((rx) => rx.test(t))) return true;\n  }\n",
+     "replace": "  }\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a board install id the console blanks",
      "file": "functions/api/snapshot.js",
      "find": "  /\\bI?L?·[0-9a-f]{8}·/,\n",
