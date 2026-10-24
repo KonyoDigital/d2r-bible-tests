@@ -109,6 +109,7 @@ def needs_app_of(filename):
 
 #: the prover and the modules it runs with, copied by NAME from this tree for the CLI case
 _PROVER_FILES = ("heart2.py", "safe_copy.py", "lane_ports.py", "console_safe.py", "law_widths.py", "prove_record.py",
+                 "gate_ledger.py",   # REG-2633 era: a proof key asks the stamp rule in gate_ledger
                  os.path.join("gate_trace", "sitecustomize.py"))
 
 
@@ -188,8 +189,9 @@ class _Case(unittest.TestCase):
         if not os.path.exists(path):
             return []
         with io.open(path, encoding="utf-8") as fh:
-            return sorted((e.get("gate"), e.get("proof")) for e in json.load(fh)["entries"].values()
-                          if e.get("verdict") == H.PROVEN)
+            # REG-2440 also banks a traced twin ("t:" key) once gate_ledger rides along; the prefix is the static-keyed set
+            return sorted((e.get("gate"), e.get("proof")) for k, e in json.load(fh)["entries"].items()
+                          if e.get("verdict") == H.PROVEN and not str(k).startswith("t:"))
 
     def census(self, have=None):
         said = []

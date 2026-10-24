@@ -2272,9 +2272,9 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
         ", ".join(gone), "restored from the real tree" if len(restored) == len(gone) else "NOT all restorable")
     note = note[:-1] + " - " + _witness + "]"
     # REG-2438 - and WHEN: the suspect is the temp cleaner at 03:35 (_fresh_atimes), and only a time can clear or name it
-    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s, at %s) [%s]\n"
-                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None),
-                        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), _witness))
+    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s, %s, at %s)\n"
+                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None), _witness,
+                        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))   # REG-2612 witness + REG-2438 time
     if res[0] is True or len(restored) != len(gone):
         return res[0], str(res[1]) + note
     again = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)

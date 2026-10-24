@@ -528,6 +528,16 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         for n in names:
             with io.open(os.path.join(wf, n), encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
+            if n == "proof-bank-windows.yml":
+                # REG-2633 - the Windows proof bank (manual dispatch only) proves each shard into its OWN fresh cache and
+                # folds those shard caches into the bank: the cache is named only as a shard's fresh path or the fold's input.
+                lines = text.splitlines()
+                self.assertTrue(all("--proof-shard" in l for l in lines if "--push" in l),
+                                "workflow %s runs a push-time prove that is not a proof shard" % n)
+                self.assertTrue(all("HEART2_CACHE_PATH=" in l or "--import-shards" in l or "proof_bank.py --publish" in l
+                                    for l in lines if ".heart2_cache" in l),
+                                "workflow %s names the cache other than as a shard's fresh path, the fold's input or the publish" % n)
+                continue
             if n == "proof-keys-shards.yml":
                 # REG-2588 - the ONE exception: a proof shard proves at push time into its OWN fresh cache (REG-2585
                 # refuses one that already exists), so it consults nothing banked. Every --push line must be a shard's,
@@ -535,8 +545,11 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
                 lines = text.splitlines()
                 self.assertTrue(all("--proof-shard" in l for l in lines if "--push" in l),
                                 "workflow %s runs a push-time prove that is not a proof shard" % n)
-                self.assertTrue(all("HEART2_CACHE_PATH=" in l for l in lines if ".heart2_cache" in l),
-                                "workflow %s names the cache other than as a shard's own fresh path" % n)
+                # REG-2633 - the bank job folds the shard caches (--import-shards) and publishes the fold
+                self.assertTrue(all("HEART2_CACHE_PATH=" in l or "--import-shards" in l or "proof_bank.py --publish" in l
+                                    for l in lines if ".heart2_cache" in l),
+                                "workflow %s names the cache other than as a shard's own fresh path, the fold's input "
+                                "or the publish" % n)
                 continue
             self.assertNotIn(".heart2_cache", text, "workflow %s names the cache" % n)
             self.assertNotIn("--push", text, "workflow %s runs a push-time prove - CI must run every proof" % n)

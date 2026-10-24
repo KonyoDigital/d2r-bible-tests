@@ -39,6 +39,7 @@ _fx_tmp.contain()
 #: the prover and the modules it runs with, copied by NAME from this tree (a proof that tampers heart2.py here is the
 #: heart2.py the fixture runs)
 _PROVER_FILES = ("heart2.py", "safe_copy.py", "lane_ports.py", "console_safe.py", "law_widths.py", "prove_record.py",
+                 "gate_ledger.py",   # REG-2633 era: a proof key asks the stamp rule in gate_ledger
                  os.path.join("gate_trace", "sitecustomize.py"))
 
 _RUN_GATES = r'''

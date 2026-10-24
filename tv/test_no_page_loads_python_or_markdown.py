@@ -63,7 +63,7 @@ PAGES = (
     "functions/api/tz.js", "functions/console.js", "functions/d2r/api/d2jsp_quote.js", "functions/d2r/api/tz.js",
     "functions/visits.js", "offline1735.mjs", "routine_status.js", "tv/control_ui.html",
     "tv/debug/tz_rotation_probe.mjs", "tv/demo_console.mjs", "tv/gate_trace/node_trace.cjs",
-    "tv/intake_grok_sub.mjs", "tv/intake_local.mjs", "v32_init_timing.js", "v32_replicate_audit.js", "v32_smoke.js",
+    "tv/intake_grok_sub.mjs", "tv/intake_local.mjs", "tv/pc_settings.mjs", "v32_init_timing.js", "v32_replicate_audit.js", "v32_smoke.js",
     "v32_smoke2.js", "v33_smoke.js", "v34_debug.js", "v34_smoke.js", "v35_apostrophe_test.js", "v35_full.js",
     "v35_smoke.js", "v36_test.js", "v38_picks_check.js", "v39_dom_probe.js", "v39_polish_check.js",
     "v39_polish_check2.js", "v39_pulse_debug.js", "v40_content_check.js", "v40_debug.js",
