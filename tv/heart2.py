@@ -2166,6 +2166,8 @@ def _h2_install():
                 p = p.decode("utf-8", "surrogateescape")
             p = str(p)
             emit(tag, _base(p.rstrip("/")))
+            if p.endswith(".pyc"):      # a module loaded from its cache read its SOURCE's bytes, at one remove
+                emit(tag, _base(p).split(".", 1)[0] + ".py")
             try:
                 if not _isabs(p):
                     p = _join(_getcwd(), p)
@@ -2383,7 +2385,7 @@ def _trace_unread(filename, rels, keep):
         if not t or not t["ok"] or t["runs"] < 1:
             return []
         names = set(t["names"])
-    return sorted(r for r in rels if r not in keep and not r.endswith(".py")
+    return sorted(r for r in rels if r not in keep
                   and r.rsplit("/", 1)[-1] not in names)
 
 
@@ -4025,7 +4027,8 @@ def _tracked_files(repo=None):
     return frozenset(x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x)
 
 
-def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False, skip_modules=()):
+def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False, skip_modules=(),
+               closure=None):
     """#42 P3 — every file in `sandbox` (a copied tv/) that a law's verdict can depend on. -> (sorted [abs path], why)
 
     `why` is None when every input could be found and read; otherwise the reason this law is UNKEYABLE (the list then
@@ -4077,6 +4080,8 @@ def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listi
             return sorted(inputs), ("the law lists a directory itself (%s at line %d) - what it reads is decided at "
                                     "run time, so no byte key can name it" % lists)
         inputs.add(p)
+        if closure is not None:           # REG-2640 - the modules the AST walk imports, never dropped by the trace
+            closure.add(p)
         for dep in names & set(local):
             # A module the caller named is not walked from a dependency. The law file's own
             # import still is: that is the gate reading it, not an inherited one.
@@ -4914,7 +4919,15 @@ def _keep_for(sandbox, filename, pr):
         keep.add(rel(resolve_proof_target(sandbox, tf)))
     for need in (proof_needs_in(os.path.join(sandbox, filename)) or ()):
         keep.add(rel(os.path.join(sandbox, need)))
+    # every module of the static import closure stays a byte input: only a module the closure merely NAMES in a
+    # string (run_gates lists every law) may be keyed by name, and only when no traced run opened it or its cache
+    closure = set()
+    law_inputs(sandbox, filename, [pr], parsed=_KEEP_PARSED, closure=closure)
+    keep |= {rel(p) for p in closure}
     return keep
+
+
+_KEEP_PARSED = {}     # REG-2640 - law_inputs' (path, size, mtime_ns) memo for _keep_for
 
 
 def _final_key(cache, sandbox, name, filename, pr, key, entry):

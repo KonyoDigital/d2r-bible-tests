@@ -39,6 +39,7 @@ _READS = {
     "opens": "with open(os.path.join(here, 'page' + '.css')) as _fh: _fh.read()\n",
     "stats": "os.path.getsize(os.path.join(here, 'page' + '.css'))\n",
     "shell": "import subprocess; subprocess.run(['cat', os.path.join(here, 'page' + '.css')], capture_output=True)\n",
+    "imports": "sys.path.insert(0, here); import named_mod\n",
     "pure": "import subprocess; subprocess.run(['true'])\n",
     "python": ("import subprocess; subprocess.run([sys.executable, '-c', 'open(%r).read()' % "
                "os.path.join(here, 'page' + '.css')])\n"),
@@ -61,6 +62,9 @@ class _Case(P3._Case):
         super(_Case, self).setUp()
         self.tree.files["tv/helper_p3.py"] = "SALT = 1\nSTYLE = 'page.css'   # named, so it is in the static key\n"
         self.tree.files["tv/page.css"] = ".a { color: red }\n"
+        # a module the helper only NAMES (as run_gates names every law): no AST import, so not in the closure
+        self.tree.files["tv/helper_p3.py"] += "OTHER = 'named_mod.py'\n"
+        self.tree.files["tv/named_mod.py"] = "X = 1\n"
         self._tracked = H._tracked_files
         H._tracked_files = lambda repo=None: None        # the fixture is not in git: every named file counts
 
@@ -90,7 +94,7 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         results, per, stopped, runs, said = self.cold_then_edit("never")
         self.assertReused(runs, results, said, "an edit to a file no run of the law opened")
         unread = [e.get("unread") for e in self.entries().values()]
-        self.assertEqual(unread, [["tv/page.css"]], "the banked entry does not name what it keyed by name: %s" % unread)
+        self.assertEqual(unread, [["tv/named_mod.py", "tv/page.css"]], "the banked entry does not name what it keyed by name: %s" % unread)
 
     def test_an_edit_to_a_file_the_law_opened_is_proved_again(self):
         """★ SOUNDNESS: the law reads page.css - its bytes are an input, and the edit re-proves"""
@@ -118,6 +122,38 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         results, per, stopped, runs, said = self.cold_then_edit("hidden")
         self.assertRan(runs, said, "an edit read by a python child that was never traced")
 
+    def test_an_edit_to_a_named_module_nothing_imported_reuses_the_proven(self):
+        """★ the third input of v3796 r6: a law .py run_gates only names. Not imported, not opened: keyed by name"""
+        self.law("never")
+        H._TRACES.clear()
+        r0 = self.push()
+        self.assertEqual(r0[0], {P3._GATE: H.PROVEN}, "\n".join(r0[4]))
+        self.tree.files["tv/named_mod.py"] = "X = 2   # another law's 47 new lines\n"
+        H._TRACES.clear()
+        results, per, stopped, runs, said = self.push()
+        self.assertReused(runs, results, said, "an edit to a module the law never imported")
+
+    def test_an_edit_to_a_named_module_the_law_imports_at_run_time_is_proved_again(self):
+        """★ SOUNDNESS: a module the AST walk cannot see imported (sys.path + import) is read through the hook"""
+        self.law("imports")
+        H._TRACES.clear()
+        r0 = self.push()
+        self.assertEqual(r0[0], {P3._GATE: H.PROVEN}, "\n".join(r0[4]))
+        self.tree.files["tv/named_mod.py"] = "X = 2\n"
+        H._TRACES.clear()
+        results, per, stopped, runs, said = self.push()
+        self.assertRan(runs, said, "an edit to a module imported at run time")
+
+    def test_the_static_closure_is_never_dropped(self):
+        """a module the law imports by AST (helper_p3) stays a byte input even with an empty trace"""
+        self.law("never")
+        sandbox, root = self.tree.make()
+        try:
+            keep = H._keep_for(sandbox, P3._FILE, P3._proof())
+            self.assertIn("tv/helper_p3.py", keep, keep)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
     def test_a_pure_tool_child_still_lets_an_unread_file_go(self):
         """`true` opens no file of the tree: the trace stays complete and the unread file is still keyed by name"""
         results, per, stopped, runs, said = self.cold_then_edit("pure")
@@ -131,6 +167,7 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
     def test_a_proof_with_nothing_to_drop_keeps_its_v1_key(self):
         """compatible: the key every bank on every machine already holds is unchanged when nothing is unread"""
         self.law("opens")
+        self.tree.files["tv/helper_p3.py"] = self.tree.files["tv/helper_p3.py"].replace("OTHER = 'named_mod.py'\n", "")
         self.push()
         ent = self.entries()
         self.assertEqual(len(ent), 1)
@@ -154,7 +191,7 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
             with H._TRACE_LOCK:
                 H._TRACES[P3._FILE] = {"names": set(), "ok": True, "runs": 1}
             got = H._trace_unread(P3._FILE, ["tv/subject.txt", "tv/heart2.py", "tv/page.css", "tv/x.py"], keep)
-            self.assertEqual(got, ["tv/page.css"], "a kept input or a module was dropped: %s" % got)
+            self.assertEqual(got, ["tv/page.css", "tv/x.py"], "a kept input was dropped, or a named one kept: %s" % got)
             with H._TRACE_LOCK:
                 H._TRACES[P3._FILE]["ok"] = False
             self.assertEqual(H._trace_unread(P3._FILE, ["tv/page.css"], keep), [], "an incomplete trace dropped")
@@ -185,10 +222,17 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
 
 RED_PROOF = [
     {
+        "why": "REG-2640 - the static import closure is dropped like a merely named file",
+        "file": "heart2.py",
+        "find": "    keep |= {rel(p) for p in closure}\n",
+        "replace": "    keep |= set()\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-2640 - every named data file is keyed by name, read or not: a CSS edit the law reads reuses a PROVEN",
         "file": "heart2.py",
-        "find": "                  and r.rsplit(\"/\", 1)[-1] not in names)\n",
-        "replace": "                  and True)\n",
+        "find": "    return sorted(r for r in rels if r not in keep\n                  and r.rsplit(\"/\", 1)[-1] not in names)\n",
+        "replace": "    return sorted(r for r in rels if r not in keep)\n",
         "matches": 1,
     },
     {
