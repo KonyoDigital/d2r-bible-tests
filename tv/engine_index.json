@@ -2820,6 +2820,17 @@
     "purpose": "REG-2585/2586/2593/2595 - one heart2 prove split across N CI runners: the cost-balanced plan (--proof-shard K/N) and the checks that bring the shards' banked PROVENs home (--import-shards), and the post-push census (--census) that names the laws the next batch fixes.",
     "territory": "heart-organs"
   },
+  "proof_bank.py": {
+    "entryPoints": [
+      "check",
+      "publish",
+      "prune",
+      "main"
+    ],
+    "gotcha": "Publishes one commit's export to origin/proof-bank as <sha>.<class>.json, where self_prove.fetch_bank reads it (REG-2632/2633). Every refusal is exit 1, never a skip: the class must be this runner's heart2.PLATFORM_CLASS (a Linux runner can never publish a .windows bank), the manifest head this commit and not dirty, at least one entry, no machine path. It pushes from a scratch repo, rebases over a racing producer, and reads the file back from origin before it says published.",
+    "purpose": "The proof-bank publisher the Linux and Windows census jobs call.",
+    "territory": "heart-organs"
+  },
   "proof_keys_mac.py": {
     "entryPoints": [
       "main",

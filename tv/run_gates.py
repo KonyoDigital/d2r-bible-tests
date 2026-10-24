@@ -11861,6 +11861,13 @@ GATES = [
              "(Windows paths with spaces included) and never takes a pre-push or hand-run heart2 --prove for one; "
              "an orphan is ended, a live console's prover is not; a prover that ended with its console is booked a "
              "stand-aside, never the 3 h failure backoff."),
+    Gate("test_a_proof_bank_is_published_or_the_run_is_red",
+         [sys.executable, os.path.join(HERE, "test_a_proof_bank_is_published_or_the_run_is_red.py")], 120,
+         needs_app=False,
+         why="REG-2633 - each commit's proof bank is published to proof-bank by the Linux census (bank job) and the "
+             "Windows census (win-bank, autocrlf=true as on the PCs) or that job is red: no publish step may shrug; "
+             "a missing, empty, other-commit, dirty, other-class or machine-path export, a refused push or an "
+             "unreachable remote is exit 1; the bank reads back where self_prove fetches it; old banks are pruned"),
     Gate("test_a_proof_counts_only_on_its_own_platform_class",
          [sys.executable, os.path.join(HERE, "test_a_proof_counts_only_on_its_own_platform_class.py")], 120,
          needs_app=False,
