@@ -6532,7 +6532,8 @@ def _sandbox_lacks(sandbox, need):
     out loud: with frames never copied, reel_demo's tamper is judged in NO sandbox - it never was (every sandbox run was
     SKIP 77 or the copied-ledger FAIL). Nor does a push run the gate on his tree: pre-push never starts it, and CI's
     footage-less checkout exits 77 before a wrong registered count can fail. A miss is caught only where the gate is run on
-    a tree holding reels (his console's own gate runs, or `python3 tv/reel_demo.py` by hand) - an open gap, not a net."""
+    a tree holding reels (a local `python3 tv/run_gates.py` or `python3 tv/reel_demo.py` on his tree; no automatic lane, the console's
+    self-prove included, runs it there) - an open gap, not a net."""
     spec = SANDBOX_VENUE_NEEDS.get(str(need or ""))
     if not spec or not sandbox or not os.path.isdir(sandbox):
         return None
