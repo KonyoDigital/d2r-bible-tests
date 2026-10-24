@@ -84,6 +84,8 @@ class AnOffGridBuilderItemIsFlaggedNotDrawn(unittest.TestCase):
         self.assertTrue(m, "bug 3: the Shared tab counts the item but no off-grid flag says why it is not drawn")
         self.assertEqual(m.group(1), "1")
         self.assertIn("Herald of Zakarum", m.group(2))
+        grid = self.out["modal"][self.out["modal"].index('class="cb-bag'):m.start()]
+        self.assertNotIn("Herald of Zakarum", grid, "bug 3: the off-grid item is still drawn as a tile in the grid")
 
     def test_the_tab_that_counts_it_says_it_is_not_drawn(self):
         self.assertTrue(re.search(r'title="Shared of this build\.[^"]*1 not drawn', self.out["modal"]),
