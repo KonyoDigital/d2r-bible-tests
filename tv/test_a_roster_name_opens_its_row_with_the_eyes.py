@@ -27,6 +27,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 import test_the_fleet_card_says_how_each_pc_films_and_drains as F  # noqa: E402  (sets the law's own Chrome port)
 
