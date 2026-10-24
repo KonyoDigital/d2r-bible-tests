@@ -6714,13 +6714,11 @@
   /* GBL 2026-10-24 (v3796 render block) - a CLOSED fold still lays its lines out: Chrome hides a closed <details>'
      content from paint, not from layout, so every fact line kept its full-height box BELOW the window and the render
      gate read 4 of them as 'cut by fxr-win' at 1120 and wider (the short window). Closed is display:none, so a
-     closed fold has no geometry. Open, the fold is the window's own scroller (it sits OUTSIDE .fx-body), so a tall
-     diagnostics sheet scrolls inside the window instead of being cut off by its overflow:hidden. */
+     closed fold has no geometry. Open, the fold is NOT made a scroller: test_a_roster_name_opens_its_row_with_the_eyes
+     forbids any clipping ancestor on a diagnostic fact, and the render target opens the fold to photograph its lines. */
   .fx-adv:not([open]) > .fx-sys { display: none; }
-  .fleet-xref .fxr-win > .fx-adv { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-  /* r2 (Grok): the fold scrolls as a whole, so its summary - the only way to close it - stays pinned at the top */
-  .fleet-xref .fxr-win > .fx-adv > summary { position: sticky; top: 0; z-index: 1; background: var(--surface-read, #14100c); }
-  .fx-adv .fleet-sys > .fs-l { display: grid; grid-template-columns: 8ch minmax(0, 1fr); padding-left: 0;
+    /* r2 (Grok): the fold scrolls as a whole, so its summary - the only way to close it - stays pinned at the top */
+    .fx-adv .fleet-sys > .fs-l { display: grid; grid-template-columns: 8ch minmax(0, 1fr); padding-left: 0;
                                border-top: 1px solid rgba(255,255,255,.05); padding: 3px 0; }
   .fx-adv .fleet-sys .fs-k { position: static; width: auto; grid-row: 1 / span 9; letter-spacing: var(--ls-snug); }
   .fx-adv .fleet-sys .fs-f { grid-column: 2; white-space: normal; overflow: visible; text-overflow: clip; }
