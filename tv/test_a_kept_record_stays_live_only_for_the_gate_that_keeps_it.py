@@ -18,6 +18,7 @@ import console_safe     # noqa: E402
 console_safe.enable()
 import test_a_sandbox_never_carries_a_run_record as base     # noqa: E402
 import heart2           # noqa: E402
+import fixture_tmp      # noqa: E402
 
 VERDICT = "tv/.render_verdict.json"
 
@@ -71,13 +72,36 @@ class AKeptRecordStaysLiveOnlyForItsGate(base._Case):
         base._write(real, u'{"live": "the real tree"}\n')
         tv = os.path.join(sb, "tv")
         os.rename(tv, tv + "_moved")
-        try:
-            os.symlink(outside, tv)
-        except (OSError, NotImplementedError):
-            self.skipTest("this OS will not make a directory link")
-        self.addCleanup(lambda: (os.remove(tv), os.rename(tv + "_moved", tv)))
+        if not fixture_tmp.link_dir(outside, tv):   # a symlink, or a junction on Windows (proofs say "dir-link")
+            os.rename(tv + "_moved", tv)
+            self.skipTest("this PC will not make a directory link")
+        self.addCleanup(lambda: (fixture_tmp.unlink_dir_link(tv), os.rename(tv + "_moved", tv)))
         heart2._reset_lane_records(tv, lambda *a, **k: None, heart2._gate_keeps(other))
         self.assertTrue(os.path.exists(real), "a reset removed a record outside the sandbox through a link")
+
+    def test_a_record_swapped_for_a_link_out_is_unlinked_never_followed(self):
+        # review r6: a gate replaces its record itself with a link out of the sandbox
+        sb, _k, other = self.lane()
+        outside = os.path.join(self.root, "outside_rec")
+        os.makedirs(outside)
+        real = os.path.join(outside, "keep.txt")
+        base._write(real, u"the real tree\n")
+        rec = os.path.join(sb, *VERDICT.split("/"))
+        os.remove(rec)
+        if not fixture_tmp.link_dir(outside, rec):
+            self.skipTest("this PC will not make a directory link")
+        self.addCleanup(lambda: os.path.lexists(rec) and fixture_tmp.unlink_dir_link(rec))
+        self.reset(sb, heart2._gate_keeps(other))
+        self.assertTrue(os.path.exists(real), "a reset followed a link out of the sandbox")
+        self.assertFalse(os.path.lexists(rec), "the link out of the sandbox reached the next gate")
+
+    def test_an_unkept_tracked_record_reads_as_checkout_writes_it(self):
+        # review r6: --filters - the bytes `git checkout` writes (EOL conversion), not the raw blob
+        sb, _k, _o = self.lane()
+        base._write(os.path.join(sb, ".gitattributes"), u"%s text eol=crlf\n" % base.TRACKED)
+        got = heart2._unkept_records(sb, {base.TRACKED})
+        self.assertEqual(got.get(base.TRACKED), base.COMMITTED.replace(u"\n", u"\r\n").encode("utf-8"),
+                         "an unkept tracked record is the raw blob, not what checkout writes")
 
     def test_unreadable_needs_keep_the_old_union(self):
         sb, _k, _o = self.lane()
@@ -133,10 +157,26 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#182(3) - review r5: an unkept record is removed without the inside-the-sandbox check",
+        "why": "#182(3) - review r5/r6: an unkept record is touched though its folder is outside the sandbox",
         "file": "heart2.py",
-        "find": "            if not _inside(root, p):                # #182(3) - nothing is removed outside the sandbox root either\n                raise OSError(\"outside the sandbox root\")\n",
+        "find": "            if not _inside(root, os.path.dirname(p)):\n",
+        "replace": "            if False:\n",
+        "matches": 1,
+        "needs": "dir-link",
+    },
+    {
+        "why": "#182(3) - review r6: a link at the record is followed, not unlinked",
+        "file": "heart2.py",
+        "find": "            if _is_link(p):\n                moved.append(rel)\n                _unlink_link(p)\n",
         "replace": "",
+        "matches": 1,
+        "needs": "dir-link",
+    },
+    {
+        "why": "#182(3) - review r6: the unkept bytes are the raw blob, not what checkout writes",
+        "file": "heart2.py",
+        "find": "[\"cat-file\", \"--filters\", \"HEAD:\" + rel]",
+        "replace": "[\"cat-file\", \"blob\", \"HEAD:\" + rel]",
         "matches": 1,
     },
     {

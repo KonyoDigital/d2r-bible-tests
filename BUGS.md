@@ -27,7 +27,10 @@ FIX: _arm_lane_records also remembers, per kept record, the state a record nobod
 sandbox history tracks it, absent where not; unknown without history -> left as built). _prove_gate passes the gate's
 own keeps (_gate_keeps, from its PROOF_NEEDS); _reset_lane_records gives every other kept record that state. Unreadable
 PROOF_NEEDS -> None -> the old union. Law: tv/test_a_kept_record_stays_live_only_for_the_gate_that_keeps_it.py
-(5 cases, 4 red-proofs RED).
+(9 cases, 7 red-proofs RED). Review r5/r6 hardening: the record's FOLDER must be inside the sandbox (realpath), a link
+AT the record (symlink or junction) is unlinked, never followed, before compare/remove/write; the unkept bytes are
+`git cat-file --filters` (what checkout writes, EOL/smudge); the say line names only records read as unkept. The two
+link red-proofs declare "needs": "dir-link" (ELSEWHERE, never BLIND, on a PC that cannot make one).
 
 ### REG-2633 - NOTHING PUBLISHED THE PROOF BANK THE PCs READ (proof-bank publisher, GB-box, 2026-10-24)
 REG-2632 taught self_prove to fetch `origin/proof-bank:<HEAD>.<class>.json`, but no workflow wrote that branch, so every

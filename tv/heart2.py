@@ -1269,6 +1269,22 @@ def _unkept_records(root, kept):
     return out
 
 
+def _is_link(p):
+    """#182(3) review r6 - a symlink, or (Windows) a junction, at p. -> bool"""
+    try:
+        return os.path.islink(p) or bool(getattr(os.path, "isjunction", lambda _p: False)(p))
+    except OSError:
+        return False
+
+
+def _unlink_link(p):
+    """Remove the LINK at p, never what it points to (a directory link on Windows takes rmdir)."""
+    try:
+        os.unlink(p)
+    except OSError:
+        os.rmdir(p)
+
+
 def _gate_keeps(filename):
     """#182(3) - the run records ONE gate keeps (its own PROOF_NEEDS, as _drop_run_records names them). -> set | None"""
     got = proof_needs_in(filename)
@@ -1291,20 +1307,30 @@ def _reset_lane_records(sandbox, say, keeps=None):
     was = _LANE_RECORDS.get(root)
     if was is None:
         return None
+    swapped = set()
     if keeps is not None:                       # #182(3) - a record another gate keeps reads, here, as nobody kept it
         was = dict(was)
         for rel, data in _LANE_UNKEPT.get(root, {}).items():
             if rel not in keeps:
                 was[rel] = data
+                swapped.add(rel)
     moved, stuck = [], []
     for rel, data in sorted(was.items()):
         p = os.path.join(root, *rel.split("/"))
         try:
+            # #182(3) review r6 - the FOLDER must be inside; a link AT the record is unlinked (never followed) first,
+            # so a gate that swapped its record for a link out of the sandbox never reaches the next gate through it
+            if not _inside(root, os.path.dirname(p)):
+                if rel not in moved:
+                    moved.append(rel)
+                raise OSError("outside the sandbox root")
+            if _is_link(p):
+                moved.append(rel)
+                _unlink_link(p)
             if _read_record(p) == data:
                 continue
-            moved.append(rel)
-            if not _inside(root, p):                # #182(3) - nothing is removed outside the sandbox root either
-                raise OSError("outside the sandbox root")
+            if rel not in moved:
+                moved.append(rel)
             if data is None:
                 os.remove(p)
             else:
@@ -1321,7 +1347,8 @@ def _reset_lane_records(sandbox, say, keeps=None):
     if moved:
         say("     ↺ REG-2598 a gate before this one wrote %s in this lane's sandbox - put back as the sandbox was built, "
             "so no later law is proved or keyed over it" % ", ".join(moved)
-            + ("" if keeps is None else " (#182(3): a record only another gate keeps reads as nobody kept it)"))
+            + ("" if not swapped & set(moved) else " (#182(3): %s read as nobody kept them - only another gate keeps "
+               "them)" % ", ".join(sorted(swapped & set(moved)))))
     if stuck:
         say("     ⚠ REG-2598 %s could NOT be put back - the next law in this lane runs over what the last gate wrote"
             % ", ".join(stuck))
