@@ -8391,6 +8391,13 @@ GATES = [
              "run_gates scrubs TV_LAW_WIDTHS and CI never sets it, so the full sweep stays the verdict of record. "
              "Fixtures only - no browser.",
          skip_ok=()),
+    Gate("test_a_one_line_css_edit_reproves_only_its_readers",
+         [sys.executable, os.path.join(HERE, "test_a_one_line_css_edit_reproves_only_its_readers.py")], 120,
+         needs_app=False,
+         why="#42 P3-fine (REG-2642) - his words 2026-10-25: 'make sure it really do reuse... i dont want this happening "
+             "again and again'. The REAL push path over ten fixture laws: a one-line CSS edit to control_ui.html must "
+             "re-prove only the two that read it (<= 30% re-proved; measured 203/204 reused back-to-back on the box), "
+             "so keying every named file by bytes again fails here, not on the next Mac pre-prove."),
     Gate("test_a_named_file_the_law_never_opened_is_keyed_by_name",
          [sys.executable, os.path.join(HERE, "test_a_named_file_the_law_never_opened_is_keyed_by_name.py")], 180,
          needs_app=False,
