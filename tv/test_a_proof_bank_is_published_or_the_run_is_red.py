@@ -219,6 +219,18 @@ RED_PROOF = [
      "find": '        run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA"\n',
      "replace": '        run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA" || true\n',
      "matches": 1},
+    {"why": "REG-2633 r19 - a workflow BASH_ENV sources exit 0 before every step (publish never runs, green)",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": '  PROOF_SHARDS: "16"\n',
+     "replace": '  PROOF_SHARDS: "16"\n  BASH_ENV: /tmp/e.sh\n', "matches": 1},
+    {"why": "REG-2633 r19 - a '**' branch filter runs the Linux census on main",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "      - 'ci/proof-keys-*'\n",
+     "replace": "      - 'ci/proof-keys-*'\n      - '**'\n", "matches": 1},
+    {"why": "REG-2633 r19 - the law's docstring stops saying the Windows census is off",
+     "file": "test_a_proof_bank_is_published_or_the_run_is_red.py",
+     "find": "is kept but OFF - manual dispatch only, " "and every",
+     "replace": "is live - on every push, and every", "matches": 1},
 ]
 
 
@@ -374,6 +386,20 @@ JOB_DIGESTS = {
     ('proof-keys-shards.yml', 'bank'): 'd379f1dd54be7b0af416ed5b6485cf8b5059e8e0bc95b2d550fea8c349e16a65',
     ('proof-bank-windows.yml', 'win-shard'): 'cb032e039eaa0a2478d040c8b37165cb4e6bada07d7d3d5452660bca7fadb497',
     ('proof-bank-windows.yml', 'win-bank'): 'd7bddc4fe883a7892f82b65a27ce757d0d460049ae1b5d7cbcc9c10e91bdf097',
+}
+
+
+def header_digest(text):
+    """sha256 of everything above `jobs:` (comment-only lines dropped): name, triggers and branch filters, permissions,
+    concurrency and the workflow env (a BASH_ENV or BASH_FUNC_* there runs before every step). -> hex"""
+    head = ("\n" + text).split("\njobs:\n", 1)[0]
+    body = "\n".join(l for l in head.splitlines() if l.strip() and not l.lstrip().startswith("#"))
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+HEADER_DIGESTS = {
+    'proof-keys-shards.yml': 'ecad83cf257f70fd319a87373e137a4197fbd2bfc7827925868804d13789be02',
+    'proof-bank-windows.yml': '1e9317ecd690aeb05ec76eba6a14d2479612febc452f214e2368a8376a3850d7',
 }
 
 
@@ -541,6 +567,8 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
             text, base = _read(path), os.path.basename(path)
             self.assertEqual(shape_errors(text), [], "%s holds a line the law cannot read" % base)
             self.assertEqual(job_names(text), JOBS[base], "%s: the job list changed - re-anchor this law" % base)
+            self.assertEqual(header_digest(text), HEADER_DIGESTS[base],
+                             "%s: triggers/branches/permissions/env changed - every byte above jobs: is the contract" % base)
             for j in JOBS[base]:
                 if (base, j) in JOB_DIGESTS:
                     self.assertEqual(job_digest(text, j), JOB_DIGESTS[(base, j)],
@@ -590,7 +618,11 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
 
     def test_the_docs_say_linux_bank_only(self):
         for doc, label in ((PB.__doc__, "proof_bank.py"), (__doc__, "this law")):
-            self.assertIn("Linux bank only", doc, "%s's docstring does not state the ruling" % label)
+            doc = " ".join(doc.split())
+            self.assertIn("Linux bank only (owner ruling 2026-10-24)", doc, "%s's docstring does not state the ruling" % label)
+            self.assertIn("is kept but OFF - manual", doc, "%s's docstring does not say the Windows census is off" % label)
+            self.assertNotRegex(doc, r"(?i)wrong reading|on every push|not linux bank only",
+                                "%s's docstring undoes the ruling" % label)
             self.assertNotRegex(doc, r"(?i)\btwo (ci )?producers", "%s's docstring still describes a live Windows writer" % label)
 
 
