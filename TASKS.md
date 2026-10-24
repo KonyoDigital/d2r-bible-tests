@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3794** | `(this commit)` | v3794 — merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom |
+| **v3795** | `(this commit)` | v3795 — a Mac push imports proofs banked on the same kind of machine instead of re-proving them |
+| **v3794** | `2566e3be` | v3794 — merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom |
 | **v3793** | `c9441419` | v3793 — machine-wide stores and seeder, vanish witness, Windows console keepalive, prover owned by its console |
 | **v3792** | `24a9f8d1` | v3792 — M4 (GB-L) - per-PC console and ledgers, eagle dual logic, keep-awake, node pin, installer, faster CI |
 | **v3791** | `fb2079a3` | v3791 — d2jsp price backend, desk codex and drop units, signed roster publish, two triage fixes |
