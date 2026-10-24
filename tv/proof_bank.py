@@ -28,6 +28,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from console_safe import enable; enable()  # noqa: E402
 
 BRANCH = "proof-bank"
 KEEP = 60

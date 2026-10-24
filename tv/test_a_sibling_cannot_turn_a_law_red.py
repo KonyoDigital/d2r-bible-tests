@@ -31,6 +31,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+from console_safe import enable; enable()  # noqa: E402
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import heart2 as H  # noqa: E402
