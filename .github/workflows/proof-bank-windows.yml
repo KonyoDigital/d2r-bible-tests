@@ -20,6 +20,8 @@ env:
 jobs:
   win-shard:
     name: windows shard ${{ matrix.shard }}
+    # billing guard: a dispatch from main (or any non-ci ref) starts no Windows runner at all
+    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}
     runs-on: windows-latest
     timeout-minutes: 240
     strategy:
