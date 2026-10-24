@@ -125,7 +125,8 @@ class DangerMenuDefaultsToCancel(unittest.TestCase):
         self.assertTrue(o["open"] and o["exp"] == "true", o)
         self.assertEqual(o["focus"], "vault-danger-cancel", "the danger menu does not open on Cancel: %r" % o)
         self.assertEqual(o["role"], "menu")
-        self.assertEqual(o["order"][:4], ["vaultClearUnsorted", "vaultReset", "vaultClearHistory", "vaultWipeItems"],
+        # ALT inject run (Elad 2026-10-24 14:09 IDT): the records' clear-history door is the mildest reset (derived, rebuilt at once)
+        self.assertEqual(o["order"][:5], ["vaultClearUnsorted", "vaultClearRecords", "vaultReset", "vaultClearHistory", "vaultWipeItems"],
                          "the rows do not run mild -> severe: %r" % o)
 
     def test_a_click_outside_closes_the_menu(self):

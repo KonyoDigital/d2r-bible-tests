@@ -89,6 +89,21 @@ class AReloadReconcilesTheVaultRecords(unittest.TestCase):
                          "bug 5: a lone TV extra filed to a mule between loads read not-filed (%r)" % (two["ring"],))
         self.assertIn("GBL-TEST-Ring", two["names"])
 
+    def test_an_unknown_live_model_keeps_the_stamp_and_the_bytes(self):
+        """Grok review r1 (HIGH): with the mule map UNKNOWN the refresh's guarded persist refuses and marks the store
+        dirty, which drops the migrate stamp. The arm must not ask the refresh then."""
+        one = VPN.run(LOAD1.replace("__EDIT__", ""), prelude=FIRST, timeout=300)
+        raw = dict(one["raw"])
+        raw["d2r_muleAssign"] = "{not json"
+        seed = "".join("localStorage.setItem(%s, %s);\n" % (json.dumps(k), json.dumps(v)) for k, v in raw.items())
+        two = VPN.run(LOAD2 + "OUT.stamp = window.LSR.getItem('d2r_vaultRecordsMigrate');"
+                      "OUT.dirty = window.LSR.getItem('d2r_vaultRecordsDirty');"
+                      "OUT.bytes = window.LSR.getItem('d2r_vaultRecords');",
+                      prelude=AUTOMATED + seed, timeout=300)
+        self.assertEqual(two["stamp"], raw.get("d2r_vaultRecordsMigrate"), "an UNKNOWN mule map dropped the records stamp: %r" % two)
+        self.assertIsNone(two["dirty"], "an UNKNOWN mule map marked the records dirty")
+        self.assertEqual(two["bytes"], raw.get("d2r_vaultRecords"), "an UNKNOWN mule map rewrote the records")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)
