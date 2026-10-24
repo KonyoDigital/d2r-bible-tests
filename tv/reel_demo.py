@@ -461,10 +461,11 @@ def footage_here():
     Only a shelf holding entries counts here; the empty-but-recorded verdict stays _shelf()'s, judged by the gate itself."""
     import tv_diablo as TD          # a recorder that will not import raises: heart2 reads that as UNKNOWN, judged as usual
     p = getattr(TD, "HIST_DIR", "")
-    try:
-        return bool(p) and os.path.isdir(p) and any(not n.startswith(".") for n in os.listdir(p))
-    except OSError:
+    if not p:
+        raise RuntimeError("the recorder names no shelf")     # broken, never "no footage" (it is judged, and fails)
+    if not os.path.isdir(p):
         return False
+    return any(not n.startswith(".") for n in os.listdir(p))  # an unlistable shelf raises: UNKNOWN, judged as usual
 
 
 RED_PROOF = [

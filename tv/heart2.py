@@ -6526,13 +6526,16 @@ SANDBOX_VENUE_NEEDS = {"reel-shelf": ("reel_demo", "footage_here")}
 def _sandbox_lacks(sandbox, need):
     """REG-2660 - does the SANDBOX lack a need it can only carry by copy? -> True | False | None (not asked / unknown).
 
-    Asked in a child with cwd at the sandbox's tv/ and TV_HIST dropped, so the probe resolves the sandbox's tree, never
-    his. A probe that cannot answer is None - judged as usual, so a broken probe can never soften a verdict."""
+    Asked in a child with cwd at the sandbox's tv/ and the SAME environment the gate's clean run gets (TV_HIST and
+    TV_FRAMES_DIR kept: if they name a shelf holding reels, the run would walk it, so it is judged). A probe that cannot
+    answer (raises, times out) is None - judged as usual, so a broken probe can never soften a verdict. ⚠ Residual, said
+    out loud: with frames never copied, reel_demo's tamper is judged in NO sandbox - it never was (every sandbox run was
+    SKIP 77 or the copied-ledger FAIL); the gate itself still runs on his tree on every push and fails a real miss."""
     spec = SANDBOX_VENUE_NEEDS.get(str(need or ""))
     if not spec or not sandbox or not os.path.isdir(sandbox):
         return None
     mod, fn = spec
-    env = {k: v for k, v in os.environ.items() if k not in ("TV_HIST", "TV_FRAMES_DIR", "PYTHONPATH")}
+    env = dict(os.environ)
     code = "import sys; sys.path.insert(0, '.'); import %s as m; sys.exit(0 if m.%s() else 3)" % (mod, fn)
     try:
         rc = subprocess.run([sys.executable, "-c", code], cwd=sandbox, env=env, stdout=subprocess.DEVNULL,
@@ -6555,7 +6558,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
             say("     %-52s %s — it needs %s, which this PC does not have; it is proven on a PC that does"
                 % ("%s[%d]" % (name, idx), ELSEWHERE, _words))
             return ELSEWHERE
-        if _sandbox_lacks(sandbox, _need) is True:
+        if "its probe failed" not in _words and _sandbox_lacks(sandbox, _need) is True:
             say("     %-52s %s — it needs %s; this PC has it, but the sandbox the proof runs in never carries it "
                 "(safe_copy leaves it behind), so the clean run there could only read red" % ("%s[%d]" % (name, idx),
                                                                                               ELSEWHERE, _words))

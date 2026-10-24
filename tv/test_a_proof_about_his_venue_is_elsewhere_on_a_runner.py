@@ -141,11 +141,36 @@ class AVenueTheSandboxNeverCarriesIsElsewhere(unittest.TestCase):
             os.mkdir(os.path.join(hist, "reel_s_1_2"))
             self.assertIs(R.footage_here(), True, "a reel")
 
+    def test_the_measured_sandbox_shelf_is_not_footage(self):
+        """The Mac's sandbox, rebuilt: an established empty hist plus a copied ledger naming closed reels. shelf_here
+        says yes (the gate's own verdict, and it walks nothing there); footage_here must say no."""
+        import json
+        import reel_demo as R
+        import reel_retention as RR
+        import tv_diablo as TD
+        tmp = tempfile.mkdtemp(prefix="venue-ledger-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        hist = os.path.join(tmp, "hist")
+        os.mkdir(hist)
+        led = os.path.join(tmp, "reel_tombstones.json")
+        with open(led, "w") as fh:
+            json.dump({"reels": [{"id": "reel_s_1_2"}, {"id": "reel_s_3_4"}]}, fh)
+        with mock.patch.object(TD, "HIST_DIR", hist), mock.patch.object(RR, "_tombstone_path", lambda *a: led):
+            self.assertIs(R.shelf_here(), True, "premise: the copied ledger makes the empty sandbox shelf 'present'")
+            self.assertIs(R.footage_here(), False, "a ledger is not footage: the sandbox holds no reel")
+
+    def test_a_shelf_nobody_can_name_is_unknown(self):
+        import reel_demo as R
+        import tv_diablo as TD
+        with mock.patch.object(TD, "HIST_DIR", ""):
+            with self.assertRaises(RuntimeError):
+                R.footage_here()
+
     def _tree(self, body):
         tmp = tempfile.mkdtemp(prefix="venue-sbx-")
         self.addCleanup(shutil.rmtree, tmp, True)
         with open(os.path.join(tmp, "reel_demo.py"), "w") as fh:
-            fh.write("def footage_here():\n    %s\n" % body)
+            fh.write("import os\ndef footage_here():\n    %s\nX = 1\n" % body)
         return tmp
 
     def test_the_sandbox_is_asked_in_the_sandbox(self):
@@ -155,15 +180,32 @@ class AVenueTheSandboxNeverCarriesIsElsewhere(unittest.TestCase):
                           "a probe that cannot answer is UNKNOWN - judged as usual, never ELSEWHERE")
         self.assertIsNone(heart2._sandbox_lacks(self._tree("return False"), "macos"), "only declared sandbox venues")
 
-    def test_host_has_it_sandbox_lacks_it_is_elsewhere_not_red(self):
+    def test_the_probe_sees_the_clean_runs_environment(self):
+        t = self._tree("return os.environ.get('TV_HIST') == 'his-shelf'")
+        with mock.patch.dict(os.environ, {"TV_HIST": "his-shelf"}):
+            self.assertIs(heart2._sandbox_lacks(t, "reel-shelf"), False, "TV_HIST names a shelf the run would walk")
+
+    def _prove(self, host, sbx):
+        tmp = self._tree("return False")
         said = []
-        with mock.patch.object(heart2, "host_lacks", lambda n: (False, "footage")), \
-                mock.patch.object(heart2, "_sandbox_lacks", lambda s, n: True):
-            got = heart2._prove_one(tempfile.gettempdir(), "reel_demo", "reel_demo.py",
-                                    {"file": "reel_demo.py", "find": "x", "replace": "y", "needs": "reel-shelf"},
-                                    0, said.append, dry=True)
+        with mock.patch.object(heart2, "host_lacks", lambda n: host), \
+                mock.patch.object(heart2, "_sandbox_lacks", lambda s, n: s == tmp and n == "reel-shelf" and sbx):
+            got = heart2._prove_one(tmp, "reel_demo", "reel_demo.py",
+                                    {"file": "reel_demo.py", "find": "X = 1", "replace": "X = 2", "matches": 1,
+                                     "needs": "reel-shelf"}, 0, said.append, dry=True)
+        return got, said
+
+    def test_host_has_it_sandbox_lacks_it_is_elsewhere_not_red(self):
+        got, said = self._prove((False, "footage"), True)
         self.assertEqual(got, heart2.ELSEWHERE, said)
 
+    def test_a_sandbox_with_footage_is_judged(self):
+        got, said = self._prove((False, "footage"), False)
+        self.assertNotEqual(got, heart2.ELSEWHERE, said)
+
+    def test_a_failed_host_probe_is_judged_not_excused(self):
+        got, said = self._prove((False, "footage (its probe failed: OSError - judged as usual)"), True)
+        self.assertNotEqual(got, heart2.ELSEWHERE, said)
 
 RED_PROOF = [
     {"why": "REG-2660 - the sandbox is no longer asked: a green reel_demo is filed ALREADY RED on his Mac",
