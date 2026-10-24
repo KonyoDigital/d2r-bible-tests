@@ -58304,6 +58304,19 @@ function renderJournal(){
       + ' · ' + (R.touched.length ? 'meant to keep' : (R.unknown.length ? 'kept' : 'kept untouched')) + ': '
       + w.keeps.join(' · ') + (bits.length ? ' · ' + bits.join(' · ') : '');
   }
+  /* ALT inject run (Elad 2026-10-24 14:09 IDT, bug 1) - the records' clear-history row joins the ⚠ Clear & reset menu
+     here, second (after Delete unsorted: the records are derived and rebuilt at once, the mildest reset). Added from the
+     script, not the markup, so the menu's markup stays as Vault v3 moves it. The binder below fills its scope line. */
+  try {
+    var _vdm = document.getElementById('vault-danger-menu');
+    if (_vdm && !document.getElementById('vault-danger-menurecords')){
+      var _vdmRow = '<div class="vdm-row" data-sev="1" id="vault-danger-menurecords"><span class="vdm-ic">🗂</span><span class="vdm-body"><b class="vdm-name">Clear records history</b><span class="vdm-scope" data-scope-for="vaultClearRecords"></span></span><button class="vault-btn vault-btn-danger vdm-go" role="menuitem" type="button" onclick="window.vaultClearRecords()" title="Clears ONLY the vault records history; it is rebuilt at once from what the mules hold now. Asks twice.">🗂 Clear records history</button></div>';
+      var _vdmFirst = _vdm.querySelector('.vdm-row');
+      if (_vdmFirst) _vdmFirst.insertAdjacentHTML('afterend', _vdmRow); else _vdm.insertAdjacentHTML('beforeend', _vdmRow);
+      var _vdmSub = _vdm.querySelector('.vdm-sub');
+      if (_vdmSub) _vdmSub.textContent = String(_vdmSub.textContent).replace(/^Four separate actions/, 'Five separate actions');
+    }
+  } catch (eVdm) {}
   /* the button titles come from the same scope (the static title in the markup is only the first paint) */
   [['vaultWipeItems', 'window.vaultWipeItems()'], ['vaultReset', 'window.vaultReset()'], ['vaultClearHistory', 'window.vaultClearHistory()'], ['vaultClearRecords', 'window.vaultClearRecords()']].forEach(function(d){
     try {

@@ -48,6 +48,7 @@ await window.vaultClearRecords(); H.flush(60, 3);
 OUT.asks = asks; OUT.after = recs();
 OUT.door = window._vaultLastReset ? window._vaultLastReset.door : null;
 OUT.scope = window._VAULT_RESET_SCOPE.doors.vaultClearRecords;
+var rw = document.getElementById('vault-danger-menurecords'); OUT.row = rw ? (document.getElementById('vault-danger-menu').innerHTML || '') : null;
 OUT.counted = window._vaultLastReset ? window._vaultLastReset.cleared.records : null;
 process.stdout.write('\n__LATE__' + JSON.stringify(OUT) + '\n');
 })().catch(function(e){ process.stdout.write('\n__LATE__' + JSON.stringify({ err: String(e && e.stack || e) }) + '\n'); });
@@ -82,14 +83,11 @@ class TheVaultRecordsHistoryClears(unittest.TestCase):
         self.assertEqual(o["counted"], len(o["before"]), "the receipt does not count the rows it cleared (Grok r1 MED): %r" % o["counted"])
 
     def test_it_sits_in_the_reset_menu_and_says_its_scope(self):
-        """the node DOM shim has no attribute selectors, so the row is read from the shipped markup itself"""
-        with open(os.path.join(HERE, "..", "bible.html"), encoding="utf-8") as fh:
-            src = fh.read()
-        menu = src[src.index('id="vault-danger-menu"'):]
-        menu = menu[:menu.index('id="vault-danger-menuimport"')]
-        self.assertIn('onclick="window.vaultClearRecords()"', menu, "no Clear records history row in the ⚠ Clear & reset menu")
-        self.assertIn('data-scope-for="vaultClearRecords"', menu, "the row has no scope line the scope fills")
+        """the row is added by the page's script (the menu markup stays as Vault v3 moves it); the order in the real
+        browser is held by tv/test_danger_menu_defaults_to_cancel.py"""
         o = run("[false]")
+        self.assertIn('onclick="window.vaultClearRecords()"', o["row"] or "", "no Clear records history row in the ⚠ Clear & reset menu")
+        self.assertIn('data-scope-for="vaultClearRecords"', o["row"] or "", "the row has no scope line the scope fills")
         self.assertIn("vault records history", o["asks"][0]["m"], "the first confirm does not say what it clears: %r" % o["asks"])
 
     def test_a_no_at_either_confirm_changes_nothing(self):
