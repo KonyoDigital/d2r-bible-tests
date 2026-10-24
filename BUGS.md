@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2635 - EIGHT LAWS THAT LISTED ONLY THEIR OWN SCRATCH WERE NEVER SAVED (#173, GB-box, 2026-10-24)
+Each listed a directory it had made with tempfile.mkdtemp a few lines earlier, through os.listdir, so heart2.law_inputs
+called it unkeyable and no proof of it was ever banked.
+
+FIX: the REG-2362 swap, nothing new: fixture_tmp.contain() at import and os.listdir(d) -> fixture_tmp.list_own(d) (same
+path, same names; anything outside this process's scratch raises). Now keyable: test_a_machine_establishes_its_own_tree,
+test_atomic_write_keeps_the_mode, test_version_stamps_are_written_atomically,
+test_a_suite_run_is_reused_only_on_identical_bytes, test_the_prune_never_frees_a_word,
+test_the_backup_prune_never_orphans_a_loss, test_an_unread_journal_is_not_a_night_with_no_rows,
+test_a_pc_proves_itself_a_slice_at_a_time. tv/unkeyable_laws.json 91 -> 83; CEILING 91 -> 83 in
+test_the_unkeyable_laws_only_get_fewer.py (+1 red-proof: one swap undone turns it RED).
+
 ### REG-2634 - A RECORD ONE GATE KEPT STAYED LIVE FOR EVERY LAW IN THE LANE (#182 part 3, GB-box, 2026-10-24)
 heart2's PROOF_NEEDS keep-set is the UNION over all gates: _drop_run_records leaves a record any gate declares, and
 _reset_lane_records put it back as built before every gate, so a law that never asked for it was proved over a live value.
