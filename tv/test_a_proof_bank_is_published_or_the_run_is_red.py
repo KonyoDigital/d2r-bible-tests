@@ -122,6 +122,22 @@ RED_PROOF = [
      "file": ".github/workflows/proof-bank-windows.yml",
      "find": "on:\n  workflow_dispatch:\n",
      "replace": "on:\n  schedule:\n    - cron: '0 3 * * *'\n  workflow_dispatch:\n", "matches": 1},
+    {"why": "REG-2633 - the disabled Windows producer is turned on with a spaced YAML key (push :)",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "on:\n  workflow_dispatch:\n",
+     "replace": "on:\n  push :\n    branches: ['ci/proof-keys-*']\n  workflow_dispatch:\n", "matches": 1},
+    {"why": "REG-2633 - a dispatch from main starts 16 billed Windows shard runners",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "    # billing guard: a dispatch from main (or any non-ci ref) starts no Windows runner at all\n    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n",
+     "replace": "", "matches": 1},
+    {"why": "REG-2633 - `&& false` on win-bank's guard skips the bank and the job is green",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "    if: ${{ always() && startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n",
+     "replace": "    if: ${{ always() && startsWith(github.ref, 'refs/heads/ci/proof-keys-') && false }}\n", "matches": 1},
+    {"why": "REG-2633 - a step-level if skips the Linux publish",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "      - name: Import the set, export what this tree keys, publish it\n",
+     "replace": "      - name: Import the set, export what this tree keys, publish it\n        if: false\n", "matches": 1},
     {"why": "REG-2633 - the Linux publish step turns errexit back off",
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": '          set -euo pipefail\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
@@ -139,6 +155,65 @@ def _job(text, name):
     m = re.search(r"\n  %s:\n(.*?)(?=\n  [A-Za-z][\w-]*:\n|\Z)" % re.escape(name),
                   "\n" + text.split("\njobs:\n", 1)[-1] + "\n", re.S)
     return m.group(1) if m else ""
+
+
+_KEY = re.compile(r"""^(?P<ind> *)(?:"(?P<dq>[^"]*)"|'(?P<sq>[^']*)'|(?P<bare>[^\s:#'"\-][^:#]*?))\s*:(?:\s+(?P<val>.*?))?\s*$""")
+
+
+def _uncomment(line):
+    if line.lstrip().startswith("#"):
+        return ""
+    return re.sub(r"\s+#.*$", "", line).rstrip()
+
+
+def _keyname(m):
+    return (m.group("dq") if m.group("dq") is not None else
+            m.group("sq") if m.group("sq") is not None else m.group("bare") or "").strip()
+
+
+def triggers(text):
+    """The events a workflow file starts on, read the way YAML reads keys (NO `import yaml` - CI bans it): a top-level
+    key spelled on / "on" / 'on' / `on :` (YAML 1.1 also reads true/yes/y as that key), every child key at the next
+    indent in any quoting or spacing, a `- event` list, and the flow forms `on: push` / `on: [push, schedule]`. More
+    than one top-level trigger key is refused (a YAML parser keeps the last). -> [event]; raises AssertionError"""
+    lines = [_uncomment(l) for l in text.splitlines()]
+    heads = []
+    for i, l in enumerate(lines):
+        m = _KEY.match(l)
+        if m and not m.group("ind") and _keyname(m).lower() in ("on", "true", "yes", "y"):
+            heads.append((i, m.group("val")))
+    assert len(heads) == 1, "%d top-level trigger keys" % len(heads)
+    i, val = heads[0]
+    if val:
+        return [v.strip().strip("'\"") for v in val.strip().strip("[]{}").split(",") if v.strip()]
+    out, ind = [], None
+    for l in lines[i + 1:]:
+        if not l.strip():
+            continue
+        assert "\t" not in l[:len(l) - len(l.lstrip())], "a tab-indented trigger line"
+        lead = len(l) - len(l.lstrip(" "))
+        if lead == 0:
+            break
+        ind = lead if ind is None else ind
+        if lead != ind:
+            continue
+        if l.lstrip().startswith("-"):
+            out.append(l.lstrip()[1:].strip().strip("'\""))
+            continue
+        m = _KEY.match(l)
+        assert m, "an unreadable trigger line %r" % l
+        out.append(_keyname(m))
+    return out
+
+
+GUARD = "startsWith(github.ref, 'refs/heads/ci/proof-keys-')"
+
+
+def job_if(text, job):
+    """The one job-level `if:` of a job, exactly as written. -> str or None"""
+    ifs = re.findall(r"^    if\s*:\s*(.*?)\s*$", _job(text, job), re.M)
+    assert len(ifs) <= 1, "%s has %d job-level ifs" % (job, len(ifs))
+    return ifs[0] if ifs else None
 
 
 def _publish_steps(job):
@@ -221,25 +296,42 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
         self.assertIn("\npermissions:\n  contents: read\n", text)
 
     def test_neither_producer_runs_on_main(self):
-        for p in (LINUX_WF, WIN_WF):
-            on = _read(p).split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
-            self.assertNotIn("main", on, "%s runs on main" % p)
-            self.assertNotIn("pull_request", on, p)
-        self.assertIn("'ci/proof-keys-*'", _read(LINUX_WF).split("\non:\n", 1)[1].split("\npermissions:", 1)[0])
+        lin = _read(LINUX_WF)
+        self.assertEqual(triggers(lin), ["push", "workflow_dispatch"], "the Linux census triggers changed")
+        on = lin.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertIn("'ci/proof-keys-*'", on)
+        self.assertNotIn("main", on, "the Linux census runs on main")
+        # exact, so `&& false` (or anything else) on a guard is red, not a silently skipped job
+        self.assertEqual(job_if(lin, "bank"), "${{ %s }}" % GUARD, "the Linux bank's ref guard changed")
+        win = _read(WIN_WF)
+        self.assertEqual(job_if(win, "win-bank"), "${{ always() && %s }}" % GUARD, "win-bank's ref guard changed")
+        self.assertEqual(job_if(win, "win-shard"), "${{ %s }}" % GUARD,
+                         "a dispatch from main would start 16 billed Windows runners")
+        for text, j in ((lin, "bank"), (win, "win-bank")):
+            for st in _publish_steps(_job(text, j)):
+                if "proof_bank.py --publish" in st or "--fan-in" in st:
+                    self.assertNotRegex(st, r"(?m)^\s*if\s*:", "%s: a step-level if can skip the publish" % j)
 
     def test_the_windows_producer_is_off_until_the_owner_turns_it_on(self):
         # owner ruling 2026-10-24: Linux bank only (Windows minutes cost 2x). Only a manual dispatch may start it.
-        on = _read(WIN_WF).split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
-        keys = re.findall(r"^  ([a-z_]+):", on, re.M)
-        self.assertEqual(keys, ["workflow_dispatch"], "proof-bank-windows.yml triggers on %r - it is off by ruling" % keys)
-        self.assertNotRegex(_read(WIN_WF), r"(?m)^\s*(schedule|push|pull_request|workflow_run):",
-                            "proof-bank-windows.yml can start itself")
-        guard = "startsWith(github.ref, 'refs/heads/ci/proof-keys-')"
-        for p, j in ((LINUX_WF, "bank"), (WIN_WF, "win-bank")):
-            ifs = re.findall(r"^    if: (.*)$", _job(_read(p), j), re.M)
-            self.assertEqual(len(ifs), 1, "%s %s: the bank job has no ref guard (a dispatch on main would publish)" % (p, j))
-            self.assertIn(guard, ifs[0], "%s %s: a dispatch from any ref publishes" % (p, j))
-            self.assertNotRegex(ifs[0], r"\|\|", "%s %s: the ref guard can be or-ed away" % (p, j))
+        self.assertEqual(triggers(_read(WIN_WF)), ["workflow_dispatch"], "proof-bank-windows.yml can start itself")
+
+    def test_the_trigger_reader_sees_every_yaml_spelling(self):
+        base = "name: x\n%s\npermissions:\n  contents: read\njobs: {}\n"
+        for body, want in (
+                ("on:\n  workflow_dispatch:", ["workflow_dispatch"]),
+                ("on:\n  push :\n    branches: [x]\n  workflow_dispatch:", ["push", "workflow_dispatch"]),
+                ("on:\n  \"push\":\n  'schedule' :\n    - cron: '0 3 * * *'", ["push", "schedule"]),
+                ("\"on\":\n    pull_request_target:", ["pull_request_target"]),
+                ("on : [push, workflow_dispatch]", ["push", "workflow_dispatch"]),
+                ("on: push", ["push"]),
+                ("true:\n  push:", ["push"]),
+                ("on:\n  - push\n  - schedule", ["push", "schedule"]),
+                ("on:  # c\n  # push:\n  workflow_dispatch:", ["workflow_dispatch"])):
+            self.assertEqual(triggers(base % body), want, body)
+        with self.assertRaises(AssertionError):
+            triggers(base % "on:\n  workflow_dispatch:" + "on:\n  push:\n")
+        self.assertEqual(job_if("jobs:\n  a:\n    if: ${{ x }} && false\n", "a"), "${{ x }} && false")
 
 
 def _git(cwd, *a):
