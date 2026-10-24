@@ -10,11 +10,10 @@ pressed — every destructive door is driven with its confirm answered NO or rep
   * Advanced stays a collapsed <details> and still opens on Keepers;
   * the reset menu carries no "Danger" word, while the second step (the confirm) does;
   * the two tool cards are equal width and height on one grid;
-  * Copy manifests is byte-for-byte the v3795 function and button;
+  * Copy manifests is removed (Elad 14:32 IDT 2026-10-24, the one sanctioned removal);
   * a profile save -> load round-trips byte-identical stores; a corrupt or foreign file is refused and writes nothing.
 NO CHROME = a declared skip. [[regression-guard]]
 """
-import hashlib
 import json
 import os
 import sys
@@ -52,19 +51,13 @@ WORLD = ("window._vaultAutoIntakeSet(false); window.switchTab('vault');"
          "renderVault();")
 WAIT = "await new Promise(function(r){ setTimeout(r, 250); });"
 
-# the v3795 vaultExport, hashed from 27b9a028 — Copy manifests must not change by one byte
-EXPORT_SHA = "143bc7ee2f9551c746efb208b1e6e993d6f907620648596819f9288b779437e5"
-EXPORT_BTN = '<button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>'
-
-
-class CopyManifestsUnchanged(unittest.TestCase):
-    def test_copy_manifests_is_the_v3795_door(self):
+class CopyManifestsIsGone(unittest.TestCase):
+    """Elad 14:32 IDT 2026-10-24 — the one sanctioned removal: Copy manifests (button + window.vaultExport) is gone, nothing calls it."""
+    def test_copy_manifests_is_removed_everywhere(self):
         with open(BIBLE, encoding="utf-8") as fh:
             s = fh.read()
-        i = s.index("  window.vaultExport = function(){")
-        j = s.index("\n  };\n", i) + 6
-        self.assertEqual(hashlib.sha256(s[i:j].encode()).hexdigest(), EXPORT_SHA, "vaultExport (Copy manifests) changed")
-        self.assertEqual(s.count(EXPORT_BTN), 1, "the Copy manifests button changed or moved out of the toolbar")
+        self.assertNotIn("vaultExport", s)
+        self.assertNotIn("Copy manifests", s)
 
 
 @unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
@@ -79,13 +72,13 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
             "function home(sel){ var e = document.querySelector(sel); if (!e) return null;"
             "  var p = e.closest('.vadv-pane'); if (p) return 'adv:' + p.getAttribute('data-adv');"
             "  if (e.closest('#reset-grp-vault')) return 'reset:vault'; if (e.closest('#reset-grp-account')) return 'reset:account';"
-            "  if (e.closest('.vault-toolbar')) return 'toolbar'; if (e.closest('.vault-deck')) return 'deck'; return 'other'; }"
+            "  if (e.closest('#vault-profile-grp')) return 'profile'; if (e.closest('.vault-toolbar')) return 'toolbar'; if (e.closest('.vault-deck')) return 'deck'; return 'other'; }"
             "OUT.h = {};"
             "[\"[onclick*='_vaultAutoIntakeToggle']\", '#vault-folder-btn', '#vault-scan-btn', '#vault-clear-scan-btn', '#vault-dir-input', '#vault-watcher',"
             " '#vault-lane-locks', '#vault-danger-tog', \"[onclick*='vaultClearUnsorted']\", \"[onclick*='window.vaultReset()']\","
             " \"[onclick*='vaultClearHistory']\", \"[onclick*='vaultWipeItems']\", '#vault-danger-cancel',"
             " \"[onclick*='_d2rUnseedRestore']\", \"[onclick*='_d2rUnseed()']\", \"[onclick*='vaultAutoSortByHand']\","
-            " \"[onclick*='vaultAddMule']\", \"[onclick*='vaultExport']\", '#vault-profile-save', '#vault-profile-load',"
+            " \"[onclick*='vaultAddMule']\", '#vault-profile-save', '#vault-profile-load',"
             " '#vault-planner-q', '#vault-find-input', '.vault-hand-link', '#vault-lock-chip', '#vault-status']"
             ".forEach(function(s){ OUT.h[s] = home(s); });"
             "OUT.resetBtns = document.querySelectorAll('#reset-grp-account .reset-btn').length;"
@@ -103,8 +96,9 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         for s in ["[onclick*='_d2rUnseedRestore']", "[onclick*='_d2rUnseed()']"]:
             self.assertEqual(h[s], "reset:account", h)
         self.assertEqual(o["resetBtns"], 3, "the three account/chronicle resets must all stay: %r" % o)
-        for s in ["[onclick*='vaultAutoSortByHand']", "[onclick*='vaultAddMule']", "[onclick*='vaultExport']",
-                  "#vault-profile-save", "#vault-profile-load", "#vault-lock-chip", "#vault-status"]:
+        for s in ["#vault-profile-save", "#vault-profile-load"]:
+            self.assertEqual(h[s], "profile", "%s is not in the 💾 profile row above Add an item: %r" % (s, h))
+        for s in ["[onclick*='vaultAutoSortByHand']", "[onclick*='vaultAddMule']", "#vault-lock-chip", "#vault-status"]:
             self.assertEqual(h[s], "toolbar", "%s left the toolbar: %r" % (s, h))
         for s in ["#vault-planner-q", "#vault-find-input", ".vault-hand-link"]:
             self.assertEqual(h[s], "deck", h)

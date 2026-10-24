@@ -138,7 +138,8 @@ WORLD = ("window._vaultAutoIntakeSet(false); window.switchTab('vault');"
 # the design's mapping table: handler -> how a person reaches it (the controls pressed first, all visible + harmless)
 # Vault v3 (Elad t642u, mock approved 2026-10-24): AUTO INTAKE moved into Advanced → "Auto-intake & screenshots"; the
 # toolbar keeps a chip that opens it (proved below and in test_vault_v3_layout_keeps_every_door).
-TOOLBAR = ["vaultAutoSortByHand", "vaultAddMule", "vaultExport", "vaultProfileSave"]
+# Copy manifests (vaultExport) removed by Elad 14:32 IDT 2026-10-24; Save profile sits in the 💾 row just above Add an item.
+TOOLBAR = ["vaultAutoSortByHand", "vaultAddMule", "vaultProfileSave"]
 DANGER = ["vaultClearUnsorted", "vaultReset", "vaultClearHistory", "vaultWipeItems"]
 ADVANCED = [("intake", "#vault-intake-strip"), ("keepers", "#vault-multikeep"), ("registered", "#vault-registered"), ("registered", "#vault-intake-report"),
             ("registered", "#vault-journal"), ("stash", "#vault-share-settings"), ("ledger", "#routing-ledger"),
@@ -280,8 +281,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The danger toggle never opens the menu.",
      "file": "bible.html",
-     "find": "    var want = (typeof open === 'boolean') ? open : !!m.hidden;\n    m.hidden = !want;",
-     "replace": "    var want = false;\n    m.hidden = !want;",
+     "find": "    var want = (typeof open === 'boolean') ? open : !!m.hidden;\n",
+     "replace": "    var want = false;\n",
      "matches": 1},
     {"why": "The chronicle-page cleanup row is never painted into the menu.",
      "file": "bible.html",
