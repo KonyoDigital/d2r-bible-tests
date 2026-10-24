@@ -2671,12 +2671,18 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
         if _tsite is None:
             _trace_record(filename, set(), False)
         else:
+            _tenv = {k: env.get(k) for k in ("PYTHONPATH", "HEART2_TRACE_LOG", "HEART2_TRACE_SITE")}
             try:
                 _tfd, _tlog = tempfile.mkstemp(prefix="h2trace-", suffix=".log", dir=_tsite)
                 os.close(_tfd)
                 env["PYTHONPATH"] = _tsite + ((os.pathsep + env["PYTHONPATH"]) if env.get("PYTHONPATH") else "")
                 env["HEART2_TRACE_LOG"], env["HEART2_TRACE_SITE"] = _tlog, _tsite
-            except Exception:                 # REG-2640 - any setup failure: no log, nothing dropped
+            except BaseException:             # REG-2640 - any setup failure: env restored, no log, nothing dropped
+                for _k, _v in _tenv.items():
+                    if _v is None:
+                        env.pop(_k, None)
+                    else:
+                        env[_k] = _v
                 if _tlog is not None:
                     try:
                         os.unlink(_tlog)
@@ -2684,6 +2690,8 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
                         pass
                 _tlog = None
                 _trace_record(filename, set(), False)
+                if not isinstance(sys.exc_info()[1], Exception):
+                    raise
     _watch = _kill_watch(env)                 # REG-2350 — which children of this run a signal ended, and who sent it
     _tdone = False
     try:
@@ -2693,7 +2701,12 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
     finally:
-        _killed = _kills_in(_watch) if _watch else []
+        try:
+            _killed = _kills_in(_watch) if _watch else []
+        except BaseException:
+            if _tlog is not None:             # REG-2640 - kills unknown: this run is an incomplete trace
+                _trace_record(filename, set(), False)
+            raise
         if _tlog is not None:                 # REG-2640 - an unfinished or killed run is an incomplete trace: nothing is dropped
             try:
                 _tseen, _tok = _trace_read(_tlog, os.getpid())
