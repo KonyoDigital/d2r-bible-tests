@@ -6530,7 +6530,9 @@ def _sandbox_lacks(sandbox, need):
     TV_FRAMES_DIR kept: if they name a shelf holding reels, the run would walk it, so it is judged). A probe that cannot
     answer (raises, times out) is None - judged as usual, so a broken probe can never soften a verdict. ⚠ Residual, said
     out loud: with frames never copied, reel_demo's tamper is judged in NO sandbox - it never was (every sandbox run was
-    SKIP 77 or the copied-ledger FAIL); the gate itself still runs on his tree on every push and fails a real miss."""
+    SKIP 77 or the copied-ledger FAIL). Nor does a push run the gate on his tree: pre-push never starts it, and CI's
+    footage-less checkout exits 77 before a wrong registered count can fail. A miss is caught only where the gate is run on
+    a tree holding reels (his console's own gate runs, or `python3 tv/reel_demo.py` by hand) - an open gap, not a net."""
     spec = SANDBOX_VENUE_NEEDS.get(str(need or ""))
     if not spec or not sandbox or not os.path.isdir(sandbox):
         return None
