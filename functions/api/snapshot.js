@@ -71,6 +71,8 @@ export function textsOf(raw) {
 }
 
 export function privateIn(raw) {
+  // the raw text too: JSON.parse keeps the last of two equal keys, so the first one is read only here
+  if (PRIVATE.some((rx) => rx.test(raw))) return true;
   return textsOf(raw).some((t) => PRIVATE.some((rx) => rx.test(t)));
 }
 
