@@ -13204,12 +13204,6 @@ function d2jspPriceLine(q) {
              both already called vaultAutoSortByHand). The loose count is painted by renderVault from the ONE dock list. -->
         <button class="vault-btn vault-btn-primary vault-sort-btn" onclick="window.vaultAutoSortByHand()" title="Sort to mules: re-file what already has a witness (vaultAutoAssign), file the loose dock where the planner says (your adds, items with a picture, war gear into the Shared Stash), and move what sits in the wrong locker. Throwing an item away, what your MAIN wears and a sighting with no picture stay where they are. The status line names every item that moved.">🪄 Sort to mules<span class="vault-sort-n" id="vault-sort-n" hidden></span></button>
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
-        <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
-        <!-- Vault v3 (Elad t663u/t664u/t665u) — Save / Load profile: ONE file of the vault, the stashes and the builder
-             characters. It does NOT touch the chronicle (footer Backup & Share and the console's ledger backup already
-             carry that) and it leaves Copy manifests exactly as it was. -->
-        <button class="vault-btn" type="button" id="vault-profile-save" onclick="window.vaultProfileSave()" title="Download one file holding your vault (owned items, mule placement, locks, intake records), stashes and builder characters — not the chronicle (found log, set pieces)">💾 Save profile</button>
-        <label class="vault-btn" id="vault-profile-load" for="vault-profile-file" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('vault-profile-file').click();}" title="Load a saved profile file: it is checked, you see what changes, and nothing is written until you confirm">📂 Load profile<input type="file" id="vault-profile-file" accept="application/json,.json" hidden onchange="window.vaultProfileLoadFile(event)"></label>
         </div>
         <span class="vault-tb-sp" aria-hidden="true"></span>
         <div class="vault-tb-grp vault-tb-chips">
@@ -13233,6 +13227,13 @@ function d2jspPriceLine(q) {
            so the parts cannot drift from the whole. -->
       <div id="vault-pop" class="vault-pop"></div>
       <p class="vault-say vault-sr" data-say="find">Add an item by name, or find which mule holds it.</p>
+      <div class="vault-profile-row" id="vault-profile-grp" role="group" aria-label="Save or load your profile"><!-- Vault v3 (Elad 14:34 IDT 2026-10-24) — the 💾 Save / Load
+           profile pair, a compact row just above Add an item: ONE file of the vault, the stashes and the builder characters.
+           It does NOT touch the chronicle (💾 Backup &amp; Share and the console's ledger backup carry that). -->
+        <span class="vault-profile-h" aria-hidden="true">💾 Profile</span>
+        <button class="vault-btn" type="button" id="vault-profile-save" onclick="window.vaultProfileSave()" title="Download one file holding your vault (owned items, mule placement, locks, intake records), stashes and builder characters — not the chronicle (found log, set pieces)">💾 Save profile</button>
+        <label class="vault-btn" id="vault-profile-load" for="vault-profile-file" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('vault-profile-file').click();}" title="Load a saved profile file: it is checked, you see what changes, and nothing is written until you confirm">📂 Load profile<input type="file" id="vault-profile-file" accept="application/json,.json" hidden onchange="window.vaultProfileLoadFile(event)"></label>
+      </div>
       <div class="vault-find-row vault-deck"><!-- Vault v3 — ADD AN ITEM and FIND ON A MULE are twin cards on one grid (same title/field/hint scale) -->
       <section class="vault-tool vault-tool-add" aria-labelledby="vault-tool-add-h">
       <h3 class="vault-tool-h" id="vault-tool-add-h">✚ Add an item</h3>
@@ -40814,6 +40815,9 @@ body{
 .footer .reset-grp .vault-danger-menu{left:50%;right:auto;transform:translateX(-50%);text-align:left}
 .footer .reset-grp .vault-btn{font-size:var(--fs-meta)}
 .footer details.danger-zone[open] > summary{color:var(--gold-bright)}
+#mule-vault-card .vault-profile-row{display:flex;align-items:center;gap:var(--vsp-2,8px);margin:0 0 var(--vsp-2,8px)}
+#mule-vault-card .vault-profile-h{font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold-dim,#b89b5e)}
+#mule-vault-card .vault-profile-row .vault-btn{font-size:var(--fs-meta)}
 .footer .reset-note{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
 .ui-confirm-title{font-family:var(--serif-display,serif);font-size:var(--fs-title);font-weight:var(--fw-bold);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--acc-danger);margin-bottom:var(--vsp-2,8px)}
 .ui-confirm-title + .ui-confirm-msg{white-space:pre-line}
@@ -50479,18 +50483,6 @@ window.vaultAutoAssign = function(){
     } catch (e) {} }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook); else hook();
   })();
-  window.vaultExport = function(){
-    var byMule = _vaultByMule();
-    var md='# The Vault — mule manifests\n';
-    roster.forEach(function(m){
-      var items=(byMule[m.id]||[]).sort();
-      md+='\n## '+m.name+' ('+items.length+')\n'+(m.note?'_'+m.note+'_\n':'');
-      items.forEach(function(n){ md+='- '+n+'\n'; });
-    });
-    var unsorted=ownedPool().filter(function(n){return !assign[n];});
-    if (unsorted.length){ md+='\n## UNSORTED ('+unsorted.length+')\n'; unsorted.forEach(function(n){ md+='- '+n+'\n'; }); }
-    navigator.clipboard.writeText(md).then(function(){ status('📋 manifests copied — paste anywhere'); }, function(){ status('clipboard blocked — copy manually'); });
-  };
   // ── v204: in-game size taxonomy (approximate, from base type) ──
   /* #275 (REG-2051) - ONE FOOTPRINT. This packer sized items with its own keyword table (unknown base -> 2x2) while
      every locker tile prints _itemCells (unknown base -> a 1x2 marked approx; EXTRA_ITEMS.cells honoured; the plural,
