@@ -474,4 +474,6 @@ tv/gate_costs.json.lock
 # Shadow mode: this PC's snapshot state and its last copy of an owner's upload (private, per PC)
 tv/.tvd_snapshot.json
 tv/snapshot_book.json
+tv/snapshot_book.json.tmp
+tv/.tvd_snapshot.json.tmp
 tv/snapshot_cache
