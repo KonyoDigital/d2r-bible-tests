@@ -552,6 +552,9 @@ def _render():
                 time.sleep(0.2)
                 res["box %s %dx%d" % (nm, w, h)] = json.loads(t.ev(BOX))
                 _lines += json.loads(t.ev(LINES))
+                # REG-1462 (v3796) - the footer's age separator read from the DOM itself: the shadow fold moved the
+                # 375 wrap off the separator, so the line-start check alone stopped seeing a breakable one
+                res["fxage %s %dx%d" % (nm, w, h)] = t.ev("(function(){ var e = document.querySelector('#fleet-xref .fx-foot .fx-age'); return e ? e.textContent : null; })()")
             res["lines %dx%d" % (w, h)] = _lines
         res["errors"] = list(getattr(t, "page_errors", []) or [])
         try:
@@ -618,6 +621,20 @@ class TheShippedCardDrawsIt(unittest.TestCase):
                 bad.append("%dx%d the fleet list scrolls sideways %s" % (w, h, m["sw"]))
         self.assertEqual(r.get("errors"), [], "the page threw: %s" % r.get("errors"))
         self.assertEqual(bad, [], "\n  ".join(bad))
+
+    def test_the_compare_footers_age_separator_cannot_break(self):
+        """REG-1462 (2026-09-29, Grok's cold look at 375): the footer's age separator is glued with no-break spaces, so
+        a wrap never starts a line with a lone middot. Read from the rendered footer of every box, at every width -
+        it does not wait for a wrap to land on the separator. PREMISE: at least one footer drew its age."""
+        r, seen, bad = _render(), 0, []
+        for k, v in sorted(r.items()):
+            if not k.startswith("fxage ") or v is None:
+                continue
+            seen += 1
+            if not v.startswith(u"\u00a0\u00b7\u00a0"):
+                bad.append("%s: %r" % (k, v[:24]))
+        self.assertGreater(seen, 0, "PREMISE - no compare footer drew its age, so its separator was never read")
+        self.assertEqual(bad, [], "the footer's age separator can break:\n  " + "\n  ".join(bad))
 
     def test_r2_no_line_of_a_fact_row_starts_or_ends_with_a_middot(self):
         """REG-1377 (round 2, reproduced on fe817ab7): the facts of a line were one middot-joined string, so a wrap left
