@@ -2417,6 +2417,11 @@ TARGETS = {
               row.click();
               return false;
             }
+            // GBL 2026-10-24 (v3796) - the per-PC lines sit under the ADVANCED fold, closed by default and
+            // display:none while closed. Open it the way he does to read them, so the lines this target
+            // selects are photographed open (the v3283 lesson: a fold must never retire them from the gate).
+            var adv = box.querySelector('details.fx-adv');
+            if (adv && !adv.open) { adv.open = true; return false; }
             var cols = box.querySelector('.fx-cols'), foot = box.querySelector('.fx-foot');
             var hs = box.querySelectorAll('.fx-col-h');
             if (!cols || !foot || hs.length !== 3) return false;

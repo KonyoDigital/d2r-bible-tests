@@ -547,9 +547,13 @@ def _render():
                     # thing under test turned a missing box into a 180 s hang instead of a red (proof [1], measured)
                     if t.ev("!!document.querySelector('#fleet-xref .fx-head')"):
                         break
+                # v3796 render block - a CLOSED fold must lay out nothing: Chrome hid its lines from paint only, so they
+                # kept full-height boxes below the window and the render gate read them as 'cut by fxr-win' at 1120+
+                res["closed %s %dx%d" % (nm, w, h)] = t.ev(FOLD_CLOSED)
                 # GBL 2026-10-24 - the lines sit under the box's ADVANCED fold; he opens it to read them
                 t.ev("(function(){ var a = document.querySelector('#fleet-xref details.fx-adv'); if (a) a.open = true; return 1; })()")
                 time.sleep(0.2)
+                res["foldcut %s %dx%d" % (nm, w, h)] = t.ev(FOLD_CUT)
                 res["box %s %dx%d" % (nm, w, h)] = json.loads(t.ev(BOX))
                 _lines += json.loads(t.ev(LINES))
                 # REG-1462 (v3796) - the footer's age separator read from the DOM itself: the shadow fold moved the
@@ -565,6 +569,24 @@ def _render():
         RC._chrome_down()
     _CACHE["r"] = res
     return res
+
+
+# v3796 render block: how many fact lines a CLOSED fold still lays out (must be 0), and, open, how many end outside the
+# window while the fold does not scroll (must be 0 - the window is overflow:hidden).
+FOLD_CLOSED = """(function(){ var a = document.querySelector('#fleet-xref details.fx-adv'); if (!a) return -1; a.open = false;
+  return [].slice.call(a.querySelectorAll('.fs-l')).filter(function(e){ return e.getBoundingClientRect().height > 0; }).length; })()"""
+FOLD_CUT = """(function(){ var w = document.querySelector('#fleet-xref .fxr-win'), a = document.querySelector('#fleet-xref details.fx-adv');
+  if (!w || !a) return -1; var wr = w.getBoundingClientRect(), scrolls = a.scrollHeight > a.clientHeight + 1
+    && /auto|scroll/.test(getComputedStyle(a).overflowY);
+  if (scrolls) { var ar = a.getBoundingClientRect(), b = document.querySelector('#fleet-xref .fx-body');
+    var sm = a.querySelector('summary'), sr = sm && sm.getBoundingClientRect();
+    /* a scrolling fold still counts only when it ends inside the window, the body below it still starts inside it,
+       and its summary (the close control) is still on screen at the bottom of its scroll */
+    a.scrollTop = a.scrollHeight; var sr2 = sm && sm.getBoundingClientRect(); a.scrollTop = 0;
+    return ((ar.bottom > wr.bottom + 1) ? 1 : 0) + ((b && b.getBoundingClientRect().top >= wr.bottom - 1) ? 1 : 0)
+         + ((!sr2 || sr2.top < ar.top - 1) ? 1 : 0); }
+  return [].slice.call(a.querySelectorAll('.fs-l')).filter(function(e){ var r = e.getBoundingClientRect();
+    return r.height > 0 && r.bottom > wr.bottom + 1; }).length; })()"""
 
 
 @unittest.skipUnless(os.path.exists(RC.CHROME), "no Chrome on this machine - the card was not rendered (declared skip 77)")
@@ -622,6 +644,26 @@ class TheShippedCardDrawsIt(unittest.TestCase):
         self.assertEqual(r.get("errors"), [], "the page threw: %s" % r.get("errors"))
         self.assertEqual(bad, [], "\n  ".join(bad))
 
+    def test_a_closed_advanced_fold_lays_out_nothing_and_an_open_one_is_never_cut(self):
+        """v3796 render block (2026-10-24): the ADVANCED fold shipped closed, and a closed <details> hides its lines from
+        paint, not from layout - so at 1120 and wider (the short window) 4 lines sat below the window's overflow:hidden
+        edge and the render gate refused the push as 'cut by fxr-win'. Closed, no line has a box; open, a line past the
+        window's bottom is only allowed when the fold itself scrolls. PREMISE: every box at every width was read."""
+        r, seen, bad = _render(), 0, []
+        for (w, h) in sorted(set(WIDTHS) | set(WRAP_WIDTHS)):
+            for nm, _m in MACHINES:
+                c, k = r.get("closed %s %dx%d" % (nm, w, h)), r.get("foldcut %s %dx%d" % (nm, w, h))
+                if c is None or k is None or c < 0 or k < 0:
+                    bad.append("%dx%d %s: the fold was not read (%r / %r)" % (w, h, nm, c, k))
+                    continue
+                seen += 1
+                if c:
+                    bad.append("%dx%d %s: a CLOSED fold still lays out %d fact line(s)" % (w, h, nm, c))
+                if k:
+                    bad.append("%dx%d %s: %d fact line(s) end below the window and nothing scrolls" % (w, h, nm, k))
+        self.assertGreater(seen, 0, "PREMISE - no fold was read")
+        self.assertEqual(bad, [], "\n  ".join(bad))
+
     def test_the_compare_footers_age_separator_cannot_break(self):
         """REG-1462 (2026-09-29, Grok's cold look at 375): the footer's age separator is glued with no-break spaces, so
         a wrap never starts a line with a lone middot. Read from the rendered footer of every box, at every width -
@@ -657,6 +699,11 @@ class TheShippedCardDrawsIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "v3796 render block - a closed ADVANCED fold lays its lines out below the window again ('cut by fxr-win' at 1120+)",
+     "file": "tv/control_ui.html",
+     "find": "  .fx-adv:not([open]) > .fx-sys { display: none; }\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-2047 - a stale row's stuck reasons read as the present again",
      "file": "tv/control_ui.html",
      "find": "      else if (_repAge > 900) _stuckWhy = ",
