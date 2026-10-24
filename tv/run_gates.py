@@ -10019,7 +10019,7 @@ GATES = [
          needs_app=False,
          why=("Vault v2 (Elad 2026-10-23, his hard rule: nothing dropped) - every handler of the design's mapping "
              "table is still reached from a control he can SEE: the toolbar (one 🪄 Sort to mules with its loose count, "
-             "Add mule, Copy manifests, Save profile; Vault v3 moved AUTO INTAKE to Advanced with a toolbar chip), the four red "
+             "Add mule, a 💾 Save/Load profile row above Add an item (Copy manifests removed by Elad); Vault v3 moved AUTO INTAKE to Advanced with a toolbar chip), the four red "
              "doors and the chronicle-page cleanup as rows of the one Clear & reset menu (Vault v3: in the footer's Reset & restore), add-by-name under the planner bar, the folder doors in the intake strip in both "
              "states, tick and untick from the 📦 MOVE TASKS FAB, and every old panel one ⚙ Advanced tab away. "
              "No browser is a declared skip."),
