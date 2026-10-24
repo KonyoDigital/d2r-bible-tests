@@ -48,6 +48,7 @@ await window.vaultClearRecords(); H.flush(60, 3);
 OUT.asks = asks; OUT.after = recs();
 OUT.door = window._vaultLastReset ? window._vaultLastReset.door : null;
 OUT.scope = window._VAULT_RESET_SCOPE.doors.vaultClearRecords;
+OUT.counted = window._vaultLastReset ? window._vaultLastReset.cleared.records : null;
 process.stdout.write('\n__LATE__' + JSON.stringify(OUT) + '\n');
 })().catch(function(e){ process.stdout.write('\n__LATE__' + JSON.stringify({ err: String(e && e.stack || e) }) + '\n'); });
 """
@@ -78,6 +79,7 @@ class TheVaultRecordsHistoryClears(unittest.TestCase):
         self.assertTrue(any("Harlequin" in n for n in o["after"]), "a held name was lost: %r" % o["after"])
         self.assertEqual(o["door"], "vaultClearRecords", "the clear left no reset receipt")
         self.assertEqual(o["scope"], ["records"])
+        self.assertEqual(o["counted"], len(o["before"]), "the receipt does not count the rows it cleared (Grok r1 MED): %r" % o["counted"])
 
     def test_it_sits_in_the_reset_menu_and_says_its_scope(self):
         """the node DOM shim has no attribute selectors, so the row is read from the shipped markup itself"""

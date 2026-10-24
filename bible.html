@@ -53792,8 +53792,11 @@ window.vaultAutoAssign = function(){
       } else if (r.already && typeof _vaultRecordsRefresh === 'function') {
         /* ALT inject run 2026-10-24 (bugs 1 + 5): `already` persisted nothing, so a name store edited outside the
            page's doors (a restore, a sync, another tab) kept a removed name's row and read a newly filed name as
-           not filed. The existing refresh reconciles: same signature = skipped, else the guarded re-persist. */
-        r.refresh = _vaultRecordsRefresh();
+           not filed. The existing refresh reconciles: same signature = skipped, else the guarded re-persist.
+           Grok review r1 (HIGH): only while the live model READS - an UNKNOWN dock / carried / mule map gives no rows
+           to compare, and a refused persist would mark the store dirty and drop its stamp. UNKNOWN keeps the bytes. */
+        r.refresh = (typeof _vrRecDerivedCanon === 'function' && _vrRecDerivedCanon() === null)
+          ? 'skipped: the live model is UNKNOWN' : _vaultRecordsRefresh();
       }
     } catch (eF) {}
     return r;
@@ -58009,6 +58012,7 @@ function renderJournal(){
       // ALT inject run (Elad 2026-10-24 14:09 IDT, bug 1) - clear the vault records' history. The records are DERIVED, so the
       // run's own _vaultRecordsRefresh rebuilds them from the mules held now: rows left behind by a delete are gone, nothing held is.
       records: Object.freeze({ store: 'd2r_vaultRecords', say: 'the vault records history (rebuilt from what the mules hold now)',
+                 count: function(raw){ var v; try { v = JSON.parse(raw); } catch (e) { return null; } return (v && Array.isArray(v.records)) ? v.records.length : (raw === null ? 0 : null); },
                  clear: function(){ window.LSR.removeItem('d2r_vaultRecords'); window.LSR.removeItem('d2r_vaultRecordsDirty'); } })
     }),
     doors: Object.freeze({
@@ -58119,7 +58123,8 @@ function renderJournal(){
     var before = {}, KEEPS = _vKeepsFor(door);
     KEEPS.forEach(function(k){ before[k.store] = _vResetRead(k.store); R.kept[k.store] = _vResetCount(before[k.store]); });
     R.recorded = _vaultRecordedFilings();
-    parts.forEach(function(p){ var c = S.clears[p]; if (c.store) R.cleared[p] = _vResetCount(_vResetRead(c.store)); });
+    parts.forEach(function(p){ var c = S.clears[p]; if (c.store){ var raw = _vResetRead(c.store);
+      R.cleared[p] = (c.count && raw !== undefined) ? c.count(raw) : _vResetCount(raw); } });   /* a wrapped store counts its rows */
     if (typeof _vrRecHold !== 'undefined') _vrRecHold++;
     try {
     parts.forEach(function(p){ var c = S.clears[p]; if (c.later) return; try { c.clear(); } catch(e){ R.failed.push(p); } });
