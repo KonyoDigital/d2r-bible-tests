@@ -3913,8 +3913,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     } catch (e) {}
     try { navigator.sendBeacon = noSend; } catch (e) {}
     // an unpatched beacon or form submit is a way out: stop the frame rather than open it with one
-    if ((typeof navigator !== 'undefined' && navigator.sendBeacon && navigator.sendBeacon !== noSend) ||
-        (typeof HTMLFormElement !== 'undefined' && HTMLFormElement.prototype.submit !== noSend)) {
+    var navOf = window.navigator, formOf = window.HTMLFormElement;
+    if ((navOf && navOf.sendBeacon && navOf.sendBeacon !== noSend) ||
+        (formOf && formOf.prototype.submit !== noSend)) {
       try { window.stop(); } catch (e) {}
       throw new Error('tvd-shadow: closed');
     }
