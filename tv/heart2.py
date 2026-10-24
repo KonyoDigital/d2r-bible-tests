@@ -1259,7 +1259,8 @@ def _unkept_records(root, kept):
             if not r.stdout.strip(b"\0"):
                 out[rel] = None
                 continue
-            b = subprocess.run(git + ["cat-file", "blob", "HEAD:" + rel], cwd=root, capture_output=True,
+            # --filters: the bytes `git checkout` writes (EOL conversion, smudge), as _drop_run_records restores them
+            b = subprocess.run(git + ["cat-file", "--filters", "HEAD:" + rel], cwd=root, capture_output=True,
                                timeout=60, env=env)
             if b.returncode == 0:
                 out[rel] = b.stdout
@@ -1302,6 +1303,8 @@ def _reset_lane_records(sandbox, say, keeps=None):
             if _read_record(p) == data:
                 continue
             moved.append(rel)
+            if not _inside(root, p):                # #182(3) - nothing is removed outside the sandbox root either
+                raise OSError("outside the sandbox root")
             if data is None:
                 os.remove(p)
             else:
@@ -1317,7 +1320,8 @@ def _reset_lane_records(sandbox, say, keeps=None):
             stuck.append(rel)
     if moved:
         say("     ↺ REG-2598 a gate before this one wrote %s in this lane's sandbox - put back as the sandbox was built, "
-            "so no later law is proved or keyed over it" % ", ".join(moved))
+            "so no later law is proved or keyed over it" % ", ".join(moved)
+            + ("" if keeps is None else " (#182(3): a record only another gate keeps reads as nobody kept it)"))
     if stuck:
         say("     ⚠ REG-2598 %s could NOT be put back - the next law in this lane runs over what the last gate wrote"
             % ", ".join(stuck))

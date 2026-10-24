@@ -55,6 +55,30 @@ class AKeptRecordStaysLiveOnlyForItsGate(base._Case):
         self.assertEqual(base._read(os.path.join(sb, *VERDICT.split("/"))), built)
         self.assertEqual(base._read(os.path.join(sb, *base.TRACKED.split("/"))), base.COMMITTED + base.LIVE)
 
+    def test_a_body_written_while_kept_never_reaches_the_next_gate(self):
+        sb, keeper, other = self.lane()
+        rec = os.path.join(sb, *VERDICT.split("/"))
+        self.reset(sb, heart2._gate_keeps(keeper))
+        base._write(rec, u'{"abortedAt": "the keeping gate wrote this"}\n')
+        self.reset(sb, heart2._gate_keeps(other))
+        self.assertFalse(os.path.lexists(rec), "a body the keeping gate wrote reached a gate that never kept it")
+
+    def test_nothing_is_removed_through_a_link_out_of_the_sandbox(self):
+        sb, _k, other = self.lane()
+        outside = os.path.join(self.root, "outside_tv")
+        os.makedirs(outside)
+        real = os.path.join(outside, ".render_verdict.json")
+        base._write(real, u'{"live": "the real tree"}\n')
+        tv = os.path.join(sb, "tv")
+        os.rename(tv, tv + "_moved")
+        try:
+            os.symlink(outside, tv)
+        except (OSError, NotImplementedError):
+            self.skipTest("this OS will not make a directory link")
+        self.addCleanup(lambda: (os.remove(tv), os.rename(tv + "_moved", tv)))
+        heart2._reset_lane_records(tv, lambda *a, **k: None, heart2._gate_keeps(other))
+        self.assertTrue(os.path.exists(real), "a reset removed a record outside the sandbox through a link")
+
     def test_unreadable_needs_keep_the_old_union(self):
         sb, _k, _o = self.lane()
         self.assertEqual(self.reset(sb, None), [])
@@ -106,6 +130,13 @@ RED_PROOF = [
         "file": "heart2.py",
         "find": "            if not r.stdout.strip(b\"\\0\"):\n                out[rel] = None\n",
         "replace": "            if not r.stdout.strip(b\"\\0\"):\n                continue\n",
+        "matches": 1,
+    },
+    {
+        "why": "#182(3) - review r5: an unkept record is removed without the inside-the-sandbox check",
+        "file": "heart2.py",
+        "find": "            if not _inside(root, p):                # #182(3) - nothing is removed outside the sandbox root either\n                raise OSError(\"outside the sandbox root\")\n",
+        "replace": "",
         "matches": 1,
     },
     {
