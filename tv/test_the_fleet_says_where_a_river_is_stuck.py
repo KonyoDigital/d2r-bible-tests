@@ -1302,9 +1302,9 @@ RED_PROOF = [
     {
         "why": "REG-1828 - the row carries a native title beside its own card, so two boxes open on it",
         "file": "tv/control_ui.html",
-        "find": "          + ' tabindex=\"0\" role=\"button\" data-fleet-machine=\"' + escC(m.machine || '') + '\"'\n"
+        "find": "          + ' data-fleet-machine=\"' + escC(m.machine || '') + '\"'\n"
                 "          + ' onclick=",
-        "replace": "          + ' tabindex=\"0\" role=\"button\" data-fleet-machine=\"' + escC(m.machine || '') + '\"'\n"
+        "replace": "          + ' data-fleet-machine=\"' + escC(m.machine || '') + '\"'\n"
                    "          + ' title=\"click: how this PC films and drains, and their set pieces against yours\"'\n"
                    "          + ' onclick=",
         "matches": 1,

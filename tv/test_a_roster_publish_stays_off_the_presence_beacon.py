@@ -722,8 +722,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2199 (#116): the roster-book door drops its origin gate, so a cross-site no-cors POST publishes his builds and stash cells under his name again",
      "file": "control_app.py",
-     "find": "            import d2jsp_chrome as _d2jsp\n            if not _d2jsp.console_may_post(\n                    self.headers.get(\"Origin\"), self.headers.get(\"Host\"), CONTROL_PORT,\n                    self.headers.get(\"Sec-Fetch-Site\")):\n                self._json(403, {\"ok\": False, \"reason\": \"local\"})\n                return\n            self._json(200, _roster_book_take(body))\n",
-     "replace": "            self._json(200, _roster_book_take(body))\n",
+     "find": "            import d2jsp_chrome as _d2jsp\n            if not _d2jsp.console_may_post(\n                    self.headers.get(\"Origin\"), self.headers.get(\"Host\"), CONTROL_PORT,\n                    self.headers.get(\"Sec-Fetch-Site\")):\n                self._json(403, {\"ok\": False, \"reason\": \"local\"})\n                return\n            if isinstance(body, dict) and body.get(\"kind\") == \"profile\":\n",
+     "replace": "            if isinstance(body, dict) and body.get(\"kind\") == \"profile\":\n",
      "matches": 1},
     {
         "why": "REG-2166 - an unread section is stored as an empty list",
