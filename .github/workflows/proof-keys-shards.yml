@@ -136,6 +136,8 @@ jobs:
     # and tv/proof_bank.py reads the file back from origin before it calls the bank published.
     name: bank - publish <sha>.linux.json to proof-bank
     needs: [fan-in]
+    # a dispatch from any other ref (main included) proves, but never writes the bank
+    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

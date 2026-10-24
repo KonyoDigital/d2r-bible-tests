@@ -172,7 +172,7 @@ def publish(path, head, cls, remote="origin", branch=BRANCH, keep=KEEP, repo="."
             else:
                 # a fresh orphan every try: a failed first push leaves a local branch that `--orphan` would refuse
                 _must(work, "symbolic-ref", "HEAD", "refs/heads/%s" % branch)
-                _git(work, "update-ref", "-d", "refs/heads/%s" % branch)
+                _must(work, "update-ref", "-d", "refs/heads/%s" % branch)
                 _must(work, "read-tree", "--empty")
                 for f in os.listdir(work):
                     if f != ".git":

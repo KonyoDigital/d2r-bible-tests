@@ -76,7 +76,7 @@ RED_PROOF = [
      "replace": '                _must(work, "checkout", "-q", "--orphan", branch)\n', "matches": 1},
     {"why": "REG-2633 - a retried orphan keeps the rejected commit as its parent",
      "file": "proof_bank.py",
-     "find": '                _git(work, "update-ref", "-d", "refs/heads/%s" % branch)\n',
+     "find": '                _must(work, "update-ref", "-d", "refs/heads/%s" % branch)\n',
      "replace": '', "matches": 1},
     {"why": "REG-2633 - the publisher never compares what origin serves back",
      "file": "proof_bank.py",
@@ -110,6 +110,10 @@ RED_PROOF = [
      "file": "proof_bank.py",
      "find": '    if cls == "windows":\n        windows_bytes(repo)\n',
      "replace": '', "matches": 1},
+    {"why": "REG-2633 - a dispatch from main publishes the Linux bank",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n",
+     "replace": "", "matches": 1},
     {"why": "REG-2633 - the Linux publish step turns errexit back off",
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": '          set -euo pipefail\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
@@ -214,6 +218,12 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
             self.assertIn("'ci/proof-keys-*'", on, p)
             self.assertNotIn("main", on, "%s runs on main" % p)
             self.assertNotIn("pull_request", on, p)
+        guard = "startsWith(github.ref, 'refs/heads/ci/proof-keys-')"
+        for p, j in ((LINUX_WF, "bank"), (WIN_WF, "win-bank")):
+            ifs = re.findall(r"^    if: (.*)$", _job(_read(p), j), re.M)
+            self.assertEqual(len(ifs), 1, "%s %s: the bank job has no ref guard (a dispatch on main would publish)" % (p, j))
+            self.assertIn(guard, ifs[0], "%s %s: a dispatch from any ref publishes" % (p, j))
+            self.assertNotRegex(ifs[0], r"\|\|", "%s %s: the ref guard can be or-ed away" % (p, j))
 
 
 def _git(cwd, *a):

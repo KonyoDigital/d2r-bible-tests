@@ -89,7 +89,7 @@ jobs:
     # unfinished or other-commit shard). Same contract as the Linux bank, whose fan-in passes owed failures too.
     name: windows bank - one whole set, published as <sha>.windows.json, or red
     needs: [win-shard]
-    if: ${{ always() }}
+    if: ${{ always() && startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}
     runs-on: windows-latest
     timeout-minutes: 30
     permissions:
