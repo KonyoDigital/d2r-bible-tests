@@ -1228,9 +1228,55 @@ def _arm_lane_records(dest, keep, recs):
         if p.startswith(root + os.sep):
             snap[str(r)] = _read_record(p)
     _LANE_RECORDS[root] = snap
+    _LANE_UNKEPT[root] = _unkept_records(root, set(keep or ()) & {str(r) for r in recs})
 
 
-def _reset_lane_records(sandbox, say):
+#: #182(3) - {sandbox root: {kept record: its bytes as _drop_run_records leaves an UNKEPT one (HEAD's blob | None)}}
+_LANE_UNKEPT = {}
+
+
+def _unkept_records(root, kept):
+    """#182(3) - what each record kept for SOME gate would read in a sandbox no gate kept it in. -> {record: bytes|None}
+
+    The keep-set is the UNION of every gate's PROOF_NEEDS, so a record one gate keeps stayed live for every law in the
+    lane. Here each kept record gets the state _drop_run_records gives a record nobody keeps: HEAD's blob where the
+    sandbox's own history tracks it, absent where it does not. With no history, which it is is UNKNOWN, so the record
+    is left out (it stays as built, as before) - never guessed."""
+    out = {}
+    gd = os.path.join(root, ".git")
+    if not kept or not os.path.isdir(gd):
+        return out
+    env = _git_free_env(GIT_OPTIONAL_LOCKS="0")
+    git = ["git", "--git-dir=" + gd, "--work-tree=" + root, "-c", "core.hooksPath=" + os.devnull]
+    for rel in sorted(kept):
+        if not _inside(root, os.path.normpath(os.path.join(root, *rel.split("/")))):
+            continue
+        try:
+            r = subprocess.run(git + ["ls-tree", "-z", "--name-only", "HEAD", "--", rel], cwd=root,
+                               capture_output=True, timeout=60, env=env)
+            if r.returncode != 0:
+                continue
+            if not r.stdout.strip(b"\0"):
+                out[rel] = None
+                continue
+            b = subprocess.run(git + ["cat-file", "blob", "HEAD:" + rel], cwd=root, capture_output=True,
+                               timeout=60, env=env)
+            if b.returncode == 0:
+                out[rel] = b.stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return out
+
+
+def _gate_keeps(filename):
+    """#182(3) - the run records ONE gate keeps (its own PROOF_NEEDS, as _drop_run_records names them). -> set | None"""
+    got = proof_needs_in(filename)
+    if got is None:
+        return None
+    return {os.path.normpath(os.path.join("tv", n)).replace(os.sep, "/") for n in got}
+
+
+def _reset_lane_records(sandbox, say, keeps=None):
     """REG-2598 - A GATE NEVER STARTS ON A RUN RECORD THE GATE BEFORE IT WROTE. -> [records put back] | None (unarmed)
 
     MEASURED on the dcff7160 16-shard run: shard 16's lane ran hover-wilson, whose hover_wilson.py banks a row into
@@ -1244,6 +1290,11 @@ def _reset_lane_records(sandbox, say):
     was = _LANE_RECORDS.get(root)
     if was is None:
         return None
+    if keeps is not None:                       # #182(3) - a record another gate keeps reads, here, as nobody kept it
+        was = dict(was)
+        for rel, data in _LANE_UNKEPT.get(root, {}).items():
+            if rel not in keeps:
+                was[rel] = data
     moved, stuck = [], []
     for rel, data in sorted(was.items()):
         p = os.path.join(root, *rel.split("/"))
@@ -3138,14 +3189,14 @@ def _traced_cap(ent):
 
 def _facts_gc(cache, ent, say=None):
     """REG-2440 — a facts record no entry names any more leaves (an hour after it was written: a writer that has stored
-    it and not yet flushed its entry is never raced), and so does a dead writer's tmp of one. -> how many removed"""
+    it and not yet flushed its entry is never raced), and so does a dead writer's tmp of one. -> how many removed | None (folder unreadable)"""
     folder = os.path.dirname(os.path.abspath(cache.path))
     refs = set(e.get("factsRef") for e in ent.values() if isinstance(e, dict) and e.get("kind") == "traced")
     gone = 0
     try:
         names = os.listdir(folder)
     except OSError:
-        return 0
+        return None                             # the folder could not be listed: how many left is UNKNOWN, never 0
     now = time.time()
     for n in names:
         if not n.startswith(".heart2_facts."):
@@ -7116,7 +7167,7 @@ def _prove_gate(sandbox, name, filename, proofs, say):
     declared widths and the stop.
     """
     try:
-        _reset_lane_records(sandbox, say)                # REG-2598 - the gate before this one's records never reach it
+        _reset_lane_records(sandbox, say, _gate_keeps(filename))   # REG-2598 + #182(3) only its own keeps stay live - the gate before this one's records never reach it
     except Exception as _re:
         say("     ⚠ REG-2598 the run records a gate before %s may have written could not be checked (%s) - its proofs "
             "may be keyed over them" % (name, type(_re).__name__))

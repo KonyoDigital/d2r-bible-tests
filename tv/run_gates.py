@@ -11069,6 +11069,12 @@ GATES = [
              "law a shard owes a fix (or the one stop of a fail-fast shard), the PROVEN/owed/unbanked counts and the "
              "shard walls, never exits red, and the workflow runs it with if: always() into the job summary and a "
              "proof-census-<sha> artifact. Temp dirs only."),
+    Gate("test_a_kept_record_stays_live_only_for_the_gate_that_keeps_it",
+         [sys.executable, os.path.join(HERE, "test_a_kept_record_stays_live_only_for_the_gate_that_keeps_it.py")], 120,
+         needs_app=False,
+         why="REG-2634 (#182 part 3) - the keep-set is per gate, not the union: before each gate a run record only "
+             "another gate keeps reads as nobody kept it (HEAD's blob or absent); its own keeps stay as built. "
+             "Fixture repo and sandbox in temp dirs only."),
     Gate("test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote",
          [sys.executable, os.path.join(HERE, "test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote.py")], 120,
          needs_app=False,

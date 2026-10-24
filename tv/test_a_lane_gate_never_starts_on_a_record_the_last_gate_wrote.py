@@ -134,12 +134,12 @@ class EveryGateStartsWithTheReset(unittest.TestCase):
 
     def test_the_reset_runs_in_the_gates_sandbox_before_its_proofs(self):
         order = []
-        got, calls, _said = self.run_gate(lambda sb, say: order.append(("reset", sb)))
+        got, calls, _said = self.run_gate(lambda sb, say, *k: order.append(("reset", sb)))
         self.assertEqual(order + calls, [("reset", "the/lane/tv"), ("push", "the/lane/tv", "g")])
         self.assertEqual(got, ("PROVEN", []))
 
     def test_a_reset_that_raises_is_said_and_the_gate_still_runs(self):
-        def boom(sb, say):
+        def boom(sb, say, *k):
             raise OSError("disk")
         got, calls, said = self.run_gate(boom)
         self.assertEqual(calls, [("push", "the/lane/tv", "g")])
@@ -179,8 +179,8 @@ RED_PROOF = [
     {
         "why": "REG-2598 - _prove_gate never resets: every gate after hover-wilson is proved over its row",
         "file": "heart2.py",
-        "find": "        _reset_lane_records(sandbox, say)                # REG-2598",
-        "replace": "        pass                # REG-2598",
+        "find": "        _reset_lane_records(sandbox, say, _gate_keeps(filename))   # REG-2598",
+        "replace": "        pass   # REG-2598",
         "matches": 1,
     },
     {

@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2634 - A RECORD ONE GATE KEPT STAYED LIVE FOR EVERY LAW IN THE LANE (#182 part 3, GB-box, 2026-10-24)
+heart2's PROOF_NEEDS keep-set is the UNION over all gates: _drop_run_records leaves a record any gate declares, and
+_reset_lane_records put it back as built before every gate, so a law that never asked for it was proved over a live value.
+
+FIX: _arm_lane_records also remembers, per kept record, the state a record nobody keeps gets (HEAD's blob where the
+sandbox history tracks it, absent where not; unknown without history -> left as built). _prove_gate passes the gate's
+own keeps (_gate_keeps, from its PROOF_NEEDS); _reset_lane_records gives every other kept record that state. Unreadable
+PROOF_NEEDS -> None -> the old union. Law: tv/test_a_kept_record_stays_live_only_for_the_gate_that_keeps_it.py
+(5 cases, 4 red-proofs RED).
+
 ### REG-2633 - NOTHING PUBLISHED THE PROOF BANK THE PCs READ (proof-bank publisher, GB-box, 2026-10-24)
 REG-2632 taught self_prove to fetch `origin/proof-bank:<HEAD>.<class>.json`, but no workflow wrote that branch, so every
 PC imported nothing and a Windows PC could never meet a Linux key anyway (the class is in every key; CRLF bytes).
