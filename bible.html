@@ -32535,7 +32535,7 @@ function renderItemValues(tab){
   if (tab){ _ivTab = tab; }
   var list = document.getElementById('iv-list'); if (!list) return;
   var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
-  var jsArg = function(s){ return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); };
+  var jsArg = function(s){ return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\x22').replace(/</g, '\\x3C').replace(/>/g, '\\x3E').replace(/&/g, '\\x26'); };   /* ALT inject run bug 4 */
   // tab buttons
   Array.prototype.forEach.call(document.querySelectorAll('#item-values-card .iv-tab'), function(b){
     b.classList.toggle('iv-tab-on', b.getAttribute('data-ivtab') === _ivTab);
@@ -43393,7 +43393,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function art(n, glyph, size){ glyph = glyph || '◆'; try { if (typeof artOr === 'function') { var html = artOr(n, glyph, size || 'sm'); if (html) return html; } } catch (e) {} return '<span class="d2art-fallback">' + glyph + '</span>'; }
   function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-  function jsArg(t){ return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function jsArg(t){ return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\x22').replace(/</g,'\\x3C').replace(/>/g,'\\x3E').replace(/&/g,'\\x26'); }   /* ALT inject run bug 4: a " in a name closed the onclick attribute */
   function status(msg, ms){ var el=document.getElementById('vault-status'); if(el){ el.textContent=msg; setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, ms || 4200); } }   /* 2026-09-27 — `ms`: the vault reset's receipt line names every store it cleared and kept; 4.2s is too short to read it */
   // v236 — vault item finder: type a name → which alt (mule) holds it. Searches
   // everything you've ✓ owned + vaulted; click a hit to open that mule's card.
@@ -43528,9 +43528,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     (function(){
       var byKey = {}, order = [];
       for (var i = 0; i < matches.length; i++){
-        var n = matches[i], c = _vfCanon(n);
+        var n = matches[i], c0 = _vfCanon(n);
+        var c = String(c0).replace(/\s+/g, ' ').trim();   /* ALT inject run bug 6: 'X' and 'X ' are one row */
         if (!(c in byKey)) { byKey[c] = n; order.push(c); }
-        else if (n === c) { byKey[c] = n; }   // the slotted canonical form itself is in the pool — prefer it
+        else if (n !== n.trim() && byKey[c] === byKey[c].trim()) { /* keep the trimmed spelling already shown */ }
+        else if (n === c0) { byKey[c] = n; }   // the slotted canonical form itself is in the pool — prefer it
+        else if (n === n.trim() && byKey[c] !== byKey[c].trim()) { byKey[c] = n; }   // the trimmed spelling is the one shown
       }
       matches = order.map(function(k){ return byKey[k]; });
     })();
@@ -50351,6 +50354,15 @@ window.vaultAutoAssign = function(){
     try { window._repaintOwned(); } catch(e){}
     status(_vaultResetSay(R), 20000);
   };
+  /* ALT inject run (Elad 2026-10-24 14:09 IDT, bug 1) - the records' clear-history door: the same scope runner and
+     receipt as every reset, asked twice (Cancel first both times). Law: tv/test_the_vault_records_history_clears_from_the_reset_menu.py */
+  window.vaultClearRecords = async function(){
+    if (!(await uiConfirm(_vaultResetConfirm('vaultClearRecords'), {cancelFirst:true}))) return;
+    if (!(await uiConfirm('Are you sure? This is the second confirmation - the vault records history is cleared now.', {cancelFirst:true}))) return;
+    var R = await _vaultResetRun('vaultClearRecords');
+    try { renderVault(); } catch(e){}
+    status(_vaultResetSay(R), 20000);
+  };
   window.vaultReset = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultReset'), {cancelFirst:true, title:'⚠ Danger — Reset assignments'}))) return;
     var R = await _vaultResetRun('vaultReset');
@@ -53777,6 +53789,11 @@ window.vaultAutoAssign = function(){
       } else if (r.unknown) {
         if (typeof _vrRecMarkDirty === 'function') _vrRecMarkDirty();
         else if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = true;
+      } else if (r.already && typeof _vaultRecordsRefresh === 'function') {
+        /* ALT inject run 2026-10-24 (bugs 1 + 5): `already` persisted nothing, so a name store edited outside the
+           page's doors (a restore, a sync, another tab) kept a removed name's row and read a newly filed name as
+           not filed. The existing refresh reconciles: same signature = skipped, else the guarded re-persist. */
+        r.refresh = _vaultRecordsRefresh();
       }
     } catch (eF) {}
     return r;
@@ -57988,12 +58005,17 @@ function renderJournal(){
                  clear: function(){ Object.keys(magicFinds).forEach(function(k){ delete magicFinds[k]; }); window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } }),
       // REG-2335 — the extra copies (multi-copy keepers, WAR overflow) are counted here, apart from owned
       copies:  Object.freeze({ store: 'd2r_copies', say: 'extra copies (multi-copy · WAR)',
-                 clear: function(){ Object.keys(copies).forEach(function(k){ delete copies[k]; }); window.LSR.setItem('d2r_copies', JSON.stringify(copies)); } })
+                 clear: function(){ Object.keys(copies).forEach(function(k){ delete copies[k]; }); window.LSR.setItem('d2r_copies', JSON.stringify(copies)); } }),
+      // ALT inject run (Elad 2026-10-24 14:09 IDT, bug 1) - clear the vault records' history. The records are DERIVED, so the
+      // run's own _vaultRecordsRefresh rebuilds them from the mules held now: rows left behind by a delete are gone, nothing held is.
+      records: Object.freeze({ store: 'd2r_vaultRecords', say: 'the vault records history (rebuilt from what the mules hold now)',
+                 clear: function(){ window.LSR.removeItem('d2r_vaultRecords'); window.LSR.removeItem('d2r_vaultRecordsDirty'); } })
     }),
     doors: Object.freeze({
       vaultReset:        Object.freeze(['assign', 'prov']),
       vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned']),
-      vaultWipeItems:    Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned', 'magic', 'copies'])
+      vaultWipeItems:    Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned', 'magic', 'copies']),
+      vaultClearRecords: Object.freeze(['records'])
     }),
     keeps: Object.freeze([
       { store: 'd2r_setPieces',      say: 'set pieces', n: 1 },
@@ -58253,6 +58275,10 @@ function renderJournal(){
   }
   function _vaultResetConfirm(door){
     var w = _vaultResetWords(door), one = door === 'vaultReset', wipe = door === 'vaultWipeItems';
+    if (door === 'vaultClearRecords') return 'Clear the vault records history?'
+      + '\n\nClears ONLY: ' + w.clears.join(' · ') + '. Rows a delete left behind go; every item a mule holds is filed again at once.'
+      + '\n\nStays untouched: ' + w.keeps.join(' · ') + '.'
+      + '\n\nWhat it clears cannot be undone.';
     if (wipe) return 'Wipe every item — every mule, the Shared Stash, the WAR mules and MAGIC & RARE emptied?'
       + '\n\nClears: ' + w.clears.join(' · ') + '. Nothing is rebuilt from the evidence.'
       + '\n\nStays untouched (runes / gems / materials and the rest): ' + w.keeps.join(' · ') + '.'
@@ -58286,7 +58312,7 @@ function renderJournal(){
       + w.keeps.join(' · ') + (bits.length ? ' · ' + bits.join(' · ') : '');
   }
   /* the button titles come from the same scope (the static title in the markup is only the first paint) */
-  [['vaultWipeItems', 'window.vaultWipeItems()'], ['vaultReset', 'window.vaultReset()'], ['vaultClearHistory', 'window.vaultClearHistory()']].forEach(function(d){
+  [['vaultWipeItems', 'window.vaultWipeItems()'], ['vaultReset', 'window.vaultReset()'], ['vaultClearHistory', 'window.vaultClearHistory()'], ['vaultClearRecords', 'window.vaultClearRecords()']].forEach(function(d){
     try {
       var b = document.querySelector('button[onclick="' + d[1] + '"]'); if (!b) return;
       var w = _vaultResetWords(d[0]);
@@ -69013,12 +69039,29 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return '<div class="cb-doll" id="cb-doll">' + h + '</div>';
   }
 
+  /* ALT inject run 2026-10-24 (bugs 2 + 3) - ONE rule for an item whose STORED footprint leaves its grid: it is not
+     placed (never drawn off-grid, never silently lost) and one alert under the grid names it. The store is untouched. */
+  function _cbOutside(e, cols, rows){
+    if (!e || e.x == null || e.y == null) return false;
+    var x = e.x | 0, y = e.y | 0, w = (e.w | 0) || 1, h = (e.h | 0) || 1;
+    return x < 0 || y < 0 || x + w > cols || y + h > rows;
+  }
+  function _cbOffGridHtml(list, cols, rows, what){
+    if (!list || !list.length) return '';
+    var n = list.length;
+    return '<div class="cb-note cb-offgrid" role="alert" data-offgrid="' + n + '">' + esc('⚠ ' + n + (n === 1 ? ' item is' : ' items are') + ' outside the '
+      + cols + 'x' + rows + ' ' + what + ', so not drawn: ' + list.map(function(e){
+        var nm = e.name; try { if (!nm) nm = _cbShown(e, _cbItem(e.id)).name; } catch (x) {}
+        return (nm || 'an item') + ' at ' + ((e.x | 0) + 1) + ',' + ((e.y | 0) + 1) + ' (' + ((e.w | 0) || 1) + '×' + ((e.h | 0) || 1) + ')';
+      }).join(' · ')) + '</div>';
+  }
   function _cbInvHtml(s, L, b){
-    var h = '', held = st.held, clvl = b ? b.level | 0 : 0;
+    var h = '', held = st.held, clvl = b ? b.level | 0 : 0, off = [];
     for (var y = 0; y < CB_INV_H; y++) for (var x = 0; x < CB_INV_W; x++)
       h += '<button type="button" class="cb-cell' + (st.pick && st.pick.kind === 'inv' && st.pick.cell && st.pick.cell[0] === x && st.pick.cell[1] === y ? ' cb-picking' : '') + '" data-x="' + x + '" data-y="' + y + '" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '" aria-label="inventory cell ' + (x + 1) + ',' + (y + 1) + ' — empty: add an item" onclick="window._cbCell(' + x + ',' + y + ')"></button>';
     var pitch = L.cell;   /* #174 v-B4 — gap 0: a cell's pitch IS its size (its right / bottom line included) */
     (s.inv || []).forEach(function(e, i){
+      if (_cbOutside(e, CB_INV_W, CB_INV_H)){ off.push(e); return; }   /* bug 2: flagged under the grid, never drawn outside it */
       /* #174 v-B4 fix round - the tile's fill is its STATE (one indigo for every quality, the game's): green while its
          Edit is open, RED when this character cannot use it - the Required Level its tooltip prints above the build's
          level (a charm then gives nothing, and the engine is handed the same number, so STATS leaves it out) or another
@@ -69036,7 +69079,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         + ' onmouseenter="window._cbTipInv(this,' + i + ')" onmouseleave="window.d2Tip.hide()" onfocus="window._cbTipInv(this,' + i + ')" onblur="window.d2Tip.hide()">'
         + _cbArtFor(e) + '</div>';
     });
-    return '<div class="cb-inv" id="cb-inv" style="--cb-cell:' + L.cell + 'px;grid-template-columns:repeat(10,' + L.cell + 'px);grid-template-rows:repeat(4,' + L.cell + 'px)">' + h + '</div>';
+    return '<div class="cb-inv" id="cb-inv" style="--cb-cell:' + L.cell + 'px;grid-template-columns:repeat(10,' + L.cell + 'px);grid-template-rows:repeat(4,' + L.cell + 'px)">' + h + '</div>'
+      + _cbOffGridHtml(off, CB_INV_W, CB_INV_H, 'inventory');
   }
   /* the inventory's status line (what a drop or a pick said) - under the template panel, never inside it */
   function _cbInvSayHtml(){
@@ -70134,10 +70178,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbStashTabs(b, s){
     var area = (st.stash && CB_BAG[st.stash.area]) ? st.stash.area : 'personal';
     return window._stabHtml(['inv', 'personal', 'shared'].map(function(id){
-      var n = _cbBagOf(b, s, id).length, label = CB_BAG[id][2];
+      var bagL = _cbBagOf(b, s, id), n = bagL.length, label = CB_BAG[id][2];
+      var offN = bagL.filter(function(e){ return _cbOutside(e, CB_BAG[id][0], CB_BAG[id][1]); }).length;   /* bug 3 */
       return { id: id, on: area === id, n: n, label: label, badge: n > 0,
         onclick: "window._cbStashArea('" + id + "')",
-        title: label + ' of this build. ' + (id === 'inv' ? 'The same items as the grid under the doll.' : 'Items this build keeps.') };
+        title: label + ' of this build. ' + (id === 'inv' ? 'The same items as the grid under the doll.' : 'Items this build keeps.')
+          + (offN ? ' ' + offN + ' not drawn: outside the grid.' : '') };
     }));
   }
   function _cbBagHtml(b, s, area){
@@ -70154,9 +70200,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         ? '<button type="button" class="cb-bag-it" style="' + style + '" onclick="window._cbStashInv(' + p.i + ')">' + name + '</button>'
         : '<button type="button" class="cb-bag-it" style="' + style + '" onclick="window._cbStashDropAt(\'' + area + '\',' + p.i + ')">' + name + ' <small>remove</small></button>';
     });
+    var off = bag.left.filter(function(e){ return _cbOutside(e, cols, rowsN); });   /* bug 3: the inventory's flag */
     var say = bag.unk.map(function(e){ return (e.name || 'an item') + ' has no size on record, so it is not drawn'; })
-      .concat(bag.left.map(function(e){ return (e.name || 'an item') + ' does not fit this grid'; }));
+      .concat(bag.left.filter(function(e){ return off.indexOf(e) < 0; }).map(function(e){ return (e.name || 'an item') + ' does not fit this grid'; }));
     return '<div class="cb-bag" data-bag="' + area + '" data-cols="' + cols + '" data-rows="' + rowsN + '">' + cells + tiles + '</div>'
+      + _cbOffGridHtml(off, cols, rowsN, String(spec[2]).toLowerCase() + ' grid')
       + (say.length ? '<div class="cb-note">' + esc(say.join(' · ')) + '</div>' : '');
   }
   function _cbStashViewHtml(){
