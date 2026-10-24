@@ -19,8 +19,8 @@ on every machine; a cross-class proof can no longer meet a key). Input names are
 tree's path. `heart2 --prove NAMES --slice --bank FILE [--bank-only]` imports FILE (REG-2630 rules), serves each gate
 the bank keys WHOLE (serve_from_bank), and proves the rest - or, bank-only, leaves it owed. self_prove fetches
 `proof-bank:<HEAD>.<class>.json` with the PC's update credentials; beside his game it starts a bank-only run (a bank present,
->= 1,024 MB free measured - the stream floor), which his game never ends; guard and tick share one door that stands it
-aside under that same floor (grok r6: the 400 MB start sat under the 700 MB idle kill).
+>= 1,536 MB free measured, r7), which his game never ends; guard and tick share one door that stands it
+aside under 1,024 MB (the stream floor) (grok r6: the 400 MB start sat under the 700 MB idle kill).
 r7 (grok): a start ON that floor flapped (a 1 MB dip stood it aside, the next tick started it - the cooldown was never
 asked beside his game). Now it starts only at BANK_ONLY_START_FREE_MB (= MIN_FREE_MB_TO_START, 1,536) and waits out
 STAND_ASIDE_COOLDOWN_S like any proof; a law drives _tick through the dip.

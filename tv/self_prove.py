@@ -93,8 +93,8 @@ MIN_FREE_MB_WHILE_RUNNING = 1024
 #: this; playing, it still stands aside at once, and an UNKNOWN 'is he playing' keeps the strict floor.
 MIN_FREE_MB_WHILE_RUNNING_IDLE = 700
 #: REG-2632 - a BANK-ONLY run proves nothing, but it re-keys every bank entry in a heart2 process, so beside his game
-#: (REG-1502) it keeps the STREAM floor above (dwm died at 690 MB beside Boosteroid): it starts only with this much
-#: free, measured, never on a guess, and stands aside below the same line - one floor, so no start/kill band
+#: (REG-1502) it keeps the STREAM floor above (dwm died at 690 MB beside Boosteroid): it stands aside below this line
+#: (it STARTS only at BANK_ONLY_START_FREE_MB below, measured, never on a guess)
 BANK_ONLY_MIN_FREE_MB = MIN_FREE_MB_WHILE_RUNNING
 #: REG-2632 r7 - and it STARTS only with the normal proof's start room above that floor (Grok r7: starting ON the floor
 #: let a 1 MB dip stand it aside and the next tick start it again, every tick) - and a stand-aside holds it for the
@@ -795,7 +795,8 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
                            "commit's proof bank keys exactly, and nothing is proved (REG-2632)"}
         return {"start": False, "key": "playing",
                 "why": "he is playing on this PC (the game or its cloud client) - a proof never starts beside it%s"
-                       % ("" if bank else "; and no proof bank for this commit, so nothing can be served either")}
+                       % (("; a bank-only run starts at %d MB free" % BANK_ONLY_START_FREE_MB) if bank
+                          else "; and no proof bank for this commit, so nothing can be served either")}
     try:
         free = None if free is None else float(free)
     except (TypeError, ValueError):
