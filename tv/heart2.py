@@ -6517,6 +6517,31 @@ def _at_widths(widths):
     return " at %s" % _LW.label(widths)
 
 
+#: REG-2660 - needs whose subject lives IN the tree but that safe_copy never copies into a sandbox: (module, probe) asked
+#: INSIDE the sandbox. MEASURED at 27b9a028: reel-shelf answered yes in his tree, the sandbox had no footage, and a green
+#: law was filed ALREADY RED (a fail-fast on every Mac push-time prove that reaches it).
+SANDBOX_VENUE_NEEDS = {"reel-shelf": ("reel_demo", "footage_here")}
+
+
+def _sandbox_lacks(sandbox, need):
+    """REG-2660 - does the SANDBOX lack a need it can only carry by copy? -> True | False | None (not asked / unknown).
+
+    Asked in a child with cwd at the sandbox's tv/ and TV_HIST dropped, so the probe resolves the sandbox's tree, never
+    his. A probe that cannot answer is None - judged as usual, so a broken probe can never soften a verdict."""
+    spec = SANDBOX_VENUE_NEEDS.get(str(need or ""))
+    if not spec or not sandbox or not os.path.isdir(sandbox):
+        return None
+    mod, fn = spec
+    env = {k: v for k, v in os.environ.items() if k not in ("TV_HIST", "TV_FRAMES_DIR", "PYTHONPATH")}
+    code = "import sys; sys.path.insert(0, '.'); import %s as m; sys.exit(0 if m.%s() else 3)" % (mod, fn)
+    try:
+        rc = subprocess.run([sys.executable, "-c", code], cwd=sandbox, env=env, stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL, timeout=60).returncode
+    except Exception:
+        return None
+    return True if rc == 3 else (False if rc == 0 else None)
+
+
 @_quiet_stretch                         # REG-2631 - every law run and tamper write closes the keyer's quiet stretch
 def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, clean_only=False, dry=False):
     # REG-1686 — a proof that declared what this PC must have is judged only where it is (see ELSEWHERE above)
@@ -6529,6 +6554,11 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         if _lacks:
             say("     %-52s %s — it needs %s, which this PC does not have; it is proven on a PC that does"
                 % ("%s[%d]" % (name, idx), ELSEWHERE, _words))
+            return ELSEWHERE
+        if _sandbox_lacks(sandbox, _need) is True:
+            say("     %-52s %s — it needs %s; this PC has it, but the sandbox the proof runs in never carries it "
+                "(safe_copy leaves it behind), so the clean run there could only read red" % ("%s[%d]" % (name, idx),
+                                                                                              ELSEWHERE, _words))
             return ELSEWHERE
     # REG-2357 — a law whose every case skips off POSIX is judged only where POSIX is. A proof of it that declares no need
     # Windows lacks files BLIND there, so it is refused HERE, where it can be judged (see _OFF_POSIX_NEEDS)

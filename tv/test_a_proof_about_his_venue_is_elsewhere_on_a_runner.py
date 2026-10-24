@@ -121,7 +121,56 @@ class EachProbeAsksItsOwnQuestion(unittest.TestCase):
                 self.assertIs(O.venue_here(), want, match)
 
 
+class AVenueTheSandboxNeverCarriesIsElsewhere(unittest.TestCase):
+    """REG-2660 - MEASURED on his Mac at 27b9a028: reel_demo PASSED 12 of 12 over 70 reels in his tree, yet heart2 filed it
+    ALREADY RED, because the host probe said "shelf here" and the proof ran in a sandbox safe_copy builds without
+    tv/frames. The need is asked of the sandbox too, and a sandbox without footage is ELSEWHERE, never red."""
+
+    def test_footage_is_entries_on_the_shelf(self):
+        import reel_demo as R
+        import tv_diablo as TD
+        tmp = tempfile.mkdtemp(prefix="venue-shelf-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        hist = os.path.join(tmp, "hist")
+        with mock.patch.object(TD, "HIST_DIR", hist):
+            self.assertIs(R.footage_here(), False, "absent")
+            os.mkdir(hist)
+            self.assertIs(R.footage_here(), False, "an established empty shelf")
+            open(os.path.join(hist, ".probe"), "w").close()
+            self.assertIs(R.footage_here(), False, "a dot-probe is not footage")
+            os.mkdir(os.path.join(hist, "reel_s_1_2"))
+            self.assertIs(R.footage_here(), True, "a reel")
+
+    def _tree(self, body):
+        tmp = tempfile.mkdtemp(prefix="venue-sbx-")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        with open(os.path.join(tmp, "reel_demo.py"), "w") as fh:
+            fh.write("def footage_here():\n    %s\n" % body)
+        return tmp
+
+    def test_the_sandbox_is_asked_in_the_sandbox(self):
+        self.assertIs(heart2._sandbox_lacks(self._tree("return False"), "reel-shelf"), True)
+        self.assertIs(heart2._sandbox_lacks(self._tree("return True"), "reel-shelf"), False)
+        self.assertIsNone(heart2._sandbox_lacks(self._tree("raise RuntimeError('x')"), "reel-shelf"),
+                          "a probe that cannot answer is UNKNOWN - judged as usual, never ELSEWHERE")
+        self.assertIsNone(heart2._sandbox_lacks(self._tree("return False"), "macos"), "only declared sandbox venues")
+
+    def test_host_has_it_sandbox_lacks_it_is_elsewhere_not_red(self):
+        said = []
+        with mock.patch.object(heart2, "host_lacks", lambda n: (False, "footage")), \
+                mock.patch.object(heart2, "_sandbox_lacks", lambda s, n: True):
+            got = heart2._prove_one(tempfile.gettempdir(), "reel_demo", "reel_demo.py",
+                                    {"file": "reel_demo.py", "find": "x", "replace": "y", "needs": "reel-shelf"},
+                                    0, said.append, dry=True)
+        self.assertEqual(got, heart2.ELSEWHERE, said)
+
+
 RED_PROOF = [
+    {"why": "REG-2660 - the sandbox is no longer asked: a green reel_demo is filed ALREADY RED on his Mac",
+     "file": "heart2.py",
+     "find": "if _sandbox_lacks(sandbox, _need) is True:",
+     "replace": "if False:",
+     "matches": 1},
     {"why": "REG-2592 - live-panel's proof no longer declares the console: every runner reads it red",
      "file": "live_panel_gate.py",
      "find": "'matches': 2, 'needs': 'live-console',",

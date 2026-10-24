@@ -450,6 +450,23 @@ def shelf_here():
     return _shelf()[0] not in ("absent", "empty")
 
 
+def footage_here():
+    """REG-2660 - does THIS tree's shelf hold any footage at all? -> bool. heart2 asks it INSIDE a proof's sandbox.
+
+    MEASURED on his Mac at 27b9a028 (v3795): shelf_here() said yes in his tree (70 reels, PASS 12 of 12), so heart2 ran
+    the proof - in a sandbox safe_copy builds WITHOUT tv/frames (HEAVY) but WITH tv/reel_tombstones.json (1666 closed
+    reels). The untampered run there was absent -> SKIP 77, or (once an earlier gate in the lane established an empty
+    hist) empty + a ledger naming closed reels -> "present" -> "0 reel(s) walked" FAIL. Either way: ALREADY RED, and the
+    push-time prove fails fast on a law that is green. The host probe answered about a venue the proof never runs in.
+    Only a shelf holding entries counts here; the empty-but-recorded verdict stays _shelf()'s, judged by the gate itself."""
+    import tv_diablo as TD          # a recorder that will not import raises: heart2 reads that as UNKNOWN, judged as usual
+    p = getattr(TD, "HIST_DIR", "")
+    try:
+        return bool(p) and os.path.isdir(p) and any(not n.startswith(".") for n in os.listdir(p))
+    except OSError:
+        return False
+
+
 RED_PROOF = [
     {
         "why": "v2889 — the tamper changes one of the counts Konyo REGISTERED as his own rulings "
