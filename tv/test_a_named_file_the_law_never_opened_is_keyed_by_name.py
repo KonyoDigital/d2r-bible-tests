@@ -302,8 +302,8 @@ RED_PROOF = [
     {
         "why": "REG-2640 - a python child does not inherit the hook's reads (its opens are lost)",
         "file": "heart2.py",
-        "find": "        if ev == \"open\":\n            names(\"R\", args[0] if args else None)\n",
-        "replace": "        if ev == \"open\" and _o.getppid() != int(_o.environ.get(\"H2_NOPE\", \"0\")) and _s.argv[0] != \"-c\":\n            names(\"R\", args[0] if args else None)\n",
+        "find": "        elif ev == \"open\":\n            names(\"R\", args[0] if args else None)\n",
+        "replace": "        elif ev == \"open\" and _o.getppid() != int(_o.environ.get(\"H2_NOPE\", \"0\")) and _s.argv[0] != \"-c\":\n            names(\"R\", args[0] if args else None)\n",
         "matches": 1,
     },
     {
