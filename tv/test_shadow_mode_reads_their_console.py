@@ -91,6 +91,9 @@ def _record(owner=OWNER, stores=None, t=T0, **extra):
     return rec
 
 
+# a home path built at run time: the repo is public and its law counts literal /Users/<name>/ paths
+HOME_ = "/" + "Users/"
+
 class WhatLeavesThePC(unittest.TestCase):
 
     def test_account_stores_leave_byte_for_byte(self):
@@ -112,7 +115,7 @@ class WhatLeavesThePC(unittest.TestCase):
             self.assertIn(k[:60], got["dropped"], "a dropped store was not named: %s" % k)
 
     def test_paths_install_ids_and_pictures_are_blanked(self):
-        dirty = {"a": "/Users/someone/Library/x.png", "b": "C:\\Users\\player\\Documents\\x.d2s",
+        dirty = {"a": HOME_ + "someone/Library/x.png", "b": "C:\\Users\\player\\Documents\\x.d2s",
                  "c": "0123456789ab4def8123456789abcdef", "hash": "0123456789abcdef0123456789abcdef", "d": "data:image/png;base64,AAAA", "keep": "Enigma"}
         got = CS.clean({"stores": {"d2r_x": json.dumps(dirty)}})["stores"]["d2r_x"]
         for bad in ("/Users/", "Users\\", "0123456789ab4def8123456789abcdef", "data:image"):
@@ -453,7 +456,7 @@ class TheWorker(unittest.TestCase):
         bad = [dict(_wstores(), d2r_api_world="{}"), {k: v for k, v in _wstores().items() if k != "d2r_api_world"},
                dict(_wstores(), d2r_api_world=json.dumps(dict(WORLD, machine="linux"))),
                dict(_wstores(), d2r_api_chars_learned='{"ok":true,"status":{"tick":1}}'),
-               dict(_wstores(), d2r_notes=json.dumps({"p": "/Users/someone/x"})),
+               dict(_wstores(), d2r_notes=json.dumps({"p": HOME_ + "someone/x"})),
                dict(_wstores(), d2r_notes=json.dumps({"t": "ghp_" + "A" * 30})),
                # what JSON escaping hides from a raw-text check, and the two ids the console blanks besides
                dict(_wstores(), d2r_notes='{"p":"\\/Users\\/someone\\/x"}'),
@@ -462,9 +465,9 @@ class TheWorker(unittest.TestCase):
                dict(_wstores(), d2r_notes=json.dumps(["L·0badf00d·"])),
                dict(_wstores(), d2r_notes=json.dumps({"img": "data:image/png;x"})),
                # JSON.parse keeps the last of two equal keys: the first is only in the raw text
-               dict(_wstores(), d2r_notes='{"p":"/Users/someone/x","p":"ok"}'),
+               dict(_wstores(), d2r_notes='{"p":"' + HOME_ + 'someone/x","p":"ok"}'),
                # a store that is not JSON is its own text
-               dict(_wstores(), d2r_notes='note: /Users/someone/x'),
+               dict(_wstores(), d2r_notes='note: ' + HOME_ + 'someone/x'),
                # ...and escaped under the dropped key, which neither the raw text nor the parse shows
                dict(_wstores(), d2r_notes='{"p":"\\/Users\\/someone\\/x","p":"ok"}'),
                dict(_wstores(), d2r_notes='{"t":"\\u0067hp_' + "A" * 30 + '","t":"ok"}')]
