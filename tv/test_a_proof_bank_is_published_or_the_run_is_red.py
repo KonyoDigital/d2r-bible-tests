@@ -8,6 +8,7 @@ job, never shrug, never be skipped - and DRIVES the publisher over a temp bare r
 it; every bad export (missing, empty, other commit, dirty, other class, a machine path) and an unreachable remote is
 exit 1 with "PROOF BANK REFUSED"; a linux and a windows bank racing both land (the publisher keeps that path); old banks are pruned to KEEP.
 """
+import hashlib
 import io
 import json
 import os
@@ -194,6 +195,30 @@ RED_PROOF = [
      "file": ".github/workflows/proof-bank-windows.yml",
      "find": "    timeout-minutes: 30\n",
      "replace": "    timeout-minutes: 30\n    \"continue-on-\\u0065rror\": true\n", "matches": 1},
+    {"why": "REG-2633 r18 - a NBSP after win-shard's guard: the law reads the exact guard, GitHub reads always-true",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n    runs-on: windows-latest\n",
+     "replace": "    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\u00a0\n    runs-on: windows-latest\n",
+     "matches": 1},
+    {"why": "REG-2633 r18 - a shell template that exits 0 before any win-bank step runs",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "    timeout-minutes: 30\n",
+     "replace": "    timeout-minutes: 30\n    defaults:\n      run:\n        shell: \"bash -c exit {0}\"\n", "matches": 1},
+    {"why": "REG-2633 r18 - a step above the Linux publish stubs the publisher out",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "      - name: Import the set, export what this tree keys, publish it\n",
+     "replace": "      - name: stub\n        run: printf 'import sys\\nsys.exit(0)\\n' > tv/proof_bank.py\n"
+                "      - name: Import the set, export what this tree keys, publish it\n", "matches": 1},
+    {"why": "REG-2633 r18 - the Linux shards move onto Windows under the exact guard (16 billed runners per push)",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "    name: shard ${{ matrix.shard }}\n    runs-on: ubuntu-latest\n",
+     "replace": "    name: shard ${{ matrix.shard }}\n    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n    runs-on: windows-latest\n",
+     "matches": 1},
+    {"why": "REG-2633 r18 - the Linux fan-in is shrugged off",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": '        run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA"\n',
+     "replace": '        run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA" || true\n',
+     "matches": 1},
 ]
 
 
@@ -336,12 +361,32 @@ TOP_KEYS = ("name", "on", "permissions", "concurrency", "env", "jobs")
 JOBS = {"proof-keys-shards.yml": ["shard", "fan-in", "bank"], "proof-bank-windows.yml": ["win-shard", "win-bank"]}
 
 
+def job_digest(text, name):
+    """sha256 of a job's lines with comment-only lines dropped - every key, shell, step and value in it. -> hex"""
+    body = "\n".join(l for l in _job(text, name).splitlines() if not l.lstrip().startswith("#")).strip()
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+#: the jobs that bill Windows minutes or write the bank, pinned whole (a shell template, a step that stubs the
+#: publisher, a runs-on swap ... anything in them is red). Re-anchor deliberately: print job_digest() after the edit.
+JOB_DIGESTS = {
+    ('proof-keys-shards.yml', 'fan-in'): '8c1e9955e7f6e0d79bac342e6e0210dfc32b59f78a4e9f32c1ce46683843d3bb',
+    ('proof-keys-shards.yml', 'bank'): 'd379f1dd54be7b0af416ed5b6485cf8b5059e8e0bc95b2d550fea8c349e16a65',
+    ('proof-bank-windows.yml', 'win-shard'): 'cb032e039eaa0a2478d040c8b37165cb4e6bada07d7d3d5452660bca7fadb497',
+    ('proof-bank-windows.yml', 'win-bank'): 'd7bddc4fe883a7892f82b65a27ce757d0d460049ae1b5d7cbcc9c10e91bdf097',
+}
+
+
 def shape_errors(text):
     """What a plain line reader cannot vouch for, so it is refused outright: a top-level key that is not one bare
     known key exactly once (`!!str on`, `? on`, `"\u006fn"`, a second `jobs:`), a job key that is not bare at indent 2
     (`? extra-win`), a job-level key that is not bare at indent 4 (`"\u0069f"`, an escaped continue-on-error, a
     duplicate), and a job-level `if:` continued on the next line (`|| true` makes GitHub's if always true). -> [str]"""
     errs, top, lines = [], [], text.splitlines()
+    for raw in lines:
+        if not raw.lstrip().startswith("#") and re.search(r"[^\x20-\x7e]", raw):
+            # YAML keeps a U+00A0 inside a value, Python's \s strips it: `if: ${{ guard }}<NBSP>` is always true on GitHub
+            errs.append("a non-ASCII or control character outside a comment %r" % raw)
     in_jobs, job_keys = False, None
     for n, raw in enumerate(lines):
         l = _uncomment(raw)
@@ -496,6 +541,13 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
             text, base = _read(path), os.path.basename(path)
             self.assertEqual(shape_errors(text), [], "%s holds a line the law cannot read" % base)
             self.assertEqual(job_names(text), JOBS[base], "%s: the job list changed - re-anchor this law" % base)
+            for j in JOBS[base]:
+                if (base, j) in JOB_DIGESTS:
+                    self.assertEqual(job_digest(text, j), JOB_DIGESTS[(base, j)],
+                                     "%s job %s changed - every byte of it is the bank/billing contract" % (base, j))
+        shard = _job(_read(LINUX_WF), "shard")
+        self.assertEqual(re.findall(r"(?m)^    runs-on:.*$", shard), ["    runs-on: ubuntu-latest"],
+                         "the Linux shards moved off ubuntu - every ci/proof-keys-* push would bill that runner")
 
     def test_the_windows_producer_is_off_until_the_owner_turns_it_on(self):
         # owner ruling 2026-10-24: Linux bank only (Windows minutes cost 2x). Only a manual dispatch may start it.
