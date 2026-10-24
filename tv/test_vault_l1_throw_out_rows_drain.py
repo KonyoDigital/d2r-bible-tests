@@ -298,7 +298,7 @@ class CompactSearchRow(unittest.TestCase):
                       "var a = document.querySelector('.vault-planner-find').getBoundingClientRect();"
                       "var f = document.querySelector('.vault-find-mule').getBoundingClientRect();"
                       "OUT.a = [a.top, a.height, a.width]; OUT.f = [f.top, f.height, f.width];"
-                      "OUT.same = document.querySelector('.vault-planner-find').parentNode === document.querySelector('.vault-find-mule').parentNode;")
+                      "OUT.same = document.querySelector('.vault-planner-find').closest('.vault-find-row') === document.querySelector('.vault-find-mule').closest('.vault-find-row');")
         finally:
             b.t.send("Emulation.clearDeviceMetricsOverride")
         self.assertTrue(o["same"])

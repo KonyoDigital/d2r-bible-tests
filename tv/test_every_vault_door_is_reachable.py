@@ -136,9 +136,11 @@ WORLD = ("window._vaultAutoIntakeSet(false); window.switchTab('vault');"
          "renderVault(); window._vaultMovePaint();")
 
 # the design's mapping table: handler -> how a person reaches it (the controls pressed first, all visible + harmless)
-TOOLBAR = ["vaultAutoSortByHand", "vaultAddMule", "vaultExport", "_vaultAutoIntakeToggle"]
+# Vault v3 (Elad t642u, mock approved 2026-10-24): AUTO INTAKE moved into Advanced → "Auto-intake & screenshots"; the
+# toolbar keeps a chip that opens it (proved below and in test_vault_v3_layout_keeps_every_door).
+TOOLBAR = ["vaultAutoSortByHand", "vaultAddMule", "vaultExport", "vaultProfileSave"]
 DANGER = ["vaultClearUnsorted", "vaultReset", "vaultClearHistory", "vaultWipeItems"]
-ADVANCED = [("keepers", "#vault-multikeep"), ("registered", "#vault-registered"), ("registered", "#vault-intake-report"),
+ADVANCED = [("intake", "#vault-intake-strip"), ("keepers", "#vault-multikeep"), ("registered", "#vault-registered"), ("registered", "#vault-intake-report"),
             ("registered", "#vault-journal"), ("stash", "#vault-share-settings"), ("ledger", "#routing-ledger"),
             ("keep", "#vault-keep"), ("reviews", "#vault-socketed"), ("reviews", "#vault-throwout"),
             ("reviews", "#vault-suggested"), ("help", ".vault-shot-guide > summary"), ("help", ".vd-howto > summary")]
@@ -165,11 +167,16 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
         self.assertEqual(o["r"]["vaultAutoSortByHand"], 1, "sorting is not ONE button (Auto-assign + Auto-Sort merged): %r" % o)
         self.assertFalse(o["sortInDock"], "the dock bar grew its own Auto-Sort button back")
         self.assertIn("Sort to mules", o["label"])
+        o2 = board().run(SEEN + "closeAll(); var c = by('#vault-chip-intake'); OUT.chip = seen(c) && !!c.closest('.vault-toolbar');"
+                         "c.click(); await new Promise(function(r){ setTimeout(r, 100); }); OUT.intake = doors('_vaultAutoIntakeToggle').filter(seen).length; closeAll();")
+        self.assertTrue(o2["chip"], "the AUTO INTAKE chip is not in the toolbar: %r" % o2)
+        self.assertEqual(o2["intake"], 1, "the chip does not put the AUTO INTAKE toggle on screen: %r" % o2)
         self.assertTrue(o["sortNSeen"] and o["sortN"].endswith("loose"), "the sort button does not carry the loose count: %r" % o)
 
     def test_the_danger_doors_are_reached_through_the_one_menu(self):
         o = board().run(SEEN + "closeAll(); OUT.before = {}; OUT.after = {};"
                         "var D = %s; D.forEach(function(f){ OUT.before[f] = doors(f).filter(seen).length; });"
+                        "var z = by('details.danger-zone'); z.querySelector('summary').click(); OUT.zone = !!by('#vault-danger-tog').closest('#reset-grp-vault');"
                         "OUT.tog = seen(by('#vault-danger-tog')); by('#vault-danger-tog').click();"
                         "D.forEach(function(f){ var d = doors(f); OUT.after[f] = [d.length, d.filter(seen).length,"
                         "  d.every(function(e){ return !!e.closest('#vault-danger-menu'); })]; });"
@@ -178,8 +185,9 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
                         "window._menuRunNames = function(){ return ['Obedience']; }; renderVault();"
                         "OUT.menuImport = seen(door('vaultDropMenuImport')) && !!door('vaultDropMenuImport').closest('#vault-danger-menu');"
                         "window._menuAscendingFraction = _f; window._menuRunNames = _n; renderVault(); OUT.menuImportGone = !seen(door('vaultDropMenuImport'));"
-                        "closeAll();" % json.dumps(DANGER))
-        self.assertTrue(o["tog"], "the ⚠ Clear & reset toggle is not on screen")
+                        "window.vaultDangerMenuTog(false); z.open = false; closeAll();" % json.dumps(DANGER))
+        self.assertTrue(o["zone"], "Clear & reset is not in the footer's Reset & restore → Vault & mules group")
+        self.assertTrue(o["tog"], "the Clear & reset toggle is not on screen once Reset & restore is opened")
         for f in DANGER:
             self.assertEqual(o["before"][f], 0, "%s is on screen without opening the danger menu: %r" % (f, o))
             self.assertEqual(o["after"][f], [1, 1, True], "%s is not exactly one visible row of the danger menu: %r" % (f, o))
@@ -201,14 +209,14 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
         self.assertTrue(o["box"], "pressing add by name only did not open the hand-add box")
 
     def test_the_folder_doors_are_in_the_intake_strip_in_both_states(self):
-        o = board().run(SEEN + "closeAll(); window._setFolderConnectedUI(false);"
+        o = board().run(SEEN + "closeAll(); window.vaultAdvTab('intake'); window._setFolderConnectedUI(false);"
                         "OUT.off = { connect: seen(door('vaultConnectFolder')), scan: seen(door('vaultScanFolder')), clear: seen(door('vaultClearScanHistory')) };"
                         "window._setFolderConnectedUI(true);"
                         "OUT.on = { connect: seen(door('vaultConnectFolder')), scan: seen(door('vaultScanFolder')), clear: seen(door('vaultClearScanHistory')) };"
                         "OUT.inStrip = ['vaultConnectFolder', 'vaultScanFolder', 'vaultClearScanHistory', '_vaultAutoIntakeToggle'].map(function(f){"
                         "  var d = door(f); return !!(d && d.closest('#vault-intake-strip')); });"
                         "OUT.clearNotDanger = !door('vaultClearScanHistory').closest('#vault-danger');"
-                        "window._setFolderConnectedUI(false);")
+                        "window._setFolderConnectedUI(false); closeAll();")
         self.assertTrue(o["off"]["connect"], "no visible Connect folder door before a folder is linked: %r" % o)
         self.assertTrue(o["on"]["scan"] and o["on"]["clear"], "Scan / Clear scan history not visible once linked: %r" % o)
         self.assertTrue(all(o["inStrip"]), "a folder door left the intake strip: %r" % o)
