@@ -11875,17 +11875,6 @@ GATES = [
              "PC's slice serves from its bank only gates the bank keys whole; the ALT's bank-only run beside his "
              "game serves and never proves; keys are raw bytes with /-separated names; an export carries no "
              "machine path"),
-    Gate("test_a_trace_names_every_read_a_key_needs",
-         [sys.executable, os.path.join(HERE, "test_a_trace_names_every_read_a_key_needs.py")], 300,
-         needs_app=False,
-         why="REG-2442 (#147 R1) - gate_trace dropped every path outside its root without a word, wrote no fact for an "
-             "env read, kept a stat as presence only, and sqlite3/mmap/ctypes/dbm read files no open event names. Now "
-             "TV_GATE_TRACE_DENY/_ALLOW make a read of a denied root a U, STRICT makes those imports and getmtime/"
-             "getctime under the root a U, single-name env reads are E facts (never plumbing, a bulk copy, or a value "
-             "the run made), Z keeps a stat's size, H the bytes as read, D a listing as listed, T the tracked set; "
-             "gate_ledger.facts_of/facts_hold hold a later tree to every one. REG-2449 - a path the run found absent "
-             "and made (exists() then create, append, 'x', mkdir) is held absent, kept bytes and a written-into folder "
-             "are held, a node listing writes D. Driven on fixture trees under the real hook, python and node."),
     Gate("test_a_chrome_the_run_did_not_start_untraces_it",
          [sys.executable, os.path.join(HERE, "test_a_chrome_the_run_did_not_start_untraces_it.py")], 300,
          needs_app=False,
@@ -11901,17 +11890,6 @@ GATES = [
              "tracked .html/.js/.css/.mjs/.cjs names one in src=, a stylesheet/preload/import link, url(), import(), "
              "@import, a Worker, importScripts, a service worker or fetch(). The page list is the law's own bytes, "
              "held to git ls-files (a new tracked page must be added there)."),
-    Gate("test_the_suite_ledger_is_one_per_machine",
-         [sys.executable, os.path.join(HERE, "test_the_suite_ledger_is_one_per_machine.py")], 120,
-         needs_app=False,
-         why="REG-2445 (#164/#178 class) - the gate ledger and its map were per checkout, so every fresh push worktree "
-             "started with no carried suite PASS and lost what it proved. They live in git's common dir now (read from "
-             ".git, never by running git), each checkout's own file folded in once; REG-2343's four holes are closed: "
-             "a PASS carries into another checkout only where its absent ignored inputs, untracked folders and listed "
-             "folders' untracked names hold (a folded row only in its own checkout), a writer writes only its own rows "
-             "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing. "
-             "REG-2449 - a path the run found absent and made, bytes it kept, a folder it wrote into and a node child's "
-             "listing hold too: real traced runs in a linked worktree never carry into a checkout where the gate fails."),
     Gate("test_the_census_reuses_what_a_push_proved",
          [sys.executable, os.path.join(HERE, "test_the_census_reuses_what_a_push_proved.py")], 120,
          needs_app=False,
@@ -11954,35 +11932,6 @@ GATES = [
          why="REG-2438 (#71/#144) - a sandbox copy (copy2, the APFS clone) keeps each source file's access time, and "
              "macOS's dirhelper removes $TMPDIR files whose atime is over 3 days old (03:35): tracked files vanished "
              "mid-run. make_sandbox marks every file as read just now, mtime kept; the #144 line carries its time."),
-    Gate("test_the_second_eye_ledger_is_one_per_machine",
-         [sys.executable, os.path.join(HERE, "test_the_second_eye_ledger_is_one_per_machine.py")], 120,
-         needs_app=False,
-         why="#178 (REG-2450) - the ship gate read the PUSHING tree's tv/.second_eye.jsonl: a fresh push worktree has "
-             "none (v3784 refused, 'v3783 OWES A LOOK'), and a look recorded in a worktree died with it (v3778). The "
-             "ledger is now one file per machine in git's common dir, found by reading .git; the first resolution in a "
-             "process folds every checkout's own ledger in (exact rows, none dropped, the sources only read); --gate "
-             "pins it and ignores TV_SECOND_EYE_LEDGER; a tree with no git dir keeps its own file and says so."),
-    Gate("test_a_push_worktree_is_seeded_before_its_gates",
-         [sys.executable, os.path.join(HERE, "test_a_push_worktree_is_seeded_before_its_gates.py")], 120,
-         needs_app=False,
-         why="#143 (REG-2451) - a fresh push worktree lacked node_modules and tv/.heart2.json, so pushes refused one gap "
-             "at a time. tv/seed_worktree.py finds main from the worktree's .git pointer and COPIES (never links) what "
-             "is missing, never overwrites, asks second_eye_ledger whether its ledger is still per checkout, refuses the "
-             "main checkout itself and any seed that would leave free disk under his 8 GB ON AIR floor."),
-    Gate("test_two_provers_never_share_a_lane_port",
-         [sys.executable, os.path.join(HERE, "test_two_provers_never_share_a_lane_port.py")], 120,
-         needs_app=False,
-         why="#160 (REG-2452) - base_for_lane gave every process the same ports, so the census and a push bound one "
-             "listener; stamp never set TV_RENDER_PORT; nothing capped Chrome machine-wide. A prover now claims a "
-             "machine-wide slot (a flock'd file per slot in git's common dir, freed when its holder dies) whose ports "
-             "are its own; each lane renders on its spare port; at most two browser slots are held across the machine."),
-    Gate("test_the_second_eye_row_reads_the_ledger_once",
-         [sys.executable, os.path.join(HERE, "test_the_second_eye_row_reads_the_ledger_once.py")], 120,
-         needs_app=False,
-         why="#48 (REG-2453) - console_doctor's 'second eye asked twice' row re-parsed the 7.3 MB ledger 43 times a tick "
-             "(census 3.96 s profiled, 6-11 s loaded). The parse is kept per (path, size, mtime_ns, inode, device) and "
-             "the census per ledger state: one parse on the first tick, none on the next, an appended row seen at once, "
-             "a file written in the last 3 s never served from memory."),
     Gate("test_the_machine_runs_at_most_two_browsers",
          [sys.executable, os.path.join(HERE, "test_the_machine_runs_at_most_two_browsers.py")], 120,
          needs_app=False,
@@ -12007,21 +11956,6 @@ GATES = [
              "the run made), Z keeps a stat's size, H the bytes as read, D a listing as listed, T the tracked set; "
              "gate_ledger.facts_of/facts_hold hold a later tree to every one. Driven on fixture trees under the real "
              "hook, python and node."),
-    Gate("test_a_chrome_the_run_did_not_start_untraces_it",
-         [sys.executable, os.path.join(HERE, "test_a_chrome_the_run_did_not_start_untraces_it.py")], 300,
-         needs_app=False,
-         why="REG-2443 (#147 R1) - every Chrome a traced run started read as U, and render_check._chrome_up silently "
-             "adopted whatever answered on its port. Traced, its Chrome carries TV_GATE_TRACE_CDP=1 and is written C "
-             "(read like U unless the reader allows it); an answering port it did not start is a U line before it is "
-             "adopted (and never adopted unsaid); an unmarked or merely inheriting child is U. A stub Chrome via "
-             "TV_CHROME answers /json/version - no browser runs."),
-    Gate("test_no_page_loads_python_or_markdown",
-         [sys.executable, os.path.join(HERE, "test_no_page_loads_python_or_markdown.py")], 120,
-         needs_app=False,
-         why="REG-2444 (#147 R1) - a browser key can name what a page loads only if no page loads a .py or a .md: no "
-             "tracked .html/.js/.css/.mjs/.cjs names one in src=, a stylesheet/preload/import link, url(), import(), "
-             "@import, a Worker, importScripts, a service worker or fetch(). The page list is the law's own bytes, "
-             "held to git ls-files (a new tracked page must be added there)."),
     Gate("test_the_suite_ledger_is_one_per_machine",
          [sys.executable, os.path.join(HERE, "test_the_suite_ledger_is_one_per_machine.py")], 120,
          needs_app=False,
