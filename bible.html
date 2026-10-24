@@ -45934,7 +45934,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* Vault v3 B2 — Enter took nothing (only a click on a row added) and Esc left the box open */
   window._vaultHandKey = function(e){
     if (!e) return;
-    if (e.key === 'Escape'){ if (e.preventDefault) e.preventDefault(); window.vaultHandClose(); return; }
+    if (e.key === 'Escape'){ if (e.preventDefault) e.preventDefault(); if (e.stopPropagation) e.stopPropagation(); window.vaultHandClose(); return; } /* r2 Low: one Esc closes this box only, never an open mule card too */
     if (e.key !== 'Enter') return;
     if (e.preventDefault) e.preventDefault();
     var first = document.querySelector('#vault-hand-list .vault-hand-opt');
