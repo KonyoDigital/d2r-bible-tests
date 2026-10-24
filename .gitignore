@@ -470,3 +470,8 @@ tv/.ledger_drops.json.unreadable-*
 tv/read_pictures.jsonl
 tv/triage_backlog.json
 tv/gate_costs.json.lock
+
+# Shadow mode: this PC's snapshot state and its last copy of an owner's upload (private, per PC)
+tv/.tvd_snapshot.json
+tv/snapshot_book.json
+tv/snapshot_cache
