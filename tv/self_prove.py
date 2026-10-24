@@ -96,6 +96,10 @@ MIN_FREE_MB_WHILE_RUNNING_IDLE = 700
 #: (REG-1502) it keeps the STREAM floor above (dwm died at 690 MB beside Boosteroid): it starts only with this much
 #: free, measured, never on a guess, and stands aside below the same line - one floor, so no start/kill band
 BANK_ONLY_MIN_FREE_MB = MIN_FREE_MB_WHILE_RUNNING
+#: REG-2632 r7 - and it STARTS only with the normal proof's start room above that floor (Grok r7: starting ON the floor
+#: let a 1 MB dip stand it aside and the next tick start it again, every tick) - and a stand-aside holds it for the
+#: same STAND_ASIDE_COOLDOWN_S as any proof
+BANK_ONLY_START_FREE_MB = MIN_FREE_MB_TO_START
 #: REG-1670 — a PC proves on as many lanes as it has clear room for (heart2's HEART2_PROVE_WORKERS). His words,
 #: 2026-10-01: "yea good idea" and "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or 32g
 #: ram". MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. One lane per LANE_BUDGET_MB free
@@ -712,6 +716,25 @@ def tree_state(git=None):
         return "unknown", "git could not be asked (%s)" % type(e).__name__
 
 
+def _aside_cooldown(mem, now_s):
+    """REG-1511 (REG-2632 r7: asked by the bank-only start too) - the stand-aside cooldown, or None."""
+    try:
+        last_aside = (float(mem.get("lastStoodAsideAt")) / 1000.0
+                      if mem.get("lastStoodAsideAt") is not None else None)
+    except (TypeError, ValueError):
+        # the skeptic on fix24-selfprove: now_s here re-armed the cooldown on EVERY tick, so a corrupt value held the
+        # lane shut for ever while the doctor called it healthy. Unreadable = no cooldown; the playing and memory
+        # gates above still stand between a proof and his game.
+        last_aside = None
+    if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:
+        return {"start": False, "key": "aside-cooldown",
+                "why": "a proof stood aside %d min ago (%s) - the next one waits %d min, so a proof that cannot "
+                       "finish here does not start and die every tick"
+                       % (int(max(0.0, now_s - last_aside) // 60), mem.get("lastStoodAsideWhy") or "?",
+                          STAND_ASIDE_COOLDOWN_S // 60)}
+    return None
+
+
 def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None, sandbox=None, bank=None):
     """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str[, "bankOnly": True]}
     `playing` / `free` (REG-1502): None is UNKNOWN, and a proof is never started on a guess.
@@ -763,7 +786,10 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
             _bf = None if free is None else float(free)
         except (TypeError, ValueError):
             _bf = None
-        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_MIN_FREE_MB:
+        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_START_FREE_MB:
+            _held = _aside_cooldown(mem, now_s)
+            if _held:
+                return _held
             return {"start": True, "key": "bank-only", "bankOnly": True,
                     "why": "he is playing on this PC - no proof runs beside it (REG-1502); serving only what this "
                            "commit's proof bank keys exactly, and nothing is proved (REG-2632)"}
@@ -783,20 +809,9 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
     # REG-1511 — A STAND-ASIDE HOLDS THE NEXT START. Simulated in the review of v3524: free RAM 2500 MB idle and 900 MB
     # with the proof running gave start, stood-aside, start, stood-aside... every 600 s tick - each run rebuilt its
     # sandbox and threw the work away, the census never went current, and the doctor called both keys healthy.
-    try:
-        last_aside = (float(mem.get("lastStoodAsideAt")) / 1000.0
-                      if mem.get("lastStoodAsideAt") is not None else None)
-    except (TypeError, ValueError):
-        # the skeptic on fix24-selfprove: now_s here re-armed the cooldown on EVERY tick, so a corrupt value held the
-        # lane shut for ever while the doctor called it healthy. Unreadable = no cooldown; the playing and memory
-        # gates above still stand between a proof and his game.
-        last_aside = None
-    if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:
-        return {"start": False, "key": "aside-cooldown",
-                "why": "a proof stood aside %d min ago (%s) - the next one waits %d min, so a proof that cannot "
-                       "finish here does not start and die every tick"
-                       % (int(max(0.0, now_s - last_aside) // 60), mem.get("lastStoodAsideWhy") or "?",
-                          STAND_ASIDE_COOLDOWN_S // 60)}
+    _held = _aside_cooldown(mem, now_s)
+    if _held:
+        return _held
     try:
         busy_pct = None if busy_pct is None else float(busy_pct)
     except (TypeError, ValueError):

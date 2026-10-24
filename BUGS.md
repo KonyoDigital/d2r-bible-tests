@@ -21,8 +21,11 @@ the bank keys WHOLE (serve_from_bank), and proves the rest - or, bank-only, leav
 `proof-bank:<HEAD>.<class>.json` with the PC's update credentials; beside his game it starts a bank-only run (a bank present,
 >= 1,024 MB free measured - the stream floor), which his game never ends; guard and tick share one door that stands it
 aside under that same floor (grok r6: the 400 MB start sat under the 700 MB idle kill).
+r7 (grok): a start ON that floor flapped (a 1 MB dip stood it aside, the next tick started it - the cooldown was never
+asked beside his game). Now it starts only at BANK_ONLY_START_FREE_MB (= MIN_FREE_MB_TO_START, 1,536) and waits out
+STAND_ASIDE_COOLDOWN_S like any proof; a law drives _tick through the dip.
 
-GUARD: tv/test_a_proof_counts_only_on_its_own_platform_class.py (registered; 8 RED proofs).
+GUARD: tv/test_a_proof_counts_only_on_its_own_platform_class.py (registered; 14 RED proofs).
 
 ### REG-2631 - AN ALL-HIT PUSH STILL SPENT MINUTES PROVING (heart2 keyer, GB-box, 2026-10-24)
 v3792's hook served 303 of 303 proofs from the cache and still spent 2m39 proving. MEASURED on the box (19 gates, 226

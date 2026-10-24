@@ -63,8 +63,8 @@ RED_PROOF = [
      "replace": "    return served, rest, ages\n", "matches": 1},
     {"why": "REG-2632 - beside his game a bank-only run starts with no bank to serve from",
      "file": "self_prove.py",
-     "find": "        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_MIN_FREE_MB:\n",
-     "replace": "        if _bf is not None and _bf == _bf and _bf >= BANK_ONLY_MIN_FREE_MB:\n", "matches": 1},
+     "find": "        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_START_FREE_MB:\n",
+     "replace": "        if _bf is not None and _bf == _bf and _bf >= BANK_ONLY_START_FREE_MB:\n", "matches": 1},
     {"why": "REG-2632 - his game ends a bank-only run that proves nothing (the one stand-aside door)",
      "file": "self_prove.py",
      "find": '    return stand_aside_bank(free) if mem.get("bankOnly") else stand_aside(playing, free)\n',
@@ -81,6 +81,18 @@ RED_PROOF = [
      "file": "self_prove.py",
      "find": "BANK_ONLY_MIN_FREE_MB = MIN_FREE_MB_WHILE_RUNNING\n",
      "replace": "BANK_ONLY_MIN_FREE_MB = 400\n", "matches": 1},
+    {"why": "REG-2632 r7 - a bank-only run starts ON the floor that ends it, so a 1 MB dip flaps it every tick",
+     "file": "self_prove.py",
+     "find": "BANK_ONLY_START_FREE_MB = MIN_FREE_MB_TO_START\n",
+     "replace": "BANK_ONLY_START_FREE_MB = BANK_ONLY_MIN_FREE_MB\n", "matches": 1},
+    {"why": "REG-2632 r7 - a bank-only run stood aside starts again the next tick (no cooldown beside his game)",
+     "file": "self_prove.py",
+     "find": "            _held = _aside_cooldown(mem, now_s)\n",
+     "replace": "            _held = None\n", "matches": 1},
+    {"why": "REG-2632 r7 - the start reads the stay floor, not its own bar (floors drift apart, suite green)",
+     "file": "self_prove.py",
+     "find": "        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_START_FREE_MB:\n",
+     "replace": "        if bank and _bf is not None and _bf == _bf and _bf >= MIN_FREE_MB_WHILE_RUNNING:\n", "matches": 1},
     {"why": "REG-2632 - an exported bank carries the proving machine's own path",
      "file": "heart2.py",
      "find": '        e["tree"] = export_tree(e.get("tree"))    # REG-2632 - a bank is published: no machine path leaves this machine\n',
@@ -292,11 +304,51 @@ class TheLane(unittest.TestCase):
         self.assertGreaterEqual(SP.BANK_ONLY_MIN_FREE_MB, SP.MIN_FREE_MB_WHILE_RUNNING,
                                 "a bank-only run beside the stream would run under the floor measured for it")
         self.assertFalse(self.ask(True, SP.MIN_FREE_MB_WHILE_RUNNING - 1, "/b.json")["start"])
+        # r7 - its own start bar, with the normal proof's room above the stay floor, and both sides of it asked
+        self.assertGreaterEqual(SP.BANK_ONLY_START_FREE_MB, SP.BANK_ONLY_MIN_FREE_MB + 256,
+                                "a bank-only run starts so near its floor that a dip ends it")
+        self.assertFalse(self.ask(True, SP.BANK_ONLY_START_FREE_MB - 1, "/b.json")["start"],
+                         "a bank-only run started under its start bar")
+        self.assertTrue(self.ask(True, SP.BANK_ONLY_START_FREE_MB, "/b.json").get("bankOnly"),
+                        "a bank-only run did not start on its start bar")
+        self.assertFalse(SP.stand_aside_bank(SP.BANK_ONLY_START_FREE_MB)[0], "it started only to be stood aside")
         for free, out in ((None, False), ("junk", False), (SP.BANK_ONLY_MIN_FREE_MB, False),
                           (SP.BANK_ONLY_MIN_FREE_MB - 1, True), (800, True)):
             self.assertEqual(SP.stand_aside_bank(free)[0], out, "free=%r" % (free,))
         self.assertFalse(SP._aside_for({"bankOnly": True}, True, 4000)[0], "his game ended a bank-only run")
         self.assertTrue(SP._aside_for({}, True, 4000)[0], "BASELINE: his game ends a real prover")
+
+    def test_a_stood_aside_bank_only_run_waits_out_the_cooldown(self):
+        mem = {"lastStoodAsideAt": 1000.0 * 1000, "lastStoodAsideWhy": "low memory"}
+        d = SP.decide(self.CENSUS, ("installed", ""), None, 1.0, mem, 1000.0 + 60, playing=True, free=4000,
+                      bank="/b.json")
+        self.assertEqual(d["key"], "aside-cooldown", "a bank-only run started a minute after it stood aside: %s" % d)
+        d = SP.decide(self.CENSUS, ("installed", ""), None, 1.0, mem, 1000.0 + SP.STAND_ASIDE_COOLDOWN_S, playing=True,
+                      free=4000, bank="/b.json")
+        self.assertTrue(d.get("bankOnly"), "BASELINE: after the cooldown it starts again: %s" % d)
+
+    def test_the_tick_itself_stands_a_low_bank_only_run_aside_and_does_not_flap(self):
+        d = tempfile.mkdtemp(prefix="plat.")
+        killed, spawned = [], []
+        try:
+            path = os.path.join(d, "sp.json")
+            SP._STARTED.update(pid=None, birth=None)
+            SP.save({"pid": 4242, "pidBirth": 1, "bankOnly": True, "startedFor": "f"}, path)
+            kw = dict(busy=1.0, tree=("installed", ""), census=self.CENSUS, path=path, env={},
+                      spawn_fn=lambda lp, **k: spawned.append(k) or os.getpid(), playing=True, bank="/b.json",
+                      kill_fn=lambda pid, birth: killed.append(pid) or True)
+            with mock.patch.object(SP, "identity", lambda pid, birth: pid == 4242 and not killed):
+                SP._tick(now_s=1000.0, free=SP.BANK_ONLY_MIN_FREE_MB - 1, **kw)
+                self.assertEqual(killed, [4242], "the tick left a bank-only run under the stream floor")
+                for i, free in enumerate((SP.BANK_ONLY_MIN_FREE_MB, SP.BANK_ONLY_START_FREE_MB, 4000)):
+                    SP._tick(now_s=1000.0 + 300 * (i + 1), free=free, **kw)
+                self.assertEqual(spawned, [], "a bank-only run stood aside and started again inside the cooldown")
+                r = SP._tick(now_s=1000.0 + SP.STAND_ASIDE_COOLDOWN_S + 1, free=SP.BANK_ONLY_START_FREE_MB, **kw)
+            self.assertEqual(len(spawned), 1, "BASELINE: past the cooldown the tick starts a bank-only run: %s" % r)
+            self.assertTrue(spawned[0].get("bank_only"), "the tick started a real prover beside his game: %s" % spawned)
+        finally:
+            SP._STARTED.update(pid=None, birth=None)
+            shutil.rmtree(d, ignore_errors=True)
 
     def test_both_the_guard_and_the_tick_ask_the_one_door(self):
         import ast
