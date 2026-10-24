@@ -387,7 +387,10 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                   or ('os.path.basename(RED_MEMORY) != ".heart2_red.json"' in ctx)
                   # REG-2598 - a lane's run record is put back only inside the sandbox root heart2 made; the guard
                   # sits directly above the write. test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote drives the put-back.
-                  or ("if not _inside(root, p):" in ctx))
+                  or ("if not _inside(root, p):" in ctx)
+                  # REG-2640 - the trace sitecustomize is written only into the temp dir heart2 made the line above;
+                  # test_a_named_file_the_law_never_opened_is_keyed_by_name drives it
+                  or ('d = tempfile.mkdtemp(prefix="heart2-trace-")' in ctx))
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))

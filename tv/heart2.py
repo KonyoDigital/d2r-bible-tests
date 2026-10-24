@@ -2102,6 +2102,291 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     return again[0], str(again[1]) + note + " (re-run once)"
 
 
+# ══ REG-2640 (#42 P3-fine) — A NAMED FILE THE LAW NEVER OPENED IS NOT ONE OF ITS INPUTS ══════════════════════════════
+# MEASURED 2026-10-24 on v3796 r6 (control_ui.html +8 lines of CSS, render_check.py +5): the P3 key moved for 5,012 of
+# 6,327 proofs and only 856 were reusable, so the Mac pre-prove re-proved from nothing for 40+ minutes. 4,411 of the
+# 5,012 moved ONLY through tv/control_ui.html, and 3,474 of those laws never name that file themselves: it joins their
+# key because SOME module of their import closure (heart2, run_gates, control_app...) spells "control_ui.html" in a
+# string. The key was sound and far too wide: a byte of a file the law never reads cannot change its verdict.
+# So a push-time law run is TRACED. A sitecustomize on PYTHONPATH (the source below; this file's own bytes, so the
+# prover's hash covers it) installs a CPython audit hook - which nothing in the process can remove - before the law's
+# first line, and logs the basename (and real basename) of every file the run OPENS (open, io.open_code, os.open,
+# sqlite3) or STATS (os.stat / lstat / access / readlink, so exists() and getsize() count as a read), in the law and in
+# every python child that inherits the hook. After a PROVEN, a NAMED DATA FILE (not .py, not the tampered target, not a
+# PROOF_NEEDS, not the prover) whose basename no traced run of that law opened or stat'd in this process is keyed by
+# NAME only ("unread"), and the PROVEN is banked under that key (v2). Lookup tries the byte-for-byte v1 key first, then
+# each recorded unread-set for the same proof.
+# ⚠ WHY IT IS SOUND (the build-system argument, under the floor v1 already states: a law is a function of its bytes):
+#   the v2 key still digests the NAME of every input and the BYTES of every input the runs opened. A run over those
+#   same bytes takes the same path, so it opens the same files - never one of the unread ones - and reaches the same
+#   verdict. Anything that would break that is a run the trace could not see, and then NOTHING is dropped:
+#   · a child that is not a traced python (a shell, git, node, Chrome, ctypes) - "U"; a python child is counted ("P")
+#     and must say hello ("H") itself, or the trace is incomplete (a child started with -I / -S / a scrubbed env);
+#   · no hello from the law itself, a run that timed out or a signal ended, an unreadable log, Windows, a law that asks
+#     his live console (needs_app), HEART2_TRACE=0;
+#   · ANY run of that law in this process that was incomplete (the union is per law file, over every run: the clean
+#     wave, the clean run, the narrowed pair, each tamper) - so the set dropped is never wider than what EVERY run saw.
+#   Basenames, not paths: a file opened through a dir_fd, a symlink or another copy of the tree still counts as read.
+# ⚠ COMPATIBLE: a proof with nothing to drop keeps the v1 key byte for byte, so every PROVEN banked before this serves.
+# The laws: test_a_proven_verdict_is_reused_only_on_identical_bytes (P3) and test_a_named_file_the_law_never_opened_is
+# _keyed_by_name (this block). [[regression-guard]] [[unknown-stays-unknown]]
+_TRACE_SITE_SRC = r'''# heart2 P3-fine read trace (REG-2640). Installed only for a push-time law run, through PYTHONPATH.
+import os as _o, sys as _s
+def _h2_install():
+    log = _o.environ.get("HEART2_TRACE_LOG")
+    site = _o.environ.get("HEART2_TRACE_SITE")
+    if site:      # leave sys.path as the law would see it, then hand over to any sitecustomize this one shadows
+        _s.path[:] = [p for p in _s.path if _o.path.normpath(p or ".") != _o.path.normpath(site)]
+    if not log:
+        return
+    try:
+        fd = _o.open(log, _o.O_WRONLY | _o.O_APPEND | _o.O_CREAT, 0o600)
+    except OSError:
+        return
+    import threading as _t
+    busy = _t.local()
+    _write, _fspath, _base, _real, _isabs, _join, _getcwd = (
+        _o.write, _o.fspath, _o.path.basename, _o.path.realpath, _o.path.isabs, _o.path.join, _o.getcwd)
+
+    def emit(tag, txt=""):
+        try:
+            _write(fd, ("%s %s\n" % (tag, str(txt).replace("\n", " "))).encode("utf-8", "replace"))
+        except Exception:
+            pass
+
+    def names(tag, path):
+        if getattr(busy, "on", False):
+            return
+        busy.on = True
+        try:
+            if isinstance(path, int) or path is None:
+                return
+            p = _fspath(path)
+            if isinstance(p, bytes):
+                p = p.decode("utf-8", "surrogateescape")
+            p = str(p)
+            emit(tag, _base(p.rstrip("/")))
+            try:
+                if not _isabs(p):
+                    p = _join(_getcwd(), p)
+                emit(tag, _base(_real(p).rstrip("/")))
+            except Exception:
+                pass
+        except Exception:
+            emit("U", "unreadable path in " + tag)
+        finally:
+            busy.on = False
+
+    def pyish(exe, env, argv=None):
+        try:
+            b = _base(str(_fspath(exe)))
+        except Exception:
+            return False
+        if not b.lower().startswith("python"):
+            return False
+        try:     # -I / -S / -E: a python that never loads this file (or ignores PYTHONPATH) is not traced
+            for a in (list(argv)[1:] if isinstance(argv, (list, tuple)) else []):
+                a = str(_fspath(a)) if not isinstance(a, bytes) else a.decode("utf-8", "replace")
+                if not a.startswith("-") or a in ("-c", "-m", "-") or a.startswith("--"):
+                    break
+                if set(a[1:]) & set("ISE"):
+                    return False
+                if a[1:2] in ("c", "m", "W", "X") and len(a) > 2:
+                    break
+        except Exception:
+            return False
+        if env is None:
+            return True
+        try:
+            pp = env.get("PYTHONPATH") or env.get(b"PYTHONPATH") or ""
+            pp = pp.decode("utf-8", "replace") if isinstance(pp, bytes) else str(pp)
+            return site is not None and site in pp.split(_o.pathsep) \
+                and bool(env.get("HEART2_TRACE_LOG") or env.get(b"HEART2_TRACE_LOG"))
+        except Exception:
+            return False
+
+    # the process-table and clock tools a law asks about ITS OWN machine: none of them opens a file of the tree,
+    # whatever it is handed (no shell, no interpreter, nothing that takes a path to read)
+    _PURE = frozenset(("ps", "pgrep", "kill", "uname", "sysctl", "sw_vers", "true", "false", "sleep", "id", "whoami",
+                       "hostname", "date", "nproc", "getconf", "vm_stat", "tty"))
+
+    def _shell_ish(argv):
+        return not isinstance(argv, (list, tuple))      # a string command line runs through a shell
+
+    def hook(ev, args):
+        if ev == "open":
+            names("R", args[0] if args else None)
+        elif ev == "sqlite3.connect":
+            names("R", args[0] if args else None)
+        elif ev == "subprocess.Popen":
+            exe, argv = args[0], args[1]
+            if exe is None and argv:
+                exe = argv[0] if isinstance(argv, (list, tuple)) else str(argv).split()[0]
+            try:
+                what = _base(str(_fspath(exe)))
+            except Exception:
+                what = "?"
+            if pyish(exe, args[3] if len(args) > 3 else None, argv):
+                emit("P", "spawn " + what)
+            elif what in _PURE and not _shell_ish(argv):
+                emit("A", "spawn " + what)      # reads no file of the tree, whatever its arguments
+            else:
+                emit("U", "spawn " + what)
+        elif ev == "os.exec":
+            emit("P" if pyish(args[0], args[2] if len(args) > 2 else None, args[1]) else "U", ev)
+        elif ev == "os.posix_spawn":   # subprocess raises this too, after its own Popen event: never counted twice
+            try:
+                what = _base(str(_fspath(args[0])))
+            except Exception:
+                what = "?"
+            emit("p" if (pyish(args[0], args[2] if len(args) > 2 else None, args[1]) or what in _PURE) else "U",
+                 ev + " " + what)
+        elif ev in ("os.system", "os.spawn", "os.startfile", "ctypes.dlopen", "ctypes.dlsym", "os.forkpty"):
+            emit("U", ev)
+
+    for n in ("stat", "lstat", "access", "readlink"):
+        f = getattr(_o, n, None)
+        if f is None:
+            continue
+        def wrap(f=f, n=n):
+            def w(path, *a, **k):
+                names("S", path)
+                return f(path, *a, **k)
+            w.__name__ = n
+            w.__wrapped__ = f
+            return w
+        setattr(_o, n, wrap())
+    _scandir = getattr(_o, "scandir", None)
+    if _scandir is not None:     # a DirEntry's stat() reveals a size without an open: it counts as a stat
+        class _Entry(object):
+            __slots__ = ("_e",)
+            def __init__(self, e):
+                self._e = e
+            def stat(self, *a, **k):
+                names("S", self._e.path)
+                return self._e.stat(*a, **k)
+            def __getattr__(self, n):
+                return getattr(self._e, n)
+            def __fspath__(self):
+                return self._e.__fspath__()
+            def __repr__(self):
+                return repr(self._e)
+        class _It(object):
+            def __init__(self, it):
+                self._it = it
+            def __iter__(self):
+                return self
+            def __next__(self):
+                return _Entry(next(self._it))
+            def __enter__(self):
+                return self
+            def __exit__(self, *a):
+                self.close()
+            def close(self):
+                c = getattr(self._it, "close", None)
+                if c:
+                    c()
+        def scandir(*a, **k):
+            return _It(_scandir(*a, **k))
+        scandir.__wrapped__ = _scandir
+        _o.scandir = scandir
+    emit("H", "%d %d" % (_o.getpid(), _o.getppid()))
+    _s.addaudithook(hook)
+try:
+    _h2_install()
+finally:
+    del _h2_install
+    _s.modules.pop("sitecustomize", None)
+    try:
+        import sitecustomize  # noqa: F401  - the one this file shadowed, if any
+    except ImportError:
+        pass
+'''
+_TRACES = {}                     # law filename -> {"names": set(basenames), "ok": bool, "runs": int}, this process only
+_TRACE_LOCK = threading.Lock()
+_TRACE_WHY = []                  # why a run was not fully traced (the U lines), last 200, for the measurement
+_TRACE_DIR = {"path": None}
+
+
+def _trace_site():
+    """REG-2640 - the directory holding the trace sitecustomize, written once per process. -> path | None"""
+    with _TRACE_LOCK:
+        d = _TRACE_DIR["path"]
+        if d and os.path.isfile(os.path.join(d, "sitecustomize.py")):
+            return d
+        try:
+            d = tempfile.mkdtemp(prefix="heart2-trace-")
+            with io.open(os.path.join(d, "sitecustomize.py"), "w", encoding="utf-8") as fh:
+                fh.write(_TRACE_SITE_SRC)
+            atexit.register(shutil.rmtree, d, True)
+        except OSError:
+            return None
+        _TRACE_DIR["path"] = d
+        return d
+
+
+def _trace_wanted(filename, env=None):
+    """REG-2640 - is this law run traced? Push time with the verdict cache open, POSIX, not a live-console law."""
+    env = os.environ if env is None else env
+    if env.get("HEART2_TRACE") == "0" or os.name != "posix":
+        return False
+    if _PUSH is None or getattr(_PUSH, "cache", None) is None:
+        return False
+    try:
+        import run_gates as _rg_t
+        return not _rg_t.needs_app_of(filename)
+    except Exception:
+        return False
+
+
+def _trace_read(log, root_ppid):
+    """REG-2640 - one traced run's log. -> (basenames read or stat'd, complete: bool)"""
+    seen, hellos, root, py, untraced = set(), 0, False, 0, False
+    try:
+        with io.open(log, encoding="utf-8", errors="replace") as fh:
+            for ln in fh:
+                tag, _sp, rest = ln.rstrip("\n").partition(" ")
+                if tag in ("R", "S"):
+                    seen.add(rest)
+                elif tag == "H":
+                    parts = rest.split()
+                    if len(parts) == 2 and parts[1] == str(root_ppid) and not root:
+                        root = True
+                    else:
+                        hellos += 1
+                elif tag == "P":
+                    py += 1
+                elif tag in ("p", "A"):
+                    pass
+                elif tag:
+                    untraced = True
+                    _TRACE_WHY.append(rest[:60])
+                    del _TRACE_WHY[:-200]
+    except OSError:
+        return seen, False
+    return seen, bool(root and not untraced and hellos >= py)
+
+
+def _trace_record(filename, seen, ok):
+    with _TRACE_LOCK:
+        t = _TRACES.setdefault(filename, {"names": set(), "ok": True, "runs": 0})
+        t["names"] |= seen
+        t["ok"] = bool(t["ok"] and ok)
+        t["runs"] += 1
+
+
+def _trace_unread(filename, rels, keep):
+    """REG-2640 - the inputs of `rels` (repo-relative) this law's traced runs never opened or stat'd. -> sorted list
+    ([] when any run of it was not fully traced, or none ran). `keep` are never dropped (target, PROOF_NEEDS, prover)."""
+    with _TRACE_LOCK:
+        t = _TRACES.get(filename)
+        if not t or not t["ok"] or t["runs"] < 1:
+            return []
+        names = set(t["names"])
+    return sorted(r for r in rels if r not in keep and not r.endswith(".py")
+                  and r.rsplit("/", 1)[-1] not in names)
+
+
 # ══ REG-2350 (#42 R5) — A RUN A SIGNAL ENDED IS UNKNOWN, NEVER A RED ═══════════════════════════════════════════════════
 # _run_gate_once returned `returncode == 0`, so a law process killed by a signal (-9 from reap's by-pid kill or jetsam,
 # -2 from a Ctrl-C) read as RED: in a tampered run that is PROVEN, banked after a green closing run, a lie standing until
@@ -2314,13 +2599,36 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
         return a
     _args = [_resite(a) for a in extra]
     _cmd = ([sys.executable, "-c", script] + _args) if script else ([sys.executable, p] + _args)
+    _tlog = None
+    if _trace_wanted(filename):              # REG-2640 - which files this run opens, for the P3 key
+        _tsite = _trace_site()
+        if _tsite is None:
+            _trace_record(filename, set(), False)
+        else:
+            try:
+                _tfd, _tlog = tempfile.mkstemp(prefix="h2trace-", suffix=".log")
+                os.close(_tfd)
+                env["PYTHONPATH"] = _tsite + ((os.pathsep + env["PYTHONPATH"]) if env.get("PYTHONPATH") else "")
+                env["HEART2_TRACE_LOG"], env["HEART2_TRACE_SITE"] = _tlog, _tsite
+            except OSError:
+                _tlog = None
+                _trace_record(filename, set(), False)
     _watch = _kill_watch(env)                 # REG-2350 — which children of this run a signal ended, and who sent it
+    _tdone = False
     try:
         r = subprocess.run(_cmd, cwd=sandbox_tv, env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
+        _tdone = _ended_by_signal(r.returncode) is None
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
     finally:
+        if _tlog is not None:                 # REG-2640 - an unfinished run is an incomplete trace: nothing is dropped
+            _tseen, _tok = _trace_read(_tlog, os.getpid())
+            _trace_record(filename, _tseen, _tok and _tdone)
+            try:
+                os.unlink(_tlog)
+            except OSError:
+                pass
         _killed = _kills_in(_watch) if _watch else []
         _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
         if _watch:
@@ -3905,6 +4213,7 @@ class _VerdictCache(object):
         self.reused = {}                 # (gate, proof) -> provedAt ms of the entry a hit served, this run
         self.measured = {}               # gate -> the OLDEST provedAt among its reused proofs; the census stamp
         self.used = {}                   # R4 - key -> ms of this run's hits (usedAt), written at the next flush
+        self._vidx, self._vgen = None, None   # REG-2640 - ident -> unread-sets, rebuilt when the entries are replaced
         self.file = _StoreFile(self.path, say)
         self.file.sweep()                # R9 - a tmp a dead writer left beside the store
         if self.path == CACHE and CACHE_WHY:
@@ -3919,8 +4228,47 @@ class _VerdictCache(object):
                    % len(prev) if prev is not None else "no readable .prev, so every proof runs"))
         self.entries = ent if ent is not None else (prev if prev is not None else {})
 
-    def key_for(self, sandbox, name, filename, pr):
-        """-> (key | None, [repo-relative inputs], why-unkeyable | None), from the SANDBOX's bytes now."""
+    def key_for(self, sandbox, name, filename, pr, unread=None):
+        """-> (key | None, [repo-relative inputs], why-unkeyable | None), from the SANDBOX's bytes now.
+
+        REG-2640: `unread` None asks for the key a reader should look up - the byte-for-byte v1 key, or, when no PROVEN
+        is servable under it, the first v2 key (a recorded unread-set of this same proof) that is. A list keys exactly
+        those inputs by name only (v2; [] is v1): the key a traced PROVEN is banked under."""
+        if unread is None:
+            k1, rels, why = self._key(sandbox, name, filename, pr, ())
+            if k1 is None or self.peek(k1) is not None:
+                return k1, rels, why
+            for un in self._variants(self.ident(name, filename, pr)):
+                if not set(un) <= set(rels):
+                    continue
+                k2, rels2, why2 = self._key(sandbox, name, filename, pr, un)
+                if k2 is not None and self.peek(k2) is not None:
+                    return k2, rels2, why2
+            return k1, rels, why
+        return self._key(sandbox, name, filename, pr, tuple(unread))
+
+    def ident(self, name, filename, pr):
+        """REG-2640 - which proof an entry is, across trees: its law file, its declaration, its gate's spec."""
+        return hashlib.sha256(json.dumps([str(filename), _proof_key(pr), gate_spec(name)], sort_keys=True,
+                                         default=str).encode("utf-8", "replace")).hexdigest()[:32]
+
+    def _variants(self, ident):
+        """REG-2640 - the unread-sets banked for one proof, newest first (at most 8). -> [tuple of rels]"""
+        with self.lock:
+            if self._vidx is None or self._vgen != id(self.entries):
+                idx = {}
+                for e in self.entries.values():
+                    if isinstance(e, dict) and e.get("ident") and isinstance(e.get("unread"), list) and e["unread"]:
+                        idx.setdefault(e["ident"], []).append((_proven_at(e), tuple(str(x) for x in e["unread"])))
+                self._vidx, self._vgen = idx, id(self.entries)
+            got = sorted(self._vidx.get(ident, ()), reverse=True)
+        out = []
+        for _t, un in got:
+            if un not in out:
+                out.append(un)
+        return out[:8]
+
+    def _key(self, sandbox, name, filename, pr, unread):
         repo = os.path.dirname(os.path.abspath(sandbox))
         with self.lock:
             ck = (sandbox, filename)
@@ -3967,14 +4315,19 @@ class _VerdictCache(object):
                     and not _PROOF_VERSIONISH.search(pk))
             if mask:
                 inputs = sorted(set(inputs) | {os.path.join(sandbox, "gate_ledger.py"), os.path.join(sandbox, "stamp_leak.py")})
-        h = hashlib.sha256(b"heart2 P3 key v1\0")
+        unread = frozenset(unread or ())
+        if unread and not unread <= set(os.path.relpath(p, repo).replace(os.sep, "/") for p in inputs):
+            return None, [], "REG-2640: an unread input is not among this proof's inputs"
+        h = hashlib.sha256(b"heart2 P3 key v2\0" if unread else b"heart2 P3 key v1\0")
         h.update(str(filename).encode("utf-8", "replace") + b"\0")
         h.update(_proof_key(pr).encode("utf-8", "replace") + b"\0")
         h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace") + b"\0")
         rels, away = [], []
         for p in inputs:
             rel = os.path.relpath(p, repo).replace(os.sep, "/")
-            if mask and rel in GL.STAMP_SURFACES:
+            if rel in unread:                         # REG-2640 - no traced run opened it: its name, never its bytes
+                d = "unread" if os.path.isfile(p) else None
+            elif mask and rel in GL.STAMP_SURFACES:
                 d, gone = self._masked_sha(p, rel)
                 away.append((rel, gone or ""))
             else:
@@ -4075,6 +4428,7 @@ class _VerdictCache(object):
         with self.lock:
             self.entries[key] = _compact_entry(entry)
             self.dirty = True
+            self._vidx = None                 # REG-2640 - a new unread-set is servable at once
 
     def flush(self):
         """Write what this run banked and used, merged with what is on disk NOW and capped after that merge, through
@@ -4549,6 +4903,40 @@ def _bankable(verdict):
     return verdict == PROVEN
 
 
+def _keep_for(sandbox, filename, pr):
+    """REG-2640 - the inputs a proof's key always digests by bytes, traced or not: its tampered target, every
+    PROOF_NEEDS file and the prover. -> {repo-relative path}"""
+    repo = os.path.dirname(os.path.abspath(sandbox))
+    rel = lambda p: os.path.relpath(os.path.normpath(p), repo).replace(os.sep, "/")   # noqa: E731
+    keep = {rel(os.path.join(sandbox, "heart2.py")), rel(os.path.join(sandbox, "law_widths.py"))}
+    tf = str(pr.get("file") or "") if isinstance(pr, dict) else ""
+    if tf:
+        keep.add(rel(resolve_proof_target(sandbox, tf)))
+    for need in (proof_needs_in(os.path.join(sandbox, filename)) or ()):
+        keep.add(rel(os.path.join(sandbox, need)))
+    return keep
+
+
+def _final_key(cache, sandbox, name, filename, pr, key, entry):
+    """REG-2640 - the key a PROVEN is banked under, taken when it is banked: the v2 key over the named data files no
+    traced run of this law opened, or `key` (v1) when there are none or the v2 key cannot be taken. Updates `entry`.
+    -> a callable returning the key (never raises: a narrower key is an optimisation, v1 is always sound)"""
+    def take():
+        try:
+            un = _trace_unread(filename, entry.get("inputs") or [], _keep_for(sandbox, filename, pr))
+            if un:
+                k2 = cache.key_for(sandbox, name, filename, pr, unread=un)[0]
+                if k2 is not None:
+                    entry.update(ident=cache.ident(name, filename, pr), unread=un)
+                    return k2
+        except Exception:
+            pass
+        entry.pop("ident", None)
+        entry.pop("unread", None)
+        return key
+    return take
+
+
 def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
     """#42 — ONE proof at push time: reused from the verdict cache when every keyed byte is identical (P3), otherwise
     run at the widths it declares and banked only when it came back PROVEN. -> verdict (the PUSH TIME block above)"""
@@ -4606,8 +4994,11 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                           "target": str(pr.get("file") or ""), "inputs": rels, "tree": TREE_ID}
                 _pend = getattr(_CLEAN, "pending", None)
                 if isinstance(_pend, list):
-                    _pend.append((idx, key, _entry))     # REG-1988 - banked by _prove_gate_push after the closing run
+                    # REG-1988 - banked by _prove_gate_push after the closing run; REG-2640 - and keyed THEN, so the
+                    # closing run's own trace is in the union the unread set is taken from
+                    _pend.append((idx, _final_key(cache, sandbox, name, filename, pr, key, _entry), _entry))
                 else:
+                    key = _final_key(cache, sandbox, name, filename, pr, key, _entry)()
                     cache.store(key, _entry)
                     cache.count("stores")
             except Exception as _se:
@@ -4892,6 +5283,8 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
         if run.cache is not None:
             for _i, _key, _entry in (getattr(_CLEAN, "pending", None) or []):
                 if _bankable(per[_i]):
+                    if callable(_key):                   # REG-2640 - the v2 key is taken after the closing run
+                        _key = _key()
                     run.cache.store(_key, _entry)
                     run.cache.count("stores")
                     with run._lock:
