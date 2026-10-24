@@ -132,7 +132,7 @@ jobs:
 
   bank:
     # REG-2633 - PUBLISH THIS COMMIT'S LINUX PROOF BANK, OR GO RED. The PCs read origin/proof-bank:<sha>.<class>.json
-    # (REG-2632). Runs only after a whole set passed the fan-in; every step fails the job, none is continue-on-error,
+    # (REG-2632). Runs only after a whole set passed the fan-in; every step fails the job (none may run on past an error),
     # and tv/proof_bank.py reads the file back from origin before it calls the bank published.
     name: bank - publish <sha>.linux.json to proof-bank
     needs: [fan-in]
