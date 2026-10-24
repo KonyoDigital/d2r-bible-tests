@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// v327 — "Delete unsorted" button in the dock bar: wipes every UNSORTED item from owned,
-// leaves items already filed in a mule untouched.
+// v327 — "Delete unsorted": wipes every UNSORTED item from owned, leaves items already filed in a mule untouched.
+// Vault v2 (Elad 2026-10-23): the button moved from the dock bar into the toolbar's ⚠ Clear & reset menu (row 1).
 test('Delete-unsorted button clears the dock but keeps filed items', async ({ page }) => {
   page.on('dialog', d => d.accept());
   await page.goto('file://' + process.cwd() + '/bible.html');
@@ -28,6 +28,7 @@ test('Delete-unsorted button clears the dock but keeps filed items', async ({ pa
     window._ownedProvWrite('Obedience', { source: 'intake-read', by: 'law', holder: 'Chronicle', loc: 'chronicle', scene: 'chronicle', sessionId: 's1', frameId: 'f1', ts: Date.now() });
     (window as any).renderVault();
     const throwChip = [...document.querySelectorAll('#vault-dock .vault-chip')].some((c: any) => c.dataset.vaultItem === 'Lenymo');
+    const menuHasClear = !!document.querySelector('#vault-danger-menu button[onclick="window.vaultClearUnsorted()"]');
     const barHasClear = !!document.querySelector('#vault-dock-bar .vault-clear-btn');
     const dockBefore = document.querySelectorAll('#vault-dock .vault-chip').length;
     await (window as any).vaultClearUnsorted();   // v341.60 — async (awaits uiConfirm); await before reading the dock
@@ -35,9 +36,10 @@ test('Delete-unsorted button clears the dock but keeps filed items', async ({ pa
     const stillOwnedFiled = (window as any).eval('owned').has('Chance Guards');
     const unsortedGone = !(window as any).eval('owned').has('Obedience');
     const throwKept = (window as any).eval('owned').has('Lenymo');
-    return { barHasClear, dockBefore, dockAfter, stillOwnedFiled, unsortedGone, throwChip, throwKept };
+    return { menuHasClear, barHasClear, dockBefore, dockAfter, stillOwnedFiled, unsortedGone, throwChip, throwKept };
   });
-  expect(r.barHasClear).toBe(true);
+  expect(r.menuHasClear).toBe(true);     // Vault v2: the door lives in the ⚠ Clear & reset menu
+  expect(r.barHasClear).toBe(false);     // ...and only there (one danger control)
   expect(r.dockBefore).toBeGreaterThan(0);
   expect(r.dockAfter).toBe(0);            // dock emptied
   expect(r.stillOwnedFiled).toBe(true);   // filed item kept

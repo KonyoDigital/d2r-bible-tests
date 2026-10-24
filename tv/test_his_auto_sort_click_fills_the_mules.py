@@ -214,7 +214,9 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
     def test_both_buttons_are_his_click(self):
         with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
             code = re.sub(r"/\*.{0,4000}?\*/", "", fh.read(), flags=re.S)
-        self.assertEqual(code.count('onclick="window.vaultAutoSortByHand()"'), 2, "a vault sort button is not his click")
+        # Vault v2 (Elad 2026-10-23): the toolbar's Auto-assign and the dock bar's Auto-Sort became ONE "🪄 Sort to mules"
+        # button - so exactly one control, and it is his click.
+        self.assertEqual(code.count('onclick="window.vaultAutoSortByHand()"'), 1, "the vault sort button is not ONE button that is his click")
         self.assertEqual(code.count('onclick="window.vaultAutoAssign()"'), 0,
                          "a button still calls the automatic sorter, which files nothing a receipt holds")
 
@@ -260,10 +262,10 @@ RED_PROOF = [
      "find": "    var unsorted = _dockNames();   /* #264 (REG-2021) — exactly the names the dock shows, never Magic & Rare or carried loot */\n",
      "replace": "    var unsorted = ownedPool().filter(function(name){ return !assign[name] && !isSharedStash(name); });\n",
      "matches": 1},
-    {"why": "REG-2019 - the Auto-assign button calls the automatic sorter again and files nothing",
+    {"why": "REG-2019 - the Sort to mules button calls the automatic sorter again and files nothing",
      "file": "bible.html",
-     "find": '<button class="vault-btn vault-btn-primary" onclick="window.vaultAutoSortByHand()">',
-     "replace": '<button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">',
+     "find": '<button class="vault-btn vault-btn-primary vault-sort-btn" onclick="window.vaultAutoSortByHand()"',
+     "replace": '<button class="vault-btn vault-btn-primary vault-sort-btn" onclick="window.vaultAutoAssign()"',
      "matches": 1},
 ]
 

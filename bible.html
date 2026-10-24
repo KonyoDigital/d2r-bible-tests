@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3793 · TV DIABLO</title>
-<meta name="d2r-build" content="v3793">
+  <title>Konyo's D2R Farming Bible v3794 · TV DIABLO</title>
+<meta name="d2r-build" content="v3794">
 <meta name="d2r-build-date" content="2026-10-24">
-<meta name="d2r-build-note" content="machine-wide stores and seeder, vanish witness, Windows console keepalive, prover owned by its console">
+<meta name="d2r-build-note" content="merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -10633,11 +10633,60 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vault-tasks-panel li.vtk-expand-li{list-style:none;margin:2px 0 8px 24px;padding:6px;border-radius:8px;background:rgba(10,8,5,.45);border:1px solid rgba(240,192,96,.22)}
 .vtk-expand{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}.vtk-expand .vtx-h{font-size:var(--fs-micro);color:var(--text-dim);margin:0 0 3px}
 .vtk-expand .vtx-arrow{align-self:center;color:var(--text-dim)}.vtk-expand .vtx-from[data-from=demo] .vd-grid{opacity:.55}
-/* L1 (Elad 2026-10-20) — right-side task panel */
-#mule-vault-card .boss-body.vault-body{display:flex;align-items:flex-start;gap:14px}
-.vault-main{flex:1 1 auto;min-width:0}
-@media (max-width:1100px){#mule-vault-card .boss-body.vault-body{flex-direction:column;align-items:stretch}.vault-tasks-panel{flex:1 1 auto;width:100%;max-width:none;position:static;max-height:none}}
-.vault-tasks-panel{flex:0 0 420px;max-width:42%;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;border:1px solid rgba(212,168,71,.32);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));box-sizing:border-box}
+/* Vault v2 (Elad 2026-10-23) — MOVE TASKS is an OVERLAY opened from a FAB above the inbox FAB (S4 of the right-edge
+   stack: help +14 · nav +66 · legend +118 · inbox +170 · tasks +222). The vault keeps its full width; the list floats over
+   it and takes no layout room. Opening it closes ⚙ Advanced and the reverse. */
+.vault-main{min-width:0}
+.vault-tasks-panel{overflow:auto;border:1px solid rgba(212,168,71,.32);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));box-sizing:border-box}
+.vault-tasks-pop{position:fixed;right:66px;bottom:calc(var(--dock-h,84px) + 14px);z-index:229;width:440px;max-width:calc(100vw - 90px);max-height:calc(100vh - var(--dock-h,84px) - 90px);margin:0;padding:12px 14px 10px;background:linear-gradient(180deg,rgba(36,27,14,.98),rgba(13,10,6,.98));border-color:rgba(240,192,96,.6);box-shadow:0 18px 50px rgba(0,0,0,.7)}
+.vault-tasks-pop[hidden]{display:none}
+html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="vault"]) .vault-tasks-fab{display:none!important}
+.vault-tasks-pop .vtp-x{position:sticky;top:0;float:right;margin:-4px -6px 0 6px;background:none;border:1px solid rgba(240,192,96,.35);border-radius:6px;color:var(--gold-bright,#f0c060);--fs-vtpx:calc(var(--fs-title)*.8);cursor:pointer;font-size:var(--fs-vtpx);line-height:1.4;padding:0 6px}
+.vault-tasks-pop .vtp-toast{position:sticky;bottom:0;margin:8px -4px 0;padding:6px 10px;border-radius:8px;border:1px solid rgba(102,255,136,.35);background:rgba(10,24,12,.96);color:var(--best,#66ff88);font-size:var(--fs-micro);display:flex;gap:8px;align-items:center}
+.vault-tasks-pop .vtp-toast[hidden]{display:none}
+.vault-tasks-pop .vtp-toast button{background:none;border:1px solid rgba(102,255,136,.5);border-radius:6px;color:inherit;cursor:pointer;font-size:var(--fs-micro);padding:0 6px}
+.vault-tasks-fab{--fs-vtf:calc(var(--fs-title)*1.25);position:fixed;bottom:calc(var(--dock-h,84px) + 222px);right:12px;z-index:230;width:44px;height:44px;border-radius:50%;border:2px solid #f0c060;background:radial-gradient(circle at 32% 28%,rgba(60,48,26,.98),rgba(20,16,10,.98));display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:var(--fs-vtf);line-height:1;padding:0;box-shadow:0 6px 22px rgba(0,0,0,.6);transition:transform .12s ease,border-color .12s ease}
+.vault-tasks-fab:hover,.vault-tasks-fab[aria-expanded=true]{transform:scale(1.08);border-color:#fff}
+.vault-tasks-fab .vtf-n{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#f0c060;color:#1a1208;font-size:var(--fs-meta);font-weight:var(--fw-bold);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 7px rgba(0,0,0,.55)}
+.vault-tasks-fab .vtf-n[hidden]{display:none}
+.vault-tasks-panel li.vtk-line .vtk-undo{flex:0 0 auto;background:none;border:1px solid rgba(240,192,96,.4);border-radius:6px;color:var(--gold-bright,#f0c060);cursor:pointer;font-size:var(--fs-micro);padding:0 5px;line-height:1.5}
+/* Vault v2 — the toolbar: sort (with its loose count) · add mule · copy · the intake strip · and ONE danger control at the far end */
+.vault-sort-btn .vault-sort-n{margin-left:7px;padding:0 6px;border-radius:999px;--fs-vsn:calc(var(--fs-micro)*.85);background:rgba(26,18,8,.35);font-size:var(--fs-vsn);letter-spacing:0}
+.vault-sort-btn .vault-sort-n[hidden]{display:none}
+.vault-intake-strip{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 8px;border:1px dashed rgba(127,212,255,.28);border-radius:10px}
+.vault-danger{position:relative;margin-left:auto;display:flex;align-items:center;gap:6px;padding-left:10px;border-left:1px solid rgba(255,64,64,.3)}
+.vault-danger-k{font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;color:rgba(255,120,120,.75)}
+.vault-danger-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:240;width:560px;max-width:calc(100vw - 30px);padding:10px 12px;border:1px solid rgba(255,64,64,.55);border-radius:12px;background:linear-gradient(180deg,rgba(34,12,10,.99),rgba(14,6,5,.99));box-shadow:0 18px 50px rgba(0,0,0,.75);box-sizing:border-box}
+.vault-danger-menu[hidden]{display:none}
+.vault-danger-menu .vdm-h{margin:0 0 2px;font-family:var(--serif-display,serif);color:var(--hell,#ff4040);letter-spacing:var(--ls-wide)}
+.vault-danger-menu .vdm-sub{margin:0 0 8px;color:var(--text-dim);font-size:var(--fs-micro);line-height:1.4}
+.vault-danger-menu .vdm-row{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-top:1px solid rgba(255,64,64,.15)}
+.vault-danger-menu .vdm-row[hidden]{display:none}
+.vault-danger-menu .vdm-ic{flex:0 0 18px;text-align:center}
+.vault-danger-menu .vdm-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.vault-danger-menu .vdm-name{color:var(--text,#e8dcc0);font-size:var(--fs-meta)}
+.vault-danger-menu .vdm-scope{color:var(--text-dim);font-size:var(--fs-micro);line-height:1.4}
+.vault-danger-menu .vdm-go{flex:0 0 auto;max-width:200px;white-space:normal;line-height:1.3;padding:4px 10px}
+.vault-danger-menu .vdm-foot{display:flex;justify-content:flex-end;padding-top:8px;border-top:1px solid rgba(255,64,64,.15)}
+.vault-hand-row{margin:-2px 0 8px}
+.vault-hand-link{background:none;border:0;padding:0;color:#7fd4ff;cursor:pointer;font-size:var(--fs-micro);text-decoration:underline dotted;text-underline-offset:3px}
+.vault-hand-link:hover{color:#fff}
+/* Vault v2 — ⚙ Advanced · Vault backdoor: one collapsed drawer, one tab per panel that used to stack below the mules */
+.vault-advanced{margin:16px 0 4px;border:1px solid rgba(212,168,71,.28);border-radius:12px;background:rgba(13,10,6,.35)}
+.vault-advanced > summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding:9px 13px;color:var(--gold-bright,#f0c060);font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide)}
+.vault-advanced > summary::-webkit-details-marker{display:none}
+.vault-advanced .vadv-hint{font-family:inherit;font-size:var(--fs-micro);color:var(--text-dim);letter-spacing:0}
+.vault-advanced .vadv-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:0 13px 8px;border-bottom:1px solid rgba(212,168,71,.2)}
+.vault-advanced .vadv-tab{background:none;border:1px solid rgba(212,168,71,.3);border-radius:999px;color:var(--text-dim);cursor:pointer;font-size:var(--fs-micro);padding:2px 10px}
+.vault-advanced .vadv-tab[aria-selected=true]{color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold));border-color:rgba(240,192,96,.85)}
+.vault-advanced .vadv-pane{padding:4px 13px 10px}
+/* Vault v2 - the routing ledger keeps the full card width it had before it moved here: its two columns are sized to fit
+   art + name + copies + value + destination + receipt + remove (v2267), and 26px of pane padding pushed that tail past the row */
+.vault-advanced .vadv-pane[data-adv="registered"]{padding-left:0;padding-right:0}
+/* Vault v2 - the vault card passed 400 nodes, so it no longer counts as one contained card (d2jsp-cards-stay-cheap):
+   each art row in the Advanced lists is its own contained card, the way #tab-d2jsp .d2jsp-card is. The pane stays live. */
+.vault-advanced .vmk-row,.vault-advanced .vrg-row{content-visibility:auto;contain-intrinsic-size:auto 36px}
+.vault-advanced .vadv-pane[hidden]{display:none}
 .vault-say{margin:2px 0 6px;color:var(--text-dim);font-size:var(--fs-meta)}
 .vault-tasks-panel .vmv-grid,.vault-tasks-panel .vault-move-sub{display:none}
 .vtk-sec{font-family:var(--serif-display,serif);margin:8px 0 4px;font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold-bright,#f0c060)}
@@ -12911,25 +12960,25 @@ function d2jspPriceLine(q) {
       <span class="collapse-chevron">▾</span>
     </div>
     <div class="boss-body vault-body">
-      <!-- L1 (Elad 2026-10-20) — MOVE TASKS is a right-side panel; the left keeps add, find, the mules and the locked line. -->
+      <!-- Vault v2 (Elad 2026-10-23) — MOVE TASKS opens as an overlay from its FAB; the page keeps add, find, the mules and the locked line. -->
       <div class="vault-main">
       <!-- v1984 — what the lock is holding, shown next to the button that skips them. -->
 <div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
 <div class="vault-toolbar">
-        <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoSortByHand()">⚖️ Auto-assign unsorted</button>
+        <!-- Vault v2 (Elad 2026-10-23) — ONE sort button (was ⚖️ Auto-assign unsorted here and 🪄 Auto-Sort to Mules on the dock bar;
+             both already called vaultAutoSortByHand). The loose count is painted by renderVault from the ONE dock list. -->
+        <button class="vault-btn vault-btn-primary vault-sort-btn" onclick="window.vaultAutoSortByHand()" title="Sort to mules: re-file what already has a witness (vaultAutoAssign), file the loose dock where the planner says (your adds, items with a picture, war gear into the Shared Stash), and move what sits in the wrong locker. Throwing an item away, what your MAIN wears and a sighting with no picture stay where they are. The status line names every item that moved.">🪄 Sort to mules<span class="vault-sort-n" id="vault-sort-n" hidden></span></button>
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
-        <button class="vault-btn" type="button" id="vault-auto-intake" aria-pressed="false" data-state="off" onclick="window._vaultAutoIntakeToggle()">AUTO INTAKE · OFF</button>
-        <button class="vault-btn" type="button" onclick="window.vaultHandOpen()">+ Add an item</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
-        <button class="vault-btn vault-btn-danger" onclick="window.vaultWipeItems()" title="Empties every mule, the Shared Stash, the WAR mules and MAGIC &amp; RARE: mule assignments, their witness rows, the intake log, the scan ledger, the linked folder, the owned items, Magic &amp; Rare and the extra copies. Nothing is rebuilt. Runes / gems / materials, set pieces, runewords and the chronicle stay.">🧹 Wipe items (keep runes · gems · materials)</button>
-        <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()" title="Clears ONLY the mule assignments and their witness rows. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">↺ Reset assignments</button>
-        <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="Clears the mules, the intake's own records AND your ✓ owned list (his 2026-09-27 ruling 'clear owned'): mule assignments, their witness rows, the Recently-registered log, the scan ledger, the linked folder and the owned ticks. Set pieces, runewords, the chronicle, Magic &amp; Rare, runes / gems / materials and the witness evidence stay untouched, and proven items are rebuilt from the evidence.">🧹 Reset vault (mules + intake)</button>
         <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
      _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
      which keeps all 38 of its crop steps and its locate/rawname/socketcheck/vault templates.
      The folder picker beside this (webkitdirectory) STAYS — that is the automation's setup,
      not a manual read. The ON/OFF for this lane is the Vault pill in the Tools lane row. -->
-<span class="vault-lane-mini" id="mini-vault-section"></span>
+        
+        <div class="vault-intake-strip" id="vault-intake-strip">
+        <button class="vault-btn" type="button" id="vault-auto-intake" aria-pressed="false" data-state="off" onclick="window._vaultAutoIntakeToggle()">AUTO INTAKE · OFF</button>
+        <span class="vault-lane-mini" id="mini-vault-section"></span>
         <button class="vault-btn" id="vault-folder-btn" style="display:none;border-color:rgba(127,212,255,.45);color:#7fd4ff" onclick="window.vaultConnectFolder()" title="connect your D2R screenshots folder ONCE — every vault visit auto-scans it for new captures and feeds them to the AI">📂 Connect screenshot folder</button>
         <button class="vault-btn" id="vault-scan-btn" style="display:none;border-color:rgba(102,255,136,.45);color:var(--best)" onclick="window.vaultScanFolder()" title="scan the connected folder for new screenshots now">🔄 Scan folder</button>
         <button class="vault-btn" id="vault-clear-scan-btn" style="display:none;border-color:rgba(240,192,96,.45);color:var(--gold-bright,#f0c060)" onclick="window.vaultClearScanHistory()" title="WIPE THE SCAN SLATE — forget which screenshot files were already read, so the next folder scan treats every file as fresh and re-reads them. Does NOT touch your ✓ owned items, mules, Magic &amp; Rare, or the registered vault — only the seen-files ledger.">🧽 Clear scan history</button>
@@ -12938,7 +12987,24 @@ function d2jspPriceLine(q) {
           <span class="vw-txt"><span class="vw-t1">FOLDER LINKED</span><span class="vw-t2">watching for new shots…</span></span>
         </span>
         <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
-        
+        </div>
+        <!-- Vault v2 (Elad 2026-10-23) — ONE danger control. Four distinct actions, mildest first, each asks before it runs
+             with Cancel focused and Enter never confirming (uiConfirm cancelFirst). Every row keeps its original onclick, so the
+             scope words (_VAULT_RESET_SCOPE) and the title binder find the same buttons. -->
+        <div class="vault-danger" id="vault-danger">
+          <span class="vault-danger-k">Danger</span>
+          <button class="vault-btn vault-btn-danger vault-danger-tog" id="vault-danger-tog" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="vault-danger-menu" onclick="window.vaultDangerMenuTog()">⚠ Clear &amp; reset ▾</button>
+          <div class="vault-danger-menu" id="vault-danger-menu" role="menu" aria-label="clear and reset" hidden>
+            <p class="vdm-h">⚠ Clear &amp; reset</p>
+            <p class="vdm-sub">Four separate actions, mildest first. Each one asks before it runs; Cancel is the default and Enter never confirms.</p>
+            <div class="vdm-row" data-sev="1"><span class="vdm-ic">🗑</span><span class="vdm-body"><b class="vdm-name">Delete unsorted</b><span class="vdm-scope">Takes the items in the unsorted dock out of ✓ owned. Items already filed in a mule are not touched; you can re-✓ any of them from its card.</span></span><button class="vault-btn vault-btn-danger vdm-go" role="menuitem" type="button" onclick="window.vaultClearUnsorted()" title="Delete every UNSORTED item from the dock — items already filed in a mule are NOT touched">🗑 Delete unsorted</button></div>
+            <div class="vdm-row" data-sev="2"><span class="vdm-ic">↺</span><span class="vdm-body"><b class="vdm-name">Reset assignments</b><span class="vdm-scope" data-scope-for="vaultReset"></span></span><button class="vault-btn vault-btn-danger vdm-go" role="menuitem" onclick="window.vaultReset()" title="Clears ONLY the mule assignments and their witness rows. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">↺ Reset assignments</button></div>
+            <div class="vdm-row" data-sev="3"><span class="vdm-ic">🧹</span><span class="vdm-body"><b class="vdm-name">Reset vault</b><span class="vdm-scope" data-scope-for="vaultClearHistory"></span></span><button class="vault-btn vault-btn-danger vdm-go" role="menuitem" onclick="window.vaultClearHistory()" title="Clears the mules, the intake's own records AND your ✓ owned list (his 2026-09-27 ruling 'clear owned'): mule assignments, their witness rows, the Recently-registered log, the scan ledger, the linked folder and the owned ticks. Set pieces, runewords, the chronicle, Magic &amp; Rare, runes / gems / materials and the witness evidence stay untouched, and proven items are rebuilt from the evidence.">🧹 Reset vault (mules + intake)</button></div>
+            <div class="vdm-row" data-sev="4"><span class="vdm-ic">💥</span><span class="vdm-body"><b class="vdm-name">Wipe items</b><span class="vdm-scope" data-scope-for="vaultWipeItems"></span></span><button class="vault-btn vault-btn-danger vdm-go" role="menuitem" onclick="window.vaultWipeItems()" title="Empties every mule, the Shared Stash, the WAR mules and MAGIC &amp; RARE: mule assignments, their witness rows, the intake log, the scan ledger, the linked folder, the owned items, Magic &amp; Rare and the extra copies. Nothing is rebuilt. Runes / gems / materials, set pieces, runewords and the chronicle stay.">🧹 Wipe items (keep runes · gems · materials)</button></div>
+            <div class="vdm-row" data-sev="1" id="vault-danger-menuimport" hidden><span class="vdm-ic">📖</span><span class="vdm-body"><b class="vdm-name">These look like a chronicle page</b><span class="vdm-scope">The loose names are in alphabetical order. A stash is not sorted; a menu page is. The first press lists them, the second asks before it takes them out of ✓ owned.</span></span><button class="vault-btn vault-btn-danger vdm-go" role="menuitem" type="button" id="vault-menuimport-btn" onclick="window.vaultDropMenuImport()" title="These names are in ALPHABETICAL ORDER. A stash is not sorted; a menu page is. Click once to see exactly which ones, again to take them out of owned.">These look like a chronicle page</button></div>
+            <div class="vdm-foot"><button class="vault-btn vdm-cancel" id="vault-danger-cancel" type="button" onclick="window.vaultDangerMenuTog(false)">Cancel</button></div>
+          </div>
+        </div>
         <span class="vault-lock-chip" id="vault-lock-chip" hidden></span>
         <span class="vault-status" id="vault-status"></span>
       </div>
@@ -12962,6 +13028,7 @@ function d2jspPriceLine(q) {
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       </div>
+      <p class="vault-hand-row"><button class="vault-hand-link" type="button" onclick="window.vaultHandOpen()" title="Open the small box that adds an item by its name only (no base, no rolls)">add by name only →</button></p>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
       <!-- §31.2 (his ruling, 2026-09-28) — loot in a character's inventory is OWNED right away and carried here, per
            character, never locked and never filed; it lands when next seen in a stash tab or on a mule. It sits ABOVE the
@@ -12976,42 +13043,45 @@ function d2jspPriceLine(q) {
       <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
       <div id="vault-audit" class="vault-audit" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
-      <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
-        <summary style="cursor:pointer;color:#7fd4ff;font-weight:var(--fw-medium)">📸 How to take screenshots the AI can actually read — example below</summary>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px">
-          <img id="vault-shot-example" alt="example: in-game text visible — this is what the AI reads" style="max-width:300px;border:1px solid rgba(212,168,71,.5);border-radius:6px;cursor:zoom-in" onclick="window._gildLightboxOpen&&this.src&&window._gildLightboxOpen(this.src,'Example — a real stash screenshot with the tooltip open: the item NAME is visible text, so the AI reads it. Hover an item (or hold Alt over ground loot) before you screenshot.')">
-          <div style="flex:1;min-width:240px;line-height:1.6">
-            <strong style="color:var(--best)">The AI reads NAMES, not slots</strong> — items never need to be in a special position. What matters is that the <strong>name text is visible in the picture</strong>:
-            <ul style="margin:6px 0 6px 18px;padding:0">
-              <li>✅ <strong>ground loot with Alt held</strong> — every name labeled, the best batch input</li>
-              <li>✅ <strong>hover tooltip open</strong> over an item in stash/inventory</li>
-              <li>✅ trade / vendor / mule windows where names show</li>
-              <li>❌ a bare stash tab — that is item ART only, no names → little to read</li>
-            </ul>
-            <span style="color:var(--text-dim)">Tip: after a session, stand over your pile, hold Alt, screenshot once — one picture logs the whole haul. The example image (click to enlarge) shows readable in-game text — this real stash screenshot (tooltip open on Spellsteel) is exactly what the AI read correctly in our live test.</span>
-          </div>
-        </div>
-      </details>
       <p class="vault-say" data-say="mules">Your mules. Click one to open its stash.</p>
       <div class="vault-shelf" id="vault-shelf"></div>
+      <div class="vault-detail" id="vault-detail" role="dialog" aria-modal="true" aria-label="Mule window (Esc closes)" hidden></div>
+      <!-- Vault v2 (Elad 2026-10-23) — ADVANCED · Vault backdoor: one collapsed drawer at the bottom. Every panel that lived
+           below the mules is here, unchanged, one tab each. Opening it closes MOVE TASKS and the reverse (never side by side). -->
+      <details id="vault-advanced" class="vault-advanced" ontoggle="window._vaultAdvToggled&&window._vaultAdvToggled(this)">
+        <summary class="vadv-sum"><b>⚙ Advanced · Vault backdoor</b><span class="vadv-hint">Keepers · Registered · Stash map · Routing ledger · Keep on main · Reviews · Help</span></summary>
+        <div class="vadv-tabs" role="tablist"><button type="button" class="vadv-tab" role="tab" data-adv="keepers" aria-selected="true" onclick="window.vaultAdvTab('keepers')">Keepers</button><button type="button" class="vadv-tab" role="tab" data-adv="registered" aria-selected="false" onclick="window.vaultAdvTab('registered')">Registered</button><button type="button" class="vadv-tab" role="tab" data-adv="stash" aria-selected="false" onclick="window.vaultAdvTab('stash')">Stash map</button><button type="button" class="vadv-tab" role="tab" data-adv="ledger" aria-selected="false" onclick="window.vaultAdvTab('ledger')">Routing ledger</button><button type="button" class="vadv-tab" role="tab" data-adv="keep" aria-selected="false" onclick="window.vaultAdvTab('keep')">Keep on main</button><button type="button" class="vadv-tab" role="tab" data-adv="reviews" aria-selected="false" onclick="window.vaultAdvTab('reviews')">Reviews</button><button type="button" class="vadv-tab" role="tab" data-adv="help" aria-selected="false" onclick="window.vaultAdvTab('help')">Help</button></div>
+        <div class="vadv-pane" data-adv="keepers">
       <!-- v342.28: Multi-copy keepers editor — staples you want several of (merc/build), targets editable -->
       <div id="vault-multikeep" class="vault-multikeep" hidden></div>
+        </div>
+        <div class="vadv-pane" data-adv="registered" hidden>
       <!-- v442 — UNIFIED REGISTRY ENGINE: Registered triage + Last-scan delta + intake history are CONSECUTIVE
            here and CSS-welded into ONE panel (Konyo: "combine these as 1 unit view engine CRM"). The Throw-Out
            Review stays its own standalone section BELOW the unit (Konyo: "the throw-out section don't touch it"). -->
       <div id="vault-registered" class="vault-registered" hidden></div>
-      <!-- gh#235 (v3724) — advanced shared/war-stash checkmark panel; renderShareSettings() fills it, hidden when empty -->
-      <div id="vault-share-settings" class="vault-share-settings" hidden></div>
       <!-- AI-intake report = the LAST-SCAN DELTA strip of the unified engine -->
       <div id="vault-intake-report" hidden style="margin:14px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <!-- Recently-registered intake history = the bottom zone of the unified engine -->
       <div id="vault-journal" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(127,212,255,.28);border-radius:10px;background:rgba(127,212,255,.03);font-size:12px;line-height:1.6"></div>
+        </div>
+        <div class="vadv-pane" data-adv="stash" hidden>
+      <!-- gh#235 (v3724) — advanced shared/war-stash checkmark panel; renderShareSettings() fills it, hidden when empty -->
+      <div id="vault-share-settings" class="vault-share-settings" hidden></div>
+        </div>
+        <div class="vadv-pane" data-adv="ledger" hidden>
       <!-- v1949 — THE ROUTING LEDGER. bible.html has called d2r_chronicleInboxLog the
            "VISUAL BACKEND - every KAI read forever for debug" since v1356, and NOTHING HAS EVER
            RENDERED IT. Measured 2026-08-22: the store is written on every routing decision and read
            exactly once, as a boolean. Konyo: "i want it to visually render the backend through the
            ledger visually so we can visually surgically fix anything needed future wise". -->
       <div id="routing-ledger" style="display:none;margin:14px 0 12px;padding:9px 13px;border:1px solid rgba(240,192,96,.28);border-radius:10px;background:rgba(240,192,96,.03);font-size:12px;line-height:1.5"></div>
+        </div>
+        <div class="vadv-pane" data-adv="keep" hidden>
+      <!-- v342.15: shared-stash advisory ("don't mule these") -->
+      <div id="vault-keep" class="vault-keep" hidden></div>
+        </div>
+        <div class="vadv-pane" data-adv="reviews" hidden>
       <!-- v455: dedicated Socketed/Larzuk Review — SAME runeword engine (_baseRWLine) as throw-out, but for the
            MULED socketed / Larzuk bases: exact-socket + base-TYPE match + already-created (Chronicle) split.
            Placed ABOVE the Throw-Out Review (v456) so the "what can I still create" readout sits with the kept
@@ -13030,14 +13100,36 @@ function d2jspPriceLine(q) {
            A decision made, counted, logged, and given no surface where the person making it is
            standing. [[plumbing-with-no-tap]] [[the-unjoined-end]] -->
       <div id="vault-suggested" class="vault-throwout" hidden></div>
-      <!-- v342.15: shared-stash advisory ("don't mule these") -->
-      <div id="vault-keep" class="vault-keep" hidden></div>
-      <div class="vault-detail" id="vault-detail" role="dialog" aria-modal="true" aria-label="Mule window (Esc closes)" hidden></div>
+        </div>
+        <div class="vadv-pane" data-adv="help" hidden>
+      <details class="vault-shot-guide" style="margin:0 0 14px;border:1px dashed rgba(127,212,255,.35);border-radius:10px;padding:8px 13px;font-size:12px">
+        <summary style="cursor:pointer;color:#7fd4ff;font-weight:var(--fw-medium)">📸 How to take screenshots the AI can actually read — example below</summary>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:10px">
+          <img id="vault-shot-example" alt="example: in-game text visible — this is what the AI reads" style="max-width:300px;border:1px solid rgba(212,168,71,.5);border-radius:6px;cursor:zoom-in" onclick="window._gildLightboxOpen&&this.src&&window._gildLightboxOpen(this.src,'Example — a real stash screenshot with the tooltip open: the item NAME is visible text, so the AI reads it. Hover an item (or hold Alt over ground loot) before you screenshot.')">
+          <div style="flex:1;min-width:240px;line-height:1.6">
+            <strong style="color:var(--best)">The AI reads NAMES, not slots</strong> — items never need to be in a special position. What matters is that the <strong>name text is visible in the picture</strong>:
+            <ul style="margin:6px 0 6px 18px;padding:0">
+              <li>✅ <strong>ground loot with Alt held</strong> — every name labeled, the best batch input</li>
+              <li>✅ <strong>hover tooltip open</strong> over an item in stash/inventory</li>
+              <li>✅ trade / vendor / mule windows where names show</li>
+              <li>❌ a bare stash tab — that is item ART only, no names → little to read</li>
+            </ul>
+            <span style="color:var(--text-dim)">Tip: after a session, stand over your pile, hold Alt, screenshot once — one picture logs the whole haul. The example image (click to enlarge) shows readable in-game text — this real stash screenshot (tooltip open on Spellsteel) is exactly what the AI read correctly in our live test.</span>
+          </div>
+        </div>
+      </details>
       <details class="zd-note vd-howto" style="margin-top:10px"><summary style="cursor:pointer;list-style:none;font-weight:var(--fw-medium);color:var(--gold-dim,#b89b5e)">ℹ️ How auto-assign &amp; muling works <span style="opacity:.6;font-weight:var(--fw-regular)">(tap to expand)</span></summary><div style="margin-top:7px">Drag a chip onto a mule — or click a chip, then click its locker. Auto-assign routes by taxonomy: sets by set name (Tal Rasha / IK / Griswold get their own locker), uniques by slot (weapons · armor · jewelry). Runes, essences, Worldstone shards and the Colossal statues are never muled — they live in your infinite shared stash. Every assignment shows as a <strong>🏦 badge</strong> on that item's detail card, everywhere. Saved on this device · rides 💾 Backup &amp; Share.</div></details>
+        </div>
+      </details>
       </div><!-- /vault-main -->
-      <aside id="vault-tasks" class="vault-tasks-panel" aria-label="move tasks">
-        <p class="vault-say" data-say="tasks">Tick each task when it is done. The reels tick them too.</p>
+      <!-- Vault v2 (Elad 2026-10-23) — MOVE TASKS is a small FAB above the inbox FAB (same edge, same look) that opens this
+           list as an overlay on top of the vault and the mules. It takes no layout room. -->
+      <button type="button" id="vault-tasks-fab" class="vault-tasks-fab" aria-controls="vault-tasks" aria-expanded="false" title="MOVE TASKS — what to move in the game" onclick="window.vaultTasksTog()"><span class="vtf-ic">📦</span><span class="vtf-n" id="vault-tasks-n" hidden></span></button>
+      <aside id="vault-tasks" class="vault-tasks-panel vault-tasks-pop" role="dialog" aria-label="move tasks" hidden>
+        <button type="button" class="vtp-x" title="close MOVE TASKS" onclick="window.vaultTasksTog(false)">✕</button>
+        <p class="vault-say" data-say="tasks">Tick each task when it is done. The reels tick them too. A tick can be undone.</p>
         <div id="vault-move-list" class="vault-move" aria-label="move task list"></div>
+        <div id="vault-tasks-toast" class="vtp-toast" role="status" hidden></div>
       </aside>
     </div>
   </div>
@@ -21134,13 +21226,18 @@ window.uiConfirm = function(message, opts){
       + '</div></div>';
     var done = false;
     function close(val){ if(done) return; done = true; ov.classList.remove('on'); document.removeEventListener('keydown', onKey); setTimeout(function(){ try{ ov.remove(); }catch(e){} }, 180); resolve(val); }
-    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); close(false); } else if(e.key === 'Enter'){ e.preventDefault(); close(true); } }
+    /* Vault v2 (Elad 2026-10-23) — opts.cancelFirst: a destructive door opens with CANCEL focused and Enter NEVER
+       confirms (Enter = Cancel). Only a deliberate click on the red button runs it. */
+    var cancelFirst = !!opts.cancelFirst;
+    function onKey(e){ if(e.key === 'Escape'){ e.preventDefault(); close(false); } else if(e.key === 'Enter'){ e.preventDefault(); close(cancelFirst ? false : true); }
+      else if(cancelFirst && (e.key === ' ' || e.key === 'Spacebar')){ e.preventDefault(); close(false); } } /* Vault v2 — Space on a focused red OK would click it: a danger door takes only a pointer click */
     ov.addEventListener('click', function(e){ if(e.target === ov) close(false); });
     ov.querySelector('.ui-confirm-cancel').onclick = function(){ close(false); };
     ov.querySelector('.ui-confirm-ok').onclick = function(){ close(true); };
     document.addEventListener('keydown', onKey);
     document.body.appendChild(ov);
-    requestAnimationFrame(function(){ ov.classList.add('on'); try{ ov.querySelector('.ui-confirm-ok').focus(); }catch(e){} });
+    if (cancelFirst) ov.querySelector('.ui-confirm').setAttribute('data-default','cancel');
+    requestAnimationFrame(function(){ ov.classList.add('on'); try{ ov.querySelector(cancelFirst ? '.ui-confirm-cancel' : '.ui-confirm-ok').focus(); }catch(e){} });
   });
 };
 
@@ -23265,7 +23362,7 @@ try {
     if (p.filed === null){
       bits.push('filed to mules <b>UNKNOWN</b>');
       bits.push('carried <b>UNKNOWN</b>');
-      bits.push('not filed <b>UNKNOWN</b> <i>(the mule map would not read — nothing is counted against it, and Auto-Sort waits)</i>');
+      bits.push('not filed <b>UNKNOWN</b> <i>(the mule map would not read — nothing is counted against it, and 🪄 Sort to mules waits)</i>');
       return bits.join(sep);
     }
     bits.push(n(p.filed) + ' filed to mules');
@@ -40541,6 +40638,7 @@ body{
 .vdb-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);font-size:var(--fs-body);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--gold-bright)}   /* v610 — echoes the plate titles */
 .vdb-count{font-family:var(--mono,monospace);font-weight:var(--fw-semibold);font-size:var(--fs-meta);color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32);border-radius:20px;padding:1px 9px}
 .vdb-actions{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
+.vdb-hint{font-size:var(--fs-micro);color:var(--text-dim);white-space:nowrap} /* Vault v2: points at the toolbar doors */
 /* v327: danger button to wipe the unsorted dock — sits LEFT of the gold Auto-Sort, outlined red so it reads as destructive */
 .vault-clear-btn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-family:var(--serif-display,serif);font-weight:var(--fw-semibold);font-size:12.5px;letter-spacing:var(--ls-tight);color:#ff8a8a;background:rgba(255,64,64,.08);border:1px solid rgba(255,80,80,.45);border-radius:22px;padding:7px 15px;transition:transform .14s ease,box-shadow .2s ease,background .14s ease,color .14s ease}
 .vault-clear-btn:hover{transform:translateY(-1px);background:rgba(255,64,64,.16);border-color:rgba(255,90,90,.8);color:#ffb3b3;box-shadow:0 3px 14px rgba(0,0,0,.45),0 0 16px rgba(255,64,64,.22)}
@@ -44472,11 +44570,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             });
             var _keys = Object.keys(_h).sort(function(a,b){ return _h[b] - _h[a]; });
             if (_keys.length === 1 && _keys[0] === '__throwout'){
-              _why = '<span class="vdb-why" title="Auto-Sort files an item where the sorter says '
+              _why = '<span class="vdb-why" title="Sort to mules files an item where the sorter says '
                    + 'it belongs. For every one of these the sorter\'s only answer is DISCARD, and '
-                   + 'throwing your items away is never automatic — so Auto-Sort leaves them here '
+                   + 'throwing your items away is never automatic — so Sort to mules leaves them here '
                    + 'on purpose. It is not failing to sort them.">'
-                   + 'every one is a <b>discard</b> suggestion — Auto-Sort will not throw items '
+                   + 'every one is a <b>discard</b> suggestion — 🪄 Sort to mules will not throw items '
                    + 'away for you</span>';
             } else if (_keys.length){
               _why = '<span class="vdb-why" title="What the sorter suggests for the items still '
@@ -44498,23 +44596,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         } catch (e) { _why = ''; }
         dbar.innerHTML='<span class="vdb-label">🎒 Unsorted dock<span class="vdb-count">'+unsorted.length+'</span></span>'
           + _why
-          +'<span class="vdb-actions">'
-          +'<button class="vault-clear-btn" onclick="window.vaultClearUnsorted()" title="Delete every UNSORTED item from the dock — items already filed in a mule are NOT touched">'
-          +'<span class="vcb-x">🗑</span><span>Delete unsorted</span></button>'
-          +(window._menuRunVerdict && window._menuRunVerdict.isMenu
-              ? ('<button class="vault-clear-btn" onclick="window.vaultDropMenuImport()" '
-                 + 'title="These names are in ALPHABETICAL ORDER. A stash is not sorted; a menu page is. '
-                 + 'Click once to see exactly which ones, again to take them out of owned.">'
-                 + '<span class="vcb-x">\ud83d\udcd6</span><span>' 
-                 + (window._menuRunVerdict.armed ? ('Remove ' + window._menuRunVerdict.names.length + ' menu-read names')
-                                                 : 'These look like a chronicle page')
-                 + '</span></button>')
-              : '')
-          +'<button class="vault-resort-btn" onclick="window.vaultAutoSortByHand()" title="Auto-Sort: file every loose catalog add, and every loose item you have a picture of, into the mule the planner names (war gear into the shared stash). A sighting with no picture, what your MAIN wears, and discards stay here. The status line names each item that moved and where it went.">'
-          +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>'
-          +'</span>';
+          /* Vault v2 (Elad 2026-10-23) — the dock bar no longer carries its own buttons. Sorting is the ONE 🪄 Sort to mules
+             button in the toolbar (it was two buttons calling the same vaultAutoSortByHand), and Delete unsorted / the
+             chronicle-page cleanup live in the toolbar's ⚠ Clear & reset menu with the other destructive doors. */
+          +'<span class="vdb-hint">sort them with <b>🪄 Sort to mules</b> above · delete them from <b>⚠ Clear &amp; reset</b></span>';
       } else { dbar.hidden=true; dbar.innerHTML=''; }
     }
+    /* Vault v2 — the toolbar's 🪄 Sort to mules carries the loose count, and the ⚠ Clear & reset menu carries the
+       chronicle-page row only while the alphabetical-read verdict says so (both from the SAME dock list as the bar). */
+    try {
+      var _sn = document.getElementById('vault-sort-n');
+      if (_sn){ _sn.hidden = !unsorted.length; _sn.textContent = unsorted.length ? (unsorted.length + ' loose') : ''; }
+      var _mi = document.getElementById('vault-danger-menuimport'), _mv = window._menuRunVerdict;
+      if (_mi){
+        var _isMenu = !!(unsorted.length && _mv && _mv.isMenu);
+        _mi.hidden = !_isMenu;
+        var _mb = document.getElementById('vault-menuimport-btn');
+        var _miTxt = (_isMenu && _mv.armed) ? ('Remove ' + (_mv.names || []).length + ' menu-read names') : 'These look like a chronicle page';
+        if (_mb) _mb.textContent = _miTxt;
+        var _mn = _mi.querySelector('.vdm-name'); if (_mn) _mn.textContent = _miTxt;   /* Grok review r2 — the row's bold name says the armed step too */
+      }
+    } catch (eV2) {}
     renderVaultKeep();
     /* §31.2 — THE CARRIED STRIP, one row per character. Each item says when it was last seen; after a few game sessions
        unseen it asks "still have it?" (his words) — absence never un-owns it, only a floor / vendor / trade look does. */
@@ -49777,7 +49879,7 @@ window.vaultAutoAssign = function(){
     var unsorted = _dockNames();   /* #264 (REG-2021) — exactly the names the dock shows, never Magic & Rare or carried loot */
     if (unsorted == null){ status('the dock could not be read - nothing was deleted'); return; }
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
-    if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
+    if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.', {cancelFirst:true}))) return;
     /* ⚠ M-3 (review of 7cded0c1, reproduced) — HIS DELETE IS HIS WORD, SO IT GOES THROUGH THE JOURNALED DOOR. This took the
        names out of `owned` beside the removal journal, so the next reclose (every kaiVer bump, POST /api/kai_reclose)
        replayed the same older read and owned them again — REG-1391's "his removal outranks every older read" could not see
@@ -49858,7 +49960,7 @@ window.vaultAutoAssign = function(){
     if (!(await uiConfirm('Take ' + names.length + ' menu-read name(s) out of \u2713 owned?\n\n'
         + names.slice(0,12).join(', ') + (names.length > 12 ? ', …' : '')
         + '\n\nThey are in alphabetical order, which a stash never is. Mule assignments are '
-        + 'untouched.'))) { v.armed = false; renderVault(); return; }
+        + 'untouched.', {cancelFirst:true}))) { v.armed = false; renderVault(); return; }
     var n = 0;
     /* M-3 (review of 7cded0c1) — through the journaled door (see vaultClearUnsorted): a replayed older read never re-owns them */
     var takeM = names.filter(function(name){ return !assign[name]; });   /* already filed in a mule — his hand put it there */
@@ -49914,7 +50016,7 @@ window.vaultAutoAssign = function(){
      copies (d2r_copies). This door clears all of those through the same scope and rebuilds nothing; runes / gems /
      materials, set pieces, runewords and the chronicle stay. Law: tv/test_a_wipe_items_empties_every_locker.py */
   window.vaultWipeItems = async function(){
-    if (!(await uiConfirm(_vaultResetConfirm('vaultWipeItems')))) return;
+    if (!(await uiConfirm(_vaultResetConfirm('vaultWipeItems'), {cancelFirst:true}))) return;
     var R = await _vaultResetRun('vaultWipeItems');
     var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
     try { renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){}
@@ -49923,7 +50025,7 @@ window.vaultAutoAssign = function(){
     status(_vaultResetSay(R), 20000);
   };
   window.vaultReset = async function(){
-    if (!(await uiConfirm(_vaultResetConfirm('vaultReset')))) return;
+    if (!(await uiConfirm(_vaultResetConfirm('vaultReset'), {cancelFirst:true}))) return;
     var R = await _vaultResetRun('vaultReset');
     try { renderVault(); } catch(e){}
     status(_vaultResetSay(R), 20000);
@@ -50961,6 +51063,10 @@ window.vaultAutoAssign = function(){
     if (spec.junk === true) out.junk = true;
     if (spec.left === true) out.left = true;
     if (typeof spec.closedBy === 'string' && spec.closedBy) out.closedBy = spec.closedBy;
+    /* Vault v2 (Elad 2026-10-23) — a HAND tick can be undone: the row remembers what it was before his tick. Written only
+       on a moved-manual row (a reel's verified/closed is proof, not a click, and has nothing to undo). */
+    if (st === 'moved-manual' && spec.undo && typeof spec.undo === 'object' && spec.undo.status && allowed[spec.undo.status] && spec.undo.status !== 'moved-manual')
+      out.undo = { status: spec.undo.status, manual: spec.undo.manual === true };
     var g = [];
     (Array.isArray(spec.gone) ? spec.gone : []).forEach(function(x){ if (x != null && x !== '' && g.indexOf(String(x)) < 0) g.push(String(x)); });
     if (g.length) out.gone = g;
@@ -51360,7 +51466,8 @@ window.vaultAutoAssign = function(){
       name: name, from: from, to: to,
       status: stored ? stored.status : 'to-move',
       evidence: stored ? stored.evidence : [],
-      manual: stored ? stored.manual : false
+      manual: stored ? stored.manual : false,
+      undo: stored ? stored.undo : null   /* Vault v2 — a no-cell rebuild keeps his tick's undo snapshot (the sanitizer drops it off a non-hand row) */
     });
     return { task: task, copyIx: copyIx, name: name, fresh: true };
   }
@@ -51455,6 +51562,7 @@ window.vaultAutoAssign = function(){
     var ens = _vaultMoveEnsure(name, copyIx, _vaultMoveBag());
     var t = _vaultMoveTally(ens.task);
     t.status = 'moved-manual'; /* v3769 move mark */
+    if (ens.task && ens.task.status !== 'moved-manual') t.undo = { status: ens.task.status, manual: ens.task.manual === true }; /* Vault v2 undo */
     _vaultMoveCommit([{ name: name, copyIx: copyIx, task: t }]);
     try { _vaultMovePaint(); } catch (e) {}
     return t;
@@ -51509,6 +51617,7 @@ window.vaultAutoAssign = function(){
     if (t.kind === 'throw') return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
     if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
     if (t.manual && t.status === 'to-move' && t.to && t.to.holder != null && t.to.cell == null) return true; /* L1 a hand add always has its row, even with no room */
+    if (t.status === 'moved-manual' && t.undo && t.to && t.to.holder != null && t.to.cell == null) return true; /* Vault v2 — his tick on a no-room row stays in Done, so it can be unticked */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
     var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name, t.copyIx || 0) : null;
     if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */
@@ -51744,6 +51853,7 @@ window.vaultAutoAssign = function(){
     throws = throws.filter(function(r){ if (_vtkDone(r.task)) { done.push(r); return false; } return true; });
     function line(row){
       var t = row.task, ci = row.copyIx || 0, nm = jsArg(row.name), thr = t.kind === 'throw', fin = _vtkDone(t);
+      var canUndo = !!(fin && t.status === 'moved-manual' && t.undo); /* Vault v2 — his own tick can be taken back */
       var manual = !!(t.manual && !(t.from && t.from.cell != null));
       var gs = (typeof _vaultGoneSay === 'function') ? _vaultGoneSay(t) : ((t.gone && t.gone.length) ? 'gone ' + t.gone.length + '/' + (window.VAULT_GONE_SESSIONS || 5) : '');
       var say = row.name + ' · ' + _vtkPlace(t.from, manual) + ' → ' + (thr ? 'NOWHERE' : _vtkPlace(t.to, false));
@@ -51754,8 +51864,11 @@ window.vaultAutoAssign = function(){
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
         + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"'
         + ' onclick="window._vaultTaskExpand(\'' + nm + '\',' + ci + ',this)">'
-        + '<input type="checkbox" class="vtk-tick vmv-mark" aria-label="mark moved"' + (fin ? ' checked disabled' : '')
-        + ' onclick="event.stopPropagation();window._vaultTaskTick(\'' + nm + '\',' + ci + ')">'
+        + (canUndo
+            ? '<input type="checkbox" class="vtk-tick vmv-mark" aria-label="untick: not moved yet" checked'
+              + ' onclick="event.stopPropagation();window._vaultTaskUntick(\'' + nm + '\',' + ci + ')">'
+            : '<input type="checkbox" class="vtk-tick vmv-mark" aria-label="mark moved"' + (fin ? ' checked disabled' : '')
+              + ' onclick="event.stopPropagation();window._vaultTaskTick(\'' + nm + '\',' + ci + ')">')
         + '<span class="vmv-art vtk-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
         + '<span class="vtk-say" title="' + esc(say + (thr && t.reason ? ' — ' + t.reason : '')) + '"' + ((thr && t.reason) ? ' data-reason="' + esc(t.reason) + '"' : '') + '>' + esc(row.name) + ' · '
         + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : esc(_vtkPlace(t.to, false))) + '</span>'
@@ -51765,6 +51878,7 @@ window.vaultAutoAssign = function(){
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-keep" title="keep it instead" onclick="event.stopPropagation();window._vaultThrowKeep(\'' + nm + '\',' + ci + ')">Keep</button>' : '')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-junk" title="yes, it is junk" onclick="event.stopPropagation();window._vaultThrowJunk(\'' + nm + '\',' + ci + ')">Junk</button>' : '')
         + (t.junk ? '<span class="vmv-chip" data-status="junk">JUNK</span>' : '')
+        + (canUndo ? '<button type="button" class="vtk-undo" title="undo my tick — not moved yet" onclick="event.stopPropagation();window._vaultTaskUntick(\'' + nm + '\',' + ci + ')">Undo</button>' : '')
         + '</li>';
     }
     var unr = built.unrouted || [];
@@ -51785,15 +51899,32 @@ window.vaultAutoAssign = function(){
   function _vaultTaskTick(name, copyIx){
     copyIx = copyIx || 0;
     var cur = _vaultMoveBag().map[String(name) + '\u0000' + copyIx];
+    var res;
     if (cur && _vaultMoveTask(cur).kind === 'throw') {
-      var t = _vaultMoveTask(cur); t.status = 'moved-manual'; /* his tick; a reel still confirms the drain */
+      var t0 = _vaultMoveTask(cur), t = _vaultMoveTask(cur); t.status = 'moved-manual'; /* his tick; a reel still confirms the drain */
+      if (t0.status !== 'moved-manual') t.undo = { status: t0.status, manual: t0.manual === true }; /* Vault v2 undo */
       _vaultMoveCommit([{ name: name, copyIx: copyIx, task: t }]);
       try { _vaultMovePaint(); } catch (eP) {}
-      return t;
-    }
-    return _vaultMoveMark(name, copyIx);
+      res = t;
+    } else res = _vaultMoveMark(name, copyIx);
+    try { if (typeof window._vaultTasksToast === 'function') window._vaultTasksToast(name, copyIx); } catch (eTo) {}
+    return res;
+  }
+  /* Vault v2 (Elad 2026-10-23) — UNTICK: a hand tick put back exactly as it was (status + manual face). Only a row that
+     carries the undo snapshot can be unticked; a reel-verified or closed row stays done. */
+  function _vaultTaskUntick(name, copyIx){
+    copyIx = copyIx || 0;
+    var cur = _vaultMoveBag().map[String(name) + '\u0000' + copyIx];
+    var t = cur ? _vaultMoveTask(cur) : null;
+    if (!t || t.status !== 'moved-manual' || !t.undo) return { ok: false, why: t ? 'not a hand tick' : 'no such task', task: t };
+    var back = _vaultMoveTask(Object.assign({}, t, { status: t.undo.status, manual: t.undo.manual === true, undo: null }));
+    _vaultMoveCommit([{ name: name, copyIx: copyIx, task: back }]);
+    try { _vaultMovePaint(); } catch (eP) {}
+    try { if (typeof window._vaultTasksToast === 'function') window._vaultTasksToast(null); } catch (eTo) {}
+    return { ok: true, task: back };
   }
   try { window._vaultTaskTick = _vaultTaskTick; } catch (eTt) {}
+  try { window._vaultTaskUntick = _vaultTaskUntick; } catch (eTu) {}
   /* L1 (Elad 2026-10-20) — the rules route it to junk (a screenshot-seen item, or one he ruled junk): it is a THROW OUT row
      in MOVE TASKS, target NOWHERE, one plain reason. A hand add of an unruled set piece is NOT one (his ruling: kept and
      routed), because _vaultSeamHome files it. Keep turns the row into a normal move (_vaultKeptByHim). */
@@ -51994,6 +52125,16 @@ window.vaultAutoAssign = function(){
       window._moveModel = built;
       var host = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
       if (host) { host.hidden = false; host.innerHTML = ((typeof _vaultMoveHeldHtml === 'function') ? _vaultMoveHeldHtml() : '') + _vaultMoveHtml(built); }
+      /* Vault v2 — the MOVE TASKS FAB badge = the open lines (moves + throw-outs not yet done), read off the painted list */
+      try {
+        var _bn = document.getElementById('vault-tasks-n');
+        if (_bn && host) {
+          var _open = host.querySelectorAll('ol.vtk-list[data-sec="moves"] li.vtk-line, ol.vtk-list[data-sec="throws"] li.vtk-line').length;
+          _bn.hidden = !_open; _bn.textContent = _open ? String(_open) : '';
+          var _fab = document.getElementById('vault-tasks-fab');
+          if (_fab) _fab.title = 'MOVE TASKS — ' + (_open ? _open + ' to do' : 'nothing to move');
+        }
+      } catch (eBn) {}
       var eq = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-equipped') : null;
       if (eq && typeof _vaultEquippedNames === 'function') { var eqN = _vaultEquippedNames(built.records); eq.hidden = !eqN.length;
         eq.innerHTML = eqN.length ? '<span class="vault-equipped-k">Equipped (locked)</span> ' + eqN.map(function(n){ return esc(n); }).join(' · ') : ''; }
@@ -52040,6 +52181,115 @@ window.vaultAutoAssign = function(){
   try { window._vaultMoveGroup = _vaultMoveGroup; } catch (eG) {}
   try { window._vaultMoveHtml = _vaultMoveHtml; } catch (eHtml) {}
   try { window._vaultMovePaint = _vaultMovePaint; } catch (ePaint) {}
+  /* ══ Vault v2 (Elad 2026-10-23) — the three toggles of the new face ═══════════════════════════════════════════════
+     · ⚠ Clear & reset: one menu holds the four destructive doors (+ the chronicle-page cleanup when it applies). It opens
+       with Cancel focused; a click outside closes it. Each row still asks through uiConfirm with Cancel the default.
+     · MOVE TASKS: a FAB opens the list as an overlay (no layout room). Open/closed is remembered (vaultTasksOpen).
+     · ⚙ Advanced: one collapsed drawer, one tab per old panel. MOVE TASKS and Advanced are NEVER open side by side:
+       opening either one closes the other. */
+  function _vaultDangerOutside(e){
+    var z = document.getElementById('vault-danger');
+    if (z && e && e.target && z.contains(e.target)) return;
+    window.vaultDangerMenuTog(false);
+  }
+  /* Escape closes the menu (focus back on its toggle); Tab out of the zone closes it too. A focusout with no
+     relatedTarget is a click on plain menu text, not a leave, so it keeps the menu open (the outside mousedown covers clicks). */
+  function _vaultDangerKey(e){
+    if (!e || e.key !== 'Escape') return;
+    var m = document.getElementById('vault-danger-menu');
+    if (!m || m.hidden) return;
+    e.preventDefault(); try { e.stopPropagation(); } catch (eS) {}
+    window.vaultDangerMenuTog(false, true);
+  }
+  function _vaultDangerLeave(e){
+    var z = document.getElementById('vault-danger'), to = e && e.relatedTarget;
+    if (!z || !to || z.contains(to)) return;
+    window.vaultDangerMenuTog(false);
+  }
+  window.vaultDangerMenuTog = function(open, refocus){
+    var m = document.getElementById('vault-danger-menu'), b = document.getElementById('vault-danger-tog');
+    if (!m) return false;
+    var want = (typeof open === 'boolean') ? open : !!m.hidden;
+    m.hidden = !want;
+    if (b) b.setAttribute('aria-expanded', want ? 'true' : 'false');
+    var z = document.getElementById('vault-danger');
+    try { document.removeEventListener('mousedown', _vaultDangerOutside, true); document.removeEventListener('keydown', _vaultDangerKey, true); if (z) z.removeEventListener('focusout', _vaultDangerLeave); } catch (e0) {}
+    if (want) {
+      try { document.addEventListener('mousedown', _vaultDangerOutside, true); document.addEventListener('keydown', _vaultDangerKey, true); if (z) z.addEventListener('focusout', _vaultDangerLeave); } catch (e1) {}
+      try { var c = document.getElementById('vault-danger-cancel'); if (c) c.focus({ preventScroll: true }); } catch (e2) {}
+    } else if (refocus && b) { try { b.focus({ preventScroll: true }); } catch (e3) {} }
+    return want;
+  };
+  function _vaultTasksRemember(on){ try { window.LSR.setItem('vaultTasksOpen', on ? '1' : '0'); } catch (e) {} }   /* a UI pref matches no fork set, so LSR keeps it bare in every world */
+  window.vaultTasksTog = function(open, quiet){
+    var p = document.getElementById('vault-tasks'), f = document.getElementById('vault-tasks-fab');
+    if (!p) return false;
+    var want = (typeof open === 'boolean') ? open : !!p.hidden;
+    if (want) { var adv = document.getElementById('vault-advanced'); if (adv && adv.open) adv.open = false; } /* never side by side */
+    p.hidden = !want;
+    if (f) f.setAttribute('aria-expanded', want ? 'true' : 'false');
+    if (!quiet) _vaultTasksRemember(want);
+    if (want) { try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {} }
+    return want;
+  };
+  window._vaultAdvToggled = function(el){
+    if (el && el.open) { var p = document.getElementById('vault-tasks'); if (p && !p.hidden) window.vaultTasksTog(false); } /* never side by side */
+  };
+  window.vaultAdvTab = function(name){
+    var adv = document.getElementById('vault-advanced');
+    if (!adv) return false;
+    var hit = false;
+    Array.prototype.forEach.call(adv.querySelectorAll('.vadv-pane'), function(p){ var on = p.getAttribute('data-adv') === name; p.hidden = !on; if (on) hit = true; });
+    if (!hit) return false;
+    Array.prototype.forEach.call(adv.querySelectorAll('.vadv-tab'), function(t){ t.setAttribute('aria-selected', t.getAttribute('data-adv') === name ? 'true' : 'false'); });
+    if (!adv.open) adv.open = true;
+    return true;
+  };
+  /* the tick toast: names what was ticked and offers Undo while that row can still be unticked */
+  var _vttTimer = null;
+  window._vaultTasksToast = function(name, copyIx){
+    var el = document.getElementById('vault-tasks-toast');
+    if (!el) return;
+    if (_vttTimer) { clearTimeout(_vttTimer); _vttTimer = null; }
+    if (name == null) { el.hidden = true; el.innerHTML = ''; return; }
+    var cur = null;
+    try { cur = _vaultMoveBag().map[String(name) + '\u0000' + (copyIx || 0)]; } catch (e) { cur = null; }
+    var can = !!(cur && cur.status === 'moved-manual' && cur.undo);
+    el.innerHTML = '<span>✓ ' + esc(String(name)) + ' marked moved</span>'
+      + (can ? '<button type="button" onclick="window._vaultTaskUntick(\'' + jsArg(String(name)) + '\',' + (copyIx || 0) + ')">Undo</button>' : '');
+    el.hidden = false;
+    _vttTimer = setTimeout(function(){ el.hidden = true; el.innerHTML = ''; }, 6000);
+  };
+  (function _vaultV2Boot(){
+    var go = function(){
+      /* the FAB and the overlay live on <body>, like the inbox FAB: #tab-vault carries a transform from its entry
+         animation (fill both), and a transformed ancestor turns position:fixed into "fixed to the tab" (measured: the
+         overlay landed below the screen). CSS shows them only while the Vault tab is active. */
+      try {
+        ['vault-tasks-fab', 'vault-tasks'].forEach(function(id){
+          var el = document.getElementById(id);
+          if (el && document.body && el.parentNode !== document.body) document.body.appendChild(el);
+        });
+      } catch (eB) {}
+      try {
+        var tp = document.getElementById('vault-tasks');
+        var fab0 = document.getElementById('vault-tasks-fab');
+        var _v2EscFn = function(e){
+          if (!e || e.key !== 'Escape' || !tp || tp.hidden) return;
+          /* Grok review r3 — a window opened ABOVE the overlay (a mule locker, a confirm) owns this Escape: let it bubble to its own closer */
+          try { var _vd = document.getElementById('vault-detail'); if ((_vd && !_vd.hidden) || document.querySelector('.ui-confirm-ov')) return; } catch (eW) {}
+          e.preventDefault(); try { e.stopPropagation(); } catch (eS) {}
+          window.vaultTasksTog(false);
+          try { var fb = document.getElementById('vault-tasks-fab'); if (fb) fb.focus({ preventScroll: true }); } catch (eF) {}
+        };
+        if (tp && !tp._v2Esc) { tp._v2Esc = 1; tp.addEventListener('keydown', _v2EscFn); }
+        /* Grok review r2 — a click on the FAB leaves focus ON the FAB (a sibling on <body>), so Escape there closes it too */
+        if (fab0 && !fab0._v2Esc) { fab0._v2Esc = 1; fab0.addEventListener('keydown', _v2EscFn); }
+      } catch (eK) {}
+      try { if (window.LSR.getItem('vaultTasksOpen') === '1') window.vaultTasksTog(true, true); } catch (e) {}
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+  })();
   try { window._vaultMoveCellMarkHtml = _vaultMoveCellMarkHtml; } catch (eMk) {}
   try { window._vaultFrameMeta = _vaultFrameMeta; } catch (eFm) {}
   function _vaultRoomStack(){
@@ -55622,7 +55872,7 @@ window.vaultAutoAssign = function(){
   // witness evidence is never cleared, and proven items are rebuilt from it (_vaultRefileFromPlan). The
   // second eye on 0704d1bc caught this comment still saying owned was out of reach.
   window.vaultClearHistory = async function(){
-    if (!(await uiConfirm(_vaultResetConfirm('vaultClearHistory')))) return;
+    if (!(await uiConfirm(_vaultResetConfirm('vaultClearHistory'), {cancelFirst:true}))) return;
     var R = await _vaultResetRun('vaultClearHistory');
     var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
     try { renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){}
@@ -55641,7 +55891,7 @@ window.vaultAutoAssign = function(){
     if (_slw === null){ status('🧽 ' + _seenUnknownSay() + ' - Start it fresh from the notice wipes it, its bytes kept aside'); return; }
     var seenN = Object.keys(_slw).length;
     if (!seenN){ status('🧽 scan slate already empty — nothing to clear'); return; }
-    if (!(await uiConfirm('Clear scan history (wipe the slate)?\n\nThis forgets the '+seenN+' screenshot file'+(seenN===1?'':'s')+' the vault has already read, so the NEXT folder scan treats every file as fresh and re-reads them.\n\nYour ✓ owned items, mules, Magic & Rare, and the registered vault are NOT touched — only the seen-files ledger.'))) return;
+    if (!(await uiConfirm('Clear scan history (wipe the slate)?\n\nThis forgets the '+seenN+' screenshot file'+(seenN===1?'':'s')+' the vault has already read, so the NEXT folder scan treats every file as fresh and re-reads them.\n\nYour ✓ owned items, mules, Magic & Rare, and the registered vault are NOT touched — only the seen-files ledger.', {cancelFirst:true}))) return;
     try { window.LSR.removeItem(SEEN_KEY); } catch(e){}
     status('🧽 scan slate wiped — '+seenN+' file'+(seenN===1?'':'s')+' forgotten; next scan re-reads everything');
   };
@@ -57597,6 +57847,9 @@ function renderJournal(){
       var b = document.querySelector('button[onclick="' + d[1] + '"]'); if (!b) return;
       var w = _vaultResetWords(d[0]);
       b.title = 'Clears ONLY: ' + w.clears.join(' · ') + '. Stays untouched: ' + w.keeps.join(' · ') + '.';
+      /* Vault v2 — the ⚠ Clear & reset menu row says the same scope in plain text beside its button */
+      var sc = document.querySelector('#vault-danger-menu .vdm-scope[data-scope-for="' + d[0] + '"]');
+      if (sc) sc.textContent = 'Clears: ' + w.clears.join(' · ') + '. Keeps: ' + w.keeps.join(' · ') + '.';
     } catch(e){}
   });
   /* ⟦VAULT RESET SCOPE END⟧ */
@@ -72486,7 +72739,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3793', name:'v3793 - M2 (GB-L)', date:'2026-10-24', note:'machine-wide stores and seeder, vanish witness, Windows console keepalive, prover owned by its console' };
+  window.D2R_BUILD = { id:'v3794', name:'v3794 - Vault v2', date:'2026-10-24', note:'merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3793",
+  "ver": "v3794",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3793: machine-wide stores and seeder, vanish witness, Windows console keepalive, prover owned by its console",
+  "note": "v3794: merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

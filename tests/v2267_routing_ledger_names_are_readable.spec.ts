@@ -90,6 +90,11 @@ test.describe('v2267 — the routing ledger says WHICH item, not just where it w
       await page.waitForTimeout(2200);
       await page.evaluate(() => (window as any).switchTab('vault'));
       await page.waitForTimeout(1200);
+      // Vault v2 (Elad 2026-10-23): the routing ledger lives in the collapsed ⚙ Advanced section now,
+      // so open it on its Registered tab the way he does - the summary, then the tab - before measuring.
+      await page.click('#vault-advanced > summary');
+      await page.click('#vault-advanced .vadv-tab[data-adv="registered"]');
+      await page.waitForTimeout(400);
 
       const lost = await page.evaluate(() => {
         const xs = [...document.querySelectorAll('.vrg-x')] as HTMLElement[];

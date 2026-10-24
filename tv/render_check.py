@@ -876,6 +876,11 @@ TARGETS = {
             if(el && !on) el.click();
             try{ window.renderVault && window.renderVault(); }catch(e){}
             try{ window._shareSettingsSetOpen && window._shareSettingsSetOpen(true); }catch(e){}
+            // Vault v2 (v3794): the panel now lives in ⚙ Advanced > Stash map (collapsed by default),
+            // so open that drawer and tab the way he would; the panel itself is measured unchanged.
+            var adv=document.getElementById('vault-advanced');
+            if(adv && !adv.open) adv.open=true;
+            try{ window.vaultAdvTab && window.vaultAdvTab('stash'); }catch(e){}
             var s=document.getElementById('vault-share-settings');
             if(!s || s.hidden) return false;
             var r=s.getBoundingClientRect();

@@ -9982,12 +9982,39 @@ GATES = [
     Gate("test_vault_l1_tasks_panel", [sys.executable,
          os.path.join(HERE, "test_vault_l1_tasks_panel.py")], 180,
          needs_app=False,
-         why=("Vault L1 (Elad 2026-10-20) - MOVE TASKS is a right-side panel beside the left column at 1280 and 1440: "
+         why=("Vault L1 (Elad 2026-10-20), Vault v2 (Elad 2026-10-23) - MOVE TASKS is a fixed overlay off the 📦 FAB "
+             "that takes no layout room and stays on screen at 1280 and 1440: "
              "a numbered checklist, one line per task (Arcanna's Sign · MANUAL → SETS-REST (x,y)), Moves then "
              "Throw-outs, no wide grids; each line has one tick box (his tick moves it to Done, the reels show gone "
              "k/5), a click opens BEFORE | AFTER; Done is collapsed at the bottom. The left keeps add, find, the mules "
              "and the Equipped (locked) line, each with one short plain line; the wordy headers stay gone. "
              "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_every_vault_door_is_reachable", [sys.executable,
+         os.path.join(HERE, "test_every_vault_door_is_reachable.py")], 180,
+         needs_app=False,
+         why=("Vault v2 (Elad 2026-10-23, his hard rule: nothing dropped) - every handler of the design's mapping "
+             "table is still reached from a control he can SEE: the toolbar (one 🪄 Sort to mules with its loose count, "
+             "Add mule, Copy manifests, AUTO INTAKE), the four red doors and the chronicle-page cleanup as rows of the "
+             "one ⚠ Clear & reset menu, add-by-name under the planner bar, the folder doors in the intake strip in both "
+             "states, tick and untick from the 📦 MOVE TASKS FAB, and every old panel one ⚙ Advanced tab away. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_danger_menu_defaults_to_cancel", [sys.executable,
+         os.path.join(HERE, "test_danger_menu_defaults_to_cancel.py")], 240,
+         needs_app=False,
+         why=("Vault v2 (Elad 2026-10-23) - the ⚠ Clear & reset menu opens on Cancel and runs mild -> severe; each "
+             "destructive door (Delete unsorted, Reset assignments, Clear history, Wipe items, the chronicle-page "
+             "cleanup, Clear scan history) confirms with Cancel focused, and a REAL Enter - on Cancel or on the red OK - "
+             "changes nothing; a click on OK still runs; a plain uiConfirm still takes Enter. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_move_tasks_and_advanced_never_side_by_side", [sys.executable,
+         os.path.join(HERE, "test_move_tasks_and_advanced_never_side_by_side.py")], 180,
+         needs_app=False,
+         why=("Vault v2 (Elad 2026-10-23) - opening MOVE TASKS (FAB) or ⚙ Advanced (summary or a tab) closes the "
+             "other; MOVE TASKS is a fixed overlay on <body> that moves nothing; the toolbar has no + Add an item while "
+             "the planner bar and its add-by-name link stay; a tick is undone from the line or the toast; the open "
+             "state survives a reload; the FAB is not drawn off the Vault tab. No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_v3771_vault_console_face", [sys.executable,
          os.path.join(HERE, "test_v3771_vault_console_face.py")], 60,
