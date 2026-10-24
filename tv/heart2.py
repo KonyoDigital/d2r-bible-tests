@@ -2407,7 +2407,7 @@ def _trace_wanted(filename, env=None):
 
 def _trace_read(log, root_ppid):
     """REG-2640 - one traced run's log. -> (basenames read or stat'd, complete: bool)"""
-    seen, hellos, root, py, untraced = set(), 0, False, 0, False
+    seen, hellos, root, py, untraced = set(), set(), False, 0, False
     try:
         with io.open(log, encoding="utf-8", errors="replace") as fh:
             for ln in fh:
@@ -2417,9 +2417,9 @@ def _trace_read(log, root_ppid):
                 elif tag == "H":
                     parts = rest.split()
                     if len(parts) == 2 and parts[1] == str(root_ppid) and not root:
-                        root = True
-                    else:
-                        hellos += 1
+                        root = parts[0]
+                    elif parts and parts[0] != root:
+                        hellos.add(parts[0])     # one per PROCESS: a hello said twice never stands for a silent child
                 elif tag == "P":
                     py += 1
                 elif tag in ("p", "A"):
@@ -2430,7 +2430,7 @@ def _trace_read(log, root_ppid):
                     del _TRACE_WHY[:-200]
     except OSError:
         return seen, False
-    return seen, bool(root and not untraced and hellos >= py)
+    return seen, bool(root and not untraced and len(hellos) >= py)
 
 
 def _trace_record(filename, seen, ok):

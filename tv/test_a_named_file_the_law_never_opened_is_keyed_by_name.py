@@ -288,7 +288,7 @@ RED_PROOF = [
     {
         "why": "REG-2640 - a counted python child that never said hello is taken as traced",
         "file": "heart2.py",
-        "find": "    return seen, bool(root and not untraced and hellos >= py)\n",
+        "find": "    return seen, bool(root and not untraced and len(hellos) >= py)\n",
         "replace": "    return seen, bool(root and not untraced)\n",
         "matches": 1,
     },
