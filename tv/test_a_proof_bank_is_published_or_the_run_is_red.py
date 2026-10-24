@@ -164,6 +164,36 @@ RED_PROOF = [
      "file": "proof_bank.py",
      "find": "Linux bank only",
      "replace": "Two CI producers", "matches": 1},
+    {"why": "REG-2633 r17 - { exit 0; } above the Linux publish: the shell leaves green before publishing",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": '          python3 tv/heart2.py --export-proved "$RUNNER_TEMP/out"\n',
+     "replace": '          python3 tv/heart2.py --export-proved "$RUNNER_TEMP/out"\n          { exit 0; }\n', "matches": 1},
+    {"why": "REG-2633 r17 - `true ||` in front of the Linux publish command",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": '          python3 tv/proof_bank.py --publish "$RUNNER_TEMP/out/.heart2_cache.json" --head "$GITHUB_SHA" --class linux\n',
+     "replace": '          true || python3 tv/proof_bank.py --publish "$RUNNER_TEMP/out/.heart2_cache.json" --head "$GITHUB_SHA" --class linux\n',
+     "matches": 1},
+    {"why": "REG-2633 r17 - an escaped \"\\u0069f\": false skips the Linux publish step",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "      - name: Import the set, export what this tree keys, publish it\n",
+     "replace": "      - name: Import the set, export what this tree keys, publish it\n        \"\\u0069f\": false\n", "matches": 1},
+    {"why": "REG-2633 r17 - win-shard's guard continued with || true on the next line (always true on GitHub)",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n    runs-on: windows-latest\n",
+     "replace": "    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n      || true\n    runs-on: windows-latest\n",
+     "matches": 1},
+    {"why": "REG-2633 r17 - a second trigger key spelled !!str on turns push on",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "on:\n  workflow_dispatch:\n",
+     "replace": "on:\n  workflow_dispatch:\n!!str on:\n  push:\n", "matches": 1},
+    {"why": "REG-2633 r17 - an explicit-key (? extra-win) Windows job hides from the billing scan",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "jobs:\n  shard:\n",
+     "replace": "jobs:\n  ? extra-win\n  :\n    runs-on: windows-latest\n    steps:\n      - run: echo hi\n  shard:\n", "matches": 1},
+    {"why": "REG-2633 r17 - an escaped continue-on-error on the Windows bank job",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "    timeout-minutes: 30\n",
+     "replace": "    timeout-minutes: 30\n    \"continue-on-\\u0065rror\": true\n", "matches": 1},
 ]
 
 
@@ -273,9 +303,85 @@ def windows_jobs(text):
         job = m.group(1) if m else ""
         r = re.search(r"(?m)^    (?:\"runs-on\"|'runs-on'|runs-on)\s*:(.*(?:\n      .*)*)", job)
         val = r.group(1).strip() if r else ""
-        if not re.fullmatch(r"ubuntu-[\w.]+", val):
+        if not re.fullmatch(r"ubuntu-[\w.-]+", val):
             out.append(name)
     return out
+
+
+#: the publish steps, byte for byte. A deny-list of shell/YAML tricks never ends ({ exit 0; }, `true ||`, "\u0069f",
+#: an escaped continue-on-error ...); any added line, key or prefix in these steps is red.
+PUBLISH_STEP = {
+    "linux": ('name: Import the set, export what this tree keys, publish it\n'
+              '        run: |\n'
+              '          set -euo pipefail\n'
+              '          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n'
+              '          mkdir -p "$RUNNER_TEMP/bank"\n'
+              '          python3 tv/heart2.py --import-shards shards/*/.heart2_cache.json\n'
+              '          python3 tv/heart2.py --export-proved "$RUNNER_TEMP/out"\n'
+              '          python3 tv/proof_bank.py --publish "$RUNNER_TEMP/out/.heart2_cache.json" --head "$GITHUB_SHA"'
+              ' --class linux'),
+    "windows": ('name: Import the set, export what this tree keys, publish it\n'
+                '        run: |\n'
+                '          set -euo pipefail\n'
+                '          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n'
+                '          mkdir -p "$RUNNER_TEMP/bank"\n'
+                '          python tv/heart2.py --import-shards shards/*/.heart2_cache.json\n'
+                '          python tv/heart2.py --export-proved "$RUNNER_TEMP/out"\n'
+                '          python tv/proof_bank.py --publish "$RUNNER_TEMP/out/.heart2_cache.json" --head "$GITHUB_SHA"'
+                ' --class windows'),
+}
+WIN_FAN_IN_STEP = ('name: Every shard finished, on this commit, on one plan\n'
+                   '        run: python tv/proof_shard.py --fan-in shards --shards "$WIN_PROOF_SHARDS" --head "$GITHUB_SHA"')
+TOP_KEYS = ("name", "on", "permissions", "concurrency", "env", "jobs")
+JOBS = {"proof-keys-shards.yml": ["shard", "fan-in", "bank"], "proof-bank-windows.yml": ["win-shard", "win-bank"]}
+
+
+def shape_errors(text):
+    """What a plain line reader cannot vouch for, so it is refused outright: a top-level key that is not one bare
+    known key exactly once (`!!str on`, `? on`, `"\u006fn"`, a second `jobs:`), a job key that is not bare at indent 2
+    (`? extra-win`), a job-level key that is not bare at indent 4 (`"\u0069f"`, an escaped continue-on-error, a
+    duplicate), and a job-level `if:` continued on the next line (`|| true` makes GitHub's if always true). -> [str]"""
+    errs, top, lines = [], [], text.splitlines()
+    in_jobs, job_keys = False, None
+    for n, raw in enumerate(lines):
+        l = _uncomment(raw)
+        if not l.strip():
+            continue
+        lead = len(l) - len(l.lstrip(" "))
+        if lead == 0:
+            m = re.match(r"^([a-z]+):(?: .*)?$", l)
+            if not m or m.group(1) not in TOP_KEYS:
+                errs.append("top-level line %r" % l)
+                continue
+            top.append(m.group(1))
+            in_jobs = m.group(1) == "jobs"
+            continue
+        if not in_jobs:
+            continue
+        if lead == 2:
+            if not re.match(r"^  [a-z][a-z-]*:$", l):
+                errs.append("job key %r" % l)
+            job_keys = []
+            continue
+        if lead == 4:
+            m = re.match(r"^    ([a-z][a-z-]*):(?: .*)?$", l)
+            if not m:
+                errs.append("job-level line %r" % l)
+                continue
+            if job_keys is not None and m.group(1) in job_keys:
+                errs.append("duplicate job key %r" % l)
+            if job_keys is not None:
+                job_keys.append(m.group(1))
+            if m.group(1) == "if":
+                nxt = [x for x in (_uncomment(y) for y in lines[n + 1:]) if x.strip()][:1]
+                if nxt and len(nxt[0]) - len(nxt[0].lstrip(" ")) > 4:
+                    errs.append("a job if continued on the next line %r" % nxt[0])
+        elif lead in (1, 3):
+            errs.append("odd indent %r" % l)
+    for k in TOP_KEYS:
+        if top.count(k) > 1:
+            errs.append("top-level %s: %d times" % (k, top.count(k)))
+    return errs
 
 
 def _publish_steps(job):
@@ -303,11 +409,9 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
         self.assertIn("proof_bank.py --publish", last,
                       "%s: something runs after the publish, and its exit code is the step's" % label)
         self.assertNotRegex(run, r"\|\|\s*(exit 0|:)", "%s: the publish step shrugs off a failure" % label)
-        body = run.split("run: |", 1)[-1]
-        self.assertNotRegex(body.split("proof_bank.py --publish", 1)[0], r"(?m)(^|[;&|]|\bthen|\bdo)\s*(exit|exec|return|kill)\b",
-                            "%s: the shell can leave before the publish line ever runs" % label)
-        self.assertNotRegex(run.split("run: |", 1)[0], r"(?m)^\s*(\"if\"|'if'|if)\s*:",
-                            "%s: a step-level if (in any quoting) can skip the publish" % label)
+        self.assertEqual(run.strip(), PUBLISH_STEP[cls],
+                         "%s: the publish step is not the pinned bytes - an added line, key or prefix can skip or "
+                         "shrug the publish (exit before it, `true ||`, a step if in any spelling)" % label)
         fan = [s for s in _publish_steps(job) if "--fan-in" in s]
         for s in fan:
             self.assertNotIn("|| true", s, "%s: a refused fan-in would still publish" % label)
@@ -359,6 +463,8 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
         self.assertIn("needs: [win-shard]", job)
         self.assertIn("runs-on: windows-latest", job, "a Windows bank keyed on another class never meets a PC's key")
         self.assertTrue(any("--fan-in" in s for s in _publish_steps(job)), "the Windows bank skips the fan-in")
+        self.assertEqual([s.strip() for s in _publish_steps(job) if "--fan-in" in s], [WIN_FAN_IN_STEP],
+                         "the Windows fan-in step is not the pinned bytes")
         self.assertLess(job.index("--fan-in"), job.index("proof_bank.py --publish"))
         self.assertIn("\npermissions:\n  contents: read\n", text)
 
@@ -386,6 +492,10 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
             for j in wins:
                 self.assertIn(job_if(text, j), allowed, "%s runs on Windows without the ci/proof-keys-* guard" % j)
         self.assertEqual(sorted(windows_jobs(win)), ["win-bank", "win-shard"], "BASELINE: the Windows jobs")
+        for path in (LINUX_WF, WIN_WF):
+            text, base = _read(path), os.path.basename(path)
+            self.assertEqual(shape_errors(text), [], "%s holds a line the law cannot read" % base)
+            self.assertEqual(job_names(text), JOBS[base], "%s: the job list changed - re-anchor this law" % base)
 
     def test_the_windows_producer_is_off_until_the_owner_turns_it_on(self):
         # owner ruling 2026-10-24: Linux bank only (Windows minutes cost 2x). Only a manual dispatch may start it.
@@ -415,6 +525,16 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
         jt = "jobs:\n  a:\n    runs-on: ubuntu-latest\n  b:\n    runs-on: windows-2022\n  'c':\n    runs-on: ${{ matrix.os }}\n" \
              "  d:\n    runs-on:\n      - self-hosted\n"
         self.assertEqual(windows_jobs(jt), ["b", "c", "d"])
+        jt2 = "jobs:\n  a:\n    runs-on: ubuntu-24.04-arm\n"
+        self.assertEqual(windows_jobs(jt2), [])
+        good = "name: x\non:\n  workflow_dispatch:\njobs:\n  a:\n    if: ${{ x }}\n    runs-on: ubuntu-latest\n"
+        self.assertEqual(shape_errors(good), [])
+        for bad in (good + "!!str on:\n  push:\n", good + "? on\n:\n  push:\n", good + '"\\u006fn": push\n',
+                    good + "jobs:\n  b:\n", good.replace("  a:\n", "  ? extra\n  :\n    runs-on: windows-latest\n  a:\n"),
+                    good.replace("    if: ${{ x }}\n", "    if: ${{ x }}\n      || true\n"),
+                    good + '    "\\u0069f": true\n', good + "    runs-on: windows-latest\n",
+                    good + '    "continue-on-\\u0065rror": true\n'):
+            self.assertTrue(shape_errors(bad), bad)
 
     def test_the_docs_say_linux_bank_only(self):
         for doc, label in ((PB.__doc__, "proof_bank.py"), (__doc__, "this law")):
