@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3794",
+  "ver": "v3795",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3794: merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom",
+  "note": "v3795: a Mac push imports proofs banked on the same kind of machine instead of re-proving them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
