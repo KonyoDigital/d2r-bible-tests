@@ -8391,6 +8391,23 @@ GATES = [
              "run_gates scrubs TV_LAW_WIDTHS and CI never sets it, so the full sweep stays the verdict of record. "
              "Fixtures only - no browser.",
          skip_ok=()),
+    Gate("test_a_one_line_css_edit_reproves_only_its_readers",
+         [sys.executable, os.path.join(HERE, "test_a_one_line_css_edit_reproves_only_its_readers.py")], 120,
+         needs_app=False,
+         why="#42 P3-fine (REG-2642) - his words 2026-10-25: 'make sure it really do reuse... i dont want this happening "
+             "again and again'. The REAL push path over ten fixture laws: a one-line CSS edit to control_ui.html must "
+             "re-prove only the two that read it (<= 30% re-proved; measured 203/204 reused back-to-back on the box), "
+             "so keying every named file by bytes again fails here, not on the next Mac pre-prove."),
+    Gate("test_a_named_file_the_law_never_opened_is_keyed_by_name",
+         [sys.executable, os.path.join(HERE, "test_a_named_file_the_law_never_opened_is_keyed_by_name.py")], 180,
+         needs_app=False,
+         why="#42 P3-fine (REG-2640) - his words 2026-10-24: 'FIX IT this is a waste of time again'. MEASURED on v3796 "
+             "r6: 8 lines of CSS in control_ui.html moved the P3 key of 5,012 of 6,327 proofs; 3,474 carried the file "
+             "only because a module in their closure spells its name. heart2 traces each push-time law run (an audit "
+             "hook on PYTHONPATH, python children included, hello-counted) and keys a named data file no complete run "
+             "opened or stat'd by its NAME; any child it cannot see (git, node, a shell, ctypes) drops nothing. "
+             "Fixtures only - no browser.",
+         skip_ok=()),
     Gate("test_a_proven_verdict_is_reused_only_on_identical_bytes",
          [sys.executable, os.path.join(HERE, "test_a_proven_verdict_is_reused_only_on_identical_bytes.py")], 180,
          needs_app=False,
