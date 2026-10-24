@@ -55,32 +55,18 @@ const PRIVATE = [
   /data:image\//,
 ];
 
-// every text a store holds as the console wrote it: JSON is decoded (so an escaped \/Users\/ or \u0067hp_ is
-// read as itself) and each key and string is checked; a store that is not JSON is its own text
-export function textsOf(raw) {
-  let v;
-  try { v = JSON.parse(raw); } catch (e) { return [raw]; }
-  const out = [];
-  const walk = (x) => {
-    if (typeof x === "string") out.push(x);
-    else if (Array.isArray(x)) x.forEach(walk);
-    else if (x && typeof x === "object") for (const k of Object.keys(x)) { out.push(k); walk(x[k]); }
-  };
-  walk(v);
-  return out;
-}
-
 export function privateIn(raw) {
-  // the raw text too: JSON.parse keeps the last of two equal keys, so the first one is read only here
+  // the raw text as sent: a store that is not JSON, or a path or token written plainly
   if (PRIVATE.some((rx) => rx.test(raw))) return true;
-  // and every string literal in the raw text decoded on its own, so an escaped value under a dropped key is read too
+  // every JSON string literal (keys too) decoded on its own: an escaped \/Users\/ or \u0067hp_ is read as itself,
+  // including a value under a repeated key that JSON.parse would drop
   const lits = raw.match(/"(?:[^"\\]|\\.)*"/g) || [];
   for (const lit of lits) {
     let t;
     try { t = JSON.parse(lit); } catch (e) { continue; }
     if (PRIVATE.some((rx) => rx.test(t))) return true;
   }
-  return textsOf(raw).some((t) => PRIVATE.some((rx) => rx.test(t)));
+  return false;
 }
 
 export function worldOk(text) {

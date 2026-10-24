@@ -463,6 +463,8 @@ class TheWorker(unittest.TestCase):
                dict(_wstores(), d2r_notes=json.dumps({"img": "data:image/png;x"})),
                # JSON.parse keeps the last of two equal keys: the first is only in the raw text
                dict(_wstores(), d2r_notes='{"p":"/Users/someone/x","p":"ok"}'),
+               # a store that is not JSON is its own text
+               dict(_wstores(), d2r_notes='note: /Users/someone/x'),
                # ...and escaped under the dropped key, which neither the raw text nor the parse shows
                dict(_wstores(), d2r_notes='{"p":"\\/Users\\/someone\\/x","p":"ok"}'),
                dict(_wstores(), d2r_notes='{"t":"\\u0067hp_' + "A" * 30 + '","t":"ok"}')]
@@ -891,18 +893,14 @@ class TheShadowFrameBoot(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "Shadow: the worker reads a store's raw JSON, so an escaped path or token is stored",
-     "file": "functions/api/snapshot.js",
-     "find": "  try { v = JSON.parse(raw); } catch (e) { return [raw]; }\n",
-     "replace": "  return [raw];\n", "matches": 1, "needs": "node"},
-    {"why": "Shadow: the worker reads only the decoded store, so a shadowed duplicate key carries a path out",
-     "file": "functions/api/snapshot.js",
-     "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
-     "replace": "", "matches": 1, "needs": "node"},
-    {"why": "Shadow: an escaped path under a dropped duplicate key is stored (raw literals not decoded)",
+    {"why": "Shadow: the worker does not decode each string literal, so an escaped path or token (even under a dropped duplicate key) is stored",
      "file": "functions/api/snapshot.js",
      "find": "    if (PRIVATE.some((rx) => rx.test(t))) return true;\n  }\n",
      "replace": "  }\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker skips the raw text, so a store that is not JSON carries a path out",
+     "file": "functions/api/snapshot.js",
+     "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
+     "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a board install id the console blanks",
      "file": "functions/api/snapshot.js",
      "find": "  /\\bI?L?·[0-9a-f]{8}·/,\n",
