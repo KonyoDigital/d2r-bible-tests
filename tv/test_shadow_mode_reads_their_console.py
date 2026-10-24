@@ -454,7 +454,13 @@ class TheWorker(unittest.TestCase):
                dict(_wstores(), d2r_api_world=json.dumps(dict(WORLD, machine="linux"))),
                dict(_wstores(), d2r_api_chars_learned='{"ok":true,"status":{"tick":1}}'),
                dict(_wstores(), d2r_notes=json.dumps({"p": "/Users/someone/x"})),
-               dict(_wstores(), d2r_notes=json.dumps({"t": "ghp_" + "A" * 30}))]
+               dict(_wstores(), d2r_notes=json.dumps({"t": "ghp_" + "A" * 30})),
+               # what JSON escaping hides from a raw-text check, and the two ids the console blanks besides
+               dict(_wstores(), d2r_notes='{"p":"\\/Users\\/someone\\/x"}'),
+               dict(_wstores(), d2r_notes='{"t":"\\u0067hp_' + "A" * 30 + '"}'),
+               dict(_wstores(), d2r_notes=json.dumps({"I·abcd1234·x": 1})),
+               dict(_wstores(), d2r_notes=json.dumps(["L·0badf00d·"])),
+               dict(_wstores(), d2r_notes=json.dumps({"img": "data:image/png;x"}))]
         out = _node({"steps": [self._post(self._body(stores=c), self.key_a, seed=self.seed, now=T0) for c in bad]})
         for c, got in zip(bad, out["steps"]):
             self.assertFalse(got["reply"]["ok"], "the worker stored an uncleaned or worldless body: %r" % got["reply"])
@@ -770,7 +776,7 @@ function run(parentSnap, search) {
   res.typing = key('a', { target: { tagName: 'INPUT' } });
   res.keys = { Delete: key('Delete'), z: key('z', { ctrlKey: true }), Enter: key('Enter'), ArrowDown: key('ArrowDown'),
                PageDown: key('PageDown'), Escape: key('Escape'), copy: key('c', { metaKey: true }), Tab: key('Tab') };
-  res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'pointerdown', 'keypress', 'keyup'].filter((t) => (listeners[t] || []).length);
+  res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu', 'pointerdown', 'keypress', 'keyup'].filter((t) => (listeners[t] || []).length);
   // the viewer's console is out of reach by name, and the real storage cannot be put back
   res.parentSealed = w.parent === w && w.frameElement === null;
   res.reopen = [];
@@ -780,6 +786,11 @@ function run(parentSnap, search) {
   // THEIR WORLD: a Windows cousin on ladder with its own ledger, drawn by a Mac viewer
   const bare = Object.assign({}, CFG.snap.stores); delete bare.d2r_api_world;
   const before = run(Object.assign({}, CFG.snap, { stores: bare }), '?tvd-shadow=1').threw;
+  const full = { machine: 'windows', profile: 'ladder', os: 'WINDOWS', ledger: 'Dean ledger', cousin: true };
+  res.partial = [{ machine: 'windows' }, {}, Object.assign({}, full, { cousin: 1 }), Object.assign({}, full, { os: 'BeOS' }),
+                 Object.assign({}, full, { ledger: null })].map((pw) =>
+    run(Object.assign({}, CFG.snap, { stores: Object.assign({}, CFG.snap.stores, { d2r_api_world: JSON.stringify(pw) }) }),
+        '?tvd-shadow=1').threw);
   const theirs = Object.assign({}, CFG.snap.stores, { d2r_api_world: JSON.stringify(
     { machine: 'windows', profile: 'ladder', os: 'WINDOWS', ledger: 'Dean ledger', cousin: true }) });
   const t = run(Object.assign({}, CFG.snap, { stores: theirs }), '?tvd-shadow=1').win;
@@ -850,7 +861,7 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
         self.assertTrue(self.r["typing"])
         self.assertEqual(sorted(self.r["blocks"]),
-                         sorted(["change", "input", "submit", "drop", "paste", "dragstart", "pointerdown",
+                         sorted(["change", "input", "submit", "drop", "paste", "dragstart", "contextmenu", "pointerdown",
                                  "keypress", "keyup"]))
 
     def test_keys_move_the_view_and_nothing_else(self):
@@ -871,12 +882,29 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertEqual((w["stored"], w["source"], w["ptr"]), ("windows", "user", "ladder"))
         self.assertTrue(w["ladderCopy"], "a ladder owner's stores are not where the ladder board reads them")
         self.assertEqual(w["noWorld"], "tvd-shadow: closed", "a snapshot with no world opened in the viewer's world")
+        self.assertEqual(self.r["partial"], ["tvd-shadow: closed"] * 5, "a half world opened, drawn half theirs half ours")
 
 
 RED_PROOF = [
+    {"why": "Shadow: the worker reads a store's raw JSON, so an escaped path or token is stored",
+     "file": "functions/api/snapshot.js",
+     "find": "  try { v = JSON.parse(raw); } catch (e) { return [raw]; }\n",
+     "replace": "  return [raw];\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the worker stores a board install id the console blanks",
+     "file": "functions/api/snapshot.js",
+     "find": "  /\\bI?L?·[0-9a-f]{8}·/,\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: the frame opens on a world with one fact wrong or missing",
+     "file": "bible.html",
+     "find": "        typeof world.ledger === 'string' && typeof world.cousin === 'boolean')) world = null;\n",
+     "replace": "        true)) world = world;\n", "matches": 1, "needs": "node"},
+    {"why": "Shadow: a right-click reaches the board (a mule item's context unlock)",
+     "file": "bible.html",
+     "find": "    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu'].forEach(",
+     "replace": "    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart'].forEach(", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a signed body that still carries a path or a token",
      "file": "functions/api/snapshot.js",
-     "find": "    if (PRIVATE.some((rx) => rx.test(stores[k]))) return refuse(",
+     "find": "    if (privateIn(stores[k])) return refuse(",
      "replace": "    if (false) return refuse(", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a snapshot that does not say which world it was drawn in",
      "file": "functions/api/snapshot.js",

@@ -51,7 +51,28 @@ const PRIVATE = [
   /(?<![0-9a-fA-F])[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![0-9a-fA-F])/,
   /\b(?:ghp_|gho_|ghs_|github_pat_|xox[abposr]-|sk-)[A-Za-z0-9_\-]{16,}/,
   /\b[A-Za-z0-9][A-Za-z0-9\-]{0,62}\.local\b/,
+  /\bI?L?·[0-9a-f]{8}·/,
+  /data:image\//,
 ];
+
+// every text a store holds as the console wrote it: JSON is decoded (so an escaped \/Users\/ or \u0067hp_ is
+// read as itself) and each key and string is checked; a store that is not JSON is its own text
+export function textsOf(raw) {
+  let v;
+  try { v = JSON.parse(raw); } catch (e) { return [raw]; }
+  const out = [];
+  const walk = (x) => {
+    if (typeof x === "string") out.push(x);
+    else if (Array.isArray(x)) x.forEach(walk);
+    else if (x && typeof x === "object") for (const k of Object.keys(x)) { out.push(k); walk(x[k]); }
+  };
+  walk(v);
+  return out;
+}
+
+export function privateIn(raw) {
+  return textsOf(raw).some((t) => PRIVATE.some((rx) => rx.test(t)));
+}
 
 export function worldOk(text) {
   let w;
@@ -153,7 +174,7 @@ export async function onRequestPost(context) {
   const low = JSON.stringify(stores).toLowerCase();
   if (low.indexOf("data:image") !== -1 || low.indexOf("base64,") !== -1) return refuse("pictures stay on that PC");
   for (const k of Object.keys(stores)) {
-    if (PRIVATE.some((rx) => rx.test(stores[k]))) return refuse(k + " carries a path, an install id or a token");
+    if (privateIn(stores[k])) return refuse(k + " carries a path, an install id or a token");
     if (k.startsWith("d2r_api_") && !apiOk(k.slice(8), stores[k])) return refuse(k + " is not the console answer it names");
   }
   if (typeof stores.d2r_api_world !== "string") return refuse("the world these stores were drawn in is missing");
