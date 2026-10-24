@@ -2828,7 +2828,7 @@
       "main"
     ],
     "gotcha": "Publishes one commit's export to origin/proof-bank as <sha>.<class>.json, where self_prove.fetch_bank reads it (REG-2632/2633). Every refusal is exit 1, never a skip: the class must be this runner's heart2.PLATFORM_CLASS (a Linux runner can never publish a .windows bank), the manifest head this commit and not dirty, at least one entry, no machine path. It pushes from a scratch repo, rebases over a racing producer, and reads the file back from origin before it says published.",
-    "purpose": "The proof-bank publisher the Linux and Windows census jobs call.",
+    "purpose": "The proof-bank publisher the Linux census bank job calls (the Windows census that would call it with --class windows is kept off by owner ruling).",
     "territory": "heart-organs"
   },
   "proof_keys_mac.py": {

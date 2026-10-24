@@ -14,10 +14,16 @@ PC imported nothing and a Windows PC could never meet a Linux key anyway (the cl
 FIX: tv/proof_bank.py --check/--publish (refuses loud, exit 1: missing, empty, other commit, dirty, other class, a
 machine path, a refused push, an unreachable remote; reads the file back from origin before it says published; keeps
 the newest 60 banks). proof-keys-shards.yml gains job `bank` (needs a whole fan-in; imports the set, exports, publishes
-`<sha>.linux.json`). New proof-bank-windows.yml proves the same 16-shard plan on windows-latest with core.autocrlf=true
-asserted before checkout, fans in, and publishes `<sha>.windows.json`. Both run only on ci/proof-keys-*.
+`<sha>.linux.json`), only on ci/proof-keys-* refs. proof-bank-windows.yml (the same 16-shard plan on windows-latest,
+core.autocrlf=true and CRLF on disk enforced by proof_bank itself, publishing `<sha>.windows.json`) is KEPT BUT OFF:
+owner ruling 2026-10-24, Linux bank only (Windows minutes bill 2x). Its only trigger is workflow_dispatch, and even a
+dispatch starts no runner and publishes nothing unless the ref is ci/proof-keys-*. Turning it on means restoring its
+push trigger AND flipping the law's off-switch test. Until then a Windows PC (Dean's, the ALT) gets no bank and proves
+locally as before.
 
-GUARD: tv/test_a_proof_bank_is_published_or_the_run_is_red.py (registered; 16 cases, 24 RED proofs, heart2 24/24 PROVEN). Owner ruling 2026-10-24: Linux bank only; proof-bank-windows.yml is kept but manual-dispatch only, and the law holds it off.
+GUARD: tv/test_a_proof_bank_is_published_or_the_run_is_red.py (registered; 17 cases, 28 RED proofs, heart2 28/28
+PROVEN). It reads each workflow's triggers the way YAML reads keys (no yaml import), holds every job guard to its exact
+text, and allows no step-level if on the fan-in or publish.
 
 ### REG-2632 - A PROOF FROM ONE PLATFORM WAS SERVED ON ANOTHER, AND THE ALT COULD NEVER PROVE (heart2 keyer + self_prove, GB-box, 2026-10-24)
 The verdict cache's key had no platform in it, so a PROVEN banked on the Linux box or census (REG-2586/2630) was served on

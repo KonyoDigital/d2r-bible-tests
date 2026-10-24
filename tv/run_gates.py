@@ -11864,8 +11864,8 @@ GATES = [
     Gate("test_a_proof_bank_is_published_or_the_run_is_red",
          [sys.executable, os.path.join(HERE, "test_a_proof_bank_is_published_or_the_run_is_red.py")], 120,
          needs_app=False,
-         why="REG-2633 - each commit's proof bank is published to proof-bank by the Linux census (bank job) and the "
-             "Windows census (win-bank, autocrlf=true as on the PCs) or that job is red: no publish step may shrug; "
+         why="REG-2633 - each commit's proof bank is published to proof-bank by the Linux census (bank job) or that "
+             "job is red, and the Windows census stays off (dispatch only, ci/proof-keys-* refs only): no publish step may shrug; "
              "a missing, empty, other-commit, dirty, other-class or machine-path export, a refused push or an "
              "unreachable remote is exit 1; the bank reads back where self_prove fetches it; old banks are pruned"),
     Gate("test_a_proof_counts_only_on_its_own_platform_class",
