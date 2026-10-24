@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """REG-2633 - PUBLISH ONE COMMIT'S PROOF BANK TO origin/proof-bank, OR FAIL THE RUN. NEVER A QUIET NOTHING.
 
-The PCs (Dean's, the ALT) read `origin/proof-bank:<HEAD>.<class>.json` (self_prove.fetch_bank, REG-2632). Two CI
-producers write it: the Linux census fan-in (proof-keys-shards.yml, job `bank`) writes `<sha>.linux.json`, and the
-Windows census (proof-bank-windows.yml) writes `<sha>.windows.json` - a Windows PC keys raw CRLF bytes under the
-"windows" class, so only a bank proved on Windows can ever serve it.
+The PCs (Dean's, the ALT) read `origin/proof-bank:<HEAD>.<class>.json` (self_prove.fetch_bank, REG-2632). Linux bank only
+(owner ruling 2026-10-24): the one live producer is the Linux census fan-in (proof-keys-shards.yml, job `bank`), which
+writes `<sha>.linux.json`. The Windows census (proof-bank-windows.yml, `<sha>.windows.json`) is kept but OFF - manual
+dispatch only, from a ci/proof-keys-* ref. A Windows PC keys raw CRLF bytes under the "windows" class, so until it is
+turned on a Windows PC proves for itself; the .windows checks below stay for that day.
 
   python3 tv/proof_bank.py --check FILE --head SHA --class CLS
       the export `heart2 --export-proved` wrote is readable, is THIS commit's (manifest head == SHA, not dirty), holds
