@@ -776,6 +776,7 @@ function run(parentSnap, search) {
     for (const f of listeners.click || []) f(ev); return stopped; };
   res.veil = { del: fire(mk("_cbDelete('bx1')")), set: fire(mk('_cbMainSet(1)')), open: fire(mk("openCharBuilder('bx1')")),
                mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')),
+               tasks: fire(mk("window.vaultTasksTog()")), adv: fire(mk("window.vaultAdvTab('ledger')")),
                inSummary: fire(mk("_cbDelete('bx1')", null, true)) };
   const key = (k, extra) => { const ev = Object.assign({ key: k, target: { tagName: 'DIV' }, preventDefault() {},
     stopImmediatePropagation() { this.stopped = true; } }, extra || {}); for (const f of listeners.keydown || []) f(ev);
@@ -865,6 +866,8 @@ class TheShadowFrameBoot(unittest.TestCase):
         v = self.r["veil"]
         self.assertTrue(v["del"] and v["set"], "a write button reached the page in shadow")
         self.assertFalse(v["open"] or v["mule"] or v["tab"], "a view control was stopped: %r" % v)
+        # the vault's MOVE TASKS overlay and its ADVANCED panes open, as on his own console
+        self.assertFalse(v["tasks"] or v["adv"], "a vault view toggle was stopped: %r" % v)
         self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
         self.assertTrue(self.r["typing"])
         self.assertEqual(sorted(self.r["blocks"]),
@@ -901,6 +904,10 @@ RED_PROOF = [
      "file": "functions/api/snapshot.js",
      "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
      "replace": "", "matches": 1, "needs": "node"},
+    {"why": "Shadow: MOVE TASKS and the ADVANCED panes stay shut in the vault",
+     "file": "bible.html",
+     "find": "                'vaultTasksTog', 'vaultAdvTab'];\n",
+     "replace": "                ];\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a board install id the console blanks",
      "file": "functions/api/snapshot.js",
      "find": "  /\\bI?L?·[0-9a-f]{8}·/,\n",
