@@ -13254,8 +13254,8 @@ function d2jspPriceLine(q) {
       <div class="vault-find-row"><!-- L1 (Elad 2026-10-20): ADD AN ITEM and FIND ON A MULE share one compact row -->
       <div class="vault-find vault-planner-find">
         <span class="vault-find-k">Add an item</span>
-        <input id="vault-planner-q" class="vault-find-input" aria-label="add an item from the planner" type="search" autocomplete="off" spellcheck="false" placeholder="Search the planner. Choose the base and the rolls. A pick files into its locker." onfocus="window.vaultPlannerOpen(this.value)" oninput="window.vaultPlannerOpen(this.value)">
-        <button class="vault-find-x" type="button" title="close the planner" onclick="window.vaultPlannerClose&&window.vaultPlannerClose()">✕</button>
+        <input id="vault-planner-q" class="vault-find-input" aria-label="add an item from the planner" type="search" autocomplete="off" spellcheck="false" placeholder="Search the planner — pick base &amp; rolls" title="Search the planner. Choose the base and the rolls. A pick files into its locker." onfocus="window.vaultPlannerOpen(this.value)" oninput="window.vaultPlannerOpen(this.value)">
+        <!-- Vault v3 B3 (Elad t642u) — the ✕ that sat here was dead: the bar never holds text (typing moves into the planner's own box), and while the planner is open its overlay covers this ✕. The planner closes from its own ✕, Done or Esc. -->
       </div>
       <div class="vault-find vault-find-mule">
         <span class="vault-find-k">Find on a mule</span>
@@ -40845,6 +40845,7 @@ body{
 .vcar-stale{border-color:rgba(240,192,96,.7);border-style:dashed}
 .vcar-stale .vcar-seen{color:var(--gold-bright,#f0c060)}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
+#mule-vault-card [hidden]{display:none}/* Vault v3 B1 — an author display rule (.vault-dock-bar{display:flex}) beat [hidden]: an empty bar showed under the add row */
 .vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px;padding:8px 10px;border:1px solid rgba(212,168,71,.4);border-radius:12px;background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
 /* v3250 — the sorter's own verdict for what is left in the dock. A class nobody styles is a flag
    nobody can see, and this page has shipped that twice (sh-chip-st, sh-chip-stunk). Quiet on
@@ -45921,10 +45922,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _vhSeen = {};
     host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item you have, from the planner list. It is yours at once. A name the router already knows is homed on its mule; a name with no home waits in Unsorted, and you choose that mule.</p>'
       + '<button type="button" onclick="window.vaultHandClose()">Close</button></div>'
-      + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" oninput="window.vaultHandSearch(this.value)">'
+      + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" placeholder="Type a name — Enter adds the top match" autocomplete="off" spellcheck="false" oninput="window.vaultHandSearch(this.value)" onkeydown="window._vaultHandKey(event)">'
       + '<p id="vault-hand-say" class="vault-hand-say" role="status"></p>'
       + '<div id="vault-hand-list"></div></div>';
-    return window.vaultHandSearch('');
+    /* Vault v3 B2 (Elad t642u) — one add door at a time, and the box takes the keys the moment it opens */
+    try { if (window._vaultPlannerOn && window.vaultPlannerClose) window.vaultPlannerClose(); } catch (eP) {}
+    var _vhRes = window.vaultHandSearch('');
+    try { var _vhQ = document.getElementById('vault-hand-q'); if (_vhQ) _vhQ.focus({ preventScroll: true }); } catch (eF) {}
+    return _vhRes;
+  };
+  /* Vault v3 B2 — Enter took nothing (only a click on a row added) and Esc left the box open */
+  window._vaultHandKey = function(e){
+    if (!e) return;
+    if (e.key === 'Escape'){ if (e.preventDefault) e.preventDefault(); window.vaultHandClose(); return; }
+    if (e.key !== 'Enter') return;
+    if (e.preventDefault) e.preventDefault();
+    var first = document.querySelector('#vault-hand-list .vault-hand-opt');
+    if (!first){
+      var say = document.getElementById('vault-hand-say');
+      if (say){ say.textContent = 'nothing in the planner list matches — nothing was added'; say.setAttribute('data-state', 'refused'); }
+      return { ok: false, refused: 'no-match' };
+    }
+    return window.vaultHandTake(first.getAttribute('data-id'));
   };
   window.vaultHandSearch = function(q){
     var list = document.getElementById('vault-hand-list');
@@ -70677,6 +70696,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       return { ok: false, refused: 'refused', why: whyR };
     }
     window._vaultPlannerOn = true;
+    try { var _vhw = document.getElementById('vault-hand-win'); if (_vhw && !_vhw.hidden && window.vaultHandClose) window.vaultHandClose(); } catch (eH) {} /* Vault v3 B2 — one add door at a time */
     if (q && typeof window._cbPickSearch === 'function') window._cbPickSearch(q);
     window.vaultPlannerPaint();
     var box0 = document.getElementById('cb-pick-q');
