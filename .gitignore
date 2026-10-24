@@ -34,6 +34,9 @@ tv/control_capture.pid
 tv/sessions.*.jsonl
 tv/*.log
 tv/.tvd_supervisor_pause
+tv/.tvd_exited_on_purpose
+tv/.tvd_keepalive.json
+tv/.tvd_keepalive.json.tmp
 tv/.tvd_window.pid
 tv/board_window.pid
 
@@ -332,6 +335,7 @@ tv/.*.scratch-*
 tv/his_answers.json
 # REG-1660 - the record of the sign-in entry THIS PC's console made for itself, per machine like every decision
 tv/.sign_in_start.json
+tv/.keepalive_task.json*
 
 
 # v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and

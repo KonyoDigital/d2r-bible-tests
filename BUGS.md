@@ -226,6 +226,262 @@ HEART2_CACHE_PATH file of its own, writes a manifest (k, n, HEAD, dirty, plan di
 Gates are summed in name order, so the names' order cannot move a chunk boundary (second eye). Refused (exit 2)
 without --push, without HEART2_CACHE_PATH, with the cache off, or into an existing file. Law
 test_a_proof_shard_covers_every_proof_once, RED_PROOF "REG-2585".
+### REG-2613 - THE BACKGROUND PROVER RAN OUTSIDE child_guard: A CLOSED CONSOLE LEFT IT RUNNING - board #34
+
+self_prove.spawn started `heart2.py --prove` with a bare Popen. On Windows nothing tied it to the console, so a console
+that closed or crashed left the prover, and every gate process under it, running beside his game. It now goes through
+child_guard's one door as role "prover" (scope checkout, 0..1). Windows: a Job Object with KILL_ON_JOB_CLOSE, with its
+below-normal, no-window flags unchanged. POSIX: its own session, under nice. The door ends a previous prover of this
+checkout first, and the watchdog ends an orphan whose console is gone. The watchdog knows a self-prover only by the
+`-X tvd_self_prove` marker in its argv (a free-form CPython -X option; heart2 is unchanged), never by bare
+`heart2.py --prove`, so a pre-push or hand-run prover is never ended. The store records the console that started a
+prover (startedBy); a prover that ended because its console ended is booked a stand-aside, not a failure with the 3 h
+backoff. A law's recording popen never enters the real door's ledger. child_guard is imported at spawn time only, so the
+pre-push gate loads nothing new. Measured: spawn() median 0.6-0.9 ms before, 0.9-1.3 ms after; hooks/ reference
+neither module. Scope: Dean's PC and the ALT (the Windows sync check). Law:
+tv/test_the_prover_is_owned_by_its_console.py (12 cases, 8 red-proofs; Windows command lines with spaces, the real door
+under a faked kernel32). Lands after or alongside claude/m4-perpc/c, which also edits tv/self_prove.py.
+
+### REG-2616 - THE KEEPALIVE COULD NOT BRING A CONSOLE BACK AFTER A REBOOT WITH NOBODY SIGNED IN - 2026-10-23 (his ruling on REG-2614)
+
+REG-2614's task runs as the signed-in user (InteractiveToken), so a PC that rebooted to the sign-in screen - the ALT
+after an update - still had no console until someone signed in. His 2026-10-23 ruling: the console must come back
+then too. An OPTIONAL install, the default unchanged: `console_keepalive.py --install-unattended USER` re-registers
+the same task as USER with LogonType Password through Register-ScheduledTask. The password is read from an
+environment variable (default TVD_KEEPALIVE_PASSWORD) and handed to the one PowerShell child in its own environment
+(TVD_KA_PW; the caller's variable is not passed on; review r3: stdin under -Command never reached it), and is never
+in argv, the task XML, the repo, a log or an answer (Windows' refusal text, CLIXML unescaped, has it replaced by
+***). Made = the task's own XML says LogonType Password. A console pass finds the owner's task 'already' there and
+never removes a task whose LogonType is not InteractiveToken, even one it first made (review r3). Law: tv/test_a_dead_windows_console_comes_back_by_itself.py
+(class Unattended, 7 red-proofs). Note: a console started with nobody signed in runs in the background session -
+its server and sync run, no window shows until it is restarted from a signed-in session.
+
+Round 3 of REG-2614 (review r2): schtasks output is read as bytes (UTF-16 with or without BOM, UTF-8, else the locale
+page with bad bytes replaced) and parsed inside the try - text=True on a Hebrew Windows raised and the task was never
+made; the 90 s pass deadline is driven by the law in a child process.
+
+### REG-2614 - A WINDOWS CONSOLE THAT DIED STAYED DEAD UNTIL THE NEXT SIGN-IN - 2026-10-23 (Windows console watchdog)
+
+2026-10-16: the ALT's console died with no error and nothing relaunched it until someone signed in to Windows, so it
+missed 302 commits. The sign-in start (REG-1660) runs once, at sign-in; nothing watched a console that died after.
+Fix: tv/console_keepalive.py, run every 5 minutes by a per-user scheduled task "TV DIABLO keepalive" (pythonw,
+hidden, InteractiveToken - no stored password, no administrator - on battery too, IgnoreNew, 2-minute limit,
+registered from XML so a long path with spaces fits). A pass connects to :17772 only: REFUSED is gone and starts
+start_tvd_win.ps1 -Background hidden and windowless; up, slow (a timed-out connect) and unknown are left alone. A
+console closed on purpose (control_app's one exit surface writes tv/.tvd_exited_on_purpose, the next boot clears it,
+primary Windows console only) or a stood-down supervisor (.tvd_supervisor_pause) is never relaunched; one launch per
+10 minutes, booked before it is tried; a torn memory file is said and rewritten. The console makes the task beside its
+sign-in start (console_doctor.ensure_keepalive_task) on the SAME consent: never made after a removal, withdrawn with
+a removed or refused sign-in start (only if this console made it), nothing done on UNKNOWN.
+LIMIT: "without a sign-in" means without a NEW sign-in - the task runs in the signed-in (also locked) session. A PC
+that rebooted to the sign-in screen has no session to film in; starting a console there needs a stored password or
+S4U, which also cannot capture the desktop. That is his call, not made here.
+GUARD: tv/test_a_dead_windows_console_comes_back_by_itself.py (31 cases, 25 red-proofs) and, on real Windows (run by
+tv/windows_boot_check.py in the tv-windows-boot job, no workflow edit), tv/windows_keepalive_check.py (the XML registered, read back, left on a second pass, deleted;
+a closed port reads gone; a pass launches once then holds).
+
+Round 2 (review r1 FAIL, 3 majors + 1 minor + 1 nit): the task runs with ExecutionTimeLimit PT0S and the launcher is
+started with CREATE_BREAKAWAY_FROM_JOB (retried inside the job if the job forbids it) - a PT2M limit's job kill took the
+console it had just started; the pass ends itself after 90 s instead. Exits recorded when the WINDOW LOOP ended under
+the console (window-closed, webview-finally, main-after-window - a WebView crash leaves that way) never write the
+on-purpose mark, and the keepalive ignores one already on disk. A missing task is settled by the full
+`schtasks /Query /FO CSV /NH` list (exact name), not English "cannot find" - a Hebrew or German schtasks never made it.
+A refusal on stdout is kept; the lastAction write builds on the booked memory, not a re-read.
+
+### REG-2615 - THE STATUS CALL WAITED ON A SCAN OF EVERY REEL FOR ITS FORENSICS BADGE - 2026-10-23
+
+The ALT's status call took about 30 s, almost all in forensicsSummary; Dean's measured 423 ms of a 432 ms call there
+(worst 38.8 s, task 172). _newest_forensics_summary asked the disk about every reel_* (an isfile each) on every
+/api/status, then took the newest. Now _newest_sealed_reel walks newest first and stops at the first reel with a
+kai_report.json, and the badge is refreshed on ONE background thread at most once per 30 s; /api/status only reads the
+last counts (None on the first call after boot, the badge on the next poll). /api/forensics uses the same scan.
+GUARD: tv/test_the_status_never_waits_on_forensics.py (5 cases, 5 red-proofs).
+
+### REG-2612 - #144 RECURRED ON LINUX AND NOTHING RECORDED WHO REMOVED THE SANDBOX - board #71
+
+The 2026-10-23 01:11-02:21 IDT stage prove on the Linux box lost every root .md/.html/.json and 13 tv files from lane 4's
+sandbox in one gate, while a gate that touches no files ran; later gates read "bible.html is not in the sandbox", and the
+sandbox left behind had lost its owner file. That box has no dirhelper, cron or tmpreaper, so REG-2438's macOS atime
+theory (on Claude's unshipped M2 branch, marked "root cause UNVERIFIED") is not the whole cause. The pattern is a
+whole-sandbox rmtree's. Instrument, not a fix: every stale sweep and every run's own drop writes one line
+(time, remover pid, sandbox, owner, why) to heart2-sweeps.log in the temp dir before it removes, and a vanish now
+reports whether the owner file survives, the sandbox root's age, and any journal line naming that sandbox. Law:
+tv/test_a_vanished_sandbox_names_its_remover.py (4 cases, 5 red-proofs). Rides with M2's heart2.py track.
+Round 2 (grok-4.7 review r1 FAIL, 5 findings): the witness never raises (any Exception -> "witness unreadable",
+the restore always runs); every new sandbox writes a `created` line, so its age comes from its birth, not a root mtime
+any unlink moves; the journal holds only integers, the basename and a fixed code (an owner file's raw text could have
+put `skipped=` into the gate tail heart2 parses), is 0600, written in one O_APPEND write under flock (Windows: no lock,
+a torn line fails the exact-field match), capped at 1 MB -> last 256 KB, read as a capped tail with errors replaced, and
+a failed write is said on stderr. Laws: 11 cases, 11 red-proofs (order pinned: the line exists when _rmtree_hard runs;
+root GONE read before the restore rebuilds it). Not taken: a /proc fd scan for the deleter - by the time the witness
+runs the gate has exited and an rmtree is done, so it would name nobody on the case it exists for.
+Round 3 (review r2 PASS, 2 minors): the cap trims the journal IN PLACE under the same lock (no temp file, no replace
+another lane could race, the 0600 inode kept); laws pin the drop's line-before-remove order, the cap (newest kept, no
+torn line, still private) and that an owner file's `skipped=` never reaches the gate tail. 14 cases, 14 red-proofs.
+Round 4 (review r3 FAIL, 1 major + 3 minors): the journal is opened WITHOUT O_APPEND - every write is placed by lseek
+under the lock, so the cap's kept tail really lands at offset 0 on every OS - and the cap writes the kept tail FIRST and
+cuts the file to it after, so a reader never sees it empty. Every write is finished (a short os.write is looped). On
+Windows the writers lock one byte at 0x7FFFFFF0 with msvcrt (a lock on a byte a reader reads would fail its read). Laws
+add: a keep size off the line length (an older line kept, size within the cap), no empty journal at the cut, a short
+write finished, the Windows lock byte, and owner-file text driven through the real owner file into
+_skipped_every_law. 17 cases, 19 red-proofs.
+
+Round 5 (review r4 PASS, 1 nit): on Windows the journal lock was taken with LK_LOCK, which gives up after about ten seconds, and the writer then capped UNLOCKED beside a holder - a cut that could drop the line just written. The lock is now polled with LK_NBLCK for up to 30 s (as _win_lock does); a writer that still has no lock appends its line, skips the cap, and says so on stderr. Two new cases and two new red-proofs (lock not had never cuts; the lock is polled, not tried once).
+
+### REG-2457 - WINDOWS: WHETHER realpath RESOLVES A DIRECTORY JUNCTION INSIDE THE SCRATCH IS STILL UNVERIFIED (#182 low 5, M2 stores-plumbing)
+
+A2's list_own refuses a link out of the scratch because os.path.realpath resolves it, and REG-2455's two swap cases make their
+link the same way (fixture_tmp.link_dir); on Windows that link is a directory JUNCTION (no symlink privilege on his ALT or Dean's
+PC), and whether CPython's realpath resolves a junction there - and whether a directory renames cleanly under a scanner - was
+never run on one of his PCs. The probe to run is fixture_tmp.can_link_a_directory(), then this law, on a Windows PC that has
+pulled the code.
+MEASURED 2026-10-22 over SSH, one read-only call each time (15:2x, 16:4x, 17:5x, 19:0x): the ALT answered every time, but he
+was PLAYING (Boosteroid), 472-579 MB RAM free, its checkout still at v3746 (no list_own, no link_dir); Dean's PC was offline on
+the tailnet (last seen 13-15 h before). Nothing was started on either (a job on his gaming PC goes through alt_job.sh, which refuses
+while he plays and under 2 GB free). UNVERIFIED - not passing, not failing. Meanwhile: every red proof that needs a link
+declares "needs": "dir-link", so a PC whose probe says it cannot make one files it ELSEWHERE, never BLIND; a PC whose probe
+says it can is held to the case (a NOLINK there fails, never skips); the swap fixtures retry a rename Windows refuses for a
+moment (PermissionError, 25 x 0.2 s) before they fail.
+NEXT: when the ALT is idle and has pulled, through alt_job.sh: python -c "import sys; sys.path.insert(0, r'<repo>\tv'); import
+fixture_tmp as F; print(F.can_link_a_directory())", then python tv\test_a_scratch_listing_reads_only_its_own_scratch.py;
+record both answers here.
+
+### REG-2456 - A MULTI-REF PUSH HANDED THE STAMPS LAW ONE SHA AND SAID NOTHING OF THE OTHER REFS (#182 low 4, M2 stores-plumbing)
+
+hooks/pre-push's pushed-commit block (REG-2360) hands the commit-stamps law ONE commit: the local sha pushed to main, else the
+first ref that ships bytes, else HEAD. A push of several refs with no main ref therefore graded the first ref's commit, and the
+others went unread in silence (beside main, the other refs were just as unread).
+FIX: the block now names, in the hook's own output, every ref that ships bytes and is not the commit the law reads: "this push
+ships more than one ref: the commit-stamps law reads ONE commit, only <sha>; NOT read by it: <ref>@<sha9> ...". A ref pushing
+the very commit the law reads, and a deletion, are not named. No test_control edit (outside this territory): the law still
+reads one commit; the gap is said, not closed.
+GUARD: tv/test_a_leaked_git_dir_never_writes_the_real_repo.py, ThePushedCommitIsHandedOverByName
+.test_every_ref_the_stamps_law_does_not_read_is_named (the hook's own marked block, in a real bash). 1 RED proof.
+
+### REG-2455 - list_own RE-RESOLVED THE SCRATCH PARENT ON EVERY CALL: A RENAME + LINK SWAP LISTED ANOTHER TREE (#182 low 2, M2 stores-plumbing)
+
+fixture_tmp._own measured a path against os.path.realpath(<the contained parent>) computed afresh on every call, and list_own /
+match_own then listed the path as GIVEN, not the one checked. MEASURED in a child process on this Mac: contain(), make a scratch
+dir, rename the parent aside and put a directory link to another tree in its place - list_own(<the dir>) answered ['FAKE.txt']
+from the other tree, and match_own matched there.
+FIX: contain() resolves the parent ONCE (_HELD["real"]); _own measures against that string; list_own / match_own list the
+RESOLVED directory and check the path again AFTER the read (_still_own), so a swap between the check and the read raises
+instead of handing another tree's names back. match_own still returns paths spelled under the caller's directory.
+GUARD: tv/test_a_scratch_listing_reads_only_its_own_scratch.py - test_a_parent_swapped_for_a_link_lists_nothing (a child
+process swaps its own parent for real) and test_a_swap_during_the_listing_answers_nothing (the child's own os.listdir /
+os.scandir makes the swap between fixture_tmp's check and its read). 3 RED proofs (the root re-resolved, list_own's re-check
+dropped, match_own's re-check dropped), each declared "needs": "dir-link" - a PC that can make no link files them ELSEWHERE.
+
+### REG-2454 - THE SCRUB LAW FOUND "THE FIRST STAGE" BY TWO SPELLINGS ONLY (#182 low 1, M2 stores-plumbing)
+
+test_the_scrub_comes_before_the_first_stage counted a hook line as a stage only when it held `gate_run "` or `python3 "$REPO/`,
+so a stage spelled any other way - `node tv/x.mjs`, `npx playwright test`, `bash tools/x.sh`, `python3 -m unittest`,
+`$(python tv/y.py)`, a backquoted `node -e` - could run before the GIT_* scrub while the law stayed green.
+FIX: the law reads stages by the hook's own grammar - any of gate_run / python3 / python / node / bash / npx run as a command
+word - through the same bash reader REG-2551 reads re-exports with (_shell_code: comments out; quotes, $(...), `...` and heredoc
+bodies followed as bash nests them), which now also reports the frame each character was read in, so a word inside quotes is
+data and never a stage. On the real hook it reads 64 stages (gate_run 19, python3 41, node 2, npx 2) and the first is the same
+as before - hooks/pre-push:267, the version-stamp gate - after the scrub (line 76); a reader that loses bash's place reads
+UNKNOWN, never passing. Its reach, stated: a program named through a variable ("$PY" -c ...) is not seen, and a word in a
+heredoc body is read as code - such a word before the scrub reads RED, never green.
+GUARD: the same law, test_a_stage_spelled_any_way_before_the_scrub_is_found (ten spellings first in a fixture hook; a comment,
+gate_run's definition, a quoted word, a git line and a name merely containing a program's are not stages). 2 RED proofs (the
+grammar narrowed back to one spelling; a quoted word read as a stage).
+
+### REG-2453 - THE "SECOND EYE ASKED TWICE" ROW RE-PARSED THE WHOLE 7.3 MB LEDGER 43 TIMES A TICK (#48, M2 stores-plumbing)
+
+2026-10-22, measured on a COPY of his ledger (2,274 rows, 7.3 MB; TV_SECOND_EYE_LEDGER at the copy, his file only read). The console
+row asks current_version, agreement(v) and agreement_census(); the census calls agreement() once per recent asked-twice version and
+verdict_provenance() once, and every one of those re-read and re-parsed the whole file: 43 parses a tick. Profiled: census 3.96 s, of
+which _rows was 3.42 s (95,508 json.loads); 6-11 s per tick on a loaded Mac (REG-1990 had 1.8 s on a quiet one).
+FIX: second_eye_ledger keeps the parse per (path, size, mtime_ns, inode, device) and the census per (ledger state, recent). A file
+written in the last SETTLE_S (3 s) is never memoised (a coarse clock can give two same-size writes one mtime); a census over readers a
+caller swapped in (_rows, agreement, verdict_provenance) is never kept or served; every caller gets copies.
+MEASURED after, same copy: first tick 0.68 s with ONE parse, every later tick 0.01 s with none. The old and new modules give
+byte-identical census, agreement() for the last 120 versions, audit() and looked_at() on that copy. _rows() hands out shallow
+copies, so a caller that edited a NESTED value would edit the kept parse: every public reader of the module and 22 console_doctor
+rows (every one named for the eye or a ledger), run over the kept parse of a fresh copy (16:4x), left it deep-equal.
+GUARD: tv/test_the_second_eye_row_reads_the_ledger_once.py drives the real console_doctor row on a fixture: one parse a tick, none on
+the next, an appended look seen at once (SINGLE -> AGREE), a same-size in-place rewrite with its mtime put back still read fresh, the
+census walked once per state and handed back as a copy. 4 RED proofs, heart2 4/4 PROVEN.
+
+### REG-2452 - TWO PROVERS ON ONE MACHINE BOUND THE SAME LANE PORTS, EVERY LANE SHARED ONE RENDER PORT, AND NOTHING CAPPED CHROME (#160, M2 stores-plumbing)
+
+Read at HEAD 7285e7efc: lane_ports.base_for_lane(n) was BASE0 + (n-1)*STRIDE in every process, so the census and a push (or a
+worktree's pre-flight) proving at the same time bound the same ports - and a request from one sandbox on a listener the other holds
+is how a tracked file was deleted (#144). stamp() never set TV_RENDER_PORT, so every lane inherited the one port the hook exports.
+Nothing capped headless Chrome across processes (heart2's browser lock is one threading.Lock per process).
+FIX (lane_ports; heart2 is wired by track heart-memory, which owns heart2.py):
+- claim_slot(say=None, wait_s=None, repo=None) -> int 0..7 | None. One flock'd file per slot under <git common dir>/heart2/lanes/
+  (prove_record's read of .git, never git), held by an open handle for the life of the process, so a holder that dies frees it.
+  Windows: msvcrt's byte lock on the same files. No lock primitive: 0, said. Every slot held: waits wait_s (None = for ever, said
+  once a minute), then None, said. held_slot() -> int | None; release_slot().
+- base_for_lane(lane, slot=0) -> int: each slot owns 16 lanes x 4 ports (21001 + slot*64 + (lane-1)*4), clear of FORBIDDEN and of
+  shard_suite's 17981-18108; slot 0 is the old numbering. A lane past 16 raises (heart2 caps lanes at 16).
+- stamp(env, lane, slot=0): as before, plus TV_RENDER_PORT = base+3 (the lane's spare), over whatever the hook exported.
+- browser_cap() = min(HEART2_BROWSER_SLOTS or 2, 2) (his ruling: two headless Chromes at most). try_browser_slot(say=None, repo=None)
+  -> BrowserSlot | None (never waits: the scheduler's take()); browser_slot(timeout=None, say=None, repo=None, poll_s=0.2) ->
+  BrowserSlot | None (waits; None only past timeout); BrowserSlot.release() / .index / .held / `with`; BrowserSemaphore(say=None,
+  repo=None): acquire(blocking=True, timeout=-1) / release() / `with`, a drop-in for one shared threading.Lock, one slot per thread.
+- lanes_dir(repo=None) -> (dir, why): HEART2_LANES_DIR (a law's seam), else <common>/heart2/lanes, else a per-user temp dir, said.
+adopt / adopt_agent / adopt_control / agent_port / control_port / current_base keep every caller's behaviour.
+GUARD: tv/test_two_provers_never_share_a_lane_port.py - two real prover processes hold two slots and disjoint ports; a killed holder's
+slot is free again; three processes asking with HEART2_BROWSER_SLOTS=3 get two browser slots; each lane renders on its own port.
+3 RED proofs (base from the lane alone, K=3, the render stamp dropped), heart2 3/3 PROVEN. The two older port laws stay green.
+
+### REG-2451 - A PUSH WORKTREE HAD TO BE SEEDED BY HAND, ONE REFUSED PUSH AT A TIME (#143, M2 stores-plumbing)
+
+A fresh worktree made to push from lacks the gitignored state its gates read: console-demos needs node_modules; the render gate's
+heart-stored surfaces need tv/.heart2.json (unseeded, six read 'shrank' - and a data-less panel must never be --blessed); the
+second-eye gate needed tv/.second_eye.jsonl until REG-2450. Each was found by a refused push.
+FIX: NEW tv/seed_worktree.py <worktree> [--dry-run]. It finds the main checkout from the worktree's own .git pointer (gitdir ->
+commondir; no home path, no git run) and COPIES node_modules and tv/.heart2.json - never a link (a node_modules symlink once deleted
+main's real one, v3525). A link inside node_modules is kept only when it is relative and lands inside the copy (.bin's), and each
+item is built under <worktree>/.seed-tmp/node_modules/ (git-ignored at any depth) and moved into place whole. It skips anything
+present, asks the second_eye_ledger the WORKTREE will run (its source, parsed) whether that ledger is still per checkout before
+copying it (REG-2450 retires the copy; a branch from before it still gets one; an unreadable module is UNKNOWN and gets one), refuses
+the main checkout itself, a path that is not a worktree root and any seed that would leave free disk under his 8 GB ON AIR floor
+(exit 2, nothing copied), and prints what it seeded and the headroom. TV_SEED_FREE_BYTES is a law's seam. Not yet called by
+anything: the worktree recipe (and the push wrapper, when there is one) should run it right after `git worktree add`.
+GUARD: tv/test_a_push_worktree_is_seeded_before_its_gates.py (fixture main + worktree pointer, no git). 3 RED proofs (link instead of
+copy, floor dropped, self-copy refusal dropped), heart2 3/3 PROVEN.
+
+ROUND 2 (M2 review, major): the ON AIR floor priced a different copy than the one seed() writes - links cost nothing and a linked node_modules cost its own st_size, while _copy_tree walks a linked store whole and _copy_link materialises absolute links (and, with no symlink privilege on Windows, relative ones too). _tree_bytes now prices each link at its target's followed bytes (cycle-guarded per link) and follows a linked top level. Law: test_the_floor_prices_the_copy_that_is_written (three layouts, plus a seed refused one byte under a linked store), RED_PROOF [3] and [4].
+
+ROUND 3 (M2 review r2, two majors): (1) the price and the copy still walked differently - copytree(symlinks=False) wrote a diamond (two links to one store) twice and followed a link cycle to the recursion limit, while the price counted each real path once. Now ONE walker (_followed: links followed, a directory already an ancestor skipped, a dangling name skipped) prices and copies; law case test_a_diamond_is_priced_twice_and_a_cycle_ends asserts priced == written, RED_PROOF [5]. (2) the link cases skip where os.symlink is refused, so their RED_PROOFs would read BLIND there: [3], [4] and [5] declare needs: posix and read ELSEWHERE on Windows.
+
+### REG-2450 - THE SECOND-EYE LEDGER WAS PER CHECKOUT: A FRESH PUSH WORKTREE OWED A LOOK, AND A WORKTREE'S LOOK DIED WITH IT (#178, M2 stores-plumbing)
+
+2026-10-22 07:0x (Push A1). The ship gate (second_eye_ledger.py --check <prev> --gate, hooks/pre-push) read the PUSHING tree's own
+tv/.second_eye.jsonl. A fresh worktree has none, so v3784 was refused ("v3783 OWES A LOOK - nothing was ever recorded"); push #13's
+worktree held the v3778 look and was removed without carrying the row back. MEASURED today across every live checkout on this Mac:
+main holds 2,274 rows, one worktree (push A2's) 2 more (v3783's and v3784's looks), and NO checkout holds a v3778 row - that look is
+lost. Same class as the red memory (REG-2342) and the verdict cache (REG-2340).
+FIX: the ledger is <git common dir>/second_eye.jsonl - one per machine, never in a work tree - found by reading .git (prove_record's
+walk; a hook's GIT_DIR never answers). The first READ or WRITE of it in a process folds every checkout's own tv/.second_eye.jsonl
+in (this checkout's, main's, every live worktree's via <common>/worktrees/*/gitdir): exact rows, never dropping one (a row held N
+times stays N times), ordered by their own ts, the sources only read; afterwards a source is read again only when its (size,
+mtime_ns, inode) moved, so old code still appending to one is folded too. Importing the module opens no file under the checkout's
+own .git/ (audit hook: a main checkout only stats .git; a linked worktree reads its .git pointer and its gitdir's commondir, both
+outside its work tree): run_gates' gate ledger never carries a gate that read git's own files, and ~36 laws import the module only
+to drive fixtures, so an import-time fold would have re-run every one of them on every main-checkout push. Every append (record() and the fold) holds the ledger's lock (flock; on
+Windows msvcrt's byte lock far past the end, so readers are never refused; neither: unlocked and said), and closes a row a killed
+writer left without its newline. --gate pins the machine's ledger and still ignores TV_SECOND_EYE_LEDGER; the seam still names a
+fixture otherwise. A tree with no git dir (a heart2 sandbox) keeps its own file, LEDGER_WHY says why, and the CLI prints it.
+second_eye_drain.py / second_eye_run.py go through record() and _rows(), so they move with it; console_doctor's direct readers open
+LEDGER_PATH: the file the push gate's --check (and every read in his console's own ticks) has already folded.
+MEASURED on a fixture replica of this Mac (copies of main's ledger and of every worktree's, in the same layout): distinct rows after
+the fold = 2,276 = the union of every checkout's distinct rows, in ts order; a second fold adds 0; a fresh process's first fold
+that finds nothing missing costs 0.23 s; --gate there passes v3783 and v3784 (the A2 worktree's looks) and still refuses v3778.
+Re-measured 16:4x over the REAL layout, read-only (his checkouts as the sources, a scratch file as the ledger): 19 checkout ledgers
+(main + 18 worktrees holding seeded 7.3 MB copies, 132 MB), the first fold 0.20 s adding 2,276 rows, a later process's first
+read 0.14 s adding 0. His real .git was never written.
+GUARD: tv/test_the_second_eye_ledger_is_one_per_machine.py (fixture main + absolute and relative worktree pointers; the module run
+in a subprocess inside the fixture). 4 RED proofs (the HERE path, the worktree fold skipped, a set-dedupe that drops a repeated row,
+--gate honouring the variable), heart2 4/4 PROVEN. The 25 existing ledger laws and test_control's ledger classes stay green.
+
+- **Round 2 (GrokBot, M2 CI, 2026-10-23).** Routine M (swallow ratchet) went RANK 1 66 -> 67: `_worktree_roots` turned EVERY failed stat of `<common>/worktrees` into `[]`, so a permission or I/O failure read exactly like "no worktree was ever made". Only `FileNotFoundError` is that absence now; any other failure leaves no cache key and falls to the listing, which already says once why no worktree ledger was folded. The census is the law (back to 66, held).
+
 ### REG-2484 - NODE.JS WAS NEVER INSTALLED ON A WINDOWS PC, SO EVERY NODE-ONLY LAW AND LANE WAS BLIND THERE (#167)
 
 tv/install-tvd.ps1 installed Git, Python, Claude Code and the Grok CLI, and no node. MEASURED on Dean's PC 2026-10-21: 53+ node-only laws skipped in both runs of every proof (filed BLIND until REG-2354 made them ELSEWHERE), and the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days - until an agent placed portable node v24.22.1 by hand in %LOCALAPPDATA%\Programs\nodejs, the folder cb_node_harness already looks in. His ruling 2026-10-21: the installer and the console fetch node wherever it is missing. A second gap rode along: cb_node_harness.NODE is resolved once, at import, so a node placed while the console runs stayed invisible to the tooltip-oracle lane until a relaunch.

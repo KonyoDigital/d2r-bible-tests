@@ -420,6 +420,17 @@
     "purpose": "Scar ledger plus three re-derivable remedies: fold orphan frames into the reel their own stamp names, restore a vault store from a healthy backup, clear a stale theatre-fault. TV_AUTO_HEAL arms it.",
     "territory": "heart-organs"
   },
+  "console_keepalive.py": {
+    "entryPoints": [
+      "run_once",
+      "decide",
+      "probe",
+      "main"
+    ],
+    "purpose": "REG-2614 - the Windows console watchdog. Task Scheduler runs it every 5 min (task 'TV DIABLO keepalive', pythonw, hidden, as the signed-in user); a pass connects to :17772 and starts start_tvd_win.ps1 -Background only when the port REFUSES.",
+    "gotcha": "Slow (a timed-out connect) and unknown are left alone. tv/.tvd_exited_on_purpose (written by control_app's exit surface, cleared at boot) and tv/.tvd_supervisor_pause stop it; one launch per 10 min, booked in tv/.tvd_keepalive.json before it is tried. Stdlib only, imports nothing of the console's. The task is made and withdrawn by console_doctor.ensure_keepalive_task on the sign-in start's consent.",
+    "territory": "routines-infra"
+  },
   "console_safe.py": {
     "entryPoints": [
       "enable"
@@ -2097,6 +2108,15 @@
     "purpose": "Runs a cold cross-family review of a shipped version end to end — finds the commit, strips the diff's comments, MEASURES the payload it is about to send, asks, and records the answer into second_eye_ledger.",
     "territory": "second-eye"
   },
+  "seed_worktree.py": {
+    "entryPoints": [
+      "seed",
+      "main_checkout_of",
+      "main"
+    ],
+    "gotcha": "It copies, never links, and never overwrites: an item already in the worktree is left as it is, and it refuses (exit 2, nothing copied) on the main checkout itself, a path that is not a worktree root, or a seed that would leave free disk under the ON AIR floor (TV_SEED_FREE_BYTES is the law's seam for the free-space reading).",
+    "purpose": "Seeds a fresh push worktree with the gitignored state its pre-push gates read (node_modules, tv/.heart2.json, a per-checkout second-eye ledger only where one is still kept), finding the main checkout from the worktree's own .git pointer (#143, REG-2451)."
+  },
   "self_arming.py": {
     "entryPoints": [
       "may",
@@ -2709,6 +2729,14 @@
     ],
     "purpose": "Boots a SCRATCH console (TV_STUB=1, TV_CAPTURE=off, own port and sandbox) and asks /api/status which build it runs, against tv/WINDOWS_SHIP.json. The Windows CI job (tv-windows-boot.yml) runs it on windows-latest (#229).",
     "gotcha": "Exit 77 = could not run (no manifest), never a pass. TVD_BOOT_CHECK_TREE points it at another tree, which is how it was proven on the ALT over SSH without touching his checkout. The console is stopped by its own PID and the sandbox removed whatever happens.",
+    "territory": "routines-infra"
+  },
+  "windows_keepalive_check.py": {
+    "entryPoints": [
+      "main"
+    ],
+    "purpose": "REG-2614 - on windows-latest (called by windows_boot_check.py after its boot passes) registers the keepalive task XML under a scratch name with the real Task Scheduler, reads it back, deletes it, and drives one keepalive pass against a closed port with a recording launcher.",
+    "gotcha": "Exit 77 off Windows. Never launches anything for real; the scratch task is deleted in a finally.",
     "territory": "routines-infra"
   },
   "worker_source.py": {

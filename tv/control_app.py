@@ -7445,6 +7445,50 @@ def _arm_force_exit(reason="quit", delay=None):
     return True
 
 
+def _exit_on_purpose_path():
+    """REG-2614 — where the Windows keepalive (console_keepalive.py) looks for "closed on purpose"."""
+    return os.path.join(HERE, ".tvd_exited_on_purpose")
+
+
+def _keepalive_owner(is_win=None):
+    """Only the primary Windows console speaks to the keepalive: never a harness, never a scratch port, never a Mac."""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    return bool(is_win and not os.environ.get("TV_STUB") and _is_primary_console())
+
+
+#: REG-2614 review r1 - reasons a console records when its WINDOW LOOP ended under it (a WebView crash returns the
+#: loop the same way). Never a choice: no on-purpose marker. Equal to console_keepalive.WINDOW_LOOP_EXITS (a law checks).
+_WINDOW_LOOP_EXITS = ("window-closed", "webview-finally", "main-after-window")
+
+
+def _note_exit_on_purpose(reason, path=None, is_win=None):
+    """REG-2614 — a console closed ON PURPOSE (✕ when it quits, Esc→/api/quit) says so - a window loop that ended under it (_WINDOW_LOOP_EXITS) does not, so the
+    keepalive never brings back a console he closed: a choice is not a crash. A console that DIES never gets here,
+    and that is the one the keepalive brings back. Cleared at the next boot (_clear_exit_on_purpose). Never raises."""
+    try:
+        if not _keepalive_owner(is_win) or str(reason or "") in _WINDOW_LOOP_EXITS:
+            return False
+        p = path or _exit_on_purpose_path()
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write("%d %s\n" % (int(time.time()), str(reason or "quit")[:60]))
+        return True
+    except Exception:
+        return False
+
+
+def _clear_exit_on_purpose(path=None, is_win=None):
+    """REG-2614 — a console that is running again was not closed on purpose any more. Never raises."""
+    try:
+        if not _keepalive_owner(is_win):
+            return False
+        os.remove(path or _exit_on_purpose_path())
+        return True
+    except OSError:
+        return False
+    except Exception:
+        return False
+
+
 def _request_console_exit(reason="quit", hard_delay=None):
     """v1420 — single exit surface for ✕, Esc→/api/quit, and webview-return.
 
@@ -7468,6 +7512,7 @@ def _request_console_exit(reason="quit", hard_delay=None):
     # background (close_means_background); destroy() below fires the same `closing` event, and this is how
     # that handler knows to let the window go instead of minimizing it.
     globals()["_EXIT_REQUESTED"] = str(reason or "quit")[:60]
+    _note_exit_on_purpose(reason)
     win = globals().get("_MAIN_WIN")
     errs = []
     marked = False
@@ -11113,30 +11158,71 @@ def _kai_forensics_project(report, journal_rows=None, cap=300):
     return {"sid": sid, "items": items, "summary": summary, "total": len(reads)}
 
 
-_FORENSICS_SUM_CACHE = {"reel": None, "mtime": None, "val": None}
+_FORENSICS_SUM_CACHE = {"reel": None, "mtime": None, "val": None, "at": None}
+#: REG-2615 — how stale the /api/status badge may be before a refresh is STARTED (never waited for).
+FORENSICS_SUM_TTL_S = 30.0
+_FORENSICS_SUM_LOCK = threading.Lock()
+_FORENSICS_SUM_BUSY = {"on": False}
 
 
-def _newest_forensics_summary():
-    """Lean {clean,corrected,recovered,blocked,unresolved} counts from the newest sealed reel —
-    the /api/status badge. mtime-cached (the full projection only re-runs when a reel re-seals)."""
+def _newest_sealed_reel(hist):
+    """-> (reel name, kai_report path) of the newest reel holding a kai_report.json, or (None, None).
+
+    REG-2615 — NEWEST FIRST, AND STOP AT THE FIRST. This asked the disk about EVERY reel_* on every call
+    (an isfile per reel) and only then took the newest: on the ALT, months of reels on a slow disk, that was ~30 s
+    of a status call, and 423 ms a call on Dean's (worst 38.8 s, task 172). The newest reel with a report is
+    almost always the first or second name."""
+    for d in sorted((d for d in os.listdir(hist) if d.startswith("reel_")), reverse=True):
+        rp = os.path.join(hist, d, "kai_report.json")
+        if os.path.isfile(rp):
+            return d, rp
+    return None, None
+
+
+def _refresh_forensics_summary():
+    """The disk half: find the newest sealed reel and project its counts (only when it re-sealed). Never raises."""
     try:
-        hist = HIST_DIR
-        reels = sorted((d for d in os.listdir(hist)
-                        if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
-                       reverse=True)
-        if not reels:
+        reel, rp = _newest_sealed_reel(HIST_DIR)
+        if reel is None:
+            _FORENSICS_SUM_CACHE.update(reel=None, mtime=None, val=None, at=time.time())
             return None
-        rp = os.path.join(hist, reels[0], "kai_report.json")
         mt = os.path.getmtime(rp)
-        if _FORENSICS_SUM_CACHE["reel"] == reels[0] and _FORENSICS_SUM_CACHE["mtime"] == mt:
-            return _FORENSICS_SUM_CACHE["val"]
-        with open(rp, encoding="utf-8") as fh:
-            report = json.load(fh) or {}
-        val = _kai_forensics_project(report)["summary"]
-        _FORENSICS_SUM_CACHE.update(reel=reels[0], mtime=mt, val=val)
-        return val
+        if not (_FORENSICS_SUM_CACHE["reel"] == reel and _FORENSICS_SUM_CACHE["mtime"] == mt):
+            with open(rp, encoding="utf-8") as fh:
+                report = json.load(fh) or {}
+            val = _kai_forensics_project(report)["summary"]
+            _FORENSICS_SUM_CACHE.update(reel=reel, mtime=mt, val=val)
+        _FORENSICS_SUM_CACHE["at"] = time.time()
+        return _FORENSICS_SUM_CACHE["val"]
     except Exception:
-        return None
+        _FORENSICS_SUM_CACHE["at"] = time.time()    # a failing disk is retried after the TTL, not on every call
+        return _FORENSICS_SUM_CACHE["val"]
+    finally:
+        _FORENSICS_SUM_BUSY["on"] = False
+
+
+def _newest_forensics_summary(now=None, start=None):
+    """Lean {clean,corrected,recovered,blocked,unresolved} counts from the newest sealed reel — the /api/status
+    badge.
+
+    REG-2615 — THE STATUS CALL NEVER WAITS ON THE DISK FOR A BADGE. It returns the last counts at once; when they
+    are older than FORENSICS_SUM_TTL_S it starts ONE background refresh and still returns at once. The first call
+    after boot therefore says None (no badge yet) and the next poll has it. A badge up to 30 s old costs nothing;
+    a status call that took 30 s made the ALT look dead."""
+    now = time.time() if now is None else now
+    at = _FORENSICS_SUM_CACHE.get("at")
+    if at is None or not (0 <= now - at < FORENSICS_SUM_TTL_S):
+        with _FORENSICS_SUM_LOCK:
+            go = not _FORENSICS_SUM_BUSY["on"]
+            if go:
+                _FORENSICS_SUM_BUSY["on"] = True
+        if go:
+            try:
+                (start or (lambda fn: threading.Thread(target=fn, name="forensics-summary", daemon=True).start()))(
+                    _refresh_forensics_summary)
+            except Exception:
+                _FORENSICS_SUM_BUSY["on"] = False
+    return _FORENSICS_SUM_CACHE["val"]
 
 
 def _forensics_payload(sid=""):
@@ -11150,12 +11236,9 @@ def _forensics_payload(sid=""):
                 return {"ok": False, "err": "no forensics for that session", "sid": sid,
                         "items": [], "summary": {}}
         else:
-            reels = sorted((d for d in os.listdir(hist)
-                            if d.startswith("reel_") and os.path.isfile(os.path.join(hist, d, "kai_report.json"))),
-                           reverse=True)
-            if not reels:
+            _reel, rp = _newest_sealed_reel(hist)
+            if _reel is None:
                 return {"ok": True, "sid": "", "items": [], "summary": {}, "total": 0}
-            rp = os.path.join(hist, reels[0], "kai_report.json")
         with open(rp, encoding="utf-8") as fh:
             report = json.load(fh) or {}
         out = _kai_forensics_project(report)
@@ -25844,6 +25927,12 @@ def _sign_in_setup_once():
             out.update(did=r.get("did"), why=r.get("why") or "")
             if r.get("did") in ("created", "failed", "left"):
                 print("[sign-in] %s - %s" % (r.get("did"), str(r.get("why"))[:160]), flush=True)
+            # REG-2614 — the keepalive rides the same consent: it exists only while the sign-in start does
+            _clear_exit_on_purpose()
+            k = _cd_si.ensure_keepalive_task(_decision_path(".keepalive_task.json"), r.get("did"))
+            out.update(keepalive=k.get("did"), keepaliveWhy=k.get("why") or "")
+            if k.get("did") in ("created", "failed", "left", "withdrawn"):
+                print("[keepalive] %s - %s" % (k.get("did"), str(k.get("why"))[:160]), flush=True)
     except Exception as e:
         out["why"] = "the sign-in setup raised %s" % type(e).__name__
     globals()["_SIGN_IN_SETUP"] = out
@@ -42875,7 +42964,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3792",
+        "ver": "v3793",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

@@ -91,6 +91,11 @@ ROLES = {
                      "say": "the stall-drain reader (released after each sweep)"},
     "ocr": {"expect": [0, 1], "scope": "parent", "signature": (("ocr_mac --worker", "ocr_win.ps1"),),
             "say": "the fast lane's OCR worker"},
+    # REG-2613 (#34) - the console's background prover (self_prove.spawn). Its signature is the -X marker ONLY the
+    # self-prover's argv carries (PROVER_MARK), never bare `heart2.py --prove`: the watchdog ends an UNRECORDED orphan
+    # of a known role, and a pre-push or hand-run `heart2.py --prove` must never read as one.
+    "prover": {"expect": [0, 1], "scope": "checkout", "signature": ("-X tvd_self_prove", "heart2.py"),
+               "say": "the console's background prover (heart2 --prove)"},
 }
 
 LEDGER_DIR = os.environ.get("TV_CHILD_GUARD_DIR") or os.path.join(

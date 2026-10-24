@@ -11772,6 +11772,68 @@ GATES = [
              "checks its SHA-256 BEFORE extracting, renames it into %LOCALAPPDATA%\\Programs\\nodejs and puts it on "
              "this process's PATH only; never off Windows, never a persistent PATH write. tv/install-tvd.ps1 calls "
              "the door exactly once, after the clone."),
+    Gate("test_the_second_eye_ledger_is_one_per_machine",
+         [sys.executable, os.path.join(HERE, "test_the_second_eye_ledger_is_one_per_machine.py")], 120,
+         needs_app=False,
+         why="#178 (REG-2450) - the ship gate read the PUSHING tree's tv/.second_eye.jsonl: a fresh push worktree has "
+             "none (v3784 refused, 'v3783 OWES A LOOK'), and a look recorded in a worktree died with it (v3778). The "
+             "ledger is now one file per machine in git's common dir, found by reading .git; the first resolution in a "
+             "process folds every checkout's own ledger in (exact rows, none dropped, the sources only read); --gate "
+             "pins it and ignores TV_SECOND_EYE_LEDGER; a tree with no git dir keeps its own file and says so."),
+    Gate("test_a_push_worktree_is_seeded_before_its_gates",
+         [sys.executable, os.path.join(HERE, "test_a_push_worktree_is_seeded_before_its_gates.py")], 120,
+         needs_app=False,
+         why="#143 (REG-2451) - a fresh push worktree lacked node_modules and tv/.heart2.json, so pushes refused one gap "
+             "at a time. tv/seed_worktree.py finds main from the worktree's .git pointer and COPIES (never links) what "
+             "is missing, never overwrites, asks second_eye_ledger whether its ledger is still per checkout, refuses the "
+             "main checkout itself and any seed that would leave free disk under his 8 GB ON AIR floor."),
+    Gate("test_two_provers_never_share_a_lane_port",
+         [sys.executable, os.path.join(HERE, "test_two_provers_never_share_a_lane_port.py")], 120,
+         needs_app=False,
+         why="#160 (REG-2452) - base_for_lane gave every process the same ports, so the census and a push bound one "
+             "listener; stamp never set TV_RENDER_PORT; nothing capped Chrome machine-wide. A prover now claims a "
+             "machine-wide slot (a flock'd file per slot in git's common dir, freed when its holder dies) whose ports "
+             "are its own; each lane renders on its spare port; at most two browser slots are held across the machine."),
+    Gate("test_the_second_eye_row_reads_the_ledger_once",
+         [sys.executable, os.path.join(HERE, "test_the_second_eye_row_reads_the_ledger_once.py")], 120,
+         needs_app=False,
+         why="#48 (REG-2453) - console_doctor's 'second eye asked twice' row re-parsed the 7.3 MB ledger 43 times a tick "
+             "(census 3.96 s profiled, 6-11 s loaded). The parse is kept per (path, size, mtime_ns, inode, device) and "
+             "the census per ledger state: one parse on the first tick, none on the next, an appended row seen at once, "
+             "a file written in the last 3 s never served from memory."),
+    Gate("test_a_vanished_sandbox_names_its_remover",
+         [sys.executable, os.path.join(HERE, "test_a_vanished_sandbox_names_its_remover.py")], 180,
+         needs_app=False,
+         why="REG-2612 (board #71, 2026-10-23) - a vanished sandbox names its remover. Every sandbox made, swept "
+             "or dropped writes one line (integers, basename, fixed code; 0600; capped in place under a writer "
+             "lock, no O_APPEND) to heart2-sweeps.log, before any remove; a vanish note carries a witness (owner "
+             "file, root, birth line, the sweep line naming it) read before the restore, which never raises and "
+             "never copies owner-file text into the gate tail."),
+    Gate("test_a_dead_windows_console_comes_back_by_itself",
+         [sys.executable, os.path.join(HERE, "test_a_dead_windows_console_comes_back_by_itself.py")], 120,
+         needs_app=False,
+         why="REG-2614 (2026-10-23) - a Windows console that died is brought back within minutes with no sign-in. "
+             "On 2026-10-16 the ALT console died with no error and stayed dead until the next sign-in, missing 302 "
+             "commits. console_keepalive.py runs every 5 min from a per-user scheduled task (hidden, on battery "
+             "too, no admin, never two at once) that the console makes beside its sign-in start and withdraws with "
+             "it; only a REFUSED port is gone, a console closed on purpose or a stood-down supervisor is never "
+             "relaunched, one launch per cooldown."),
+    Gate("test_the_status_never_waits_on_forensics",
+         [sys.executable, os.path.join(HERE, "test_the_status_never_waits_on_forensics.py")], 120,
+         needs_app=False,
+         why="REG-2615 (2026-10-23) - /api/status never waits on the disk for the forensics badge. The ALT status "
+             "call took about 30 s, Dean's 423 ms of 432 (task 172), almost all in forensicsSummary scanning every "
+             "reel. The scan now stops at the newest reel with a report and runs on one background thread at most "
+             "once per TTL; the status call only reads the last answer."),
+    Gate("test_the_prover_is_owned_by_its_console",
+         [sys.executable, os.path.join(HERE, "test_the_prover_is_owned_by_its_console.py")], 120,
+         needs_app=False,
+         why="REG-2613 (board #34, 2026-10-23) - the background prover goes through child_guard's one door: the "
+             "console that starts it owns it. On Windows it lands in a Job Object with KILL_ON_JOB_CLOSE, on POSIX "
+             "it leads its own session; the watchdog knows a self-prover only by the -X tvd_self_prove marker "
+             "(Windows paths with spaces included) and never takes a pre-push or hand-run heart2 --prove for one; "
+             "an orphan is ended, a live console's prover is not; a prover that ended with its console is booked a "
+             "stand-aside, never the 3 h failure backoff."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

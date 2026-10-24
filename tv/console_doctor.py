@@ -33,8 +33,10 @@ DOCTRINE, inherited wholesale from the other two doctors and NOT re-argued here:
 FREE BY CONSTRUCTION: filesystem, git and localhost only. No model turn, no network, no paid read.
 """
 import contextlib
+import csv
 import glob
 import json
+import ntpath
 import os
 import re
 import subprocess
@@ -4522,6 +4524,304 @@ def ensure_sign_in_start(marker, answers_path=None, run=None, startup_dir=None, 
         return {"did": "created", "why": "%s - but its record could not be kept (%s), so a later removal may be "
                                          "re-made once" % (st2["why"], type(e).__name__)}
     return {"did": "created", "why": st2["why"]}
+
+
+#: REG-2614 — the task that brings a dead Windows console back. Its own name: the sign-in start is a different thing.
+KEEPALIVE_TASK = "TV DIABLO keepalive"
+KEEPALIVE_EVERY_MIN = 5
+
+
+def _xml_esc(s):
+    return (str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _keepalive_pythonw(python=None, isfile=os.path.isfile):
+    """The windowless interpreter beside the console's own: pythonw.exe next to python.exe (no window flashes every
+    five minutes), else the console's own interpreter - a flash beats a console that never comes back."""
+    py = python or sys.executable or "pythonw.exe"
+    d, b = ntpath.split(py)
+    if b.lower() == "python.exe" and isfile(ntpath.join(d, "pythonw.exe")):
+        return ntpath.join(d, "pythonw.exe")
+    return py
+
+
+def keepalive_task_xml(pythonw, tv_dir, start_local, run_as=None):
+    """PURE. The Task Scheduler definition of the keepalive. -> str
+
+    Every KEEPALIVE_EVERY_MIN minutes, for ever, as the signed-in user (InteractiveToken - no password is stored and
+    no administrator is needed), hidden, ON BATTERY TOO (schtasks /SC MINUTE would default to AC-only, and Dean's PC is
+    a laptop), never two at once, with NO time limit (PT0S: a limit job-kills the console a pass starts, review r1 -
+    a pass ends itself after console_keepalive.PASS_DEADLINE_S instead). A pass is console_keepalive.py: it launches only a console
+    that is GONE (REG-2614). XML rather than /TR: /TR is capped at 261 characters and a repo under a long path with
+    spaces would not fit.
+
+    run_as (REG-2616, his 2026-10-23 ruling): the UNATTENDED mode - the task runs whether or not anyone is signed in
+    (LogonType Password, as that account), so a console that dies, or a PC that reboots to the sign-in screen, still
+    gets its console back. The XML names only the account; the password is given to Task Scheduler at install time
+    (install_unattended_keepalive) and is never in the XML, the repo or a log. None = the default, signed-in or
+    locked only (InteractiveToken)."""
+    script = ntpath.join(tv_dir, "console_keepalive.py")
+    if run_as:
+        principal = ('<Principal id="Author"><UserId>%s</UserId><LogonType>Password</LogonType>'
+                     '<RunLevel>LeastPrivilege</RunLevel></Principal>' % _xml_esc(run_as))
+    else:
+        principal = ('<Principal id="Author"><LogonType>InteractiveToken</LogonType>'
+                     '<RunLevel>LeastPrivilege</RunLevel></Principal>')
+    return ('<?xml version="1.0" encoding="UTF-16"?>\n'
+            '<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">\n'
+            '  <RegistrationInfo><Description>TV DIABLO - brings the console back within %d minutes if it dies '
+            '(REG-2614). Never starts one that was closed on purpose.</Description></RegistrationInfo>\n'
+            '  <Triggers><TimeTrigger><StartBoundary>%s</StartBoundary><Enabled>true</Enabled>'
+            '<Repetition><Interval>PT%dM</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>'
+            '</TimeTrigger></Triggers>\n'
+            '  <Principals>%s</Principals>\n'
+            '  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
+            '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
+            '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><StartWhenAvailable>true</StartWhenAvailable>'
+            '<Hidden>true</Hidden><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Enabled>true</Enabled></Settings>\n'
+            '  <Actions Context="Author"><Exec><Command>%s</Command><Arguments>%s</Arguments>'
+            '<WorkingDirectory>%s</WorkingDirectory></Exec></Actions>\n'
+            '</Task>\n') % (KEEPALIVE_EVERY_MIN, _xml_esc(start_local), KEEPALIVE_EVERY_MIN, principal, _xml_esc(pythonw),
+                             _xml_esc('"%s"' % script), _xml_esc(tv_dir))
+
+
+def _schtasks_text(out):
+    """bytes | str | None -> str. schtasks output read in whatever it was written in (review r2).
+
+    Piped, schtasks may write UTF-16 LE (BOM or a NUL every other byte) or the console's OEM code page - never
+    reliably the ANSI page text=True decodes with: on a Hebrew Windows (cp1255) that decode RAISED, so the list
+    read as UNKNOWN and the task was never made; on cp1252 it passed NULs to csv, which raised. So the bytes are
+    taken raw: UTF-16 when they look like it, else UTF-8, else the locale page with every bad byte replaced. Only
+    the ASCII task name is ever matched, so a replaced localized status word costs nothing."""
+    if out is None:
+        return ""
+    if isinstance(out, str):
+        return out.replace("\x00", "")
+    b = bytes(out)
+    if b[:2] == b"\xff\xfe" or b[:2] == b"\xfe\xff":
+        return b.decode("utf-16", "replace").replace("\x00", "")
+    if len(b) >= 4 and b[1:2] == b"\x00" and b[3:4] == b"\x00":
+        return b.decode("utf-16-le", "replace").replace("\x00", "")
+    try:
+        return b.decode("utf-8").replace("\x00", "")
+    except UnicodeDecodeError:
+        pass
+    import locale
+    enc = locale.getpreferredencoding(False) or "latin-1"
+    try:
+        return b.decode(enc, "replace").replace("\x00", "")
+    except LookupError:
+        return b.decode("latin-1").replace("\x00", "")
+
+
+def _keepalive_task_exists(run):
+    """-> True | False | None (UNKNOWN). A named query that answers 0 is a yes in any language. Anything else is
+    settled by the FULL list (review r1: 'cannot find' is English only - a Hebrew or German schtasks never matched,
+    so the task was never made): the name absent from a list that answered is a no; a list that failed is UNKNOWN."""
+    try:
+        # raw bytes, never text=True: the decode is _schtasks_text's, and the parse is inside this try (review r2)
+        r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK], capture_output=True, timeout=20)
+        if getattr(r, "returncode", 1) == 0:
+            return True
+        lst = run(["schtasks", "/Query", "/FO", "CSV", "/NH"], capture_output=True, timeout=60)
+        if getattr(lst, "returncode", 1) != 0:
+            return None
+        want = ("\\" + KEEPALIVE_TASK).lower()
+        for row in csv.reader(_schtasks_text(getattr(lst, "stdout", None)).splitlines()):
+            if row and row[0].strip().lower() == want:
+                return True
+        return False
+    except Exception:                   # csv.Error, a decode, a timeout: UNKNOWN, never a guessed "no"
+        return None
+
+
+def ensure_keepalive_task(marker, sign_in_did, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
+                          write_xml=None, isfile=os.path.isfile):
+    """REG-2614 — A CONSOLE THAT STARTS AT SIGN-IN ALSO COMES BACK WHEN IT DIES. -> {"did", "why"}
+
+    2026-10-16: the ALT's console died with no error and stayed dead until the next Windows sign-in - 302 commits
+    missed. The sign-in start (REG-1660) only runs at sign-in. This rides THE SAME CONSENT: the keepalive exists
+    only while the sign-in start does, so a PC that said "No, I open it myself", or removed the entry, is never
+    given a console that starts itself every five minutes instead.
+
+      did "created"    the task is made and the check now SEES it; the marker records it
+      did "already"    the task exists - left exactly as it is
+      did "left"       the task this console made is gone (someone removed it): never made again
+      did "withdrawn"  the sign-in start is gone or ruled out, so the keepalive this console made is removed with it
+      did "failed"     it could not be made or removed - said, never claimed
+      did None         not Windows, or the sign-in start / the task is UNKNOWN - nothing is done on a guess
+    [[unknown-stays-unknown]]"""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    if not is_win:
+        return {"did": None, "why": "only a Windows console needs a keepalive task"}
+    if run is None:
+        import git_quiet as _gq
+        run = _gq.run
+    consent = sign_in_did in ("created", "already")
+    if sign_in_did not in ("created", "already", "left"):
+        return {"did": None, "why": "whether this console starts at sign-in is not settled (%s) - the keepalive "
+                                    "follows it, so nothing is done" % (sign_in_did,)}
+    rec = _sign_in_marker_read(marker)
+    if rec is None:
+        return {"did": None, "why": "the record of an earlier keepalive cannot be read - nothing is done"}
+    exists = _keepalive_task_exists(run)
+    if exists is None:
+        return {"did": None, "why": "whether the '%s' task exists is UNKNOWN - nothing is done" % KEEPALIVE_TASK}
+    if not consent:
+        if exists and rec.get("madeMs") and _keepalive_task_logon(run) != "InteractiveToken":
+            # review r3: the owner re-registered it unattended (or it cannot be read) - his task, never removed
+            return {"did": "left", "why": "the '%s' task is the owner's unattended install (or could not be read) - "
+                                          "left as it is" % KEEPALIVE_TASK}
+        if exists and rec.get("madeMs"):
+            try:
+                r = run(["schtasks", "/Delete", "/TN", KEEPALIVE_TASK, "/F"], capture_output=True, timeout=30)
+                ok = getattr(r, "returncode", 1) == 0
+            except Exception:
+                ok = False
+            if not ok:
+                return {"did": "failed", "why": "the sign-in start is gone but its keepalive could not be removed"}
+            return {"did": "withdrawn", "why": "the sign-in start is gone, so the keepalive this console made went "
+                                               "with it"}
+        return {"did": "left", "why": "this console does not start at sign-in, so it has no keepalive"}
+    if exists:
+        return {"did": "already", "why": "the '%s' task brings this console back if it dies" % KEEPALIVE_TASK}
+    if rec.get("madeMs"):
+        return {"did": "left", "why": "the keepalive this console made is gone - someone removed it, so it is not "
+                                      "made again"}
+    tv_dir = tv_dir or os.path.dirname(os.path.abspath(__file__))
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    start = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now_ms / 1000.0))
+    xml = keepalive_task_xml(_keepalive_pythonw(python, isfile), tv_dir, start)
+    xml_path = marker + ".task.xml"
+    try:
+        if write_xml is not None:
+            write_xml(xml_path, xml)
+        else:
+            with open(xml_path, "w", encoding="utf-16") as fh:   # the BOM Task Scheduler expects
+                fh.write(xml)
+        r = run(["schtasks", "/Create", "/TN", KEEPALIVE_TASK, "/XML", xml_path, "/F"],
+                capture_output=True, timeout=30)
+    except Exception as e:
+        return {"did": "failed", "why": "the keepalive task could not be written (%s)" % type(e).__name__}
+    finally:
+        try:
+            os.remove(xml_path)
+        except OSError:
+            pass
+    if getattr(r, "returncode", 1) != 0:
+        return {"did": "failed", "why": "Windows refused the keepalive task: %s"
+                                        % (("%s %s" % (_schtasks_text(getattr(r, "stdout", None)),
+                                                       _schtasks_text(getattr(r, "stderr", None))))
+                                           .strip()[-160:] or "no reason given")}
+    if _keepalive_task_exists(run) is not True:
+        return {"did": "failed", "why": "the keepalive task was written but the check still cannot see it"}
+    try:
+        tmp = marker + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"madeMs": now_ms, "task": KEEPALIVE_TASK, "why": "REG-2614"}, fh)
+        os.replace(tmp, marker)
+    except Exception as e:
+        return {"did": "created", "why": "made, but its record could not be kept (%s)" % type(e).__name__}
+    return {"did": "created", "why": "the '%s' task now brings this console back within %d minutes if it dies"
+                                     % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN)}
+
+
+#: Register-ScheduledTask taking every value from ITS OWN environment - the password included - never from argv: a
+#: command line lands in process-creation audit logs (event 4688, Sysmon) and is listed by WMI; an environment block
+#: is not logged and is readable only by the same user or an administrator. (Review r3: stdin read with
+#: [Console]::In under `-Command` is not what Windows PowerShell hands a piped line to, so the password never
+#: arrived; the environment is UTF-16 on Windows, so a non-ASCII password survives as typed.)
+_UNATTENDED_PS = ("$ErrorActionPreference='Stop'; "
+                  "$x = Get-Content -Raw -Encoding Unicode -LiteralPath $env:TVD_KA_XML; "
+                  "Register-ScheduledTask -TaskName $env:TVD_KA_TASK -Xml $x.TrimStart([char]0xFEFF) "
+                  "-User $env:TVD_KA_USER -Password $env:TVD_KA_PW -Force | Out-Null")
+#: the only parts of the caller's environment PowerShell is given - never the variable the password came from
+_UNATTENDED_ENV_KEEP = ("PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "TEMP", "TMP", "USERPROFILE",
+                        "COMSPEC", "PSMODULEPATH")
+
+
+def _without_secret(text, secret):
+    """-> text with every copy of the secret replaced. Whatever Windows says back is said - the password never is.
+    PowerShell's captured errors are CLIXML, which writes '<' as _x003C_ and non-ASCII as _xHHHH_: unescaped first,
+    or an escaped copy of the password would slip past (review r3)."""
+    import re as _re
+    text = _re.sub(r"_x([0-9A-Fa-f]{4})_", lambda m: chr(int(m.group(1), 16)), str(text or ""))
+    return text.replace(secret, "***") if secret else text
+
+
+def _keepalive_task_logon(run):
+    """-> the registered task's LogonType ('InteractiveToken', 'Password', ...) or None (UNKNOWN). Read from the
+    task's own /XML through _schtasks_text."""
+    try:
+        r = run(["schtasks", "/Query", "/TN", KEEPALIVE_TASK, "/XML"], capture_output=True, timeout=20)
+        if getattr(r, "returncode", 1) != 0:
+            return None
+        import re as _re
+        m = _re.search(r"<LogonType>\s*([A-Za-z0-9]+)\s*</LogonType>", _schtasks_text(getattr(r, "stdout", None)))
+        return m.group(1) if m else None
+    except Exception:                   # an unreadable task is UNKNOWN, never "not his"
+        return None
+
+
+def install_unattended_keepalive(user, password, run=None, is_win=None, tv_dir=None, python=None, now_ms=None,
+                                 write_xml=None, isfile=os.path.isfile, env=None):
+    """REG-2616 - THE KEEPALIVE THAT ALSO RUNS WITH NOBODY SIGNED IN. -> {"did", "why"}  (never the password)
+
+    His 2026-10-23 ruling: the ALT must get its console back after a reboot that stops at the sign-in screen, which
+    the default task (signed-in or locked only) cannot do. An install-time act by the owner, not the console's: run
+    once (console_keepalive.py --install-unattended USER), it (re)registers the same task as USER with the stored
+    password. Nothing in the console calls this; with no password the default mode stays exactly as it was.
+
+      did "created"   registered and the check SEES it
+      did "failed"    refused / could not be checked - Windows' words are said, the password is replaced by ***
+      did None        not Windows, or no user / no password given - nothing is done on a guess
+
+    The password goes to that one PowerShell child in its environment only (TVD_KA_PW; the caller's variable is not
+    passed on) - never argv, the XML, the marker, a log or the return value. A task this installs is the owner's:
+    ensure_keepalive_task finds it 'already' there, and never removes a task whose LogonType is not InteractiveToken,
+    even one the console first made (review r3)."""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    if not is_win:
+        return {"did": None, "why": "only a Windows console has a keepalive task"}
+    if not user or not password:
+        return {"did": None, "why": "the unattended keepalive needs the account and its password - nothing is done"}
+    if run is None:
+        import git_quiet as _gq
+        run = _gq.run
+    tv_dir = tv_dir or os.path.dirname(os.path.abspath(__file__))
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    start = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now_ms / 1000.0))
+    xml = keepalive_task_xml(_keepalive_pythonw(python, isfile), tv_dir, start, run_as=user)
+    import tempfile
+    fd, xml_path = tempfile.mkstemp(prefix="tvd-keepalive-", suffix=".xml")
+    os.close(fd)
+    try:
+        if write_xml is not None:
+            write_xml(xml_path, xml)
+        else:
+            with open(xml_path, "w", encoding="utf-16") as fh:
+                fh.write(xml)
+        src = os.environ if env is None else env
+        e = {k: v for k, v in src.items() if k.upper() in _UNATTENDED_ENV_KEEP}
+        e.update(TVD_KA_TASK=KEEPALIVE_TASK, TVD_KA_XML=xml_path, TVD_KA_USER=user, TVD_KA_PW=password)
+        r = run(["powershell", "-NoProfile", "-NonInteractive", "-Command", _UNATTENDED_PS],
+                stdin=subprocess.DEVNULL, capture_output=True, timeout=60, env=e)
+    except Exception as ex:
+        return {"did": "failed", "why": "the unattended keepalive could not be registered (%s)" % type(ex).__name__}
+    finally:
+        try:
+            os.remove(xml_path)
+        except OSError:
+            pass
+    if getattr(r, "returncode", 1) != 0:
+        said = ("%s %s" % (_schtasks_text(getattr(r, "stdout", None)), _schtasks_text(getattr(r, "stderr", None))))
+        return {"did": "failed", "why": "Windows refused the unattended keepalive: %s"
+                                        % (_without_secret(said, password).strip()[-200:] or "no reason given")}
+    if _keepalive_task_logon(run) != "Password":
+        # review r3: read the task back - one that is missing, unreadable, or needs someone signed in is not made
+        return {"did": "failed", "why": "the '%s' task is not there running with nobody signed in" % KEEPALIVE_TASK}
+    return {"did": "created", "why": "the '%s' task now runs every %d minutes as %s, signed in or not"
+                                     % (KEEPALIVE_TASK, KEEPALIVE_EVERY_MIN, user)}
 
 
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.

@@ -54,6 +54,8 @@ which is the smaller half of what a different family of eyes is for.
 "no numeric pairs to compare at all" available as an answer instead of a false "they agree".
 """
 
+import collections
+import copy
 import io
 import json
 import os
@@ -63,9 +65,332 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(HERE)
 
-# untracked, like the other runtime decision records (see .gitignore)
-LEDGER_PATH = os.environ.get("TV_SECOND_EYE_LEDGER") or os.path.join(HERE, ".second_eye.jsonl")
+# ══ #178 (REG-2450) — ONE SECOND-EYE LEDGER PER MACHINE, NOT ONE PER CHECKOUT ═══════════════════════════════════════
+# MEASURED 2026-10-22 (Push A1): the ship gate (`--check <prev> --gate`) read the PUSHING tree's tv/.second_eye.jsonl. A
+# fresh push worktree has none, so v3784 was refused ("v3783 OWES A LOOK - nothing was ever recorded"); and push #13's
+# worktree held the v3778 look, which died with that worktree (main's ledger then ended at v3760). A look that happened
+# was LOST - the defect class of the red memory (REG-2342) and the verdict cache (REG-2340). So:
+#   · THE LEDGER LIVES IN GIT'S COMMON DIR (<common>/second_eye.jsonl): one file per machine, shared by the main checkout
+#     and every worktree, never in a work tree - never in git status, never copied into a sandbox, never one `git add -A`
+#     from this PUBLIC repo. Found by READING .git (prove_record's walk), never by running git: inside a hook GIT_DIR is
+#     inherited, and git would answer for whichever tree set it. Another PC resolves its OWN common dir.
+#   · THE FIRST READ OR WRITE IN A PROCESS FOLDS every checkout's own tv/.second_eye.jsonl in - this checkout's, the main
+#     checkout's and every live worktree's (<common>/worktrees/*/gitdir) - deduped by EXACT row and never dropping one: a
+#     row a checkout holds N times is held at least N times, and the old files are only READ. After that a checkout's
+#     file is read again only when its (size, mtime_ns, inode) moved, so old code still appending to one is folded too.
+#   · EVERY APPEND HOLDS THE LEDGER'S LOCK, record()'s and the fold's alike: flock on POSIX; on Windows msvcrt's byte
+#     lock on one byte far past the end, so a reader is never refused; with neither, the append runs unlocked and says so.
+#   · A TREE WITH NO GIT DIR (a heart2 sandbox, a .git pointer that will not read) keeps its own tv/.second_eye.jsonl,
+#     and LEDGER_WHY says why - that file dies with the tree, and the CLI says so.
+#   · TV_SECOND_EYE_LEDGER still names a fixture (a law's seam, bound at import); `--gate` ignores it (v2143.1).
+# The law: test_the_second_eye_ledger_is_one_per_machine. [[the-unjoined-end]] [[stale-reading]]
+MACHINE_NAME = "second_eye.jsonl"
+CHECKOUT_NAME = ".second_eye.jsonl"
+#: a (size, mtime_ns, inode, device) signature is trusted as a memo key only once the file has been still this long: a
+#: coarse clock (ext4 ticks, FAT's two seconds) can give two different writes of one size the same mtime
+SETTLE_S = 3.0
+#: Windows: the one byte msvcrt locks for an append - far past any real ledger's end, so a reader is never refused
+_WIN_LOCK_AT = 1 << 30
+_SAID = set()
+
+
+def _say_once(key, line):
+    """A ledger warning, once per process and key, on stderr (stdout is a CLI's verdict)."""
+    if key in _SAID:
+        return
+    _SAID.add(key)
+    try:
+        sys.stderr.write(line + "\n")
+    except Exception:
+        pass
+
+
+def _common_dir(repo):
+    """git's COMMON dir for the checkout at `repo`, read from its .git - never by running git. -> (dir, None) | (None, why)"""
+    try:
+        import prove_record as _pr
+        common = _pr._git_common_dir(repo)
+    except Exception as e:                        # unreadable is SAID, never guessed
+        return None, "its .git could not be read (%s)" % type(e).__name__
+    if common:
+        return common, None
+    if not os.path.lexists(os.path.join(repo, ".git")):
+        return None, "this tree has no .git (a sandbox copy, or not a checkout)"
+    return None, "its .git pointer does not resolve to a git directory"
+
+
+def machine_ledger(repo=None):
+    """#178 - where this machine's second-eye ledger lives. -> (path, None) | (the checkout's own file, why it is)"""
+    repo = os.path.abspath(repo or _ROOT)
+    common, why = _common_dir(repo)
+    if common:
+        return os.path.join(common, MACHINE_NAME), None
+    return os.path.join(repo, "tv", CHECKOUT_NAME), why
+
+
+_WT_ROOTS = {}             # common dir -> (worktrees dir signature, listed at, [worktree roots])
+
+
+def _worktree_roots(common):
+    """Every linked worktree's root, read from <common>/worktrees/*/gitdir. -> [path]. Listed again when the directory
+    moved, and at most every 30 s otherwise (a `git worktree move` rewrites a gitdir file, not the directory)."""
+    wt = os.path.join(common, "worktrees")
+    try:
+        st = os.stat(wt)
+    except FileNotFoundError:
+        return []                                 # no linked worktree was ever made in this repository
+    except OSError:
+        st = None                                 # could not ask: no cache key - the listing below asks and says why
+    key = (st.st_mtime_ns, st.st_ino) if st is not None else None
+    hit = _WT_ROOTS.get(common)
+    if key is not None and hit is not None and hit[0] == key and time.time() - hit[1] < 30.0:
+        return list(hit[2])
+    try:
+        names = sorted(os.listdir(wt))
+    except OSError as e:
+        _say_once(("worktrees", common), "second eye: ⚠ the worktree list would not read (%s) - no worktree's own "
+                                         "ledger is folded in this time" % type(e).__name__)
+        return []
+    roots = []
+    for n in names:
+        try:
+            with io.open(os.path.join(wt, n, "gitdir"), encoding="utf-8") as fh:
+                p = fh.read().strip()
+        except (OSError, ValueError):
+            continue                              # a half-made or pruned worktree record: nothing to read
+        if p:
+            p = p if os.path.isabs(p) else os.path.join(wt, n, p)
+            roots.append(os.path.dirname(os.path.normpath(p)))
+    _WT_ROOTS[common] = (key, time.time(), roots)
+    return list(roots)
+
+
+def checkout_ledgers(repo=None):
+    """#178 - every checkout's OWN ledger on this machine (the pre-#178 layout): this checkout's, the main checkout's and
+    every live worktree's tv/.second_eye.jsonl. -> [existing path], one per real file"""
+    repo = os.path.abspath(repo or _ROOT)
+    found = [os.path.join(repo, "tv", CHECKOUT_NAME)]
+    common, _why = _common_dir(repo)
+    if common:
+        if os.path.basename(common) == ".git":
+            found.append(os.path.join(os.path.dirname(common), "tv", CHECKOUT_NAME))     # the main checkout
+        for root in _worktree_roots(common):
+            found.append(os.path.join(root, "tv", CHECKOUT_NAME))
+    out, seen = [], set()
+    for p in found:
+        r = os.path.realpath(p)
+        if r not in seen and os.path.isfile(p):
+            seen.add(r)
+            out.append(p)
+    return out
+
+
+def _sig(p):
+    """(size, mtime_ns, inode, device) of a file, or None when it cannot be stat'ed."""
+    try:
+        st = os.stat(p)
+    except OSError:
+        return None
+    return (st.st_size, st.st_mtime_ns, st.st_ino, st.st_dev)
+
+
+def _settled(sig):
+    """Has this file been still for SETTLE_S? Only then may its signature stand for its bytes."""
+    return sig is not None and (time.time_ns() - sig[1]) >= SETTLE_S * 1e9
+
+
+def _read_lines(p):
+    """Every non-blank row of a ledger, as the exact bytes written (less the line ending). -> [bytes] ([] if absent)"""
+    try:
+        with io.open(p, "rb") as fh:
+            data = fh.read()
+    except FileNotFoundError:
+        return []
+    return [ln for ln in (x.strip() for x in data.split(b"\n")) if ln]
+
+
+def _lock(fh):
+    """Exclusive lock on a ledger opened for append. -> "flock" | "msvcrt" | None (no lock on this platform)"""
+    try:
+        import fcntl
+    except ImportError:
+        fcntl = None
+    if fcntl is not None:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        return "flock"
+    try:
+        import msvcrt
+    except ImportError:
+        return None
+    fh.seek(_WIN_LOCK_AT)
+    msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)    # LK_LOCK retries for about 10 s, then raises
+    return "msvcrt"
+
+
+def _unlock(fh, how):
+    try:
+        if how == "flock":
+            import fcntl
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        elif how == "msvcrt":
+            import msvcrt
+            fh.seek(_WIN_LOCK_AT)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+    except Exception:
+        pass                                      # closing the handle releases it either way
+
+
+def _append_rows(path, rows, recheck=None):
+    """Append whole rows (bytes, no line ending) to the ledger at `path`, under its lock. `recheck(rows_on_disk)` (the
+    fold) decides UNDER the lock which rows are still missing. A row a killed writer left without its newline is closed
+    first, so it never swallows the next one. -> the rows written"""
+    os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+    with io.open(path, "ab") as fh:
+        how = None
+        try:
+            how = _lock(fh)
+        except Exception as e:
+            _say_once(("lock-failed", path), "second eye: ⚠ the ledger lock could not be taken (%s) - this append "
+                                             "runs without it" % type(e).__name__)
+        if how is None:
+            _say_once(("no-lock", path), "second eye: ⚠ no file lock on this platform - ledger appends run unlocked")
+        try:
+            if recheck is not None:
+                rows = recheck(_read_lines(path))
+            if not rows:
+                return []
+            data = b"".join(r + b"\n" for r in rows)
+            try:
+                with io.open(path, "rb") as rd:
+                    rd.seek(0, 2)
+                    if rd.tell() > 0:
+                        rd.seek(-1, 2)
+                        if rd.read(1) != b"\n":
+                            data = b"\n" + data
+            except OSError:
+                pass
+            fh.write(data)
+            fh.flush()
+            os.fsync(fh.fileno())
+            return list(rows)
+        finally:
+            _unlock(fh, how)
+
+
+def _missing(on_disk, sources):
+    """The rows of `sources` (lists of rows) the ledger does not hold yet: a row one source holds N times is owed until
+    the ledger holds it N times. Ordered by the rows' own clock (`ts`), so a fold keeps the ledger in time order. -> [row]"""
+    have = collections.Counter(on_disk)
+    out = []
+    for rows in sources:
+        seen = collections.Counter()
+        for r in rows:
+            seen[r] += 1
+            if seen[r] > have[r]:
+                have[r] += 1
+                out.append(r)
+    keyed, last = [], float("-inf")
+    for i, r in enumerate(out):
+        t = None
+        try:
+            d = json.loads(r.decode("utf-8"))
+            if isinstance(d, dict) and isinstance(d.get("ts"), (int, float)):
+                t = float(d["ts"])
+        except Exception:
+            t = None
+        if t is None:
+            t = last                              # a row with no clock stays beside the row before it
+        last = max(last, t)
+        keyed.append((t, i, r))
+    keyed.sort(key=lambda k: (k[0], k[1]))
+    return [k[2] for k in keyed]
+
+
+_FOLDED = {}               # ledger realpath -> {"id": (inode, device), "size": int, "src": {source realpath: signature}}
+_FOLD_AT = {}              # ledger realpath -> when this process last asked whether a checkout's ledger moved
+
+
+def fold(ledger=None, sources=None):
+    """#178 - fold every checkout's own ledger into this machine's. -> rows appended (0 when nothing was missing)
+
+    A source is read only when its signature moved since this process last folded it; the rows still missing are
+    decided again UNDER the ledger's lock, so two processes folding at once add each row once. Nothing is ever removed,
+    from the ledger or from a source."""
+    ledger = os.path.abspath(ledger or LEDGER_PATH)
+    real = os.path.realpath(ledger)
+    if sources is None:
+        sources = checkout_ledgers()
+    sources = [s for s in sources if os.path.realpath(s) != real]
+    lsig = _sig(ledger)
+    st = _FOLDED.get(real)
+    if st is None or lsig is None or st["id"] != lsig[2:] or lsig[0] < st["size"]:
+        st = {"id": lsig[2:] if lsig else None, "size": lsig[0] if lsig else 0, "src": {}}
+        _FOLDED[real] = st               # new, replaced or shrunk: every checkout's ledger is read again
+    moved = []
+    for s in sources:
+        ssig = _sig(s)
+        if ssig is not None and st["src"].get(os.path.realpath(s)) != ssig:
+            moved.append((s, ssig))
+    if not moved:
+        return 0
+    src_rows, readable = [], []
+    for s, ssig in moved:
+        try:
+            src_rows.append(_read_lines(s))
+            readable.append((s, ssig))
+        except OSError as e:                      # one checkout's unreadable file never blocks the others' rows
+            _say_once(("source", os.path.realpath(s), type(e).__name__),
+                      "second eye: ⚠ a checkout's own ledger would not read (%s) - not folded this time: %s"
+                      % (type(e).__name__, s))
+    moved = readable
+    wrote = []
+    if _missing(_read_lines(ledger), src_rows):
+        wrote = _append_rows(ledger, None, recheck=lambda on_disk: _missing(on_disk, src_rows))
+    for s, ssig in moved:
+        if _settled(ssig):
+            st["src"][os.path.realpath(s)] = ssig
+    after = _sig(ledger)
+    if after is not None:
+        st["id"], st["size"] = after[2:], after[0]
+    if wrote:
+        _say_once(("folded", real, len(wrote), after),
+                  "second eye: %d row(s) from %d checkout ledger(s) folded into this machine's ledger (%s)"
+                  % (len(wrote), len(moved), ledger))
+    return len(wrote)
+
+
+def _fold_due(path):
+    """Before a read or a write of THIS machine's ledger: fold what moved in a checkout's own ledger, asked at most every
+    2 s per process. A fixture, a seam's file or a tree with no git dir is never folded into."""
+    if LEDGER_WHY is not None or not _MACHINE_LEDGER:
+        return
+    p = os.path.abspath(path)
+    if p != _MACHINE_LEDGER:
+        return
+    now = time.time()
+    if now - _FOLD_AT.get(p, 0.0) < 2.0:
+        return
+    _FOLD_AT[p] = now
+    try:
+        fold(p)
+    except Exception as e:                        # a fold costs a line, never a read or a write
+        _say_once(("fold-failed", p), "second eye: ⚠ the checkouts' own ledgers could not be folded in (%s) - "
+                                      "this machine's ledger is read as it stands" % type(e).__name__)
+
+
+#: #178 - this machine's ledger, and (LEDGER_WHY) why it is this tree's own file instead - None when it is the machine's.
+_MACHINE_LEDGER, LEDGER_WHY = machine_ledger()
+_MACHINE_LEDGER = os.path.abspath(_MACHINE_LEDGER)
+# untracked runtime record of decisions, one per machine; TV_SECOND_EYE_LEDGER names a fixture (bound here, at import)
+LEDGER_PATH = os.environ.get("TV_SECOND_EYE_LEDGER") or os.path.abspath(_MACHINE_LEDGER)
+# ⚠ NOT FOLDED AT IMPORT. The first READ or WRITE of this machine's ledger in a process folds (_ledger_state, record,
+# --gate). Importing alone opens no file under the checkout's own .git/ (audit hook: a main checkout only stats .git; a
+# linked worktree reads its .git pointer and its gitdir's commondir, which lie outside its work tree): run_gates' gate
+# ledger refuses to carry a gate that read git's own files, and ~36 laws import this module only to drive fixtures -
+# folding here would have re-run every one of them on every main-checkout push. console_doctor's direct readers open
+# LEDGER_PATH after the push gate (or any earlier read) has already folded it.
 
 # The families that count as a SECOND eye for work authored by Claude. Derived from the model id
 # rather than trusted from a caller, because "which family looked at this" is the whole question.
@@ -166,26 +491,69 @@ def current_version(here=None):
     return None
 
 
-def _rows(path=None):
+def _parse_ledger(p):
+    """Every row of the ledger at `p`, in file order. Raises when the file cannot be read."""
     out = []
-    try:
-        with io.open(path or LEDGER_PATH, encoding="utf-8") as fh:
-            for ln in fh:
-                ln = ln.strip()
-                if not ln:
-                    continue
-                try:
-                    row = json.loads(ln)
-                except Exception:
-                    continue          # one bad line must not blind the whole ledger
-                if isinstance(row, dict):
-                    out.append(row)   # ...and a line that PARSES but is not an object is one of
-                                      # those bad lines. It used to reach every consumer and
-                                      # traceback --audit, which is the recovery command the
-                                      # refusal message tells him to run.
-    except Exception:
-        return []
+    with io.open(p, encoding="utf-8") as fh:
+        for ln in fh:
+            ln = ln.strip()
+            if not ln:
+                continue
+            try:
+                row = json.loads(ln)
+            except Exception:
+                continue          # one bad line must not blind the whole ledger
+            if isinstance(row, dict):
+                out.append(row)   # ...and a line that PARSES but is not an object is one of
+                                  # those bad lines. It used to reach every consumer and
+                                  # traceback --audit, which is the recovery command the
+                                  # refusal message tells him to run.
     return out
+
+
+# ══ #48 (REG-2453) — ONE PARSE PER LEDGER STATE, NOT ONE PER QUESTION ══════════════════════════════════════════════
+# MEASURED 2026-10-22 on a COPY of his 7.3 MB, 2,274-row ledger: console_doctor's "second eye asked twice" row asks
+# current_version, agreement(v) and agreement_census() - and the census asks agreement() once per recent version, each of
+# which re-read and re-parsed the WHOLE file: 43 parses, 3.4 of the census's 3.96 s (profiled; 6-10 s under a loaded
+# Mac). The parse is now kept per (path, size, mtime_ns, inode, device): a ledger that did not move is parsed once per
+# process, a row appended is a new signature and is seen on the next read, and a file written in the last SETTLE_S is
+# never memoised (its signature cannot yet stand for its bytes). The census is kept per (state, recent) - and only while
+# the readers it is built from are this module's own (a law that swaps _rows or agreement gets a fresh census). Every
+# caller gets COPIES: a census deep-copied, each row a shallow copy - so a reader that sets a row's key can never edit
+# the memo, and one that edited a NESTED value (a findings list in place) would. None does: every public reader here and
+# 22 console_doctor rows (every one named for the eye or a ledger) left a kept parse deep-equal (measured 2026-10-22).
+# The law: test_the_second_eye_row_reads_the_ledger_once.
+_PARSED = {}               # abspath -> {"sig": signature, "rows": [row]}
+_CENSUS = {}               # (abspath, recent) -> (signature, census)
+
+
+def _ledger_state(path=None):
+    """The parsed ledger at `path` (default LEDGER_PATH, read at call time). -> {"sig", "rows"} | None (unreadable)"""
+    p = os.path.abspath(path or LEDGER_PATH)
+    _fold_due(p)
+    sig = _sig(p)
+    if sig is None:
+        return None
+    hit = _PARSED.get(p)
+    if hit is not None and hit["sig"] == sig:
+        return hit
+    try:
+        rows = _parse_ledger(p)
+    except Exception:
+        return None
+    state = {"sig": sig, "rows": rows}
+    if _settled(sig) and _sig(p) == sig:
+        _PARSED[p] = state
+    else:
+        _PARSED.pop(p, None)
+    return state
+
+
+def _rows(path=None):
+    st = _ledger_state(path)
+    if st is None:
+        return []
+    return [dict(r) for r in st["rows"]]
 
 
 
@@ -610,12 +978,9 @@ def record(version, model, verdict, findings=None, images=None, asked=None,
                             "received.")
         row["claimedVerdict"] = str(verdict or "")
     p = path or LEDGER_PATH
-    try:
-        os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
-    except Exception:
-        pass
-    with io.open(p, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    # #178 (REG-2450) - into THIS machine's ledger, after what a checkout's own ledger still held, under the lock
+    _fold_due(p)
+    _append_rows(p, [json.dumps(row, ensure_ascii=False).encode("utf-8")])
     return row
 
 
@@ -1398,7 +1763,27 @@ def verdict_provenance(path=None):
 
 
 def agreement_census(path=None, recent=40):
-    """How much of the ledger can even answer the question. -> dict. ⚠ Denominator first."""
+    """How much of the ledger can even answer the question. -> dict. ⚠ Denominator first.
+
+    REG-2453 - kept per (ledger state, recent): a ledger that did not move is not walked again (a copy is handed back),
+    and a census over readers a caller swapped in is never kept or served."""
+    p = os.path.abspath(path or LEDGER_PATH)
+    own = (_rows is _CENSUS_READERS[0] and agreement is _CENSUS_READERS[1]
+           and verdict_provenance is _CENSUS_READERS[2])
+    st = _ledger_state(p) if own else None
+    key = (p, int(recent))
+    if st is not None:
+        hit = _CENSUS.get(key)
+        if hit is not None and hit[0] == st["sig"]:
+            return copy.deepcopy(hit[1])
+    out = _census_walk(path, recent)
+    if st is not None and _settled(st["sig"]) and _sig(p) == st["sig"] and _PARSED.get(p) is st:
+        _CENSUS[key] = (st["sig"], copy.deepcopy(out))
+    return out
+
+
+def _census_walk(path=None, recent=40):
+    """agreement_census's walk - every version, then one agreement() per recent asked-twice version."""
     seen = {}
     for r in _rows(path):
         v = norm_version(r.get("version") or "")
@@ -1462,6 +1847,10 @@ def agreement_census(path=None, recent=40):
                        100.0 * len(asked_twice) / max(1, len(seen)), len(recent_v), len(dis),
                        len(echoed),
                        _prov.get("say") or _prov.get("why") or ""))}
+
+
+#: REG-2453 - the readers a kept census was built from; a census is kept or served only while these are still the module's
+_CENSUS_READERS = (_rows, agreement, verdict_provenance)
 
 
 def looked_at_commit(sha, path=None):
@@ -1698,7 +2087,18 @@ def main(argv):
     # the variable entirely. Tests keep the seam by calling the functions with an explicit `path=`.
     global LEDGER_PATH
     if "--gate" in argv:
-        LEDGER_PATH = os.path.join(HERE, ".second_eye.jsonl")
+        # #178 (REG-2450) - and the canonical path is THIS MACHINE's ledger (git's common dir), never the pushing tree's
+        # own file: a fresh push worktree has none, and a look recorded in one died with it.
+        LEDGER_PATH = _MACHINE_LEDGER
+        if LEDGER_WHY is None:
+            try:
+                fold(LEDGER_PATH)
+            except Exception as e:
+                print("second eye: ⚠ the checkouts' own ledgers could not be folded in (%s) - the gate reads this "
+                      "machine's ledger as it stands" % type(e).__name__)
+    if LEDGER_WHY is not None and LEDGER_PATH == _MACHINE_LEDGER:
+        print("second eye: ⚠ %s, so this tree keeps its OWN ledger (%s) - it dies with the tree"
+              % (LEDGER_WHY, LEDGER_PATH))
 
     # ⚠ and --check must not be swallowed by --audit appearing anywhere in argv, which printed
     # "OWES A LOOK" and then exited 0 — a refusal that reads as a pass.

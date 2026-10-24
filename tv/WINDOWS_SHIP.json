@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3792",
+  "ver": "v3793",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3792: M4 (GB-L) - per-PC console and ledgers, eagle dual logic, keep-awake, node pin, installer, faster CI",
+  "note": "v3793: machine-wide stores and seeder, vanish witness, Windows console keepalive, prover owned by its console",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
