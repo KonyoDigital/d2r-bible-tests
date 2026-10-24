@@ -4,7 +4,7 @@
 Shadow on main drew another PC from its roster row, and that row strips every build to name/x/y/w/h: no
 mods, no mule names, no vault. Now each console uploads its account stores themselves (the board's
 _collectProgress export, cleaned by tv/console_snapshot.py), signed with the key its roster publish
-registered, to functions/api/snapshot.js. A viewer's console fetches that record (or its own last copy
+registered, on the roster publish (functions/api/roster.js, roster:<owner>:profile). A viewer's console fetches that record (or its own last copy
 when the site cannot be read) and boots the same board on it in a frame whose storage lives in memory.
 
 Proved here, without a browser:
@@ -18,7 +18,7 @@ Proved here, without a browser:
     serves a record that fails its own hash as corrupt, never as stores
   * the viewer's words: live / offline / online UNKNOWN, always with the upload's age, and the PC's
     own last copy (with its time) when the site cannot be read - shadow works with the owner offline
-  * the console's doors: /api/snapshot-view and /api/snapshot-book, the publish lane, and the
+  * the console's doors: /api/roster-cache?profile= and /api/roster-book {kind: profile}, the roster lane, and the
     console panel's _shadowOpen falling back to the roster row when no upload exists
   * the shadow frame's boot block: memory storage, fail closed, no /api/ and no non-GET request,
     theirs-not-ours console answers, and the click/key veil - run in node on the page's own script
@@ -51,7 +51,7 @@ import roster_publish as RP  # noqa: E402
 import roster_sign as RS  # noqa: E402
 
 NODE = shutil.which("node")
-SNAPSHOT_JS = os.path.join(ROOT, "functions", "api", "snapshot.js")
+SNAPSHOT_JS = os.path.join(ROOT, "functions", "api", "roster.js")   # the profile half of the roster route
 APP = os.path.join(HERE, "control_app.py")
 UI = os.path.join(HERE, "control_ui.html")
 BIBLE = os.path.join(ROOT, "bible.html")
@@ -169,7 +169,7 @@ class WhatLeavesThePC(unittest.TestCase):
     def test_the_kv_budget_stays_under_the_ceiling(self):
         b = CS.budget()
         self.assertLessEqual(b["together"], b["ceiling"])
-        self.assertEqual(b["snapshot"], 4 * CS.DAY_CAP)
+        self.assertEqual(b["profile"], 4 * CS.DAY_CAP)
         self.assertEqual(b["worst"], 768 + len(CS.OWNERS) * (RP.DAY_CAP + CS.DAY_CAP))
         self.assertLessEqual(b["worst"], b["ceiling"], "every owner label at both caps runs past the KV ceiling")
         self.assertGreaterEqual(CS.MIN_GAP_MS, 24 * 3600 * 1000 // CS.DAY_CAP,
@@ -197,11 +197,11 @@ class WhenItUploads(unittest.TestCase):
 
     def test_the_reply_is_remembered(self):
         s = _stores()
-        st = CS.apply_reply({}, s, {"ok": True, "stored": ["snapshot"]}, T0)
+        st = CS.apply_reply({}, s, {"ok": True, "stored": ["profile"]}, T0)
         self.assertEqual((st["hash"], st["at"]), (CS.digest(s), T0))
         st = CS.apply_reply(st, s, {"ok": False, "why": "quota"}, T0 + 5)
         self.assertEqual((st["refuseAt"], st["why"]), (T0 + 5, "quota"))
-        st = CS.apply_reply(st, s, {"ok": True, "stored": ["snapshot"]}, T0 + 9)
+        st = CS.apply_reply(st, s, {"ok": True, "stored": ["profile"]}, T0 + 9)
         self.assertNotIn("refuseAt", st)
 
 
@@ -284,11 +284,11 @@ for (const step of (CFG.steps || [])) {
   const realNow = Date.now;
   if (typeof step.now === 'number') Date.now = () => step.now;
   if (step.get) {
-    const res = await mod.onRequestGet({ request: new Request('https://bull-4-u.com/api/snapshot?owner=' + encodeURIComponent(step.get)),
+    const res = await mod.onRequestGet({ request: new Request('https://bull-4-u.com/api/roster?profile=' + encodeURIComponent(step.get)),
                                          env: { TZ_HISTORY: kv } });
     out.steps.push({ get: JSON.parse(await res.text()), puts: puts });
   } else {
-    const req = new Request('https://bull-4-u.com/api/snapshot', { method: 'POST', body: bytes(step.raw),
+    const req = new Request('https://bull-4-u.com/api/roster', { method: 'POST', body: bytes(step.raw),
       headers: Object.assign({ 'content-type': 'application/json' }, step.headers || {}) });
     const res = await mod.onRequestPost({ request: req, env: { TZ_HISTORY: kv } });
     out.steps.push({ reply: JSON.parse(await res.text()), puts: puts });
@@ -304,7 +304,7 @@ process.stdout.write(JSON.stringify(out));
 
 def _node(cfg):
     cfg = dict(cfg, file=SNAPSHOT_JS)
-    with tempfile.TemporaryDirectory(prefix="tvd_snapshot_js_") as d:
+    with tempfile.TemporaryDirectory(prefix="tvd_profile_js_") as d:
         h = os.path.join(d, "h.mjs")
         with io.open(h, "w", encoding="utf-8") as fh:
             fh.write(_HARNESS)
@@ -333,7 +333,7 @@ class TheWorker(unittest.TestCase):
         if not NODE:
             raise unittest.SkipTest("node is absent - snapshot.js cannot be run on this PC, so the worker is "
                                     "UNMEASURED here, not passed")
-        cls.dir = tempfile.mkdtemp(prefix="tvd_snapshot_keys_")
+        cls.dir = tempfile.mkdtemp(prefix="tvd_profile_keys_")
         cls.key_a = RS.key_path_in(os.path.join(cls.dir, "a"))
         cls.key_b = RS.key_path_in(os.path.join(cls.dir, "b"))
         for p in (cls.key_a, cls.key_b):
@@ -361,9 +361,22 @@ class TheWorker(unittest.TestCase):
 
     def _body(self, stores=None, boot=False, **over):
         s = _wstores() if stores is None else stores
-        b = {"owner": OWNER, "boot": boot, "signedAt": None, "hash": CS.digest(s), "stores": s}
+        b = {"kind": "profile", "owner": OWNER, "boot": boot, "signedAt": None, "hash": CS.digest(s), "stores": s}
         b.update(over)
         return b
+
+    def test_the_profile_rides_the_roster_route_under_the_owners_own_profile_key(self):
+        """Elad 2026-10-24: one path. A profile posted to /api/roster lands in roster:<owner>:profile and nothing
+        else; a roster-row publish on the same route never touches the profile; GET ?profile= reads it back."""
+        rows = {"owner": OWNER, "boot": True, "signedAt": T0, "sections": {"owned": {"names": ["Shako"]}}}
+        out = _node({"seed": self.seed, "steps": [self._post(self._body(), self.key_a, now=T0),
+                                                   self._post(rows, self.key_a, now=T0 + 5),
+                                                   {"get": OWNER, "now": T0 + 9}]})
+        prof, row, got = out["steps"]
+        self.assertEqual(prof["puts"], ["roster:" + OWNER + ":profile"], prof["reply"])
+        self.assertNotIn("roster:" + OWNER + ":profile", row["puts"], row["reply"])
+        self.assertEqual(got["get"]["stores"], _wstores())
+        self.assertTrue(CS.snapshot_key(OWNER) == "roster:" + OWNER + ":profile")
 
     def test_the_hash_is_the_same_on_both_sides(self):
         s = dict(_wstores(), d2r_emoji=json.dumps({"icon": "🛡️ ✓ ü"}))
@@ -373,7 +386,7 @@ class TheWorker(unittest.TestCase):
         out = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0), {"get": OWNER}]})
         post, got = out["steps"]
         self.assertTrue(post["reply"]["ok"], post["reply"])
-        self.assertEqual(post["reply"]["stored"], ["snapshot"])
+        self.assertEqual(post["reply"]["stored"], ["profile"])
         self.assertTrue(post["reply"]["intentVerified"])
         self.assertEqual(got["get"]["stores"], _wstores())
         self.assertEqual(got["get"]["t"], T0)
@@ -390,7 +403,7 @@ class TheWorker(unittest.TestCase):
             ("another key", self._post(self._body(), self.key_b, seed=self.seed, now=T0), ""),
             ("hash mismatch", self._post(self._body(hash="0" * 8), self.key_a, seed=self.seed, now=T0), "hash"),
             ("a picture", self._post(self._body(stores=pic), self.key_a, seed=self.seed, now=T0), "pictures"),
-            ("oversize", self._post(self._body(stores=big), self.key_a, seed=self.seed, now=T0), "larger"),
+            ("oversize", self._post(self._body(stores=big), self.key_a, seed=self.seed, now=T0), "too large"),
             ("not an owner", self._post(self._body(owner="Somebody"), self.key_a, seed=self.seed, now=T0), "owner"),
             ("a bad store name", self._post(self._body(stores={"x": "1"}), self.key_a, seed=self.seed, now=T0), "d2r_"),
         ]
@@ -411,15 +424,15 @@ class TheWorker(unittest.TestCase):
                  self._post(self._body(stores=s3), self.key_a, now=T0 + 3 * gap)]
         out = _node({"steps": steps})
         r = [s["reply"] for s in out["steps"]]
-        self.assertEqual(r[0]["stored"], ["snapshot"])
+        self.assertEqual(r[0]["stored"], ["profile"])
         self.assertEqual(r[1]["skipped"], ["unchanged"])
         self.assertEqual(r[2]["skipped"], ["within 30 min"])
-        self.assertEqual(r[3]["stored"], ["snapshot"], "the boot upload was held back")
-        self.assertEqual(r[4]["stored"], ["snapshot"])
-        self.assertEqual(out["records"]["snapshot:" + OWNER]["n"], 3)
+        self.assertEqual(r[3]["stored"], ["profile"], "the boot upload was held back")
+        self.assertEqual(r[4]["stored"], ["profile"])
+        self.assertEqual(out["records"]["roster:" + OWNER + ":profile"]["n"], 3)
         day = __import__("time").strftime("%Y-%m-%d", __import__("time").gmtime(T0 // 1000))
         full = dict(self.seed)
-        full["snapshot:" + OWNER] = {"owner": OWNER, "t": T0 - 4 * gap, "day": day, "n": 20, "hash": "x",
+        full["roster:" + OWNER + ":profile"] = {"owner": OWNER, "t": T0 - 4 * gap, "day": day, "n": 20, "hash": "x",
                                      "stores": {"d2r_owned": "[]"}, "pub": None}
         capped = _node({"steps": [self._post(self._body(), self.key_a, seed=full, now=T0)]})["steps"][0]
         self.assertFalse(capped["reply"]["ok"])
@@ -434,10 +447,10 @@ class TheWorker(unittest.TestCase):
         replay["now"] = T0 + 120000
         out = _node({"steps": [first, newer, replay]})
         r = [x["reply"] for x in out["steps"]]
-        self.assertEqual((r[0].get("stored"), r[1].get("stored")), (["snapshot"], ["snapshot"]))
+        self.assertEqual((r[0].get("stored"), r[1].get("stored")), (["profile"], ["profile"]))
         self.assertFalse(r[2]["ok"], "the first (boot) upload was replayed over the newer one: %r" % r[2])
         self.assertIn("replayed", r[2]["why"])
-        self.assertEqual(out["records"]["snapshot:" + OWNER]["stores"], s2)
+        self.assertEqual(out["records"]["roster:" + OWNER + ":profile"]["stores"], s2)
         stale = _node({"steps": [self._post(self._body(signedAt=T0), self.key_a, seed=self.seed,
                                             now=T0 + 16 * 60000),
                                  self._post(self._body(signedAt="soon"), self.key_a, now=T0)]})
@@ -476,11 +489,11 @@ class TheWorker(unittest.TestCase):
             self.assertFalse(got["reply"]["ok"], "the worker stored an uncleaned or worldless body: %r" % got["reply"])
             self.assertEqual(got["puts"], [])
         ok = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0)]})
-        self.assertEqual(ok["steps"][0]["reply"].get("stored"), ["snapshot"], ok["steps"][0]["reply"])
+        self.assertEqual(ok["steps"][0]["reply"].get("stored"), ["profile"], ok["steps"][0]["reply"])
 
     def test_an_unreadable_stored_record_is_not_started_over(self):
         seed = dict(self.seed)
-        seed["snapshot:" + OWNER] = "{not json"
+        seed["roster:" + OWNER + ":profile"] = "{not json"
         got = _node({"steps": [self._post(self._body(), self.key_a, seed=seed, now=T0)]})["steps"][0]
         self.assertFalse(got["reply"]["ok"])
         self.assertEqual(got["puts"], [])
@@ -500,9 +513,9 @@ class TheWorker(unittest.TestCase):
         rotated = {"rosterkey:" + OWNER: {"pub": RS.b64u(pub_b), "keyId": RS.key_id(pub_b), "at": 2}}
         out = _node({"steps": [self._post(self._body(), self.key_a, seed=self.seed, now=T0), {"get": OWNER}]})
         self.assertEqual(out["steps"][1]["get"]["stores"], _wstores())
-        rec = out["records"]["snapshot:" + OWNER]
+        rec = out["records"]["roster:" + OWNER + ":profile"]
         seed = dict(rotated)
-        seed["snapshot:" + OWNER] = rec
+        seed["roster:" + OWNER + ":profile"] = rec
         got = _node({"steps": [{"get": OWNER, "seed": seed}]})["steps"][0]["get"]
         self.assertTrue(got["corrupt"], got)
         self.assertNotIn("stores", got)
@@ -510,7 +523,7 @@ class TheWorker(unittest.TestCase):
 
     def test_a_record_that_fails_its_own_hash_is_served_as_corrupt(self):
         seed = dict(self.seed)
-        seed["snapshot:" + OWNER] = {"owner": OWNER, "t": T0, "hash": CS.digest(_wstores()),
+        seed["roster:" + OWNER + ":profile"] = {"owner": OWNER, "t": T0, "hash": CS.digest(_wstores()),
                                      "pub": seed["rosterkey:" + OWNER]["pub"],
                                      "stores": dict(_wstores(), d2r_owned='["planted"]')}
         out = _node({"steps": [{"get": OWNER, "seed": seed}, {"get": "Wife PC"}, {"get": "Somebody"}]})
@@ -531,7 +544,7 @@ class TheConsoleDoors(unittest.TestCase):
         cls.src = _read(APP)
 
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="tvd_snapshot_console_")
+        self.tmp = tempfile.mkdtemp(prefix="tvd_profile_console_")
         self.addCleanup(shutil.rmtree, self.tmp, True)
         p = mock.patch.object(self.CA, "_log_root", lambda: self.tmp)
         p.start()
@@ -547,10 +560,10 @@ class TheConsoleDoors(unittest.TestCase):
     def test_the_site_answers_then_goes_down_and_the_last_copy_is_shown_with_its_time(self):
         rec = dict(_record(), ok=True, published=True, corrupt=False, intentVerified=True)
         with mock.patch.object(self.CA, "_roster_get", lambda url: rec), self._fleet():
-            v = self.CA._snapshot_view(OWNER)
+            v = self.CA._profile_view(OWNER)
         self.assertEqual((v["ok"], v["source"], v["stores"]), (True, "worker", _stores()))
         with mock.patch.object(self.CA, "_roster_get", lambda url: {"ok": False, "why": "URLError", "code": None}), self._fleet():
-            v = self.CA._snapshot_view(OWNER)
+            v = self.CA._profile_view(OWNER)
         self.assertTrue(v["ok"], "with the site down the PC's last copy was not shown")
         self.assertEqual((v["source"], v["t"], v["stores"]), ("cache", T0, _stores()))
         self.assertIn("last upload", v["words"])
@@ -559,89 +572,100 @@ class TheConsoleDoors(unittest.TestCase):
     def test_nothing_uploaded_is_said(self):
         with mock.patch.object(self.CA, "_roster_get", lambda url: {"ok": True, "owner": OWNER, "published": False}), \
                 self._fleet():
-            v = self.CA._snapshot_view(OWNER)
+            v = self.CA._profile_view(OWNER)
         self.assertFalse(v["ok"])
         self.assertIn("has not uploaded", v["why"])
 
     def test_the_last_copy_stands_in_only_when_the_site_could_not_be_read(self):
-        self.assertTrue(CS.write_cache(os.path.join(self.tmp, "snapshot_cache"), _record()))
+        self.assertTrue(CS.write_cache(os.path.join(self.tmp, "roster_profile_cache"), _record()))
         for said in ({"ok": True, "owner": OWNER, "published": False},
                      {"ok": True, "owner": OWNER, "published": True, "corrupt": True, "t": T0,
                       "why": "the key that signed it is not Dean's registered key now"}):
             with mock.patch.object(self.CA, "_roster_get", lambda url, said=said: said), self._fleet():
-                v = self.CA._snapshot_view(OWNER)
+                v = self.CA._profile_view(OWNER)
             self.assertFalse(v["ok"], "this PC's old copy was shown over the site's answer %r" % said)
             self.assertIn("the site says", v["why"])
         with mock.patch.object(self.CA, "_roster_get",
                                lambda url: {"ok": False, "why": "snapshot could not be read: storage unavailable"}), \
                 self._fleet():
-            v = self.CA._snapshot_view(OWNER)
+            v = self.CA._profile_view(OWNER)
         self.assertFalse(v["ok"], "this PC's old copy was drawn over the site refusing")
         with mock.patch.object(self.CA, "_roster_get", lambda url: None), self._fleet():
-            v = self.CA._snapshot_view(OWNER)
+            v = self.CA._profile_view(OWNER)
         self.assertEqual((v["ok"], v["source"]), (True, "cache"))
 
     def test_the_world_the_board_drew_in_rides_with_the_upload(self):
         w = {"machine": "windows", "profile": "main", "os": "WINDOWS", "ledger": "", "cousin": True}
-        self.assertTrue(self.CA._snapshot_book_take({"stores": _stores(), "world": w})["ok"])
+        self.assertTrue(self.CA._profile_book_take({"stores": _stores(), "world": w})["ok"])
         posted = []
-        with mock.patch.object(self.CA, "_snapshot_owner", lambda: OWNER), \
-                mock.patch.object(self.CA, "_snapshot_chars_learned", lambda: None), \
+        with mock.patch.object(self.CA, "_profile_owner", lambda: OWNER), \
+                mock.patch.object(self.CA, "_profile_chars_learned", lambda: None), \
                 mock.patch.object(self.CA, "main_locks_view", lambda: None), \
                 mock.patch.object(self.CA, "_roster_post",
-                                  lambda url, body, key: posted.append(body) or {"ok": True, "stored": ["snapshot"]}):
-            self.CA._snapshot_publish_once(True)
+                                  lambda url, body, key: posted.append(body) or {"ok": True, "stored": ["profile"]}):
+            self.CA._profile_publish_once(True)
         self.assertEqual(json.loads(posted[0]["stores"]["d2r_api_world"]), w)
 
     def test_the_book_takes_only_what_may_leave_and_the_lane_signs_with_the_roster_key(self):
-        got = self.CA._snapshot_book_take({"stores": dict(_stores(), d2r_installId="x", d2r_tvdHist="[]")})
+        got = self.CA._profile_book_take({"stores": dict(_stores(), d2r_installId="x", d2r_tvdHist="[]")})
         self.assertTrue(got["ok"])
-        with io.open(os.path.join(self.tmp, "snapshot_book.json"), encoding="utf-8") as fh:
+        with io.open(os.path.join(self.tmp, "roster_profile_book.json"), encoding="utf-8") as fh:
             book = json.load(fh)
         self.assertEqual(book["stores"], _stores())
         posted = []
-        with mock.patch.object(self.CA, "_snapshot_owner", lambda: OWNER), \
-                mock.patch.object(self.CA, "_snapshot_chars_learned", lambda: {"ok": True, "chars": []}), \
+        with mock.patch.object(self.CA, "_profile_owner", lambda: OWNER), \
+                mock.patch.object(self.CA, "_profile_chars_learned", lambda: {"ok": True, "chars": []}), \
                 mock.patch.object(self.CA, "main_locks_view", lambda: {"ok": False, "locked": None}), \
                 mock.patch.object(self.CA, "_roster_post",
                                   lambda url, body, key: posted.append((url, body, key)) or
-                                  {"ok": True, "stored": ["snapshot"]}):
-            self.CA._snapshot_publish_once(True)
-            self.CA._snapshot_publish_once(False)
+                                  {"ok": True, "stored": ["profile"]}):
+            self.CA._profile_publish_once(True)
+            self.CA._profile_publish_once(False)
         self.assertEqual(len(posted), 1, "an unchanged snapshot was uploaded again")
         url, body, key = posted[0]
-        self.assertEqual(url, "https://bull-4-u.com/api/snapshot")
+        self.assertEqual(url, "https://bull-4-u.com/api/roster")
         self.assertEqual(key, os.path.join(self.tmp, ".roster_key.json"))
         self.assertIn("d2r_api_chars_learned", body["stores"])
         self.assertNotIn("d2r_api_main_locks", body["stores"], "an unreadable console answer was uploaded")
 
     def test_a_suppressed_pc_uploads_nothing(self):
-        self.CA._snapshot_book_take({"stores": _stores()})
+        self.CA._profile_book_take({"stores": _stores()})
         posted = []
         with mock.patch.object(self.CA, "_beacon_suppressed_by", lambda: "a fixture world"), \
                 mock.patch.object(self.CA, "_roster_post", lambda *a: posted.append(a)):
-            self.CA._snapshot_publish_once(True)
+            self.CA._profile_publish_once(True)
         self.assertEqual(posted, [])
 
     def test_the_routes_and_the_lane_are_wired(self):
         src = self.src
-        self.assertEqual(src.count('if path == "/api/snapshot-view":'), 1)
-        self.assertEqual(src.count('if path == "/api/snapshot-book":'), 1)
-        door = src[src.index('if path == "/api/snapshot-book":'):]
-        door = door[:door.index("return\n", door.index("_snapshot_book_take")) + 7]
-        self.assertIn("console_may_post(", door, "the snapshot book door lost its origin gate")
-        self.assertLess(door.index("console_may_post("), door.index("_snapshot_book_take("))
-        self.assertIn('threading.Thread(target=_snapshot_publish_loop, daemon=True, name="tvd-snapshot").start()', src)
+        # one path: the profile rides the roster doors and the roster lane; the snapshot route, doors and loop are gone
+        self.assertNotIn("/api/snapshot", src)
+        self.assertNotIn("_snapshot_publish_loop", src)
+        self.assertFalse(os.path.exists(os.path.join(ROOT, "functions", "api", "snapshot.js")))
+        view = src[src.index('if path.endswith("/roster-cache") and "profile" in _rq:'):]
+        view = view[:view.index("return\n") + 7]
+        self.assertLess(src.index('if path.endswith("/roster-cache") and "profile" in _rq:'),
+                        src.index('if path == "/api/roster-cache":'), "the roster panel answers before the profile view")
+        self.assertIn("_profile_view(", view)
+        door = src[src.index('if path == "/api/roster-book":'):]
+        door = door[:door.index("return\n", door.index("_profile_book_take")) + 7]
+        self.assertLess(door.index("console_may_post("), door.index("_profile_book_take("))
+        self.assertIn('body.get("kind") == "profile"', door)
+        lane = src[src.index("def _roster_publish_loop():"):src.index("def _roster_cache_dir():")]
+        self.assertEqual(lane.count("_roster_profile_tick("), 2, "the profile goes out on the roster lane at boot and each tick")
+        self.assertIn('_ROSTER_URL = "https://bull-4-u.com/api/roster"', src)
+        self.assertIn('_roster_get(_ROSTER_URL + "?profile="', src)
+        self.assertIn("_roster_post(_ROSTER_URL, body,", src)
 
 
 class TheViewerPanel(unittest.TestCase):
 
-    def test_a_click_asks_for_the_snapshot_and_falls_back_to_the_roster_row(self):
+    def test_a_click_asks_for_the_profile_and_falls_back_to_the_roster_row(self):
         ui = _read(UI)
         self.assertIn("(window._shadowOpen || window._shadowEnter)(btn.getAttribute('data-owner') || '')", ui)
         start = ui.index("  window._shadowOpen = function (owner) {")
         body = ui[start:ui.index("  };", start)]
-        self.assertIn("/api/snapshot-view?owner=", body)
+        self.assertIn("/api/roster-cache?profile=", body)
         self.assertIn("window._shadowSnapEnter(owner, d)", body)
         self.assertEqual(body.count("window._shadowEnter(owner)"), 2, "no fallback on a missing or failed snapshot")
         enter = ui[ui.index("  window._shadowSnapEnter = function"):start]
@@ -653,9 +677,9 @@ class TheBoardSaysItsWorld(unittest.TestCase):
 
     def test_the_board_posts_the_world_its_stores_were_drawn_in(self):
         html = _read(BIBLE)
-        up = html[html.index("/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE."):]
+        up = html[html.index("/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE'S ROSTER LANE."):]
         up = up[:up.index("</script>")]
-        self.assertIn("var body = JSON.stringify({ stores: stores, world: world });", up)
+        self.assertIn("var body = JSON.stringify({ kind: 'profile', stores: stores, world: world });", up)
         for fact in ("machine: window.D2R_MACHINE", "profile: window.D2R_PROFILE", "os: window.D2R_HOST_OS",
                      "ledger: String(window._D2R_LEDGER || '')", "cousin: !!window._isCousinShell"):
             self.assertIn(fact, up)
@@ -670,7 +694,7 @@ class TheSameConsoleDrawsIt(unittest.TestCase):
     def _spans(self, html):
         b0 = html.index("/* SHADOW MODE BOOT")
         b1 = html.index("</script>", b0)
-        u0 = html.index("/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE.")
+        u0 = html.index("/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE'S ROSTER LANE.")
         u1 = html.index("</script>", u0)
         return (b0, b1), (u0, u1)
 
@@ -700,7 +724,7 @@ class TheSameConsoleDrawsIt(unittest.TestCase):
         self.assertLess(i, go.index("showSessions()"), "Sessions leaves the shadow for this PC's own hub")
         self.assertIn("shellOpen(b.dataset.tab);\n      return;", go[i:])
 
-    def test_the_marker_names_the_owner_and_the_snapshot_time(self):
+    def test_the_marker_names_the_owner_and_the_profile_time(self):
         ui = _read(UI)
         enter = ui[ui.index("  window._shadowSnapEnter = function"):ui.index("  window._shadowOpen = function")]
         self.assertIn("at = ' · snapshot ' + new Date(d.t).toLocaleString(", enter)
@@ -757,7 +781,7 @@ function run(parentSnap, search) {
   res.claim = w.localStorage.getItem('d2r_ownerClaim');
   res.install = w.localStorage.getItem('d2r_installId');
   const asks = [['/api/chars_learned', 'GET'], ['/api/main_locks', 'GET'], ['/api/status', 'GET'],
-                ['/api/snapshot-book', 'POST'], ['/assets/x.png', 'POST'], ['http://evil.example/api/x', 'GET'],
+                ['/api/roster-book', 'POST'], ['/assets/x.png', 'POST'], ['http://evil.example/api/x', 'GET'],
                 ['/api/chars_learned', 'POST'], ['/fonts/a.woff2', 'GET']];
   res.answers = [];
   for (const [u, m] of asks) { const resp = await w.fetch(u, { method: m }); res.answers.push(await resp.text()); }
@@ -841,7 +865,7 @@ class TheShadowFrameBoot(unittest.TestCase):
     def test_a_normal_board_is_untouched(self):
         self.assertTrue(self.r["offUntouched"])
 
-    def test_no_snapshot_fails_closed(self):
+    def test_no_profile_fails_closed(self):
         self.assertEqual(self.r["closedThrew"], "tvd-shadow: closed")
         self.assertTrue(self.r["closedStopped"])
         self.assertIn("Nothing was read from or written to this PC", self.r["closedWrote"])
@@ -900,11 +924,11 @@ class TheShadowFrameBoot(unittest.TestCase):
 
 RED_PROOF = [
     {"why": "Shadow: the worker does not decode each string literal, so an escaped path or token (even under a dropped duplicate key) is stored",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": "    if (PRIVATE.some((rx) => rx.test(t))) return true;\n  }\n",
      "replace": "  }\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker skips the raw text, so a store that is not JSON carries a path out",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
      "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: MOVE TASKS and the ADVANCED panes stay shut in the vault",
@@ -912,7 +936,7 @@ RED_PROOF = [
      "find": "                'vaultTasksTog', 'vaultAdvTab'];\n",
      "replace": "                ];\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a board install id the console blanks",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": "  /\\bI?L?·[0-9a-f]{8}·/,\n",
      "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: the frame opens on a world with one fact wrong or missing",
@@ -924,16 +948,16 @@ RED_PROOF = [
      "find": "    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu'].forEach(",
      "replace": "    ['change', 'input', 'submit', 'drop', 'paste', 'dragstart'].forEach(", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a signed body that still carries a path or a token",
-     "file": "functions/api/snapshot.js",
-     "find": "    if (privateIn(stores[k])) return refuse(",
-     "replace": "    if (false) return refuse(", "matches": 1, "needs": "node"},
+     "file": "functions/api/roster.js",
+     "find": "    if (privateIn(stores[k])) return pRefuse(",
+     "replace": "    if (false) return pRefuse(", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a snapshot that does not say which world it was drawn in",
-     "file": "functions/api/snapshot.js",
-     "find": "  if (typeof stores.d2r_api_world !== \"string\") return refuse(",
-     "replace": "  if (false) return refuse(", "matches": 1, "needs": "node"},
+     "file": "functions/api/roster.js",
+     "find": "  if (typeof stores.d2r_api_world !== \"string\") return pRefuse(",
+     "replace": "  if (false) return pRefuse(", "matches": 1, "needs": "node"},
     {"why": "Shadow: an unreadable stored record lets a post start the replay and quota checks over",
-     "file": "functions/api/snapshot.js",
-     "find": "    return refuse(\"the stored snapshot could not be read\");\n",
+     "file": "functions/api/roster.js",
+     "find": "    return pRefuse(\"the stored profile could not be read\");\n",
      "replace": "    prev = null;\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: a snapshot with no world opens in the viewer's own world",
      "file": "bible.html",
@@ -974,18 +998,18 @@ RED_PROOF = [
      "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: the board stops saying which world its stores were drawn in",
      "file": "bible.html",
-     "find": "    var body = JSON.stringify({ stores: stores, world: world });\n",
+     "find": "    var body = JSON.stringify({ kind: 'profile', stores: stores, world: world });\n",
      "replace": "    var body = JSON.stringify({ stores: stores });\n", "matches": 1},
     {"why": "Shadow: the worker takes a replayed (older) upload over a newer one",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": "  if (prev && typeof prev.signedAt === \"number\" && signedAt <= prev.signedAt) {\n",
      "replace": "  if (false) {\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores an identity or debug store a signed client sent",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": " && typeof stores[k] === \"string\" && nameOk(k));",
      "replace": " && typeof stores[k] === \"string\");", "matches": 1, "needs": "node"},
     {"why": "Shadow: GET serves a record signed by a key that is no longer the owner's",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": "  if (!registered || !registered.pub || b64uKey(registered.pub) !== b64uKey(prev.pub)) {\n",
      "replace": "  if (false) {\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: this PC's old copy is shown over the site saying nothing is uploaded or the record is corrupt",
@@ -1039,19 +1063,19 @@ RED_PROOF = [
      "replace": "    document.documentElement.classList.add('tvd-shadow-snap'); document.documentElement.classList.add('tvd-shadow');\n",
      "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a snapshot for an owner with no registered key (registers one)",
-     "file": "functions/api/snapshot.js",
-     "find": "  if (registered === null) return refuse(",
-     "replace": "  if (registered === 'never') return refuse(", "matches": 1, "needs": "node"},
+     "file": "functions/api/roster.js",
+     "find": "  if (registered === null) return pRefuse(",
+     "replace": "  if (registered === 'never') return pRefuse(", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a snapshot whose stores do not match the signed hash",
-     "file": "functions/api/snapshot.js",
-     "find": "  if (body.hash !== hash) return refuse(",
-     "replace": "  if (false) return refuse(", "matches": 1, "needs": "node"},
+     "file": "functions/api/roster.js",
+     "find": "  if (body.hash !== hash) return pRefuse(",
+     "replace": "  if (false) return pRefuse(", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker's daily cap is gone",
-     "file": "functions/api/snapshot.js",
-     "find": "  if (n >= DAY_CAP) return refuse(",
-     "replace": "  if (false) return refuse(", "matches": 1, "needs": "node"},
+     "file": "functions/api/roster.js",
+     "find": "  if (n >= PROFILE_DAY_CAP) return pRefuse(",
+     "replace": "  if (false) return pRefuse(", "matches": 1, "needs": "node"},
     {"why": "Shadow: GET serves a record that fails its own hash as stores",
-     "file": "functions/api/snapshot.js",
+     "file": "functions/api/roster.js",
      "find": "  if (!storesOk(prev.stores) || prev.hash !== hashOfStores(prev.stores)) {\n",
      "replace": "  if (!storesOk(prev.stores)) {\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: the install id store leaves the PC",

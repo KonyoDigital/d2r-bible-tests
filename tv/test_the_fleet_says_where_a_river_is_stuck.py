@@ -1034,7 +1034,7 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
             with self.subTest(tag[:60]):
                 self.assertNotIn(" title=", tag,
                                  "the row carries a native title beside its card, so two boxes open: " + tag)
-                self.assertIn("onclick=\"window._fleetCompare(", tag, "the row stopped opening its box")
+                self.assertIn("window._fleetCompare(this.getAttribute", tag, "the row stopped opening its box")
 
     def test_the_card_carries_the_click_sentence(self):
         # REG-1893 - a rail the parse could not find gives no rows, and "every card says it" holds of none.

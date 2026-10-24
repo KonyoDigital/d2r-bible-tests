@@ -547,6 +547,8 @@ def _render():
                     # thing under test turned a missing box into a 180 s hang instead of a red (proof [1], measured)
                     if t.ev("!!document.querySelector('#fleet-xref .fx-head')"):
                         break
+                # GBL 2026-10-24 - the lines sit under the box's ADVANCED fold; he opens it to read them
+                t.ev("(function(){ var a = document.querySelector('#fleet-xref details.fx-adv'); if (a) a.open = true; return 1; })()")
                 time.sleep(0.2)
                 res["box %s %dx%d" % (nm, w, h)] = json.loads(t.ev(BOX))
                 _lines += json.loads(t.ev(LINES))
@@ -663,8 +665,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - the fleet row renders films / river / triage upfront again (his 'only if clicked on')",
         "file": "control_ui.html",
-        "find": "          + _tip(m) + '</div>';\n",
-        "replace": "          + _fleetSysHtml(m, Date.now()) + _tip(m) + '</div>';\n",
+        "find": "          + _tip(m) + _fleetOpenEyesHtml(m) + '</div>';\n",
+        "replace": "          + _fleetSysHtml(m, Date.now()) + _tip(m) + _fleetOpenEyesHtml(m) + '</div>';\n",
         "matches": 1,
     },
     {

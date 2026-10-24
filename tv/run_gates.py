@@ -11867,7 +11867,7 @@ GATES = [
          why="Shadow mode - another console one to one and read only. Shadow drew another PC from its roster row, "
              "which strips builds to name/x/y/w/h: no mods, no mule names, no vault. Each console now uploads its "
              "account stores (cleaned by console_snapshot: d2r_ only, history/identity/debug stay home, paths and "
-             "install ids blanked) signed with its registered roster key to functions/api/snapshot.js; a viewer "
+             "install ids blanked) signed with its registered roster key on the roster publish (functions/api/roster.js, roster:<owner>:profile); a viewer "
              "boots the same board on them in a frame whose storage is memory. Laws: what leaves, change-only + "
              "gap + boot + KV budget, the worker in node (no key, unsigned, other key, hash, picture, size, cap: "
              "nothing stored; GET reads only, a record failing its hash is corrupt), live/offline/UNKNOWN words "
@@ -11878,11 +11878,20 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_shadow_mode_draws_their_console.py")], 420,
          needs_app=False,
          why="Shadow mode on the real page in headless Chrome: board A on a fixture console's stores vs a viewer "
-             "with its own world opening the shadow of A's snapshot. Characters (with the learned in-game card), "
+             "with its own world opening the shadow of A's roster profile. Characters (with the learned in-game card), "
              "the vault, every mule window, the builder's equipped/personal/shared views and every item's tooltip "
              "with its rolled mods read the same; the viewer's real localStorage and sessionStorage are unchanged, "
              "no /api/ request leaves the frame, a write button click is stopped and a mule plate opens. No "
              "browser is a declared skip."),
+    Gate("test_a_roster_name_opens_its_row_with_the_eyes",
+         [sys.executable, os.path.join(HERE, "test_a_roster_name_opens_its_row_with_the_eyes.py")], 180,
+         needs_app=False,
+         why="Elad 2026-10-24: one click on a roster name opens its row inline with HD eyes (staying open through a "
+             "second click and a fleet refresh) AND the cross-reference modal. In headless Chrome against BASE: the "
+             "hover card and the row are byte for byte unchanged, the modal is unchanged but for the diagnostics "
+             "folded under ADVANCED, the eyes are never in the modal, each routes to its own roster profile (none "
+             "for a PC with no profile), and no diagnostic fact (last walk included) is clipped. No browser is a "
+             "declared skip."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -11,7 +11,7 @@ way he does:
   A  the owner's own console: its browser holds the fixture console's stores, the shell boots its board pane
      (#tvd-eng) and the header tabs open Characters and Vault.
   B  a viewer's console whose browser holds a different world: the Roster door is pressed, Dean's row is pressed,
-     the console fetches /api/snapshot-view and opens the shadow (#shadow-eng), and the SAME header tabs open the
+     the console fetches /api/roster-cache?profile= and opens the shadow (#shadow-eng), and the SAME header tabs open the
      same rooms in it.
 
 Both rooms, every mule window and the builder's equipped / personal / shared views are read through the page's own
@@ -167,7 +167,7 @@ def _serve(stores, hits, mode):
             p = self.path.split("?")[0]
             if p.startswith("/api/"):
                 self._note("GET")
-                if p == "/api/snapshot-view":
+                if p == "/api/roster-cache" and "profile=" in self.path:
                     return self._send(json.dumps(view), "application/json")
                 if p == "/api/roster-cache":
                     return self._send(json.dumps(roster), "application/json")

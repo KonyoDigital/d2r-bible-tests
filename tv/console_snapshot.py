@@ -11,8 +11,8 @@ that are history logs, film evidence or debug routes stay home (DENY). A string 
 disk or an install id is blanked; nothing else in a store is changed, so the viewer's board reads the
 same bytes the owner's board reads and draws the same screens, mods and all.
 
-The upload rides the roster's signing key (roster_sign) to its own worker key `snapshot:<owner>`
-(functions/api/snapshot.js). It is change-only and at most once per MIN_GAP_MS, plus one at boot; the
+The profile rides the roster publish (same route, same signing key) to its own record `roster:<owner>:profile`
+(functions/api/roster.js (profile)). It is change-only and at most once per MIN_GAP_MS, plus one at boot; the
 worker holds the daily cap. A viewer reads that record. When the worker cannot be reached the last
 copy this PC fetched is shown with the time it was uploaded: shadow works whether the other console
 is up or not.
@@ -86,12 +86,12 @@ def budget():
     snap = roster["pcs"] * DAY_CAP
     labels = len(OWNERS)
     worst = roster["presence"] + labels * roster["perPc"] + labels * DAY_CAP
-    return {"presence": roster["presence"], "roster": roster["roster"], "snapshot": snap,
+    return {"presence": roster["presence"], "roster": roster["roster"], "profile": snap,
             "together": roster["together"] + snap, "worst": worst, "ceiling": roster["ceiling"]}
 
 
 def snapshot_key(owner):
-    return ("snapshot:" + owner) if owner in OWNERS else None
+    return ("roster:" + owner + ":profile") if owner in OWNERS else None
 
 
 def _scrub_text(s):
@@ -229,7 +229,7 @@ def clean(body):
 
 
 def digest(stores):
-    """FNV-1a over the packed stores: the same hash functions/api/snapshot.js computes."""
+    """FNV-1a over the packed stores: the same hash functions/api/roster.js (profile) computes."""
     return _rp.hash_of(_rp.packed(stores or {}))
 
 
@@ -249,7 +249,7 @@ def due(state, owner, stores, now_ms, boot):
     last = state.get("at")
     if (not boot and isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS):
         return None, "within %d min of the last upload" % (MIN_GAP_MS // 60000)
-    return {"owner": owner, "boot": bool(boot), "signedAt": now_ms, "hash": d, "stores": stores}, "post"
+    return {"kind": "profile", "owner": owner, "boot": bool(boot), "signedAt": now_ms, "hash": d, "stores": stores}, "post"
 
 
 def apply_reply(state, stores, reply, now_ms):
@@ -258,10 +258,10 @@ def apply_reply(state, stores, reply, now_ms):
     d = digest(stores or {})
     stored = reply.get("stored") or []
     state["post"] = {"at": now_ms, "ok": reply.get("ok") is True,
-                     "why": str(reply.get("why") or ("stored" if "snapshot" in stored else
+                     "why": str(reply.get("why") or ("stored" if "profile" in stored else
                                                     ",".join(s for s in (reply.get("skipped") or []) if isinstance(s, str))))[:200],
                      "signed": bool((reply.get("signing") or {}).get("signed"))}
-    if reply.get("ok") is True and "snapshot" in stored:
+    if reply.get("ok") is True and "profile" in stored:
         state.update(hash=d, at=now_ms, why="uploaded")
         state.pop("refuseAt", None)
         return state
@@ -358,7 +358,7 @@ def _ago_words(ms):
 
 
 def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
-    """What /api/snapshot-view serves. `live` is the owner's console being up right now; the stores are
+    """What /api/roster-cache?profile= serves. `live` is the owner's console being up right now; the stores are
     always the last upload, and `words` always says when that upload was made."""
     if owner not in OWNERS:
         return {"ok": False, "owner": owner, "why": "not one of the five owner labels"}

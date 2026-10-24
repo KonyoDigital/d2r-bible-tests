@@ -3771,7 +3771,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
 <script>
   /* SHADOW MODE BOOT - ANOTHER CONSOLE'S BOARD, IN MEMORY, READ ONLY. This block runs before any other script on
      the page and only when the URL carries tvd-shadow=. The console's #shadow-eng frame sets that, after it put
-     the other owner's uploaded stores on window._tvdShadowSnap (tv/console_snapshot.py, /api/snapshot-view).
+     the other owner's profile stores on window._tvdShadowSnap (tv/console_snapshot.py, /api/roster-cache?profile=).
      The board then boots on a localStorage that lives in this frame's memory and holds only those stores, so
      every screen (characters, equipped, inventory, stash, mules, vault) draws from them exactly as it draws from
      its own, and every write the board makes lands in that memory and is gone when the frame closes. The real
@@ -82523,10 +82523,11 @@ window.tvStashAutoIntake = async function(tab, opts){
 })();
 </script>
 <script>
-/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE. The active world's stores, exactly as Backup
-   v2 exports them (_collectProgress: bare names, this world only, no pointer or identity key), go to POST
-   /api/snapshot-book whenever they change. The console (tv/console_snapshot.py) decides what may leave the PC and
-   uploads it, signed, so another console can show this one read only. A shadow frame never posts (it has no
+/* SHADOW MODE - THIS BOARD HANDS ITS ACCOUNT STORES TO ITS CONSOLE'S ROSTER LANE. The active world's stores, exactly
+   as Backup v2 exports them (_collectProgress: bare names, this world only, no pointer or identity key), go to POST
+   /api/roster-book as {kind: "profile"} whenever they change. The console (tv/console_snapshot.py) decides what may
+   leave the PC and the roster publish carries it, signed, as this PC's profile, so another console can show this one
+   read only. A shadow frame never posts (it has no
    stores of its own), and a file:// board has no console. */
 (function () {
   var last = null;
@@ -82544,7 +82545,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     });
     return Object.keys(stores).length ? stores : null;
   };
-  var gone = false;   // the website has no /api/snapshot-book: one 404 and this board stops asking
+  var gone = false;   // the website has no /api/roster-book: one 404 and this board stops asking
   window._tvdSnapPost = function () {
     if (window._tvdShadow || gone) return false;
     try { if (location.protocol !== 'http:' && location.protocol !== 'https:') return false; } catch (e) { return false; }
@@ -82557,11 +82558,11 @@ window.tvStashAutoIntake = async function(tab, opts){
       world = { machine: window.D2R_MACHINE, profile: window.D2R_PROFILE, os: window.D2R_HOST_OS,
                 ledger: String(window._D2R_LEDGER || '').slice(0, 40), cousin: !!window._isCousinShell };
     } catch (e) { world = null; }
-    var body = JSON.stringify({ stores: stores, world: world });
+    var body = JSON.stringify({ kind: 'profile', stores: stores, world: world });
     var h = hashOf(body);
     if (h === last) return false;
     try {
-      fetch('/api/snapshot-book', {
+      fetch('/api/roster-book', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, cache: 'no-store'
       }).then(function (r) { if (r.ok) last = h; else if (r.status === 404 || r.status === 405) gone = true; }).catch(function () {});
     } catch (e) { return false; }

@@ -6702,6 +6702,30 @@
   .fx-sys { margin: 4px 0 10px; padding: 6px 10px; border: 1px solid rgba(255,255,255,.08); border-radius: 6px;
             background: rgba(255,255,255,.02); }
   .fx-sys > .fleet-sys { display: block; color: #7f8c83; font-weight: var(--fw-normal); }
+  /* GBL 2026-10-24 - the diagnostics, collapsed under Advanced and set as a data sheet: key column, facts that wrap
+     whole (no nowrap, no ellipsis - 'last walk 9h ago' was clipped in the mock) */
+  .fx-adv { margin: 4px 0 10px; }
+  .fx-adv > summary { cursor: pointer; font: var(--fw-medium) var(--fs-2xs)/1.6 var(--mono, monospace);
+                      letter-spacing: var(--ls-widest, .12em); color: var(--gold-dim, #a88a52); list-style: none; }
+  .fx-adv > summary::-webkit-details-marker { display: none; }
+  .fx-adv > summary::before { content: '\25B8  '; }
+  .fx-adv[open] > summary::before { content: '\25BE  '; }
+  .fx-adv > .fx-sys { margin-top: 6px; font-family: var(--mono, monospace); font-size: var(--fs-2xs); }
+  .fx-adv .fleet-sys > .fs-l { display: grid; grid-template-columns: 8ch minmax(0, 1fr); padding-left: 0;
+                               border-top: 1px solid rgba(255,255,255,.05); padding: 3px 0; }
+  .fx-adv .fleet-sys .fs-k { position: static; width: auto; grid-row: 1 / span 9; letter-spacing: .04em; }
+  .fx-adv .fleet-sys .fs-f { grid-column: 2; white-space: normal; overflow: visible; text-overflow: clip; }
+  /* GBL 2026-10-24 - the row a click opened: its HD eyes on the row's own last line */
+  .fleet-row > .fleet-open-eyes { display: none; grid-column: 1 / -1; margin: 6px 0 2px 14px; }
+  .fleet-row.fleet-open > .fleet-open-eyes { display: block; }
+  .fleet-hd-eyes { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer;
+                   border: 1px solid rgba(240,192,96,.45); border-radius: 6px; background: rgba(240,192,96,.08);
+                   color: var(--gold, #f0c060); font: var(--fw-semibold) var(--fs-2xs)/1.3 var(--mono, monospace);
+                   letter-spacing: var(--ls-wide, .06em); text-transform: uppercase; }
+  .fleet-hd-eyes:hover, .fleet-hd-eyes:focus-visible { background: rgba(240,192,96,.18); outline: none; }
+  .fleet-hd-eyes[disabled] { cursor: default; opacity: .55; color: var(--muted, #8b8071); border-color: rgba(255,255,255,.12); }
+  .fleet-hd-svg { width: 30px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+  .fleet-hd-svg circle { fill: currentColor; }
   .fleet-row > .fleet-sys  { grid-column: 1 / -1; margin-left: 14px; justify-self: stretch;
                              text-align: left; font-weight: var(--fw-normal); color: #7f8c83; }
   /* 2026-09-28 round 2 (REG-1377) - EACH FACT IS ITS OWN FLEX ITEM, EXACTLY AS THE RIVER'S TRIAGE LINE (.shr-tri):
@@ -26705,6 +26729,43 @@ function escC(s) {
          + (st === 'off' ? _SH_EYE_SHUT : (st === 'unk' ? _SH_EYE_UNK : _SH_EYE_OPEN)) + '</span>';
   };
   window._fleetShadowEye = _fleetShadowEye;
+  /* GBL 2026-10-24 - WHICH ROSTER PROFILE A FLEET ROW IS. The same rule the console publishes under
+     (roster_publish.owner_of): a nickname that IS a roster label is that label; Konyo on a mac is Konyo · Mac;
+     anything else has no profile, and the eyes say so rather than guess another PC's key. [[unknown-stays-unknown]] */
+  var _FLEET_ROSTER_OWNERS = ['Konyo \u00b7 Mac', 'Konyo \u00b7 ALT', 'Konyo \u00b7 GrokBot', 'Dean', 'Wife PC'];
+  var _fleetRosterOwner = function (m) {
+    var nick = String((m && m.nickname) || '').trim();
+    if (_FLEET_ROSTER_OWNERS.indexOf(nick) >= 0) return nick;
+    if (nick === 'Konyo' && m && m.platform === 'mac') return 'Konyo \u00b7 Mac';
+    return '';
+  };
+  window._fleetRosterOwner = _fleetRosterOwner;
+  var _fleetOpenEyesHtml = function (m) {
+    var owner = _fleetRosterOwner(m);
+    var eyes = '<svg class="fleet-hd-svg" viewBox="0 0 44 18" aria-hidden="true">'
+      + '<ellipse cx="11" cy="9" rx="9" ry="6"/><circle cx="11" cy="9" r="3"/>'
+      + '<ellipse cx="33" cy="9" rx="9" ry="6"/><circle cx="33" cy="9" r="3"/></svg>';
+    if (!owner) {
+      return '<div class="fleet-open-eyes"><button type="button" class="fleet-hd-eyes" disabled'
+        + ' title="this PC publishes no roster profile, so there is no console to see (UNKNOWN, not empty)">'
+        + eyes + '<span>no roster profile</span></button></div>';
+    }
+    return '<div class="fleet-open-eyes"><button type="button" class="fleet-hd-eyes" data-roster-owner="' + escC(owner) + '"'
+      + ' title="' + escC('open ' + owner + '\u2019s console, read only') + '"'
+      + ' onclick="event.stopPropagation();window._shadowOpen(this.getAttribute(\'data-roster-owner\'))"'
+      + ' onkeydown="event.stopPropagation()">'
+      + eyes + '<span>' + escC('see ' + owner + '\u2019s console') + '</span></button></div>';
+  };
+  window._fleetOpenEyesHtml = _fleetOpenEyesHtml;
+  /* the row stays open: remembered by machine, so a fleet refresh redraws it open; a second click does not shut it */
+  window._fleetOpenRows = window._fleetOpenRows || {};
+  window._fleetRowOpen = function (row) {
+    if (!row || !row.getAttribute) return;
+    var mach = row.getAttribute('data-fleet-machine') || '';
+    if (mach) window._fleetOpenRows[mach] = 1;
+    row.classList.add('fleet-open');
+    row.setAttribute('aria-expanded', 'true');
+  };
   /* A RENAMED HOST'S "formerly" LINE, as facts. REG-1378: its age was _fleetSince's, which answers "just now" for a
      lastSeen it cannot parse and for one in the future - a machine last seen at an unreadable time read as seen this
      minute. Now the card's own rule: an age that cannot be established (absent, unparseable, or after now - a FORMER
@@ -27443,11 +27504,15 @@ function escC(s) {
            me visually and show me which items it has cross referenced to mine that i dont have
            already only. so its not messy." The hover tooltip stays exactly as it was — it answers
            "how far along is he", and this answers "what should I chase". */
-        return '<div class="fleet-row' + (heard ? ' on' : '') + ' has-ftt fleet-clickable"'
-          + ' tabindex="0" role="button" data-fleet-machine="' + escC(m.machine || '') + '"'
-          + ' onclick="window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
-          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
-          + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
+        /* GBL 2026-10-24 - ONE CLICK, TWO THINGS. Elad: the row opens inline with the HD eyes (and stays open) AND the
+           cross-reference opens exactly as before. The eyes live on the row, never inside the modal. */
+        var _open = !!(window._fleetOpenRows && m.machine && window._fleetOpenRows[m.machine]);
+        return '<div class="fleet-row' + (heard ? ' on' : '') + ' has-ftt fleet-clickable' + (_open ? ' fleet-open' : '') + '"'
+          + ' tabindex="0" role="button" aria-expanded="' + (_open ? 'true' : 'false') + '"'
+          + ' data-fleet-machine="' + escC(m.machine || '') + '"'
+          + ' onclick="window._fleetRowOpen(this);window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
+          + ' onkeydown="if(event.target!==this)return;if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
+          + 'window._fleetRowOpen(this);window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (heard ? '' : (online ? ' silent' : ' off')) + '"></span>'
           + '<b>' + _fleetShadowEye(m, heard, undefined, pres) + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
@@ -27497,7 +27562,7 @@ function escC(s) {
           /* 2026-09-29 — HIS WORDS, looking at the card: "i dont want it rendering to me all this here upfront. only if
              clicked on or something like a backdoor to the informational background". The films / river / triage lines
              (and a renamed host's "formerly" line) live in the box a click opens (_fleetCompare), never on the row. */
-          + _tip(m) + '</div>';
+          + _tip(m) + _fleetOpenEyesHtml(m) + '</div>';
       };
       /* 2026-09-29 — the click box reads a PC's films / river / triage from here (the backdoor) */
       window._fleetByMachine = {};
@@ -27753,7 +27818,7 @@ function escC(s) {
     }
   };
 
-  /* SHADOW MODE - THEIR CONSOLE, ONE TO ONE, READ ONLY. /api/snapshot-view hands the owner's last uploaded account
+  /* SHADOW MODE - THEIR CONSOLE, ONE TO ONE, READ ONLY. /api/roster-cache?profile= hands the owner's roster-synced account
      stores (tv/console_snapshot.py) and when they were uploaded; a frame of its own boots the same board on those
      stores held in memory (bible.html SHADOW MODE BOOT), so characters, gear, inventory, stash, mules and the vault
      draw exactly as on their console, and nothing it does reaches this PC's store or console. The bar says live or
@@ -27792,7 +27857,7 @@ function escC(s) {
   window._shadowOpen = function (owner) {
     if (!owner) return;
     var gen = ++_shadowGen;
-    fetch('/api/snapshot-view?owner=' + encodeURIComponent(owner), { cache: 'no-store' })
+    fetch('/api/roster-cache?profile=' + encodeURIComponent(owner), { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (gen !== _shadowGen) return;
@@ -27883,8 +27948,10 @@ function escC(s) {
     try {
       var _fm = (window._fleetByMachine || {})[machine];
       if (_fm && typeof _fleetSysHtml === 'function') {
+        /* GBL 2026-10-24 - every diagnostic line kept, folded under Advanced and laid out as data */
         _sys = '<div class="fx-sys" title="how this PC films D2R, where its reels are in the river, and its triage lane">'
           + _fleetSysHtml(_fm, Date.now()) + '</div>';
+        _sys = '<details class="fx-adv"><summary>ADVANCED \u00b7 DIAGNOSTICS</summary>' + _sys + '</details>';
       }
     } catch (_) { _sys = ''; }
     ledger = _FXR_LEDGERS[ledger] ? ledger : 'sets';

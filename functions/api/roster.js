@@ -266,7 +266,7 @@ export async function onRequestPost(context) {
 
   let bytes = new Uint8Array(0);
   try { bytes = new Uint8Array(await request.arrayBuffer()); } catch (e) { bytes = new Uint8Array(0); }
-  if (bytes.byteLength > MAX_BODY) {
+  if (bytes.byteLength > PROFILE_MAX_BODY) {
     return refuse("roster would not take this publish: the body is too large to be rows");
   }
   // #95 - the signature is checked over the bytes as they arrived, before JSON.parse and before any write.
@@ -279,6 +279,11 @@ export async function onRequestPost(context) {
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return refuse("roster would not take this publish: the body was not a record");
+  }
+  // Shadow mode's profile rides this same route under its own key; rows keep their own 80 KB cap.
+  if (body.kind === "profile") return profilePost(env, bytes, sig, body);
+  if (bytes.byteLength > MAX_BODY) {
+    return refuse("roster would not take this publish: the body is too large to be rows");
   }
 
   const owner = body.owner;
@@ -386,6 +391,9 @@ export async function onRequestPost(context) {
 
 export async function onRequestGet(context) {
   const kv = context.env && context.env.TZ_HISTORY;
+  let profileOwner = null;
+  try { profileOwner = new URL(context.request.url).searchParams.get("profile"); } catch (e) { profileOwner = null; }
+  if (profileOwner !== null) return profileGet(kv, profileOwner);
   if (!kv) return refuse("roster would not take this fetch: storage unavailable");
   const owners = [];
   for (const owner of OWNERS) {
@@ -417,4 +425,236 @@ export async function onRequestGet(context) {
     owners.push(row);
   }
   return json({ ok: true, owners: owners }, 200);
+}
+
+// ── PROFILE: this owner's whole account stores, for shadow mode (one to one, read only) ──────────────
+// Elad 2026-10-24: shadow syncs on the SAME path Fleet and the Roster use, saved under that PC's own profile,
+// with no separate upload. The console's roster publish lane sends {kind:"profile", owner, boot, signedAt, hash,
+// stores} to this route signed with the key the roster rows registered; GET /api/roster?profile=<owner> reads it.
+export function profileKeyOf(owner) {
+  return "roster:" + owner + ":profile";
+}
+
+const PROFILE_MAX_BODY = 200000;
+const PROFILE_DAY_CAP = 20;
+const PROFILE_MIN_GAP_MS = 30 * 60 * 1000;
+const STORE_NAME = /^d2r_[A-Za-z0-9_]{1,60}$/;
+// A signed body is fresh for this long either side of the worker's clock, and each one must be newer than the last
+// stored: a captured upload (the boot one skips the gap) cannot be replayed to roll a console back.
+const SKEW_MS = 15 * 60 * 1000;
+// The same stores tv/console_snapshot.py keeps home (DENY, DENY_PREFIX, API_FIELDS - a law holds them equal): a
+// signed client that skipped the console's cleaning still cannot park identity, history or debug stores here.
+export const DENY = [
+  "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_chronicleInboxLog", "d2r_foundEvidence", "d2r_sessionLog",
+  "d2r_intakeLog", "d2r_intakeSeen", "d2r_intakeUrl", "d2r_lsrRoute", "d2r_tz_hist_cache",
+  "d2r_unseedBackup", "d2r_unseedReport", "d2r_unseedRestoreReport", "d2r_vaultLastReset",
+  "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV",
+  "d2r_createNowAiDate", "d2r_aicDraft", "d2r_aicQueue", "d2r_aicThrownLog", "d2r_lastTopScan",
+  "d2r_grailFarm", "d2r_storeEmptied", "d2r_installId", "d2r_installIdCache", "d2r_ownerClaim",
+  "d2r_activeProfile", "d2r_activeProfileWin", "d2r_activeMachine", "d2r_machineSource",
+  "d2r_inboxReader", "d2r_logger", "d2r_testGuest",
+];
+export const DENY_PREFIX = ["d2r_quarantine", "d2r_d2jsp_", "d2r_api_"];
+export const API_NAMES = ["chars_learned", "main_locks", "world"];
+// the fields each console answer may carry (console_snapshot.API_FIELDS) and the world's closed values (world_of)
+export const API_FIELDS = {
+  chars_learned: ["ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel"],
+  main_locks: ["ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"],
+  world: ["machine", "profile", "ledger", "os", "cousin"],
+};
+const WORLD = { machine: ["mac", "windows"], profile: ["main", "ladder"],
+                os: ["MAC", "WINDOWS", "LINUX", "ANDROID", "THIS MACHINE"] };
+// what console_snapshot._PRIVATE blanks: a signed body that still carries one was not cleaned, and is refused
+const PRIVATE = [
+  /(?:\/Users\/|\/home\/|\/private\/|\/var\/folders\/)/,
+  /[A-Za-z]:\\{1,2}(?:Users|Documents and Settings)\\/,
+  /(?<![0-9a-fA-F])[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}(?![0-9a-fA-F])/,
+  /(?<![0-9a-fA-F])[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?![0-9a-fA-F])/,
+  /\b(?:ghp_|gho_|ghs_|github_pat_|xox[abposr]-|sk-)[A-Za-z0-9_\-]{16,}/,
+  /\b[A-Za-z0-9][A-Za-z0-9\-]{0,62}\.local\b/,
+  /\bI?L?·[0-9a-f]{8}·/,
+  /data:image\//,
+];
+
+export function privateIn(raw) {
+  // the raw text as sent: a store that is not JSON, or a path or token written plainly
+  if (PRIVATE.some((rx) => rx.test(raw))) return true;
+  // every JSON string literal (keys too) decoded on its own: an escaped \/Users\/ or \u0067hp_ is read as itself,
+  // including a value under a repeated key that JSON.parse would drop
+  const lits = raw.match(/"(?:[^"\\]|\\.)*"/g) || [];
+  for (const lit of lits) {
+    let t;
+    try { t = JSON.parse(lit); } catch (e) { continue; }
+    if (PRIVATE.some((rx) => rx.test(t))) return true;
+  }
+  return false;
+}
+
+export function worldOk(text) {
+  let w;
+  try { w = JSON.parse(text); } catch (e) { return false; }
+  if (!w || typeof w !== "object" || Array.isArray(w)) return false;
+  if (Object.keys(w).some((k) => API_FIELDS.world.indexOf(k) === -1)) return false;
+  for (const k of Object.keys(WORLD)) if (WORLD[k].indexOf(w[k]) === -1) return false;
+  return typeof w.cousin === "boolean" && typeof w.ledger === "string" && w.ledger.length <= 40 &&
+         !/[\x00-\x1f"<>\\]/.test(w.ledger);
+}
+
+function apiOk(name, text) {
+  if (name === "world") return worldOk(text);
+  let v;
+  try { v = JSON.parse(text); } catch (e) { return false; }
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  return Object.keys(v).every((k) => API_FIELDS[name].indexOf(k) !== -1);
+}
+const PROFILE_HINT = "this is the storage refusing a write, NOT the machine being absent";
+
+function pJson(obj) {
+  return new Response(JSON.stringify(obj), {
+    status: 200,
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+function pRefuse(why, extra) {
+  return pJson(Object.assign({ ok: false, why: "roster would not take this profile: " + why, hint: PROFILE_HINT }, extra || {}));
+}
+
+export function storesOk(stores) {
+  if (!stores || typeof stores !== "object" || Array.isArray(stores)) return false;
+  const names = Object.keys(stores);
+  if (!names.length) return false;
+  return names.every((k) => STORE_NAME.test(k) && typeof stores[k] === "string" && nameOk(k));
+}
+
+function nameOk(k) {
+  if (k.startsWith("d2r_api_")) return API_NAMES.indexOf(k.slice(8)) !== -1;
+  if (DENY.indexOf(k) !== -1) return false;
+  return !DENY_PREFIX.some((p) => k.startsWith(p));
+}
+
+function b64uKey(v) {
+  return typeof v === "string" ? v.trim().replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") : null;
+}
+
+export function hashOfStores(stores) {
+  return hashOf(stable(stores));
+}
+
+async function registeredOf(kv, owner) {
+  const held = await kv.get(KEY_PREFIX + owner);
+  if (!held) return null;
+  let registered;
+  try { registered = JSON.parse(held); } catch (e) { registered = { pub: String(held).trim() }; }
+  if (typeof registered === "string") registered = { pub: registered };
+  if (!registered || typeof registered !== "object") registered = { pub: null };
+  return registered;
+}
+
+// The profile half of the one roster publish: same route, same registered key, its own KV record
+// roster:<owner>:profile. roster's onRequestPost hands over the bytes it read and verified.
+async function profilePost(env, bytes, sig, body) {
+  const kv = env && env.TZ_HISTORY;
+  if (!kv) return pRefuse("storage unavailable");
+  if (bytes.byteLength > PROFILE_MAX_BODY) return pRefuse("the body is larger than " + PROFILE_MAX_BODY + " bytes");
+  const owner = body.owner;
+  if (OWNERS.indexOf(owner) === -1) return pRefuse("the key is an owner label, not a machine");
+
+  let registered;
+  try { registered = await registeredOf(kv, owner); } catch (e) {
+    return pRefuse("the key registered for this owner could not be read");
+  }
+  // A profile never registers a key: the roster publish is the one place trust is first given.
+  if (registered === null) return pRefuse(owner + " has no registered roster key yet; a signed roster publish registers it");
+  const intent = intentOf(owner, registered, sig);
+  if (intent.refused || intent.verified !== true || intent.register) {
+    const out = { sig: sig.state };
+    if (intent.registeredKeyId) out.keyId = intent.registeredKeyId;
+    if (sig.keyId) out.offered = sig.keyId;
+    return pRefuse(intent.refused || "this upload was not signed by " + owner + "'s registered key", out);
+  }
+
+  const stores = body.stores;
+  if (!storesOk(stores)) return pRefuse("stores must be d2r_ names holding strings, none of them kept home");
+  const low = JSON.stringify(stores).toLowerCase();
+  if (low.indexOf("data:image") !== -1 || low.indexOf("base64,") !== -1) return pRefuse("pictures stay on that PC");
+  for (const k of Object.keys(stores)) {
+    if (privateIn(stores[k])) return pRefuse(k + " carries a path, an install id or a token");
+    if (k.startsWith("d2r_api_") && !apiOk(k.slice(8), stores[k])) return pRefuse(k + " is not the console answer it names");
+  }
+  if (typeof stores.d2r_api_world !== "string") return pRefuse("the world these stores were drawn in is missing");
+  const hash = hashOfStores(stores);
+  if (body.hash !== hash) return pRefuse("the stores do not match the hash that was signed");
+
+  const key = profileKeyOf(owner);
+  let prev = null;
+  try {
+    const raw = await kv.get(key);
+    prev = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    // an unreadable record would skip the replay, gap and daily checks: refuse rather than start over
+    return pRefuse("the stored profile could not be read");
+  }
+  if (!prev || typeof prev !== "object" || prev.owner !== owner) prev = null;
+
+  const now = Date.now();
+  const signedAt = body.signedAt;
+  if (typeof signedAt !== "number" || !Number.isFinite(signedAt) || Math.abs(now - signedAt) > SKEW_MS) {
+    return pRefuse("signedAt is missing or not within 15 min of now (a replayed or stale upload)");
+  }
+  if (prev && typeof prev.signedAt === "number" && signedAt <= prev.signedAt) {
+    return pRefuse("signedAt is not newer than the stored upload's (a replayed upload)");
+  }
+  const said = { intentVerified: true, sig: sig.state, keyId: intent.keyId };
+  const samePub = !!prev && prev.pub === sig.pub;
+  if (prev && prev.hash === hash && samePub) {
+    return pJson(Object.assign({ ok: true, owner: owner, stored: [], skipped: ["unchanged"] }, said));
+  }
+  const age = prev && typeof prev.t === "number" ? now - prev.t : PROFILE_MIN_GAP_MS;
+  if (prev && samePub && age < PROFILE_MIN_GAP_MS && body.boot !== true) {
+    return pJson(Object.assign({ ok: true, owner: owner, stored: [], skipped: ["within 30 min"] }, said));
+  }
+  const today = dayOf(now);
+  const n = prev && prev.day === today && typeof prev.n === "number" ? prev.n : 0;
+  if (n >= PROFILE_DAY_CAP) return pRefuse("quota: " + PROFILE_DAY_CAP + " uploads a day for " + owner);
+  const rec = { owner: owner, t: now, day: today, n: n + 1, hash: hash, stores: stores,
+                intentVerified: true, keyId: intent.keyId, pub: sig.pub };
+  rec.signedAt = signedAt;
+  try {
+    await kv.put(key, JSON.stringify(rec), { expirationTtl: TTL_S });
+  } catch (e) {
+    return pRefuse(String((e && e.message) || e).slice(0, 140));
+  }
+  return pJson(Object.assign({ ok: true, owner: owner, stored: ["profile"], key: key }, said));
+}
+
+async function profileGet(kv, owner) {
+  if (!kv) return pJson({ ok: false, why: "profile could not be read: storage unavailable" });
+  if (OWNERS.indexOf(owner) === -1) return pJson({ ok: false, why: "ask for one of the five owner labels" });
+  let prev = null;
+  try {
+    const raw = await kv.get(profileKeyOf(owner));
+    prev = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return pJson({ ok: false, why: "profile could not be read: " + String((e && e.message) || e).slice(0, 140) });
+  }
+  if (!prev || typeof prev !== "object" || prev.owner !== owner) {
+    return pJson({ ok: true, owner: owner, published: false });
+  }
+  if (!storesOk(prev.stores) || prev.hash !== hashOfStores(prev.stores)) {
+    return pJson({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t });
+  }
+  // A record signed by a key that is no longer this owner's registered one is not served as theirs.
+  let registered = null;
+  try { registered = await registeredOf(kv, owner); } catch (e) {
+    return pJson({ ok: false, why: "profile could not be read: the registered key could not be read" });
+  }
+  if (!registered || !registered.pub || b64uKey(registered.pub) !== b64uKey(prev.pub)) {
+    return pJson({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t,
+                  why: "the key that signed it is not " + owner + "'s registered key now" });
+  }
+  const out = { ok: true, owner: owner, published: true, corrupt: false, t: prev.t, hash: prev.hash,
+                stores: prev.stores, intentVerified: prev.intentVerified === true };
+  if (typeof prev.keyId === "string" && /^[0-9a-f]{12}$/.test(prev.keyId)) out.keyId = prev.keyId;
+  return pJson(out);
 }

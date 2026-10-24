@@ -463,7 +463,7 @@
       "with_api",
       "budget"
     ],
-    "gotcha": "Only d2r_* stores leave the PC and DENY keeps history/film/debug stores home; a string naming a disk path or install id is blanked, nothing else re-typed, so the viewer draws the same bytes. Uploads are change-only, at most once per MIN_GAP_MS (plus boot) and DAY_CAP a day, signed with the roster key; functions/api/snapshot.js repeats the same privacy checks server side.",
+    "gotcha": "Only d2r_* stores leave the PC and DENY keeps history/film/debug stores home; a string naming a disk path or install id is blanked, nothing else re-typed, so the viewer draws the same bytes. Uploads are change-only, at most once per MIN_GAP_MS (plus boot) and DAY_CAP a day, signed with the roster key; functions/api/roster.js (the profile half of the roster publish, roster:<owner>:profile) repeats the same privacy checks server side.",
     "purpose": "Shadow mode: decides which of a console's account stores are uploaded as its snapshot, when, and what a viewer is told about its age (live / offline, last upload).",
     "territory": "console-ui"
   },

@@ -4857,12 +4857,26 @@ def _roster_publish_once(boot):
     _roster_state_save(_rp.apply_reply(state, sections, reply, now_ms))
 
 
+def _roster_profile_tick(boot):
+    """Shadow mode's profile on the same lane: after the rows, this PC's profile (change-only, its own gap)."""
+    try:
+        _profile_publish_once(boot)
+    except Exception as e:
+        _st = _profile_json_load(_profile_state_path()) or {}
+        _st["why"] = type(e).__name__
+        _profile_json_save(_profile_state_path(), _st)
+
+
 def _roster_publish_loop():
     time.sleep(8)
     try:
         _roster_publish_once(True)
     except Exception as e:
         _roster_remember(type(e).__name__)
+    _profile_boot = True
+    _roster_profile_tick(_profile_boot)
+    if os.path.isfile(_profile_book_path()):
+        _profile_boot = False
     while True:
         time.sleep(60)
         _lane_tick("_roster_publish_loop", 60)
@@ -4870,6 +4884,9 @@ def _roster_publish_loop():
             _roster_publish_once(False)
         except Exception as e:
             _roster_remember(type(e).__name__)
+        _roster_profile_tick(_profile_boot)
+        if os.path.isfile(_profile_book_path()):
+            _profile_boot = False
 
 
 def _roster_cache_dir():
@@ -4950,35 +4967,37 @@ def _roster_fetch_loop():
         time.sleep(300)
 
 
-# ── SHADOW MODE: THIS CONSOLE'S ACCOUNT STORES, UPLOADED; ANOTHER'S, READ ONLY ─────────────────────
-# The board posts its active world's stores (_collectProgress, the Backup v2 rule) to /api/snapshot-book.
-# tv/console_snapshot.py decides what may leave this PC and when; the upload is signed with the same key
-# the roster publish registered (.roster_key.json) and goes to functions/api/snapshot.js. A viewer asks
-# /api/snapshot-view?owner= and gets that owner's last upload with its time, from the site, or from this
-# PC's last copy when the site cannot be read. Nothing here writes a ledger or a board store.
-_SNAPSHOT_URL = "https://bull-4-u.com/api/snapshot"
+# ── SHADOW MODE: THIS CONSOLE'S PROFILE ON THE ROSTER PATH; ANOTHER'S, READ ONLY ─────────────────────
+# Elad 2026-10-24: shadow syncs on the SAME path Fleet and the Roster use, under each PC's own profile, with
+# no separate upload. The board hands its active world's stores (_collectProgress, the Backup v2 rule) to
+# /api/roster-book as {kind: "profile"}; the roster publish lane (_roster_publish_loop) adds this console's own
+# reel- and frame-read answers (chars_learned, main_locks) and sends them, cleaned by tv/console_snapshot.py and
+# signed with the roster key, to functions/api/roster.js, record roster:<owner>:profile. A viewer asks
+# /api/roster-cache?profile=<owner> and gets that profile with its time, from the site, or from this PC's last
+# copy when the site cannot be read. Nothing here writes a ledger or a board store.
+_ROSTER_URL = "https://bull-4-u.com/api/roster"
 
 
-def _snapshot_chars_learned():
+def _profile_chars_learned():
     """This console's own /api/chars_learned answer, asked over loopback so the route stays the one place that
     builds it (its gear and bars are pinned there)."""
     with urllib.request.urlopen("http://127.0.0.1:%d/api/chars_learned" % int(CONTROL_PORT), timeout=8) as resp:
         return json.loads(resp.read().decode("utf-8", "replace"))
 
 
-def _snapshot_book_path():
-    return os.path.join(_log_root(), "snapshot_book.json")
+def _profile_book_path():
+    return os.path.join(_log_root(), "roster_profile_book.json")
 
 
-def _snapshot_state_path():
-    return os.path.join(_log_root(), ".tvd_snapshot.json")
+def _profile_state_path():
+    return os.path.join(_log_root(), ".roster_profile_state.json")
 
 
-def _snapshot_cache_dir():
-    return os.path.join(_log_root(), "snapshot_cache")
+def _profile_cache_dir():
+    return os.path.join(_log_root(), "roster_profile_cache")
 
 
-def _snapshot_json_load(path):
+def _profile_json_load(path):
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
@@ -4987,7 +5006,7 @@ def _snapshot_json_load(path):
     return data if isinstance(data, dict) else None
 
 
-def _snapshot_json_save(path, data):
+def _profile_json_save(path, data):
     try:
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
@@ -4998,7 +5017,7 @@ def _snapshot_json_save(path, data):
     return True
 
 
-def _snapshot_book_take(body):
+def _profile_book_take(body):
     """Store the board's cleaned stores. Never a ledger write, never a board store."""
     import console_snapshot as _cs
     clean = _cs.clean(body if isinstance(body, dict) else None)
@@ -5008,31 +5027,31 @@ def _snapshot_book_take(body):
     world = _cs.world_of(body.get("world")) if isinstance(body, dict) else None
     if world:
         clean["world"] = world
-    if not _snapshot_json_save(_snapshot_book_path(), clean):
-        return {"ok": False, "why": "snapshot_book.json could not be written"}
+    if not _profile_json_save(_profile_book_path(), clean):
+        return {"ok": False, "why": "roster_profile_book.json could not be written"}
     return {"ok": True, "stores": len(clean["stores"]), "dropped": clean["dropped"]}
 
 
-def _snapshot_owner():
+def _profile_owner():
     import roster_publish as _rp
     return _rp.owner_of(_roster_claimed_name(), _roster_platform())
 
 
-def _snapshot_publish_once(boot):
+def _profile_publish_once(boot):
     import console_snapshot as _cs
-    state = _snapshot_json_load(_snapshot_state_path()) or {}
+    state = _profile_json_load(_profile_state_path()) or {}
     held = _beacon_suppressed_by()
     if held:
         state["why"] = "suppressed: " + str(held)[:160]
-        _snapshot_json_save(_snapshot_state_path(), state)
+        _profile_json_save(_profile_state_path(), state)
         return
-    owner = _snapshot_owner()
-    book = _snapshot_json_load(_snapshot_book_path()) or {}
+    owner = _profile_owner()
+    book = _profile_json_load(_profile_book_path()) or {}
     stores = book.get("stores") if isinstance(book.get("stores"), dict) else None
     now_ms = int(time.time() * 1000)
     if stores:
         answers = {}
-        for _name, _read in (("chars_learned", _snapshot_chars_learned), ("main_locks", main_locks_view)):
+        for _name, _read in (("chars_learned", _profile_chars_learned), ("main_locks", main_locks_view)):
             try:
                 _got = _read()
             except Exception:
@@ -5045,36 +5064,19 @@ def _snapshot_publish_once(boot):
     body, reason = _cs.due(state, owner, stores, now_ms, bool(boot))
     if body is None:
         state["why"] = str(reason)[:200]
-        _snapshot_json_save(_snapshot_state_path(), state)
+        _profile_json_save(_profile_state_path(), state)
         return
-    reply = _roster_post(_SNAPSHOT_URL, body, os.path.join(_log_root(), ".roster_key.json"))
-    _snapshot_json_save(_snapshot_state_path(), _cs.apply_reply(state, stores, reply, now_ms))
+    reply = _roster_post(_ROSTER_URL, body, os.path.join(_log_root(), ".roster_key.json"))
+    _profile_json_save(_profile_state_path(), _cs.apply_reply(state, stores, reply, now_ms))
 
 
-def _snapshot_publish_loop():
-    time.sleep(45)
-    boot = True
-    while True:
-        try:
-            _snapshot_publish_once(boot)
-            if os.path.isfile(_snapshot_book_path()):
-                boot = False
-        except Exception as e:
-            _st = _snapshot_json_load(_snapshot_state_path())
-            if _st is not None:
-                _st["why"] = type(e).__name__
-                _snapshot_json_save(_snapshot_state_path(), _st)
-        time.sleep(120)
-        _lane_tick("_snapshot_publish_loop", 120)
-
-
-def _snapshot_view(owner):
+def _profile_view(owner):
     """-> what the shadow viewer draws: that owner's last upload, its time, and live/offline/unknown."""
     import console_snapshot as _cs
     now_ms = int(time.time() * 1000)
     if owner not in _cs.OWNERS:
         return _cs.view(owner, None, now_ms)
-    cdir = _snapshot_cache_dir()
+    cdir = _profile_cache_dir()
     rec, source, why = None, "worker", None
     # This PC's last copy stands in only when the site could not be READ. A site that answers "nothing uploaded"
     # or "corrupt" (a bad hash, or a key that is no longer theirs) is the answer: no copy is shown over it.
@@ -5083,7 +5085,7 @@ def _snapshot_view(owner):
     if held:
         why = "suppressed: " + str(held)[:80]
     else:
-        got = _roster_get(_SNAPSHOT_URL + "?owner=" + urllib.parse.quote(owner))
+        got = _roster_get(_ROSTER_URL + "?profile=" + urllib.parse.quote(owner))
         if isinstance(got, dict) and got.get("ok") is True and _cs.record_ok(got, owner):
             rec = got
             try:
@@ -46335,11 +46337,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json(200, status_payload())
             return
-        if path == "/api/snapshot-view":
-            # Shadow mode - another console's last upload, read only. GET only; nothing is written but
-            # this PC's own fetch cache.
-            _q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path or "").query)
-            self._json(200, _snapshot_view((_q.get("owner") or [""])[0]))
+        _rq = urllib.parse.parse_qs(urllib.parse.urlparse(self.path or "").query) if path.startswith("/api/roster-") else {}
+        if path.endswith("/roster-cache") and "profile" in _rq:
+            # Shadow mode - another console's profile on the roster door (?profile=<owner>), read only. GET only;
+            # nothing is written but this PC's own fetch cache. The same door, not a new one.
+            self._json(200, _profile_view((_rq.get("profile") or [""])[0]))
             return
         if path == "/api/roster-cache":
             data = _roster_cache_payload()
@@ -47779,17 +47781,6 @@ class Handler(BaseHTTPRequestHandler):
                 sec_fetch_site=self.headers.get("Sec-Fetch-Site"))
             self._json(_code, _out)
             return
-        if path == "/api/snapshot-book":
-            # Shadow mode - this PC's board hands its account stores here; _snapshot_publish_loop uploads
-            # them. The same origin gate as /api/roster-book: a no-cors post from another tab is refused.
-            import d2jsp_chrome as _d2jsp
-            if not _d2jsp.console_may_post(
-                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
-                    self.headers.get("Sec-Fetch-Site")):
-                self._json(403, {"ok": False, "reason": "local"})
-                return
-            self._json(200, _snapshot_book_take(body))
-            return
         if path == "/api/roster-book":
             # The board on this PC hands its builds here. The roster route publishes
             # them. The presence beacon does not.
@@ -47802,6 +47793,10 @@ class Handler(BaseHTTPRequestHandler):
                     self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
                     self.headers.get("Sec-Fetch-Site")):
                 self._json(403, {"ok": False, "reason": "local"})
+                return
+            if isinstance(body, dict) and body.get("kind") == "profile":
+                # Shadow mode - the board's account stores for this PC's profile; the roster lane sends them.
+                self._json(200, _profile_book_take(body))
                 return
             self._json(200, _roster_book_take(body))
             return
@@ -49554,7 +49549,6 @@ def main():
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
     threading.Thread(target=_roster_publish_loop, daemon=True, name="tvd-roster").start()
-    threading.Thread(target=_snapshot_publish_loop, daemon=True, name="tvd-snapshot").start()
     threading.Thread(target=_roster_fetch_loop, daemon=True, name="tvd-roster-fetch").start()
     threading.Thread(target=_fleet_change_loop, daemon=True, name="tvd-fleet-change").start()
     t = threading.Thread(target=srv.serve_forever, daemon=True)
