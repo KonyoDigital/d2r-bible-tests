@@ -109,7 +109,7 @@ class TheTokenGoesToGitHubOnly(unittest.TestCase):
 
     def test_the_artifact_redirect_is_followed_without_the_token(self):
         calls = []
-        tmp = tempfile.mkdtemp(prefix="pkmacdl.")
+        tmp = os.path.realpath(tempfile.mkdtemp(prefix="pkmacdl."))  # macOS: /var is /private/var, and safe_extract returns real paths
         self.addCleanup(shutil.rmtree, tmp, True)
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as z:
