@@ -3083,6 +3083,13 @@ except Exception:
     FOOT_MB = 400
     FOOT_KEEP = 28800
     MIN_FREE_GB = 8
+# 2026-10-24 (Elad: "cap at 8") — a SIZE CAP on frames/hist beside the free-disk floor. The floor alone let hist
+# grow to 14 GB on a disk with room; over the cap, the SAME evidence-aware shed below runs (footage first, youth
+# shield, cited pictures spared, never the two newest reels). TV_HIST_CAP_GB=0 turns the cap off.
+try:
+    HIST_CAP_GB = max(0.0, float(os.environ.get("TV_HIST_CAP_GB", "8")))
+except Exception:
+    HIST_CAP_GB = 8.0
 # MacBook-ish display width for click-to-enlarge (not the AI vision input size)
 HIST_MAX_PX = int(os.environ.get("TV_HIST_PX", "2560"))   # v753 — retina-crisp fullscreen (was 1920)
 
@@ -3810,6 +3817,20 @@ def _read_picture_floor(hist_dir):
     return ("small", "", free)
 
 
+def _hist_over_cap(hist_dir=None):
+    """Bytes frames/hist holds beyond HIST_CAP_GB (GiB), reels and caches included; 0 when under or off."""
+    if not HIST_CAP_GB:
+        return 0
+    tot = 0
+    for r, _d, fs in os.walk(hist_dir or HIST_DIR):
+        for f in fs:
+            try:
+                tot += os.lstat(os.path.join(r, f)).st_size
+            except OSError:
+                pass
+    return max(0, int(tot - HIST_CAP_GB * (1 << 30)))
+
+
 def archive_read_frame(src_path, n, ts_ms=None):
     """v735 — snapshot the settled screen into frames/hist/{n}_{ts}.jpg (~1920 JPEG).
     Returns frame id string for /frame?id=… so each history row can reopen what the AI saw.
@@ -3949,7 +3970,14 @@ def archive_read_frame(src_path, n, ts_ms=None):
                 free_gb = _shu.disk_usage(HIST_DIR).free / 1e9
             except Exception:
                 free_gb = 999
-            if free_gb < MIN_FREE_GB:
+            try:
+                _over = _hist_over_cap(HIST_DIR)
+            except Exception:
+                _over = 0
+            if _over:
+                _dbg("hist over its %sGB cap by %dMB - shedding oldest under the same shields as the floor"
+                     % (HIST_CAP_GB, _over >> 20))
+            if free_gb < MIN_FREE_GB or _over:
                 # v883 — REELS DIE WHOLE, LAST: if loose shedding still can't breathe, retire
                 # the OLDEST sealed reels in one piece (a run keeps its full video or is gone —
                 # never a half-eaten reel).
@@ -3986,7 +4014,12 @@ def archive_read_frame(src_path, n, ts_ms=None):
                     # fix's own test. Same rule as the router's FIFO queue, pointing the other
                     # way: unknown never jumps the queue, in either direction.
                     _all.sort(key=lambda _r: (_reel_capture_ms(_r) == 0, _reel_capture_ms(_r)))
-                    if len(_all) > 2 and not foot_files:   # loose pool empty → a whole reel may go
+                    # loose pool empty → a whole reel may go. Over the size CAP, the pool counts only footage older than the
+                    # youth shield: the session being recorded always has young loose frames, and they must not
+                    # keep the cap from ever reaching a sealed reel.
+                    _old_cut = time.time() - 900.0
+                    _pool = [x for x in foot_files if not _over or os.path.getmtime(x) < _old_cut]
+                    if len(_all) > 2 and not _pool:
                         if _ev is None:
                             # ⚠ COULD NOT ASK is not "nothing is cited". Refuse and be loud.
                             _dbg("reel-reap REFUSED: the evidence authority (frame_authority's witness "
@@ -4068,7 +4101,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
                          "picture is cited is UNKNOWN — nothing shed, the disk stays tight")
                 else:
                     _shield = set(protected) | set(_ev.get("frames") or ())
-                    need = (MIN_FREE_GB - free_gb) * 1e9
+                    need = max((MIN_FREE_GB - free_gb) * 1e9, _over)
                     freed = 0
                     for f in [x for x in foot_files if _is_old(x)] + [x for x in unprotected if _is_old(x)]:
                         if freed >= need:
