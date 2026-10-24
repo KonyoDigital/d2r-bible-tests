@@ -18,8 +18,9 @@ on every machine; a cross-class proof can no longer meet a key). Input names are
 (key_rel); bytes are keyed raw, so a CRLF twin is another key. Exports carry "exported:<hash>" in place of the proving
 tree's path. `heart2 --prove NAMES --slice --bank FILE [--bank-only]` imports FILE (REG-2630 rules), serves each gate
 the bank keys WHOLE (serve_from_bank), and proves the rest - or, bank-only, leaves it owed. self_prove fetches
-`proof-bank:<HEAD>.<class>.json` with the PC's update credentials; beside his game it starts a bank-only run (>= 400 MB
-free, a bank present), which his game never ends.
+`proof-bank:<HEAD>.<class>.json` with the PC's update credentials; beside his game it starts a bank-only run (a bank present,
+>= 1,024 MB free measured - the stream floor), which his game never ends; guard and tick share one door that stands it
+aside under that same floor (grok r6: the 400 MB start sat under the 700 MB idle kill).
 
 GUARD: tv/test_a_proof_counts_only_on_its_own_platform_class.py (registered; 8 RED proofs).
 

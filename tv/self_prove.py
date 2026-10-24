@@ -81,9 +81,6 @@ PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
 #: this one), and guard() now stands a RUNNING proof aside within one rescue tick (10 s) of the game starting or
 #: memory falling under the running floor. So the start bar only has to leave the proof room above that floor.
 MIN_FREE_MB_TO_START = 1536
-#: REG-2632 - a BANK-ONLY run proves nothing (it hashes the checkout and reads one JSON file), so it may start beside his
-#: game under REG-1502 - with this much memory free, never on a guess
-BANK_ONLY_MIN_FREE_MB = 400
 #: REG-2632 - the branch the census publishes proof banks to (`<HEAD>.<platform class>.json`); fetched with the PC's
 #: own update credentials, never a token of its own
 BANK_REF = "proof-bank"
@@ -95,6 +92,10 @@ MIN_FREE_MB_WHILE_RUNNING = 1024
 #: streaming on an Iris Xe that borrows RAM as video memory). With no game and no stream, a proof may run down to
 #: this; playing, it still stands aside at once, and an UNKNOWN 'is he playing' keeps the strict floor.
 MIN_FREE_MB_WHILE_RUNNING_IDLE = 700
+#: REG-2632 - a BANK-ONLY run proves nothing, but it re-keys every bank entry in a heart2 process, so beside his game
+#: (REG-1502) it keeps the STREAM floor above (dwm died at 690 MB beside Boosteroid): it starts only with this much
+#: free, measured, never on a guess, and stands aside below the same line - one floor, so no start/kill band
+BANK_ONLY_MIN_FREE_MB = MIN_FREE_MB_WHILE_RUNNING
 #: REG-1670 — a PC proves on as many lanes as it has clear room for (heart2's HEART2_PROVE_WORKERS). His words,
 #: 2026-10-01: "yea good idea" and "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or 32g
 #: ram". MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. One lane per LANE_BUDGET_MB free
@@ -393,6 +394,22 @@ def stand_aside(playing, free):
     except (TypeError, ValueError):
         pass
     return False, ""
+
+
+def stand_aside_bank(free):
+    """REG-2632 - must a running BANK-ONLY run stop now? -> (bool, why). Pure. His game is no reason (it proves
+    nothing); memory under BANK_ONLY_MIN_FREE_MB is. UNKNOWN never stops it, as in stand_aside."""
+    try:
+        if free is not None and float(free) < BANK_ONLY_MIN_FREE_MB:
+            return True, "only %d MB of memory left beside his game - the bank-only run gives it back" % int(float(free))
+    except (TypeError, ValueError):
+        pass
+    return False, ""
+
+
+def _aside_for(mem, playing, free):
+    """REG-2632 - the one stand-aside both the guard and the tick ask: a bank-only run has its own door."""
+    return stand_aside_bank(free) if mem.get("bankOnly") else stand_aside(playing, free)
 
 
 def identity(pid, birth):
@@ -1154,7 +1171,7 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
         play_now = _ask(playing, playing_state)
         free_now = _ask(free, free_mb)
         # REG-2632 - a BANK-ONLY run proves nothing: his game never ends it, only memory does
-        aside, _why = stand_aside(False if mem.get("bankOnly") else play_now, free_now)
+        aside, _why = _aside_for(mem, play_now, free_now)
         if not aside:
             return None
         return (_tick or tick)(now_s=now_s, path=path, playing=play_now, free=free_now, kill_fn=kill_fn)
@@ -1263,8 +1280,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         mem.update(worked=_int(mem.get("worked")) + 1, lastTs=now_ms, lastOk=census.get("why"),
                    finishingSince=now_ms)
     # REG-2632 - a BANK-ONLY run proves nothing, so his game is no reason to end it; only memory is
-    aside, aside_why = (stand_aside(play_now, free_now) if not mem.get("bankOnly")
-                        else stand_aside(False, free_now)) if running else (False, "")
+    aside, aside_why = _aside_for(mem, play_now, free_now) if running else (False, "")
     if aside and finishing and now_ms - _int(mem.get("finishingSince")) < FINISH_GRACE_S * 1000:
         aside, aside_why = False, ""                       # finishing - still running a tick later is a hang
     # REG-1674 — A PROVER THAT HAS GONE SILENT IS ENDED THROUGH THE SAME DOOR, AND SAYS SO. His ask, 2026-10-01, after

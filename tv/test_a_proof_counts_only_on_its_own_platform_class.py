@@ -65,10 +65,22 @@ RED_PROOF = [
      "file": "self_prove.py",
      "find": "        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_MIN_FREE_MB:\n",
      "replace": "        if _bf is not None and _bf == _bf and _bf >= BANK_ONLY_MIN_FREE_MB:\n", "matches": 1},
-    {"why": "REG-2632 - his game ends a bank-only run that proves nothing (the guard's fast stand-aside)",
+    {"why": "REG-2632 - his game ends a bank-only run that proves nothing (the one stand-aside door)",
      "file": "self_prove.py",
-     "find": '        aside, _why = stand_aside(False if mem.get("bankOnly") else play_now, free_now)\n',
-     "replace": "        aside, _why = stand_aside(play_now, free_now)\n", "matches": 1},
+     "find": '    return stand_aside_bank(free) if mem.get("bankOnly") else stand_aside(playing, free)\n',
+     "replace": "    return stand_aside(playing, free)\n", "matches": 1},
+    {"why": "REG-2632 r6 - a bank-only run beside his game keeps memory under the stream floor (dwm died at 690 MB)",
+     "file": "self_prove.py",
+     "find": "        if free is not None and float(free) < BANK_ONLY_MIN_FREE_MB:\n",
+     "replace": "        if False:\n", "matches": 1},
+    {"why": "REG-2632 r6 - the 10-minute tick no longer stands a bank-only run aside (only the guard asked)",
+     "file": "self_prove.py",
+     "find": '    aside, aside_why = _aside_for(mem, play_now, free_now) if running else (False, "")\n',
+     "replace": '    aside, aside_why = (False, "")\n', "matches": 1},
+    {"why": "REG-2632 r6 - the start bar sits under the floor that ends the run, so it starts only to be killed",
+     "file": "self_prove.py",
+     "find": "BANK_ONLY_MIN_FREE_MB = MIN_FREE_MB_WHILE_RUNNING\n",
+     "replace": "BANK_ONLY_MIN_FREE_MB = 400\n", "matches": 1},
     {"why": "REG-2632 - an exported bank carries the proving machine's own path",
      "file": "heart2.py",
      "find": '        e["tree"] = export_tree(e.get("tree"))    # REG-2632 - a bank is published: no machine path leaves this machine\n',
@@ -268,13 +280,33 @@ class TheLane(unittest.TestCase):
             with mock.patch.object(SP, "identity", lambda pid, birth: True):
                 got = SP.guard(path=path, playing=True, free=4000, _tick=lambda **k: ticks.append(k) or {"key": "t"})
                 self.assertIsNone(got, "his game ended a bank-only run")
-                got = SP.guard(path=path, playing=True, free=10, _tick=lambda **k: ticks.append(k) or {"key": "t"})
+                got = SP.guard(path=path, playing=True, free=800, _tick=lambda **k: ticks.append(k) or {"key": "t"})
                 self.assertEqual(got, {"key": "t"}, "a bank-only run kept memory he needs")
                 SP.save({"pid": 4242, "pidBirth": 1}, path)
                 got = SP.guard(path=path, playing=True, free=4000, _tick=lambda **k: ticks.append(k) or {"key": "t"})
                 self.assertEqual(got, {"key": "t"}, "BASELINE: his game ends a real prover")
         finally:
             shutil.rmtree(d, ignore_errors=True)
+
+    def test_a_bank_only_run_has_one_floor_to_start_and_to_stay(self):
+        self.assertGreaterEqual(SP.BANK_ONLY_MIN_FREE_MB, SP.MIN_FREE_MB_WHILE_RUNNING,
+                                "a bank-only run beside the stream would run under the floor measured for it")
+        self.assertFalse(self.ask(True, SP.MIN_FREE_MB_WHILE_RUNNING - 1, "/b.json")["start"])
+        for free, out in ((None, False), ("junk", False), (SP.BANK_ONLY_MIN_FREE_MB, False),
+                          (SP.BANK_ONLY_MIN_FREE_MB - 1, True), (800, True)):
+            self.assertEqual(SP.stand_aside_bank(free)[0], out, "free=%r" % (free,))
+        self.assertFalse(SP._aside_for({"bankOnly": True}, True, 4000)[0], "his game ended a bank-only run")
+        self.assertTrue(SP._aside_for({}, True, 4000)[0], "BASELINE: his game ends a real prover")
+
+    def test_both_the_guard_and_the_tick_ask_the_one_door(self):
+        import ast
+        with open(os.path.join(HERE, "self_prove.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        for fn in ("guard", "_tick"):
+            node = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == fn][0]
+            calls = [c.func.id for c in ast.walk(node) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
+            self.assertIn("_aside_for", calls, "%s stands a run aside without the bank-only door" % fn)
+            self.assertNotIn("stand_aside", calls, "%s calls stand_aside past the bank-only door" % fn)
 
     def test_a_bank_is_fetched_for_this_head_and_this_class_only(self):
         head = "a" * 40
