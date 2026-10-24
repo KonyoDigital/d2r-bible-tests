@@ -4858,13 +4858,16 @@ def _roster_publish_once(boot):
 
 
 def _roster_profile_tick(boot):
-    """Shadow mode's profile on the same lane: after the rows, this PC's profile (change-only, its own gap)."""
+    """Shadow mode's profile on the same lane: after the rows, this PC's profile (change-only, its own gap).
+    -> True when the publish step ran without raising; the boot flag is cleared only then (Grok r1)."""
     try:
         _profile_publish_once(boot)
+        return True
     except Exception as e:
         _st = _profile_json_load(_profile_state_path()) or {}
         _st["why"] = type(e).__name__
         _profile_json_save(_profile_state_path(), _st)
+        return False
 
 
 def _roster_publish_loop():
@@ -4874,8 +4877,7 @@ def _roster_publish_loop():
     except Exception as e:
         _roster_remember(type(e).__name__)
     _profile_boot = True
-    _roster_profile_tick(_profile_boot)
-    if os.path.isfile(_profile_book_path()):
+    if _roster_profile_tick(_profile_boot) and os.path.isfile(_profile_book_path()):
         _profile_boot = False
     while True:
         time.sleep(60)
@@ -4884,8 +4886,7 @@ def _roster_publish_loop():
             _roster_publish_once(False)
         except Exception as e:
             _roster_remember(type(e).__name__)
-        _roster_profile_tick(_profile_boot)
-        if os.path.isfile(_profile_book_path()):
+        if _roster_profile_tick(_profile_boot) and os.path.isfile(_profile_book_path()):
             _profile_boot = False
 
 

@@ -55,13 +55,23 @@ XREF = r"""(function(){ var x = document.getElementById('fleet-xref'); if (!x ||
   return JSON.stringify({ html: c.innerHTML, adv: summ, open: open, eyesInside: inside }); })()"""
 
 CLIP = r"""(function(){ var x = document.getElementById('fleet-xref'), adv = x && x.querySelector('details.fx-adv');
-  if (!adv) return JSON.stringify({ err: 'no fold' }); adv.open = true; var br = adv.getBoundingClientRect(), bad = [], n = 0;
+  if (!adv) return JSON.stringify({ err: 'no fold' }); adv.open = true;
+  var win = x.querySelector('.fxr-win'), wr = win.getBoundingClientRect(), bad = [], n = 0;
+  function clippedBy(f) { for (var a = f.parentElement; a && a !== document.body; a = a.parentElement) {
+      var cs = getComputedStyle(a); if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') {
+        var r = a.getBoundingClientRect(), b = f.getBoundingClientRect();
+        if (b.right > r.right + 0.5 || b.left < r.left - 0.5 || b.bottom > r.bottom + 0.5 || b.top < r.top - 0.5) return a.className || a.tagName; }
+      if (cs.position === 'fixed') break; }
+    return null; }
   [].forEach.call(adv.querySelectorAll('.fs-f, .fs-k'), function(f){ n++; var b = f.getBoundingClientRect(), cs = getComputedStyle(f);
     if (b.width === 0) { bad.push('unrendered: ' + f.textContent); return; }
-    if (f.scrollWidth > f.clientWidth + 1 && cs.overflow !== 'visible') bad.push('clipped: ' + f.textContent);
-    if (cs.textOverflow === 'ellipsis') bad.push('ellipsis: ' + f.textContent);
-    if (b.right > br.right + 0.5 || b.left < br.left - 0.5) bad.push('outside the fold: ' + f.textContent); });
+    if (f.scrollWidth > f.clientWidth + 1) bad.push('wider than its box: ' + f.textContent);
+    if (cs.textOverflow === 'ellipsis' || cs.whiteSpace === 'nowrap') bad.push('cut style: ' + f.textContent);
+    if (b.right > wr.right + 0.5 || b.left < wr.left - 0.5 || b.bottom > wr.bottom + 0.5 || b.top < wr.top - 0.5)
+      bad.push('outside the modal window: ' + f.textContent);
+    var by = clippedBy(f); if (by) bad.push('clipped by ' + by + ': ' + f.textContent); });
   var walk = [].filter.call(adv.querySelectorAll('.fs-f'), function(f){ return /last walk/.test(f.textContent); }).length;
+  adv.open = false;
   return JSON.stringify({ bad: bad, n: n, walk: walk }); })()"""
 
 
@@ -163,9 +173,13 @@ def _render():
                         r.click(); var c1 = calls.length;
                         var vis1 = eb ? eb.getBoundingClientRect().height : -1;
                         r.click();
-                        out[m] = { before: before, open: r.classList.contains('fleet-open'),
+                        var modal = !document.getElementById('fleet-xref').hidden, esc = null;
+                        if (eb && !eb.disabled) { eb.focus();
+                          eb.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+                          esc = document.getElementById('fleet-xref').hidden; }
+                        out[m] = { esc: esc, before: before, open: r.classList.contains('fleet-open'),
                                    aria: r.getAttribute('aria-expanded'), calls: c1, calls2: calls.length,
-                                   modal: !document.getElementById('fleet-xref').hidden, vis0: vis0, vis1: vis1,
+                                   modal: modal, vis0: vis0, vis1: vis1,
                                    owner: eb ? eb.getAttribute('data-roster-owner') : null, disabled: eb ? eb.disabled : null };
                         document.getElementById('fleet-xref').hidden = true;
                         calls.length = 0;
@@ -225,6 +239,7 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
             for m, owner in OWNERS.items():
                 got = c[m]
                 if owner:
+                    self.assertTrue(got["esc"], "%s %s: Escape on the eyes did not close the modal" % (k, m))
                     self.assertEqual(got["owner"], owner, "%s %s: the eyes name another profile" % (k, m))
                     self.assertEqual(got["routed"], [owner], "%s %s: the eyes routed to %r" % (k, m, got.get("routed")))
                     self.assertEqual(got["callsOnEyes"], 0, "%s %s: pressing the eyes reopened the modal" % (k, m))
@@ -258,6 +273,11 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "Grok r1 - the eyes swallow every key again, so Escape no longer closes the cross-reference",
+     "file": "tv/control_ui.html",
+     "find": "window._shadowOpen(this.getAttribute(\\'data-roster-owner\\'))\">'",
+     "replace": "window._shadowOpen(this.getAttribute(\\'data-roster-owner\\'))\" onkeydown=\"event.stopPropagation()\">'",
+     "matches": 1},
     {"why": "GBL 2026-10-24 - the click opens the modal but no longer opens the row with its eyes",
      "file": "tv/control_ui.html",
      "find": "' onclick=\"window._fleetRowOpen(this);window._fleetCompare(",

@@ -368,13 +368,13 @@ class TheWorker(unittest.TestCase):
     def test_the_profile_rides_the_roster_route_under_the_owners_own_profile_key(self):
         """Elad 2026-10-24: one path. A profile posted to /api/roster lands in roster:<owner>:profile and nothing
         else; a roster-row publish on the same route never touches the profile; GET ?profile= reads it back."""
-        rows = {"owner": OWNER, "boot": True, "signedAt": T0, "sections": {"owned": {"names": ["Shako"]}}}
+        rows = {"owner": OWNER, "boot": True, "signedAt": T0, "sections": {"owned": {"asOf": T0 - 1000, "counts": 3}}}
         out = _node({"seed": self.seed, "steps": [self._post(self._body(), self.key_a, now=T0),
                                                    self._post(rows, self.key_a, now=T0 + 5),
                                                    {"get": OWNER, "now": T0 + 9}]})
         prof, row, got = out["steps"]
         self.assertEqual(prof["puts"], ["roster:" + OWNER + ":profile"], prof["reply"])
-        self.assertNotIn("roster:" + OWNER + ":profile", row["puts"], row["reply"])
+        self.assertEqual(row["puts"], ["roster:" + OWNER], "a rows publish wrote %r (%r)" % (row["puts"], row["reply"]))
         self.assertEqual(got["get"]["stores"], _wstores())
         self.assertTrue(CS.snapshot_key(OWNER) == "roster:" + OWNER + ":profile")
 
@@ -400,7 +400,7 @@ class TheWorker(unittest.TestCase):
         cases = [
             ("no registered key", self._post(self._body(), self.key_a, seed={}, now=T0), "no registered roster key"),
             ("unsigned", self._post(self._body(), None, seed=self.seed, now=T0), "not signed"),
-            ("another key", self._post(self._body(), self.key_b, seed=self.seed, now=T0), ""),
+            ("another key", self._post(self._body(), self.key_b, seed=self.seed, now=T0), "different key"),
             ("hash mismatch", self._post(self._body(hash="0" * 8), self.key_a, seed=self.seed, now=T0), "hash"),
             ("a picture", self._post(self._body(stores=pic), self.key_a, seed=self.seed, now=T0), "pictures"),
             ("oversize", self._post(self._body(stores=big), self.key_a, seed=self.seed, now=T0), "too large"),
@@ -645,7 +645,7 @@ class TheConsoleDoors(unittest.TestCase):
         view = src[src.index('if path.endswith("/roster-cache") and "profile" in _rq:'):]
         view = view[:view.index("return\n") + 7]
         self.assertLess(src.index('if path.endswith("/roster-cache") and "profile" in _rq:'),
-                        src.index('if path == "/api/roster-cache":'), "the roster panel answers before the profile view")
+                        src.index('if path == "/api/roster-cache":'), "the profile view must answer before the roster panel")
         self.assertIn("_profile_view(", view)
         door = src[src.index('if path == "/api/roster-book":'):]
         door = door[:door.index("return\n", door.index("_profile_book_take")) + 7]
