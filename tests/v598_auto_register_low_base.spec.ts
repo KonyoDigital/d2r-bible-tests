@@ -17,13 +17,23 @@ test('low-base read auto-registers with full criteria; junk is a THROW OUT task;
     localStorage.setItem('d2r_ladderMode', 'nonladder');
   });
   await page.goto(URL); await page.waitForTimeout(1500);
-  await page.evaluate(() => {
+  /* The Chronicle pin is written by a ONE-SHOT init script on the reloaded document, not by an evaluate on
+     the old one: written from the old page it raced that page's own pagehide flush (persist() rewrites
+     d2r_rwMade from memory), so some loads came back with Sanctuary made and suggestMule never said 'bases'
+     (the same race v596 had; red on ci/gbl-vault-v2-2 shard 1 and 1/3 locally on main c9441419). The
+     sessionStorage flag keeps it one-shot, so it never stomps later writes. */
+  const made = await page.evaluate(() => {
     const w: any = window;
     // Sanctuary (Ko+Ko+Mal, 3os shields) is the ONLY unmade word → a 3os shield is a keeper, a 3os axe is not
-    const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Sanctuary') made[n] = 'x'; });
-    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
-    localStorage.setItem('d2r_rwProfile', 'fresh');
+    const m: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Sanctuary') m[n] = 'x'; });
+    return m;
   });
+  await page.addInitScript((m: any) => {
+    if (sessionStorage.getItem('v598_pinned')) return;
+    sessionStorage.setItem('v598_pinned', '1');
+    localStorage.setItem('d2r_rwMade', JSON.stringify(m));
+    localStorage.setItem('d2r_rwProfile', 'fresh');
+  }, made);
   await page.reload();
   // wait for the real readiness signal, not a fixed sleep (slow CI booted past 1.5s and read null)
   await page.waitForFunction(() => { const w: any = window;
