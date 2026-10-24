@@ -1,14 +1,14 @@
-name: proof bank - Windows (ci/proof-keys-* only)
+name: proof bank - Windows (DISABLED - manual dispatch only)
 # REG-2633 - THE WINDOWS PROOF BANK. A Windows PC keys raw CRLF bytes under the "windows" class (REG-2632), so no
 # Linux proof can ever serve Dean's PC or the ALT. This proves the same 16-shard plan as proof-keys-shards.yml on
 # windows-latest, with git's default eol conversion (core.autocrlf=true, as on the PCs), fans in the whole set, and
 # publishes <sha>.windows.json to proof-bank - or goes red. Never on main; no `claude` can answer on its runners.
 # ⚠ N LIVES IN TWO PLACES HERE TOO - WIN_PROOF_SHARDS and the matrix - and
 # tv/test_a_proof_bank_is_published_or_the_run_is_red.py goes red if they disagree with proof-keys-shards.yml.
+# ⛔ DISABLED (owner ruling 2026-10-24, cost): no push, schedule or PR trigger - Linux bank only for now. Kept so it can
+# be turned on later by restoring the `push: branches: ['ci/proof-keys-*']` trigger; the law then must be flipped too.
+# A manual dispatch still publishes only from a ci/proof-keys-* ref (win-bank's `if`).
 on:
-  push:
-    branches:
-      - 'ci/proof-keys-*'
   workflow_dispatch:
 permissions:
   contents: read

@@ -114,6 +114,14 @@ RED_PROOF = [
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": "    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}\n",
      "replace": "", "matches": 1},
+    {"why": "REG-2633 - the disabled Windows producer triggers on every ci/proof-keys-* push again",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "on:\n  workflow_dispatch:\n",
+     "replace": "on:\n  push:\n    branches:\n      - 'ci/proof-keys-*'\n  workflow_dispatch:\n", "matches": 1},
+    {"why": "REG-2633 - the disabled Windows producer runs on a schedule",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "on:\n  workflow_dispatch:\n",
+     "replace": "on:\n  schedule:\n    - cron: '0 3 * * *'\n  workflow_dispatch:\n", "matches": 1},
     {"why": "REG-2633 - the Linux publish step turns errexit back off",
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": '          set -euo pipefail\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
@@ -215,9 +223,17 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
     def test_neither_producer_runs_on_main(self):
         for p in (LINUX_WF, WIN_WF):
             on = _read(p).split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
-            self.assertIn("'ci/proof-keys-*'", on, p)
             self.assertNotIn("main", on, "%s runs on main" % p)
             self.assertNotIn("pull_request", on, p)
+        self.assertIn("'ci/proof-keys-*'", _read(LINUX_WF).split("\non:\n", 1)[1].split("\npermissions:", 1)[0])
+
+    def test_the_windows_producer_is_off_until_the_owner_turns_it_on(self):
+        # owner ruling 2026-10-24: Linux bank only (Windows minutes cost 2x). Only a manual dispatch may start it.
+        on = _read(WIN_WF).split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        keys = re.findall(r"^  ([a-z_]+):", on, re.M)
+        self.assertEqual(keys, ["workflow_dispatch"], "proof-bank-windows.yml triggers on %r - it is off by ruling" % keys)
+        self.assertNotRegex(_read(WIN_WF), r"(?m)^\s*(schedule|push|pull_request|workflow_run):",
+                            "proof-bank-windows.yml can start itself")
         guard = "startsWith(github.ref, 'refs/heads/ci/proof-keys-')"
         for p, j in ((LINUX_WF, "bank"), (WIN_WF, "win-bank")):
             ifs = re.findall(r"^    if: (.*)$", _job(_read(p), j), re.M)

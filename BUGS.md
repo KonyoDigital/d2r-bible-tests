@@ -17,7 +17,7 @@ the newest 60 banks). proof-keys-shards.yml gains job `bank` (needs a whole fan-
 `<sha>.linux.json`). New proof-bank-windows.yml proves the same 16-shard plan on windows-latest with core.autocrlf=true
 asserted before checkout, fans in, and publishes `<sha>.windows.json`. Both run only on ci/proof-keys-*.
 
-GUARD: tv/test_a_proof_bank_is_published_or_the_run_is_red.py (registered; 15 cases, 22 RED proofs, heart2 22/22 PROVEN; the .windows bytes check lives in proof_bank, not shell).
+GUARD: tv/test_a_proof_bank_is_published_or_the_run_is_red.py (registered; 16 cases, 24 RED proofs, heart2 24/24 PROVEN). Owner ruling 2026-10-24: Linux bank only; proof-bank-windows.yml is kept but manual-dispatch only, and the law holds it off.
 
 ### REG-2632 - A PROOF FROM ONE PLATFORM WAS SERVED ON ANOTHER, AND THE ALT COULD NEVER PROVE (heart2 keyer + self_prove, GB-box, 2026-10-24)
 The verdict cache's key had no platform in it, so a PROVEN banked on the Linux box or census (REG-2586/2630) was served on
