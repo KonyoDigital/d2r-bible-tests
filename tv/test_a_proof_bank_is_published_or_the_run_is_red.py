@@ -231,6 +231,14 @@ RED_PROOF = [
      "file": "test_a_proof_bank_is_published_or_the_run_is_red.py",
      "find": "is kept but OFF - manual dispatch only, " "and every",
      "replace": "is live - on every push, and every", "matches": 1},
+    {"why": "REG-2633 r20 - a step added to the Linux shard job publishes its own bank",
+     "file": ".github/workflows/proof-keys-shards.yml",
+     "find": "jobs:\n  shard:\n",
+     "replace": "jobs:\n  shard:\n    permissions:\n      contents: write\n", "matches": 1},
+    {"why": "REG-2633 r20 - a comment-looking <NBSP>#|| exit 0 line in the win-shard prove step",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "      - name: Prove this shard\n",
+     "replace": "      - name: Prove this shard\n        # \u00a0\n", "matches": 1},
 ]
 
 
@@ -395,6 +403,20 @@ def header_digest(text):
     head = ("\n" + text).split("\njobs:\n", 1)[0]
     body = "\n".join(l for l in head.splitlines() if l.strip() and not l.lstrip().startswith("#"))
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+#: both workflow files pinned WHOLE, every byte, comments included: a comment-looking line (`<NBSP>#|| exit 0`), a
+#: step added to the unpinned `shard` job, job permissions, a shell template - nothing is outside this pin. The
+#: structural checks above stay so a re-anchor still has to pass them. Re-anchor: sha256 of the file after the edit.
+FILE_DIGESTS = {
+    'proof-keys-shards.yml': 'cb1792a2a5a2f04d2e74befd4b524c3fec4375038054256ea665cd0feb28ac98',
+    'proof-bank-windows.yml': '891ed8b4a6dd671fff240140411d42046814fd4dc867ab30ac459a9ed216358d',
+}
+#: the two docstrings that state the ruling, pinned whole (a deny-list of undoing phrases never ends)
+DOC_DIGESTS = {
+    'proof_bank.py': 'd3a7c19d5d9fd2b76ff49cc52f4e9e400db3940f3d42c6275f1fc4c1effb6ba5',
+    'this law': 'dd77127c5118bb6927c3d42b54c0e7618df17453d98a1c48f778296a9a468c99',
+}
 
 
 HEADER_DIGESTS = {
@@ -567,6 +589,9 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
             text, base = _read(path), os.path.basename(path)
             self.assertEqual(shape_errors(text), [], "%s holds a line the law cannot read" % base)
             self.assertEqual(job_names(text), JOBS[base], "%s: the job list changed - re-anchor this law" % base)
+            with open(path, "rb") as fh:
+                self.assertEqual(hashlib.sha256(fh.read()).hexdigest(), FILE_DIGESTS[base],
+                                 "%s changed - the whole file is the bank/billing contract; re-anchor deliberately" % base)
             self.assertEqual(header_digest(text), HEADER_DIGESTS[base],
                              "%s: triggers/branches/permissions/env changed - every byte above jobs: is the contract" % base)
             for j in JOBS[base]:
@@ -618,6 +643,8 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
 
     def test_the_docs_say_linux_bank_only(self):
         for doc, label in ((PB.__doc__, "proof_bank.py"), (__doc__, "this law")):
+            self.assertEqual(hashlib.sha256(doc.encode("utf-8")).hexdigest(), DOC_DIGESTS[label],
+                             "%s's docstring changed - it states the Linux-bank-only ruling; re-anchor deliberately" % label)
             doc = " ".join(doc.split())
             self.assertIn("Linux bank only (owner ruling 2026-10-24)", doc, "%s's docstring does not state the ruling" % label)
             self.assertIn("is kept but OFF - manual", doc, "%s's docstring does not say the Windows census is off" % label)
