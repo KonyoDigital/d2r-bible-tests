@@ -2676,7 +2676,12 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
                 os.close(_tfd)
                 env["PYTHONPATH"] = _tsite + ((os.pathsep + env["PYTHONPATH"]) if env.get("PYTHONPATH") else "")
                 env["HEART2_TRACE_LOG"], env["HEART2_TRACE_SITE"] = _tlog, _tsite
-            except OSError:
+            except Exception:                 # REG-2640 - any setup failure: no log, nothing dropped
+                if _tlog is not None:
+                    try:
+                        os.unlink(_tlog)
+                    except OSError:
+                        pass
                 _tlog = None
                 _trace_record(filename, set(), False)
     _watch = _kill_watch(env)                 # REG-2350 — which children of this run a signal ended, and who sent it
@@ -2688,14 +2693,17 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
     finally:
-        if _tlog is not None:                 # REG-2640 - an unfinished run is an incomplete trace: nothing is dropped
-            _tseen, _tok = _trace_read(_tlog, os.getpid())
-            _trace_record(filename, _tseen, _tok and _tdone)
+        _killed = _kills_in(_watch) if _watch else []
+        if _tlog is not None:                 # REG-2640 - an unfinished or killed run is an incomplete trace: nothing is dropped
+            try:
+                _tseen, _tok = _trace_read(_tlog, os.getpid())
+            except Exception:
+                _tseen, _tok = set(), False
+            _trace_record(filename, _tseen, bool(_tok and _tdone and not _killed))
             try:
                 os.unlink(_tlog)
             except OSError:
                 pass
-        _killed = _kills_in(_watch) if _watch else []
         _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
         if _watch:
             try:
