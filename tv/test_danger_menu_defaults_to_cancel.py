@@ -129,7 +129,7 @@ class DangerMenuDefaultsToCancel(unittest.TestCase):
                          "the rows do not run mild -> severe: %r" % o)
 
     def test_a_click_outside_closes_the_menu(self):
-        o = board().run(H_ + "window.vaultDangerMenuTog(false); by('#vault-danger-tog').click(); OUT.open = !by('#vault-danger-menu').hidden;"
+        o = board().run(H_ + "window.vaultDangerMenuTog(false); by('#vault-danger-tog').scrollIntoView({block:'center'}); by('#vault-danger-tog').click(); OUT.open = !by('#vault-danger-menu').hidden;"
                         "var r = by('#vault-danger-tog').getBoundingClientRect(); OUT.x = 20; OUT.y = Math.round(r.top + r.height / 2);")
         self.assertTrue(o["open"])
         t = board().t
@@ -238,8 +238,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Reset assignments stops asking for cancelFirst.",
      "file": "bible.html",
-     "find": "    if (!(await uiConfirm(_vaultResetConfirm('vaultReset'), {cancelFirst:true}))) return;",
-     "replace": "    if (!(await uiConfirm(_vaultResetConfirm('vaultReset')))) return;",
+     "find": "    if (!(await uiConfirm(_vaultResetConfirm('vaultReset'), {cancelFirst:true, title:'⚠ Danger — Reset assignments'}))) return;",
+     "replace": "    if (!(await uiConfirm(_vaultResetConfirm('vaultReset'), {title:'⚠ Danger — Reset assignments'}))) return;",
      "matches": 1},
     {"why": "cancelFirst becomes the default for every confirm (a plain confirm no longer takes Enter).",
      "file": "bible.html",

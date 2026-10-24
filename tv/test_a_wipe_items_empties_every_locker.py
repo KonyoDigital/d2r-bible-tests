@@ -154,7 +154,7 @@ RED_PROOF = [
      "replace": "    return S.keeps.slice();\n"},
     {"why": "REG-2335 - the wipe runs without asking him",
      "file": "bible.html", "matches": 1,
-     "find": "    if (!(await uiConfirm(_vaultResetConfirm('vaultWipeItems'), {cancelFirst:true}))) return;\n",
+     "find": "    if (!(await uiConfirm(_vaultResetConfirm('vaultWipeItems'), {cancelFirst:true, title:'⚠ Danger — Wipe items'}))) return;\n",
      "replace": ""},
     {"why": "REG-2335 - the wipe leaves the mule map (every mule and WAR mule keeps its filings)",
      "file": "bible.html", "matches": 1,
