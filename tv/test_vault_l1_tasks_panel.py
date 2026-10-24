@@ -252,7 +252,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The mules lose their plain line.",
      "file": "bible.html",
-     "find": "      <p class=\"vault-say\" data-say=\"mules\">Your mules. Click one to open its stash.</p>\n",
+     "find": "      <h3 class=\"vault-say vault-sec-h\" data-say=\"mules\">Your mules <span class=\"vault-sec-sub\">Click one to open its stash.</span></h3>\n",
      "replace": "",
      "matches": 1},
     {"why": "The wordy organizer header comes back.",

@@ -13196,8 +13196,8 @@ function d2jspPriceLine(q) {
         <!-- Vault v3 (Elad t663u/t664u/t665u) — Save / Load profile: ONE file of the vault, the stashes and the builder
              characters. It does NOT touch the chronicle (footer Backup & Share and the console's ledger backup already
              carry that) and it leaves Copy manifests exactly as it was. -->
-        <button class="vault-btn" type="button" id="vault-profile-save" onclick="window.vaultProfileSave()" title="Download one file holding your vault (items, mule placement, locks), stashes and builder characters — not the chronicle">💾 Save profile</button>
-        <label class="vault-btn" id="vault-profile-load" for="vault-profile-file" title="Load a saved profile file: it is checked, you see what changes, and nothing is written until you confirm">📂 Load profile<input type="file" id="vault-profile-file" accept="application/json,.json" hidden onchange="window.vaultProfileLoadFile(event)"></label>
+        <button class="vault-btn" type="button" id="vault-profile-save" onclick="window.vaultProfileSave()" title="Download one file holding your vault (owned items, mule placement, locks, intake records), stashes and builder characters — not the chronicle (found log, set pieces)">💾 Save profile</button>
+        <label class="vault-btn" id="vault-profile-load" for="vault-profile-file" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('vault-profile-file').click();}" title="Load a saved profile file: it is checked, you see what changes, and nothing is written until you confirm">📂 Load profile<input type="file" id="vault-profile-file" accept="application/json,.json" hidden onchange="window.vaultProfileLoadFile(event)"></label>
         </div>
         <span class="vault-tb-sp" aria-hidden="true"></span>
         <div class="vault-tb-grp vault-tb-chips">
@@ -40800,6 +40800,8 @@ body{
 .footer .reset-grp{display:flex;flex-wrap:wrap;gap:var(--vsp-2,8px);align-items:center;justify-content:center}
 .footer .reset-grp .vault-danger{margin-left:0;border-left:0;padding-left:0}
 .footer .reset-grp .vault-danger-menu{left:50%;right:auto;transform:translateX(-50%);text-align:left}
+.footer .reset-grp .vault-btn{font-size:var(--fs-meta)}
+.footer details.danger-zone[open] > summary{color:var(--gold-bright)}
 .footer .reset-note{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
 .ui-confirm-title{font-family:var(--serif-display,serif);font-size:var(--fs-title);font-weight:var(--fw-bold);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--acc-danger);margin-bottom:var(--vsp-2,8px)}
 .ui-confirm-title + .ui-confirm-msg{white-space:pre-line}
@@ -50353,13 +50355,14 @@ window.vaultAutoAssign = function(){
   var _PROFILE_STORES = Object.freeze({
     vault: ['d2r_muleRoster','d2r_muleAssign','d2r_mulePos','d2r_muleEquip','d2r_vaultRecords','d2r_vaultProv',
             'd2r_vaultRemoved','d2r_vaultRemovedAt','d2r_laneLock','d2r_vaultHand','d2r_multiKeep','d2r_magicFinds',
-            'd2r_copies','d2r_vaultAutoIntake','d2r_vaultShareOverride','d2r_autoLanes'],
+            'd2r_copies','d2r_vaultAutoIntake','d2r_vaultShareOverride','d2r_autoLanes','d2r_owned','d2r_intakeSeen','d2r_intakeLog'],
     stash: ['d2r_runeStash','d2r_gemStash','d2r_materialStash','d2r_craftStash','d2r_craftBaseStash','d2r_stashMeta'],
     characters: ['d2r_charBuilds','d2r_cbMain','d2r_cbSel','d2r_mainCharacter']
   });
   window._PROFILE_STORES = _PROFILE_STORES;
   /* the stores that hold a plain setting (a flag, a name, a time) rather than a JSON record — every other store must parse to one */
-  var _PROFILE_TEXT = { d2r_vaultAutoIntake: 1, d2r_vaultRemovedAt: 1, d2r_vaultShareOverride: 1, d2r_autoLanes: 1, d2r_cbMain: 1, d2r_cbSel: 1, d2r_mainCharacter: 1 };
+  var _PROFILE_TEXT = { d2r_vaultAutoIntake: 1, d2r_autoLanes: 1, d2r_cbMain: 1, d2r_cbSel: 1, d2r_mainCharacter: 1 };
+  function _own(o, k){ return Object.prototype.hasOwnProperty.call(o, k); }
   function _profileKeys(){ var o = []; Object.keys(_PROFILE_STORES).forEach(function(g){ o = o.concat(_PROFILE_STORES[g]); }); return o; }
   function _profileCount(raw){ if (raw == null) return 0; try { var v = JSON.parse(raw); return Array.isArray(v) ? v.length : (v && typeof v === 'object' ? Object.keys(v).length : 1); } catch (e) { return 1; } }
   window._vaultProfileBuild = function(){
@@ -50375,7 +50378,7 @@ window.vaultAutoAssign = function(){
     if (!d || typeof d !== 'object' || d.kind !== _PROFILE_KIND) return { ok: false, why: 'this is not a profile file (it is not a "' + _PROFILE_KIND + '")' };
     if (d.version !== _PROFILE_VERSION) return { ok: false, why: 'this profile file is version ' + String(d.version) + '; this page reads version ' + _PROFILE_VERSION };
     if (!d.stores || typeof d.stores !== 'object' || Array.isArray(d.stores)) return { ok: false, why: 'the profile file holds no stores' };
-    var allow = {}; _profileKeys().forEach(function(k){ allow[k] = 1; });
+    var allow = Object.create(null); _profileKeys().forEach(function(k){ allow[k] = 1; });
     var ks = Object.keys(d.stores);
     if (!ks.length) return { ok: false, why: 'the profile file holds no stores' };
     for (var i = 0; i < ks.length; i++){
@@ -50383,11 +50386,11 @@ window.vaultAutoAssign = function(){
       if (!allow[k]) return { ok: false, why: 'the file carries "' + k + '", which a profile never holds' };
       if (v === null) continue;
       if (typeof v !== 'string') return { ok: false, why: k + ' in the file is not stored text' };
-      if (_PROFILE_TEXT[k]){ if (v.length > 4096) return { ok: false, why: k + ' in the file is too long to be a setting' }; continue; }
+      if (_own(_PROFILE_TEXT, k)){ if (v.length > 4096) return { ok: false, why: k + ' in the file is too long to be a setting' }; continue; }
       var pv; try { pv = JSON.parse(v); } catch (e) { return { ok: false, why: k + ' in the file is damaged (not JSON)' }; }
       if (!pv || typeof pv !== 'object') return { ok: false, why: k + ' in the file is damaged (not a list or a record)' };
     }
-    return { ok: true, stores: d.stores, saved: d.saved || null };
+    return { ok: true, stores: d.stores, saved: (typeof d.saved === 'string') ? d.saved : null };
   };
   /* -> [{store, group, now, file, changed}] — the preview, reads only */
   window._vaultProfileDiff = function(stores){
@@ -50416,12 +50419,16 @@ window.vaultAutoAssign = function(){
     try {
       ch.forEach(function(r){ var v = P.stores[r.store];
         var w = (v === null) ? window.LSR.removeItem(r.store) : window.LSR.setItem(r.store, v);
-        if (w && w.ok === false) throw new Error(r.store + ' would not write');
+        /* LSR answers false (or {ok:false}) for a store it holds in quarantine — that is a refusal, not a write */
+        if (w === false || (w && w.ok === false)) throw new Error(r.store + ' would not write (the store is held)');
         done.push(r.store); });
     } catch (e) {
-      done.forEach(function(k){ try { if (before[k] == null) window.LSR.removeItem(k); else window.LSR.setItem(k, before[k]); } catch (e2) {} });
-      status('⚠ Profile not loaded — ' + String(e && e.message || e) + '; everything was put back as it was.', 12000);
-      return { ok: false, why: String(e && e.message || e) };
+      var stuck = [];
+      done.forEach(function(k){ var w2; try { w2 = (before[k] == null) ? window.LSR.removeItem(k) : window.LSR.setItem(k, before[k]); } catch (e2) { w2 = false; }
+        if (w2 === false || (w2 && w2.ok === false)) stuck.push(k); });
+      var why = String(e && e.message || e);
+      status('⚠ Profile not loaded — ' + why + (stuck.length ? '; these could NOT be put back: ' + stuck.join(', ') : '; everything was put back as it was') + '.', 15000);
+      return { ok: false, why: why, stuck: stuck };
     }
     status('Profile loaded — ' + done.length + ' store(s) replaced. Reloading…', 8000);
     if (!opts.noReload) setTimeout(function(){ try { location.reload(); } catch (e) {} }, 700);
@@ -50439,7 +50446,11 @@ window.vaultAutoAssign = function(){
   };
   window.vaultProfileLoadFile = function(ev){
     var f = ev && ev.target && ev.target.files && ev.target.files[0]; if (!f) return;
-    var r = new FileReader(); r.onload = function(){ window.vaultProfileLoad(String(r.result)); }; r.readAsText(f); ev.target.value = '';
+    var r = new FileReader();
+    r.onload = function(){ Promise.resolve().then(function(){ return window.vaultProfileLoad(String(r.result)); })
+      .catch(function(e){ status('⚠ Profile not loaded — ' + String(e && e.message || e) + '. Nothing was changed.', 12000); }); };
+    r.onerror = function(){ status('⚠ Profile not loaded — the file could not be read. Nothing was changed.', 12000); };
+    r.readAsText(f); ev.target.value = '';
   };
   /* Vault v3 — the two toolbar chips read the moved panels: the count of lock rows and AUTO INTAKE's state */
   window._vaultChipsPaint = function(){
@@ -52645,6 +52656,7 @@ window.vaultAutoAssign = function(){
     if (want) {
       try { document.addEventListener('mousedown', _vaultDangerOutside, true); document.addEventListener('keydown', _vaultDangerKey, true); if (z) z.addEventListener('focusout', _vaultDangerLeave); } catch (e1) {}
       try { var c = document.getElementById('vault-danger-cancel'); if (c) c.focus({ preventScroll: true }); } catch (e2) {}
+      try { if (m.closest('.footer')) m.scrollIntoView({ block: 'nearest' }); } catch (e4) {}  /* Vault v3 — in the footer the menu opens below the fold */
     } else if (refocus && b) { try { b.focus({ preventScroll: true }); } catch (e3) {} }
     return want;
   };

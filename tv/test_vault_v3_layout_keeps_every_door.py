@@ -148,16 +148,20 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         self.assertFalse(o["answer"], "the fixture confirm was not cancelled: %r" % o)
 
     def test_the_two_cards_are_twins_on_one_grid(self):
-        board().run("document.documentElement.style.width = '1440px';")
-        o = board().run("function r(s){ var b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.top), Math.round(b.width), Math.round(b.height)]; }"
+        b = board()
+        b.t.send("Emulation.setDeviceMetricsOverride", width=1440, height=900, deviceScaleFactor=1, mobile=False)
+        try:
+            o = b.run("function r(s){ var b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.top), Math.round(b.width), Math.round(b.height)]; }"
                         "OUT.a = r('.vault-tool-add'); OUT.f = r('.vault-tool-find');"
                         "var ha = getComputedStyle(document.querySelector('.vault-tool-add .vault-tool-h')),"
                         "    hf = getComputedStyle(document.querySelector('.vault-tool-find .vault-tool-h'));"
                         "OUT.h = [ha.fontSize, hf.fontSize, ha.letterSpacing, hf.letterSpacing];"
-                        "OUT.grid = getComputedStyle(document.querySelector('.vault-deck')).display;")
-        self.assertEqual(o["grid"], "grid")
-        if o["a"][1] > 0:
-            self.assertEqual(o["a"], o["f"], "the ADD and FIND cards are not twins: %r" % o)
+                        "OUT.grid = getComputedStyle(document.querySelector('.vault-deck')).gridTemplateColumns;")
+        finally:
+            b.t.send("Emulation.clearDeviceMetricsOverride")
+        self.assertEqual(len(o["grid"].split()), 2, "the deck is not two columns at 1440: %r" % o)
+        self.assertGreater(o["a"][1], 300, o)
+        self.assertEqual(o["a"], o["f"], "the ADD and FIND cards are not twins: %r" % o)
         self.assertEqual(o["h"][0], o["h"][1], o)
         self.assertEqual(o["h"][2], o["h"][3], o)
 
@@ -170,7 +174,7 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
             "var keys = []; Object.keys(window._PROFILE_STORES).forEach(function(g){ keys = keys.concat(window._PROFILE_STORES[g]); });"
             "function snap(){ var s = {}; keys.forEach(function(k){ s[k] = window.LSR.getItem(k); }); return s; }"
             "var before = snap(); var file = window._vaultProfileBuild();"
-            "OUT.hasChron = /d2r_foundLog|d2r_setPieces|d2r_owned\"/.test(file);"
+            "OUT.hasChron = /d2r_foundLog|d2r_setPieces|d2r_grailUnfound|d2r_gameFound/.test(file);"
             "keys.forEach(function(k){ window.LSR.setItem(k, JSON.stringify({scribbled: k})); });"
             "var r = await window.vaultProfileLoad(file, { confirm: function(){ return true; }, noReload: true });"
             "var after = snap(); OUT.r = r;"
@@ -202,6 +206,49 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         self.assertEqual(o["asked"], 0, "a bad file reached the confirm: %r" % o)
         self.assertTrue(o["same"], "a refused file wrote something: %r" % o)
         self.assertIn("Nothing was changed", o["say"])
+
+    def test_a_held_store_mid_load_rolls_back_and_a_no_writes_nothing(self):
+        board().seed({"d2r_muleAssign": {"Fixture Ring": "m1"}, "d2r_runeStash": {"Ber": 2}, "d2r_charBuilds": {"b1": {"name": "A"}}})
+        o = board().run(
+            "var keys = []; Object.keys(window._PROFILE_STORES).forEach(function(g){ keys = keys.concat(window._PROFILE_STORES[g]); });"
+            "function snap(){ var s = {}; keys.forEach(function(k){ s[k] = window.LSR.getItem(k); }); return JSON.stringify(s); }"
+            "var good = JSON.parse(window._vaultProfileBuild());"
+            "good.stores.d2r_muleAssign = JSON.stringify({'Other Ring': 'm2'}); good.stores.d2r_runeStash = JSON.stringify({Jah: 1});"
+            "good.stores.d2r_charBuilds = JSON.stringify({b2: {name: 'B'}}); var file = JSON.stringify(good);"
+            "var before = snap();"
+            "OUT.no = await window.vaultProfileLoad(file, { confirm: function(){ return false; }, noReload: true }); OUT.noSame = snap() === before;"
+            "var real = window.LSR.setItem;"
+            "window.LSR.setItem = function(k, v){ if (k === 'd2r_runeStash' && v.indexOf('Jah') >= 0) return false; return real.apply(this, arguments); };"
+            "try { OUT.held = await window.vaultProfileLoad(file, { confirm: function(){ return true; }, noReload: true }); } finally { window.LSR.setItem = real; }"
+            "OUT.heldSame = snap() === before;"
+            "var bad = JSON.parse(file); bad.stores.d2r_vaultRemovedAt = 'not json';"
+            "OUT.removedAt = await window.vaultProfileLoad(JSON.stringify(bad), { confirm: function(){ return true; }, noReload: true });"
+            "var proto = JSON.parse(file); proto.stores.constructor = '{}';"
+            "OUT.proto = await window.vaultProfileLoad(JSON.stringify(proto), { confirm: function(){ return true; }, noReload: true });"
+            "var big = JSON.parse(file); var m = {}; for (var i = 0; i < 400; i++) m['Item ' + i] = Date.now(); big.stores.d2r_vaultRemovedAt = JSON.stringify(m);"
+            "OUT.bigOk = window._vaultProfileParse(JSON.stringify(big)).ok;"
+            "OUT.allSame = snap() === before;")
+        self.assertFalse(o["no"]["ok"], o)
+        self.assertTrue(o["noSame"], "answering No still wrote: %r" % o)
+        self.assertFalse(o["held"]["ok"], "a held (quarantined) store was read as written: %r" % o)
+        self.assertEqual(o["held"].get("stuck"), [], o)
+        self.assertTrue(o["heldSame"], "a refused write mid-load left the other stores changed: %r" % o)
+        self.assertFalse(o["removedAt"]["ok"], "a damaged removal journal was accepted: %r" % o)
+        self.assertFalse(o["proto"]["ok"], "a prototype-named store slipped past the allowlist: %r" % o)
+        self.assertTrue(o["bigOk"], "a real-sized removal journal is refused: %r" % o)
+        self.assertTrue(o["allSame"], o)
+
+    def test_profile_stores_follow_backups_rule(self):
+        """Blueprint audit fix 2: Save profile is a subset of Backup's Export snapshot (same LSR rule) and holds every vault store."""
+        keys_js = "var keys = []; Object.keys(window._PROFILE_STORES).forEach(function(g){ keys = keys.concat(window._PROFILE_STORES[g]); });"
+        o = board().run(keys_js +
+            "keys.forEach(function(k){ window.LSR.setItem(k, JSON.stringify({probe: k})); });"
+            "var snap = _collectProgress(); OUT.missing = keys.filter(function(k){ return !(k in snap); });"
+            "OUT.vaultGap = window._VAULT_STORES.filter(function(k){ return window._PROFILE_STORES.vault.indexOf(k) < 0; });"
+            "OUT.file = JSON.parse(window._vaultProfileBuild()).stores; OUT.fileMissing = keys.filter(function(k){ return snap[k] !== OUT.file[k]; });")
+        self.assertEqual(o["missing"], [], "a profile store is not in Backup's Export snapshot: %r" % o["missing"])
+        self.assertEqual(o["vaultGap"], [], "a VAULT_STORES key is missing from the profile: %r" % o["vaultGap"])
+        self.assertEqual(o["fileMissing"], [], "the profile file disagrees with Backup's reading: %r" % o["fileMissing"])
 
 
 if __name__ == "__main__":
