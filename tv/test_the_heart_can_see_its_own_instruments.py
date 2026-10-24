@@ -390,7 +390,7 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                   or ("if not _inside(root, p):" in ctx)
                   # REG-2640 - the trace sitecustomize is written only into the temp dir heart2 made the line above;
                   # test_a_named_file_the_law_never_opened_is_keyed_by_name drives it
-                  or ('d = tempfile.mkdtemp(prefix="heart2-trace-")' in ctx))
+                  or ('d = tempfile.mkdtemp(prefix="heart2-trace-%d-" % os.getpid())' in ctx))
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))

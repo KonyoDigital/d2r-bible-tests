@@ -219,6 +219,20 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_a_killed_provers_trace_dir_is_swept_and_a_live_ones_is_kept(self):
+        """the trace dir of a prover SIGKILL ended (no atexit ran) leaves on the next run; a live prover's stays"""
+        base = tempfile.mkdtemp(prefix="h2sweep-fx.")
+        try:
+            import subprocess
+            dead = subprocess.Popen([sys.executable, "-c", "pass"]); dead.wait()
+            for pid in (dead.pid, os.getpid(), os.getppid()):
+                os.makedirs(os.path.join(base, "heart2-trace-%d-x" % pid, "sub"))
+            gone = H._trace_sweep(base)
+            self.assertEqual(gone, ["heart2-trace-%d-x" % dead.pid])
+            self.assertEqual(sorted(os.listdir(base)), sorted("heart2-trace-%d-x" % p for p in (os.getpid(), os.getppid())))
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+
 
 RED_PROOF = [
     {

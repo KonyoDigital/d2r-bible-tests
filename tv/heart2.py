@@ -2316,8 +2316,9 @@ def _trace_site():
         d = _TRACE_DIR["path"]
         if d and os.path.isfile(os.path.join(d, "sitecustomize.py")):
             return d
+        _trace_sweep()
         try:
-            d = tempfile.mkdtemp(prefix="heart2-trace-")
+            d = tempfile.mkdtemp(prefix="heart2-trace-%d-" % os.getpid())
             with io.open(os.path.join(d, "sitecustomize.py"), "w", encoding="utf-8") as fh:
                 fh.write(_TRACE_SITE_SRC)
             atexit.register(shutil.rmtree, d, True)
@@ -2325,6 +2326,28 @@ def _trace_site():
             return None
         _TRACE_DIR["path"] = d
         return d
+
+
+def _trace_sweep(base=None):
+    """REG-2640 - a prover KILLED by SIGKILL never reaches atexit: its trace dir (the sitecustomize and every run's
+    log) would stay in the temp dir for good. Remove those whose owner pid is dead. -> [removed names]"""
+    base = base or tempfile.gettempdir()
+    gone = []
+    try:
+        names = os.listdir(base)
+    except OSError:
+        return gone
+    for n in names:
+        if not n.startswith("heart2-trace-"):
+            continue
+        try:
+            pid = int(n[len("heart2-trace-"):].split("-", 1)[0])
+        except ValueError:
+            continue
+        if pid != os.getpid() and not _pid_alive(pid):
+            shutil.rmtree(os.path.join(base, n), ignore_errors=True)
+            gone.append(n)
+    return gone
 
 
 def _trace_wanted(filename, env=None):
@@ -2608,7 +2631,7 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
             _trace_record(filename, set(), False)
         else:
             try:
-                _tfd, _tlog = tempfile.mkstemp(prefix="h2trace-", suffix=".log")
+                _tfd, _tlog = tempfile.mkstemp(prefix="h2trace-", suffix=".log", dir=_tsite)
                 os.close(_tfd)
                 env["PYTHONPATH"] = _tsite + ((os.pathsep + env["PYTHONPATH"]) if env.get("PYTHONPATH") else "")
                 env["HEART2_TRACE_LOG"], env["HEART2_TRACE_SITE"] = _tlog, _tsite
