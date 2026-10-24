@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3795** | `(this commit)` | v3795 — a Mac push imports proofs banked on the same kind of machine instead of re-proving them |
+| **v3796** | `(this commit)` | v3796 — Shadow reads the signed Roster profile - a Roster name opens its row with HD eyes - diagnostics fold under ADVANCED |
+| **v3795** | `27b9a028` | v3795 — a Mac push imports proofs banked on the same kind of machine instead of re-proving them |
 | **v3794** | `2566e3be` | v3794 — merged sort and danger controls, ADD AN ITEM bar only, MOVE TASKS inbox overlay, ADVANCED collapsed at the bottom |
 | **v3793** | `c9441419` | v3793 — machine-wide stores and seeder, vanish witness, Windows console keepalive, prover owned by its console |
 | **v3792** | `24a9f8d1` | v3792 — M4 (GB-L) - per-PC console and ledgers, eagle dual logic, keep-awake, node pin, installer, faster CI |

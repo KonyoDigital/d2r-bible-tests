@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3795",
+  "ver": "v3796",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3795: a Mac push imports proofs banked on the same kind of machine instead of re-proving them",
+  "note": "v3796: Shadow reads the signed Roster profile - a Roster name opens its row with HD eyes - diagnostics fold under ADVANCED",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
