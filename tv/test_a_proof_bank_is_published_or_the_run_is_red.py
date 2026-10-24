@@ -86,6 +86,18 @@ RED_PROOF = [
      "file": ".github/workflows/proof-bank-windows.yml",
      "find": "sys.exit(0 if b'\\r\\n' in b else",
      "replace": "sys.exit(0 if True else", "matches": 2},
+    {"why": "REG-2633 - the Windows CRLF probe is shrugged off",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": "not the bytes a Windows PC keys')\"\n",
+     "replace": "not the bytes a Windows PC keys')\" || true\n", "matches": 2},
+    {"why": "REG-2633 - the Windows dirty-checkout check is shrugged off",
+     "file": ".github/workflows/proof-bank-windows.yml",
+     "find": '          test -z "$(git status --porcelain)" || {',
+     "replace": '          test -z "$(git status --porcelain)" || true # {', "matches": 2},
+    {"why": "REG-2633 - a public why quoting a user folder refuses the whole bank",
+     "file": "proof_bank.py",
+     "find": 'if f != "why") if',
+     "replace": 'if f != "why_") if', "matches": 1},
     {"why": "REG-2633 - the Linux publish step turns errexit back off",
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": '          set -euo pipefail\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
@@ -164,6 +176,16 @@ class TheWorkflowsCanOnlyFailLoud(unittest.TestCase):
             self.assertIn("b'\\r\\n' in b", j, "%s never looks for CRLF on disk after its checkout" % jn)
             self.assertLess(j.index("actions/checkout"), j.index("b'\\r\\n' in b"), jn)
             self.assertIn('test -z "$(git status --porcelain)"', j, "%s may key a dirty checkout" % jn)
+            for step in _publish_steps(j):
+                if not any(w in step for w in ("core.autocrlf", "b'\\r\\n'", "git status --porcelain")):
+                    continue
+                self.assertNotIn("continue-on-error", step, jn)
+                for line in step.splitlines():
+                    if "||" not in line:
+                        continue
+                    ok = line.strip() == 'v=$(git config --get core.autocrlf || true)' or \
+                        re.search(r"\|\| \{ .*exit 1; \}$", line.strip())
+                    self.assertTrue(ok, "%s: a byte check can be shrugged off: %r" % (jn, line.strip()))
         self.assertIn("claude.cmd", shard, "on Windows a `claude` sh script is not what a subprocess finds")
         self.assertIn("exit /b 97", shard)
         job = _job(text, "win-bank")
@@ -202,10 +224,12 @@ class ThePublisherDriven(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.d, ignore_errors=True)
 
-    def export(self, head=H1, n=2, dirty=False, count=None, extra=None, name="e.json"):
+    def export(self, head=H1, n=2, dirty=False, count=None, extra=None, name="e.json", why=None):
         ent = dict(("k%d" % i, {"gate": "g", "verdict": "PROVEN", "tree": "exported:%04d" % i}) for i in range(n))
         if extra:
-            ent["k0"]["why"] = extra
+            ent["k0"]["target"] = extra
+        if why:
+            ent["k0"]["why"] = why
         body = {"format": 2, "entries": ent,
                 "export": {"v": 1, "head": head, "dirty": dirty, "entries": n if count is None else count, "at": 1}}
         p = os.path.join(self.d, name)
@@ -254,6 +278,7 @@ class ThePublisherDriven(unittest.TestCase):
             ("windows path", dict(path=self.export(extra="C:\\Users\\dean\\x", name="bad7.json"))),
             ("runner path", dict(path=self.export(extra="/home/runner/work/x", name="bad8.json"))),
             ("windows runner path", dict(path=self.export(extra="D:\\a\\repo\\x", name="bad10.json"))),
+            ("msys runner path", dict(path=self.export(extra="/d/a/repo/x", name="bad12.json"))),
             ("escaped windows path", dict(path=self.export(extra="C:\\\\Users\\\\x", name="bad11.json"))),
             ("other class", dict(path=self.export(name="bad9.json"), plat="windows")),
         ]
@@ -265,6 +290,11 @@ class ThePublisherDriven(unittest.TestCase):
         rc = PB.main(["--check", bad, "--head", H1, "--class", PB.CLASSES[0]])
         self.assertEqual(rc, 1, "a refused check exited %r, not 1" % rc)
         self.assertEqual(PB.main(["--check", os.path.join(self.d, "nope.json"), "--head", H1, "--class", "linux"]), 1)
+
+    def test_a_why_quoting_public_source_still_publishes(self):
+        # the live beacon proof's why quotes 'C:\\Users\\Dean Smith\\...' - it is committed source, not machine data
+        self.pub(self.export(why="review 3 - the user-folder scrub is dropped: 'C:\\\\Users\\\\Dean Smith\\\\...' leaks"))
+        self.assertEqual(self.remote_files(), [H1 + ".linux.json"])
 
     def test_an_unreachable_remote_is_a_refusal_not_a_pass(self):
         _git(self.repo, "remote", "set-url", "origin", os.path.join(self.d, "gone.git"))

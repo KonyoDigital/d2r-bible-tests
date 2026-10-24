@@ -36,7 +36,8 @@ CLASSES = ("linux", "windows", "darwin")
 # any run of backslashes: the export is JSON (one \ becomes \\), and a quoted example may be escaped again
 PRIVATE = (re.compile(r"/Users/"), re.compile(r"/home/"), re.compile(r"[A-Za-z]:\\+Users\\+"),
            re.compile(r"[A-Za-z]:/Users/"), re.compile(r"/runner/work/"), re.compile(r"\\+runner\\+"),
-           re.compile(r"(?<![A-Za-z])[A-Za-z]:\\+a\\+"), re.compile(r"(?<![A-Za-z])[A-Za-z]:/a/"))
+           re.compile(r"(?<![A-Za-z])[A-Za-z]:\\+a\\+"), re.compile(r"(?<![A-Za-z])[A-Za-z]:/a/"),
+           re.compile(r"(?<![\w.])/[a-z]/a/"))
 NAME = re.compile(r"^([0-9a-f]{40})\.(linux|windows|darwin)\.json$")
 
 
@@ -79,8 +80,12 @@ def check(path, head, cls, platform_class=None):
     if len(ent) < 1 or m.get("entries") != len(ent):
         raise Refused("the export holds %d entr(ies) (manifest says %r) - an empty bank serves nothing"
                       % (len(ent), m.get("entries")))
+    # Scan everything but each entry's `why`: that is a <=120-char slice of a COMMITTED RED_PROOF literal (already public
+    # source - one quotes the very 'C:\\Users\\<name>' leak it guards), never a value a machine wrote.
+    scanned = json.dumps(dict((k, dict((f, v) for f, v in e.items() if f != "why") if isinstance(e, dict) else e)
+                              for k, e in ent.items()), ensure_ascii=False) + json.dumps(m, ensure_ascii=False)
     for rx in PRIVATE:
-        if rx.search(text):
+        if rx.search(scanned):
             raise Refused("the export names a machine path (%s)" % rx.pattern)
     return text, len(ent)
 
