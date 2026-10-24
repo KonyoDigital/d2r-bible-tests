@@ -98,6 +98,18 @@ RED_PROOF = [
      "file": "proof_bank.py",
      "find": 'if f != "why") if',
      "replace": 'if f != "why_") if', "matches": 1},
+    {"why": "REG-2633 - the publisher stamps an LF tree as a .windows bank",
+     "file": "proof_bank.py",
+     "find": '    if b"\\r\\n" not in b:\n',
+     "replace": '    if False:\n', "matches": 1},
+    {"why": "REG-2633 - the publisher accepts any autocrlf for a .windows bank",
+     "file": "proof_bank.py",
+     "find": '    if v.strip() != "true":\n',
+     "replace": '    if False:\n', "matches": 1},
+    {"why": "REG-2633 - a .windows bank skips the bytes check",
+     "file": "proof_bank.py",
+     "find": '    if cls == "windows":\n        windows_bytes(repo)\n',
+     "replace": '', "matches": 1},
     {"why": "REG-2633 - the Linux publish step turns errexit back off",
      "file": ".github/workflows/proof-keys-shards.yml",
      "find": '          set -euo pipefail\n          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"\n',
@@ -310,7 +322,27 @@ class ThePublisherDriven(unittest.TestCase):
             self.pub(self.export())
         self.assertIsNone(self.remote_files())
 
+    def _pc_bytes(self, crlf=True, autocrlf="true"):
+        os.makedirs(os.path.join(self.repo, "tv"), exist_ok=True)
+        with open(os.path.join(self.repo, "tv", "heart2.py"), "wb") as fh:
+            fh.write(b"a = 1\r\nb = 2\r\n" if crlf else b"a = 1\nb = 2\n")
+        _git(self.repo, "config", "core.autocrlf", autocrlf)
+
+    def test_a_windows_bank_needs_the_pcs_bytes_on_disk(self):
+        for label, kw in (("LF on disk", dict(crlf=False)), ("autocrlf input", dict(autocrlf="input")),
+                          ("autocrlf false", dict(autocrlf="false"))):
+            self._pc_bytes(**kw)
+            with self.assertRaises(PB.Refused, msg="%s published a .windows bank" % label):
+                self.pub(self.export(name="w.json"), cls="windows")
+        self.assertIsNone(self.remote_files())
+        self._pc_bytes()
+        self.pub(self.export(name="w.json"), cls="windows")
+        self.assertEqual(self.remote_files(), [H1 + ".windows.json"], "BASELINE: the PCs' bytes do publish")
+        self._pc_bytes(crlf=False)
+        self.pub(self.export(name="l.json"), cls="linux")  # a linux bank never asks
+
     def test_two_producers_both_land(self):
+        self._pc_bytes()
         self.pub(self.export(name="l.json"), cls="linux")
         self.pub(self.export(name="w.json"), cls="windows")
         self.assertEqual(self.remote_files(), sorted([H1 + ".linux.json", H1 + ".windows.json"]))

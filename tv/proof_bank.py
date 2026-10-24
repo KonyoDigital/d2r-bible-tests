@@ -49,7 +49,25 @@ def bank_name(head, cls):
     return "%s.%s.json" % (head, cls)
 
 
-def check(path, head, cls, platform_class=None):
+EOL_SAMPLE = os.path.join("tv", "heart2.py")
+
+
+def windows_bytes(repo):
+    """REG-2633: a .windows bank is only the PCs' keys if this checkout holds what a PC's git writes - autocrlf=true and
+    CRLF on disk. Checked here, in the publisher, so no workflow edit can shrug it off. Raises Refused."""
+    rc, v = _git(repo, "config", "--get", "core.autocrlf")
+    if v.strip() != "true":
+        raise Refused("core.autocrlf is %r here, not the PCs' true - a .windows bank would key other bytes" % v.strip())
+    try:
+        with open(os.path.join(repo, EOL_SAMPLE), "rb") as fh:
+            b = fh.read()
+    except OSError as e:
+        raise Refused("cannot read %s to sample its line ends (%s)" % (EOL_SAMPLE, type(e).__name__))
+    if b"\r\n" not in b:
+        raise Refused("%s holds no CRLF - not the bytes a Windows PC keys" % EOL_SAMPLE)
+
+
+def check(path, head, cls, platform_class=None, repo="."):
     """-> (body_text, n_entries); raises Refused with the reason."""
     if platform_class is None:
         import heart2 as _h2
@@ -61,6 +79,8 @@ def check(path, head, cls, platform_class=None):
     if platform_class != cls:
         raise Refused("this runner keys proofs as %r, not %r - its bank would never meet a %s key"
                       % (platform_class, cls, cls))
+    if cls == "windows":
+        windows_bytes(repo)
     if not path or not os.path.isfile(path):
         raise Refused("the export %r does not exist (heart2 --export-proved wrote nothing)" % (path,))
     try:
@@ -122,7 +142,7 @@ def prune(names, keep):
 
 
 def publish(path, head, cls, remote="origin", branch=BRANCH, keep=KEEP, repo=".", platform_class=None, say=print):
-    text, n = check(path, head, cls, platform_class)
+    text, n = check(path, head, cls, platform_class, repo)
     url = _must(repo, "remote", "get-url", remote).strip()
     name = bank_name(head, cls)
     work = tempfile.mkdtemp(prefix="proof-bank.")
