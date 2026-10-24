@@ -416,7 +416,12 @@ class ThePushRecordsWhatItDid(_Fixture):
 
 #: REG-2353 (round 4) - what a verdict cache ANSWERS with: its lock, its printer, its store file, and the digests, parsed
 #: imports and closures it memoises for this run. Never where a use is recorded; every other attribute may be.
-_ANSWERS_WITH = frozenset(("lock", "say", "file", "memo", "parsed", "closures", "tracked"))
+_ANSWERS_WITH = frozenset(("lock", "say", "file", "memo", "parsed", "closures", "tracked",
+                           # REG-2640 (deliberate): _vidx/_vgen are the ident -> unread-sets INDEX _variants() builds
+                           # lazily from self.entries (rebuilt when entries is replaced, never flushed, holds no usedAt).
+                           # Like `memo` it is what the cache answers WITH, not a use: a question building it marks nothing.
+                           # The on-disk check (flushed() == disk0) still catches any real use a question records.
+                           "_vidx", "_vgen"))
 
 
 def _recorded(cache):

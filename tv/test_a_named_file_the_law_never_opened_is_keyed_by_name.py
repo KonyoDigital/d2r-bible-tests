@@ -244,7 +244,7 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
                 os.makedirs(os.path.join(base, "heart2-trace-%d-x" % pid, "sub"))
             gone = H._trace_sweep(base)
             self.assertEqual(gone, ["heart2-trace-%d-x" % dead.pid])
-            self.assertEqual(sorted(os.listdir(base)), sorted("heart2-trace-%d-x" % p for p in (os.getpid(), os.getppid())))
+            self.assertEqual(sorted(_fx_tmp.list_own(base)), sorted("heart2-trace-%d-x" % p for p in (os.getpid(), os.getppid())))
         finally:
             shutil.rmtree(base, ignore_errors=True)
 
