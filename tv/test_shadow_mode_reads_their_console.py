@@ -376,7 +376,7 @@ class TheWorker(unittest.TestCase):
         self.assertEqual(prof["puts"], ["roster:" + OWNER + ":profile"], prof["reply"])
         self.assertEqual(row["puts"], ["roster:" + OWNER], "a rows publish wrote %r (%r)" % (row["puts"], row["reply"]))
         self.assertEqual(got["get"]["stores"], _wstores())
-        self.assertTrue(CS.snapshot_key(OWNER) == "roster:" + OWNER + ":profile")
+        self.assertTrue(CS.profile_key(OWNER) == "roster:" + OWNER + ":profile")
 
     def test_the_hash_is_the_same_on_both_sides(self):
         s = dict(_wstores(), d2r_emoji=json.dumps({"icon": "🛡️ ✓ ü"}))

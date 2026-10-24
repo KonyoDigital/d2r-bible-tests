@@ -3862,7 +3862,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     if (!ok || !stores || !world) {
       try { window.stop(); } catch (e) {}
       document.write('<p style="font-family:sans-serif;font-size:var(--fs-title);color:#ddd;background:#111;padding:24px">Shadow could not open: ' +
-        (!stores ? 'no snapshot was handed to this frame.' : !world ? 'the snapshot does not say which world it was drawn in (their console must upload again).' : 'this browser would not isolate the board.') +
+        (!stores ? 'no snapshot was handed to this frame.' : !world ? 'the snapshot does not say which world it was drawn in (their console must sync its Roster profile again).' : 'this browser would not isolate the board.') +
         ' Nothing was read from or written to this PC.</p>');
       throw new Error('tvd-shadow: closed');
     }

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Shadow mode: one console's account stores, uploaded, so another console can show them read only.
+"""Shadow mode: one console's account stores, synced on its Roster profile, so another console can show them read only.
 
 The board collects its active world's stores with _collectProgress (the Backup v2 rule: bare names,
 this world only, no pointer or identity keys) and posts them to the console. This module decides what
-of that may leave the PC, when it is uploaded, and what a viewer is told about its age.
+of that may leave the PC, when it is synced, and what a viewer is told about its age.
 
 What leaves: `d2r_*` stores only, each one a JSON string as the board wrote it, never re-typed. Stores
 that are history logs, film evidence or debug routes stay home (DENY). A string that names a path on
@@ -14,7 +14,7 @@ same bytes the owner's board reads and draws the same screens, mods and all.
 The profile rides the roster publish (same route, same signing key) to its own record `roster:<owner>:profile`
 (functions/api/roster.js (profile)). It is change-only and at most once per MIN_GAP_MS, plus one at boot; the
 worker holds the daily cap. A viewer reads that record. When the worker cannot be reached the last
-copy this PC fetched is shown with the time it was uploaded: shadow works whether the other console
+copy this PC fetched is shown with the time it was synced: shadow works whether the other console
 is up or not.
 """
 
@@ -90,7 +90,7 @@ def budget():
             "together": roster["together"] + snap, "worst": worst, "ceiling": roster["ceiling"]}
 
 
-def snapshot_key(owner):
+def profile_key(owner):
     return ("roster:" + owner + ":profile") if owner in OWNERS else None
 
 
@@ -236,7 +236,7 @@ def digest(stores):
 def due(state, owner, stores, now_ms, boot):
     """-> (body or None, why). Change-only, MIN_GAP_MS apart, one boot post; a refusal waits MIN_GAP_MS."""
     state = state if isinstance(state, dict) else {}
-    if not snapshot_key(owner):
+    if not profile_key(owner):
         return None, "the owner is not one of the five labels"
     if not stores:
         return None, "the board has not posted its stores"
