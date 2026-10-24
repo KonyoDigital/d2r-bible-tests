@@ -11861,6 +11861,13 @@ GATES = [
              "(Windows paths with spaces included) and never takes a pre-push or hand-run heart2 --prove for one; "
              "an orphan is ended, a live console's prover is not; a prover that ended with its console is booked a "
              "stand-aside, never the 3 h failure backoff."),
+    Gate("test_a_proof_counts_only_on_its_own_platform_class",
+         [sys.executable, os.path.join(HERE, "test_a_proof_counts_only_on_its_own_platform_class.py")], 120,
+         needs_app=False,
+         why="REG-2632 - a proof counts only on the platform class it was proved on (the class is in every key); a "
+             "PC's slice serves from its bank only gates the bank keys whole; the ALT's bank-only run beside his "
+             "game serves and never proves; keys are raw bytes with /-separated names; an export carries no "
+             "machine path"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

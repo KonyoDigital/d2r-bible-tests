@@ -2870,6 +2870,35 @@ def _shared_cache_path(here=None, repo=None, env=None):
 
 #: #242 - the tree a verdict was proved in, carried on every banked entry (local only: the cache is never committed)
 TREE_ID = os.path.realpath(REPO)
+
+
+def platform_class(plat=None, osname=None):
+    """REG-2632 - the PLATFORM CLASS a proof is keyed under: "windows", "darwin", "linux", or "other:<sys.platform>".
+
+    A PROVEN counts only on the class it was proved on. Asked over every proof in the gate set (2026-10-24, 5680
+    proofs), not one law's python closure is free of a platform read (sys.platform, os.name, subprocess, signal...),
+    so "platform-neutral by law" names an empty set, and a Linux PROVEN served on a Mac or a PC is a guess. The class
+    is folded into every key, so a proof from another class can never even meet this machine's key."""
+    plat = sys.platform if plat is None else str(plat)
+    osname = os.name if osname is None else str(osname)
+    if osname == "nt" or plat.startswith(("win", "cygwin", "msys")):
+        return "windows"
+    if plat == "darwin":
+        return "darwin"
+    if plat.startswith("linux"):
+        return "linux"
+    return "other:" + plat
+
+
+def key_rel(path, repo, pathmod=None):
+    """REG-2632 - an input's name inside a key: repo-relative, "/"-separated, whatever this platform's separator, so a
+    Windows tree and a POSIX tree of the same commit name every input alike. `pathmod` (ntpath/posixpath) lets a law
+    spell it as the other platform would."""
+    pm = pathmod or os.path
+    return pm.relpath(path, repo).replace(pm.sep, "/")
+
+
+PLATFORM_CLASS = platform_class()       # REG-2632 - asked once; a law sets it to key as another class would
 CACHE = _shared_cache_path()
 #: R10 (REG-2340) - None when CACHE is the machine's shared store (or a seam named it); otherwise WHY it is this
 #: checkout's own. The first opener of a store says it - a store that dies with its checkout is never silent.
@@ -3971,9 +4000,10 @@ class _VerdictCache(object):
         h.update(str(filename).encode("utf-8", "replace") + b"\0")
         h.update(_proof_key(pr).encode("utf-8", "replace") + b"\0")
         h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace") + b"\0")
+        h.update(b"REG-2632 platform\0" + str(PLATFORM_CLASS).encode("utf-8", "replace") + b"\0")   # PLATFORM-IN-KEY
         rels, away = [], []
         for p in inputs:
-            rel = os.path.relpath(p, repo).replace(os.sep, "/")
+            rel = key_rel(p, repo)                    # REG-2632 - one spelling on every platform
             if mask and rel in GL.STAMP_SURFACES:
                 d, gone = self._masked_sha(p, rel)
                 away.append((rel, gone or ""))
@@ -5685,6 +5715,38 @@ def unmatched_names(only, gates):
     return out
 
 
+#: REG-2632 - `--bank FILE [--bank-only]`: this slice imports FILE, then serves what it keys exactly before proving
+_BANK = {"on": False, "only": False}
+
+
+def serve_from_bank(have, say, cache, only=False):
+    """REG-2632 - the gates of `have` the verdict cache serves WHOLE under this checkout's own keys (its bytes, its
+    platform class), read only: nothing is written, nothing marked used. -> ({name: (PROVEN, [PROVEN...])}, rest,
+    {name: oldest provedAt}). A gate with ONE proof that misses, cannot be keyed, or raises is not served at all: it is
+    in `rest`, proved by the slice - or, `only` (bank-only, the ALT under REG-1502), left OWED and never run."""
+    served, rest, ages = {}, [], {}
+    for n, f, prs in have:
+        hits = []
+        for pr in prs or []:
+            try:
+                key = cache.key_for(HERE, n, f, pr)[0]
+            except Exception:
+                key = None
+            e = cache.peek(key) if key else None      # BANK-ASKS-PEEK
+            if e is None:
+                break
+            hits.append(e)
+        if prs and len(hits) == len(prs):
+            served[n] = (PROVEN, [PROVEN] * len(prs))
+            ages[n] = min(_proven_at(e) for e in hits)
+        else:
+            rest.append((n, f, prs))
+    say("  REG-2632 BANK: %d gate(s) served whole from proofs banked for this %s commit's exact bytes; %d %s"
+        % (len(served), PLATFORM_CLASS, len(rest),
+           "left OWED - bank-only never proves here (REG-1502)" if only else "proved here"))
+    return served, ([] if only else rest), ages
+
+
 def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True):
     gates = gate_files()
     todo = gates_named(only, gates)                      # REG-2352 - the one predicate unmatched_names asks too
@@ -5744,10 +5806,25 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
     else:
         # REG-1676 — a SLICE (stamp=False) banks as it goes; a full run keeps its one write at the end
         _GATE_HOOK["fn"] = None if stamp else _slice_banker(_blank, say)
+        _served, _sages = {}, {}
+        if _BANK.get("on"):
+            # REG-2632 - a PC's slice serves first what its imported bank keys exactly (this class, these bytes);
+            # bank-only (the ALT, REG-1502) never runs the rest
+            _served, have, _sages = serve_from_bank(have, say, _VerdictCache(say=say), only=_BANK.get("only"))
         try:
-            results, per_proof = _prove_gates(have, say, blank=_blank)
+            results, per_proof = {}, {}
+            if have or not _BANK.get("on"):
+                results, per_proof = _prove_gates(have, say, blank=_blank)
         finally:
             _GATE_HOOK["fn"] = None     # #145 (the v3545 eye) - a raise must not leave this slice's banker installed
+        if results is not None and _served:
+            results, per_proof = dict(results), dict(per_proof)
+            for _n, _v in _served.items():
+                results[_n], per_proof[_n] = _v
+            _ages.update(_sages)
+        if results is not None and not results and _BANK.get("on"):
+            say("  REG-2632 nothing was served or proved, so the census is left exactly as it was")
+            return {}
     if results is None:
         return {}
     # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
@@ -6678,6 +6755,31 @@ def import_shards(paths, say=print, target=None):
     return 0
 
 
+def export_tree(tree):
+    """REG-2632 - the tree an exported entry carries: "exported:" + 16 hex of the proving tree's path, never the path (a
+    bank is published to git: no home directory, user or host name leaves). Still never this tree's id, so an import
+    keeps owing REG-2599's clean run here."""
+    return "exported:" + hashlib.sha256(str(tree or "").encode("utf-8", "replace")).hexdigest()[:16]
+
+
+def export_take(entries, keyer):
+    """REG-2630/2632 - the entries an export carries: servable, and keyed by THIS checkout exactly as filed; each with its
+    tree replaced by export_tree(). -> ({key: entry}, stale count, not-servable count). Pure."""
+    import proof_shard as _PS
+    take, stale, other = {}, 0, 0
+    for key, e in (entries or {}).items():
+        if not _PS.servable(e):
+            other += 1
+            continue
+        if keyer(str(e.get("gate")), e.get("proof")) != key:
+            stale += 1
+            continue
+        e = dict(e)
+        e["tree"] = export_tree(e.get("tree"))    # REG-2632 - a bank is published: no machine path leaves this machine
+        take[key] = e
+    return take, stale, other
+
+
 def export_proved(out_dir, say=print, source=None):
     """REG-2630 - `heart2.py --export-proved DIR`: this machine's banked PROVENs that THIS checkout's bytes still key, into
     DIR/.heart2_cache.json with an `export` manifest (HEAD, clean), for another machine's `--import-proved`. The box
@@ -6706,16 +6808,7 @@ def export_proved(out_dir, say=print, source=None):
     if why is not None:
         say("  ✗ REG-2630 EXPORT REFUSED: %s. Nothing was written." % why)
         return 2
-    keyer = _shard_keyer(source)
-    take, stale, other = {}, 0, 0
-    for key, e in (body.get("entries") or {}).items():
-        if not _PS.servable(e):
-            other += 1
-            continue
-        if keyer(str(e.get("gate")), e.get("proof")) != key:
-            stale += 1
-            continue
-        take[key] = e
+    take, stale, other = export_take(body.get("entries"), _shard_keyer(source))
     if not os.path.isdir(os.path.dirname(out)):
         os.makedirs(os.path.dirname(out))
     m = _PS.export_manifest(head, False, len(take), int(time.time() * 1000))
@@ -6854,7 +6947,22 @@ def main(argv):
     ap.add_argument("--import-proved", nargs="+", default=None, metavar="FILE",
                     help="REG-2630 bank PROVENs proved elsewhere (a box export or census shard files, partial allowed) "
                          "of THIS HEAD, each only under the key this checkout's bytes give it; exits 2 on a refusal")
+    ap.add_argument("--bank", default=None, metavar="FILE",
+                    help="REG-2632 with --prove --slice: import FILE (--import-proved rules), then serve each gate whose "
+                         "every proof it keys exactly, and prove only the rest")
+    ap.add_argument("--bank-only", action="store_true",
+                    help="REG-2632 with --bank: never prove - what the bank does not serve stays owed (the ALT, REG-1502)")
     a = ap.parse_args(argv)
+    _BANK.update(on=False, only=False)
+    if a.bank is not None or a.bank_only:
+        if a.bank is None or a.prove is None or not a.slice or a.push:
+            print("  ✗ REG-2632: --bank FILE goes with --prove NAMES --slice (and --bank-only only with --bank)")
+            return 2
+        _bc = import_proved([a.bank])
+        if _bc != 0 and a.bank_only:
+            print("  ✗ REG-2632: the bank was refused, and bank-only never proves - every gate stays owed")
+            return 2
+        _BANK.update(on=True, only=bool(a.bank_only))
     if a.import_shards is not None:
         return import_shards(a.import_shards)
     if a.export_proved is not None:

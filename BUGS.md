@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2632 - A PROOF FROM ONE PLATFORM WAS SERVED ON ANOTHER, AND THE ALT COULD NEVER PROVE (heart2 keyer + self_prove, GB-box, 2026-10-24)
+The verdict cache's key had no platform in it, so a PROVEN banked on the Linux box or census (REG-2586/2630) was served on
+the Mac, and would have been on a Windows PC. Asked over all 5680 proofs: not one law's python closure is free of a
+platform read (sys.platform, os.name, subprocess, signal), so "platform-neutral by law" is an empty set. And the ALT can
+never prove locally (REG-1502, Boosteroid always on), so its census stayed owed and its reel deleter shut.
+
+FIX: heart2.platform_class() ("linux" / "darwin" / "windows" / "other:...") is folded into every key (a one-time re-prove
+on every machine; a cross-class proof can no longer meet a key). Input names are "/"-separated on every platform
+(key_rel); bytes are keyed raw, so a CRLF twin is another key. Exports carry "exported:<hash>" in place of the proving
+tree's path. `heart2 --prove NAMES --slice --bank FILE [--bank-only]` imports FILE (REG-2630 rules), serves each gate
+the bank keys WHOLE (serve_from_bank), and proves the rest - or, bank-only, leaves it owed. self_prove fetches
+`proof-bank:<HEAD>.<class>.json` with the PC's update credentials; beside his game it starts a bank-only run (>= 400 MB
+free, a bank present), which his game never ends.
+
+GUARD: tv/test_a_proof_counts_only_on_its_own_platform_class.py (registered; 8 RED proofs).
+
 ### REG-2631 - AN ALL-HIT PUSH STILL SPENT MINUTES PROVING (heart2 keyer, GB-box, 2026-10-24)
 v3792's hook served 303 of 303 proofs from the cache and still spent 2m39 proving. MEASURED on the box (19 gates, 226
 proofs, all served, 0 clean runs): 563,770 file reads - ~1,250 inputs for each of 452 keys, since the clean wave's peek

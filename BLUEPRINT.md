@@ -328,7 +328,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 
 ## GATES
 
-    1139 registered in tv/run_gates.py — every one named below with what it guards,
+    1140 registered in tv/run_gates.py — every one named below with what it guards,
     so that "does a law already exist for this?" is answered by reading this file.
 
 - **blueprint-agrees** — v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING.
@@ -555,6 +555,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_a_probe_licenses_only_what_it_tested** — v3401 (#147) - A PROBE MAY ONLY LICENSE THE MECHANISM IT TESTED, and this wedged THREE CONSECUTIVE PUSHES while the bound took the blame.
 - **test_a_proof_about_his_venue_is_elsewhere_on_a_runner** — REG-2592 - the proofs that ask about HIS venue (a console on 17772, his human-eyes ledger, footage on his reel shelf, the platform the overlap baselin…
 - **test_a_proof_census_names_the_next_batch** — REG-2595 - the 16-shard run is a post-push census (Elad 2026-10-23): proof_shard --census lists every law a shard owes a fix (or the one stop of a fai…
+- **test_a_proof_counts_only_on_its_own_platform_class** — REG-2632 - a proof counts only on the platform class it was proved on (the class is in every key)
 - **test_a_proof_history_survives_its_verdict** — A CHECK'S PROOF HISTORY MUST REACH EVERY BRANCH, AND A VESSEL MUST INHERIT ITS WATCHER'S SCORE.
 - **test_a_proof_proved_elsewhere_counts_only_under_this_trees_key** — REG-2630 - `heart2 --export-proved` ships only servable PROVENs its own HEAD's bytes key, from a clean tree, never into an older export
 - **test_a_proof_remembers_where_it_went_red** — #42 lever 1 (REG-1710) - his question: 'all these pushs are so long taking hours each ...

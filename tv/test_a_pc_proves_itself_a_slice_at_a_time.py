@@ -448,7 +448,7 @@ RED_PROOF = [
     {
         "why": "#99 - the tick starts a whole census again on a PC that never finishes one",
         "file": "self_prove.py",
-        "find": "                mem[\"pid\"] = (spawn_fn or spawn)(log_path, names=_slice)\n",
+        "find": "                mem[\"pid\"] = (spawn_fn or spawn)(log_path, **_skw)\n",
         "replace": "                mem[\"pid\"] = (spawn_fn or spawn)(log_path)\n",
         "matches": 1,
     },
