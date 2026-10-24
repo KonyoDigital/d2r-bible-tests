@@ -1,0 +1,120 @@
+name: proof bank - Windows (ci/proof-keys-* only)
+# REG-2633 - THE WINDOWS PROOF BANK. A Windows PC keys raw CRLF bytes under the "windows" class (REG-2632), so no
+# Linux proof can ever serve Dean's PC or the ALT. This proves the same 16-shard plan as proof-keys-shards.yml on
+# windows-latest, with git's default eol conversion (core.autocrlf=true, as on the PCs), fans in the whole set, and
+# publishes <sha>.windows.json to proof-bank - or goes red. Never on main; no `claude` can answer on its runners.
+# ⚠ N LIVES IN TWO PLACES HERE TOO - WIN_PROOF_SHARDS and the matrix - and
+# tv/test_a_proof_bank_is_published_or_the_run_is_red.py goes red if they disagree with proof-keys-shards.yml.
+on:
+  push:
+    branches:
+      - 'ci/proof-keys-*'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: proof-bank-windows-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  WIN_PROOF_SHARDS: "16"
+jobs:
+  win-shard:
+    name: windows shard ${{ matrix.shard }}
+    runs-on: windows-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    env:
+      D2R_NO_CLAUDE: "1"
+      HEART2_PROVE_WORKERS: "2"
+      PYTHONIOENCODING: utf-8
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: The PCs' eol conversion (keys meet only over the same bytes)
+        run: |
+          v=$(git config --get core.autocrlf || true)
+          echo "core.autocrlf=$v"
+          test "$v" = "true" || { echo "::error::core.autocrlf is '$v', not the PCs' true - this bank would key other bytes"; exit 1; }
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 200
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Pillow + numpy + websocket-client (as tv-tests)
+        run: python -m pip install --quiet pillow numpy websocket-client
+      - name: Install Chromium
+        timeout-minutes: 8
+        run: npx playwright install chromium
+      - name: A claude that refuses
+        run: |
+          d="$RUNNER_TEMP/noclaude"; mkdir -p "$d"
+          printf '#!/bin/sh\necho "claude is not called on CI (proof bank windows)" >&2\nexit 97\n' > "$d/claude"
+          printf '@echo claude is not called on CI (proof bank windows) 1>&2\r\n@exit /b 97\r\n' > "$d/claude.cmd"
+          chmod +x "$d/claude"
+          echo "$d" >> "$GITHUB_PATH"
+      - name: Prove this shard
+        timeout-minutes: 220
+        run: |
+          D="$RUNNER_TEMP/shard-${{ matrix.shard }}"
+          mkdir -p "$D"
+          export HEART2_CACHE_PATH="$D/.heart2_cache.json"
+          set +e
+          python -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${WIN_PROOF_SHARDS}" 2>&1 | tee "$D/prove.log"
+          rc=${PIPESTATUS[0]}
+          echo "rc=$rc" | tee -a "$D/prove.log"
+          exit $rc
+      - name: Upload this shard's cache
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-proof-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/shard-${{ matrix.shard }}/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+
+  win-bank:
+    name: windows bank - one whole set, published as <sha>.windows.json, or red
+    needs: [win-shard]
+    if: ${{ always() }}
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      D2R_NO_CLAUDE: "1"
+      PYTHONIOENCODING: utf-8
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch every shard's cache
+        uses: actions/download-artifact@v5
+        with:
+          pattern: win-proof-shard-*
+          path: shards
+      - name: The census of this Windows set
+        if: ${{ always() }}
+        run: |
+          python tv/proof_shard.py --census shards --shards "$WIN_PROOF_SHARDS" --head "$GITHUB_SHA" --out census.md || true
+          cat census.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Every shard finished, on this commit, on one plan
+        run: python tv/proof_shard.py --fan-in shards --shards "$WIN_PROOF_SHARDS" --head "$GITHUB_SHA"
+      - name: Import the set, export what this tree keys, publish it
+        run: |
+          set -euo pipefail
+          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"
+          mkdir -p "$RUNNER_TEMP/bank"
+          python tv/heart2.py --import-shards shards/*/.heart2_cache.json
+          python tv/heart2.py --export-proved "$RUNNER_TEMP/out"
+          python tv/proof_bank.py --publish "$RUNNER_TEMP/out/.heart2_cache.json" --head "$GITHUB_SHA" --class windows
