@@ -813,6 +813,10 @@ class TheOwnedStoreIsOnlyGrownThroughTheDoor(unittest.TestCase):
                                                  "QUARANTINED (then UNKNOWN, never 'gone'); it reads the door's registry, "
                                                  "never the store, and writes nothing (test_a_frame_verdict_reads_a_"
                                                  "quarantined_store_as_unknown drives it)"),
+        "'d2r_copies','d2r_vaultAutoIntake','d2r_vaultShareOverride','d2r_autoLanes','d2r_owned','d2r_intakeSeen','d2r_intakeLog'],":
+            (1, "Vault v3 Save / Load profile (Elad t663u-t665u) - the profile's store list. Load writes back a whole "
+                "snapshot HE saved, behind a Danger confirm, and restores d2r_vaultProv from the same file, so the "
+                "receipts come back with the names; it never adds a name outside the saved pair"),
         "LS.quarantine('d2r_owned', 'holds '": (1, "REG-2527 — the load's doctor could not copy the entries that are not "
                                                   "names aside (a full storage), so it QUARANTINES the owned key: every "
                                                   "write of it is refused and the saved list keeps them; it grows nothing "
