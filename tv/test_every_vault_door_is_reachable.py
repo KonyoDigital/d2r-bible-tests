@@ -38,13 +38,16 @@ SHAKO = "Harlequin Crest (Shako)"
 # planner/find row, Advanced drawer) plus the FAB, which sits outside the card. Checked, then the card must go quiet
 # (no DOM mutation for 250 ms, observed), then checked AGAIN with a laid-out button in it.
 DOORS_READY = ("(async function(){"
-               " var IN = ['#vault-danger-tog', '#vault-danger-menu', '#vault-intake-strip', '#vault-planner-q', '#vault-find-input',"
-               "           '#vault-advanced > summary', '#vault-sort-n'];"
+               # Vault v3: the danger toggle + menu live in the footer's Reset & restore -> Vault & mules group, not the card
+               " var IN = ['#vault-intake-strip', '#vault-planner-q', '#vault-find-input', '#vault-advanced > summary', '#vault-sort-n'];"
+               " var DZ = ['#vault-danger-tog', '#vault-danger-menu'];"
                " function ok(){ if (typeof window.vaultDangerMenuTog !== 'function' || typeof window.renderVault !== 'function') return false;"
                "  var card = document.getElementById('mule-vault-card'); if (!card || !card.isConnected) return false;"
                "  var cr = card.getBoundingClientRect(); if (!(cr.width > 0 && cr.height > 0)) return false;"
                "  var fab = document.querySelector('#vault-tasks-fab'); if (!fab || !fab.isConnected) return false;"
-               "  return IN.every(function(q){ var e = document.querySelector(q); return !!e && e.isConnected && card.contains(e); }); }"
+               "  var grp = document.getElementById('reset-grp-vault'); if (!grp || !grp.isConnected) return false;"
+               "  return IN.every(function(q){ var e = document.querySelector(q); return !!e && e.isConnected && card.contains(e); })"
+               "   && DZ.every(function(q){ var e = document.querySelector(q); return !!e && e.isConnected && grp.contains(e); }); }"
                " if (!ok()) return false;"
                # settled = the card's subtree went 250 ms with no mutation (an observer, not a blind sleep:
                # it returns as soon as the render is quiet and keeps waiting while WORLD's rebuild is still landing)

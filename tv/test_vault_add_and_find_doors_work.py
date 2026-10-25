@@ -121,7 +121,8 @@ class VaultAddAndFindDoorsWork(unittest.TestCase):
         self.assertEqual(o["cleared"], ["", True], "the Find ✕ did not clear: %r" % o)
 
 
-RED_PROOF = """on 27b9a028 (v3795): b1 leaks ['vault-dock-bar']; b3 buttons 1; b2 focus False, ph '', SoJ not owned after
+# Observed RED on the pre-fix build (a note, not a tamper list):
+RED_OBSERVED = """on 27b9a028 (v3795): b1 leaks ['vault-dock-bar']; b3 buttons 1; b2 focus False, ph '', SoJ not owned after
 Enter, Esc leaves it open; one-door afterPlanner [True, True]"""
 
 if __name__ == "__main__":

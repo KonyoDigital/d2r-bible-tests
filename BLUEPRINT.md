@@ -328,7 +328,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 
 ## GATES
 
-    1145 registered in tv/run_gates.py — every one named below with what it guards,
+    1152 registered in tv/run_gates.py — every one named below with what it guards,
     so that "does a law already exist for this?" is answered by reading this file.
 
 - **blueprint-agrees** — v2403 — TWO MAPS OF ONE FACT, AND WHERE THEY DISAGREE IS THE FINDING.
@@ -606,6 +606,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_a_relaunch_leaves_a_receipt** — #225 - the Windows ALT console died relaunching into v3419 with NO trace (pythonw drops stdout
 - **test_a_relaunch_waits_while_he_uses_the_window** — REG-2010 (#254) - the console replaced itself three times with an overlay up, minutes after a build landed
 - **test_a_reload_never_drops_what_he_owns** — REG-2400 (#162 item 1 + #144 item 6) - GrokBot #230 on v3783/v3784: one reload took d2r_owned 272 -> 113, no journal row, no undo.
+- **test_a_reload_reconciles_the_vault_records** — ALT inject run 2026-10-24 (bugs 1, 5) - the page-load seam reconciles d2r_vaultRecords with the name stores: a name removed between two loads loses it…
 - **test_a_relook_says_what_this_os_can_film** — REG-1917 - off a Mac the launcher relook claimed Linux 'films only inside a reel', and a bool launcherUntil read as 1 ms
 - **test_a_remaining_page_read_on_another_pc_is_unknown_here** — #165 (REG-2472, REG-2473, REG-2474) - counter_ledger judged every PC's board (the calibration and the write-path veto, which WITHHOLDS set rows) by th…
 - **test_a_renamed_item_comes_back_as_his_fix** — REG-2529 (review of REG-2405 r4 + REG-2401) - a re-read of a renamed item that had itself left added the MISREAD label back over his socket-count fix…
@@ -758,6 +759,8 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_an_inventory_charm_drags_onto_its_footprint** — #174 wave 2 (ACT 5855237740) - a charm placed in the mule 10x4 from the database had no data-key, so the window's one drag never lifted it.
 - **test_an_inventory_charm_keeps_a_prefix_and_a_suffix** — #174 wave 2 (ACT 5855237740) - Fine Small Charm of Balance on the mule 10x4.
 - **test_an_inventory_hover_paints_the_games_colours** — #174 wave 2 (ACT 5855265931) - the mule inventory hover paints the game's tooltip colour roles through the builder's one box, not a second map.
+- **test_an_odd_item_name_never_leaks_out_of_its_attribute** — ALT inject run 2026-10-24 (bug 4) - an item name with quotes, tags or non-ASCII stays inside its onclick attribute
+- **test_an_off_grid_builder_item_is_flagged_not_drawn** — ALT inject run 2026-10-24 (bugs 2, 3) - a builder item past its grid edge is flagged, never drawn off-grid or lost.
 - **test_an_organ_never_covers_a_lane_it_cannot_name** — AN ORGAN'S COVERAGE NEVER CROSSES A LANE.
 - **test_an_owed_reel_is_not_called_idle** — the chronicle tick counted owed only after skipping retired reels, so a shelf retired behind a lock read owed 0 and 'no unswept reel' while the durabl…
 - **test_an_owed_reel_with_no_extract_memory_is_not_moving** — REG-1788 (#86 gap audit 18) - /api/doctor never asked whether a reel that still owes a chronicle read had an extract memory.
@@ -904,6 +907,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_eyes_banner_ages_out** — his EYES panel printed 'the Grok balance is exhausted' in the PRESENT TENSE beside its own admission that the error was 7d old — while 14 Grok reads s…
 - **test_failure_attribution** — v3304 (#55) - _check_the_sweep_would_find_something measures its own density pass by snapshotting the stash gate's failure count before and after, and…
 - **test_feeder_to_the_door** — v3323 (#28) - THE FEEDER THE AUTO LANE NEVER HAD, AND ITS ONE CALLER, IN THE SAME VERSION.
+- **test_find_folds_a_trailing_space_duplicate** — ALT inject run 2026-10-24 (bug 6) - FIND shows one row for names that differ only by outer or doubled spaces.
 - **test_fleet_mask** — v2213 — THE FLEET cross-reference turns two ledgers into 'what should I chase', and it does that by shipping BITS over a shared roster.
 - **test_fleet_routes** — window._gSetRoster was never defined in bible.html while the console asked for it on every read, so the fleet card's set denominator was null forever…
 - **test_flowing_is_unmeasured_not_zero** — THE HEART PRINTED `flowing 0` WHILE EVERY VESSEL ROW SAID NOBODY COULD TELL.
@@ -1391,6 +1395,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_the_vault_proposes_a_home_and_does_not_move** — #234 step 5 / REG-1822 - a proposal NAMES its mule
 - **test_the_vault_provenance_row_can_go_red** — #246 W7 - the one door, watched: the doctor row 'vault provenance' reads the board through the shared tick read and reports filings with no witness, M…
 - **test_the_vault_receipt_is_watched** — HE ASKED FOR A RECEIPT ON A VAULT ITEM AND PUSHED BACK WHEN I SAID NOTHING WAS BUILT — he was right.
+- **test_the_vault_records_history_clears_from_the_reset_menu** — ALT inject run 2026-10-24 (Elad 14:09 IDT) - the vault records have a clear-history door in the reset menu, reusing the clear-history pattern with a c…
 - **test_the_vault_save_can_only_copy** — THE VAULT'S SAVE MAY ONLY COPY, AND A PARTIAL SAVE IS NOT A SAVE.
 - **test_the_vault_tab_lock_never_sits_on_its_label** — #107 (REG-1609, 2026-09-30) - the Vault tab's padlock sat 6-10px on its own label ('Vaul' with a lock on the t) at every width he uses, and the render…
 - **test_the_vault_witness_holds_two_readings** — I TOLD HIM THE VAULT'S WRITE PATH RE-GATES.
@@ -1445,6 +1450,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_v3769_vault_move_list_visual** — v3769 - the move list on the real vault tab: item art in grid cells, a duplicate beside the original, a witness, the 3-session lock, the homeless dock…
 - **test_v3771_vault_console_face** — v3771 - the vault controls wear the console gold.
 - **test_v3771_vault_console_face_visual** — v3771 - the real vault tab: AUTO INTAKE off and on, the restyled move list, a duplicate beside its original, the unseen-location group, and a grid-plu…
+- **test_vault_add_and_find_doors_work** — Vault v3 (Elad 2026-10-24) - the add row and Find work as one smooth bar: no empty bar, add-by-name takes focus/Enter/Esc, one add door at a time.
 - **test_vault_doctor** — v2013 — the doctor answers 'why is the vault empty', and its three causes need three different actions from him.
 - **test_vault_find_stays_cheap** — v3773 - FIND ON A MULE took 12.9 s for one key on his store: _provAll re-parsed the witness store per call and one FIND rebuilt every record per match…
 - **test_vault_hand_box_stays_inline** — v3773 - the + Add an item box was a fixed inset:0 layer at z-index 130 with a scrim: it covered the tab bar and FIND ON A MULE and swallowed tab click…
@@ -1460,6 +1466,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_vault_resume_seal** — #130 — a console self-update (os.execv) used to KILL a vault sweep mid-reel and bank NOTHING (merge was end-only), so the next pass re-read the reel f…
 - **test_vault_retro** — the vault accumulator's laws: merge-max never subtracts, throw-out needs more evidence than keep, order cannot change the ledger, missing is never zer…
 - **test_vault_traffic** — v1884 — EVERY item through sweep() end to end, and 500 at once.
+- **test_vault_v3_layout_keeps_every_door** — Vault v3 layout (mock approved 2026-10-24) MOVES doors and removes none (Copy manifests is the one approved removal)
 - **test_version_not_banked_into_graded_tree** — v3330 (#72) - A VERSION IS NEVER BANKED INTO A TREE THAT IS BEING GRADED.
 - **test_version_stamps_are_written_atomically** — the write that runs on EVERY ship left his 6 MB bible.html at ZERO BYTES.
 - **test_waiting_on_you** — v3321 (#82) - WAITING ON YOU CARRIES ONLY WHAT IS ACTUALLY HIS.
