@@ -10,8 +10,9 @@ never shrinks a WAL while a connection holds it, and WebKit never truncates it o
 THREE PARTS, all additive:
   1. startup_prune()  - before the WebView exists: every localstorage.sqlite3 whose -wal is over
      the threshold and that NO process holds gets wal_checkpoint(TRUNCATE) + integrity_check.
-     A file that is held, or whose holders cannot be read, is SKIPPED (fail safe). Never deletes
-     the db or the WAL; the before/after sizes are logged.
+     A file that is held, or whose holders cannot be read, is SKIPPED (fail safe). Never removes
+     the db or the WAL itself; SQLite's own last-connection close unlinks the then-empty -wal/-shm
+     after the checkpoint (WebKit recreates them). The before/after sizes are logged.
   2. periodic_check() - every 30 min while the console is up: logs the WAL size, publishes it on
      /api/status (lsWal), and warns when over the threshold. While WebKit holds the db it runs a
      PASSIVE checkpoint only. PASSIVE never takes the writer lock and never waits on a reader, so
@@ -49,10 +50,12 @@ def webkit_roots():
 
 
 def find_dbs(roots):
+    # Bounded depth (WebsiteData/Default/<h>/<h>/LocalStorage): never a walk of every WebKit cache.
     out = []
     for r in roots:
         if os.path.isdir(r):
-            out.extend(glob.glob(os.path.join(r, "**", "localstorage.sqlite3"), recursive=True))
+            for depth in range(4):
+                out.extend(glob.glob(os.path.join(r, *(["*"] * depth), "LocalStorage", "localstorage.sqlite3")))
     return sorted(set(out))
 
 
@@ -70,11 +73,13 @@ def holders(db, run=subprocess.run):
         r = run(["lsof", "-t", "--"] + files, capture_output=True, text=True, timeout=10)
     except Exception:
         return None
+    # macOS lsof exits 1 when ANY named file has no opener, and also beside a harmless
+    # "can't stat() ... file system" warning - so the pid list is read regardless of the code.
     pids = {int(x) for x in (r.stdout or "").split() if x.strip().isdigit()}
-    if r.returncode == 0 and pids:
+    if pids:
         return pids
-    if r.returncode == 1 and not pids and not (r.stderr or "").strip():
-        return set()       # lsof's "nothing open" - measured, not assumed
+    if r.returncode in (0, 1):
+        return set()       # lsof ran and named nobody - measured, not assumed
     return None
 
 
@@ -119,6 +124,8 @@ def startup_prune(roots=None, platform=None, threshold=THRESHOLD_BYTES, run=subp
             res["leftover"] = describe(held, run=run)
             _log("LEFTOVER process(es) hold %s before this console made a WebView - not killed, "
                  "report only: %s" % (db, res["leftover"]), log)
+        if held is not None and not held and before > threshold:
+            _log("TRUNCATE starting on %s: WAL %d MB" % (db, before >> 20), log)
         if before <= threshold:
             results.append(res)
             continue
@@ -139,6 +146,7 @@ def startup_prune(roots=None, platform=None, threshold=THRESHOLD_BYTES, run=subp
                 res.update(action="error", error=ascii(e)[:200])
                 _log("checkpoint failed: %s" % ascii(e)[:200], log)
         results.append(res)
+    STATE["startup"] = [{k: v for k, v in r.items() if k != "db"} for r in results]
     return results
 
 
@@ -149,21 +157,21 @@ def periodic_check(roots=None, platform=None, threshold=THRESHOLD_BYTES, log=Non
         state.update(checked=True, applies=False)
         return state
     dbs = find_dbs(roots if roots is not None else webkit_roots())
-    worst = 0
-    for db in dbs:
-        sz = _size(db + "-wal")
-        if sz > threshold:
-            try:
-                checkpoint(db, "PASSIVE")
-            except Exception as e:
-                _log("PASSIVE checkpoint failed: %s" % ascii(e)[:200], log)
-        worst = max(worst, sz)
+    sizes = {db: _size(db + "-wal") for db in dbs}
+    worst = max(sizes.values() or [0])
     over = worst > threshold
     state.update(checked=True, applies=True, dbs=len(dbs), walBytes=worst,
                  thresholdBytes=threshold, over=over, atMs=int(time.time() * 1000),
                  warning=("LocalStorage WAL is %d MB (over %d MB) - restart the console to shrink it"
                           % (worst >> 20, threshold >> 20)) if over else None)
     _log("WAL %d MB across %d db(s)%s" % (worst >> 20, len(dbs), " - OVER THRESHOLD" if over else ""), log)
+    # published BEFORE the checkpoint, so a long PASSIVE copy is never a silent status
+    for db, sz in sizes.items():
+        if sz > threshold:
+            try:
+                checkpoint(db, "PASSIVE")
+            except Exception as e:
+                _log("PASSIVE checkpoint failed: %s" % ascii(e)[:200], log)
     return state
 
 
