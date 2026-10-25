@@ -76197,34 +76197,76 @@ window.tvStashAutoIntake = async function(tab, opts){
   var AGENT_START=0, HIST_TAB='live', HIST_KEY='d2r_tvdHist';
   window._tvdCountApply=function(){ DIGEST.applied++; };
   // v724 — persisted session history (survives agent restart / page reload). Account-local.
+  /* v3797 — d2r_tvdHist WAS REWRITTEN IN FULL TWICE PER OCR READ, AND THAT FILLED HIS DISK.
+     Measured on his Mac 2026-10-25 (read-only): WebKit's localstorage.sqlite3-wal beside a 2.9 MB
+     database had reached ~19 GB, growing ~18 MB/min under a 3-day-old console. This key is the live
+     session plus 12 archived sessions of up to 200 reads, and the 250 ms poll landed every read via
+     pushHistRead() -> ensureLiveSession() (a full saveHist() with NOTHING changed) -> a second full
+     saveHist(). Every rewrite is fresh WAL pages. Now: (1) a write whose value equals what is stored
+     is skipped; (2) writes coalesce to at most one per HIST_MIN_GAP_MS, trailing, so the newest read
+     always lands; (3) loadHist() answers from the pending copy, so a coalesced read is never lost in
+     this page; (4) pagehide / hidden / archive / toggle-off flush at once; (5) a refused write keeps the
+     batch pending. Trade: a hard kill that skips pagehide can lose at most the last ~2 s of reads, and the
+     agent still holds them (SEEN resumes from the persisted session). Law:
+     tests/v3797_ls_no_hot_writes.spec.ts. */
+  var HIST_MIN_GAP_MS = 2000, _histPending = null, _histTimer = null, _histLastAt = 0;
+  function _histRead(){ return (window.LSR && window.LSR.getItem) ? window.LSR.getItem(HIST_KEY) : localStorage.getItem(HIST_KEY); }
+  function _histWriteNow(s){
+    try {
+      if (_histRead() === s) return true;
+      if (window.LSR && window.LSR.setItem) window.LSR.setItem(HIST_KEY, s);
+      else localStorage.setItem(HIST_KEY, s);
+      _histLastAt = Date.now();
+      return true;
+    } catch(e){ return false; }
+  }
+  function flushHist(){
+    if (_histTimer){ clearTimeout(_histTimer); _histTimer = null; }
+    if (_histPending == null) return;
+    var s = _histPending;
+    // a refused write (quota) KEEPS the batch pending, so loadHist() still sees those reads and the next save retries
+    if (_histWriteNow(s) && _histPending === s) _histPending = null;
+  }
+  try {
+    window.addEventListener('pagehide', flushHist);
+    window.addEventListener('beforeunload', flushHist);
+    document.addEventListener('visibilitychange', function(){ if (document.hidden) flushHist(); });
+    window._tvdHistFlush = flushHist;
+  } catch(e){}
   function loadHist(){
     try {
-      var raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem(HIST_KEY) : localStorage.getItem(HIST_KEY);
+      var raw = (_histPending != null) ? _histPending : _histRead();
       var h = raw ? JSON.parse(raw) : null;
       if (!h || typeof h !== 'object') return { live:null, sessions:[] };
       if (!Array.isArray(h.sessions)) h.sessions = [];
       return h;
     } catch(e){ return { live:null, sessions:[] }; }
   }
-  function saveHist(h){
+  function saveHist(h, now){
     try {
       var s = JSON.stringify(h);
-      if (window.LSR && window.LSR.setItem) window.LSR.setItem(HIST_KEY, s);
-      else localStorage.setItem(HIST_KEY, s);
+      if (now){ _histPending = s; flushHist(); return; }
+      if (_histPending == null && _histRead() === s) return;   // nothing changed — no write, no WAL
+      _histPending = s;
+      if (_histTimer) return;                                   // a trailing write is already due
+      var wait = Math.max(0, HIST_MIN_GAP_MS - (Date.now() - _histLastAt));
+      _histTimer = setTimeout(function(){ _histTimer = null; flushHist(); }, wait);
     } catch(e){}
   }
   function ensureLiveSession(agentStart){
-    var h = loadHist();
-    if (h.live && h.live.agentStart && agentStart && h.live.agentStart !== agentStart && (h.live.reads||[]).length){
+    var h = loadHist(), _arch = !!(h.live && h.live.agentStart && agentStart && h.live.agentStart !== agentStart && (h.live.reads||[]).length);
+    if (_arch){
       h.live.endedAt = h.live.endedAt || Date.now();
       h.sessions.unshift(h.live);
       h.sessions = h.sessions.slice(0, 12);
       h.live = null;
     }
+    var _changed = _arch;
     if (!h.live || (agentStart && h.live.agentStart !== agentStart)){
       h.live = { agentStart: agentStart||Date.now(), startedAt: Date.now(), endedAt: null, reads: [] };
+      _changed = true;
     }
-    saveHist(h);
+    if (_changed) saveHist(h);   // v3797 — was unconditional: a full rewrite of an unchanged blob per read
     return h;
   }
   function archiveLive(reason){
@@ -76236,7 +76278,7 @@ window.tvStashAutoIntake = async function(tab, opts){
         h.sessions.unshift(h.live);
         h.sessions = h.sessions.slice(0, 12);
         h.live = null;
-        saveHist(h);
+        saveHist(h, true);   // v3797 — an archive is a boundary: write it now
       }
     } catch(e){}
   }
@@ -76276,6 +76318,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     renderHistory(true);
   };
   function digestFlush(reason){
+    try { flushHist(); } catch(e){}   // v3797 — a session boundary writes the coalesced history now
     try {
       if(!DIGEST.reads) return;
       var areas=Object.keys(DIGEST.areas).filter(Boolean);
