@@ -48,6 +48,9 @@ test('sealed chronicle + gems/runes → crafts on Make now as atomic tasks', asy
   }, made);
   await page.reload();
   await page.waitForTimeout(1600);
+  // PREMISE (Grok review MINOR): the seal really landed in the reloaded document, so a harness miss can never read as madeN 0.
+  const sealed = await page.evaluate(() => { try { return Object.keys(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}')).length; } catch (e) { return -1; } });
+  expect(sealed, 'd2r_rwMade present after reload').toBe(Object.keys(made).length);
 
   const r = await page.evaluate(() => {
     const w: any = window;
