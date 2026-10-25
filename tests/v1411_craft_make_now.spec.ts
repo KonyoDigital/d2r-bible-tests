@@ -25,20 +25,27 @@ test('sealed chronicle + gems/runes → crafts on Make now as atomic tasks', asy
   await page.goto(URL);
   await page.waitForTimeout(1600);
 
-  // Seal AFTER tip is live, then reload so rwMade rehydrates from LS (the app's real path)
-  await page.evaluate(() => {
+  // Seal AFTER tip is live, then reload so rwMade rehydrates from LS (the app's real path).
+  // ⚠ 2026-10-25 (CI red on ci/gbl-shadow-v3796-11, madeN 0): headless Chromium does NOT reliably carry a file://
+  // page's localStorage across page.reload() - measured on the box with an init-script probe: the reloaded document
+  // saw localStorage.length 26 on a green run and 0 on a red one (no clear(), no removeItem), and it reds more often
+  // under CPU load. Not DST, not the app: a fixed clock at 2026-10-24T23:40Z passed and failed alike. So the sealed
+  // chronicle and the stashes are written by an init script, which runs BEFORE bible.html on the reload - the boot
+  // loader still rehydrates rwMade from localStorage exactly as before, without trusting the browser to keep it.
+  const made = await page.evaluate(() => {
     const tip = (window as any).RUNEWORD_TIP || {};
-    const made: any = {};
-    Object.keys(tip).forEach((n) => { made[n] = '2026-07-26'; });
-    localStorage.setItem('d2r_rwMade', JSON.stringify(made));
-    // keep gems/runes across reload
-    localStorage.setItem('d2r_gemStash', JSON.stringify({
-      'Perfect Amethyst': 3, 'Perfect Ruby': 2,
-    }));
+    const m: any = {};
+    Object.keys(tip).forEach((n) => { m[n] = '2026-07-26'; });
+    return m;
+  });
+  expect(Object.keys(made).length).toBeGreaterThan(50); // PREMISE: the tip was live before sealing
+  await page.addInitScript((m: any) => {
+    localStorage.setItem('d2r_rwMade', JSON.stringify(m));
+    localStorage.setItem('d2r_gemStash', JSON.stringify({ 'Perfect Amethyst': 3, 'Perfect Ruby': 2 }));
     localStorage.setItem('d2r_runeStash', JSON.stringify({
       Ral: 2, Amn: 2, Sol: 1, Nef: 1, Ort: 1, Ith: 1, Tal: 1, Eth: 1, Tir: 1, Thul: 1,
     }));
-  });
+  }, made);
   await page.reload();
   await page.waitForTimeout(1600);
 
