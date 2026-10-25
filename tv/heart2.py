@@ -2339,16 +2339,21 @@ try:
     _h2_install()
 finally:
     del _h2_install
-    try:     # the sitecustomize this one shadowed, if any - found AFTER the one already running, never by re-import:
+    try:     # the sitecustomize this one shadowed, if any - found AFTER every one already running, never by re-import:
         import importlib.machinery as _im, importlib.util as _iu   # a gate_trace site that chained HERE would boot twice
-        _cur = _s.modules.get("sitecustomize")
-        _skip = {_o.path.dirname(_o.path.abspath(f)) for f in (globals().get("__file__"), getattr(_cur, "__file__", None)) if f}
-        _nxt = _im.PathFinder.find_spec("sitecustomize", [p for p in _s.path if _o.path.abspath(p or ".") not in _skip
-                                        and not _o.path.isfile(_o.path.join(p or ".", "node_trace.cjs"))])  # H2-CHAIN-ONCE
-        if _nxt is not None and _nxt.loader is not None:
-            _nxt.loader.exec_module(_iu.module_from_spec(_nxt))
+        _skip = {_o.path.dirname(_o.path.abspath(f)) for f in (globals().get("__file__"),
+                 getattr(_s.modules.get("sitecustomize"), "__file__", None)) if f}
+        _f = _s._getframe()   # H2-CHAIN-ONCE: every sitecustomize on the stack (gate -> mid -> here) is already running
+        while _f is not None:
+            if _o.path.basename(_f.f_code.co_filename) == "sitecustomize.py":
+                _skip.add(_o.path.dirname(_o.path.abspath(_f.f_code.co_filename)))
+            _f = _f.f_back
+        del _f
+        _nxt = _im.PathFinder.find_spec("sitecustomize", [p for p in _s.path if _o.path.abspath(p or ".") not in _skip])
     except Exception:
-        pass
+        _nxt = None
+    if _nxt is not None and _nxt.loader is not None:   # a successor that raises propagates, as `import` did
+        _nxt.loader.exec_module(_iu.module_from_spec(_nxt))
 '''
 _TRACES = {}                     # law filename -> {"names": set(basenames), "ok": bool, "runs": int}, this process only
 _TRACE_LOCK = threading.Lock()

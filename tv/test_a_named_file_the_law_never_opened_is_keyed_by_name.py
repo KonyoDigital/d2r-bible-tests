@@ -258,6 +258,34 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_a_chainer_between_the_gate_and_the_trace_runs_once(self):
+        """v3796 review: gate -> mid -> trace; mid is not sys.modules['sitecustomize'], so a front-to-back scan from
+        the trace picked mid again and booted the trace a second time"""
+        d = tempfile.mkdtemp(prefix="h2trace-mid.")
+        chain = ("import builtins, os, sys, importlib.machinery, importlib.util\n"
+                 "builtins.H2_%s = getattr(builtins, 'H2_%s', 0) + 1\n"
+                 "here = os.path.dirname(os.path.abspath(__file__))\n"
+                 "spec = importlib.machinery.PathFinder.find_spec('sitecustomize', sys.path[sys.path.index(here) + 1:] "
+                 "if here in sys.path else [])\n"
+                 "if spec is not None:\n    spec.loader.exec_module(importlib.util.module_from_spec(spec))\n")
+        try:
+            dirs = []
+            for name in ("GATE", "MID"):
+                p = os.path.join(d, name.lower())
+                os.makedirs(p)
+                with io.open(os.path.join(p, "sitecustomize.py"), "w", encoding="utf-8") as fh:
+                    fh.write(chain % (name, name))
+                dirs.append(p)
+            site = H._trace_site()
+            env = dict(os.environ, PYTHONPATH=os.pathsep.join(dirs + [site]), HEART2_TRACE_LOG=os.path.join(d, "log"),
+                       HEART2_TRACE_SITE=site)
+            import subprocess
+            r = subprocess.run([sys.executable, "-c", "import builtins; print(builtins.H2_GATE, builtins.H2_MID)"],
+                               env=env, capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.stdout.split(), ["1", "1"], "a site in the chain booted twice: " + r.stdout + r.stderr)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
     def test_a_killed_provers_trace_dir_is_swept_and_a_live_ones_is_kept(self):
         """the trace dir of a prover SIGKILL ended (no atexit ran) leaves on the next run; a live prover's stays"""
         base = tempfile.mkdtemp(prefix="h2sweep-fx.")
@@ -275,10 +303,17 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
 
 RED_PROOF = [
     {
+        "why": "v3796 review - a chainer BETWEEN the gate and the trace is not sys.modules' entry, so the trace re-ran it",
+        "file": "heart2.py",
+        "find": "                _skip.add(_o.path.dirname(_o.path.abspath(_f.f_code.co_filename)))\n",
+        "replace": "                pass\n",
+        "matches": 1,
+    },
+    {
         "why": "v3796 bank red - the trace re-imports `sitecustomize`, so a site that chained into it boots twice",
         "file": "heart2.py",
-        "find": "        if _nxt is not None and _nxt.loader is not None:\n            _nxt.loader.exec_module(_iu.module_from_spec(_nxt))\n",
-        "replace": "        _s.modules.pop(\"sitecustomize\", None)\n        import sitecustomize  # noqa: F401\n",
+        "find": "    if _nxt is not None and _nxt.loader is not None:   # a successor that raises propagates, as `import` did\n        _nxt.loader.exec_module(_iu.module_from_spec(_nxt))\n",
+        "replace": "    _s.modules.pop(\"sitecustomize\", None)\n    import sitecustomize  # noqa: F401\n",
         "matches": 1,
     },
     {
