@@ -848,10 +848,31 @@ def classify_spawn_call(call, func, tree, aliases, door=None):
             "exe": state, "how": how, "notes": notes}
 
 
+def _import_aliases_here(scope):
+    """Imports bound in this scope alone, not in a nested function. -> dict
+
+    console_doctor binds `_sp` to subprocess inside several checks, then later to self_prove.
+    A file-wide map keeps the last binding, so every earlier `_sp.run` resolved as
+    self_prove.run and was not a spawn door. The close_fds=True tamper on the gh call then
+    stayed green (doctor law [3])."""
+    aliases = {}
+    for node in _walk_scope(scope):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.asname:
+                    aliases[a.asname] = a.name
+                else:
+                    aliases[a.name.split(".")[0]] = a.name.split(".")[0]
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            for a in node.names:
+                aliases[a.asname or a.name] = node.module + "." + a.name
+    return aliases
+
+
 def spawn_sites(src, where=HERE):
     """Every spawn door in `src`, classified. -> list of dicts (sorted by line)"""
     tree = ast.parse(src)
-    aliases = _import_aliases(tree)
+    module_aliases = _import_aliases_here(tree)
     doors = discover_spawn_doors(tree, where)
     parents = {}
     for node in ast.walk(tree):
@@ -869,14 +890,28 @@ def spawn_sites(src, where=HERE):
             cur = parents.get(cur)
         return chain
 
+    scope_aliases = {}
+
+    def aliases_at(scopes):
+        merged = dict(module_aliases)
+        for scope in reversed(scopes):
+            got = scope_aliases.get(id(scope))
+            if got is None:
+                got = _import_aliases_here(scope)
+                scope_aliases[id(scope)] = got
+            merged.update(got)
+        return merged
+
     out = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
+        scopes = enclosing_scopes(node)
+        aliases = aliases_at(scopes)
         d = _dotted(node.func, aliases)
         if d not in doors:
             continue
-        got = classify_spawn_call(node, enclosing_scopes(node), tree, aliases, doors[d])
+        got = classify_spawn_call(node, scopes, tree, aliases, doors[d])
         got["line"] = node.lineno
         got["door"] = d
         got["why_door"] = doors[d]["why"]
