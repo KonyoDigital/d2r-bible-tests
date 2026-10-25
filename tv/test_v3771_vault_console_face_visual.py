@@ -255,6 +255,8 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         if face.get("dock"):
             self.assertIn("Cinzel", face["dock"], face)
 
+        # Vault v3: AUTO INTAKE lives in Advanced -> "Auto-intake & screenshots"; its toolbar chip opens it
+        self._click(cdp, "#vault-chip-intake")
         off = self._js(cdp, _INTAKE)
         self.assertEqual(off.get("state"), "off", off)
         self._shot_pad(cdp, "#vault-auto-intake", "01-auto-intake-off.png")
@@ -267,6 +269,9 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         off2 = self._js(cdp, _INTAKE)
         self.assertEqual(off2.get("state"), "off", off2)
 
+        # the chip press is a real click outside MOVE TASKS, which folds the overlay - open it again as he would
+        back = self._js(cdp, _OPEN)
+        self.assertTrue(back.get("w", 0) >= 8 and back.get("h", 0) >= 8, back)
         self._shot(cdp, "#vault-move-list", "03-restyled-move-list.png")
         self._cover(cdp, "landing", "04-no-cover.png")
 
