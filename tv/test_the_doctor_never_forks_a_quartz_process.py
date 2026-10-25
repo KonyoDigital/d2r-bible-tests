@@ -160,6 +160,10 @@ GUARD_VAR_TO_CONDITION = {
     "gids":              "extra_groups-is-None",
     "umask":             "umask-is-negative",
     "process_group":     "process_group-is-default",   # CPython 3.11+
+    # CPython 3.13+: `(not close_fds or _HAVE_POSIX_SPAWN_CLOSEFROM)` - a module flag that only
+    # WIDENS the close_fds condition (posix_spawn can close fds itself where libc has closefrom,
+    # e.g. glibc 2.34+; never macOS). It is part of the close_fds condition, not a new one.
+    "_HAVE_POSIX_SPAWN_CLOSEFROM": "close_fds-is-False",
 }
 
 # The NINE that a call site in this repo can realistically trip, in the order CPython tests them.
