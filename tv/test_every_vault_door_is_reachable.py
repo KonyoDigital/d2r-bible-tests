@@ -12,6 +12,7 @@ NO CHROME = a declared skip. RED_PROOF below. [[regression-guard]]
 import json
 import os
 import sys
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -28,9 +29,68 @@ _B = {}
 SHAKO = "Harlequin Crest (Shako)"
 
 
+# 2026-10-25 - flaked in CI on -8 and -11 (different doors each time): the page was judged 0.4 s after READY on a
+# fixed timer, and "seen" accepted any non-zero box even when it sat outside the window. Now the board waits for the
+# doors themselves to be attached and laid out, and "seen" scrolls a door in and tests its real rect against the
+# viewport. A hidden, closed-drawer or off-screen door still fails (RED_PROOF).
+# attached + laid out, NOT "visible": a hidden or trapped door must reach the law's own assertion and fail there.
+# The anchors are the containers every door the law asks about lives in (toolbar row, danger menu, intake strip,
+# planner/find row, Advanced drawer) plus the FAB, which sits outside the card. Checked, then the card must go quiet
+# (no DOM mutation for 250 ms, observed), then checked AGAIN with a laid-out button in it.
+DOORS_READY = ("(async function(){"
+               " var IN = ['#vault-danger-tog', '#vault-danger-menu', '#vault-intake-strip', '#vault-planner-q', '#vault-find-input',"
+               "           '#vault-advanced > summary', '#vault-sort-n'];"
+               " function ok(){ if (typeof window.vaultDangerMenuTog !== 'function' || typeof window.renderVault !== 'function') return false;"
+               "  var card = document.getElementById('mule-vault-card'); if (!card || !card.isConnected) return false;"
+               "  var cr = card.getBoundingClientRect(); if (!(cr.width > 0 && cr.height > 0)) return false;"
+               "  var fab = document.querySelector('#vault-tasks-fab'); if (!fab || !fab.isConnected) return false;"
+               "  return IN.every(function(q){ var e = document.querySelector(q); return !!e && e.isConnected && card.contains(e); }); }"
+               " if (!ok()) return false;"
+               # settled = the card's subtree went 250 ms with no mutation (an observer, not a blind sleep:
+               # it returns as soon as the render is quiet and keeps waiting while WORLD's rebuild is still landing)
+               # the whole body's STRUCTURE is watched (a parent that swaps the card counts) plus the attributes that
+               # show or hide a door; text and other attribute churn do not hold it open
+               " var card = document.getElementById('mule-vault-card'), last = performance.now(), t0 = last;"
+               " var mo = new MutationObserver(function(){ last = performance.now(); });"
+               " mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'open', 'class', 'style'] });"
+               " while (performance.now() - last < 250 && performance.now() - t0 < 1500)"
+               "  await new Promise(function(r){ requestAnimationFrame(function(){ setTimeout(r, 16); }); });"
+               " mo.disconnect(); if (performance.now() - last < 250) return false;"
+               " return ok() && document.getElementById('mule-vault-card') === card && [].slice.call(card.querySelectorAll('.vault-btn')).some(function(b){"
+               "  var r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0; }); })()")
+
+
+class DoorBoard(H.Board):
+    """H.Board, but ready means the vault doors are attached and laid out - no fixed sleep."""
+
+    def navigate(self):
+        self.t.send("Page.navigate", url="file://" + H.BIBLE)
+        for _ in range(240):
+            time.sleep(0.25)
+            try:
+                if self.t.ev(H.READY) is True:
+                    return
+            except Exception:
+                pass
+        raise AssertionError("bible.html never exposed chronicleApply in 60 s - UNKNOWN, not passing")
+
+    def doors_ready(self):
+        deadline = time.time() + 12      # wall clock: one probe can take up to 1.5 s, so a count would not bound it
+        while time.time() < deadline:
+            try:
+                if self.t.ev(DOORS_READY) is True:
+                    # each test starts at the top: seen() scrolls, and the board is shared across tests
+                    self.t.ev("window.scrollTo({ top: 0, left: 0, behavior: 'instant' }), true")
+                    return
+            except Exception:
+                pass
+            time.sleep(0.1)
+        raise AssertionError("the vault doors never attached and laid out in 12 s - UNKNOWN, not passing")
+
+
 def board():
     if "b" not in _B:
-        _B["b"] = H.Board().open()
+        _B["b"] = DoorBoard().open()
     return _B["b"]
 
 
@@ -50,7 +110,17 @@ function seen(el){
     if (cs.display === 'none' || cs.visibility === 'hidden') return false;
     if (a.tagName === 'DETAILS' && a !== el && !a.open && !(el.closest('summary') && el.closest('details') === a)) return false;
   }
-  var r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+  // as he would see it: bring it into the window, then its real box must have area inside the viewport
+  // instant: html has scroll-behavior:smooth, which would leave the rect read mid-scroll
+  // and put every scroller back afterwards, so asking about one door never moves the page under the next
+  var sc = [], se = document.scrollingElement || document.documentElement;
+  for (var b = el.parentElement; b; b = b.parentElement){ if (b === se || b.scrollTop || b.scrollLeft || b.scrollHeight > b.clientHeight || b.scrollWidth > b.clientWidth) sc.push([b, b.scrollTop, b.scrollLeft]); }
+  var r, W = window.innerWidth || document.documentElement.clientWidth,
+      Hh = window.innerHeight || document.documentElement.clientHeight;
+  try { el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }); r = el.getBoundingClientRect(); }
+  finally { sc.slice().reverse().forEach(function(s){ s[0].scrollTo({ top: s[1], left: s[2], behavior: 'instant' }); }); }   // outer first
+  if (!(r.width > 0 && r.height > 0)) return false;
+  return Math.min(r.right, W) - Math.max(r.left, 0) > 0 && Math.min(r.bottom, Hh) - Math.max(r.top, 0) > 0;
 }
 function by(sel){ return document.querySelector(sel); }
 function door(fn){ return document.querySelector('[onclick^="window.' + fn + '("]'); }
@@ -82,6 +152,7 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
                       "d2r_vaultProv": {SHAKO: {"kind": "owned", "source": "tv", "seen": 2, "looks": [
                           {"session": "w%d" % i, "frame": "f%d" % i, "holder": "MAIN", "loc": "stash", "cell": "c4r0"} for i in range(2)]}}})
         board().run(WORLD + "OUT.ok = 1;")
+        board().doors_ready()
 
     def test_the_toolbar_doors_are_on_screen_and_sort_is_one_button(self):
         o = board().run(SEEN + "closeAll(); OUT.r = {};"
@@ -238,6 +309,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "data-adv=\"ledger\" aria-selected=\"false\" onclick=\"window.vaultAdvTab('ledger')\">Routing ledger</button>",
      "replace": "data-adv=\"ledger-x\" aria-selected=\"false\" hidden>Routing ledger</button>",
+     "matches": 1},
+    {"why": "The Clear & reset toggle is hidden.",
+     "file": "bible.html",
+     "find": "<button class=\"vault-btn vault-btn-danger vault-danger-tog\" id=\"vault-danger-tog\" type=\"button\"",
+     "replace": "<button class=\"vault-btn vault-btn-danger vault-danger-tog\" id=\"vault-danger-tog\" hidden type=\"button\"",
+     "matches": 1},
+    {"why": "The Clear & reset toggle sits inside a closed drawer, like a collapsed Advanced.",
+     "file": "bible.html",
+     "find": "<button class=\"vault-btn vault-btn-danger vault-danger-tog\" id=\"vault-danger-tog\" type=\"button\"",
+     "replace": "<details class=\"vault-advanced\"><summary>Advanced</summary><button class=\"vault-btn vault-btn-danger vault-danger-tog\" id=\"vault-danger-tog\" type=\"button\"",
+     "matches": 1},
+    {"why": "The Clear & reset toggle is laid out but parked off screen, where no scroll reaches it.",
+     "file": "bible.html",
+     "find": "<button class=\"vault-btn vault-btn-danger vault-danger-tog\" id=\"vault-danger-tog\" type=\"button\"",
+     "replace": "<button class=\"vault-btn vault-btn-danger vault-danger-tog\" id=\"vault-danger-tog\" style=\"position:fixed;left:-9999px\" type=\"button\"",
      "matches": 1},
 ]
 
