@@ -2156,7 +2156,7 @@ def _h2_install():
         except Exception:
             pass
 
-    def names(tag, path):
+    def names(tag, path, follow=True):
         if getattr(busy, "on", False):
             return
         busy.on = True
@@ -2170,6 +2170,8 @@ def _h2_install():
             emit(tag, _base(p.rstrip("/")))
             if p.endswith(".pyc"):      # a module loaded from its cache read its SOURCE's bytes, at one remove
                 emit(tag, _base(p).split(".", 1)[0] + ".py")
+            if not follow:               # a caller that is not itself a stat must not resolve (see the wraps below)
+                return
             try:
                 if not _isabs(p):
                     p = _join(_getcwd(), p)
@@ -2276,7 +2278,10 @@ def _h2_install():
             continue
         def wrap(f=f, n=n):
             def w(path, *a, **k):
-                names("S", path)
+                # REG-2293 r6 (C): access and readlink are probes of their own. Resolving them calls
+                # os.lstat, and a gate probe already owns that name, so the file stayed a ledger input
+                # after the probe was removed (carried-law [65] and the readlink sibling).
+                names("S", path, n in ("stat", "lstat"))
                 return f(path, *a, **k)
             w.__name__ = n
             w.__wrapped__ = f
