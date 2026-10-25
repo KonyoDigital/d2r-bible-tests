@@ -238,11 +238,16 @@ def _png(cdp, selector, path):
 
 def _save(path):
     os.makedirs(SHOTS, exist_ok=True)
-    os.makedirs(ART, exist_ok=True)
     dest = os.path.join(SHOTS, os.path.basename(path))
     if os.path.abspath(path) != os.path.abspath(dest):
         shutil.copy(path, dest)
-    shutil.copy(dest, os.path.join(ART, os.path.basename(path)))
+    # /opt/cursor is the CI artifact drop. This Mac has no such directory, and the
+    # law is the shots under SHOTS plus the assertions above, not that copy.
+    try:
+        os.makedirs(ART, exist_ok=True)
+        shutil.copy(dest, os.path.join(ART, os.path.basename(path)))
+    except OSError:
+        pass
 
 
 def _http():
@@ -303,8 +308,8 @@ def _tab():
 
 class TestV3769VaultMoveListVisual(unittest.TestCase):
     def test_the_real_vault_shows_the_move_list(self):
-        if "heart2." in os.path.abspath(__file__):
-            return
+        # The only law in this file. Returning inside a heart2 sandbox left the
+        # remember-tamper green, so the push was refused on a proof that never ran.
         chrome = _chrome_path()
         if not chrome:
             self.skipTest(NO_BROWSER)
