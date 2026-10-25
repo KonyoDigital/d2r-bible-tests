@@ -40813,6 +40813,8 @@ body{
 .footer .reset-grp{display:flex;flex-wrap:wrap;gap:var(--vsp-2,8px);align-items:center;justify-content:center}
 .footer .reset-grp .vault-danger{margin-left:0;border-left:0;padding-left:0}
 .footer .reset-grp .vault-danger-menu{left:50%;right:auto;transform:translateX(-50%);text-align:left}
+/* shot 04 (2026-10-25): the open menu sits ABOVE the fixed ROUTINES bar (z 9999) - it covered Wipe items at 1440x1000 */
+.footer .reset-grp .vault-danger-menu:not([hidden]){z-index:10001}
 .footer .reset-grp .vault-btn{font-size:var(--fs-meta)}
 .footer details.danger-zone[open] > summary{color:var(--gold-bright)}
 #mule-vault-card .vault-profile-row{display:flex;align-items:center;gap:var(--vsp-2,8px);margin:0 0 var(--vsp-2,8px)}
