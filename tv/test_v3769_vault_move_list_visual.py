@@ -406,18 +406,41 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         self.assertNotEqual(planned.get("from"), planned.get("to"), planned)
         self.assertEqual(planned.get("stored"), planned.get("to"), planned)
         self._shot(cdp, "#vault-move-list", "06-planned-move.png")
+        # mark THIS document: the readiness wait below must be answered by the reloaded page, not the old one
+        # (2026-10-25: the old document could satisfy it before the reload committed; only the 0.8 s sleep hid that)
+        _ev(cdp, "(window.__v3769PreReload = true)", timeout=15)
         cdp.call("Page.reload", {"ignoreCache": True}, timeout=30)
         # A fresh load lands on session. The 0ms and 250ms boot timers can fire after
         # renderVault exists and yank the vault tab back off, which leaves the list in
         # the DOM with a zero box. Wait them out, then open the room.
         _wait_fn(
             cdp,
-            "document.readyState==='complete' && typeof window.vaultJump==='function'"
+            "!window.__v3769PreReload && document.readyState==='complete' && typeof window.vaultJump==='function'"
             " && typeof window.renderVault==='function'",
             timeout=120,
         )
-        time.sleep(0.8)
-        kept = self._js(cdp, _STEP_RELOAD)
+        # 2026-10-25 - was a fixed 0.8 s sleep, which lost the race on a loaded CI runner (-15: list in the DOM, 0x0,
+        # tab active, card open). Now poll the SAME read until the remembered overlay has painted its box, bounded:
+        # a list that never comes back after reload still fails on the assertions below.
+        # "has a box" must HOLD for 600 ms, longer than the 250 ms boot timer that can still clear it. A read that
+        # throws mid-flip counts as not-ready; each read is capped at 15 s and the whole wait at 15 s, and the
+        # final read goes through self._js, so a page error is still reported as a failure.
+        deadline, since = time.time() + 15, None
+        while time.time() < deadline:
+            try:
+                kept = _ev(cdp, _STEP_RELOAD, timeout=15)
+            except Exception:
+                kept = None
+            boxed = (isinstance(kept, dict) and not kept.get("error")
+                     and (kept.get("w") or 0) >= 8 and (kept.get("h") or 0) >= 8)
+            if not boxed:
+                since = None
+            elif since is None:
+                since = time.time()
+            elif time.time() - since >= 0.6:
+                break
+            time.sleep(0.15)
+        kept = self._js(cdp, _STEP_RELOAD, timeout=15)
         self.assertEqual(kept.get("to"), planned["to"], kept)
         self.assertTrue(kept.get("tab"), kept)
         self.assertFalse(kept.get("collapsed"), kept)
@@ -722,6 +745,15 @@ _FRAME_READ = _wrap(r"""
            src: img ? (img.getAttribute('src') || '') : '',
            nw: img ? img.naturalWidth : 0 };
 """)
+
+
+RED_PROOF = [
+    {"why": "The MOVE TASKS overlay is no longer remembered, so after a reload the list never gets a box.",
+     "file": "bible.html",
+     "find": "    if (!quiet) _vaultTasksRemember(want);\n",
+     "replace": "",
+     "matches": 1},
+]
 
 
 if __name__ == "__main__":
