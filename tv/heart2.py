@@ -2339,10 +2339,15 @@ try:
     _h2_install()
 finally:
     del _h2_install
-    _s.modules.pop("sitecustomize", None)
-    try:
-        import sitecustomize  # noqa: F401  - the one this file shadowed, if any
-    except ImportError:
+    try:     # the sitecustomize this one shadowed, if any - found AFTER the one already running, never by re-import:
+        import importlib.machinery as _im, importlib.util as _iu   # a gate_trace site that chained HERE would boot twice
+        _cur = _s.modules.get("sitecustomize")
+        _skip = {_o.path.dirname(_o.path.abspath(f)) for f in (globals().get("__file__"), getattr(_cur, "__file__", None)) if f}
+        _nxt = _im.PathFinder.find_spec("sitecustomize", [p for p in _s.path if _o.path.abspath(p or ".") not in _skip
+                                        and not _o.path.isfile(_o.path.join(p or ".", "node_trace.cjs"))])  # H2-CHAIN-ONCE
+        if _nxt is not None and _nxt.loader is not None:
+            _nxt.loader.exec_module(_iu.module_from_spec(_nxt))
+    except Exception:
         pass
 '''
 _TRACES = {}                     # law filename -> {"names": set(basenames), "ok": bool, "runs": int}, this process only

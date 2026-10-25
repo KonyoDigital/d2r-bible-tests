@@ -234,6 +234,30 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_a_site_that_chains_into_the_trace_boots_once(self):
+        """v3796 bank red: gate_trace's sitecustomize (a ledger law's fixture child) chains INTO this one; re-importing
+        `sitecustomize` booted gate_trace a second time, every spawn was counted twice and the node law went red"""
+        d = tempfile.mkdtemp(prefix="h2trace-fx.")
+        try:
+            first = os.path.join(d, "first")
+            os.makedirs(first)
+            with io.open(os.path.join(first, "sitecustomize.py"), "w", encoding="utf-8") as fh:
+                fh.write("import builtins, os, sys, importlib.machinery, importlib.util\n"
+                         "builtins.H2_BOOTS = getattr(builtins, 'H2_BOOTS', 0) + 1\n"
+                         "here = os.path.dirname(os.path.abspath(__file__))\n"
+                         "spec = importlib.machinery.PathFinder.find_spec('sitecustomize', "
+                         "[p for p in sys.path if os.path.abspath(p or '.') != here])\n"
+                         "if spec is not None:\n    spec.loader.exec_module(importlib.util.module_from_spec(spec))\n")
+            site = H._trace_site()
+            env = dict(os.environ, PYTHONPATH=first + os.pathsep + site, HEART2_TRACE_LOG=os.path.join(d, "log"),
+                       HEART2_TRACE_SITE=site)
+            import subprocess
+            r = subprocess.run([sys.executable, "-c", "import builtins; print(getattr(builtins, 'H2_BOOTS', 0))"],
+                               env=env, capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.stdout.split(), ["1"], "the site that chained into the trace booted again: " + r.stdout + r.stderr)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
     def test_a_killed_provers_trace_dir_is_swept_and_a_live_ones_is_kept(self):
         """the trace dir of a prover SIGKILL ended (no atexit ran) leaves on the next run; a live prover's stays"""
         base = tempfile.mkdtemp(prefix="h2sweep-fx.")
@@ -250,6 +274,13 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
 
 
 RED_PROOF = [
+    {
+        "why": "v3796 bank red - the trace re-imports `sitecustomize`, so a site that chained into it boots twice",
+        "file": "heart2.py",
+        "find": "        if _nxt is not None and _nxt.loader is not None:\n            _nxt.loader.exec_module(_iu.module_from_spec(_nxt))\n",
+        "replace": "        _s.modules.pop(\"sitecustomize\", None)\n        import sitecustomize  # noqa: F401\n",
+        "matches": 1,
+    },
     {
         "why": "REG-2640 - a direct os.posix_spawn python child is never counted, so its missing hello goes unseen",
         "file": "heart2.py",
