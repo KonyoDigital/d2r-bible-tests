@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3796",
+  "ver": "v3797",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3796: Shadow reads the signed Roster profile - a Roster name opens its row with HD eyes - diagnostics fold under ADVANCED",
+  "note": "v3797: frames hist sheds above 8 GiB so the newest frames stay",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
