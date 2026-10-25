@@ -305,6 +305,33 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def _gate_boots(self, order):
+        """B lines per process when python starts under `order` (a list of 'gateA' / 'gateB' / 'h2') -> list of counts"""
+        d = tempfile.mkdtemp(prefix="h2gt-")
+        try:
+            src = os.path.join(HERE, "gate_trace")
+            dirs = {"h2": H._trace_site()}
+            for n in ("gateA", "gateB"):
+                dirs[n] = os.path.join(d, n)
+                shutil.copytree(src, dirs[n], ignore=shutil.ignore_patterns("__pycache__"))
+            gt = os.path.join(d, "gate.log")
+            env = dict(os.environ, PYTHONPATH=os.pathsep.join(dirs[n] for n in order), TV_GATE_TRACE=gt,
+                       TV_GATE_TRACE_ROOT=d, HEART2_TRACE_LOG=os.path.join(d, "h2.log"), HEART2_TRACE_SITE=dirs["h2"])
+            import subprocess
+            subprocess.run([sys.executable, "-c", "pass"], env=env, capture_output=True, timeout=60)
+            with io.open(gt, encoding="utf-8") as fh:
+                return [l for l in fh.read().splitlines() if l.startswith("B\t")]
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_a_gate_copy_that_chained_into_the_trace_is_never_booted_again(self):
+        """v3796 node law red: a sandbox's gate_trace -> the trace -> heart2's own kill-watch copy booted the gate twice"""
+        self.assertEqual(len(self._gate_boots(["gateA", "h2", "gateB"])), 1)
+
+    def test_the_trace_first_still_boots_the_gate_copy_behind_it(self):
+        """the push-time order (trace, then heart2's kill-watch gate_trace): the gate copy must still load"""
+        self.assertEqual(len(self._gate_boots(["h2", "gateA"])), 1)
+
     def test_a_killed_provers_trace_dir_is_swept_and_a_live_ones_is_kept(self):
         """the trace dir of a prover SIGKILL ended (no atexit ran) leaves on the next run; a live prover's stays"""
         base = tempfile.mkdtemp(prefix="h2sweep-fx.")
@@ -321,6 +348,20 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
 
 
 RED_PROOF = [
+    {
+        "why": "v3796 node law red - the trace chains into a second gate_trace copy while one already runs",
+        "file": "heart2.py",
+        "find": "                                        and not (_ran and _gt(p))])",
+        "replace": "                                        ])",
+        "matches": 1,
+    },
+    {
+        "why": "v3796 review r4 - the trace skips every gate_trace copy, so the kill watch behind it never arms",
+        "file": "heart2.py",
+        "find": "        _ran = any(_gt(d) for d in _skip)",
+        "replace": "        _ran = True",
+        "matches": 1,
+    },
     {
         "why": "v3796 pre-prove red - a law run under an outer trace hooks its children twice: every child counted twice",
         "file": "heart2.py",

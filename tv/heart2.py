@@ -2145,7 +2145,6 @@ def _h2_install():
         fd = _o.open(log, _o.O_WRONLY | _o.O_APPEND | _o.O_CREAT, 0o600)
     except OSError:
         return
-    _s._h2_trace_on = True
     import threading as _t
     busy = _t.local()
     _write, _fspath, _base, _real, _isabs, _join, _getcwd = (
@@ -2338,6 +2337,7 @@ def _h2_install():
             emit("U", "native " + _base(_m.__file__))
     emit("H", "%d %d" % (_o.getpid(), _o.getppid()))
     _s.addaudithook(hook)
+    _s._h2_trace_on = True                   # H2-INSTALL-ONCE - only once the hook is really in
 try:
     _h2_install()
 finally:
@@ -2352,8 +2352,10 @@ finally:
                 _skip.add(_o.path.dirname(_o.path.abspath(_f.f_code.co_filename)))
             _f = _f.f_back
         del _f
+        _gt = lambda p: _o.path.isfile(_o.path.join(p or ".", "node_trace.cjs"))   # a gate_trace copy (TRACE-CHAIN-ONCE)
+        _ran = any(_gt(d) for d in _skip)       # one already runs (it chained HERE): never boot another copy; else the
         _nxt = _im.PathFinder.find_spec("sitecustomize", [p for p in _s.path if _o.path.abspath(p or ".") not in _skip
-                                        and not _o.path.isfile(_o.path.join(p or ".", "node_trace.cjs"))])  # never a gate_trace copy (TRACE-CHAIN-ONCE)
+                                        and not (_ran and _gt(p))])   # first one still loads - the kill watch arms
     except Exception:
         _nxt = None
     if _nxt is not None and _nxt.loader is not None:   # a successor that raises propagates, as `import` did
