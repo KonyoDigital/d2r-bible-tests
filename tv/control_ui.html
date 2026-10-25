@@ -25832,6 +25832,15 @@ body.shell-open #head-tabs .ht {
 body.shell-open .shell > :not(.topbar) {
   pointer-events: none;
 }
+/* The shadow bar is position:fixed over the board, but it lives in the rail, so the
+   rule above makes Leave look pressable while every click falls through onto the
+   other profile. Closing the window hides this same page, so reopening comes back
+   still inside it. This is the one rail control that has to take the click.
+   Same exemption the header already has, for the same reason. */
+body.shell-open #shadow-bar,
+body.shell-open #shadow-bar * {
+  pointer-events: auto !important;
+}
 body.shell-open .topbar,
 body.shell-open .topbar * {
   pointer-events: auto !important;
@@ -27823,6 +27832,19 @@ function escC(s) {
       } catch (e) {}
     }
   };
+  /* The board frame holds focus. In this WebKit the first click outside that frame is
+     spent blurring it, so Leave's onclick never runs (the header tabs listen on
+     pointerdown for the same reason). A right-click or a ctrl-click does not leave. */
+  (function () {
+    var b = document.getElementById('shadow-leave');
+    if (!b) return;
+    b.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || e.ctrlKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window._shadowLeave();
+    });
+  })();
 
   /* SHADOW MODE - THEIR CONSOLE, ONE TO ONE, READ ONLY. /api/roster-cache?profile= hands the owner's roster-synced account
      stores (tv/console_snapshot.py) and when they were uploaded; a frame of its own boots the same board on those

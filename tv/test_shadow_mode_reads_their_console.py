@@ -731,6 +731,22 @@ class TheSameConsoleDrawsIt(unittest.TestCase):
         self.assertIn("who.textContent = String(d.words || owner) + at + ' · read only';", enter)
         self.assertIn('<div id="shadow-bar" hidden><span id="shadow-who">', ui)
 
+    def test_leave_takes_a_click_while_the_board_covers_the_rail(self):
+        """Leave sits in the rail. shell-open sets pointer-events:none on that rail, so the
+        bar paints over the other profile and the click lands on the frame. The window close
+        hides that same page, which is why a restart comes back still inside it."""
+        ui = _read(UI)
+        trap = ui.index("body.shell-open .shell > :not(.topbar)")
+        exempt = ui.index("body.shell-open #shadow-bar", trap)
+        block = ui[exempt:ui.index("body.shell-open .topbar", exempt)]
+        self.assertIn("pointer-events: auto !important", block)
+        self.assertIn("#shadow-bar *", block)
+        leave = ui.index("window._shadowLeave = function () {")
+        arm = ui[leave:ui.index("window._shadowSnapEnter = function", leave)]
+        self.assertIn("getElementById('shadow-leave')", arm)
+        self.assertIn("addEventListener('pointerdown'", arm)
+        self.assertIn("e.button !== 0 || e.ctrlKey", arm)
+
 
 # The boot block of bible.html, run in node on fake window/document objects: the page's own script.
 _BOOT = r"""
