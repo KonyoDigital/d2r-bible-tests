@@ -198,6 +198,36 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
         self.assertTrue(o["menuImport"], "the chronicle-page cleanup is not reachable when the verdict says menu")
         self.assertTrue(o["menuImportGone"], "the chronicle-page row shows without a menu verdict")
 
+    def test_every_door_in_the_open_danger_menu_takes_a_click(self):
+        """Shot 04 (2026-10-25): at 1440x1000 the floating ROUTINES bar sat over Wipe items in the open Clear & reset
+        menu - laid out, 'seen', and still unclickable. Each door is moved to mid-screen AND into the bar's band, and
+        the point at its centre must answer with the door itself."""
+        b = board()
+        b.t.send("Emulation.setDeviceMetricsOverride", width=1440, height=1000, deviceScaleFactor=1, mobile=False)
+        try:
+            o = b.run(SEEN + "closeAll(); var z = by('details.danger-zone'); z.open = true; window.vaultDangerMenuTog(true);"
+                      "var bar = by('#routine-status-bar'); var wasHidden = bar.hidden; bar.hidden = false;"
+                      "await new Promise(function(r){ requestAnimationFrame(function(){ setTimeout(r, 50); }); });"
+                      "var br = bar.getBoundingClientRect(); OUT.bar = [Math.round(br.width), Math.round(br.height)];"
+                      "var bandY = br.top + br.height / 2; OUT.miss = []; OUT.n = 0;"
+                      "var ds = [].slice.call(by('#vault-danger-menu').querySelectorAll('button')).filter(seen);"
+                      "for (var i = 0; i < ds.length; i++){ var d = ds[i];"
+                      "  for (var k = 0; k < 2; k++){ var want = k ? bandY : innerHeight / 2;"
+                      "    var r = d.getBoundingClientRect(); window.scrollBy({ top: (r.top + r.height / 2) - want, left: 0, behavior: 'instant' });"
+                      "    r = d.getBoundingClientRect(); var cx = r.left + r.width / 2, cy = r.top + r.height / 2;"
+                      "    if (k && Math.abs(cy - bandY) > 4) continue;"   # the page cannot scroll that far - no overlap possible there
+                      "    var hit = document.elementFromPoint(cx, cy); OUT.n++;"
+                      "    if (!(hit && (hit === d || d.contains(hit))))"
+                      "      OUT.miss.push((d.textContent || '').trim().slice(0, 30) + (k ? ' @bar' : ' @mid') + ' under ' + (hit ? (hit.id || hit.className || hit.tagName) : 'nothing')); } }"
+                      "OUT.doors = ds.length; bar.hidden = wasHidden; window.vaultDangerMenuTog(false); z.open = false; closeAll();"
+                      "window.scrollTo({ top: 0, left: 0, behavior: 'instant' });")
+        finally:
+            b.t.send("Emulation.clearDeviceMetricsOverride")
+        self.assertTrue(o["bar"][0] > 0 and o["bar"][1] > 0, "the ROUTINES bar never showed - the check measured nothing: %r" % o)
+        self.assertGreaterEqual(o["doors"], len(DANGER) + 1, "the open menu has fewer doors than its four + Cancel: %r" % o)
+        self.assertGreater(o["n"], o["doors"], "no door was ever moved into the bar's band: %r" % o)
+        self.assertEqual(o["miss"], [], "a door in the open danger menu is covered where it sits: %r" % o)
+
     def test_hand_add_planner_and_find_are_on_screen(self):
         o = board().run(SEEN + "closeAll(); var h = doors('vaultHandOpen'); OUT.hand = [h.length, h.filter(seen).length, h.length ? h[0].tagName : ''];"
                         "OUT.planner = seen(by('#vault-planner-q')); OUT.find = seen(by('#vault-find-input'));"
@@ -257,6 +287,11 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "The open Clear & reset menu drops back under the fixed ROUTINES bar (shot 04: Wipe items covered).",
+     "file": "bible.html",
+     "find": ".footer .reset-grp .vault-danger-menu:not([hidden]){z-index:10001}\n",
+     "replace": "",
+     "matches": 1},
     {"why": "Add mule drops off the toolbar.",
      "file": "bible.html",
      "find": "        <button class=\"vault-btn\" onclick=\"window.vaultAddMule()\">➕ Add mule</button>\n",
