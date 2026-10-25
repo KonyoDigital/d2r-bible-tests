@@ -18,6 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 import tv_diablo as T  # noqa: E402
+import fixture_tmp  # noqa: E402
+fixture_tmp.contain()
 from test_an_evidence_picture_is_never_reaped import _Shelf, _Usage, _jpg, GB, NOW_MS  # noqa: E402
 
 MB = 1 << 20
@@ -31,8 +33,9 @@ def _blob(path, size=MB, age_s=None):
         os.utime(path, (t, t))
 
 
-def _tree_bytes(d):
-    return sum(os.path.getsize(os.path.join(r, f)) for r, _x, fs in os.walk(d) for f in fs)
+def _flat_bytes(d):
+    # the loose-footage test's hist folder is flat (files only); listed through the run's own scratch
+    return sum(os.path.getsize(os.path.join(d, f)) for f in fixture_tmp.list_own(d))
 
 
 class TheCapShedsOldestFirst(_Shelf):
@@ -55,9 +58,9 @@ class TheCapShedsOldestFirst(_Shelf):
             _blob(os.path.join(self.hist, name), age_s=age)
         young = "f_%d.jpg" % (NOW_MS - 60000)
         _blob(os.path.join(self.hist, young), age_s=60)
-        cap = (_tree_bytes(self.hist) - MB // 2) / float(1 << 30)
+        cap = (_flat_bytes(self.hist) - MB // 2) / float(1 << 30)
         self.press(cap)
-        left = set(os.listdir(self.hist))
+        left = set(fixture_tmp.list_own(self.hist))
         self.assertNotIn(old[0], left, "over the cap on a healthy disk, the oldest footage was not shed")
         self.assertIn(old[1], left, "the cap took more than it needed")
         self.assertIn(old[2], left)
@@ -67,7 +70,7 @@ class TheCapShedsOldestFirst(_Shelf):
         name = "f_%d.jpg" % (NOW_MS - 10 ** 7)
         _blob(os.path.join(self.hist, name), age_s=3 * 3600)
         self.press(0.0)
-        self.assertIn(name, os.listdir(self.hist))
+        self.assertIn(name, fixture_tmp.list_own(self.hist))
         with mock.patch.object(T, "HIST_CAP_GB", 0.0):
             self.assertEqual(0, T._hist_over_cap(self.hist), "a cap of 0 still measured an excess")
 
@@ -81,12 +84,12 @@ class TheCapShedsOldestFirst(_Shelf):
         _blob(os.path.join(self.hist, young), age_s=30)
         for n in range(1, 6):
             self.press(1e-6, n)
-        left = set(os.listdir(self.hist))
+        left = set(fixture_tmp.list_own(self.hist))
         self.assertNotIn(R[0], left, "over the cap while recording, the oldest sealed reel was never reached")
         self.assertNotIn(R[1], left)
         self.assertIn(R[2], left, "one of the two newest reels was taken by the cap")
         self.assertIn(R[3], left, "the active (newest) reel was taken by the cap")
-        self.assertEqual(2, len(os.listdir(os.path.join(self.hist, R[3]))))
+        self.assertEqual(2, len(fixture_tmp.list_own(os.path.join(self.hist, R[3]))))
         self.assertIn(young, left, "the frame being recorded was taken by the cap")
 
 
