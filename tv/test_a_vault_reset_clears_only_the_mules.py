@@ -559,8 +559,8 @@ RED_PROOF = [
     {
         "why": "2026-09-27 - the confirm stops telling him what stays",
         "file": "bible.html",
-        "find": "      + '\\n\\nStays untouched: ' + w.keeps.join(' · ') + '.'\n",
-        "replace": "",
+        "find": "      + '\\n\\nStays untouched: ' + w.keeps.join(' · ') + '.'\n      + (one ? '' :",
+        "replace": "      + (one ? '' :",
         "matches": 1,
     },
 ]
