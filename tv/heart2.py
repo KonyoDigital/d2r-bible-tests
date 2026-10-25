@@ -2139,10 +2139,13 @@ def _h2_install():
         _s.path[:] = [p for p in _s.path if _o.path.normpath(p or ".") != _o.path.normpath(site)]
     if not log:
         return
+    if getattr(_s, "_h2_trace_on", False):   # H2-INSTALL-ONCE: a law run under an OUTER trace chains into its site,
+        return                               # which would hook this process twice and count each child twice
     try:
         fd = _o.open(log, _o.O_WRONLY | _o.O_APPEND | _o.O_CREAT, 0o600)
     except OSError:
         return
+    _s._h2_trace_on = True
     import threading as _t
     busy = _t.local()
     _write, _fspath, _base, _real, _isabs, _join, _getcwd = (
@@ -2349,7 +2352,8 @@ finally:
                 _skip.add(_o.path.dirname(_o.path.abspath(_f.f_code.co_filename)))
             _f = _f.f_back
         del _f
-        _nxt = _im.PathFinder.find_spec("sitecustomize", [p for p in _s.path if _o.path.abspath(p or ".") not in _skip])
+        _nxt = _im.PathFinder.find_spec("sitecustomize", [p for p in _s.path if _o.path.abspath(p or ".") not in _skip
+                                        and not _o.path.isfile(_o.path.join(p or ".", "node_trace.cjs"))])  # never a gate_trace copy (TRACE-CHAIN-ONCE)
     except Exception:
         _nxt = None
     if _nxt is not None and _nxt.loader is not None:   # a successor that raises propagates, as `import` did

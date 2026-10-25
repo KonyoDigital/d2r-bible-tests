@@ -21,6 +21,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -169,6 +170,24 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
         results, per, stopped, runs, said = self.cold_then_edit("forkexec")
         self.assertReused(runs, results, said, "a law that started a multiprocessing child that read nothing")
 
+    def test_a_multiprocessing_child_is_traced_under_an_outer_trace(self):
+        """the push-time prover runs THIS law traced: the fixture law's site then chains into the outer trace site, and
+        a process hooked twice counts its one child twice (2 P, 1 hello) - incomplete, so nothing was ever reused"""
+        own = H._trace_site()
+        self.assertIsNotNone(own)
+        site = tempfile.mkdtemp(prefix="h2-outer-site-")      # the OUTER prover's site: another process, another dir
+        shutil.copy(os.path.join(own, "sitecustomize.py"), site)
+        log = os.path.join(site, "outer.log")
+        try:
+            pp = os.environ.get("PYTHONPATH")
+            outer = {"PYTHONPATH": site + ((os.pathsep + pp) if pp else ""),
+                     "HEART2_TRACE_LOG": log, "HEART2_TRACE_SITE": site}
+            with mock.patch.dict(os.environ, outer):
+                results, per, stopped, runs, said = self.cold_then_edit("forkexec")
+            self.assertReused(runs, results, said, "a multiprocessing child under an outer trace")
+        finally:
+            shutil.rmtree(site, ignore_errors=True)
+
     def test_a_pure_tool_child_still_lets_an_unread_file_go(self):
         """`true` opens no file of the tree: the trace stays complete and the unread file is still keyed by name"""
         results, per, stopped, runs, said = self.cold_then_edit("pure")
@@ -302,6 +321,13 @@ class ANamedFileTheLawNeverOpenedIsKeyedByName(_Case):
 
 
 RED_PROOF = [
+    {
+        "why": "v3796 pre-prove red - a law run under an outer trace hooks its children twice: every child counted twice",
+        "file": "heart2.py",
+        "find": "    if getattr(_s, \"_h2_trace_on\", False):",
+        "replace": "    if False:",
+        "matches": 1,
+    },
     {
         "why": "v3796 review - a chainer BETWEEN the gate and the trace is not sys.modules' entry, so the trace re-ran it",
         "file": "heart2.py",
