@@ -35,8 +35,24 @@ except Exception:
 SHOTS = os.path.join(HERE, ".render_shots")
 ART = "/opt/cursor/artifacts/v3769"
 NO_BROWSER = "no Chrome/Chromium on this machine"
-HTTP_PORT = 17963
-CDP_PORT = 17964
+def _free_ports(n=2):
+    """n DISTINCT ports the OS has just handed out (every socket is held until all n are picked).
+    17963 was pinned here AND is robot_smoke's TV_PORT: when the two shared a CI shard (ci/gbl-vault-v3-1, -2) this
+    law's page came from robot_smoke's server and it ERRORED in 4 s. The pick is released before the server binds;
+    _server() therefore also refuses a port another process took in between (its own server must still be alive)."""
+    held = []
+    try:
+        for _ in range(n):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.bind(("127.0.0.1", 0))
+            held.append(s)
+        return [s.getsockname()[1] for s in held]
+    finally:
+        for s in held:
+            s.close()
+
+
+HTTP_PORT, CDP_PORT = _free_ports(2)
 PAGE = "http://127.0.0.1:%d/bible.html" % HTTP_PORT
 
 
@@ -259,6 +275,10 @@ def _http():
     while time.time() < deadline:
         try:
             urllib.request.urlopen("http://127.0.0.1:%d/" % HTTP_PORT, timeout=2)
+            # an answer is only OURS if our server is still up: a lost bind exits it while another listener answers
+            time.sleep(0.3)
+            if proc.poll() is not None:
+                raise RuntimeError("http server exited %s - port %d answered by another process" % (proc.returncode, HTTP_PORT))
             return proc
         except Exception:
             if proc.poll() is not None:
