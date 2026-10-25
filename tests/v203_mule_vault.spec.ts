@@ -329,13 +329,11 @@ test.describe('v203 the vault', () => {
     expect(tab).toBe('vault');
   });
 
-  test('manifests export copies markdown; add/rename/delete mule round-trip', async ({ page }) => {
+  // Vault v3 (Elad 14:32 IDT 2026-10-24): Copy manifests (window.vaultExport) was removed whole - the approved removal;
+  // its absence is proved in tv/test_vault_v3_layout_keeps_every_door.py. The mule round-trip below is unchanged.
+  test('add/rename/delete mule round-trip', async ({ page }) => {
     const r = await page.evaluate(async () => {
       (window as any).vaultAutoAssign();
-      let copied = '';
-      (navigator.clipboard as any).writeText = (t: string) => { copied = t; return Promise.resolve(); };
-      (window as any).vaultExport();
-      await new Promise(res => setTimeout(res, 100));
       (window as any).prompt = () => 'TEST-MULE';
       (window as any).vaultAddMule();
       const added = [...document.querySelectorAll('.vm-name')].some(e => e.textContent === 'TEST-MULE');
@@ -343,12 +341,11 @@ test.describe('v203 the vault', () => {
       const id = JSON.parse(localStorage.getItem('d2r_muleRoster')!).find((m: any) => m.name === 'TEST-MULE').id;
       await (window as any).vaultDeleteMule(id);   // v341.60 — async (awaits uiConfirm); await before checking it's gone
       const gone = ![...document.querySelectorAll('.vm-name')].some(e => e.textContent === 'TEST-MULE');
-      return { copied: copied.slice(0, 200), added, gone };
+      return { added, gone, exportGone: typeof (window as any).vaultExport === 'undefined' };
     });
-    expect(r.copied).toContain('# The Vault — mule manifests');
-    expect(r.copied).toContain('SETS-TAL-IK');
     expect(r.added).toBe(true);
     expect(r.gone).toBe(true);
+    expect(r.exportGone).toBe(true);
   });
 
   test('no console errors through the full vault flow', async ({ page }) => {

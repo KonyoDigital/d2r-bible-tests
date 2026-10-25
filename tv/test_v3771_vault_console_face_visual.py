@@ -30,15 +30,15 @@ except Exception:
     pass
 
 from test_v3769_vault_move_list_visual import (  # noqa: E402
-    _CDP, _chrome_path, _ev, _png, _wait_fn, _wrap,
+    _CDP, _chrome_path, _ev, _free_ports, _png, _wait_fn, _wrap,
 )
 
 NO_BROWSER = "no Chrome/Chromium on this machine"
 
 SHOTS = os.path.join(HERE, ".render_shots")
 ART = "/opt/cursor/artifacts/v3771"
-HTTP_PORT = 17981
-CDP_PORT = 17982
+# was pinned 17981/17982 - shard_suite.PORT_BASE, shard 0's agent port in the same CI job; the OS hands out free ones
+HTTP_PORT, CDP_PORT = _free_ports(2)
 PAGE = "http://127.0.0.1:%d/bible.html" % HTTP_PORT
 
 SHOT_NAMES = (
@@ -64,6 +64,9 @@ def _http():
     while time.time() < deadline:
         try:
             urllib.request.urlopen("http://127.0.0.1:%d/" % HTTP_PORT, timeout=2)
+            time.sleep(0.3)   # the answer is ours only if our server is still up (a lost bind exits it)
+            if proc.poll() is not None:
+                raise RuntimeError("http server exited %s - port %d answered by another process" % (proc.returncode, HTTP_PORT))
             return proc
         except Exception:
             if proc.poll() is not None:
