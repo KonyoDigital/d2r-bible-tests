@@ -10746,6 +10746,14 @@ GATES = [
              "as a warning that passed. The eagle already calls that UNKNOWN. The gate now says the "
              "read was not taken. Below 2 GB still blocks. Between 2 and 8 GB the night warning still "
              "appears. At 8 GB and above the disk row still passes."),
+    Gate("test_the_console_localstorage_wal_is_pruned",
+         [sys.executable, os.path.join(HERE, "test_the_console_localstorage_wal_is_pruned.py")], 90,
+         needs_app=False,
+         why="Konyo 2026-10-25 - the Mac console's WebKit localstorage.sqlite3-wal reached 26 GB and "
+             "nothing ever shrank it. ls_wal_guard truncates an over-threshold WAL nobody holds before the "
+             "WebView exists (integrity checked, rows survive), skips a held or unreadable one, reports "
+             "leftover holders without killing them, is a no-op off macOS, and the 30-min look only "
+             "PASSIVE-checkpoints while publishing lsWal on /api/status so a growing WAL is never silent."),
     Gate("test_a_switched_off_deleter_is_dormant_not_stopped",
          [sys.executable, os.path.join(HERE, "test_a_switched_off_deleter_is_dormant_not_stopped.py")], 90,
          needs_app=False,

@@ -43485,6 +43485,11 @@ def status_payload():
         _STATUS_TL.sect = None
     except Exception:
         pass
+    try:
+        import ls_wal_guard as _lswal   # no I/O: the last 30-min look, so a growing WAL is never silent
+        _out["lsWal"] = dict(_lswal.STATE)
+    except Exception:
+        _out["lsWal"] = {"checked": False, "why": "guard unavailable"}
     _JOURNAL_POLL.memo = None
     return _out
 
@@ -49540,6 +49545,16 @@ def main():
             print("boot d2jsp sweep: removed %d stale scratch item(s)" % _d2jsp_swept, flush=True)
     except Exception as _de:
         print("boot d2jsp scratch sweep skipped: %s" % ascii(_de)[:200], flush=True)
+    # Konyo 2026-10-25 "it needs a automatic pruning there too" — the WebKit LocalStorage WAL (26 GB on
+    # his Mac). Before any WebView exists: truncate an over-threshold WAL nobody holds, report leftover
+    # holders (never killed), then a 30-min watch that publishes lsWal on /api/status. See ls_wal_guard.
+    if open_ui and not no_open:
+        try:
+            import ls_wal_guard as _lswal
+            _lswal.startup_prune()
+            threading.Thread(target=_lswal.loop, daemon=True, name="tvd-lswal").start()
+        except Exception as _lwe:
+            print("ls-wal guard skipped: %s" % ascii(_lwe)[:200], flush=True)
     # #227 — this machine's own tree, established where it lives (see _establish_tree_at_boot)
     threading.Thread(target=_establish_tree_at_boot, daemon=True, name="tvd-tree").start()
     # #227 — a self-updated console never re-runs the launcher: it makes sure it can read its frames
