@@ -270,14 +270,34 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self._shot(cdp, "#vault-move-list", "03-restyled-move-list.png")
         self._cover(cdp, "landing", "04-no-cover.png")
 
+        # mark THIS document: the readiness wait below must be answered by the reloaded page, not the old one
+        # (2026-10-25, CI frames-cap-3: the cover read found the list 0x0 - the old document had answered, and
+        # only a fixed 0.8 s sleep stood between the reload and the measure; same race as the v3769 law)
+        self._js(cdp, _wrap("window.__v3771PreReload = true; return true;"))
         cdp.call("Page.reload", {"ignoreCache": True}, timeout=30)
         _wait_fn(
             cdp,
-            "document.readyState==='complete' && typeof window.vaultJump==='function'"
+            "!window.__v3771PreReload && document.readyState==='complete' && typeof window.vaultJump==='function'"
             " && typeof window._vaultMoveCovered==='function'",
             timeout=120,
         )
-        time.sleep(0.8)
+        # reopen until the move list holds a laid-out box (>= 8x8) for 600 ms - longer than the 250 ms boot timer
+        # that can still yank the tab - bounded at 15 s; the final read goes through self._js, so a list that never
+        # comes back still fails on the assertions below
+        deadline, since = time.time() + 15, None
+        while time.time() < deadline:
+            try:
+                k = _ev(cdp, _REOPEN % json.dumps(hq), timeout=15)
+            except Exception:
+                k = None
+            boxed = isinstance(k, dict) and not k.get("error") and (k.get("w") or 0) >= 8 and (k.get("h") or 0) >= 8
+            if not boxed:
+                since = None
+            elif since is None:
+                since = time.time()
+            elif time.time() - since >= 0.6:
+                break
+            time.sleep(0.1)
         again = self._js(cdp, _REOPEN % json.dumps(hq))
         self.assertTrue(again.get("tab"), again)
         self.assertTrue(again.get("group"), again)
@@ -510,7 +530,9 @@ _REOPEN = _wrap(r"""
   var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     return (el.getAttribute('title') || '').split(' (')[0];
   }).filter(function(n){ return n.indexOf('Kira') >= 0; });
+  var lr = (document.getElementById('vault-move-list') || { getBoundingClientRect: function(){ return {}; } }).getBoundingClientRect();
   return { tab: !!(tab && tab.classList.contains('active')),
+           w: lr.width || 0, h: lr.height || 0,
            group: !!(g && g.textContent.indexOf(name) >= 0),
            text: g ? g.textContent : '',
            griffon: griffon };
