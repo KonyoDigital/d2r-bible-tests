@@ -90,5 +90,14 @@ class TheCapShedsOldestFirst(_Shelf):
         self.assertIn(young, left, "the frame being recorded was taken by the cap")
 
 
+RED_PROOF = [
+    {"why": "The cap never arms the shed (only the free-disk floor does, as before).",
+     "file": "tv/tv_diablo.py",
+     "find": "            if free_gb < MIN_FREE_GB or _over:\n",
+     "replace": "            if free_gb < MIN_FREE_GB:\n",
+     "matches": 1},
+]
+
+
 if __name__ == "__main__":
     unittest.main()

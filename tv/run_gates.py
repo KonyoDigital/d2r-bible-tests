@@ -9928,6 +9928,13 @@ GATES = [
              "Sets, uniques, runewords, charms and bases go through the writer. Distinct attacks, "
              "Wilson against the vault.apply bar. The screen is a separate gate.")
          ),
+    Gate("test_the_hist_size_cap", [sys.executable,
+         os.path.join(HERE, "test_the_hist_size_cap.py")], 120,
+         needs_app=False,
+         why=("Elad 2026-10-24 \"cap at 8\" - frames/hist has a SIZE cap (TV_HIST_CAP_GB, default 8, 0 = off) "
+              "beside the free-disk floor. Over the cap the same evidence-aware shed runs: oldest loose footage "
+              "first, young footage and the two newest reels never taken; cap 0 sheds nothing on a healthy disk. "
+              "Driven through the shipped archive_read_frame over temp shelves.")),
     Gate("test_v3769_vault_move_list_visual", [sys.executable,
          os.path.join(HERE, "test_v3769_vault_move_list_visual.py")], 300,
          needs_app=False,
