@@ -84,6 +84,9 @@ class NoChildOpensAWindowOnWindows(unittest.TestCase):
         own = m.STARTUPINFO()
         m.Popen(["x"], startupinfo=own)
         self.assertEqual(m.calls[0][1]["creationflags"], WQ.CREATE_NEW_CONSOLE, "a deliberate window was hidden")
+        shown = m.calls[0][1].get("startupinfo")
+        self.assertTrue(shown is None or shown.wShowWindow != WQ.SW_HIDE,
+                        "a console asked for on purpose was given SW_HIDE")
         self.assertEqual(m.calls[1][1]["creationflags"], 0x00000200 | WQ.CREATE_NO_WINDOW)
         self.assertIs(m.calls[2][1]["startupinfo"], own, "a caller's own STARTUPINFO was replaced")
 

@@ -36,7 +36,10 @@ def _quiet_kwargs(kw, mod):
     flags = int(kw.get("creationflags") or 0)
     if not (flags & (CREATE_NEW_CONSOLE | DETACHED_PROCESS)):
         kw["creationflags"] = flags | CREATE_NO_WINDOW
-    if kw.get("startupinfo") is None and hasattr(mod, "STARTUPINFO"):
+    # A new console was asked for so a person can read it and type into it. SW_HIDE
+    # on that console leaves it allocated and invisible: the sign-in prints its URL
+    # into a window nobody can see, then waits for a paste that never arrives.
+    if not (flags & CREATE_NEW_CONSOLE) and kw.get("startupinfo") is None and hasattr(mod, "STARTUPINFO"):
         si = mod.STARTUPINFO()
         si.dwFlags = int(getattr(si, "dwFlags", 0) or 0) | STARTF_USESHOWWINDOW
         si.wShowWindow = SW_HIDE

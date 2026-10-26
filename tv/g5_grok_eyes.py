@@ -593,7 +593,7 @@ _LOGIN_PROC = None  # type: ignore
 _LOGIN_STARTED_AT = 0.0
 
 
-def start_login(*, prefer_oauth=True):
+def start_login(*, prefer_oauth=True, _popen=None, platform=None):
     """v1381.2 — launch `grok login` so the user can authorize SuperGrok in the browser.
 
     Pure side-effect helper for the console ⚡ Authorize button. Does NOT spam:
@@ -601,6 +601,7 @@ def start_login(*, prefer_oauth=True):
     flight, returns the existing status. Never uses API keys.
     """
     global _LOGIN_PROC, _LOGIN_STARTED_AT
+    plat = platform if platform is not None else ("win32" if os.name == "nt" else "other")
     bin_path = _grok_bin()
     if not bin_path:
         return {
@@ -624,7 +625,7 @@ def start_login(*, prefer_oauth=True):
                 if _LOGIN_PROC.poll() is None:
                     return {
                         "ok": True, "started": False, "reason": "in-flight",
-                        "msg": "login already open — finish the browser authorize, then return here",
+                        "msg": "a sign-in window is already open on this PC - finish it there",
                         "hasSubscription": False, "cliInstalled": True,
                         "pid": getattr(_LOGIN_PROC, "pid", None),
                     }
@@ -636,24 +637,38 @@ def start_login(*, prefer_oauth=True):
         if prefer_oauth:
             args.append("--oauth")
         try:
-            # Detached-ish: open a visible console on Windows so the user sees the URL;
-            # on Mac/Linux inherit is fine (browser still pops).
-            creation = 0
-            if os.name == "nt":
-                creation = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-            _LOGIN_PROC = subprocess.Popen(
-                args, env=env,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL,
-                creationflags=creation if creation else 0,
-                start_new_session=(os.name != "nt"),
-            )
+            popen = _popen or subprocess.Popen
+            if plat == "win32":
+                # The CLI prints a URL and then waits for that address to be pasted back
+                # when the browser cannot reach its own loopback. pythonw has no console,
+                # so this opens one. stdio stays on that console: DEVNULL makes the paste
+                # read EOF, and win_quiet hides a new console that brings no STARTUPINFO.
+                # A .cmd is not a CreateProcess image. cmd.exe runs it in this same window.
+                if str(bin_path).lower().endswith((".cmd", ".bat")):
+                    args = ["cmd.exe", "/d", "/c"] + args
+                si = subprocess.STARTUPINFO() if hasattr(subprocess, "STARTUPINFO") else None
+                kw = {"creationflags": 0x00000010}   # CREATE_NEW_CONSOLE
+                if si is not None:
+                    si.dwFlags = int(getattr(si, "dwFlags", 0) or 0) | 0x00000001  # STARTF_USESHOWWINDOW
+                    si.wShowWindow = 1  # SW_SHOWNORMAL
+                    kw["startupinfo"] = si
+                _LOGIN_PROC = popen(args, env=env, **kw)
+                msg = ("a sign-in window opened on this PC. Finish in the browser. If it does not "
+                       "connect, paste the address it shows into that window")
+            else:
+                _LOGIN_PROC = popen(
+                    args, env=env,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
+                msg = "browser authorize opened - finish the sign-in it opens"
             _LOGIN_STARTED_AT = time.time()
             _STATS["last"] = "login-started"
             _STATS["last_error"] = None; _STATS["last_error_ts"] = None
             return {
                 "ok": True, "started": True, "reason": "spawned",
-                "msg": "browser authorize opened — complete SuperGrok login, then PRIMARY stays green",
+                "msg": msg,
                 "hasSubscription": False, "cliInstalled": True,
                 "pid": getattr(_LOGIN_PROC, "pid", None),
             }

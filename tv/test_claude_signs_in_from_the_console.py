@@ -123,6 +123,8 @@ class TheCliIsAskedAndDriven(unittest.TestCase):
     def test_the_command_is_fixed_per_os(self):
         argv, how = CS.command("C:\\u\\claude.exe", "win32")
         self.assertEqual((argv, how), (["C:\\u\\claude.exe", "auth", "login"], "window"))
+        argv, how = CS.command("C:\\u\\claude.cmd", "win32")
+        self.assertEqual((argv, how), (["cmd.exe", "/d", "/c", "C:\\u\\claude.cmd", "auth", "login"], "window"))
         argv, how = CS.command("/opt/claude/bin/claude", "darwin")
         self.assertEqual(argv[0], "osascript")
         self.assertIn("'/opt/claude/bin/claude' auth login", " ".join(argv))
@@ -136,6 +138,7 @@ class TheCliIsAskedAndDriven(unittest.TestCase):
         with mock.patch.object(CS.subprocess, "STARTUPINFO", _SI, create=True):
             r = CS.start("C:\\u\\claude.exe", "win32", _popen=lambda argv, **kw: calls.append((argv, kw)) or _Proc())
         self.assertTrue(r["started"], r)
+        self.assertIn("paste the code", r.get("why") or "")
         argv, kw = calls[0]
         self.assertEqual(argv, ["C:\\u\\claude.exe", "auth", "login"])
         seen = WQ._quiet_kwargs(kw, mock.Mock(STARTUPINFO=_SI))

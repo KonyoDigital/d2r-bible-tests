@@ -18,6 +18,7 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import g5_grok_eyes as g5  # noqa: E402
+import win_quiet as WQ  # noqa: E402
 
 
 # v1874 — ONE SANDBOX FOR THE WHOLE MODULE, not one class at a time.
@@ -199,6 +200,52 @@ class TestV1381GrokAuthorize(unittest.TestCase):
         self.assertEqual(out.get("reason"), "already-authorized")
         self.assertFalse(out.get("started"))
         pop.assert_not_called()
+
+    def test_a_windows_sign_in_keeps_a_console_he_can_type_into(self):
+        """The corner GROK lamp on the ALT. grok login prints a URL and, when the browser
+        cannot reach its loopback, waits for that address to be pasted. A hidden console
+        with stdin discarded starts the click and can never finish it."""
+        class _SI(object):
+            def __init__(self):
+                self.dwFlags = 0
+                self.wShowWindow = 0
+
+        class _P(object):
+            pid = 4242
+
+            def poll(self):
+                return None
+
+        calls = []
+
+        def popen(argv, **kw):
+            calls.append((list(argv), kw))
+            return _P()
+
+        g5._LOGIN_PROC = None
+        with mock.patch.object(g5.subprocess, "STARTUPINFO", _SI, create=True), \
+                mock.patch.object(g5, "_grok_bin", return_value="C:\\u\\grok.exe"), \
+                mock.patch.object(g5, "_subscription_logged_in", return_value=False):
+            out = g5.start_login(prefer_oauth=True, _popen=popen, platform="win32")
+        self.assertTrue(out.get("started"), out)
+        self.assertIn("paste the address", out.get("msg") or "")
+        argv, kw = calls[0]
+        self.assertEqual(argv, ["C:\\u\\grok.exe", "login", "--oauth"])
+        for stream in ("stdin", "stdout", "stderr"):
+            self.assertNotIn(stream, kw, "the paste prompt was thrown away (%s)" % stream)
+        seen = WQ._quiet_kwargs(kw, mock.Mock(STARTUPINFO=_SI))
+        self.assertFalse(seen["creationflags"] & WQ.CREATE_NO_WINDOW)
+        self.assertTrue(seen["creationflags"] & WQ.CREATE_NEW_CONSOLE)
+        self.assertEqual(seen["startupinfo"].wShowWindow, 1, "the door hid the sign-in window")
+        g5._LOGIN_PROC = None
+        calls.clear()
+        with mock.patch.object(g5.subprocess, "STARTUPINFO", _SI, create=True), \
+                mock.patch.object(g5, "_grok_bin", return_value="C:\\u\\grok.cmd"), \
+                mock.patch.object(g5, "_subscription_logged_in", return_value=False):
+            out = g5.start_login(prefer_oauth=True, _popen=popen, platform="win32")
+        self.assertTrue(out.get("started"), out)
+        self.assertEqual(calls[0][0], ["cmd.exe", "/d", "/c", "C:\\u\\grok.cmd", "login", "--oauth"])
+        g5._LOGIN_PROC = None
 
     def test_needs_login_when_cli_without_auth(self):
         with mock.patch.object(g5, "_grok_bin", return_value="/fake/grok"):

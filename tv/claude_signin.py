@@ -70,7 +70,13 @@ def command(bin_path, platform=None):
                       "(or CLAUDE) again" % (("PowerShell", INSTALL["win32"]) if plat == "win32"
                                              else ("Terminal", INSTALL["other"])))
     if plat == "win32":
-        return [bin_path, "auth", "login"], "window"
+        argv = [bin_path, "auth", "login"]
+        # CreateProcess cannot run a .cmd. The Windows npm install is a batch file, and a
+        # click that fails there opens nothing the browser can finish. cmd.exe runs it and
+        # stays up until the CLI exits, which is the window a code gets pasted into.
+        if str(bin_path).lower().endswith((".cmd", ".bat")):
+            argv = ["cmd.exe", "/d", "/c", bin_path, "auth", "login"]
+        return argv, "window"
     if plat == "darwin":
         q = "'" + str(bin_path).replace("'", "'\\''") + "'"
         return (["osascript", "-e", 'tell application "Terminal" to do script "%s auth login"' % q.replace('"', '\\"'),
@@ -147,5 +153,5 @@ def start(bin_path, platform=None, _popen=None, now=None):
         # the Mac's osascript hands the command to Terminal and exits at once - there is nothing to wait on there
         _PROC.update(proc=(p if how == "window" else None), at=now)
     return {"ok": True, "started": True, "reason": "spawned",
-            "why": ("a sign-in window opened on this PC - finish in the browser it opens; the CLAUDE lamp turns green "
-                    "after the next read")}
+            "why": ("a sign-in window opened on this PC. Finish in the browser. If it does not connect, paste the "
+                    "code it shows into that window. The CLAUDE lamp turns green after the next read")}
