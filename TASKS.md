@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3798** | `(this commit)` | v3798 — Leave takes the click, and Escape in a shadow frame asks the console to leave. |
+| **v3799** | `(this commit)` | v3799 — Save and Load sit above Add an item. Locked where they are stays collapsed at the bottom. |
+| **v3798** | `73781f17` | v3798 — Leave takes the click, and Escape in a shadow frame asks the console to leave. |
 | **v3797** | `2183f305` | v3797 — frames hist sheds above 8 GiB so the newest frames stay |
 | **v3796** | `64d1767b` | v3796 — Shadow reads the signed Roster profile - a Roster name opens its row with HD eyes - diagnostics fold under ADVANCED |
 | **v3795** | `27b9a028` | v3795 — a Mac push imports proofs banked on the same kind of machine instead of re-proving them |
