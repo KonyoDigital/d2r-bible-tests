@@ -1146,7 +1146,7 @@ class TheShadowSessionsHub(unittest.TestCase):
         paint = _js_fn(ui, "function _paintChronicle(summary) {")
         self.assertIn("lsHub('d2r_shadowProgress')", paint)
         self.assertNotIn("lsFork(", paint)
-        counts = _js_fn(ui, "function _chronicleCounts(summary, progress) {")
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress, lists) {")
         if not NODE:
             raise AssertionError("node is absent - the chronicle line cannot be run here, so it is UNMEASURED")
         js = counts + r"""
@@ -1168,6 +1168,82 @@ process.stdout.write(JSON.stringify({ named: named, published: published, zero: 
         self.assertNotIn("0/", got["zero"])
         self.assertEqual(got["listed"], "")
         self.assertEqual(got["none"], "")
+
+    def test_a_zero_summary_never_hides_a_sent_list_or_a_published_total(self):
+        """A shadow forge summary can read 0/99 while that PC's list, or its published total, is real.
+
+        The line uses the sent names, then the published total. It never paints 0.
+        """
+        if not NODE:
+            raise AssertionError("node is absent - the zero summary cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        paint = _js_fn(ui, "function _paintChronicle(summary) {")
+        for key in ("lsHub('d2r_rwMade')", "lsHub('d2r_setPieces')", "lsHub('d2r_foundLog')",
+                    "lsHub('d2r_shadowProgress')"):
+            self.assertIn(key, paint, key)
+        self.assertNotIn("lsFork(", paint)
+        count = _js_fn(ui, "function _listCount(raw) {")
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress, lists) {")
+        zero = ("{ chron: { made: 0, total: 99 }, sets: { found: 0, total: 135 }, "
+                "grail: { found: 0, total: 403 } }")
+        js = count + "\n" + counts + "\n" + paint + r"""
+var dot = ' \u00b7 ';
+var zero = """ + zero + r""";
+var listed = _chronicleCounts(zero, {
+  runewords: { have: 1, total: 99, listed: false },
+  sets: { have: 1, total: 135, listed: false },
+  uniques: { have: 1, total: 403, listed: false }
+}, { runewords: 99, sets: 135, uniques: 332 });
+var published = _chronicleCounts(zero, {
+  runewords: { have: 99, total: 99, listed: false },
+  sets: { have: 135, total: 135, listed: false },
+  uniques: { have: 332, total: 403, listed: false }
+}, null);
+var none = _chronicleCounts(zero, {
+  runewords: { have: 0, total: 99, listed: false },
+  sets: { have: 0, total: 135, listed: false },
+  uniques: { have: 0, total: 403, listed: false }
+}, null);
+var scanned = _chronicleCounts({ chron: { made: 99, total: 99 }, sets: { found: 135, total: 135 }, grail: { found: 332, total: 403 } }, null, { runewords: 1, sets: 1, uniques: 1 });
+var el = { textContent: '' };
+var store = {};
+function lsHub(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; }
+var document = { getElementById: function (id) { return id === 'hd-chron-counts' ? el : null; } };
+function names(n) {
+  var o = {};
+  for (var i = 0; i < n; i++) o['n' + i] = '';
+  return JSON.stringify(o);
+}
+store.d2r_rwMade = names(99);
+store.d2r_setPieces = JSON.stringify(['a', 'b', 'c']);
+store.d2r_foundLog = names(332);
+_paintChronicle(zero);
+var paintedLists = el.textContent;
+store = { d2r_shadowProgress: JSON.stringify({
+  runewords: { have: 99, total: 99, listed: false },
+  sets: { have: 135, total: 135, listed: false },
+  uniques: { have: 332, total: 403, listed: false }
+}) };
+_paintChronicle(zero);
+var paintedPublished = el.textContent;
+process.stdout.write(JSON.stringify({
+  listed: listed, published: published, none: none, scanned: scanned,
+  paintedLists: paintedLists, paintedPublished: paintedPublished
+}));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        dot = " \u00b7 "
+        mac = "Runewords 99/99" + dot + "Sets 135/135" + dot + "Uniques 332/403"
+        self.assertEqual(got["listed"], "Runewords 99/99" + dot + "Sets 135/135" + dot + "Uniques 332/403")
+        self.assertEqual(got["published"], mac)
+        self.assertEqual(got["none"], "the list wasn\u2019t sent")
+        self.assertEqual(got["scanned"], mac)
+        self.assertEqual(got["paintedLists"], "Runewords 99/99" + dot + "Sets 3/135" + dot + "Uniques 332/403")
+        self.assertEqual(got["paintedPublished"], mac)
+        for key in ("listed", "published", "none", "scanned", "paintedLists", "paintedPublished"):
+            self.assertNotIn("0/", got[key], key)
 
     def test_the_hub_reads_the_frame_and_never_this_pc(self):
         if not NODE:
