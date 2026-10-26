@@ -40,9 +40,9 @@ import reel_retention as RR  # noqa: E402
 
 H = 3600
 NOW = 1792800000000
-OLD = "reel_s_1790000000000_1"      # released, evidence kept
-HALF = "reel_s_1790000100000_2"     # released, but a frame that is not kept is still there
-LIVE = "reel_s_1790000200000_3"     # never released
+OLD = "reel_s_1500000000000_1"      # released, evidence kept. 2017 epoch, so it pins no recording
+HALF = "reel_s_1500000000001_2"     # released, but a frame that is not kept is still there
+LIVE = "reel_s_1500000000002_3"     # never released
 
 
 RED_PROOF = [

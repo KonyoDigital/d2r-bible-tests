@@ -1586,8 +1586,8 @@ RED_PROOF = [
     {
         "why": "2026-09-28 - an UNMEASURABLE CPU is read as an idle machine and triage runs blind",
         "file": "control_app.py",
-        "find": "    cpu = _cpu_busy_pct()\n",
-        "replace": "    cpu = _cpu_busy_pct()\n    cpu = 0.0 if cpu is None else cpu\n",
+        "find": "    cpu = _cpu_busy_pct()\n    if cpu is None:\n",
+        "replace": "    cpu = _cpu_busy_pct()\n    cpu = 0.0 if cpu is None else cpu\n    if cpu is None:\n",
         "matches": 1,
     },
     {
@@ -1723,8 +1723,8 @@ RED_PROOF = [
         "why": "H1 - the shipped defect itself: the tick asks the two-valued pgrep probe, which swallows "
                "Windows' missing pgrep as 'not playing'",
         "file": "control_app.py",
-        "find": "    _playing, _how = _d2r_running_here()\n",
-        "replace": "    import tv_diablo as _tvd0\n    _playing, _how = _tvd0._d2r_process_alive(), \"pgrep\"\n",
+        "find": "    _playing, _how = _d2r_running_here()\n    if _playing is True:\n",
+        "replace": "    import tv_diablo as _tvd0\n    _playing, _how = _tvd0._d2r_process_alive(), \"pgrep\"\n    if _playing is True:\n",
         "matches": 1,
     },
     {
@@ -1824,8 +1824,8 @@ RED_PROOF = [
     {
         "why": "L4 - on the Mac the camera refusal keys on the Windows-only capture pid and never fires",
         "file": "control_app.py",
-        "find": "    if _capture_is_live() or _agent_alive():\n",
-        "replace": "    if _capture_is_live():\n",
+        "find": "    if _capture_is_live() or _agent_alive():\n        door = (_rolling_reel() or {}).get(\"door\")\n",
+        "replace": "    if _capture_is_live():\n        door = (_rolling_reel() or {}).get(\"door\")\n",
         "matches": 1,
     },
     # ── the adversarial review of the merged build 792dd6d9, each item reproduced, fixed and sabotaged ──

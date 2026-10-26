@@ -736,9 +736,11 @@ RED_PROOF = [
     {
         "why": "2026-09-28 - the beacon computes the river itself (2-4 s on every heartbeat)",
         "file": "control_app.py",
-        "find": "    g, f = _RIVER_LAST.get(\"good\"), _RIVER_LAST.get(\"fail\")\n",
+        "find": "    g, f = _RIVER_LAST.get(\"good\"), _RIVER_LAST.get(\"fail\")\n"
+                "    out = {\"lanes\": None, \"ageS\": None, \"why\": \"\", \"triage\": None}\n",
         "replace": "    import river_lanes as _RL0\n    _RL0.lanes(hide=None)\n"
-                   "    g, f = _RIVER_LAST.get(\"good\"), _RIVER_LAST.get(\"fail\")\n",
+                   "    g, f = _RIVER_LAST.get(\"good\"), _RIVER_LAST.get(\"fail\")\n"
+                   "    out = {\"lanes\": None, \"ageS\": None, \"why\": \"\", \"triage\": None}\n",
         "matches": 1,
     },
     {
