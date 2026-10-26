@@ -139,8 +139,8 @@ WORLD = ("window._vaultAutoIntakeSet(false); window.switchTab('vault');"
          "renderVault(); window._vaultMovePaint();")
 
 # the design's mapping table: handler -> how a person reaches it (the controls pressed first, all visible + harmless)
-# Vault v3 (Elad t642u, mock approved 2026-10-24): AUTO INTAKE moved into Advanced → "Auto-intake & screenshots"; the
-# toolbar keeps a chip that opens it (proved below and in test_vault_v3_layout_keeps_every_door).
+# Vault v3 (Elad t642u, mock approved 2026-10-24): AUTO INTAKE lives in Advanced → "Auto-intake & screenshots".
+# Elad 2026-10-27: the toolbar chip was the same switch and is gone. Advanced is the only door.
 # Copy manifests (vaultExport) removed by Elad 14:32 IDT 2026-10-24; Save profile sits in the 💾 row just above Add an item.
 TOOLBAR = ["vaultAutoSortByHand", "vaultAddMule", "vaultProfileSave"]
 DANGER = ["vaultClearUnsorted", "vaultReset", "vaultClearHistory", "vaultWipeItems"]
@@ -171,10 +171,12 @@ class EveryVaultDoorIsReachable(unittest.TestCase):
         self.assertEqual(o["r"]["vaultAutoSortByHand"], 1, "sorting is not ONE button (Auto-assign + Auto-Sort merged): %r" % o)
         self.assertFalse(o["sortInDock"], "the dock bar grew its own Auto-Sort button back")
         self.assertIn("Sort to mules", o["label"])
-        o2 = board().run(SEEN + "closeAll(); var c = by('#vault-chip-intake'); OUT.chip = seen(c) && !!c.closest('.vault-toolbar');"
-                         "c.click(); await new Promise(function(r){ setTimeout(r, 100); }); OUT.intake = doors('_vaultAutoIntakeToggle').filter(seen).length; closeAll();")
-        self.assertTrue(o2["chip"], "the AUTO INTAKE chip is not in the toolbar: %r" % o2)
-        self.assertEqual(o2["intake"], 1, "the chip does not put the AUTO INTAKE toggle on screen: %r" % o2)
+        o2 = board().run(SEEN + "closeAll(); OUT.chip = document.getElementById('vault-chip-intake');"
+                         "var adv = by('#vault-advanced'); adv.open = true; window.vaultAdvTab('intake');"
+                         "await new Promise(function(r){ setTimeout(r, 100); });"
+                         "OUT.intake = doors('_vaultAutoIntakeToggle').filter(seen).length; closeAll();")
+        self.assertIsNone(o2["chip"], "the toolbar AUTO INTAKE chip is still there: %r" % o2)
+        self.assertEqual(o2["intake"], 1, "Advanced does not put the one AUTO INTAKE toggle on screen: %r" % o2)
         self.assertTrue(o["sortNSeen"] and o["sortN"].endswith("loose"), "the sort button does not carry the loose count: %r" % o)
 
     def test_the_danger_doors_are_reached_through_the_one_menu(self):

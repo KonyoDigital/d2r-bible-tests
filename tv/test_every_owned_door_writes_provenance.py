@@ -98,7 +98,7 @@ WIT_FROM = "  function _provAsWitness(row){\n"
 #: 2026-10-08 (REG-2022, his #267 ruling) - the cut runs to the end of the receipt's stash gatherer, which the sorter now asks,
 #: and the stash-place constant it reads is cut from the page too (never re-typed here)
 WIT_TO = "  window._vaultReceiptStashWitness = _receiptStashWitness;\n"
-WIT_STASH_LINE = "  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1 };\n"
+WIT_STASH_LINE = "  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1, shared: 1, 'shared stash': 1 };\n"
 
 #: the ONLY bare `owned.add(` allowed outside the door, each with its reason
 NAMED = {

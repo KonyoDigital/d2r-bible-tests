@@ -13266,7 +13266,6 @@ function d2jspPriceLine(q) {
         <span class="vault-tb-sp" aria-hidden="true"></span>
         <div class="vault-tb-grp vault-tb-chips">
           <button type="button" class="vault-chip" id="vault-chip-locks" hidden onclick="window.vaultLocksShow()" title="Open Locked where they are, collapsed at the bottom of the vault">🔒 <span id="vault-chip-locks-n">0</span> locked on MAIN</button>
-          <button type="button" class="vault-chip" id="vault-chip-intake" onclick="window.vaultAdvTab('intake')" title="Open Advanced → Auto-intake &amp; screenshots">📸 Auto-intake: <span id="vault-chip-intake-s">off</span></button>
         </div>
         <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
      _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
@@ -45397,7 +45396,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.VAULT_WITNESS_FLOOR = VAULT_WITNESS_FLOOR;
   window.VAULT_WITNESS_MIN = VAULT_WITNESS_MIN;
   /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
-  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1 };
+  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1, shared: 1, 'shared stash': 1 };
   var _WIT_MAIN = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
   function _witnessRaw(){
     if (window._provHeld === true) {
@@ -45718,7 +45717,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return { ok: false, why: 'the .d2s read did not verify (checksum / structure), so it proves nothing' };
       return { ok: true, kind: 'd2s', file: fl, char: ch };
     }
-    var lane = String(w.lane == null ? (w.loc == null ? '' : w.loc) : w.lane).trim().toLowerCase();
+    var lane = String(w.lane == null ? (w.loc == null ? (w.location == null ? '' : w.location) : w.loc) : w.lane).trim().toLowerCase();
     if (!lane) return { ok: false, why: 'the sighting did not say where the item was seen — an unestablished place is refused, not guessed' };
     if (_WIT_MAIN[lane]) return { ok: false, main: true, lane: lane,
       why: 'seen in your ' + lane + ' — that is your MAIN character, and what your MAIN carries is never filed to a mule' };
@@ -46593,7 +46592,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_pvRS === null) return null;   /* REG-2415 — a witness store that will not read gathers no witness from it */
     var row = _pvRS[String(nm == null ? '' : nm).trim()];
     var mine = (row && row.kind === 'owned' && Array.isArray(row.looks)) ? row.looks : [];
-    var extra = (w && typeof w === 'object' && _WIT_STASH[String(w.lane || w.loc || '').toLowerCase()])
+    var extra = (w && typeof w === 'object' && _WIT_STASH[String(w.lane || w.loc || w.location || '').toLowerCase()])
               ? (w.sessions || w.witnesses || w.looks || []) : [];
     var seen = {}, out = [], lane = null;
     mine.filter(function(k){ return k && _WIT_STASH[String(k.loc || '').toLowerCase()]; })
@@ -46610,7 +46609,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* the read in hand keeps EVERYTHING it carried (its gate verdict, door, tier, scene, time, kind) - only its looks are
        widened (test_the_witnessed_lane_files_its_own_rows caught the first cut dropping the gate's verdict) */
     return Object.assign({}, (w && typeof w === 'object') ? w : {},
-                         { lane: lane || String((w && (w.lane || w.loc)) || 'stash').toLowerCase(),
+                         { lane: lane || String((w && (w.lane || w.loc || w.location)) || 'stash').toLowerCase(),
                            by: String((w && w.by) || (row && row.source) || 'kai-register'), sessions: out, gathered: 'receipt' });
   }
   window._vaultReceiptStashWitness = _receiptStashWitness;
@@ -47195,9 +47194,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          session and frame of its one look. No witness at all = the TV register itself, and nothing else claimed. */
       var _w0 = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};
       var _l0 = (Array.isArray(_w0.sessions) && _w0.sessions[0] && typeof _w0.sessions[0] === 'object') ? _w0.sessions[0] : {};
+      var _cell0 = (_l0.cell != null && _l0.cell !== '') ? _l0.cell : ((_w0.cell != null && _w0.cell !== '') ? _w0.cell : null);
       var _rec = { source: String(_w0.by || 'tv-register'), by: String(_w0.door || 'tvVaultRegister'),
-                   loc: _w0.lane || _w0.loc || null, scene: _w0.scene || null, readTier: _w0.tier || null, ts: _w0.at || null,
-                   sessionId: _l0.session || _l0.witness || null, frameId: _l0.frame || null, conf: _l0.conf,
+                   loc: _w0.lane || _w0.loc || _w0.location || null, scene: _w0.scene || null, readTier: _w0.tier || null, ts: _w0.at || null,
+                   sessionId: _l0.session || _l0.witness || _l0.sessionId || _w0.session || _w0.sessionId || null,
+                   frameId: _l0.frame || _l0.frameId || _w0.frame || _w0.frameId || null,
+                   conf: (_l0.conf != null ? _l0.conf : _w0.conf), cell: _cell0, holder: _l0.holder || _w0.holder || null,
                    where: (_w0.by === 'hand') ? (_w0.where || null) : null,
                    /* §31.2 — a read the route called CARRIED: owned, on that character's strip, never filed */
                    carried: _w0.carried === true, character: _w0.character || null,
@@ -47312,7 +47314,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         /* #264 / #267 — the read in hand AND the stash looks its receipt already holds, so a second session's sighting
            can meet the 2-session bar (a stash read only; a MAIN or unplaced read is judged as it came) */
         var _wG = null;
-        try { _wG = (witness && _WIT_STASH[String(witness.lane || witness.loc || '').toLowerCase()]) ? _receiptStashWitness(name, witness) : null; }
+        try { _wG = (witness && _WIT_STASH[String(witness.lane || witness.loc || witness.location || '').toLowerCase()]) ? _receiptStashWitness(name, witness) : null; }
         catch (eG) { _wG = null; }
         _vf = witness ? window.vaultFile(name, _wG || witness, { mule: sg.id })
                       : { ok: false, refused: 'witness', why: 'no witness was handed over — registered, not filed' };
@@ -47371,6 +47373,38 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      which makes "nothing arrived without a row" the property most worth having. Wrapped rather than
      edited, for the same reason v1952 wrapped tvChronicleRoute: this runs on live TV reads, it has
      several exit paths, and a wrapper cannot change WHAT it decides — only make it speak. */
+  /* A reel sighting is one look: lane, cell, frame and session on the witness itself. The filer
+     and the receipt read sessions[], so the frame becomes one look before the register runs.
+     A hand add is left as it arrived. The same session and frame is not a second look. */
+  function _vaultIntakeLook(w){
+    if (!w || typeof w !== 'object' || Array.isArray(w)) return w;
+    if (w.by === 'hand' || w.source === 'hand') return w;
+    var frame = w.frame || w.frameId || null;
+    var session = w.session || w.sessionId || w.reel || w.sid || null;
+    if (!frame || !session) return w;
+    var src = Array.isArray(w.sessions) ? w.sessions : (Array.isArray(w.witnesses) ? w.witnesses : (Array.isArray(w.looks) ? w.looks : []));
+    var list = src.slice();
+    var key = String(session) + '|' + String(frame);
+    var hit = false;
+    for (var i = 0; i < list.length; i++){
+      var e = list[i];
+      if (!e) continue;
+      var es = e.session || e.sessionId || e.witness || e.reel || e.sid || e.id;
+      var ef = e.frame || e.frameId;
+      if (String(es || '') + '|' + String(ef || '') === key){ hit = true; break; }
+    }
+    var lane = w.lane || w.loc || w.location || null;
+    var cell = (w.cell == null || w.cell === '') ? null : w.cell;
+    if (!hit) list.push({ session: session, witness: session, frame: frame, conf: (w.conf != null ? w.conf : null),
+                          holder: w.holder || w.character || null, lane: lane, loc: lane, cell: cell });
+    w.sessions = list;
+    if (w.frame == null || w.frame === '') w.frame = frame;
+    if (w.frameId == null || w.frameId === '') w.frameId = frame;
+    if (w.sessionId == null || w.sessionId === '') w.sessionId = session;
+    if ((w.cell == null || w.cell === '') && cell) w.cell = cell;
+    return w;
+  }
+  window._vaultIntakeLook = _vaultIntakeLook;
   (function(){
     var _inner = window.tvVaultRegister;
     if (typeof _inner !== 'function') return;
@@ -47449,14 +47483,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _byHand = !!(_witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.by === 'hand' || _witIn.source === 'hand'));
       var _stopped = _byHand ? null : ((typeof window._vaultIntakeGate === 'function') ? window._vaultIntakeGate() : { ok:false, refused:'auto-intake-off', registered:false, why:'AUTO INTAKE is not on this page - a frame does not register' });
       if (_stopped) return _stopped; /* v3767 register stop */
+      if (!_byHand && _witIn && typeof window._vaultIntakeLook === 'function') _witIn = window._vaultIntakeLook(_witIn); /* auto intake look */
       var r;
-      try { r = _inner.apply(this, arguments); }
+      try {
+        var _call = arguments;
+        if (arguments.length > 1 && arguments[1] !== _witIn){
+          _call = Array.prototype.slice.call(arguments);
+          _call[1] = _witIn;
+        }
+        r = _inner.apply(this, _call);
+      }
       catch(e){ r = { ok:false, why:'threw: ' + (e && e.message || e) }; }
       try {
         var nm = String(name || '').trim();
         try {
-          if (nm && r && r.ok && _witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.cell || _witIn.frame) && typeof window._vaultMoveApplySight === 'function')
-            window._vaultMoveApplySight((r && r.label) || (r && r.name) || nm, _witIn); /* v3769 register sight */
+          if (nm && r && r.ok){ try { if (typeof window._vaultRecordsPersist === 'function') window._vaultRecordsPersist(); } catch (ePers) {} }
+          if (nm && r && r.ok && _witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.cell || _witIn.frame)){
+            var _autoRow = (typeof window._vaultMoveAutoRow === 'function') ? window._vaultMoveAutoRow((r && r.label) || (r && r.name) || nm, _witIn) : { row: true };
+            if ((!_autoRow || _autoRow.row !== false) && typeof window._vaultMoveApplySight === 'function')
+              window._vaultMoveApplySight((r && r.label) || (r && r.name) || nm, _witIn); /* v3769 register sight */
+          }
         } catch (eSight) {}
         /* v1959 \u2014 `!r.dup` WAS ALWAYS TRUE. tvVaultRegister returns `mode: 'new' | 'already'`
            and never a `dup` field; the only `dup:` in this file is set by a DIFFERENT function
@@ -50563,12 +50609,10 @@ window.vaultAutoAssign = function(){
     r.onerror = function(){ status('⚠ Profile not loaded — the file could not be read. Nothing was changed.', 12000); };
     r.readAsText(f); ev.target.value = '';
   };
-  /* Vault v3 — the two toolbar chips read the moved panels: the count of lock rows and AUTO INTAKE's state */
+  /* Vault v3 — the locks chip reads the collapsed lock rows. AUTO INTAKE's only switch is the Advanced button. */
   window._vaultChipsPaint = function(){
     var ll = document.getElementById('vault-lane-locks'), cl = document.getElementById('vault-chip-locks');
     if (ll && cl){ var n = ll.hidden ? 0 : ll.querySelectorAll('.vll-row').length; cl.hidden = !n; var nn = document.getElementById('vault-chip-locks-n'); if (nn) nn.textContent = String(n); }
-    var ai = document.getElementById('vault-auto-intake'), ci = document.getElementById('vault-chip-intake-s'), cb = document.getElementById('vault-chip-intake');
-    if (ai && ci){ var on = ai.getAttribute('data-state') === 'on'; ci.textContent = on ? 'on' : 'off'; if (cb) cb.setAttribute('data-state', on ? 'on' : 'off'); }
   };
   (function(){
     function hook(){ try {
@@ -51584,8 +51628,8 @@ window.vaultAutoAssign = function(){
     var from = spec.from || {}, to = spec.to || {};
     var out = {
       name: spec.name || null,
-      from: _vaultMovePlace(from.holder, from.location || from.loc, from.cell, from.id),
-      to: _vaultMovePlace(to.holder, to.location || to.loc, to.cell, to.id),
+      from: _vaultMovePlace(from.holder, from.location || from.loc || from.lane, from.cell, from.id),
+      to: _vaultMovePlace(to.holder, to.location || to.loc || to.lane, to.cell, to.id),
       status: st,
       evidence: ev,
       manual: spec.manual === true || st === 'moved-manual'
@@ -51620,10 +51664,19 @@ window.vaultAutoAssign = function(){
   function _vaultMoveWitness(task, sighting){
     var t = _vaultMoveTask(task);
     if (!sighting) return t;
-    var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc, sighting.cell);
+    var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc || sighting.lane, sighting.cell);
     if (place.cell == null) return t; /* v3767 move unknown */
     var frame = sighting.frame || null;
     if (frame != null && frame !== '' && t.evidence.indexOf(String(frame)) < 0) t.evidence.push(String(frame)); /* v3767 move proof */
+    if ((t.from == null || t.from.cell == null) && !t.manual) { /* auto intake from */
+      var sameBox = !!(place.holder && t.to && t.to.holder
+        && String(place.holder) === String(t.to.holder)
+        && String(place.location || '') === String(t.to.location || ''));
+      t.from = place;
+      if (sameBox) { t.status = 'verified'; return t; }
+      t.status = 'to-move';
+      return t;
+    }
     var atTo = _vaultMoveSamePlace(place, t.to);
     var atFrom = _vaultMoveSamePlace(place, t.from);
     if (atTo && !atFrom) {
@@ -52058,11 +52111,27 @@ window.vaultAutoAssign = function(){
     var wrote = _vrRecGuardedSet(prior);
     return { ok: !!wrote, wrote: !!wrote };
   }
+  function _vaultMoveAutoRow(name, sighting){
+    var lane = String((sighting && (sighting.lane || sighting.location || sighting.loc)) || '').trim().toLowerCase();
+    if (lane === 'inv') lane = 'inventory';
+    var main = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
+    if (typeof _WIT_MAIN === 'object' && _WIT_MAIN) main = _WIT_MAIN;
+    if (main[lane]) return { row: false, why: 'main' };
+    var home = null;
+    try { home = (typeof _vaultMoveHome === 'function') ? _vaultMoveHome(name, 0) : null; } catch (eH) { home = null; }
+    var sharedHome = !!(home && (home.id === 'shared' || home.location === 'shared'));
+    if (!sharedHome && (!home || home.id == null || home.id === 'main'))
+      return { row: false, why: (home && home.id === 'main') ? 'main' : 'no-home' };
+    return { row: true, why: null };
+  }
+  try { window._vaultMoveAutoRow = _vaultMoveAutoRow; } catch (eAuto) {}
   function _vaultMoveApplySight(name, sighting){
     var st = (typeof _vaultAutoIntakeRead === 'function') ? _vaultAutoIntakeRead() : { on: false, known: false };
     if (!(st.on === true && st.known === true)) return { applied: false, task: null, why: 'auto-off' }; /* v3769 auto off */
     if (!sighting || !name) return { applied: false, task: null };
-    var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc, sighting.cell);
+    var _auto = (typeof _vaultMoveAutoRow === 'function') ? _vaultMoveAutoRow(name, sighting) : null;
+    if (_auto && _auto.row === false) return { applied: false, task: null, why: _auto.why || 'no-row' };
+    var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc || sighting.lane, sighting.cell);
     if (place.cell == null) return { applied: false, task: null };
     var bag = _vaultMoveBag();
     var recs = [];

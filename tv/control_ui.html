@@ -8453,7 +8453,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
            a browser tab has its own chrome and these would do nothing there. -->
       <div class="rail-h"><img class="jewel" src="/art/hd_sol_rune.png" alt="" onerror="this.style.display='none'">Console<span class="win-ctl" id="win-ctl" hidden><button type="button" id="win-min" title="minimise the console window">–</button><button type="button" id="win-full" title="leave fullscreen and use a normal window — or just press W">⤢<span class="wlbl">window</span></button></span></div>
       <div class="primary">
-        <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>auto intake · pause on stash</span></span></button>
+        <button class="act b-on" id="btn-on" type="button"><span class="ic">▶</span><span class="lab"><b>On Air</b><span>capture · pause on stash</span></span></button>
         <!-- v1595 — ⏱ MINI CAPTURE. Konyo: "a MINI shortcuted SPECIFICALLY FOR when im in my stash
              and gems/runes/materials... its only 10-40 seconds at max". ON AIR is an open session;
              this is a bounded one for the case where he is PARKED, not playing. Same start, same
@@ -11169,7 +11169,7 @@ window._lockMark = function(isOpen, px, label){
         if (state === 'on'){ onB.textContent = 'End Session'; onS.textContent = rc > 0 ? ('seal ' + rc + ' read' + (rc===1?'':'s') + ' · instant') : 'nothing recorded · instant off'; }
         else if (state === 'sim'){ onB.textContent = 'On Air'; onS.textContent = 'leave sim · go live'; }
         else if (state === 'stopping'){ onB.textContent = 'Sealing…'; onS.textContent = 'saving the session'; }
-        else { onB.textContent = 'On Air'; onS.textContent = (typeof TH !== 'undefined' && TH.open) ? 'closes Theatre · goes live' : 'auto intake · pause on stash'; }
+        else { onB.textContent = 'On Air'; onS.textContent = (typeof TH !== 'undefined' && TH.open) ? 'closes Theatre · goes live' : 'capture · pause on stash'; }
       }
     } catch (e2) {}
     tweenReads(rc);

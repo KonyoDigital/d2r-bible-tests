@@ -471,27 +471,27 @@
     },
     "console": {
       "1120x628": [
-        "button.act|▶On Airauto intake · pause on stash",
+        "button.act|▶On Aircapture · pause on stash",
         "button.act|⏱Ministash · 120s, stops itself"
       ],
       "1120x900": [
-        "button.act|▶On Airauto intake · pause on stash",
+        "button.act|▶On Aircapture · pause on stash",
         "button.act|⏱Ministash · 120s, stops itself"
       ],
       "1280x720": [
-        "button.act|▶On Airauto intake · pause on stash",
+        "button.act|▶On Aircapture · pause on stash",
         "button.act|⏱Ministash · 120s, stops itself"
       ],
       "1440x1000": [
-        "button.act|▶On Airauto intake · pause on stash",
+        "button.act|▶On Aircapture · pause on stash",
         "button.act|⏱Ministash · 120s, stops itself"
       ],
       "375x800": [
-        "button.act|▶On Airauto intake · pause on stash",
+        "button.act|▶On Aircapture · pause on stash",
         "button.act|⏱Ministash · 120s, stops itself"
       ],
       "901x900": [
-        "button.act|▶On Airauto intake · pause on stash",
+        "button.act|▶On Aircapture · pause on stash",
         "button.act|⏱Ministash · 120s, stops itself"
       ]
     },

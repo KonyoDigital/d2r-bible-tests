@@ -47,7 +47,7 @@ NO_BROWSER = "no Chrome/Chromium on this machine"
 NO_CHROME = {"flag": False}
 
 TABS = [
-    {"id": "vault", "control": "#vault-chip-intake", "search": "#vault-find-input"},  # Vault v3: the AUTO INTAKE toggle moved into Advanced; its toolbar chip is the visible door
+    {"id": "vault", "control": ".vault-sort-btn", "search": "#vault-find-input"},  # the visible vault door; AUTO INTAKE lives only under Advanced
     {"id": "fsets", "control": "#tab-fsets .forge-tab, #tab-fsets button", "search": "#tab-fsets input"},
     {"id": "session", "control": "#sc-card-log button, #tab-session button", "search": "#tab-session input"},
     {"id": "forge", "control": "#tab-forge .forge-tab, #tab-forge button", "search": "#tab-forge input"},

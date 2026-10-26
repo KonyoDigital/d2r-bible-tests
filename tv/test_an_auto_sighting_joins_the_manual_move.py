@@ -1,0 +1,310 @@
+# -*- coding: utf-8 -*-
+"""An AUTO INTAKE sighting files through the same move the hand add already uses.
+
+Elad, 2026-10-27. The toolbar chip and the Advanced switch are one control.
+The chip only opens the panel. On Air's subtitle says auto intake and it
+starts a recording. A reel sighting carries lane and cell. With the switch on,
+that sighting is one look, a vault record, and a to-move whose FROM is the
+cell that was seen and whose TO is the organizer's cell. A MAIN lane and a
+name with no home do not get a move row. Two frames of one session are still
+one look. The bar stays two sessions.
+
+RED_PROOF below. [[the-unjoined-end]] [[unknown-stays-unknown]] [[regression-guard]]
+"""
+import os
+import re
+import shutil
+import subprocess
+import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
+BIBLE = os.path.join(HERE, "..", "bible.html")
+UI = os.path.join(HERE, "control_ui.html")
+NODE = os.environ.get("NODE") or shutil.which("node")
+
+
+def _fn(src, name):
+    m = re.search(r"\bfunction %s\s*\(" % re.escape(name), src)
+    if not m:
+        raise AssertionError("could not find function %s" % name)
+    i = src.index("{", m.start())
+    depth, j = 0, i
+    while j < len(src):
+        c = src[j]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[m.start():j + 1]
+        j += 1
+    raise AssertionError("unbalanced %s" % name)
+
+
+def _assigned(src, pattern):
+    m = re.search(pattern, src)
+    if not m:
+        raise AssertionError("could not find %s" % pattern)
+    i = src.index("{", m.start())
+    depth, j = 0, i
+    while j < len(src):
+        c = src[j]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[m.start():j + 1]
+        j += 1
+    raise AssertionError("unbalanced %s" % pattern)
+
+
+def _var(src, name):
+    m = re.search(r"^  var %s = [^;]*;" % re.escape(name), src, re.M)
+    if not m:
+        raise AssertionError("could not find var %s" % name)
+    return m.group(0)
+
+
+class AutoSightingJoinsTheManualMove(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        with open(BIBLE, encoding="utf-8") as f:
+            cls.src = f.read()
+        with open(UI, encoding="utf-8") as f:
+            cls.ui = f.read()
+
+    def _run(self, prog):
+        raw = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(raw.returncode, 0, (raw.stderr or "")[-2000:])
+        line = [ln for ln in raw.stdout.splitlines() if ln.startswith("{") or ln.startswith("[")][-1]
+        import json
+        return json.loads(line)
+
+    def test_the_top_chip_is_gone_and_the_advanced_switch_remains(self):
+        self.assertNotIn('id="vault-chip-intake"', self.src)
+        self.assertNotIn('id="vault-chip-intake-s"', self.src)
+        self.assertEqual(self.src.count('id="vault-auto-intake"'), 1)
+        self.assertEqual(self.src.count('onclick="window._vaultAutoIntakeToggle()"'), 1)
+        self.assertNotIn("getElementById('vault-chip-intake'", self.src)
+
+    def test_on_air_says_capture_and_not_auto_intake(self):
+        self.assertNotIn("auto intake · pause on stash", self.ui)
+        self.assertEqual(self.ui.count("capture · pause on stash"), 2)
+
+    def test_a_lane_sighting_with_no_from_cell_is_a_to_move(self):
+        prog = "\n".join([
+            "var window = globalThis;",
+            _fn(self.src, "_vaultMovePlace"),
+            _fn(self.src, "_vaultMoveSamePlace"),
+            _fn(self.src, "_vaultMoveTask"),
+            _fn(self.src, "_vaultMoveWitness"),
+            r"""
+function muleById(){ return null; }
+var task = _vaultMoveTask({
+  name: 'Thresher', manual: false, status: 'to-move',
+  from: { holder: null, location: null, cell: null },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0' }
+});
+var seen = _vaultMoveWitness(task, { lane: 'stash', cell: 'stash:c7r1', frame: 'f1' });
+var third = _vaultMoveWitness(_vaultMoveTask({
+  name: 'Thresher', manual: false, status: 'to-move',
+  from: { holder: 'MAIN', location: 'stash', cell: 'stash:c7r1' },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0' }
+}), { holder: 'Other', lane: 'inventory', cell: 'inventory:c2r2', frame: 'else' });
+var blank = _vaultMoveWitness(_vaultMoveTask({
+  name: 'Thresher', manual: false, status: 'to-move',
+  from: { holder: 'MAIN', location: 'stash', cell: 'stash:c7r1' },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0' }
+}), { lane: 'stash', cell: null, frame: 'nope' });
+var there = _vaultMoveWitness(_vaultMoveTask({
+  name: 'Charm', manual: false, status: 'to-move',
+  from: { holder: null, location: null, cell: null },
+  to: { holder: 'MAGIC', location: 'stash', cell: 'stash:c0r0' }
+}), { holder: 'MAGIC', lane: 'stash', cell: 'stash:c2r1', frame: 'f2' });
+var queued = _vaultMoveWitness(_vaultMoveTask({
+  name: 'Harlequin Crest', manual: true, status: 'to-move',
+  from: { holder: 'MAIN', location: 'stash', cell: 'stash:c1r1' },
+  to: { holder: 'Mule', location: 'stash', cell: 'stash:c8r8' }
+}), { holder: 'Other', location: 'inventory', cell: 'inventory:c2r2', frame: 'else' });
+console.log(JSON.stringify({
+  status: seen.status, fromCell: seen.from.cell, fromLoc: seen.from.location, toCell: seen.to.cell,
+  third: third.status, blank: blank.status, there: there.status, queued: queued.status
+}));
+""",
+        ])
+        o = self._run(prog)
+        self.assertEqual(o["status"], "to-move")
+        self.assertEqual(o["fromCell"], "stash:c7r1")
+        self.assertEqual(o["fromLoc"], "stash")
+        self.assertEqual(o["toCell"], "stash:c0r0")
+        self.assertEqual(o["third"], "moved-elsewhere")
+        self.assertEqual(o["blank"], "to-move")
+        self.assertEqual(o["there"], "verified")
+        self.assertEqual(o["queued"], "moved-elsewhere")
+
+    def test_shared_is_a_container_and_a_bare_frame_is_one_look(self):
+        prog = "\n".join([
+            "var window = globalThis;",
+            _var(self.src, "_WIT_STASH"),
+            _var(self.src, "_WIT_MAIN"),
+            _var(self.src, "VAULT_WITNESS_FLOOR"),
+            _var(self.src, "VAULT_WITNESS_MIN"),
+            _var(self.src, "VAULT_RETRO_KEEP_MIN"),
+            _fn(self.src, "_lookConf"),
+            _assigned(self.src, r"window\._vaultWitnessCheck\s*=\s*function\s*\("),
+            _fn(self.src, "_vaultIntakeLook"),
+            r"""
+var one = window._vaultWitnessCheck({ lane: 'shared', sessions: [
+  { session: 's1', frame: 'f1' }, { session: 's2', frame: 'f2' }
+]});
+var bare = _vaultIntakeLook({ lane: 'stash', cell: 'stash:c7r1', frame: 'f9', session: 's9' });
+var again = _vaultIntakeLook(bare);
+var two = _vaultIntakeLook({ lane: 'stash', cell: 'stash:c7r1', frame: 'f10', session: 's10', sessions: bare.sessions });
+var judged = window._vaultWitnessCheck(two);
+var same = _vaultIntakeLook({ lane: 'stash', cell: 'stash:c7r1', frame: 'f11', session: 's9', sessions: bare.sessions });
+var oneSess = window._vaultWitnessCheck(same);
+console.log(JSON.stringify({
+  sharedOk: one.ok, sharedWhy: one.why || null,
+  frame: bare.sessions[0].frame, cell: bare.sessions[0].cell, lane: bare.sessions[0].lane,
+  again: again.sessions.length,
+  looks: judged.ok ? judged.sessions.length : judged.looks,
+  judgedOk: judged.ok,
+  sameOk: oneSess.ok, sameLooks: oneSess.looks
+}));
+""",
+        ])
+        o = self._run(prog)
+        self.assertTrue(o["sharedOk"], o["sharedWhy"])
+        self.assertEqual(o["frame"], "f9")
+        self.assertEqual(o["cell"], "stash:c7r1")
+        self.assertEqual(o["lane"], "stash")
+        self.assertEqual(o["again"], 1)
+        self.assertTrue(o["judgedOk"], o)
+        self.assertEqual(o["looks"], 2)
+        self.assertFalse(o["sameOk"])
+        self.assertEqual(o["sameLooks"], 1)
+
+    def test_a_main_lane_and_an_unknown_name_do_not_get_a_move_row(self):
+        prog = "\n".join([
+            "var window = globalThis;",
+            _fn(self.src, "_vaultMoveAutoRow"),
+            r"""
+function _vaultMoveHome(name){
+  var homes = {
+    'Thresher': { id: 'uni-weap', holder: 'UNI-WEAPONS', location: 'stash' },
+    'Treachery': { id: 'shared', holder: 'SHARED STASH', location: 'shared' },
+    'Tome of Town Portal': { id: 'main', holder: 'MAIN', location: 'inventory' },
+    'Zzyzx Blade of Nothing': { id: null, holder: null, location: null }
+  };
+  return homes[name] || { id: null, holder: null, location: null };
+}
+var tome = _vaultMoveAutoRow('Tome of Town Portal', { lane: 'inventory', cell: 'inventory:c0r2' });
+var worn = _vaultMoveAutoRow('Thresher', { lane: 'equipped', cell: 'equipped:weapon' });
+var unk = _vaultMoveAutoRow('Zzyzx Blade of Nothing', { lane: 'stash', cell: 'stash:c1r1' });
+var uni = _vaultMoveAutoRow('Thresher', { lane: 'stash', cell: 'stash:c7r1' });
+var rw = _vaultMoveAutoRow('Treachery', { lane: 'stash', cell: 'stash:c3r4' });
+console.log(JSON.stringify({
+  tome: tome.why, worn: worn.why, unk: unk.why,
+  uni: uni.row, rw: rw.row
+}));
+""",
+        ])
+        o = self._run(prog)
+        self.assertEqual(o["tome"], "main")
+        self.assertEqual(o["worn"], "main")
+        self.assertEqual(o["unk"], "no-home")
+        self.assertTrue(o["uni"])
+        self.assertTrue(o["rw"])
+
+    def test_the_register_records_the_look_then_persists_then_moves(self):
+        wrap = _assigned(self.src, r"window\.tvVaultRegister = function\(name\)\{")
+        prog = "\n".join([
+            "var window = globalThis;",
+            "var owned = new Set();",
+            _fn(self.src, "_vaultIntakeLook"),
+            r"""
+function _inner(name, wit){
+  window._lastWit = wit;
+  var had = owned.has(name);
+  owned.add(name);
+  return { ok: true, mode: had ? 'already' : 'new', label: name, filed: false, refused: null };
+}
+window._vaultIntakeLook = _vaultIntakeLook;
+window._vaultIntakeGate = function(){ return null; };
+window._vaultRecordsPersist = function(){ window._persisted = (window._persisted || 0) + 1; return { ok: true }; };
+window._vaultMoveApplySight = function(n, w){ window._applied = { n: n, cell: w && w.cell, lane: w && w.lane }; return { applied: true }; };
+window._vaultMoveAutoRow = function(n, w){
+  var lane = String((w && (w.lane || w.loc || w.location)) || '');
+  if (lane === 'inventory' || lane === 'equipped' || lane === 'equipment') return { row: false, why: 'main' };
+  if (n === 'Zzyzx Blade of Nothing') return { row: false, why: 'no-home' };
+  return { row: true, why: null };
+};
+""",
+            wrap,
+            r"""
+window.LSR = { getItem: function(){ return 'on'; }, setItem: function(){} };
+var a = window.tvVaultRegister('Thresher', { lane: 'stash', cell: 'stash:c7r1', frame: 'f1', session: 's1', by: 'tv-live' });
+var wit = window._lastWit;
+var b = window.tvVaultRegister('Tome of Town Portal', { lane: 'inventory', cell: 'inventory:c0r2', frame: 'f2', session: 's1', by: 'tv-live' });
+console.log(JSON.stringify({
+  mode: a.mode,
+  frame: wit && wit.sessions && wit.sessions[0] && wit.sessions[0].frame,
+  cell: wit && wit.sessions && wit.sessions[0] && wit.sessions[0].cell,
+  persisted: window._persisted || 0,
+  moved: window._applied && window._applied.n,
+  movedCell: window._applied && window._applied.cell,
+  tome: b && b.label
+}));
+""",
+        ])
+        o = self._run(prog)
+        self.assertEqual(o["mode"], "new")
+        self.assertEqual(o["frame"], "f1")
+        self.assertEqual(o["cell"], "stash:c7r1")
+        self.assertGreaterEqual(o["persisted"], 1)
+        self.assertEqual(o["moved"], "Thresher")
+        self.assertEqual(o["movedCell"], "stash:c7r1")
+        self.assertEqual(o["tome"], "Tome of Town Portal")
+        self.assertIn("window._vaultIntakeLook", wrap)
+        self.assertIn("window._vaultRecordsPersist", wrap)
+        self.assertIn("window._vaultMoveAutoRow", wrap)
+
+
+RED_PROOF = [
+    {"why": "An auto sighting with no from-cell is marked moved elsewhere again.",
+     "file": "bible.html",
+     "find": "if ((t.from == null || t.from.cell == null) && !t.manual) { /* auto intake from */",
+     "replace": "if (false && (t.from == null || t.from.cell == null) && !t.manual) { /* auto intake from */",
+     "matches": 1},
+    {"why": "The move reader ignores lane, so a reel sighting has no place.",
+     "file": "bible.html",
+     "find": "sighting.location || sighting.loc || sighting.lane",
+     "replace": "sighting.location || sighting.loc",
+     "matches": 2},
+    {"why": "A shared-stash sighting is refused as not a container.",
+     "file": "bible.html",
+     "find": "  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1, shared: 1, 'shared stash': 1 };",
+     "replace": "  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1 };",
+     "matches": 1},
+    {"why": "A frame is not recorded as a look, so two sessions still say zero looks.",
+     "file": "bible.html",
+     "find": "if (!_byHand && _witIn && typeof window._vaultIntakeLook === 'function') _witIn = window._vaultIntakeLook(_witIn); /* auto intake look */",
+     "replace": "/* auto intake look */",
+     "matches": 1},
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=1)

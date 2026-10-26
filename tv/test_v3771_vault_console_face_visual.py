@@ -258,8 +258,9 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         if face.get("dock"):
             self.assertIn("Cinzel", face["dock"], face)
 
-        # Vault v3: AUTO INTAKE lives in Advanced -> "Auto-intake & screenshots"; its toolbar chip opens it
-        self._click(cdp, "#vault-chip-intake")
+        # Advanced is the only AUTO INTAKE door. Opening it folds MOVE TASKS the way the old chip click did.
+        self._click(cdp, "#vault-advanced > summary")
+        self._js(cdp, _wrap("return window.vaultAdvTab('intake');"))
         off = self._js(cdp, _INTAKE)
         self.assertEqual(off.get("state"), "off", off)
         self._shot_pad(cdp, "#vault-auto-intake", "01-auto-intake-off.png")

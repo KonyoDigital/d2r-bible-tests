@@ -9904,6 +9904,15 @@ GATES = [
              "with source manual. The move record carries from, to, status and evidence frame ids. "
              "Distinct attacks, Wilson against the vault.apply bar. The screen is a separate gate.")
          ),
+    Gate("test_an_auto_sighting_joins_the_manual_move", [sys.executable,
+         os.path.join(HERE, "test_an_auto_sighting_joins_the_manual_move.py")], 60,
+         needs_app=False,
+         why=("An AUTO INTAKE sighting joins the manual move. The toolbar chip is gone and the "
+             "Advanced switch is the only toggle. On Air says capture. A reel sighting with lane "
+             "and cell is one look, a vault record, and a to-move whose FROM is the cell that was "
+             "seen. A MAIN lane and a name with no home do not get a move row. Shared stash is a "
+             "container. Two frames of one session stay one look.")
+         ),
     Gate("test_v3767_intake_identity", [sys.executable,
          os.path.join(HERE, "test_v3767_intake_identity.py")], 60,
          needs_app=False,

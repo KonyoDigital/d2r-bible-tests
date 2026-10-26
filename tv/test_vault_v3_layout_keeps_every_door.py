@@ -113,19 +113,24 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         self.assertEqual(o["advDefault"], "keepers", "Advanced must still open on Keepers")
 
     def test_chips_open_the_moved_panels(self):
-        o = board().run("document.getElementById('vault-chip-intake').click();" + WAIT
-                        + "var adv = document.getElementById('vault-advanced');"
-                        "OUT.intake = [adv.open, !document.querySelector('.vadv-pane[data-adv=intake]').hidden];"
+        o = board().run("OUT.chip = document.getElementById('vault-chip-intake');"
+                        "var adv = document.getElementById('vault-advanced');"
+                        "adv.open = true; window.vaultAdvTab('intake');" + WAIT
+                        + "OUT.intake = [adv.open, !document.querySelector('.vadv-pane[data-adv=intake]').hidden];"
+                        "var tog = document.getElementById('vault-auto-intake');"
+                        "OUT.toggleSeen = !!(tog && tog.getClientRects().length);"
+                        "OUT.toggleText = tog ? tog.textContent : '';"
                         "var fold = document.getElementById('vault-locks-fold');"
                         "OUT.fold = [fold.tagName, fold.open];"
                         "window.vaultLocksShow();"
                         "OUT.locks = fold.open && !!document.getElementById('vault-lane-locks');"
                         "fold.open = false;"
-                        "OUT.chipSays = document.getElementById('vault-chip-intake').textContent;"
                         "window.vaultAdvTab('keepers'); adv.open = false;")
+        self.assertIsNone(o["chip"], o)
         self.assertEqual(o["intake"], [True, True], o)
+        self.assertTrue(o["toggleSeen"], o)
+        self.assertIn("OFF", o["toggleText"], o)
         self.assertTrue(o["locks"], o)
-        self.assertIn("off", o["chipSays"].lower(), o)
 
     def test_menu_says_no_danger_but_the_second_step_does(self):
         o = board().run(
