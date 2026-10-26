@@ -49582,7 +49582,7 @@ def main():
         try:
             import ls_wal_guard as _lswal
             _lswal.startup_prune()
-            threading.Thread(target=_lswal.loop, daemon=True, name="tvd-lswal").start()
+            threading.Thread(target=_lswal._ls_wal_loop, daemon=True, name="tvd-lswal").start()
         except Exception as _lwe:
             print("ls-wal guard skipped: %s" % ascii(_lwe)[:200], flush=True)
     # #227 — this machine's own tree, established where it lives (see _establish_tree_at_boot)

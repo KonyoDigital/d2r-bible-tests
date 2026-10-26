@@ -1133,8 +1133,41 @@ class TheShadowSessionsHub(unittest.TestCase):
         self.assertNotIn("classList.remove", fn)
         css = ui.index("body.shadow-hub:not(.shell-open) #shadow-eng")
         self.assertEqual(ui.count("body.shadow-hub:not(.shell-open) #shadow-eng"), 1)
-        self.assertIn("display: block !important", ui[css:css + 280])
+        rule = ui[css:ui.index("}", css) + 1]
+        self.assertIn("display: block !important", rule)
+        self.assertIn("visibility: hidden !important", rule)
         self.assertNotIn("body.shadow-hub #shadow-eng {", ui)
+
+    def test_the_hub_shows_a_published_chronicle_total_when_the_names_were_not_sent(self):
+        ui = _read(UI)
+        self.assertEqual(ui.count('id="hd-chron-counts"'), 1)
+        forge = _js_fn(ui, "function hdForge(){")
+        self.assertIn("_paintChronicle(summary)", forge)
+        paint = _js_fn(ui, "function _paintChronicle(summary) {")
+        self.assertIn("lsHub('d2r_shadowProgress')", paint)
+        self.assertNotIn("lsFork(", paint)
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress) {")
+        if not NODE:
+            raise AssertionError("node is absent - the chronicle line cannot be run here, so it is UNMEASURED")
+        js = counts + r"""
+var named = _chronicleCounts({ chron: { made: 99, total: 99 }, sets: { found: 134, total: 135 }, grail: { found: 309, total: 403 } }, null);
+var published = _chronicleCounts(null, { runewords: { have: 98, total: 99, listed: false }, sets: { have: 132, total: 135, listed: false }, uniques: { have: 0, total: 403, listed: false } });
+var zero = _chronicleCounts(null, { runewords: { have: 0, total: 99, listed: false } });
+var listed = _chronicleCounts(null, { runewords: { have: 98, total: 99, listed: true } });
+var none = _chronicleCounts(null, null);
+process.stdout.write(JSON.stringify({ named: named, published: published, zero: zero, listed: listed, none: none }));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        dot = " \u00b7 "
+        self.assertEqual(got["named"], "Runewords 99/99" + dot + "Sets 134/135" + dot + "Uniques 309/403")
+        self.assertEqual(got["published"], "Runewords 98/99" + dot + "Sets 132/135" + dot + "the list wasn\u2019t sent")
+        self.assertNotIn("0/", got["published"])
+        self.assertEqual(got["zero"], "the list wasn\u2019t sent")
+        self.assertNotIn("0/", got["zero"])
+        self.assertEqual(got["listed"], "")
+        self.assertEqual(got["none"], "")
 
     def test_the_hub_reads_the_frame_and_never_this_pc(self):
         if not NODE:

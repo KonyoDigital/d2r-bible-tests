@@ -8261,7 +8261,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
       <section class="zone">
         <div class="zone-banner zone-mission"><span class="zb-no">Ⅱ</span><span class="zb-ico">📋</span>THE MISSIONS<span class="zb-sub">forge &amp; craft — what to make</span></div>
         <div class="hd-col" id="hd-forge">
-          <div class="hd-h"><img class="hd-h-i" src="/art/ui_tab_forge.png" alt="" loading="lazy" onerror="this.remove()"> FORGE QUESTS <span class="hd-sub" id="hd-forge-when"></span></div>
+          <div class="hd-h"><img class="hd-h-i" src="/art/ui_tab_forge.png" alt="" loading="lazy" onerror="this.remove()"> FORGE QUESTS <span class="hd-sub" id="hd-chron-counts"></span><span class="hd-sub" id="hd-forge-when"></span></div>
           <div class="hd-chips" id="hd-forge-chips"><span class="hd-empty">open the board's Forge once — quests land here</span></div>
         </div>
       </section>
@@ -23035,6 +23035,7 @@ window._lockMark = function(isOpen, px, label){
        The uniques hero was on this line from v1378 and so always appeared, which is exactly why
        the missing twin read as "it disappeared" instead of "it never loaded". */
     try { hubNextSet(); } catch(e){}
+    try { hdForge(); } catch(e){}
     // v1589 — the rotation card only lives here now and does not poll while off screen, so ask
     // once on the way in rather than showing him whatever was true when he last looked.
     try { if (typeof window._tzRefresh === 'function') window._tzRefresh(); } catch(e){}
@@ -23981,11 +23982,50 @@ window._lockMark = function(isOpen, px, label){
       return ls.getItem(k);
     } catch (e) { return null; }
   }
+  /* Published totals for the three chronicles. A name list wins. A published have of 0
+     with no list is not a count. The sentence is one line for every lane that had no names. */
+  function _chronicleCounts(summary, progress) {
+    var lanes = [
+      ['runewords', 'Runewords', summary && summary.chron, 'made', 'total'],
+      ['sets', 'Sets', summary && summary.sets, 'found', 'total'],
+      ['uniques', 'Uniques', summary && summary.grail, 'found', 'total']
+    ];
+    var parts = [], sentence = false;
+    var whole = function (v, min) {
+      return typeof v === 'number' && isFinite(v) && v >= min && Math.floor(v) === v;
+    };
+    lanes.forEach(function (spec) {
+      var block = spec[2];
+      if (block && whole(block[spec[4]], 1) && whole(block[spec[3]], 0)) {
+        parts.push(spec[1] + ' ' + block[spec[3]] + '/' + block[spec[4]]);
+        return;
+      }
+      var row = progress && progress[spec[0]];
+      if (!row || typeof row !== 'object' || Array.isArray(row) || row.listed === true) return;
+      if (whole(row.have, 1) && whole(row.total, 1)) parts.push(spec[1] + ' ' + row.have + '/' + row.total);
+      sentence = true;
+    });
+    if (!parts.length && !sentence) return '';
+    var line = parts.join(' \u00b7 ');
+    if (sentence) line = line ? (line + ' \u00b7 the list wasn\u2019t sent') : 'the list wasn\u2019t sent';
+    return line;
+  }
+  function _paintChronicle(summary) {
+    var progress = null;
+    try { progress = JSON.parse(lsHub('d2r_shadowProgress') || 'null'); } catch (eP) { progress = null; }
+    if (!progress || typeof progress !== 'object' || Array.isArray(progress)) progress = null;
+    var line = _chronicleCounts(summary, progress);
+    var el = document.getElementById('hd-chron-counts');
+    if (el) el.textContent = line;
+  }
   var _hdForgeSig = '';
   function hdForge(){
     try {
       var raw = lsHub('d2r_forgeSummary');
       var craftRaw = lsHub('d2r_craftReady');
+      var summary = null;
+      try { summary = raw ? JSON.parse(raw) : null; } catch (eS) { summary = null; }
+      _paintChronicle(summary);
       if (!raw && !craftRaw) {
         if (document.body.classList.contains('shadow-hub')) {
           var _blank = '<span class="hd-empty">the list wasn\u2019t sent</span>';

@@ -126,6 +126,21 @@ class TestStartupPrune(Fixture):
         self.assertEqual(self.prune(FREE, platform="win32"), [])
         self.assertEqual(self.wal(), before)
 
+    def test_an_unreadable_size_is_not_treated_as_empty(self):
+        before = self.wal()
+        real = g._size
+        g._size = lambda _p: None
+        try:
+            res = self.prune(FREE)
+        finally:
+            g._size = real
+        self.assertEqual(res[0]["action"], "skipped-unknown-size")
+        self.assertIsNone(res[0]["walBefore"])
+        self.assertEqual(self.wal(), before)
+
+    def test_a_missing_log_reads_as_empty(self):
+        self.assertEqual(g._size(self.db + "-no-such-wal"), 0)
+
     def test_a_small_wal_is_left_alone(self):
         before = self.wal()
         res = g.startup_prune(roots=[self.root], platform="darwin", threshold=before + 1,
@@ -205,7 +220,7 @@ class TestWiring(unittest.TestCase):
         i = self.src.index("_lswal.startup_prune()")
         j = self.src.index("        open_control_window()\n        _park_until_a_real_exit()")
         self.assertLess(i, j)
-        self.assertIn('target=_lswal.loop, daemon=True, name="tvd-lswal"', self.src)
+        self.assertIn('target=_lswal._ls_wal_loop, daemon=True, name="tvd-lswal"', self.src)
 
     def test_status_carries_lswal(self):
         self.assertIn('_out["lsWal"] = dict(_lswal.STATE)', self.src)

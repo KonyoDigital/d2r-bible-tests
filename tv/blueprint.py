@@ -110,6 +110,36 @@ def lanes():
             continue
         every = re.findall(r"time\.sleep\(([A-Z_0-9a-z\.]+)\)", body)
         out.append((name, ", ".join(every[:2]) or "?"))
+    # A thread whose body lives in another module is still a lane. control_app.py only
+    # holds the Thread() line, so a scan of its own defs never sees that loop.
+    seen = {name for name, _every in out}
+    for expr in re.findall(r"target=([A-Za-z_][\w.]*)", src):
+        name = expr.split(".")[-1]
+        if name in seen:
+            continue
+        hits = []
+        for fn in sorted(os.listdir(HERE)):
+            if not fn.endswith(".py") or fn.startswith("test_"):
+                continue
+            text = _src(fn)
+            m = re.search(r"^def %s\(" % re.escape(name), text, re.M)
+            if not m:
+                continue
+            rest = text[m.start():]
+            nxt = re.search(r"\n(?=def |class )", rest[1:])
+            body = rest[:nxt.start() + 1] if nxt else rest
+            hits.append(body)
+            if len(hits) > 1:
+                break
+        if len(hits) != 1:
+            continue
+        body = hits[0]
+        if not (re.search(r"^\s*while\s+True\s*:", body, re.M)
+                or re.search(r"^\s*while\s+not\s+[\w.]+\.is_set\(\)\s*:", body, re.M)):
+            continue
+        every = re.findall(r"time\.sleep\(([A-Z_0-9a-z\.]+)\)", body)
+        out.append((name, ", ".join(every[:2]) or "?"))
+        seen.add(name)
     return sorted(out)
 
 

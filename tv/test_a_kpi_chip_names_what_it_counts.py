@@ -126,7 +126,7 @@ RED_PROOF = [
         "file": "bible.html",
         "find": '<div class="sc-kpi k-uni">',
         "replace": '<div class="sc-kpi">',
-        "matches": 1,
+        "matches": 3,
     },
     {
         "why": "a hard-coded hex forks a second colour vocabulary that can drift from the console",

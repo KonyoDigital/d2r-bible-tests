@@ -363,7 +363,11 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         for t in ("session", "forge", "crafts", "funi", "fsets", "tools", "d2jsp", "tvd", "chars"):
             tab(t)
             cls.routes[t] = _ev(cdp, "(function(){var a=%s.document.querySelector('.tab.active'), s=document.getElementById('shadow-eng');"
-                                     "return {active: a ? a.getAttribute('data-tab') : null, shown: !!(s && s.getBoundingClientRect().height > 500)}})()" % SHADOW)
+                                     "return {active: a ? a.getAttribute('data-tab') : null,"
+                                     " shown: !!(s && s.getBoundingClientRect().height > 500),"
+                                     " view: document.body.getAttribute('data-view') || '',"
+                                     " hub: document.body.classList.contains('shadow-hub'),"
+                                     " shell: document.body.dataset.shellTab || ''};})()" % SHADOW)
         # a write button: "Delete" on the simulation card, clicked the way he would
         cls.click = _ev(cdp, """(function(){ var w=%s, d=w.document; w.switchTab('chars');
           var before = w.localStorage.getItem('d2r_charBuilds'), s0 = w._tvdShadowStopped;
@@ -404,6 +408,14 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
 
     def test_every_header_tab_opens_its_room_in_the_shadow(self):
         for t, r in sorted(self.routes.items()):
+            if t == "session":
+                # Sessions is the hunt hub on this console, so the shadow opens that hub
+                # and leaves the board on whatever room it already had.
+                self.assertEqual(r["shell"], "session", r)
+                self.assertEqual(r["view"], "sessions", r)
+                self.assertTrue(r["hub"], r)
+                continue
+            self.assertFalse(r["hub"], "header tab %s left the hunt hub up: %r" % (t, r))
             self.assertEqual(r["active"], t, "header tab %s did not route the shadow: %r" % (t, r))
             self.assertTrue(r["shown"], "header tab %s left the shadow pane: %r" % (t, r))
 

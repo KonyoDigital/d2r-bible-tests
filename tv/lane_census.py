@@ -251,7 +251,7 @@ def _all_defined_names():
 def _unique_body(name):
     """The body of `name` when exactly one production module defines it, else None.
 
-    A dotted target such as `_lswal.loop` is not in control_app.py. One definition can be
+    A dotted target such as `_lswal._ls_wal_loop` is not in control_app.py. One definition can be
     judged. Two definitions would be a guess, and a file that will not open is not a body.
     """
     hits = []
