@@ -60,10 +60,17 @@ def find_dbs(roots):
 
 
 def _size(p):
+    """Byte size, 0 when the file was never written, None when the read failed.
+
+    A missing log and a log that cannot be read are different facts. Returning 0
+    for both would let a permission failure look like an empty log.
+    """
     try:
         return os.path.getsize(p)
-    except OSError:
+    except FileNotFoundError:
         return 0
+    except OSError:
+        return None
 
 
 def holders(db, run=subprocess.run):
@@ -119,6 +126,11 @@ def startup_prune(roots=None, platform=None, threshold=THRESHOLD_BYTES, run=subp
         wal = db + "-wal"
         before = _size(wal)
         res = {"db": db, "walBefore": before, "action": "none"}
+        if before is None:
+            res["action"] = "skipped-unknown-size"
+            _log("WAL size unreadable - skipped", log)
+            results.append(res)
+            continue
         held = holders(db, run=run)
         if held:
             res["leftover"] = describe(held, run=run)
@@ -157,17 +169,31 @@ def periodic_check(roots=None, platform=None, threshold=THRESHOLD_BYTES, log=Non
         state.update(checked=True, applies=False)
         return state
     dbs = find_dbs(roots if roots is not None else webkit_roots())
-    sizes = {db: _size(db + "-wal") for db in dbs}
-    worst = max(sizes.values() or [0])
-    over = worst > threshold
+    raw = [(db, _size(db + "-wal")) for db in dbs]
+    known = [n for _db, n in raw if n is not None]
+    unknown = len(raw) - len(known)
+    worst = max(known) if known else None
+    known_over = any(n > threshold for n in known)
+    if known_over:
+        over = True
+        warning = ("LocalStorage WAL is %d MB (over %d MB) - restart the console to shrink it"
+                   % (worst >> 20, threshold >> 20))
+    elif unknown:
+        over = None
+        warning = "LocalStorage WAL size could not be read"
+    else:
+        over = False
+        warning = None
     state.update(checked=True, applies=True, dbs=len(dbs), walBytes=worst,
                  thresholdBytes=threshold, over=over, atMs=int(time.time() * 1000),
-                 warning=("LocalStorage WAL is %d MB (over %d MB) - restart the console to shrink it"
-                          % (worst >> 20, threshold >> 20)) if over else None)
-    _log("WAL %d MB across %d db(s)%s" % (worst >> 20, len(dbs), " - OVER THRESHOLD" if over else ""), log)
+                 warning=warning)
+    if worst is None:
+        _log("WAL size unreadable across %d db(s)" % len(dbs), log)
+    else:
+        _log("WAL %d MB across %d db(s)%s" % (worst >> 20, len(dbs), " - OVER THRESHOLD" if known_over else ""), log)
     # published BEFORE the checkpoint, so a long PASSIVE copy is never a silent status
-    for db, sz in sizes.items():
-        if sz > threshold:
+    for db, sz in raw:
+        if sz is not None and sz > threshold:
             try:
                 checkpoint(db, "PASSIVE")
             except Exception as e:
