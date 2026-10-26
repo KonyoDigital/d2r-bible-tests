@@ -3796,8 +3796,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       Object.keys(seed || {}).forEach(function (k) { if (typeof seed[k] === 'string') s.setItem(k, seed[k]); });
       return s;
     }
+    // Captured before `parent` is sealed to this frame. Escape happens later, and by then the
+    // board cannot see the console by name. This handle is the one key that may still ask it to leave.
+    var host = null;
+    try { host = (window.parent && window.parent !== window) ? window.parent : null; } catch (e) { host = null; }
     var snap = null;
-    try { snap = (window.parent && window.parent !== window) ? window.parent._tvdShadowSnap : null; } catch (e) { snap = null; }
+    try { snap = host ? host._tvdShadowSnap : null; } catch (e) { snap = null; }
     var stores = (snap && snap.stores && typeof snap.stores === 'object') ? snap.stores : null;
     var seed = {};
     if (stores) Object.keys(stores).forEach(function (k) {
@@ -3977,6 +3981,14 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         ev.stopImmediatePropagation();
       }, true);
     });
+    // Escape is allowed through, and it still never reaches the console: this frame has the
+    // keyboard, so the Mac beeps and the console sits there. One Escape asks the console that
+    // opened this frame to leave. Tab still only moves the view. `parent` stays sealed.
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Escape' || !host || host === window) return;
+      ev.preventDefault();
+      try { host.postMessage({ type: 'tvd-shadow-leave' }, window.location.origin); } catch (e) {}
+    }, true);
     window._tvdShadow = { owner: String((snap && snap.owner) || ''), t: snap && snap.t, mem: mem };
     // ...and they LOOK dead: every control a click cannot reach is dimmed in place (opacity only, so the layout
     // and the text stay one-to-one with their console).

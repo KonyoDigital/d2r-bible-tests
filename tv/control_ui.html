@@ -27845,6 +27845,15 @@ function escC(s) {
       window._shadowLeave();
     });
   })();
+  /* The frame holds the keyboard, so Escape typed on Dean's page never arrives here and the
+     Mac beeps. The frame asks to leave. Only that frame's own window may ask. */
+  window.addEventListener('message', function (ev) {
+    var f = document.getElementById('shadow-eng');
+    if (!f || ev.source !== f.contentWindow) return;
+    if (!ev.data || ev.data.type !== 'tvd-shadow-leave') return;
+    if (ev.origin !== window.location.origin) return;
+    window._shadowLeave();
+  });
 
   /* SHADOW MODE - THEIR CONSOLE, ONE TO ONE, READ ONLY. /api/roster-cache?profile= hands the owner's roster-synced account
      stores (tv/console_snapshot.py) and when they were uploaded; a frame of its own boots the same board on those

@@ -746,6 +746,11 @@ class TheSameConsoleDrawsIt(unittest.TestCase):
         self.assertIn("getElementById('shadow-leave')", arm)
         self.assertIn("addEventListener('pointerdown'", arm)
         self.assertIn("e.button !== 0 || e.ctrlKey", arm)
+        mark = ui.index("ev.data.type !== 'tvd-shadow-leave'")
+        block = ui[ui.rindex("getElementById('shadow-eng')", 0, mark):ui.index("window._shadowSnapEnter = function", mark)]
+        self.assertIn("ev.source !== f.contentWindow", block)
+        self.assertIn("ev.origin !== window.location.origin", block)
+        self.assertIn("window._shadowLeave()", block)
 
 
 # The boot block of bible.html, run in node on fake window/document objects: the page's own script.
@@ -763,10 +768,11 @@ class Resp { constructor(b, o) { this.body = b; this.status = (o && o.status) ||
 const doc = { documentElement: { classList: { list: [], add(c) { this.list.push(c); } } }, head: { appendChild() {} },
   createElement() { return { textContent: '' }; }, write(t) { out.wrote = t; },
   addEventListener(t, f, cap) { (listeners[t] = listeners[t] || []).push(f); } };
-const out = { wrote: null };
+const out = { wrote: null, leaves: [] };
 function run(parentSnap, search) {
-  const win = { location: { search: search, href: 'http://127.0.0.1/board' + search },
-    parent: parentSnap === undefined ? null : { _tvdShadowSnap: parentSnap },
+  const host = { _tvdShadowSnap: parentSnap, postMessage(msg) { out.leaves.push(msg && msg.type); } };
+  const win = { location: { search: search, href: 'http://127.0.0.1/board' + search, origin: 'http://127.0.0.1' },
+    parent: parentSnap === undefined ? null : host,
     fetch: (u, i) => { sent.push([String(u), (i && i.method) || 'GET']); return Promise.resolve(new Resp('{}')); },
     stop() { out.stopped = true; }, open() { sent.push(['open']); } };
   win.parent = win.parent || win;
@@ -825,8 +831,10 @@ function run(parentSnap, search) {
     stopImmediatePropagation() { this.stopped = true; } }, extra || {}); for (const f of listeners.keydown || []) f(ev);
     return !!ev.stopped; };
   res.typing = key('a', { target: { tagName: 'INPUT' } });
+  out.leaves = [];
   res.keys = { Delete: key('Delete'), z: key('z', { ctrlKey: true }), Enter: key('Enter'), ArrowDown: key('ArrowDown'),
                PageDown: key('PageDown'), Escape: key('Escape'), copy: key('c', { metaKey: true }), Tab: key('Tab') };
+  res.leaveOnEscape = out.leaves.slice();
   res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu', 'pointerdown', 'keypress', 'keyup'].filter((t) => (listeners[t] || []).length);
   // the viewer's console is out of reach by name, and the real storage cannot be put back
   res.parentSealed = w.parent === w && w.frameElement === null;
@@ -922,6 +930,8 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertTrue(k["Delete"] and k["z"] and k["Enter"], "a board shortcut saw a key in shadow: %r" % k)
         self.assertFalse(k["ArrowDown"] or k["PageDown"] or k["Escape"] or k["copy"] or k["Tab"],
                          "a key that only moves the view was stopped: %r" % k)
+        self.assertEqual(self.r["leaveOnEscape"], ["tvd-shadow-leave"],
+                         "Escape inside the shadow did not ask the console to leave: %r" % self.r.get("leaveOnEscape"))
 
     def test_the_viewers_console_and_real_storage_are_out_of_reach(self):
         self.assertTrue(self.r["parentSealed"], "the board can still reach the console that shows it by `parent`")
