@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3799** | `(this commit)` | v3799 — Save and Load sit above Add an item. Locked where they are stays collapsed at the bottom. |
+| **v3800** | `(this commit)` | v3800 — An unheld LocalStorage WAL is pruned at console open. A growing one is published every 30 minutes. |
+| **v3799** | `d5922061` | v3799 — Save and Load sit above Add an item. Locked where they are stays collapsed at the bottom. |
 | **v3798** | `73781f17` | v3798 — Leave takes the click, and Escape in a shadow frame asks the console to leave. |
 | **v3797** | `2183f305` | v3797 — frames hist sheds above 8 GiB so the newest frames stay |
 | **v3796** | `64d1767b` | v3796 — Shadow reads the signed Roster profile - a Roster name opens its row with HD eyes - diagnostics fold under ADVANCED |

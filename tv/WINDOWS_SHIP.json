@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3799",
+  "ver": "v3800",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3799: Save and Load sit above Add an item. Locked where they are stays collapsed at the bottom.",
+  "note": "v3800: An unheld LocalStorage WAL is pruned at console open. A growing one is published every 30 minutes.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
