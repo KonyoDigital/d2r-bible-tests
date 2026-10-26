@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3802",
+  "ver": "v3803",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3802: The sessions hub uses a sent list, then the published total, and never paints 0.",
+  "note": "v3803: The CLAUDE and GROK buttons open a window on this PC, and the login can be finished there.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
