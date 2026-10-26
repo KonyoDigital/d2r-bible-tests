@@ -181,4 +181,9 @@ def loop(period=PERIOD_S):
             periodic_check()
         except Exception as e:
             _log("periodic check failed: %s" % ascii(e)[:200], None)
+        try:
+            from control_app import _lane_tick
+            _lane_tick("tvd-lswal", period)
+        except Exception:
+            pass
         time.sleep(period)

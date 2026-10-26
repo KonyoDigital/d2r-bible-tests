@@ -248,18 +248,69 @@ def _all_defined_names():
     return _names, _complete
 
 
+def _unique_body(name):
+    """The body of `name` when exactly one production module defines it, else None.
+
+    A dotted target such as `_lswal.loop` is not in control_app.py. One definition can be
+    judged. Two definitions would be a guess, and a file that will not open is not a body.
+    """
+    hits = []
+    for path in _package_files():
+        try:
+            with io.open(path, encoding="utf-8") as fh:
+                src = fh.read()
+        except Exception:
+            return None
+        body = _body(src, name)
+        if body is None:
+            continue
+        hits.append(body)
+        if len(hits) > 1:
+            return None
+    if len(hits) != 1:
+        return None
+    return hits[0]
+
+
+def _merge_sibling_beats(stamped, name):
+    """Credit a heartbeat that lives in the one module that defines `name`.
+
+    `_lane_stamps` reads the file it was given. A loop defined beside control_app.py beats
+    in its own file, and dropping that beat is how a watched thread stays dark.
+    """
+    body = _unique_body(name)
+    if not body:
+        return
+    extra = _lane_stamps(body).get("tick_by_encloser", {}).get(name) or []
+    if not extra:
+        return
+    bucket = stamped["tick_by_encloser"].setdefault(name, [])
+    for nm in extra:
+        if nm not in bucket:
+            bucket.append(nm)
+
+
 def kind_of(src, name, dotted):
     """classify(), plus the one distinction classify() cannot make. -> str
 
     Returns FOREIGN only when ALL THREE hold: the target was reached through a receiver
     (`x.method`), classify could not find a body, and no module in this package defines that name.
-    Anything less stays UNKNOWN, because an unknown that can be talked into being harmless is not
+    A dotted target defined by exactly one module here is classified from THAT body. Anything
+    less stays UNKNOWN, because an unknown that can be talked into being harmless is not
     an unknown. [[unknown-stays-unknown]]
     """
     k = classify(src, name)
-    if k == "UNKNOWN" and name in dotted and not _defined_anywhere(name):
+    if k != "UNKNOWN":
+        return k
+    if name not in dotted:
+        return k
+    if not _defined_anywhere(name):
         return "FOREIGN"
-    return k
+    body = _unique_body(name)
+    if body is None:
+        return "UNKNOWN"
+    body = _code_only(body)
+    return "LOOP" if any(p.search(body) for p in _PERSISTENT) else "TASK"
 
 
 def classify(src, name):
@@ -304,6 +355,8 @@ def census(src=None):
     stamped = _lane_stamps(src)
     out, expanded = [], False
     for n in sorted(starts):
+        if n in dotted:
+            _merge_sibling_beats(stamped, n)
         # ⚠ THE ROSTER IS STARTED THROUGH A GENERIC TARGET, AND A FIRST CUT COUNTED IT AS ONE
         # UNKNOWN THREAD. start_background_watchers loops the roster and calls
         # threading.Thread(target=fn), so the 11 supervised lanes hide behind a single local name
