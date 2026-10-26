@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3803** | `(this commit)` | v3803 — The CLAUDE and GROK buttons open a window on this PC, and the login can be finished there. |
+| **v3804** | `(this commit)` | v3804 — The sessions hub counts a shadowed PC sent list, then that PC published totals. |
+| **v3803** | `ef9448d2` | v3803 — The CLAUDE and GROK buttons open a window on this PC, and the login can be finished there. |
 | **v3802** | `bb528752` | v3802 — The sessions hub uses a sent list, then the published total, and never paints 0. |
 | **v3801** | `df3e3192` | v3801 — Shadow draws a published row with no upload. Leave restores the sessions view. The vault mark is the gold pile. |
 | **v3800** | `fd557ec3` | v3800 — An unheld LocalStorage WAL is pruned at console open. A growing one is published every 30 minutes. |

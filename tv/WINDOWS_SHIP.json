@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3803",
+  "ver": "v3804",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3803: The CLAUDE and GROK buttons open a window on this PC, and the login can be finished there.",
+  "note": "v3804: The sessions hub counts a shadowed PC sent list, then that PC published totals.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
