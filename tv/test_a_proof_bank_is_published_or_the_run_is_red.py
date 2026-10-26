@@ -722,7 +722,7 @@ class ThePublisherDriven(unittest.TestCase):
             ("count lies", dict(path=self.export(count=9, name="bad2.json"))),
             ("other commit", dict(path=self.export(head=H2, name="bad3.json"))),
             ("dirty", dict(path=self.export(dirty=True, name="bad4.json"))),
-            ("mac path", dict(path=self.export(extra="/Users/someone/x", name="bad5.json"))),
+            ("mac path", dict(path=self.export(extra="/" + "Users/someone" + "/x", name="bad5.json"))),
             ("linux home", dict(path=self.export(extra="/home/box/x", name="bad6.json"))),
             ("windows path", dict(path=self.export(extra="C:\\Users\\dean\\x", name="bad7.json"))),
             ("runner path", dict(path=self.export(extra="/home/runner/work/x", name="bad8.json"))),

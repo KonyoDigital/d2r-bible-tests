@@ -28,6 +28,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -88,6 +89,10 @@ class _ScrubbedGit(unittest.TestCase):
         for k in self._held:
             os.environ.pop(k, None)
         self._seam = os.environ.pop("TV_GATE_LEDGER", None)
+        # This ledger is the fixture, not the runner's verdict. The CI block stays on for the suite.
+        self._ci = mock.patch("gate_ledger.ci_blocks", return_value=False)
+        self._ci.start()
+        self.addCleanup(self._ci.stop)
         self.addCleanup(self._restore)
 
     def _restore(self):

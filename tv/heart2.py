@@ -3506,7 +3506,7 @@ def _bank_proven(cache, key, entry, idx, say):
 def _facts_env(sandbox):
     """The environment a law run in this sandbox starts from, as far as an E fact can read it (the per-run names are
     plumbing and never facts). -> dict"""
-    env = dict(os.environ)
+    env = _git_free_env()   # REG-2396 - a law run drops GIT_*. Those are not facts.
     for _n in ("TV_LAW_WIDTHS", "HEART2_LANES_DIR"):
         env.pop(_n, None)                         # _run_gate_once's own two pops: no run starts with either
     if _box_of(sandbox):
