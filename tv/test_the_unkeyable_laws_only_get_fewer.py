@@ -40,8 +40,9 @@ import safe_copy    # noqa: E402
 ALLOWLIST = os.path.join(HERE, "unkeyable_laws.json")
 #: the list's length when this ratchet was set (2026-10-21: 85 before REG-2362, then -2 test_control and test_agent,
 #: +2 the two laws that took their listings, +3 that heart2 counts beyond the census: lane_census, swallow_census and
-#: corroborate are registered gate scripts that list). It only ever comes DOWN: lower it when the list shrinks.
-CEILING = 91
+#: corroborate are registered gate scripts that list; #173 2026-10-24: -8 that listed only their own scratch, now
+#: fixture_tmp.list_own). It only ever comes DOWN: lower it when the list shrinks.
+CEILING = 83
 
 
 def _heavy_need(filename):
@@ -131,6 +132,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#173 - a law made keyable by listing only its own scratch goes back to os.listdir: unkeyable again, unlisted",
+        "file": "test_atomic_write_keeps_the_mode.py",
+        "find": "_fx_tmp.list_own(d)",
+        "replace": "os.listdir(d)",
+        "matches": 1,
+    },
     {
         "why": "REG-2363 - an extra law lists a directory itself: its proofs could never be saved, and nothing said so",
         "file": "test_the_unkeyable_laws_only_get_fewer.py",

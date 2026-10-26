@@ -23,6 +23,8 @@ import unittest.mock as mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #173 - every listing here is of its own scratch (REG-2362)
+_fx_tmp.contain()
 
 from console_safe import enable as _console_safe_enable  # noqa: E402
 
@@ -84,7 +86,7 @@ class AFloorLabelIsNotABlankFrame(unittest.TestCase):
             return ca._prune_once(hist_dir=self.d, floor=0, grace_s=0.0, batch=500)
 
     def left(self):
-        return sorted(n for n in os.listdir(self.d) if n.startswith("f_"))
+        return sorted(n for n in _fx_tmp.list_own(self.d) if n.startswith("f_"))
 
     def test_the_premise_the_label_frame_is_inside_the_old_grouping_bar(self):
         a = cr.jpeg_sig(self.paths["f_1000.jpg"])

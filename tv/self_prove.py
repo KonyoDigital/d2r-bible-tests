@@ -81,6 +81,9 @@ PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
 #: this one), and guard() now stands a RUNNING proof aside within one rescue tick (10 s) of the game starting or
 #: memory falling under the running floor. So the start bar only has to leave the proof room above that floor.
 MIN_FREE_MB_TO_START = 1536
+#: REG-2632 - the branch the census publishes proof banks to (`<HEAD>.<platform class>.json`); fetched with the PC's
+#: own update credentials, never a token of its own
+BANK_REF = "proof-bank"
 MIN_FREE_MB_WHILE_RUNNING = 1024
 #: REG-1715 (#152 slice 6) - the running floor while he is MEASURED not playing. MEASURED 2026-10-02 on his ALT
 #: (7.9 GB) after he closed the game: 2,070 MB free idle, and ONE proof took it to 990 MB - under the 1,024 floor
@@ -89,6 +92,14 @@ MIN_FREE_MB_WHILE_RUNNING = 1024
 #: streaming on an Iris Xe that borrows RAM as video memory). With no game and no stream, a proof may run down to
 #: this; playing, it still stands aside at once, and an UNKNOWN 'is he playing' keeps the strict floor.
 MIN_FREE_MB_WHILE_RUNNING_IDLE = 700
+#: REG-2632 - a BANK-ONLY run proves nothing, but it re-keys every bank entry in a heart2 process, so beside his game
+#: (REG-1502) it keeps the STREAM floor above (dwm died at 690 MB beside Boosteroid): it stands aside below this line
+#: (it STARTS only at BANK_ONLY_START_FREE_MB below, measured, never on a guess)
+BANK_ONLY_MIN_FREE_MB = MIN_FREE_MB_WHILE_RUNNING
+#: REG-2632 r7 - and it STARTS only with the normal proof's start room above that floor (Grok r7: starting ON the floor
+#: let a 1 MB dip stand it aside and the next tick start it again, every tick) - and a stand-aside holds it for the
+#: same STAND_ASIDE_COOLDOWN_S as any proof
+BANK_ONLY_START_FREE_MB = MIN_FREE_MB_TO_START
 #: REG-1670 — a PC proves on as many lanes as it has clear room for (heart2's HEART2_PROVE_WORKERS). His words,
 #: 2026-10-01: "yea good idea" and "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or 32g
 #: ram". MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. One lane per LANE_BUDGET_MB free
@@ -387,6 +398,22 @@ def stand_aside(playing, free):
     except (TypeError, ValueError):
         pass
     return False, ""
+
+
+def stand_aside_bank(free):
+    """REG-2632 - must a running BANK-ONLY run stop now? -> (bool, why). Pure. His game is no reason (it proves
+    nothing); memory under BANK_ONLY_MIN_FREE_MB is. UNKNOWN never stops it, as in stand_aside."""
+    try:
+        if free is not None and float(free) < BANK_ONLY_MIN_FREE_MB:
+            return True, "only %d MB of memory left beside his game - the bank-only run gives it back" % int(float(free))
+    except (TypeError, ValueError):
+        pass
+    return False, ""
+
+
+def _aside_for(mem, playing, free):
+    """REG-2632 - the one stand-aside both the guard and the tick ask: a bank-only run has its own door."""
+    return stand_aside_bank(free) if mem.get("bankOnly") else stand_aside(playing, free)
 
 
 def identity(pid, birth):
@@ -689,9 +716,30 @@ def tree_state(git=None):
         return "unknown", "git could not be asked (%s)" % type(e).__name__
 
 
-def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None, sandbox=None):
-    """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str}
-    `playing` / `free` (REG-1502): None is UNKNOWN, and a proof is never started on a guess."""
+def _aside_cooldown(mem, now_s):
+    """REG-1511 (REG-2632 r7: asked by the bank-only start too) - the stand-aside cooldown, or None."""
+    try:
+        last_aside = (float(mem.get("lastStoodAsideAt")) / 1000.0
+                      if mem.get("lastStoodAsideAt") is not None else None)
+    except (TypeError, ValueError):
+        # the skeptic on fix24-selfprove: now_s here re-armed the cooldown on EVERY tick, so a corrupt value held the
+        # lane shut for ever while the doctor called it healthy. Unreadable = no cooldown; the playing and memory
+        # gates above still stand between a proof and his game.
+        last_aside = None
+    if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:
+        return {"start": False, "key": "aside-cooldown",
+                "why": "a proof stood aside %d min ago (%s) - the next one waits %d min, so a proof that cannot "
+                       "finish here does not start and die every tick"
+                       % (int(max(0.0, now_s - last_aside) // 60), mem.get("lastStoodAsideWhy") or "?",
+                          STAND_ASIDE_COOLDOWN_S // 60)}
+    return None
+
+
+def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None, sandbox=None, bank=None):
+    """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str[, "bankOnly": True]}
+    `playing` / `free` (REG-1502): None is UNKNOWN, and a proof is never started on a guess.
+    `bank` (REG-2632): the path of this commit's proof bank for this platform class, or None. Beside his game no proof
+    runs; with a bank, a BANK-ONLY run starts instead - it serves what the bank keys exactly and proves nothing."""
     if not on:
         return {"start": False, "key": "off", "why": "the self-prove lane is off (TV_SELF_PROVE=0)"}
     if running_pid:
@@ -734,8 +782,21 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         return {"start": False, "key": "play-unknown",
                 "why": "whether he is playing here could not be asked - a proof is not started on a guess"}
     if playing:
+        try:
+            _bf = None if free is None else float(free)
+        except (TypeError, ValueError):
+            _bf = None
+        if bank and _bf is not None and _bf == _bf and _bf >= BANK_ONLY_START_FREE_MB:
+            _held = _aside_cooldown(mem, now_s)
+            if _held:
+                return _held
+            return {"start": True, "key": "bank-only", "bankOnly": True,
+                    "why": "he is playing on this PC - no proof runs beside it (REG-1502); serving only what this "
+                           "commit's proof bank keys exactly, and nothing is proved (REG-2632)"}
         return {"start": False, "key": "playing",
-                "why": "he is playing on this PC (the game or its cloud client) - a proof never starts beside it"}
+                "why": "he is playing on this PC (the game or its cloud client) - a proof never starts beside it%s"
+                       % (("; a bank-only run starts at %d MB free" % BANK_ONLY_START_FREE_MB) if bank
+                          else "; and no proof bank for this commit, so nothing can be served either")}
     try:
         free = None if free is None else float(free)
     except (TypeError, ValueError):
@@ -749,20 +810,9 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
     # REG-1511 — A STAND-ASIDE HOLDS THE NEXT START. Simulated in the review of v3524: free RAM 2500 MB idle and 900 MB
     # with the proof running gave start, stood-aside, start, stood-aside... every 600 s tick - each run rebuilt its
     # sandbox and threw the work away, the census never went current, and the doctor called both keys healthy.
-    try:
-        last_aside = (float(mem.get("lastStoodAsideAt")) / 1000.0
-                      if mem.get("lastStoodAsideAt") is not None else None)
-    except (TypeError, ValueError):
-        # the skeptic on fix24-selfprove: now_s here re-armed the cooldown on EVERY tick, so a corrupt value held the
-        # lane shut for ever while the doctor called it healthy. Unreadable = no cooldown; the playing and memory
-        # gates above still stand between a proof and his game.
-        last_aside = None
-    if last_aside is not None and now_s - last_aside < STAND_ASIDE_COOLDOWN_S:
-        return {"start": False, "key": "aside-cooldown",
-                "why": "a proof stood aside %d min ago (%s) - the next one waits %d min, so a proof that cannot "
-                       "finish here does not start and die every tick"
-                       % (int(max(0.0, now_s - last_aside) // 60), mem.get("lastStoodAsideWhy") or "?",
-                          STAND_ASIDE_COOLDOWN_S // 60)}
+    _held = _aside_cooldown(mem, now_s)
+    if _held:
+        return _held
     try:
         busy_pct = None if busy_pct is None else float(busy_pct)
     except (TypeError, ValueError):
@@ -927,7 +977,45 @@ def lanes_for(free, cpus):
 PROVER_MARK = ("-X", "tvd_self_prove")
 
 
-def spawn(log_path, python=None, workers=None, popen=None, names=None, door=None):
+def bank_name(head, cls):
+    """REG-2632 - the file one commit's proof bank for one platform class is published under."""
+    return "%s.%s.json" % (head, cls)
+
+
+def fetch_bank(dest_dir, git=None, cls=None):
+    """REG-2632 - this commit's proof bank for this PC's platform class, from origin's BANK_REF branch, into
+    dest_dir/proof_bank.json. -> (path | None, why). A failed fetch reads the ref already on disk; no bank is None,
+    and None only ever means "prove it here, or leave it owed"."""
+    git = git or _git
+    if cls is None:
+        import heart2 as _h2
+        cls = _h2.PLATFORM_CLASS
+    try:
+        rc, head = git("rev-parse", "HEAD")
+    except Exception as e:
+        return None, "HEAD could not be read (%s)" % type(e).__name__
+    if rc != 0 or not re.match(r"^[0-9a-f]{40}$", head or ""):
+        return None, "HEAD could not be read"
+    try:
+        git("fetch", "--quiet", "origin", "+refs/heads/%s:refs/remotes/origin/%s" % (BANK_REF, BANK_REF), timeout=60)
+    except Exception:
+        pass                                   # the ref on disk, if any, still answers
+    try:
+        rc, body = git("show", "origin/%s:%s" % (BANK_REF, bank_name(head, cls)))
+    except Exception as e:
+        return None, "the bank could not be read (%s)" % type(e).__name__
+    if rc != 0 or not body:
+        return None, "no %s proof bank for %s" % (cls, head[:12])
+    path = os.path.join(dest_dir, "proof_bank.json")
+    try:
+        with io.open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(body)
+    except OSError as e:
+        return None, "the bank could not be written (%s)" % type(e).__name__
+    return path, None
+
+
+def spawn(log_path, python=None, workers=None, popen=None, names=None, door=None, bank=None, bank_only=False):
     """Start `heart2.py --prove` hidden and below everything he does. -> pid
     #99 — `names`: prove just these gates as ONE SLICE (`--prove NAMES --slice`); None proves the whole census.
     REG-1670 — `workers` None asks lanes_for() with the memory free right now."""
@@ -954,6 +1042,8 @@ def spawn(log_path, python=None, workers=None, popen=None, names=None, door=None
         kw["start_new_session"] = True
     cmd = ([py] + list(PROVER_MARK) + [os.path.join(HERE, "heart2.py"), "--prove"]
            + ((list(names) + ["--slice"]) if names else []))
+    if bank and names:                     # REG-2632 - a bank rides a slice only; bank-only never proves
+        cmd += ["--bank", bank] + (["--bank-only"] if bank_only else [])
     if not IS_WIN and os.path.exists("/usr/bin/nice"):
         cmd = ["/usr/bin/nice", "-n", "15"] + cmd
     log = open(log_path, "ab")
@@ -1049,12 +1139,12 @@ def _hold_awake(pid, real=True):
 
 
 def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None,
-         playing=None, free=None, kill_fn=None, sandbox=None):
+         playing=None, free=None, kill_fn=None, sandbox=None, bank=None):
     """One pass of the lane. NEVER raises - it runs inside the rescue loop that also watches whether the
     console can still answer its own port. -> the lane's status in the shared vocabulary.
     `playing` / `free` are callables or values (REG-1502); None asks this machine."""
     try:
-        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)
+        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox, bank)
     except Exception as e:
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "raised",
                 "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
@@ -1096,7 +1186,8 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
             return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy, playing=playing, free=free)
         play_now = _ask(playing, playing_state)
         free_now = _ask(free, free_mb)
-        aside, _why = stand_aside(play_now, free_now)
+        # REG-2632 - a BANK-ONLY run proves nothing: his game never ends it, only memory does
+        aside, _why = _aside_for(mem, play_now, free_now)
         if not aside:
             return None
         return (_tick or tick)(now_s=now_s, path=path, playing=play_now, free=free_now, kill_fn=kill_fn)
@@ -1163,12 +1254,13 @@ def _ask(v, probe):
 def _forget(mem):
     """The proof this lane was tracking is over (ended, or stood aside and gone): drop every trace of it."""
     for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates", "logFrom",
-              "startedBy"):
+              "startedBy", "bankOnly"):
         mem.pop(k, None)
     _STARTED.update(pid=None, birth=None)
 
 
-def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None, sandbox=None):
+def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None, sandbox=None,
+          bank=None):
     now_s = time.time() if now_s is None else now_s
     now_ms = int(now_s * 1000)
     play_now = _ask(playing, playing_state)
@@ -1203,7 +1295,8 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
     if finishing and not mem.get("finishingSince"):
         mem.update(worked=_int(mem.get("worked")) + 1, lastTs=now_ms, lastOk=census.get("why"),
                    finishingSince=now_ms)
-    aside, aside_why = stand_aside(play_now, free_now) if running else (False, "")
+    # REG-2632 - a BANK-ONLY run proves nothing, so his game is no reason to end it; only memory is
+    aside, aside_why = _aside_for(mem, play_now, free_now) if running else (False, "")
     if aside and finishing and now_ms - _int(mem.get("finishingSince")) < FINISH_GRACE_S * 1000:
         aside, aside_why = False, ""                       # finishing - still running a tick later is a hang
     # REG-1674 — A PROVER THAT HAS GONE SILENT IS ENDED THROUGH THE SAME DOOR, AND SAYS SO. His ask, 2026-10-01, after
@@ -1285,9 +1378,16 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
     # REG-1845 — the copier's answer for a REAL start (a law's recording spawn hands its own, or none)
     _sb = sandbox if sandbox is not None else (
         sandbox_ready() if spawn_fn is None and not running and census.get("state") != "current" else None)
-    d = decide(census, tree if tree is not None else tree_state(), running,
+    _tree = tree if tree is not None else tree_state()
+    # REG-2632 - asked only when a slice could start: an owed census, nothing running, an installed console
+    _bank = bank
+    if _bank is None and spawn_fn is None and not running and not unverified and on \
+            and census.get("state") not in ("current", "unknown") and (_tree or ("",))[0] == "installed":
+        _bank = fetch_bank(os.path.dirname(_store_path(path)) or ".")[0]
+    _bank = _bank() if callable(_bank) else _bank
+    d = decide(census, _tree, running,
                busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now,
-               sandbox=(_sb() if callable(_sb) else _sb))
+               sandbox=(_sb() if callable(_sb) else _sb), bank=_bank or None)
     if stall_gone is True:
         d = {"start": False, "key": "silent", "why": stall_why}
     elif stall_gone is False:
@@ -1336,9 +1436,16 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             _plan = ([t for t in _owed_g if str(t[0]) not in _stuck] or _owed_g) if isinstance(_owed_g, list) else _owed_g
             _slice = (plan_slice(_plan, _costs, blind=census.get("blind"))     # REG-1673 - a recorded BLIND first
                       if isinstance(_owed_g, list) and _owed_g else None)
+            if d.get("bankOnly") and not _slice:
+                raise RuntimeError("bank-only needs a slice of named owed gates")
             if _slice:
-                mem["pid"] = (spawn_fn or spawn)(log_path, names=_slice)
+                _skw = {"names": _slice}
+                if _bank:                          # REG-2632 - only then: a law's recording spawn keeps its old call
+                    _skw.update(bank=_bank, bank_only=bool(d.get("bankOnly")))
+                mem["pid"] = (spawn_fn or spawn)(log_path, **_skw)
                 mem["sliceGates"] = _slice
+                if d.get("bankOnly"):
+                    mem["bankOnly"] = True
                 d = dict(d, why="%s - this slice: %d gate(s)%s" % (
                     census.get("owedWhy") or d["why"], len(_slice),
                     "" if _costs is not None else " (gate costs unread - sized by the default guess)"))

@@ -1266,8 +1266,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1502) - a proof starts beside his game when the CPU looks idle (a cloud client)",
         "file": "tv/self_prove.py",
-        "find": "    if playing:\n        return {\"start\": False, \"key\": \"playing\",",
-        "replace": "    if False:\n        return {\"start\": False, \"key\": \"playing\",",
+        "find": "    if playing:\n        try:\n            _bf = None if free is None else float(free)\n",
+        "replace": "    if False:\n        try:\n            _bf = None if free is None else float(free)\n",
         "matches": 1,
     },
     {
@@ -1322,8 +1322,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (second eye) - a corrupt lane memory makes every tick raise into the rescue loop",
         "file": "tv/self_prove.py",
-        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)\n    except Exception as e:\n",
-        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)\n    except ZeroDivisionError as e:\n",
+        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox, bank)\n    except Exception as e:\n",
+        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox, bank)\n    except ZeroDivisionError as e:\n",
         "matches": 1,
     },
     {

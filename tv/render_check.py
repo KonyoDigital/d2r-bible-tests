@@ -3314,10 +3314,32 @@ def _err_place(text, details=None):
 
 
 def _chrome_up():
-    """A scratch Chrome on 9224+, per chrome-cdp-mac. Returns True when CDP answers."""
+    """A scratch Chrome on 9224+, per chrome-cdp-mac. Returns True when CDP answers.
+
+    REG-2443 - WHEN THE RUN IS TRACED (TV_GATE_TRACE), A CHROME IS ATTESTED OR THE RUN IS UNTRACED. The Chrome this
+    starts carries TV_GATE_TRACE_CDP=1 in its own environment, so gate_trace writes C for it (read like U unless the
+    trace's reader allows an attested Chrome). A Chrome that already answers on PORT is one this run did NOT start -
+    another run's, a dead prover's leftover - and serves pages from wherever it was pointed: a U line goes into the
+    trace before it is adopted, and when that line cannot be written it is not adopted at all (False: no Chrome, said
+    as the UNKNOWN every caller already reads it as). Untraced, both paths are exactly as before."""
     import urllib.request
+    _trace = os.environ.get("TV_GATE_TRACE") or ""
     try:
         urllib.request.urlopen("http://127.0.0.1:%d/json/version" % PORT, timeout=2).read()
+        _mine = globals().get("_CHROME_PROC")    # read, not bound: the `global` statement below binds it
+        _ours = _mine is not None and _mine.poll() is None
+        if _trace and not _ours:
+            try:
+                _fd = os.open(_trace, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+                try:
+                    os.write(_fd, ("U\t%d\tadopted a Chrome this run did not start (port %d)\n"
+                                   % (os.getpid(), PORT)).encode("utf-8"))  # RENDER-ADOPT-UNTRACED
+                finally:
+                    os.close(_fd)
+            except OSError as _we:
+                print("render_check: a Chrome already answers on %d, and the trace could not say this run did not "
+                      "start it (%s) - not adopted" % (PORT, type(_we).__name__))
+                return False
         return True
     except Exception:
         pass
@@ -3342,7 +3364,9 @@ def _chrome_up():
          "--disable-gpu", "--window-size=1440,1300",
          # ⚠ WITHOUT THIS the WebSocket upgrade is refused 403 and nothing suggests a launch flag
          "--remote-allow-origins=*", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        # REG-2443 - traced: this Chrome is attested as the run's own (gate_trace writes C, not U); untraced: inherited
+        env=(dict(os.environ, TV_GATE_TRACE_CDP="1") if _trace else None))  # RENDER-CDP-MARK
     for _ in range(40):
         time.sleep(0.5)
         try:

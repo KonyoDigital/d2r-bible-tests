@@ -11131,6 +11131,12 @@ GATES = [
              "law a shard owes a fix (or the one stop of a fail-fast shard), the PROVEN/owed/unbanked counts and the "
              "shard walls, never exits red, and the workflow runs it with if: always() into the job summary and a "
              "proof-census-<sha> artifact. Temp dirs only."),
+    Gate("test_a_kept_record_stays_live_only_for_the_gate_that_keeps_it",
+         [sys.executable, os.path.join(HERE, "test_a_kept_record_stays_live_only_for_the_gate_that_keeps_it.py")], 120,
+         needs_app=False,
+         why="REG-2634 (#182 part 3) - the keep-set is per gate, not the union: before each gate a run record only "
+             "another gate keeps reads as nobody kept it (HEAD's blob or absent); its own keeps stay as built. "
+             "Fixture repo and sandbox in temp dirs only."),
     Gate("test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote",
          [sys.executable, os.path.join(HERE, "test_a_lane_gate_never_starts_on_a_record_the_last_gate_wrote.py")], 120,
          needs_app=False,
@@ -11954,6 +11960,118 @@ GATES = [
              "folded under ADVANCED, the eyes are never in the modal, each routes to its own roster profile (none "
              "for a PC with no profile), and no diagnostic fact (last walk included) is clipped. No browser is a "
              "declared skip."),
+    Gate("test_a_proof_bank_is_published_or_the_run_is_red",
+         [sys.executable, os.path.join(HERE, "test_a_proof_bank_is_published_or_the_run_is_red.py")], 120,
+         needs_app=False,
+         why="REG-2633 - each commit's proof bank is published to proof-bank by the Linux census (bank job) or that "
+             "job is red, and the Windows census stays off (dispatch only, ci/proof-keys-* refs only): no publish step may shrug; "
+             "a missing, empty, other-commit, dirty, other-class or machine-path export, a refused push or an "
+             "unreachable remote is exit 1; the bank reads back where self_prove fetches it; old banks are pruned"),
+    Gate("test_a_proof_counts_only_on_its_own_platform_class",
+         [sys.executable, os.path.join(HERE, "test_a_proof_counts_only_on_its_own_platform_class.py")], 120,
+         needs_app=False,
+         why="REG-2632 - a proof counts only on the platform class it was proved on (the class is in every key); a "
+             "PC's slice serves from its bank only gates the bank keys whole; the ALT's bank-only run beside his "
+             "game serves and never proves; keys are raw bytes with /-separated names; an export carries no "
+             "machine path"),
+    Gate("test_a_chrome_the_run_did_not_start_untraces_it",
+         [sys.executable, os.path.join(HERE, "test_a_chrome_the_run_did_not_start_untraces_it.py")], 300,
+         needs_app=False,
+         why="REG-2443 (#147 R1) - every Chrome a traced run started read as U, and render_check._chrome_up silently "
+             "adopted whatever answered on its port. Traced, its Chrome carries TV_GATE_TRACE_CDP=1 and is written C "
+             "(read like U unless the reader allows it); an answering port it did not start is a U line before it is "
+             "adopted (and never adopted unsaid); an unmarked or merely inheriting child is U. A stub Chrome via "
+             "TV_CHROME answers /json/version - no browser runs."),
+    Gate("test_no_page_loads_python_or_markdown",
+         [sys.executable, os.path.join(HERE, "test_no_page_loads_python_or_markdown.py")], 120,
+         needs_app=False,
+         why="REG-2444 (#147 R1) - a browser key can name what a page loads only if no page loads a .py or a .md: no "
+             "tracked .html/.js/.css/.mjs/.cjs names one in src=, a stylesheet/preload/import link, url(), import(), "
+             "@import, a Worker, importScripts, a service worker or fetch(). The page list is the law's own bytes, "
+             "held to git ls-files (a new tracked page must be added there)."),
+    Gate("test_the_census_reuses_what_a_push_proved",
+         [sys.executable, os.path.join(HERE, "test_the_census_reuses_what_a_push_proved.py")], 120,
+         needs_app=False,
+         why="REG-2430/2432/2433 (#186) - his heart's census never read the verdict cache and re-proved in full what a "
+             "push had banked for the same bytes (test_control: 27 x ~4 min). In heart2's own process (or with stores "
+             "handed in) the census serves a PROVEN proven at EVERY width by this prover and environment, owes one clean "
+             "run for a proof banked in another tree, runs a moved byte and banks it by:census; a law's in-process "
+             "prove() opens no store."),
+    Gate("test_the_census_narrows_after_one_green_clean_run",
+         [sys.executable, os.path.join(HERE, "test_the_census_narrows_after_one_green_clean_run.py")], 120,
+         needs_app=False,
+         why="REG-2431 (#186) - the census never asked the red memory (test_control's proof[11]: a full 2,287-case run "
+             "while the memory named the 1-6 cases that catch it) and never taught it. The census now runs the gate's ONE "
+             "full clean run, then each proof's narrowed pair, then the full fallback - which teaches the memory; a law "
+             "red untampered is UNPROVABLE with no narrowed pair run."),
+    Gate("test_a_killed_slice_keeps_every_gate_it_finished",
+         [sys.executable, os.path.join(HERE, "test_a_killed_slice_keeps_every_gate_it_finished.py")], 300,
+         needs_app=False,
+         why="REG-2435 (#186 g) - a census banked at most once a minute (a slice) or only at its end (a full run), so a "
+             "kill lost every gate it had finished. The real heart2 CLI over three fixture gates, SIGKILLed in gate 3: "
+             "gates 1-2 are in the census against their files and in the verdict cache; gate 3 is owed."),
+    Gate("test_a_reused_proven_is_audited",
+         [sys.executable, os.path.join(HERE, "test_a_reused_proven_is_audited.py")], 120,
+         needs_app=False,
+         why="REG-2434 (#186 f) - once the census reuses, nothing re-proves a banked PROVEN. Every run (census and push) "
+             "re-proves the HEART2_AUDIT_K oldest served PROVENs over the same bytes; a BLIND/INVALID evicts the entry "
+             "under the store lock, is said, is the gate's verdict (a push is refused) and is counted; K=0 says NOT "
+             "AUDITED, never clean."),
+    Gate("test_a_long_gate_checkpoints_its_proofs",
+         [sys.executable, os.path.join(HERE, "test_a_long_gate_checkpoints_its_proofs.py")], 300,
+         needs_app=False,
+         why="R8 (#150, REG-2437) - a gate's PROVENs were banked only after its closing clean run, so a hard kill lost "
+             "the whole gate in flight (war_stash: 29 proofs in one gate). Past a time threshold the closing run is asked "
+             "over the proofs since the last checkpoint: green banks and flushes them now and seals them, red makes the "
+             "batch and every unrun proof UNPROVABLE. The real CLI SIGKILLed after 'checkpoint banked' keeps the prefix; "
+             "a graceful fail-fast stop banks its bracketed prefix."),
+    Gate("test_a_sandbox_outlives_the_temp_cleaner",
+         [sys.executable, os.path.join(HERE, "test_a_sandbox_outlives_the_temp_cleaner.py")], 60,
+         needs_app=False,
+         why="REG-2438 (#71/#144) - a sandbox copy (copy2, the APFS clone) keeps each source file's access time, and "
+             "macOS's dirhelper removes $TMPDIR files whose atime is over 3 days old (03:35): tracked files vanished "
+             "mid-run. make_sandbox marks every file as read just now, mtime kept; the #144 line carries its time."),
+    Gate("test_the_machine_runs_at_most_two_browsers",
+         [sys.executable, os.path.join(HERE, "test_the_machine_runs_at_most_two_browsers.py")], 120,
+         needs_app=False,
+         why="#160 (REG-2439) - _PushRun's browser lock was per PROCESS and the census held none, so his self-prover "
+             "plus any push ran as many Chromes as lanes. Every browser gate, push or census, now takes one of the "
+             "machine's K browser slots (lane_ports, K = min(HEART2_BROWSER_SLOTS, 2)): three real provers over four "
+             "browser gates never hold more than two at once - and do hold two."),
+    Gate("test_a_sibling_cannot_turn_a_law_red",
+         [sys.executable, os.path.join(HERE, "test_a_sibling_cannot_turn_a_law_red.py")], 120,
+         needs_app=False,
+         why="#160 critic R3 (REG-2439) - with two provers side by side, a sibling's write into a shared temp dir (or "
+             "anything both reach) turns a blind law's tampered run red and banks it PROVEN. Each law run gets a "
+             "private TMPDIR in its sandbox and D2R_REPO = the sandbox; under concurrency a tampered red (full or "
+             "narrowed) is a verdict only when it goes red again."),
+    Gate("test_a_trace_names_every_read_a_key_needs",
+         [sys.executable, os.path.join(HERE, "test_a_trace_names_every_read_a_key_needs.py")], 300,
+         needs_app=False,
+         why="REG-2442 (#147 R1) - gate_trace dropped every path outside its root without a word, wrote no fact for an "
+             "env read, kept a stat as presence only, and sqlite3/mmap/ctypes/dbm read files no open event names. Now "
+             "TV_GATE_TRACE_DENY/_ALLOW make a read of a denied root a U, STRICT makes those imports and getmtime/"
+             "getctime under the root a U, single-name env reads are E facts (never plumbing, a bulk copy, or a value "
+             "the run made), Z keeps a stat's size, H the bytes as read, D a listing as listed, T the tracked set; "
+             "gate_ledger.facts_of/facts_hold hold a later tree to every one. Driven on fixture trees under the real "
+             "hook, python and node."),
+    Gate("test_the_suite_ledger_is_one_per_machine",
+         [sys.executable, os.path.join(HERE, "test_the_suite_ledger_is_one_per_machine.py")], 120,
+         needs_app=False,
+         why="REG-2445 (#164/#178 class) - the gate ledger and its map were per checkout, so every fresh push worktree "
+             "started with no carried suite PASS and lost what it proved. They live in git's common dir now (read from "
+             ".git, never by running git), each checkout's own file folded in once; REG-2343's four holes are closed: "
+             "a PASS carries into another checkout only where its absent ignored inputs, untracked folders and listed "
+             "folders' untracked names hold (a folded row only in its own checkout), a writer writes only its own rows "
+             "and drops under a lock, old code never opens the file, and a --record with no trace drops nothing."),
+    Gate("test_a_traced_proof_key_is_never_narrower",
+         [sys.executable, os.path.join(HERE, "test_a_traced_proof_key_is_never_narrower.py")], 180,
+         needs_app=False,
+         why="#147 R1 (REG-2440) - a proof's static key digests every file its closure names (1,217-1,259 for every "
+             "heart2 law) and a law that lists a folder has none. heart2 traces each proof run and also banks a "
+             "PROVEN by what its runs read - never narrower: a read only the TAMPERED run made moves the key, an "
+             "untraceable run (sqlite3, python -I, a shell) is never banked by facts, no full clean run's facts or a "
+             "read+written / changed path is static only, and missing facts are never served."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

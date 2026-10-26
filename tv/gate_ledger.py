@@ -56,8 +56,10 @@ be named, a corrupt ledger, and a FAIL are all a run. Only a PASS is stored. `--
 consult the ledger. GitHub CI does not either. The changed-law red-proof (v3292) is a different
 stage and does not read this file.
 
-The files are per checkout, gitignored, and never a verdict of record. CARRY is not a fresh pass
-and it does not bank Wilson evidence.
+The files are per MACHINE (REG-2445: <git common dir>/gate_ledger/, shared by the main checkout and every
+worktree; a checkout's own old tv/.gate_ledger.json is folded in once per version), never in git status,
+and never a verdict of record. A PASS carries into another checkout only where its per-tree facts hold.
+CARRY is not a fresh pass and it does not bank Wilson evidence.
 
     python3 tv/gate_ledger.py --carry NAME     exit 0 and "proven at <sha> (<age>)", or exit 1
     python3 tv/gate_ledger.py --record NAME    needs suite_verdict for these bytes AND a trace, so a bare
@@ -406,9 +408,113 @@ def coherent_bump(per_file):
     return len(olds) == 1 and len(news) == 1 and olds != news  # STAMP-ONE-VERSION
 
 
+# ══ REG-2445 (#164/#178 class) — ONE LEDGER PER MACHINE, NOT ONE PER CHECKOUT ═════════════════════════════════════════
+# MEASURED at 7285e7efc: ledger_path() was HERE/.gate_ledger.json and the input map beside it, so a fresh push worktree
+# started with no carried PASS (test_agent ~0.6 min, sharded test_control ~2.1-2.5 min per attempt) and what it proved
+# died with it; main's checkout held no tv/.gate_ledger.json at all. suite_verdict's store was already per machine.
+# Now the ledger and its map live in git's COMMON dir (<common>/gate_ledger/), found by READING .git the way
+# prove_record does - never by running git, whose answer a hook's GIT_DIR decides. REG-2343 withdrew a first cut of this
+# for four holes; each is closed here, not around:
+#   (a) a PASS carries into another checkout only where what git cannot see is the same: every path the run found ABSENT
+#       outside the tracked set must still be absent, every untracked folder it found must still be a folder, and every
+#       tracked folder it LISTED must hold the same untracked and ignored names (`tree_facts`; git status never names
+#       an ignored file). A row without them - folded from a checkout's own file, or written by older code - carries
+#       only in the checkout it was proved in (`tree`).
+#   (b) a writer writes only its OWN rows and drops, re-reading the file under an exclusive lock first: a row it merely
+#       loaded is never written back over another writer's newer drop, and no clock orders anything;
+#   (c) the file is one old code never opens (old code keeps writing tv/.gate_ledger.json, which is folded in once per
+#       version and never written);
+#   (d) a --record with no trace stores nothing and DROPS nothing - it is no evidence about the stored PASS.
+# TV_GATE_LEDGER still names any file (a law's seam); with no readable git dir the ledger is this checkout's own, said.
+LEDGER_DIR = "gate_ledger"
+
+
+def machine_ledger_path(repo=None):
+    """REG-2445 - this machine's ledger: <git common dir>/gate_ledger/.gate_ledger.json. -> (path, why | None)
+
+    With no git dir that can be read from `repo`/.git it is that checkout's own tv/.gate_ledger.json and `why` says so."""
+    repo = REPO if repo is None else repo
+    try:
+        import prove_record as _pr
+        common = _pr._git_common_dir(repo)
+    except Exception as exc:
+        return os.path.join(repo, "tv", LEDGER_NAME), "git's common dir could not be read (%s)" % type(exc).__name__
+    if not common:
+        return os.path.join(repo, "tv", LEDGER_NAME), "no git dir could be read from its .git, so the ledger is this " \
+                                                      "checkout's own and dies with it"
+    return os.path.join(common, LEDGER_DIR, LEDGER_NAME), None  # LEDGER-MACHINE-PATH
+
+
 def ledger_path():
-    """This checkout's ledger, unless TV_GATE_LEDGER names another file. -> path"""
-    return os.environ.get("TV_GATE_LEDGER") or os.path.join(HERE, LEDGER_NAME)
+    """This MACHINE's ledger (REG-2445), unless TV_GATE_LEDGER names another file. -> path"""
+    return os.environ.get("TV_GATE_LEDGER") or machine_ledger_path()[0]  # LEDGER-PER-MACHINE
+
+
+def _checkouts(common):
+    """REG-2445 - every checkout of the repository whose git common dir is `common`: the main one (when `common` is its
+    .git folder) and each linked worktree git still lists, read from git's own files, never by running git.
+    -> [checkout root] (realpaths). A worktree whose pointer cannot be read is left out - its rows are never folded."""
+    out = []
+    if os.path.basename(os.path.normpath(common)) == ".git":
+        out.append(os.path.realpath(os.path.dirname(os.path.normpath(common))))
+    folder = os.path.join(common, "worktrees")
+    try:
+        names = sorted(os.listdir(folder))
+    except FileNotFoundError:
+        names = ()  # no linked worktree was ever made
+    for name in names:
+        try:
+            with open(os.path.join(folder, name, "gitdir"), encoding="utf-8") as fh:
+                pointer = fh.read().strip()
+        except OSError:
+            continue
+        if not pointer:
+            continue
+        if not os.path.isabs(pointer):
+            pointer = os.path.join(folder, name, pointer)
+        root = os.path.realpath(os.path.dirname(os.path.normpath(pointer)))
+        if root not in out:
+            out.append(root)
+    return out
+
+
+def _tree_id(root):
+    """REG-2445 - which checkout a PASS was proved in, as a digest of its real path: the ledger names no absolute path
+    (the carried-proof law holds it to that). -> str"""
+    return "sha256:" + hashlib.sha256(os.path.realpath(root).encode("utf-8", "surrogateescape")).hexdigest()[:32]
+
+
+class _LedgerLock(object):
+    """REG-2445 (b) - an exclusive lock across one read-merge-write of the MACHINE ledger (prove_record's flock / msvcrt
+    lock on `<ledger>.lock`, beside it in git's common dir). A checkout's own file and a law's seam file keep their old,
+    unlocked write. A platform with no lock writes unlocked, as prove_record does."""
+
+    def __init__(self, path, wanted):
+        self.path, self.wanted, self.fh = path, wanted, None
+
+    def __enter__(self):
+        if self.wanted:
+            import prove_record as _pr
+            folder = os.path.dirname(self.path)
+            if folder:
+                os.makedirs(folder, exist_ok=True)
+            self.fh = open(self.path + ".lock", "a+", encoding="utf-8")
+            _pr._locked(self.fh)
+        return self
+
+    def __exit__(self, *exc):
+        if self.fh is not None:
+            self.fh.close()  # closing the descriptor releases flock and msvcrt's lock alike
+        return False
+
+
+def _ledger_dump(path, body, own_tmp):
+    """Write one ledger body through a tmp and os.replace. The machine ledger's tmp is named for this process (two
+    checkouts' runs write it); a checkout's own keeps its one gitignored `.tmp`."""
+    tmp = path + ((".%d.tmp" % os.getpid()) if own_tmp else ".tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(body, fh, sort_keys=True)
+    os.replace(tmp, path)
 
 
 def ci_blocks():
@@ -1456,9 +1562,21 @@ def trace_path():
     return path
 
 
-def trace_env(env, root, path):
-    """The gate's environment with gate_trace/sitecustomize.py armed. -> dict (a copy)"""
+def trace_env(env, root, path, deny=None, allow=None, strict=False):
+    """The gate's environment with gate_trace/sitecustomize.py armed. -> dict (a copy)
+
+    REG-2442 - `deny` / `allow` (lists of folders) arm TV_GATE_TRACE_DENY / _ALLOW, `strict` TV_GATE_TRACE_STRICT=1. A
+    switch the caller did not ask for is never inherited from `env`, and neither is TV_GATE_TRACE_CDP: that marker is
+    render_check's word about ONE child, never a run's."""
     env = dict(env)
+    for _k in ("TV_GATE_TRACE_DENY", "TV_GATE_TRACE_ALLOW", "TV_GATE_TRACE_STRICT", "TV_GATE_TRACE_CDP"):
+        env.pop(_k, None)
+    if deny:
+        env["TV_GATE_TRACE_DENY"] = os.pathsep.join(os.path.abspath(str(p)) for p in deny)
+    if allow:
+        env["TV_GATE_TRACE_ALLOW"] = os.pathsep.join(os.path.abspath(str(p)) for p in allow)
+    if strict:
+        env["TV_GATE_TRACE_STRICT"] = "1"
     env["TV_GATE_TRACE"] = path
     env["TV_GATE_TRACE_ROOT"] = os.path.abspath(root)
     old = env.get("PYTHONPATH") or ""
@@ -1473,12 +1591,21 @@ def trace_env(env, root, path):
     return env
 
 
-def read_trace(path):
+def read_trace(path, allow_cdp_chrome=False):
     """What one traced run read. -> (facts|None, why)
 
     No B line means the gate never ran under the hook (a node gate, `python -I`). A U line is a
     child or a call the hook cannot follow. A python child that started without writing its own B
-    line ran untraced. Each of those is a run whose reads are UNKNOWN, so it is never carried."""
+    line ran untraced. Each of those is a run whose reads are UNKNOWN, so it is never carried.
+
+    REG-2442 - the facts beside the sets: E {name: sha256 | "-" absent | "?" two values}, Z {path: {kind: size}}, H
+    {path: the bytes' sha256 as the run first opened them}, D {folder: its listing digest as first listed} - a Z or an H
+    after the run wrote the path measured the run's own bytes and is left out - and T {ls-files scope}. N lines are a
+    child's lookup table and no fact. REG-2449 - MA, the part of M the run LOOKED for first and found absent (an A, or
+    an H "-", before its first write): never state it found to be there, but its absence is a fact (facts_of holds it,
+    and the ledger asks it of another checkout). REG-2443 - C, render_check's attested Chrome, reads EXACTLY like U
+    unless the caller passes allow_cdp_chrome=True; then facts["C"] lists them and the caller owes a key for what that
+    browser loaded (the ledger never passes it, so a ledger run reads byte for byte as before)."""
     try:
         with open(path, encoding="utf-8", errors="surrogateescape") as fh:
             lines = fh.read().splitlines()
@@ -1488,12 +1615,16 @@ def read_trace(path):
     first = {}
     boots = {}
     spawns = {}
+    env, sizes, scopes, chrome, wrote, hashed, listed = {}, {}, set(), [], set(), {}, {}
     for line in lines:
         parts = line.split("\t", 2)
         if len(parts) != 3:
             continue
         kind, pid, text = parts
-        if kind == "U":
+        if kind == "C" and allow_cdp_chrome:  # LEDGER-CDP-ATTESTED
+            chrome.append(text)
+            continue
+        if kind in ("U", "C"):
             return None, "the gate %s, which the trace cannot follow" % text  # LEDGER-UNTRACED
         if kind == "B":
             boots.setdefault(text, 0)
@@ -1505,6 +1636,24 @@ def read_trace(path):
             facts[kind].add(text)
             if kind in ("R", "S", "A", "W", "L"):
                 first.setdefault(text, kind)
+            if kind == "W":
+                wrote.add(text)
+        elif kind == "E":
+            digest, _sp, name = text.partition(" ")
+            if name:
+                env[name] = digest if env.get(name, digest) == digest else "?"  # LEDGER-ENV-FACT
+        elif kind == "Z":
+            bits = text.split(" ", 2)
+            if len(bits) == 3 and bits[2] not in wrote:  # LEDGER-SIZE-FACT
+                sizes.setdefault(bits[2], {}).setdefault(bits[0], bits[1])
+        elif kind == "T":
+            scopes.add(text)
+        elif kind in ("H", "D"):
+            digest, _sp, where = text.partition(" ")
+            if kind == "D":
+                listed.setdefault(where, digest)
+            elif where not in wrote:  # LEDGER-BYTES-FACT
+                hashed.setdefault(where, digest)
     if not any(k.startswith("pid:") for k in boots):
         return None, "the gate's reads were not traced"  # LEDGER-UNTRACED-BOOT
     for pid, n in spawns.items():
@@ -1512,7 +1661,256 @@ def read_trace(path):
             return None, "a python child of the gate ran without the trace"
     # made by this run before anything looked at it, so it is not state the run found
     facts["M"] = set(p for p, k in first.items() if k == "W" or (k == "A" and p in facts["W"]))  # LEDGER-MADE-FIRST
+    # REG-2449 - ...except the ones it LOOKED for first and found ABSENT: an A before the first write (exists() and then
+    # create it; a mkdir, symlink, link or copytree looks first, since each fails on a path that is there), or an H "-"
+    # (a write that keeps or refuses what it finds - append, r+, 'x' - found nothing there). That absence is a fact of
+    # the run: a tree that already holds the path is not the tree it ran on.
+    facts["MA"] = set(p for p in facts["M"] if first.get(p) == "A" or hashed.get(p) == "-")  # LEDGER-FOUND-ABSENT
+    facts["E"], facts["Z"], facts["T"], facts["C"], facts["H"], facts["D"] = env, sizes, scopes, chrome, hashed, listed
     return facts, None
+
+
+# ══ REG-2442 (#147 R1) — WHAT A LATER TREE MUST STILL HOLD FOR A RUN'S VERDICT TO STAND ═══════════════════════════════
+# The ledger carries a PASS by git's word (a diff since its commit). A proof memory that serves a verdict on another
+# tree - a heart2 sandbox built for the next push - needs the run's own facts checked against THAT tree, byte for byte:
+# facts_of() turns one run's read_trace() facts into a record, facts_hold() asks a tree and an environment whether every
+# fact in it still holds. ONE copy, for heart2's memory (track heart-memory) and for the ledger if it adopts it.
+#   R  a file's sha256 (a folder opened by descriptor: its listing digest; "-" absent)    Z  kind and size per stat
+#   S  a stat whose answer kept no size (os.access, os.readlink): present / dangling       A  still absent (no name)
+#   L  a listed folder's names, each with its kind and a file's size, as one digest      E  each env value's digest
+#   I  for each imported name, which tv/, root or source-folder module could answer it - no new one may shadow it
+#   G  every tracked .gitignore's bytes (and which there are)                              T  each ls-files scope's set
+# What the run MADE is no fact, except what it found first (REG-2449): a path it looked for and found absent before
+# it made it (MA) is held ABSENT, a write that kept the bytes it found (append, r+) holds them (R, from H), and the
+# folder a made path was written into must still be a folder (Z "d"). Only a path made without looking - a truncating
+# write, a rename or copy onto it - holds nothing.
+# FLOORS, said: the times of a file (a raw os.stat().st_mtime; STRICT refuses the os.path getters), a C library's own
+# reads and getenv(), what a Chrome loads (a C fact - its caller keys the pages), .git/info/exclude and the global git
+# excludes file (a check-ignore's other inputs), a read the trace kept no bytes for (node's own main script) is
+# measured in `root` right after the run, and on Windows os.rename - which fails on a path that is there, where POSIX
+# replaces it - is read like os.replace (one audit event for both).
+#: REG-2449 - 2: MA held absent, kept bytes held, a made path's folder held. A record of another version never holds.
+FACTS_VERSION = 2
+#: REG-2449 - the ledger's per-tree facts (Ledger._tree_facts): 2 adds made_absent, kept, the folders a run wrote into
+#: and a node child's listings. A row of another version carries only in the checkout it was proved in.
+TREE_FACTS_VERSION = 2
+#: REG-2442 - the environment names a prover sets PER RUN: never an E fact. gate_trace/sitecustomize.py's _PLUMBING and
+#: node_trace.cjs carry the same set (test_a_trace_names_every_read_a_key_needs holds the three equal). [[copy-drift]]
+TRACE_PLUMBING = frozenset(("TMPDIR", "TEMP", "TMP", "TV_LANE_PORT_BASE", "TV_PORT", "TV_CONTROL_PORT", "TV_LAW_PORT",
+                            "TV_RENDER_PORT", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX",
+                            "NODE_OPTIONS"))
+TRACE_PLUMBING_PREFIXES = ("HEART2_", "TV_GATE_")
+
+
+def _fact_path(root, rel):
+    return os.path.join(root, *rel.split("/")) if rel else root
+
+
+def _kind_size(st, follows=True):
+    """The Z fact's (kind, size) of one stat answer - gate_trace's size_of: f, l, d or o, and F, D or O for a name a
+    stat that did not follow links found to be no link. -> (str, str)"""
+    import stat as _st
+    if _st.S_ISLNK(st.st_mode):
+        return "l", str(st.st_size)
+    kind = "f" if _st.S_ISREG(st.st_mode) else ("d" if _st.S_ISDIR(st.st_mode) else "o")
+    return (kind if follows else kind.upper()), (str(st.st_size) if kind == "f" else "-")
+
+
+def _listing_digest(root, rel):
+    """One folder's names, each with its kind and a file's size (never a time) - gate_trace's listing_fact, the same
+    rule. -> sha256 | "-" absent | "f" a file | "?" unreadable. A bytecode folder is left out: the trace never names it.
+    Nothing the run made is left out: a name it found listed is a name a later tree must hold."""
+    full = _fact_path(root, rel)
+    rows = []
+    try:
+        with os.scandir(full) as it:
+            for e in it:
+                if e.name == "__pycache__":
+                    continue
+                try:
+                    kind, size = _kind_size(e.stat(follow_symlinks=False))
+                except OSError:
+                    return "?"  # REG-2449 - a name gone mid-listing is no answer, never "the folder is absent"
+                rows.append("%s\t%s\t%s" % (e.name, kind.lower(), size))
+    except FileNotFoundError:
+        return "-"
+    except NotADirectoryError:
+        return "f"
+    except OSError:
+        return "?"
+    return hashlib.sha256("\n".join(sorted(rows)).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def _fact_bytes(root, rel):
+    """A read path's bytes. -> sha256 | "-" absent | "d:<listing>" a folder (read by descriptor) | "?" no bytes to hold"""
+    import stat as _st
+    full = _fact_path(root, rel)
+    try:
+        st = os.stat(full)
+    except FileNotFoundError:
+        return "-"
+    except OSError:
+        return "?"
+    if _st.S_ISDIR(st.st_mode):
+        return "d:" + _listing_digest(root, rel)
+    if not _st.S_ISREG(st.st_mode):
+        return "?"                     # a fifo or a device: no bytes a later tree could be held to
+    return _file_hash(full) or "?"
+
+
+def _presence(root, rel):
+    """S without a size (os.access, os.readlink): "e" there, "n" a link to nothing, "-" absent. -> str"""
+    full = _fact_path(root, rel)
+    if os.path.exists(full):
+        return "e"
+    return "n" if os.path.lexists(full) else "-"
+
+
+def _module_homes(root, names, dirs):
+    """For each imported name, the modules in `dirs` that could answer it. -> {name: [rel path]}"""
+    out = {}
+    for name in sorted(names):
+        found = []
+        for d in sorted(dirs):
+            for cand, is_dir in ((name + ".py", False), (name + "/__init__.py", False), (name, True)):
+                rel = (d + "/" + cand) if d else cand
+                full = _fact_path(root, rel)
+                if (os.path.isdir(full) if is_dir else os.path.isfile(full)):
+                    found.append(rel)
+        out[name] = found
+    return out
+
+
+def _gitignores(root):
+    """Every tracked .gitignore's sha256. -> {rel: sha} | None (git could not list them)"""
+    proc = _git(root, ["ls-files", "-z"])
+    if proc is None or proc.returncode != 0:
+        return None
+    rels = [p for p in (proc.stdout or "").split("\0") if p and p.rsplit("/", 1)[-1] == ".gitignore"]
+    return dict((p, _file_hash(_fact_path(root, p)) or "?") for p in sorted(rels))
+
+
+def _tracked_scope(root, scope):
+    """One T fact: the tracked set `git ls-files` named in that cwd for those pathspecs. -> sha256 | "?" """
+    bits = scope.split("\x1f")
+    if len(bits) < 2 or bits[0] != "=":
+        return "?"                     # a flag the check cannot repeat
+    proc = _git(_fact_path(root, bits[1]), ["ls-files", "-z", "--"] + bits[2:])
+    if proc is None or proc.returncode != 0:
+        return "?"
+    names = sorted(p for p in (proc.stdout or "").split("\0") if p)
+    return hashlib.sha256("\0".join(names).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def _env_digest(env, name):
+    """An environment's value for `name` as an E fact digest (case-blind on Windows). -> sha256 | "-" """
+    if os.name == "nt":
+        value = None
+        for k, v in env.items():
+            if str(k).upper() == name.upper():
+                value = v
+    else:
+        value = env.get(name)
+    if value is None:
+        return "-"
+    if not isinstance(value, bytes):
+        value = str(value).encode("utf-8", "surrogateescape")
+    return hashlib.sha256(value).hexdigest()
+
+
+def facts_of(root, facts):
+    """REG-2442 - one run's read_trace() facts as a record a later tree is held to. -> dict (JSON-safe)
+
+    Bytes, sizes, listings and env digests come from the trace, measured AS the run read them (H, Z, D, E). What the
+    trace could not measure - a node read's bytes is measured, a listing by descriptor or by glob's pattern is not -
+    is measured in `root`, which must be the tree the run read, right after the run (a heart2 sandbox before anything
+    else touches it), as are the module homes, the .gitignores and the tracked sets. A path the run made (M) is no
+    fact of what it found, with three exceptions (REG-2449): one it looked for first and found absent (MA) is held
+    absent, a write that kept the bytes it found (append, r+) measured them first (H) and holds them, and the folder
+    a made path was written into must still be a folder."""
+    hashed = facts.get("H") or {}
+    made = set(facts.get("M") or ())
+    found_absent = set(facts.get("MA") or ()) & made  # FACTS-FOUND-ABSENT
+    kept = set(p for p in made if p in hashed) - found_absent
+    sizes = facts.get("Z") or {}
+    listed = facts.get("D") or {}
+    rec = {"v": FACTS_VERSION}
+    rec["R"] = {}
+    for p in sorted((set(facts.get("R") or ()) | set(hashed)) - (made - kept)):
+        d = hashed.get(p)
+        rec["R"][p] = (("d:" + _listing_digest(root, p)) if d == "d" else d) if d is not None else _fact_bytes(root, p)
+    rec["Z"] = dict((p, dict(k)) for p, k in sorted(sizes.items()) if p not in made)
+    for p in sorted(made):
+        folder = p.rsplit("/", 1)[0] if "/" in p else ""
+        if folder and folder not in made:  # the run wrote INTO it, so it was a folder then  # FACTS-WRITE-FOLDER
+            # never measured after the run: a run that removed the folder it wrote into would hold "absent", and a tree
+            # without the folder - where that write fails - would hold every fact (a write that failed costs a re-run)
+            rec["Z"].setdefault(folder, {}).setdefault("d", "-")
+    rec["S"] = dict((p, _presence(root, p)) for p in sorted(set(facts.get("S") or ()) - made - set(sizes)))
+    rec["A"] = sorted((set(facts.get("A") or ()) - made) | found_absent)
+    rec["L"] = dict((p, listed.get(p) or _listing_digest(root, p)) for p in sorted(set(facts.get("L") or ()) - made))
+    homes = set(["", "tv"]) | set(os.path.dirname(p).replace(os.sep, "/") for p in rec["R"] if p.endswith(".py"))
+    rec["I"] = _module_homes(root, set(facts.get("I") or ()), homes)
+    rec["Ihomes"] = sorted(homes)
+    rec["G"] = (_gitignores(root) if facts.get("G") else {})
+    rec["T"] = dict((s, _tracked_scope(root, s)) for s in sorted(facts.get("T") or ()))
+    rec["E"] = dict(sorted((facts.get("E") or {}).items()))
+    rec["C"] = list(facts.get("C") or ())
+    return rec
+
+
+def facts_hold(root, facts, env=None, allow_cdp_chrome=False):
+    """REG-2442 - does every fact of one run's record still hold in `root` and `env`? -> (bool, why)
+
+    `facts` is facts_of()'s record; `env` the environment the next run would start with (default os.environ). The first
+    fact that moved is the why. A record of another version, an unmeasured fact ("?"), and - unless the caller passes
+    allow_cdp_chrome=True and keys what that browser loaded itself - a run with an attested Chrome never hold."""
+    if not isinstance(facts, dict) or facts.get("v") != FACTS_VERSION:
+        return False, "the facts are unreadable or of another version"
+    if facts.get("C") and not allow_cdp_chrome:
+        return False, "a Chrome the run started read pages no fact names"
+    env = os.environ if env is None else env
+    for name, d in sorted((facts.get("E") or {}).items()):
+        if d == "?" or _env_digest(env, name) != d:
+            return False, "the environment's %s is not the value the run read" % name  # FACTS-ENV
+    for p in facts.get("A") or ():
+        if os.path.lexists(_fact_path(root, p)):
+            return False, "%s exists now; the run found it absent" % p
+    for p, was in sorted((facts.get("S") or {}).items()):
+        if _presence(root, p) != was:
+            return False, "%s is not there as the run found it" % p
+    for p, kinds in sorted((facts.get("Z") or {}).items()):
+        full = _fact_path(root, p)
+        for kind, size in sorted(kinds.items()):
+            follows = kind not in ("l", "F", "D", "O")
+            try:
+                now = _kind_size(os.stat(full) if follows else os.lstat(full), follows)
+            except OSError:
+                now = ("-", "-")
+            if now != (kind, size):  # FACTS-SIZE
+                return False, "%s is %s now; the run's stat said %s" % (p, " ".join(now), " ".join((kind, size)))
+    for p, d in sorted((facts.get("R") or {}).items()):
+        if d == "?" or _fact_bytes(root, p) != d:
+            return False, "%s is not the bytes the run read" % p  # FACTS-BYTES
+    for p, d in sorted((facts.get("L") or {}).items()):
+        if d == "?" or _listing_digest(root, p) != d:
+            return False, "%s does not hold what the run listed" % (p or "the root")  # FACTS-LISTING
+    homes = facts.get("Ihomes")
+    if facts.get("I") and not isinstance(homes, list):
+        return False, "the imported names' homes were not recorded"
+    now_homes = _module_homes(root, set(facts.get("I") or {}), set(homes or ()))
+    for name, was in sorted((facts.get("I") or {}).items()):
+        if now_homes.get(name) != was:
+            return False, "the module that answers `import %s` is not the one the run found" % name  # FACTS-SHADOW
+    if facts.get("G") is None:
+        return False, "the run asked git check-ignore and its .gitignore files were not measured"
+    if facts.get("G"):
+        if any(v == "?" for v in facts["G"].values()) or _gitignores(root) != facts["G"]:
+            return False, "a .gitignore is not the one git answered the run from"  # FACTS-GITIGNORE
+    for scope, d in sorted((facts.get("T") or {}).items()):
+        if d == "?" or _tracked_scope(root, scope) != d:
+            return False, "the tracked files `git ls-files` listed are not the ones the run listed"  # FACTS-TRACKED
+    return True, None
 
 
 def _console_own_records():
@@ -1634,6 +2032,9 @@ class Ledger(object):
         self.dropped = set()
         self.reds = {}
         self.reds_dropped = set()
+        self._own = set()          # REG-2445 (b) - the PASS rows THIS writer stored: the only rows it writes over the disk
+        self._own_reds = set()
+        self.folded = {}           # REG-2445 - each checkout file folded into the machine ledger, by its size:mtime_ns
         self.reads = 0
         self.last_why = None
         self.map = None
@@ -1675,9 +2076,68 @@ class Ledger(object):
                 self.proven = sha if _SHA.match(sha) else None
                 reds = (data or {}).get("reds")
                 self.reds = dict(reds) if isinstance(reds, dict) else {}  # LEDGER-REDS-LOAD
+                folded = (data or {}).get("folded")
+                self.folded = dict(folded) if isinstance(folded, dict) else {}
             except Exception:
                 self.proven = None
         self._loaded = True
+        if not self.why and self._is_machine():
+            self._fold_checkouts()
+
+    def _is_machine(self):
+        """Is this the MACHINE ledger in git's common dir (REG-2445)? -> bool"""
+        mine, why = machine_ledger_path()
+        return why is None and os.path.normpath(self.path) == os.path.normpath(mine)
+
+    def _fold_checkouts(self):
+        """REG-2445 - every checkout's OWN tv/.gate_ledger.json joins the machine ledger once per version of that file (old
+        code keeps writing them). A gate the machine already holds, or one this writer dropped, keeps that: no clock picks
+        between two PASSes. A folded row carries its checkout as `tree` and no per-tree facts, so it carries only there.
+        A file that cannot be read is said and folded again when it changes. -> None"""
+        common = os.path.dirname(os.path.dirname(os.path.abspath(self.path)))
+        with _LedgerLock(self.path, True):
+            disk, why = load(self.path)
+            if why or not isinstance(disk, dict):
+                return
+            try:
+                with open(self.path, encoding="utf-8") as fh:
+                    body = json.load(fh) if os.path.getsize(self.path) else {}
+            except FileNotFoundError:
+                body = None  # no machine ledger yet: this fold writes the first one
+            body = body if isinstance(body, dict) else {}
+            folded = dict(body.get("folded") or {}) if isinstance(body.get("folded"), dict) else {}
+            moved = False
+            for root in _checkouts(common):
+                src = os.path.join(root, "tv", LEDGER_NAME)
+                try:
+                    st = os.stat(src)
+                except FileNotFoundError:
+                    continue
+                stamp = "%d:%d" % (st.st_size, st.st_mtime_ns)
+                if folded.get(src) == stamp:
+                    continue
+                rows, rwhy = load(src)
+                if rwhy or rows is None:
+                    print("ledger: %s could not be folded into this machine's ledger (%s)" % (src, rwhy))
+                    continue
+                folded[src] = stamp
+                moved = True
+                for name, row in sorted(rows.items()):
+                    if name in disk or name in self.dropped:
+                        continue  # LEDGER-FOLD-KEEPS-THE-MACHINES
+                    if isinstance(row, dict) and row.get("ok") is True and row.get("gate") == name and \
+                            row.get("traced") is True:
+                        row = dict(row)
+                        row.pop("tree_facts", None)
+                        row["tree"] = _tree_id(root)  # LEDGER-FOLD-OWN-TREE
+                        disk[name] = row
+            if not moved:
+                return
+            reds = body.get("reds") if isinstance(body.get("reds"), dict) else {}
+            _ledger_dump(self.path, {"v": 2, "proven_sha": body.get("proven_sha"), "folded": folded,
+                                     "entries": disk, "reds": reds}, True)
+        self.folded = folded
+        self.entries = dict(disk)
 
     def _tools(self, root):
         if self._measured is None:
@@ -2117,10 +2577,9 @@ class Ledger(object):
         folder = os.path.dirname(path)
         if folder:
             os.makedirs(folder, exist_ok=True)
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(self.map, fh, sort_keys=True)
-        os.replace(tmp, path)
+        # REG-2445 - the machine's map is written by every checkout's run: a tmp of this process's own, so two writers
+        # never write one tmp; a checkout's own map keeps its one gitignored tmp
+        _ledger_dump(path, self.map, self._is_machine())
 
     def prepare(self, gates):
         """Build the input map once, or load the one already cached for this runner and blueprint."""
@@ -2337,6 +2796,9 @@ class Ledger(object):
                 return None, "inputs changed: %s" % path
         if entry.get("traced") is not True or not isinstance(entry.get("inputs"), list):  # LEDGER-OLD-ROW
             return None, "the stored PASS does not say what the gate read, so it runs once"
+        tree_why = self._tree_moved(entry, root)  # LEDGER-TREE-FACTS
+        if tree_why:
+            return None, tree_why
         inputs = set(row["inputs"]) | set(str(p) for p in entry["inputs"])  # LEDGER-PROOF-INPUTS
         listed, imports = set(entry.get("listed") or ()), set(entry.get("imports") or ())
         # an untracked file the proof already saw is not a change; one that came or went is
@@ -2470,37 +2932,63 @@ class Ledger(object):
     def _write(self):
         if os.path.basename(self.path) != LEDGER_NAME:
             return False
-        if len(self.entries) > _MAX:
-            ranked = sorted(self.entries, key=lambda k: (self.entries[k] or {}).get("at") or 0)
-            for old in ranked[:len(self.entries) - _MAX]:
-                self.entries.pop(old, None)
-        disk, why = load(self.path)
-        if isinstance(disk, dict) and not why:
-            for name, entry in disk.items():
-                if name in self.dropped or name in self.entries:
-                    continue
-                if isinstance(entry, dict) and entry.get("ok") is True and entry.get("gate") == name:
-                    self.entries[name] = entry
-            try:
-                with open(self.path, encoding="utf-8") as fh:
-                    dreds = (json.load(fh) or {}).get("reds")
-            except Exception:
-                dreds = None
-            for name, entry in (dreds.items() if isinstance(dreds, dict) else ()):
-                if name in self.reds_dropped or name in self.reds or name in self.entries:
-                    continue
-                if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
-                    self.reds[name] = entry
         folder = os.path.dirname(self.path)
         if folder:
             os.makedirs(folder, exist_ok=True)
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"v": 2, "proven_sha": self.proven, "entries": self.entries, "reds": self.reds}, fh,
-                      sort_keys=True)
-        os.replace(tmp, self.path)
+        machine = self._is_machine()
+        with _LedgerLock(self.path, machine):
+            disk, why = load(self.path)
+            if isinstance(disk, dict) and not why:
+                # REG-2445 (b) - what is on disk NOW, under the lock, with this writer's view laid over ONLY the gates
+                # it touched (recorded or dropped): a row it merely loaded is never written back over another writer's
+                # newer drop or PASS, and a gate it touched is written exactly as this writer holds it
+                touched = self.dropped | self._own
+                entries = dict((n, e) for n, e in disk.items() if n not in touched and isinstance(e, dict)
+                               and e.get("ok") is True and e.get("gate") == n)
+                for n in touched:
+                    if n in (self.entries or {}):
+                        entries[n] = self.entries[n]  # LEDGER-OWN-ROWS
+                self.entries = entries
+                try:
+                    with open(self.path, encoding="utf-8") as fh:
+                        body = json.load(fh)
+                except Exception:
+                    body = None  # its reds and fold marks could not be read: none are merged, as before
+                body = body if isinstance(body, dict) else {}
+                dreds, dfold = body.get("reds"), body.get("folded")
+                touched = self.reds_dropped | self._own_reds
+                reds = self._disk_reds(dreds, touched)
+                for n in touched:
+                    if n in self.reds:
+                        reds[n] = self.reds[n]
+                self.reds = reds
+                if isinstance(dfold, dict):
+                    self.folded = dict(dfold, **self.folded)
+            if len(self.entries) > _MAX:
+                ranked = sorted(self.entries, key=lambda k: (self.entries[k] or {}).get("at") or 0)
+                for old in ranked[:len(self.entries) - _MAX]:
+                    self.entries.pop(old, None)
+            tmp = self.path + ((".%d.tmp" % os.getpid()) if machine else ".tmp")
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump({"v": 2, "proven_sha": self.proven, "folded": self.folded,
+                           "entries": self.entries, "reds": self.reds}, fh,
+                          sort_keys=True)
+            os.replace(tmp, self.path)
         self.why = None
         return True
+
+    def _disk_reds(self, dreds, touched):
+        """The red rows on disk now, for the gates this writer did not touch (its own red rows and red drops are laid
+        over them by _write). A PASS this writer records drops the gate's red row itself (record's _drop_red): a red row
+        is never left out by inference, only by a drop. -> dict"""
+        kept = {}
+        if isinstance(dreds, dict):
+            for name, entry in dreds.items():
+                if name in touched:
+                    continue
+                if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
+                    kept[name] = entry
+        return kept
 
     def _traced_inputs(self, facts, root):
         """The repo files a traced run read, or why that run cannot be carried. -> (dict|None, why)"""
@@ -2553,6 +3041,141 @@ class Ledger(object):
             listed.add("")
         return {"inputs": inputs, "listed": listed, "snaps": snaps,
                 "imports": set(facts.get("I") or ())}, None
+
+    def _untracked_names(self, root, folder, tracked, dirs):
+        """REG-2445 - the names in one TRACKED folder that git does not track (untracked and ignored alike - git status
+        never names an ignored one), less bytecode and this ledger's own files. -> sorted [name] | None (unreadable)"""
+        try:
+            names = os.listdir(_fact_path(root, folder))
+        except FileNotFoundError:
+            return []  # the folder is gone: it holds no name
+        except OSError:
+            return None
+        prefix = (folder + "/") if folder else ""
+        return sorted(n for n in names if (prefix + n) not in tracked and (prefix + n) not in dirs
+                      and n != "__pycache__" and n not in _SELF)
+
+    def _tree_facts(self, facts, root):
+        """REG-2445 (a) - what a run found that git cannot see differ between two checkouts. -> dict | None (unknown)
+
+        absent:  every path it looked for outside the tracked set and found absent (an ignored file is never in git
+                 status, so a PASS proved without it would carry into a checkout that has it) - REG-2449: and every
+                 such folder it LISTED and found absent (a listing is no R, S or A)
+        folders: every untracked folder it found (an ignored folder only one checkout holds), and (REG-2449) every
+                 folder a path it made was written into - a write into a folder another checkout lacks fails there
+        listed:  for every TRACKED folder it really listed, the names git does not track there - a listing sees ignored
+                 names git status never says. REG-2449 - "really listed" is a D fact OR an L of a folder: a node child
+                 wrote no D before REG-2449, and its listing was never held. L "" alone is `git ls-files` (the tracked
+                 set, not the root's names), so the root counts only with its D.
+        made_absent (REG-2449): every path outside the tracked set the run LOOKED for, found absent and then made (MA:
+                 exists() then create it, append onto nothing, an 'x' open, a mkdir) - its absence is what the run found
+        kept (REG-2449): every such path a write found THERE and kept the bytes of (append, r+): those bytes (H)
+        A row with these carries into another checkout only where they hold; made_absent and kept are asked only in
+        ANOTHER checkout (in its own the run left them behind - today's rule). None (git could not list the tracked
+        files, a folder could not be read, a kept file's bytes were not measured) keeps the row to its own checkout."""
+        tracked = self._tracked(root)
+        if tracked is None:
+            return None
+        dirs = self._tracked_dirs(root, tracked)
+        made = set(facts.get("M") or ())
+        absent, folders = [], []
+        for path in sorted(set(facts.get("R") or ()) | set(facts.get("S") or ()) | set(facts.get("A") or ())):
+            if not path or path in made or path in tracked or path in dirs or path == ".git" \
+                    or path.startswith(".git/") or os.path.basename(path) in _SELF:
+                continue
+            full = _fact_path(root, path)
+            if not os.path.lexists(full):
+                absent.append(path)  # LEDGER-TREE-ABSENT
+            elif os.path.isdir(full):
+                folders.append(path)
+        # REG-2449 - what the run made: found absent first (made_absent), found there with bytes it kept (kept), and
+        # the folder it was written into
+        hashed = facts.get("H") if isinstance(facts.get("H"), dict) else {}
+        found_absent = set(facts.get("MA") or ())
+        made_absent, kept, into = [], {}, set()
+        for path in sorted(made):
+            if not path:
+                continue
+            folder = path.rsplit("/", 1)[0] if "/" in path else ""
+            if folder and folder not in made:
+                into.add(folder)
+            if path in tracked or path in dirs or path == ".git" or path.startswith(".git/") \
+                    or os.path.basename(path) in _SELF or path in _KEYED_CACHES:
+                continue
+            if path in found_absent:
+                made_absent.append(path)  # LEDGER-TREE-MADE-ABSENT
+            elif path in hashed:
+                if hashed[path] in ("-", "d", "?"):
+                    return None  # bytes it kept that no other checkout can be held to
+                kept[path] = hashed[path]  # LEDGER-TREE-KEPT
+        for folder in sorted(into - set(folders)):
+            if not os.path.isdir(_fact_path(root, folder)):
+                return None  # the folder it wrote into is gone again: nothing to hold another checkout to
+            folders.append(folder)  # LEDGER-TREE-WRITE-FOLDER
+        folders.sort()
+        d_facts = facts.get("D") if isinstance(facts.get("D"), dict) else {}
+        listed = {}
+        for folder in sorted((set(d_facts) | set(p for p in (facts.get("L") or ()) if p)) - made):  # LEDGER-TREE-L
+            if folder in dirs or folder == "":
+                names = self._untracked_names(root, folder, tracked, dirs)
+                if names is None:
+                    return None
+                listed[folder] = names
+                continue
+            if folder in tracked or folder == ".git" or folder.startswith(".git/") or os.path.basename(folder) in _SELF:
+                continue
+            # REG-2449 - a folder outside the tracked set it LISTED and found absent (a glob of a footage folder a fresh
+            # worktree lacks) is an absence like any other; one there now is held by its listing snapshot (snaps); one
+            # it found there and is gone again, or a listing that met a file, holds nothing another checkout can match
+            full = _fact_path(root, folder)
+            if os.path.isdir(full):
+                continue
+            if os.path.lexists(full) or d_facts.get(folder, "-") != "-":
+                return None
+            if folder not in absent:
+                absent.append(folder)  # LEDGER-TREE-LISTED-ABSENT
+        absent.sort()
+        return {"v": TREE_FACTS_VERSION, "absent": absent, "folders": folders, "listed": listed,
+                "made_absent": made_absent, "kept": kept}
+
+    def _tree_moved(self, entry, root):
+        """REG-2445 (a) - why a stored PASS cannot carry into THIS checkout, or None. A row without per-tree facts (folded
+        from a checkout's own file, or written before them, or - REG-2449 - of another TREE_FACTS_VERSION) carries only
+        in the checkout it was proved in. With them, each absent path must still be absent and each folder a folder; a
+        listed folder's untracked names, each path the run found absent and made, and each file whose bytes it kept are
+        asked only in ANOTHER checkout (in its own, today's rule stands: the run left them there itself, and the console
+        writes ignored names there all day). -> str"""
+        here = _tree_id(root)
+        tf = entry.get("tree_facts")
+        tree = entry.get("tree")
+        if not isinstance(tf, dict) or tf.get("v") != TREE_FACTS_VERSION:
+            if tree and tree != here:
+                return "this PASS was proved in another checkout without per-tree facts, so it carries only there"
+            return None
+        for path in tf.get("absent") or ():
+            if os.path.lexists(_fact_path(root, path)):
+                return "inputs changed: %s exists in this checkout, and the PASS was proved without it" % path
+        for path in tf.get("folders") or ():
+            if not os.path.isdir(_fact_path(root, path)):
+                return "inputs changed: %s is not a folder in this checkout" % path
+        if tree != here:
+            for path in tf.get("made_absent") or ():
+                if os.path.lexists(_fact_path(root, path)):  # LEDGER-TREE-MADE-ABSENT-MOVED
+                    return ("inputs changed: %s exists in this checkout, and the run that proved the PASS found it "
+                            "absent and made it" % path)
+            for path, d in sorted((tf.get("kept") or {}).items()):
+                if _fact_bytes(root, path) != d:  # LEDGER-TREE-KEPT-MOVED
+                    return "inputs changed: %s is not the bytes the run found and kept where it was proved" % path
+        listed = tf.get("listed") or {}
+        if listed and tree != here:
+            tracked = self._tracked(root)
+            if tracked is None:
+                return "git did not list the tracked files, so the folders this PASS listed cannot be compared"
+            dirs = self._tracked_dirs(root, tracked)
+            for folder, names in sorted(listed.items()):
+                if self._untracked_names(root, folder, tracked, dirs) != names:  # LEDGER-TREE-LISTED
+                    return "inputs changed: %s holds other untracked names in this checkout" % (folder or "the root")
+        return None
 
     def _tracked_dirs(self, root, tracked):
         if getattr(self, "_dirs_root", None) != root:
@@ -2607,7 +3230,10 @@ class Ledger(object):
             traced, twhy = self._traced_inputs(facts, root)
         if traced is None:
             self.last_why = twhy or "no trace of what the gate read"
-            if name:
+            # REG-2445 (d) - a run with NO trace is no evidence about a stored PASS (the hook records a reused suite
+            # verdict that way): nothing is stored and nothing is dropped. A FAIL was dropped above; an untraceable run
+            # (a U line, a lost child) still drops, as before.
+            if name and (trace or red):  # LEDGER-NO-TRACE-NO-DROP
                 self._drop(name)
                 self._drop_red(name)
             return False
@@ -2651,16 +3277,23 @@ class Ledger(object):
             "untracked": sorted(p for p in untracked
                                 if covered(traced["listed"], traced["imports"], p)),
             "snaps": dict(traced.get("snaps") or {}),
+            "tree": _tree_id(root),
         }
+        # REG-2445 (a) - what git cannot see differ between two checkouts, so the row may carry into another one
+        tree_facts = self._tree_facts(facts, root)
+        if tree_facts is not None:
+            row_out["tree_facts"] = tree_facts
         if red:  # LEDGER-RED-STORE: kept in its own map, so lookup() can never carry it as a pass
             row_out["red"] = True
             self.reds[name] = row_out
             self.reds_dropped.discard(name)
+            self._own_reds.add(name)
             self._write()
             return False
         self.dropped.discard(name)
         self.proven = sha
         self.entries[name] = row_out
+        self._own.add(name)
         self._drop_red(name, write=False)
         self._write()
         return True
@@ -2670,6 +3303,7 @@ class Ledger(object):
         if name in self.reds or write is False:
             self.reds.pop(name, None)
             self.reds_dropped.add(name)
+            self._own_reds.discard(name)
             if write:
                 try:
                     self._write()
@@ -2682,6 +3316,7 @@ class Ledger(object):
             self.entries = {}
         self.entries.pop(name, None)  # LEDGER-DROP-FAIL
         self.dropped.add(name)
+        self._own.discard(name)
         if os.path.exists(self.path) or self.entries:
             try:
                 self._write()

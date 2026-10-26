@@ -166,20 +166,26 @@ def read(where=None, n=None):
 
 def table(records):
     """One line per record, for `heart2.py --pushes`. -> [str]. `posix-only`: proofs caught only by cases that skip off
-    POSIX (REG-2357) - each files BLIND on a Windows census; `?` on a record written before it was counted."""
-    out = ["  when              exit  wall    proofs  forecast h/n/f   actual h/n/f/notrun   violations  killed  "
-           "posix-only  gates"]
+    POSIX (REG-2357) - each files BLIND on a Windows census; `?` on a record written before it was counted.
+    REG-2436: `mode` - push (hooks/pre-push's --push run) or census (his heart's own prover, with the proof memory); a
+    record from before the census wrote one is a push. `audit`: served PROVENs re-proved / contradicted (REG-2434) -
+    `-` where nothing was audited (NOT AUDITED, never clean), `?` on a record from before it was counted."""
+    out = ["  when              mode    exit  wall    proofs  forecast h/n/f   actual h/n/f/notrun   audit  violations  "
+           "killed  posix-only  gates"]
     for r in records:
         f, a = r.get("forecast") or {}, r.get("actual") or {}
         v = r.get("proveOnceViolations")
         po = r.get("posixOnlyCatch")
-        out.append("  %-16s  %-4s  %-6s  %-6s  %-15s  %-20s  %-10s  %-6s  %-10s  %s" % (
+        ad, cc = r.get("auditedCount", "?"), r.get("cacheContradictions")
+        out.append("  %-16s  %-6s  %-4s  %-6s  %-6s  %-15s  %-20s  %-5s  %-10s  %-6s  %-10s  %s" % (
             time.strftime("%m-%d %H:%M", time.localtime((r.get("at") or 0) / 1000.0)) if r.get("at") else "?",
+            r.get("mode") or "push",
             r.get("exit", "?"),
             "%dm%02ds" % divmod(int(r.get("wallS") or 0), 60) if r.get("wallS") is not None else "?",
             r.get("proofs", "?"),
             "%s/%s/%s" % (f.get("hit", "?"), f.get("narrow", "?"), f.get("full", "?")),
             "%s/%s/%s/%s" % (a.get("hit", "?"), a.get("narrow", "?"), a.get("full", "?"), a.get("notRun", "?")),
+            "?" if ad == "?" else "-" if not ad and not cc else "%s/%s" % (ad, len(cc or [])),
             "UNKNOWN" if v is None else len(v),
             r.get("signalKilled", "?"),
             len(po) if isinstance(po, list) else "?",

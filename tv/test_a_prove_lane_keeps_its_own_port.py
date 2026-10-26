@@ -16,6 +16,10 @@ The bind is not the deleter. This law watches the file:
 
 heart2 stamps TV_LANE_PORT_BASE per lane. A suite derives from it and, with no base, keeps
 the port it has always used. His console port is never derived.
+
+#160 (REG-2439): the base is a function of the LANE AND THE PROVER - two provers on one machine
+(his self-prover's census and a push) each hold a machine-wide prover slot, and lane n of one
+never binds lane n of the other: heart2 stamps from its own slot (slot 0 in a law's own process).
 RED_PROOF below.
 """
 import os
@@ -181,6 +185,27 @@ class AProveLaneKeepsItsOwnPort(unittest.TestCase):
                          "%s %s %s %s" % (b, b, want_ctl, str(int(b) + 2)),  # REG-1820
                          "lane 2's gate was not stamped with its own ports: %r" % tail)
 
+    def test_the_gate_process_is_stamped_from_its_provers_slot(self):
+        """#160 (REG-2439) - the prover holding slot 3 stamps lane 2 with slot 3's ports, which slot 0's lane 2 (another
+        prover's) never binds."""
+        os.environ.pop(LP.ENV, None)
+        root = tempfile.mkdtemp(prefix="laneslot.")
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        tv = os.path.join(root, "tv")
+        os.makedirs(tv)
+        open(os.path.join(tv, "lane_port_probe.py"), "w").close()
+        saved = dict(H._SLOT)
+        self.addCleanup(lambda: (H._SLOT.clear(), H._SLOT.update(saved)))
+        H._SLOT["n"] = 3
+        H._LANE_LOCAL.n = 2
+        ok, tail = H._run_gate(tv, "lane_port_probe.py", timeout=30,
+                               script="import os\nprint('BASE=%s' % os.environ.get('TV_LANE_PORT_BASE', ''))\n")
+        self.assertTrue(ok, "the probe did not run: %r" % tail)
+        mine, other = LP.base_for_lane(2, 3), LP.base_for_lane(2)
+        self.assertNotEqual(mine, other, "PREMISE: slot 3 and slot 0 hand lane 2 the same base")
+        self.assertIn("BASE=%d" % mine, tail, "lane 2 of the prover holding slot 3 was not stamped from its slot (slot "
+                                             "0's lane 2 is %d - another prover's): %r" % (other, tail))
+
     def test_a_shared_port_is_how_a_tracked_file_vanishes(self):
         """The watcher is the witness. The bind deletes nothing. The request through it does."""
         shared, other = _free_pair()
@@ -293,6 +318,13 @@ RED_PROOF = [
         "file": "lane_ports.py",
         "find": "    b = BASE0 + (n - 1) * STRIDE\n",
         "replace": "    b = BASE0\n",
+        "matches": 1,
+    },
+    {
+        "why": "#160 - a lane is stamped from slot 0 whatever slot its prover holds: two provers' lane 2 bind one port",
+        "file": "heart2.py",
+        "find": "    return _lp.stamp(env, lane, _SLOT[\"n\"] or 0)\n",
+        "replace": "    return _lp.stamp(env, lane, 0)\n",
         "matches": 1,
     },
 ]

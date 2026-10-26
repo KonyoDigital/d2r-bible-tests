@@ -129,3 +129,33 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+
+  bank:
+    # REG-2633 - PUBLISH THIS COMMIT'S LINUX PROOF BANK, OR GO RED. The PCs read origin/proof-bank:<sha>.<class>.json
+    # (REG-2632). Runs only after a whole set passed the fan-in; every step fails the job (none may run on past an error),
+    # and tv/proof_bank.py reads the file back from origin before it calls the bank published.
+    name: bank - publish <sha>.linux.json to proof-bank
+    needs: [fan-in]
+    # a dispatch from any other ref (main included) proves, but never writes the bank
+    if: ${{ startsWith(github.ref, 'refs/heads/ci/proof-keys-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      D2R_NO_CLAUDE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the whole set
+        uses: actions/download-artifact@v5
+        with:
+          name: proof-shards-${{ github.sha }}
+          path: shards
+      - name: Import the set, export what this tree keys, publish it
+        run: |
+          set -euo pipefail
+          export HEART2_CACHE_PATH="$RUNNER_TEMP/bank/.heart2_cache.json"
+          mkdir -p "$RUNNER_TEMP/bank"
+          python3 tv/heart2.py --import-shards shards/*/.heart2_cache.json
+          python3 tv/heart2.py --export-proved "$RUNNER_TEMP/out"
+          python3 tv/proof_bank.py --publish "$RUNNER_TEMP/out/.heart2_cache.json" --head "$GITHUB_SHA" --class linux

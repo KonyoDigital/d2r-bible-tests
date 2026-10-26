@@ -1228,9 +1228,72 @@ def _arm_lane_records(dest, keep, recs):
         if p.startswith(root + os.sep):
             snap[str(r)] = _read_record(p)
     _LANE_RECORDS[root] = snap
+    _LANE_UNKEPT[root] = _unkept_records(root, set(keep or ()) & {str(r) for r in recs})
 
 
-def _reset_lane_records(sandbox, say):
+#: #182(3) - {sandbox root: {kept record: its bytes as _drop_run_records leaves an UNKEPT one (HEAD's blob | None)}}
+_LANE_UNKEPT = {}
+
+
+def _unkept_records(root, kept):
+    """#182(3) - what each record kept for SOME gate would read in a sandbox no gate kept it in. -> {record: bytes|None}
+
+    The keep-set is the UNION of every gate's PROOF_NEEDS, so a record one gate keeps stayed live for every law in the
+    lane. Here each kept record gets the state _drop_run_records gives a record nobody keeps: HEAD's blob where the
+    sandbox's own history tracks it, absent where it does not. With no history, which it is is UNKNOWN, so the record
+    is left out (it stays as built, as before) - never guessed."""
+    out = {}
+    gd = os.path.join(root, ".git")
+    if not kept or not os.path.isdir(gd):
+        return out
+    env = _git_free_env(GIT_OPTIONAL_LOCKS="0")
+    git = ["git", "--git-dir=" + gd, "--work-tree=" + root, "-c", "core.hooksPath=" + os.devnull]
+    for rel in sorted(kept):
+        if not _inside(root, os.path.normpath(os.path.join(root, *rel.split("/")))):
+            continue
+        try:
+            r = subprocess.run(git + ["ls-tree", "-z", "--name-only", "HEAD", "--", rel], cwd=root,
+                               capture_output=True, timeout=60, env=env)
+            if r.returncode != 0:
+                continue
+            if not r.stdout.strip(b"\0"):
+                out[rel] = None
+                continue
+            # --filters: the bytes `git checkout` writes (EOL conversion, smudge), as _drop_run_records restores them
+            b = subprocess.run(git + ["cat-file", "--filters", "HEAD:" + rel], cwd=root, capture_output=True,
+                               timeout=60, env=env)
+            if b.returncode == 0:
+                out[rel] = b.stdout
+        except (OSError, subprocess.SubprocessError):
+            continue
+    return out
+
+
+def _is_link(p):
+    """#182(3) review r6 - a symlink, or (Windows) a junction, at p. -> bool"""
+    try:
+        return os.path.islink(p) or bool(getattr(os.path, "isjunction", lambda _p: False)(p))
+    except OSError:
+        return False
+
+
+def _unlink_link(p):
+    """Remove the LINK at p, never what it points to (a directory link on Windows takes rmdir)."""
+    try:
+        os.unlink(p)
+    except OSError:
+        os.rmdir(p)
+
+
+def _gate_keeps(filename):
+    """#182(3) - the run records ONE gate keeps (its own PROOF_NEEDS, as _drop_run_records names them). -> set | None"""
+    got = proof_needs_in(filename)
+    if got is None:
+        return None
+    return {os.path.normpath(os.path.join("tv", n)).replace(os.sep, "/") for n in got}
+
+
+def _reset_lane_records(sandbox, say, keeps=None):
     """REG-2598 - A GATE NEVER STARTS ON A RUN RECORD THE GATE BEFORE IT WROTE. -> [records put back] | None (unarmed)
 
     MEASURED on the dcff7160 16-shard run: shard 16's lane ran hover-wilson, whose hover_wilson.py banks a row into
@@ -1244,13 +1307,30 @@ def _reset_lane_records(sandbox, say):
     was = _LANE_RECORDS.get(root)
     if was is None:
         return None
+    swapped = set()
+    if keeps is not None:                       # #182(3) - a record another gate keeps reads, here, as nobody kept it
+        was = dict(was)
+        for rel, data in _LANE_UNKEPT.get(root, {}).items():
+            if rel not in keeps:
+                was[rel] = data
+                swapped.add(rel)
     moved, stuck = [], []
     for rel, data in sorted(was.items()):
         p = os.path.join(root, *rel.split("/"))
         try:
+            # #182(3) review r6 - the FOLDER must be inside; a link AT the record is unlinked (never followed) first,
+            # so a gate that swapped its record for a link out of the sandbox never reaches the next gate through it
+            if not _inside(root, os.path.dirname(p)):
+                if rel not in moved:
+                    moved.append(rel)
+                raise OSError("outside the sandbox root")
+            if _is_link(p):
+                moved.append(rel)
+                _unlink_link(p)
             if _read_record(p) == data:
                 continue
-            moved.append(rel)
+            if rel not in moved:
+                moved.append(rel)
             if data is None:
                 os.remove(p)
             else:
@@ -1266,7 +1346,9 @@ def _reset_lane_records(sandbox, say):
             stuck.append(rel)
     if moved:
         say("     ↺ REG-2598 a gate before this one wrote %s in this lane's sandbox - put back as the sandbox was built, "
-            "so no later law is proved or keyed over it" % ", ".join(moved))
+            "so no later law is proved or keyed over it" % ", ".join(moved)
+            + ("" if not swapped & set(moved) else " (#182(3): %s read as nobody kept them - only another gate keeps "
+               "them)" % ", ".join(sorted(swapped & set(moved)))))
     if stuck:
         say("     ⚠ REG-2598 %s could NOT be put back - the next law in this lane runs over what the last gate wrote"
             % ", ".join(stuck))
@@ -1317,6 +1399,8 @@ def _rmtree_hard(path):
 def _drop_sandbox(root):
     _SANDBOXES.discard(root)
     _sweep_journal(os.path.dirname(root), "dropped", root, "own-drop", str(os.getpid()), time.time())   # REG-2612
+    for _m in (_MANIFEST, _MANIFEST_ROWS, _PRISTINE):
+        _m.pop(root, None)                       # REG-2440
     if not _rmtree_hard(root):
         sys.stderr.write("  a sandbox could not be removed (it stays on disk until the next sweep): %s\n" % root)
 
@@ -1698,12 +1782,49 @@ def make_sandbox(say=print):
     except Exception as _e:
         say("  ⚠ the run records could not be taken out of the sandbox (%s) - a law that reads one reads a live value"
             % type(_e).__name__)
+    # REG-2438 (#71) — EVERY FILE OF THE SANDBOX IS FRESH TO THE TEMP CLEANER: after safe_copy and every PROOF_NEEDS
+    # clone, the last step before any law runs. See _fresh_atimes.
+    _fresh_atimes(root, say)
+    if trace_on():
+        _take_manifest(root, dest, say)          # REG-2440 - every entry as COPIED: what a fact may be checked against
     tv = os.path.join(dest, "tv")
     if not os.path.isfile(os.path.join(tv, "control_app.py")):
         say("  the sandbox is missing control_app.py — refusing to report verdicts about it")
         _drop_sandbox(root)
         return None, None
     return tv, root
+
+
+def _fresh_atimes(root, say=print):
+    """REG-2438 (#71) — set every file of a sandbox to "read just now" (atime = now; mtime KEPT; links themselves, never
+    followed). -> how many entries were stamped (None: the walk failed - said)
+
+    ⚠⚠ A SANDBOX COPY KEEPS THE SOURCE'S ACCESS TIME, AND macOS DELETES TEMP FILES BY IT. MEASURED 2026-10-22: shutil's
+    copy2 (safe_copy's copytree) and the APFS `cp -c -R` clone (_bring_across) both keep the SOURCE atime - a file last
+    read on 10-01 copies with atime 10-01. macOS's dirhelper (/System/Library/LaunchDaemons/com.apple.bsd.dirhelper.plist:
+    CLEAN_FILES_OLDER_THAN_DAYS=3, StartCalendarInterval 03:35, RunAtLoad) removes $TMPDIR files whose atime is older than
+    3 days - every heart2 sandbox lives there (tempfile.mkdtemp). EVIDENCE: the v3631 push log proved 02:52:32-03:51:36 and
+    its #144 vanish (line 119) is mid-run; tv/.self_prove.json.log holds 30 vanish events, two at once in two lanes, each
+    listing every long-unread root .md / skill file - an outside deleter, not one law's cleanup. UNVERIFIED until a 03:35
+    passes with a live sandbox and nothing vanishes: the #144 line now carries its wall-clock time so that can be read.
+    The mtime is kept on purpose: laws and keys read mtimes (law_inputs memoises on them)."""
+    now = time.time_ns()
+    n = 0
+    try:
+        for dp, dns, fns in os.walk(root):
+            for x in dns + fns:
+                p = os.path.join(dp, x)
+                try:
+                    st = os.lstat(p)
+                    os.utime(p, ns=(now, st.st_mtime_ns), follow_symlinks=False)  # FRESH-ATIME
+                    n += 1
+                except (OSError, NotImplementedError):
+                    pass                          # one entry it cannot stamp is left as it was: the rest still are
+    except OSError as _we:
+        say("  ⚠ the sandbox's files could not all be marked as read just now (%s) - the temp cleaner may take an old one"
+            % type(_we).__name__)
+        return None
+    return n
 
 
 def _skipped_every_law(tail):
@@ -1994,9 +2115,146 @@ _LANE_LOCAL = threading.local()
 
 
 def _stamp_lane_ports(env, lane):
-    """#144 — write this prove lane's port base into the gate's environment."""
+    """#144 — write this prove lane's port base into the gate's environment. #160 (REG-2439): from this process's
+    machine-wide prover slot, so two provers' lanes never bind one port."""
     import lane_ports as _lp
-    return _lp.stamp(env, lane)
+    return _lp.stamp(env, lane, _SLOT["n"] or 0)
+
+
+# ══ #160 (REG-2439) — TWO PROVERS ON ONE MACHINE: OWN PORTS, AT MOST K CHROMES, PRIVATE TEMP, AND NO SIBLING'S RED ═══════
+# MEASURED at 7285e7efc: lane ports were a pure function of the lane number, so his census and a push (or a worktree's
+# pre-flight) bound the SAME 21001+ ports - and lane_ports' own docstring names a request from another sandbox on a shared
+# listener as a tracked-file deleter (#144). _PushRun.browser_lock was a threading.Lock - one per PROCESS - and the census
+# held no browser lock at all, so self_prove's 4 lanes plus any push could run 4+ Chromes at once; his ruling is at most
+# two. Every law run inherited the prover's TMPDIR and board_sync's default REPO (the real checkout). So:
+#   · prove() claims the process's machine-wide prover SLOT (lane_ports.claim_slot) and every lane stamps from it;
+#   · a browser gate - push or census - is proved under the machine's K browser slots (lane_ports.BrowserSemaphore,
+#     K = min(HEART2_BROWSER_SLOTS, 2)), not a per-process lock;
+#   · each law run gets a private TMPDIR/TEMP/TMP inside its sandbox (removed after the run) and D2R_REPO = the sandbox;
+#   · under concurrency - another prover holds a slot, or this browser gate shares the machine with K > 1 - a tampered
+#     red is a verdict only when its named FAIL cases go red AGAIN on a second tampered run (critic R3): one sibling's
+#     write cannot turn a blind law PROVEN.
+# Only heart2's own CLI process - or a law that named a slot dir of its own (use_law_slots) - touches slot files; a law
+# driving the prover in-process keeps slot 0 and a per-process lock, as before, whatever HEART2_LANES_DIR it inherited.
+# MEASURED: every law run inherits its prover's environment, so a prover seamed with HEART2_LANES_DIR flipped the laws it
+# proved onto that dir - test_a_lane_never_waits_on_the_browser_while_work_waits read ALREADY RED untampered in its
+# sandbox (its in-process _PushRun took the machine's semaphore, which a thread may hold once). _run_gate_once drops it
+# from every law run too. The laws: test_the_machine_runs_at_most_two_browsers, test_a_sibling_cannot_turn_a_law_red.
+_SLOT = {"n": None}
+_SLOTS_LAW = {"dir": None}                 # use_law_slots: the slot dir a law's own prover opted into
+
+
+def use_law_slots(lanes_dir):
+    """#160 — a law's own prover (driven in-process, or a script the law runs) takes machine-wide slots - in `lanes_dir`,
+    the law's scratch, never the machine's. Exported as HEART2_LANES_DIR, where lane_ports looks. -> lanes_dir"""
+    os.environ["HEART2_LANES_DIR"] = lanes_dir
+    _SLOTS_LAW["dir"] = lanes_dir
+    return lanes_dir
+
+
+def _slots_in_play():
+    """#160 — may this process take machine-wide slots? heart2's own CLI, or a law that opted in with a slot dir of its
+    own (use_law_slots) - an inherited HEART2_LANES_DIR alone opts nothing in. -> bool"""
+    if _is_prover_process():
+        return True
+    d = _SLOTS_LAW["dir"]
+    return bool(d) and os.environ.get("HEART2_LANES_DIR") == d               # LAW-OPTS-IN
+
+
+def _prover_slot(say=print):
+    """#160 (REG-2439) — this process's machine-wide prover slot, claimed at its first prove() and held for its life
+    (a holder that dies frees it). A law driving prove() in-process keeps slot 0, the numbering before #160. -> int"""
+    if _SLOT["n"] is not None:
+        return _SLOT["n"]
+    if not _slots_in_play():
+        return 0
+    try:
+        import lane_ports as _lp
+        n = _lp.claim_slot(say=say, wait_s=600)
+    except Exception as _se:
+        say("  ⚠ #160: no prover slot could be claimed (%s) - slot 0, as before #160; this run's lanes may share ports "
+            "with another prover's" % type(_se).__name__)
+        n = 0
+    if n is None:
+        say("  ⚠ #160: every prover slot stayed held for 10 minutes - slot 0, as before #160; this run's lanes may share "
+            "ports with another prover's")
+        n = 0
+    _SLOT["n"] = n
+    say("  #160 PROVER SLOT %d: this run's lanes bind ports no other prover on this machine binds" % n)
+    return n
+
+
+def _machine_browser_lock(say=print):
+    """#160 (REG-2439) — the lock a browser gate is proved under: the machine's K browser slots across every prover
+    (lane_ports.BrowserSemaphore) where slots are in play; a per-process lock for a law driving the prover in-process."""
+    if _slots_in_play():
+        try:
+            import lane_ports as _lp
+            return _lp.BrowserSemaphore(say=say)
+        except Exception as _be:
+            say("  ⚠ #160: the machine's browser slots are not reachable (%s) - this run counts its own Chromes only"
+                % type(_be).__name__)
+    return threading.Lock()
+
+
+def _browser_cap():
+    """K - how many browser gates may run at once on this machine (lane_ports.browser_cap; 1 where slots are not in
+    play: a per-process lock)."""
+    if not _slots_in_play():
+        return 1
+    try:
+        import lane_ports as _lp
+        return int(_lp.browser_cap())
+    except Exception:
+        return 2                                  # UNKNOWN: the ruling's cap, so a red is confirmed rather than trusted
+
+
+def _others_proving():
+    """#160 — the prover slots another process holds on this machine. -> [slot] | None (cannot tell: UNKNOWN)"""
+    if _SLOT["n"] is None or not _slots_in_play():
+        return []
+    try:
+        import lane_ports as _lp
+        d, _why = _lp.lanes_dir()
+        held = []
+        for n in range(int(_lp.SLOTS)):
+            if n == _SLOT["n"]:
+                continue
+            fh, how = _lp._try_lock(os.path.join(d, "slot-%d.lock" % n))
+            if fh is not None:
+                fh.close()                        # free: nobody holds it (the probe gives it straight back)
+            elif how is not None:
+                held.append(n)
+        return held
+    except Exception:
+        return None
+
+
+def _concurrent(name):
+    """#160 critic R3 — may a sibling's run have reached this law's run? -> why (words) | None
+
+    Another prover holding a slot on this machine shares its disk and its listeners; a browser gate shares the machine
+    with up to K Chromes. UNKNOWN (the slots cannot be read) counts as concurrent: a red is then confirmed, never trusted."""
+    if _SLOT["n"] is None:
+        return None                               # no slot in play: a lone in-process run, as before #160
+    others = _others_proving()
+    if others is None:
+        return "whether another prover holds a slot is UNKNOWN"
+    if others:
+        return "another prover holds slot(s) %s" % ", ".join(str(x) for x in others)
+    run = _PUSH if _PUSH is not None else _CENSUS
+    if run is not None and name in (getattr(run, "browser", None) or ()) and _browser_cap() > 1:
+        return "browser gates run %d at once on this machine" % _browser_cap()
+    return None
+
+
+def _box_of(sandbox_tv):
+    """The tracked sandbox root a law's tv/ lies inside, or None (a law's own fixture tree, never registered)."""
+    p = os.path.abspath(sandbox_tv)
+    for root in list(_SANDBOXES):
+        if _inside(root, p):
+            return root
+    return None
 
 
 _VANISHED = []     # REG-1876 - (gate, file, lane) for every sandbox file seen gone after a run; read by vanished()
@@ -2076,6 +2334,7 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     before = _tv_files(sandbox_tv)
     res = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)
     gone = sorted(before - _tv_files(sandbox_tv))
+    _trace_file(extra, script, widths, bool(gone))   # REG-2440 - this run's facts, to its gate or its proof
     if not gone:
         return res
     restored = []
@@ -2094,11 +2353,14 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     note = " [#144: %s vanished from this sandbox during the run - %s]" % (
         ", ".join(gone), "restored from the real tree" if len(restored) == len(gone) else "NOT all restorable")
     note = note[:-1] + " - " + _witness + "]"
-    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s) [%s]\n"
-                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None), _witness))
+    # REG-2438 - and WHEN: the suspect is the temp cleaner at 03:35 (_fresh_atimes), and only a time can clear or name it
+    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s, %s, at %s)\n"
+                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None), _witness,
+                        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))   # REG-2612 witness + REG-2438 time
     if res[0] is True or len(restored) != len(gone):
         return res[0], str(res[1]) + note
     again = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)
+    _trace_file(extra, script, widths, True)         # REG-2440 - a run a vanishing touched gives no fact
     return again[0], str(again[1]) + note + " (re-run once)"
 
 
@@ -2551,6 +2813,815 @@ def _kill_watch(env):
     return path
 
 
+# ══ #147 R1 (REG-2440) — A PROOF REMEMBERED BY WHAT ITS RUNS READ ═══════════════════════════════════════════════════════
+# MEASURED (#147): a proof's static key digests every tracked file its law's import closure NAMES, so every heart2/prover
+# law in the machine's cache keyed 1,217-1,259 inputs (test_control 1,259) and any test-file edit moved them all - and a
+# law that lists a folder itself has no static key at all. Track trace-facts' gate_trace now writes what a run READ
+# (bytes, stats, absences, listings, env reads, imports, tracked sets), and gate_ledger.facts_hold asks a later tree
+# whether every one of those facts still holds. Each proof run in a heart2 sandbox is traced (strict: sqlite3 / mmap /
+# ctypes / dbm imports and os.path.get*time are U), denied the real checkout, the main checkout and $HOME (bar the
+# user's python packages and the browser caches): any read there is a U, and a U is no fact.
+# MEASURED 2026-10-22 (A/B, 3 heavy non-browser laws x 3 rounds, order alternated, one real heart2 sandbox, the real
+# _run_gate; load 10-33 from other fleets): test_a_slice_banks_what_it_proved 14.6 s plain / 13.1 s traced,
+# test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere 9.2 / 9.6, test_import_bound_paths 31.6 / 28.4 (medians) -
+# -7.8% over all three, inside the load's noise; facts_of 0.00-0.02 s and facts_hold 0.08 s a run. The rule was "armed
+# by default only at <= 15%", so it is armed. A run's facts record is ~6 KB for a plain law and ~190 KB for a law that
+# reads the whole registry (1,054 paths) - why the gate's shared facts are one record beside the cache.
+TRACE_DEFAULT = os.name != "nt"   # measured on his Mac; a Windows PC arms it with HEART2_TRACE=1 until measured there
+TRACE_PATIENCE = 1.5              # a traced run's deadline, as a multiple of its untraced one (MEASURED +14% at worst)
+_TRACE_LAST = {}                  # thread id -> {"facts": read_trace facts | None, "why": str | None, "repo": str}
+_TRACE_SAID = {"done": False}
+
+
+def trace_on():
+    """REG-2440 — is a proof run traced? HEART2_TRACE=1/0 says so for one run; else TRACE_DEFAULT. -> bool"""
+    raw = str(os.environ.get("HEART2_TRACE", "") or "").strip().lower()
+    if raw in ("0", "no", "off", "false"):
+        return False
+    if raw in ("1", "yes", "on", "true"):
+        return True
+    return bool(TRACE_DEFAULT)
+
+
+def _trace_say(say):
+    """REG-2440 — once per run, before any proof: whether proof runs are traced, and if not, why. -> bool (on)"""
+    on = trace_on()
+    if on:
+        say("  REG-2440 TRACE: ON%s - each proof run in a sandbox is traced (strict; the real checkout, the main checkout "
+            "and $HOME denied), and a PROVEN is also banked and served by what its runs read where every rule holds"
+            % ("" if os.environ.get("HEART2_TRACE") else " (the default)"))
+    else:
+        say("  REG-2440 TRACE: OFF (%s) - every proof is keyed by its static closure only" % (
+            "HEART2_TRACE=%s" % os.environ.get("HEART2_TRACE") if os.environ.get("HEART2_TRACE") else
+            "the default on a PC its cost was not measured on (measured on his Mac only); HEART2_TRACE=1 arms it"))
+    return on
+
+
+def _trace_bounds(box):
+    """REG-2440 — the roots a traced run may not read (deny) and the ones inside them it may (allow). -> (deny, allow)"""
+    deny = [os.path.realpath(REPO)]
+    try:
+        common, _w = _git_common_dir(REPO)
+        if common and os.path.basename(os.path.normpath(common)) == ".git":
+            deny.append(os.path.realpath(os.path.dirname(os.path.normpath(common))))   # the main checkout
+    except Exception:
+        pass                       # UNKNOWN main checkout: $HOME below still covers his
+    # NOT the shared temp dir: every sandbox lives in it, and realpath() stats each ancestor of a path inside one - a U on
+    # every law that resolves a path (MEASURED on the first cut). A law run's own temp dir is private (#160) already.
+    home = os.path.expanduser("~")
+    if home and home != "~":
+        deny.append(os.path.realpath(home))
+    allow = [os.path.realpath(box), os.path.join(HERE, "gate_trace")]
+    try:
+        import site as _site
+        allow.append(_site.getuserbase())                    # the user's own python packages (PIL, playwright ...)
+    except Exception:
+        pass
+    for rel in (("Library", "Caches", "ms-playwright"), (".cache", "ms-playwright"),
+                ("AppData", "Local", "ms-playwright")):
+        allow.append(os.path.join(home, *rel))               # a browser build's files are no input of a key
+    return deny, allow
+
+
+def _trace_arm(env, box, repo):
+    """REG-2440 — arm gate_trace (the prover's own copy, as the kill watch's) in a run's environment. -> trace file | None
+    The trace and its pycache live in the SANDBOX (never the run's own temp dir, which the law may clear)."""
+    try:
+        import gate_ledger as _gl
+        d = os.path.join(box, "trace")
+        os.makedirs(d, exist_ok=True)
+        fd, path = tempfile.mkstemp(prefix="run.", suffix=".tsv", dir=d)
+        os.close(fd)
+        deny, allow = _trace_bounds(box)
+        armed = _gl.trace_env(env, repo, path, deny=deny, allow=allow, strict=True)    # TRACE-STRICT
+    except Exception as _te:
+        _TRACE_LAST[threading.get_ident()] = {"facts": None, "why": "the trace could not be armed (%s)"
+                                              % type(_te).__name__, "repo": repo}
+        return None
+    env.clear()
+    env.update(armed)
+    _TRACE_LAST.pop(threading.get_ident(), None)
+    return {"path": path, "repo": repo}
+
+
+def _facts_trace_read(trace):
+    """REG-2440 — one traced run's facts (read_trace; an attested Chrome kept as C), for _run_gate to file. The trace file
+    and its pycache are removed. -> None (the answer is in _TRACE_LAST)
+
+    Named _facts_trace_read so it does not replace REG-2640's _trace_read(log, root_ppid)."""
+    import gate_ledger as _gl
+    try:
+        facts, why = _gl.read_trace(trace["path"], allow_cdp_chrome=True)
+    except Exception as _re:
+        facts, why = None, "the trace could not be read (%s)" % type(_re).__name__
+    _TRACE_LAST[threading.get_ident()] = {"facts": facts, "why": why, "repo": trace["repo"]}
+    for p in (trace["path"], trace["path"] + ".pycache"):
+        try:
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+            else:
+                os.unlink(p)
+        except OSError:
+            pass
+
+
+# ── REG-2440 — WHERE A RUN'S FACTS GO, AND WHEN A PROOF MAY BE BANKED BY THEM ──────────────────────────────────────────────
+# FACTS PER PROOF = every FULL untampered run of its gate in this sandbox (the shared clean run, the closing run, a
+# checkpoint's) + its own runs (the narrowed pair, the full tampered run, a confirmation). A tampered run's facts about
+# its own target are measured on the CLEAN bytes (the identity names the tamper; the clean bytes decide the tampered ones).
+# A proof is banked TRACED - beside its static key, never instead of it - only when ALL of these hold, else it is banked
+# STATIC (today's key) and the reason is counted:
+#   · every contributing run returned facts (no U line, no untraced child, no run that could not be read);
+#   · the gate has at least one FULL untampered run with facts in this sandbox - one is run if every proof was narrowed;
+#   · the runs agree (no path two runs found different), and no path is both read and written by them (nor written
+#     into a folder they listed);
+#   · no tracked file vanished from the sandbox during them (#144);
+#   · every fact path is as the sandbox was COPIED (its copy-time stat manifest: size and mtime; a target heart2 itself
+#     tampered and restored, by its bytes) - a fact measured on a tree an earlier law changed describes no real tree;
+#   · a run that started an attested Chrome adds the Chrome surface: a digest of every non-.py/.md file the law's static
+#     closure names (the pages that browser loaded are no fact the trace can see).
+# A traced entry is served (both paths) only after the static key missed, from the <= TRACED_CANDIDATES newest traced
+# entries of the same identity (gate, file, proof entry, gate spec), stamped by this prover and environment, whose facts
+# all hold in THIS lane's sandbox and environment (gate_ledger.facts_hold). Facts that are missing or unreadable are a
+# MISS, always. The gate's shared facts are one content-addressed record beside the cache (.heart2_facts.<ref>.json);
+# each entry carries only what its own runs added. The law: test_a_traced_proof_key_is_never_narrower.
+TRACED_CANDIDATES = 8
+_FACTS_RX = re.compile(r"^\.heart2_facts\.[0-9a-f]{32}\.json$")
+_TF = threading.local()           # .gate: this lane's _GateTrace while a gate is proved | None; .proof: _ProofTrace | None
+_MANIFEST = {}                    # sandbox root -> {repo-relative path: (kind, size, mtime_ns)} as the sandbox was copied
+_MANIFEST_ROWS = {}               # sandbox root -> {folder: [listing rows]} built from the manifest on first need
+_PRISTINE = {}                    # sandbox root -> {repo-relative path: sha256} a target's bytes before heart2 tampered it
+
+
+def _mkind(st):
+    """A stat answer as gate_ledger's listing rows read it (links not followed). -> (kind f|l|d|o, size str)"""
+    import stat as _st
+    if _st.S_ISLNK(st.st_mode):
+        return "l", str(st.st_size)
+    k = "f" if _st.S_ISREG(st.st_mode) else ("d" if _st.S_ISDIR(st.st_mode) else "o")
+    return k, (str(st.st_size) if k == "f" else "-")
+
+
+def _take_manifest(root, repo, say=print):
+    """REG-2440 — every entry of a sandbox's repo copy as COPIED: kind, size, mtime_ns. -> how many (None: not taken)"""
+    out = {}
+    try:
+        out[""] = _mkind(os.lstat(repo)) + (os.lstat(repo).st_mtime_ns,)    # the root itself: facts name it as ""
+        for dp, dns, fns in os.walk(repo):
+            for x in dns + fns:
+                p = os.path.join(dp, x)
+                try:
+                    st = os.lstat(p)
+                except OSError:
+                    continue
+                k, size = _mkind(st)
+                out[os.path.relpath(p, repo).replace(os.sep, "/")] = (k, size, st.st_mtime_ns)
+    except OSError as _me:
+        say("  ⚠ REG-2440: the sandbox's copy-time manifest could not be taken (%s) - nothing proved in it is banked by "
+            "its facts" % type(_me).__name__)
+        return None
+    _MANIFEST[root] = out
+    _MANIFEST_ROWS.pop(root, None)
+    _PRISTINE[root] = {}
+    return len(out)
+
+
+def _manifest_listing(root, folder):
+    """The listing digest a folder had as COPIED (gate_ledger._listing_digest's rule over the manifest). -> sha | "-" """
+    man = _MANIFEST.get(root) or {}
+    rows = _MANIFEST_ROWS.get(root)
+    if rows is None:
+        rows = {}
+        for rel, (k, size, _m) in man.items():
+            parent, _sep, leaf = rel.rpartition("/")
+            if rel and leaf != "__pycache__":                     # "" is the root itself, never a row of it
+                rows.setdefault(parent, []).append("%s\t%s\t%s" % (leaf, k, size))
+        _MANIFEST_ROWS[root] = rows
+    if folder and (folder not in man or man[folder][0] != "d"):
+        return "-" if folder not in man else "f"
+    return hashlib.sha256("\n".join(sorted(rows.get(folder) or [])).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def _ancestors_rel(rel):
+    """'tv/a/b.py' -> ['tv/a', 'tv', '']"""
+    out = []
+    while rel:
+        rel = rel.rpartition("/")[0]
+        out.append(rel)
+    return out
+
+
+def _sha_bytes(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+class _GateTrace(object):
+    """REG-2440 — what one gate's runs in one lane read: its full untampered runs, and each proof's own."""
+
+    def __init__(self, sandbox, name, filename):
+        self.sandbox, self.name, self.filename = sandbox, name, filename
+        self.repo = os.path.dirname(os.path.abspath(sandbox))
+        self.root = _box_of(sandbox)
+        _ex, _to, _sc = gate_spec(name)
+        self.extra, self.script, self.timeout = list(_ex or ()), _sc, _to
+        self.clean = []            # one {"rec", "W"} per FULL untampered run with facts
+        self.bad = None            # why no proof of this gate may be banked by its facts (said in the counts)
+        self.proofs = {}           # proof index -> _ProofTrace
+        self.ran_one = False       # the full clean run REG-2440 asks for when every proof was narrowed
+
+
+class _ProofTrace(object):
+    """REG-2440 — what one proof's own runs read, and the target its tamper writes (its clean bytes kept)."""
+
+    def __init__(self, g, idx, pr):
+        self.idx, self.runs, self.bad = idx, [], None
+        self.ident = _trace_identity(g.name, g.filename, pr)
+        self.tgt = self.tgt_rel = self.clean = self.clean_sha = None
+        rel = str((pr or {}).get("file") or "") if isinstance(pr, dict) else ""
+        try:
+            tgt = os.path.normpath(resolve_proof_target(g.sandbox, rel)) if rel else None
+        except Exception:
+            tgt = None
+        if tgt and _inside(g.repo, tgt) and os.path.isfile(tgt):
+            self.tgt, self.tgt_rel = tgt, os.path.relpath(tgt, g.repo).replace(os.sep, "/")
+            with io.open(tgt, "rb") as fh:
+                self.clean = fh.read()
+            self.clean_sha = _sha_bytes(self.clean)
+            _note_pristine(g, self.tgt_rel, self.tgt, self.clean_sha)
+        else:
+            self.bad = "its target is not a file inside the sandbox"
+
+
+def _note_pristine(g, rel, path, sha):
+    """Before heart2 first tampers a target in a sandbox: its bytes, when it is still exactly as copied. A tamper and its
+    restore move the target's mtime, never its bytes - so for this path the bytes are the copy-time witness."""
+    pris = _PRISTINE.get(g.root)
+    man = (_MANIFEST.get(g.root) or {}).get(rel)
+    if pris is None or man is None or rel in pris:
+        return
+    try:
+        st = os.lstat(path)
+    except OSError:
+        return
+    if _mkind(st)[:2] == man[:2] and st.st_mtime_ns == man[2]:
+        pris[rel] = sha
+
+
+def _trace_identity(name, filename, pr):
+    """REG-2440 — what a traced entry is the proof OF: the gate, its file, the proof entry and the gate's spec (the static
+    key's own non-byte parts). -> sha256 hex"""
+    h = hashlib.sha256(b"heart2 traced identity v1\0")
+    h.update(str(name).encode("utf-8", "replace") + b"\0" + str(filename).encode("utf-8", "replace") + b"\0")
+    h.update(_proof_key(pr).encode("utf-8", "replace") + b"\0")
+    h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace"))
+    return h.hexdigest()
+
+
+def _trace_gate_begin(sandbox, name, filename, cache):
+    """A gate starts in this lane: its trace sink, when its proofs can be banked by their facts. -> the previous sink"""
+    prev = getattr(_TF, "gate", None)
+    _TF.gate = _GateTrace(sandbox, name, filename) if (cache is not None and trace_on()) else None
+    _TF.proof = None
+    return prev
+
+
+def _trace_gate_end(prev):
+    _TF.gate, _TF.proof = prev, None
+
+
+def _trace_proof_begin(pr, idx):
+    """A proof starts: its own sink (inside the gate's). -> the previous proof sink"""
+    prev = getattr(_TF, "proof", None)
+    g = getattr(_TF, "gate", None)
+    if g is None:
+        _TF.proof = None
+        return prev
+    try:
+        p = _ProofTrace(g, idx, pr)
+    except Exception as _pe:
+        p = None
+        g.bad = g.bad or "a proof's sink could not be opened (%s)" % type(_pe).__name__
+    if p is not None:
+        g.proofs[idx] = p
+    _TF.proof = p
+    return prev
+
+
+def _trace_proof_end(prev):
+    _TF.proof = prev
+
+
+def _trace_file(extra, script, widths, vanished):
+    """REG-2440 — file the run just made (_TRACE_LAST) with its gate (a FULL untampered run) or its proof (narrowed,
+    tampered, a confirmation). A run with no facts, or one a vanishing touched, marks its sink: nothing in it is banked
+    by facts."""
+    info = _TRACE_LAST.pop(threading.get_ident(), None)
+    g = getattr(_TF, "gate", None)
+    if g is None:
+        return
+    p = getattr(_TF, "proof", None)
+    tampered = False
+    if p is not None and p.tgt and p.clean_sha:
+        try:
+            with io.open(p.tgt, "rb") as fh:
+                tampered = _sha_bytes(fh.read()) != p.clean_sha
+        except OSError:
+            tampered = True
+    full = list(extra or ()) == g.extra and script == g.script and not widths
+    sink = g if (full and not tampered) else p
+    if sink is None:
+        g.bad = g.bad or "a narrowed or tampered run ran outside a proof"
+        return
+    if vanished:
+        g.bad = g.bad or "a tracked file vanished from the sandbox during one of its runs (#144)"
+        sink.bad = sink.bad or g.bad
+        return
+    if not info or info.get("facts") is None:
+        sink.bad = sink.bad or ((info or {}).get("why") or "a run was not traced")
+        return
+    try:
+        rec = _facts_trace_record(info, p if tampered else None)
+    except Exception as _fe:
+        sink.bad = sink.bad or "a run's facts could not be measured (%s)" % type(_fe).__name__
+        return
+    (g.clean if sink is g else p.runs).append(rec)
+
+
+def _facts_trace_record(info, p):
+    """One run's facts as a record (gate_ledger.facts_of on the tree it read, right after it). A TAMPERED run's facts about
+    its own target - its bytes, its size, the listings that hold it - are measured on the CLEAN bytes, swapped in for the
+    measurement and the tampered ones put back. -> {"rec": record, "W": [paths the run wrote]}"""
+    import gate_ledger as _gl
+    facts, repo = info["facts"], info["repo"]
+    if p is None:
+        rec = _gl.facts_of(repo, facts)
+    else:
+        f = dict(facts)
+        f["H"] = dict((k, v) for k, v in (facts.get("H") or {}).items() if k != p.tgt_rel)
+        f["Z"] = dict((k, v) for k, v in (facts.get("Z") or {}).items() if k != p.tgt_rel)
+        f["D"] = dict((k, v) for k, v in (facts.get("D") or {}).items() if k not in _ancestors_rel(p.tgt_rel))
+        with io.open(p.tgt, "rb") as fh:
+            _tampered = fh.read()
+        with io.open(p.tgt, "wb") as fh:                         # the tgt's CLEAN bytes, only while measured
+            fh.write(p.clean)
+        try:
+            rec = _gl.facts_of(repo, f)
+        finally:
+            with io.open(p.tgt, "wb") as fh:                     # the tgt as the caller left it (it restores it)
+                fh.write(_tampered)
+    return {"rec": rec, "W": sorted(set(facts.get("W") or ()))}
+
+
+def _facts_merge(recs):
+    """REG-2440 — several runs' records as one: every fact of each, and a path two of them found different refuses the
+    merge (the tree moved between them). -> (record, None) | (None, why)"""
+    import gate_ledger as _gl
+    out = {"v": _gl.FACTS_VERSION, "R": {}, "Z": {}, "S": {}, "A": [], "L": {}, "I": {}, "Ihomes": None, "G": {},
+           "T": {}, "E": {}, "C": []}
+    absent, g_none = set(), False
+    for r in recs:
+        if not isinstance(r, dict) or r.get("v") != _gl.FACTS_VERSION:
+            return None, "a run's facts are of another version"
+        for k in ("R", "S", "L", "T", "E"):
+            for p, d in (r.get(k) or {}).items():
+                if out[k].get(p, d) != d:
+                    return None, "two of its runs found %s different (%s)" % (p or "the root", k)
+                out[k][p] = d
+        for p, kinds in (r.get("Z") or {}).items():
+            cur = out["Z"].setdefault(p, {})
+            for kind, size in (kinds or {}).items():
+                if cur.get(kind, size) != size:
+                    return None, "two of its runs found %s a different size" % p
+                cur[kind] = size
+        absent |= set(r.get("A") or ())
+        if r.get("I"):
+            homes = sorted(r.get("Ihomes") or [])
+            if out["Ihomes"] is None:
+                out["Ihomes"] = homes
+            elif out["Ihomes"] != homes:
+                return None, "its runs looked for modules in different folders"
+        for n, homes in (r.get("I") or {}).items():
+            if out["I"].get(n, homes) != homes:
+                return None, "two of its runs found `import %s` answered differently" % n
+            out["I"][n] = homes
+        if "G" in r and r["G"] is None:
+            g_none = True                                        # git answered a check-ignore and was not measured
+        else:
+            for p, d in (r.get("G") or {}).items():
+                if out["G"].get(p, d) != d:
+                    return None, "two of its runs found %s different" % p
+                out["G"][p] = d
+        out["C"] += [c for c in (r.get("C") or ()) if c not in out["C"]]
+    for p in absent:
+        if (out["R"].get(p, "-") != "-" or any(k != "-" for k in (out["Z"].get(p) or {}))
+                or out["S"].get(p, "-") != "-" or out["L"].get(p, "-") != "-"):
+            return None, "one of its runs found %s absent and another found it" % p
+    out["A"] = sorted(absent)
+    out["Ihomes"] = out["Ihomes"] or []
+    if g_none:
+        out["G"] = None
+    return out, None
+
+
+def _facts_delta(full, base):
+    """The facts `full` holds beyond `base` (merged from it, so a shared path never differs). -> a record of its own"""
+    d = {"v": full["v"], "Ihomes": full.get("Ihomes") or []}
+    for k in ("R", "S", "L", "T", "E", "I"):
+        d[k] = dict((p, v) for p, v in (full.get(k) or {}).items() if (base.get(k) or {}).get(p) != v)
+    d["Z"] = dict((p, v) for p, v in (full.get("Z") or {}).items() if (base.get("Z") or {}).get(p) != v)
+    d["A"] = sorted(set(full.get("A") or ()) - set(base.get("A") or ()))
+    d["G"] = {} if full.get("G") == base.get("G") else full.get("G")
+    d["C"] = [c for c in (full.get("C") or ()) if c not in (base.get("C") or ())]
+    return d
+
+
+def _facts_reads(rec):
+    """Every path a record says the run looked at. -> set"""
+    return set(rec.get("R") or ()) | set(rec.get("Z") or ()) | set(rec.get("S") or ()) | set(rec.get("L") or ())
+
+
+def _unmeasured(rec):
+    """REG-2440 — a fact that could not be measured ("?") never holds (facts_hold), so a record holding one is never
+    banked: it would be served nowhere. -> why | None"""
+    for k in ("R", "L", "T"):
+        for p, d in sorted((rec.get(k) or {}).items()):
+            if d == "?":
+                return "a fact its runs read could not be measured (%s of %s)" % (k, p or "the root")
+    if rec.get("G") is None:
+        return "its runs asked git check-ignore and the .gitignore files could not be measured"
+    if any(v == "?" for v in (rec.get("E") or {}).values()):
+        return "an environment value its runs read changed while they ran"
+    return None
+
+
+def _read_and_written(rec, written):
+    """REG-2440 — a path the runs both read and wrote, or wrote into a folder they listed. -> why | None"""
+    both = sorted(_facts_reads(rec) & set(written))
+    if both:
+        return "its runs read and wrote %s" % both[0]
+    for w in sorted(written):
+        parent = w.rpartition("/")[0]
+        if parent in (rec.get("L") or {}):
+            return "its runs wrote %s into %s, a folder they listed" % (w, parent or "the root")
+    return None
+
+
+def _as_copied(g, rel, follows=False):
+    """Is `rel` in this lane's sandbox exactly as it was copied? -> bool. A FILE by size and mtime - or, for a target
+    heart2 tampered and restored, by its bytes; a folder by being one."""
+    man = (_MANIFEST.get(g.root) or {}).get(rel)
+    if man is None:
+        return False
+    try:
+        st = os.lstat(os.path.join(g.repo, *rel.split("/")))
+    except OSError:
+        return False
+    k, size = _mkind(st)
+    if (k, size) != man[:2]:
+        return False
+    if k != "f" or st.st_mtime_ns == man[2]:
+        return True
+    pris = (_PRISTINE.get(g.root) or {}).get(rel)
+    if pris is None:
+        return False
+    try:
+        with io.open(os.path.join(g.repo, *rel.split("/")), "rb") as fh:
+            return _sha_bytes(fh.read()) == pris
+    except OSError:
+        return False
+
+
+def _not_as_copied(g, rec):
+    """REG-2440 — the first fact path that is not as the sandbox was COPIED. -> why | None"""
+    man = _MANIFEST.get(g.root)
+    if man is None:
+        return "its sandbox has no copy-time manifest"
+    for p, d in sorted((rec.get("R") or {}).items()):
+        if d == "-":
+            if p in man:
+                return "%s was copied, and the run found it absent" % p
+        elif str(d).startswith("d:"):
+            if _manifest_listing(g.root, p) != str(d)[2:]:
+                return "%s did not hold what it held as copied" % p
+        elif not _as_copied(g, p):
+            return "%s is not as the sandbox was copied" % p
+    for p, kinds in sorted((rec.get("Z") or {}).items()):
+        for kind in kinds:
+            if kind == "-":
+                if p in man:
+                    return "%s was copied, and the run found it absent" % p
+            elif not _as_copied(g, p):
+                return "%s is not as the sandbox was copied" % p
+    for p, was in sorted((rec.get("S") or {}).items()):
+        if (was == "-") != (p not in man) or (was != "-" and not _as_copied(g, p)):
+            return "%s is not as the sandbox was copied" % p
+    for p in rec.get("A") or ():
+        if p in man:
+            return "%s was copied, and the run found it absent" % p
+    for p, d in sorted((rec.get("L") or {}).items()):
+        if _manifest_listing(g.root, p) != d:
+            return "%s did not list as it was copied" % (p or "the root")
+    for _n, homes in sorted((rec.get("I") or {}).items()):
+        for h in homes or ():
+            if not _as_copied(g, h):
+                return "%s is not as the sandbox was copied" % h
+    return None
+
+
+def _chrome_surface(sandbox, filename, cache=None):
+    """REG-2440 — what an attested Chrome may have loaded: every non-.py/.md file the law's STATIC closure names, by its
+    bytes. -> (sha, None) | (None, why)"""
+    base, why = law_inputs(sandbox, filename, [], parsed=getattr(cache, "parsed", None),
+                           tracked=getattr(cache, "tracked", None))
+    if why:
+        return None, why
+    repo = os.path.dirname(os.path.abspath(sandbox))
+    h = hashlib.sha256(b"heart2 chrome surface v1\0")
+    for p in sorted(base):
+        if p.endswith((".py", ".md")):
+            continue
+        d = _sha_file(p, getattr(cache, "memo", None))
+        if d is None:
+            return None, "%s cannot be read" % os.path.relpath(p, repo)
+        h.update(os.path.relpath(p, repo).replace(os.sep, "/").encode("utf-8", "replace") + b"\0" + d.encode("ascii"))
+    return h.hexdigest()[:32], None
+
+
+def _facts_shape(body):
+    """A facts record file holds one record under 'facts'. -> why it is not one | None"""
+    return None if isinstance(body, dict) and isinstance(body.get("facts"), dict) else "it holds no facts record"
+
+
+def _facts_path(cache, ref):
+    return os.path.join(os.path.dirname(os.path.abspath(cache.path)), ".heart2_facts.%s.json" % ref)
+
+
+def _facts_ref(rec):
+    return hashlib.sha256(json.dumps(rec, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:32]
+
+
+def _facts_put(cache, rec, say):
+    """REG-2440 — store one facts record beside the cache, named by its own digest, through the stores' one writer.
+    -> ref | None (not stored: said)"""
+    ref = _facts_ref(rec)
+    path = _facts_path(cache, ref)
+    if os.path.exists(path):
+        try:
+            os.utime(path, None)                 # banked again now: the collector's hour starts over
+        except OSError:
+            pass
+        return ref
+    ok, why = _StoreFile(path, say, valid=_facts_shape).commit(lambda disk: None if disk else {"facts": rec})
+    if ok or os.path.exists(path):
+        with cache.lock:
+            cache.facts_memo[ref] = rec
+        return ref
+    say("     ⚠ REG-2440: a facts record could not be stored (%s) - its proofs are banked by their static key only"
+        % (why or "unknown"))
+    return None
+
+
+def _facts_get(cache, ref, memo=True):
+    """A facts record by its ref - read, and its digest checked against its name. -> record | None (a MISS). `memo`
+    False: a question's read, which keeps nothing."""
+    if not (isinstance(ref, str) and re.match(r"^[0-9a-f]{32}$", ref)):
+        return None
+    with cache.lock:
+        hit = cache.facts_memo.get(ref)
+    if hit is not None:
+        return hit
+    body, why = _read_store(_facts_path(cache, ref), _facts_shape)
+    rec = (body or {}).get("facts") if why is None else None
+    if not isinstance(rec, dict) or _facts_ref(rec) != ref:     # FACTS-NAMED-BY-THEIR-BYTES
+        return None
+    if memo:
+        with cache.lock:
+            cache.facts_memo[ref] = rec
+    return rec
+
+
+def _trace_full_clean(g, say, unkeyable):
+    """REG-2440 — every proof of this gate was narrowed, so no FULL untampered run has given facts here: run one now
+    (its facts go to the gate). -> why it gave none | None
+
+    ⚠ ONLY FOR A GATE A STATIC KEY CANNOT BANK. A push that narrowed every proof of a gate (the red memory's fast path)
+    pays one full run for it here - test_control's is ~4 minutes beside seconds of pairs. Where every proof has a static
+    key it is banked by that key anyway and the census (whose shared clean run is always full) banks its facts later; a
+    proof with no static key (a law that lists a folder) is banked by nothing else, so for it the run is paid."""
+    if not unkeyable:
+        return "every proof was narrowed and each has a static key - no full clean run is paid for its facts on a push"
+    if g.ran_one:
+        return None if g.clean else (g.bad or "its full clean run gave no facts")
+    g.ran_one = True
+    _prev, _TF.proof = getattr(_TF, "proof", None), None
+    try:
+        ok, tail = _run_gate(g.sandbox, g.filename, timeout=_scaled_deadline(g.timeout), extra=g.extra,
+                             script=g.script)
+    finally:
+        _TF.proof = _prev
+    if ok is not True:
+        g.bad = g.bad or "its full clean run for the facts is %s (%s)" % ("UNKNOWN" if ok is None else "RED",
+                                                                           str(tail)[:60])
+        return g.bad
+    return None if g.clean else (g.bad or "its full clean run gave no facts")
+
+
+def _bank_traced(cache, entry, idx, say, unkeyable=False):
+    """REG-2440 — bank one PROVEN by what its runs read, when every rule above holds. -> (traced key, None) |
+    (None, why it is banked by its static key only)"""
+    g = getattr(_TF, "gate", None)
+    if g is None:
+        return None, None                                        # no trace this run: nothing to count
+    p = g.proofs.get(idx)
+    if p is None:
+        return None, "its runs were not seen"
+    why = g.bad or p.bad
+    if why is None and not g.clean:
+        why = _trace_full_clean(g, say, unkeyable)               # TRACED-NEEDS-A-FULL-CLEAN-RUN
+    if why is None and not g.clean:
+        why = "no full clean run of its gate gave facts"
+    why = why or g.bad or p.bad
+    if why:
+        return None, why
+    shared, why = _facts_merge([r["rec"] for r in g.clean])
+    if shared is None:
+        return None, why
+    own = [r["rec"] for r in p.runs] + [{"v": shared["v"], "R": {p.tgt_rel: p.clean_sha}}]   # the target's clean bytes
+    full, why = _facts_merge([shared] + own)
+    if full is None:
+        return None, why
+    written = set()
+    for r in g.clean + p.runs:
+        written |= set(r["W"])
+    why = _unmeasured(full)
+    if why:
+        return None, why
+    why = _read_and_written(full, written) or _not_as_copied(g, full)
+    if why:
+        return None, why
+    chrome = None
+    if full.get("C"):
+        chrome, why = _chrome_surface(g.sandbox, g.filename, cache)
+        if chrome is None:
+            return None, "it started a Chrome and its pages cannot be keyed (%s)" % why
+    ref = _facts_put(cache, shared, say)
+    if ref is None:
+        return None, "its facts could not be stored"
+    delta = _facts_delta(full, shared)
+    tkey = "t:" + hashlib.sha256((p.ident + "\0" + ref + "\0" + json.dumps(delta, sort_keys=True)).encode(
+        "utf-8")).hexdigest()[:40]
+    e = dict(entry)
+    e.pop("inputs", None)
+    e.update(kind="traced", identity=p.ident, factsRef=ref, factsDelta=delta, chrome=chrome,
+             nFacts=len(_facts_reads(full)) + len(full.get("A") or ()))
+    cache.store(tkey, e)
+    with cache.lock:
+        if cache.tidx is not None:
+            cache.tidx.setdefault(p.ident, []).append(tkey)
+    return tkey, None
+
+
+def _bank_proven(cache, key, entry, idx, say):
+    """REG-2440 — bank one PROVEN the closing (or a checkpoint's) clean run let stand: by its static key when it has one
+    (as always), and by its facts when they may be (_bank_traced). -> True when anything was banked"""
+    did = False
+    if key is not None:
+        cache.store(key, entry)
+        cache.count("stores")
+        did = True
+    try:
+        tkey, why = _bank_traced(cache, entry, idx, say, unkeyable=key is None)
+    except Exception as _te:
+        tkey, why = None, "banking its facts raised %s" % type(_te).__name__
+    if tkey is not None:
+        cache.count("traced_stores")
+        did = True
+    elif why:
+        cache.count("traced_static")
+        with cache.lock:
+            cache.traced_why[why.split(" (")[0][:90]] = cache.traced_why.get(why.split(" (")[0][:90], 0) + 1
+    return did
+
+
+def _facts_env(sandbox):
+    """The environment a law run in this sandbox starts from, as far as an E fact can read it (the per-run names are
+    plumbing and never facts). -> dict"""
+    env = dict(os.environ)
+    for _n in ("TV_LAW_WIDTHS", "HEART2_LANES_DIR"):
+        env.pop(_n, None)                         # _run_gate_once's own two pops: no run starts with either
+    if _box_of(sandbox):
+        env["D2R_REPO"] = os.path.dirname(os.path.abspath(sandbox))
+    return env
+
+
+def traced_lookup(cache, sandbox, name, filename, pr, census=False, mark=True):
+    """REG-2440 — the newest traced PROVEN of this proof whose facts all hold in THIS sandbox and environment.
+    -> (key, entry) | (None, None). Only this prover's, in this environment; the census only takes an every-width proof;
+    facts that are missing or unreadable are a MISS. `mark` False: the forecast's ask, which records no use (peek's rule)."""
+    if cache is None or not trace_on():
+        return None, None
+    import gate_ledger as _gl
+    ident = _trace_identity(name, filename, pr)
+    stamp = prover_stamp()
+    with cache.lock:
+        if not mark:                     # a QUESTION (the forecast) changes nothing of the cache, not even its memos
+            cands = [(k, e) for k, e in cache.entries.items()
+                     if isinstance(e, dict) and e.get("kind") == "traced" and e.get("identity") == ident]
+        else:
+            if cache.tidx is None or cache.tidx_of is not cache.entries:      # built once per load / flush
+                cache.tidx, cache.tidx_of = {}, cache.entries
+                for k, e in cache.entries.items():
+                    if isinstance(e, dict) and e.get("kind") == "traced":
+                        cache.tidx.setdefault(e.get("identity"), []).append(k)
+            cands = [(k, cache.entries.get(k)) for k in cache.tidx.get(ident, ())]
+            cands = [(k, e) for k, e in cands if isinstance(e, dict) and e.get("identity") == ident]
+    cands = [(k, e) for k, e in cands
+             if e.get("verdict") == PROVEN and isinstance(e.get("provedAt"), (int, float))
+             and not isinstance(e.get("provedAt"), bool) and (e.get("proverSha"), e.get("envFp")) == stamp
+             and (not census or census_servable(e))]
+    cands.sort(key=lambda ke: -float(ke[1]["provedAt"]))
+    repo = os.path.dirname(os.path.abspath(sandbox))
+    env = _facts_env(sandbox)
+    for k, e in cands[:TRACED_CANDIDATES]:
+        shared, own = _facts_get(cache, e.get("factsRef"), memo=mark), e.get("factsDelta")
+        if shared is None or not isinstance(own, dict):          # TRACED-ABSENT-FACTS-MISS
+            continue
+        allow = bool(e.get("chrome"))
+        if allow and _chrome_surface(sandbox, filename, cache)[0] != e.get("chrome"):
+            continue
+        ok, _w = _gl.facts_hold(repo, shared, env=env, allow_cdp_chrome=allow)
+        if ok:
+            ok, _w = _gl.facts_hold(repo, own, env=env, allow_cdp_chrome=allow)
+        if ok:
+            if mark:
+                with cache.lock:
+                    cache.used[k] = int(time.time() * 1000)
+            return k, e
+    return None, None
+
+
+def traced_still_holds(cache, key, sandbox, filename):
+    """REG-2434 for a traced entry: do its facts still hold in the audit's sandbox? -> bool"""
+    import gate_ledger as _gl
+    e = cache.entries.get(key) if cache is not None else None
+    if not isinstance(e, dict):
+        return False
+    shared, own = _facts_get(cache, e.get("factsRef")), e.get("factsDelta")
+    if shared is None or not isinstance(own, dict):
+        return False
+    repo, env, allow = os.path.dirname(os.path.abspath(sandbox)), _facts_env(sandbox), bool(e.get("chrome"))
+    if allow and _chrome_surface(sandbox, filename, cache)[0] != e.get("chrome"):
+        return False
+    return (_gl.facts_hold(repo, shared, env=env, allow_cdp_chrome=allow)[0]
+            and _gl.facts_hold(repo, own, env=env, allow_cdp_chrome=allow)[0])
+
+
+def _traced_cap(ent):
+    """REG-2440 — at most TRACED_CANDIDATES traced entries per identity (the newest kept), after the merge. -> how many
+    left"""
+    by = {}
+    for k, e in ent.items():
+        if isinstance(e, dict) and e.get("kind") == "traced":
+            by.setdefault(e.get("identity"), []).append(k)
+    gone = 0
+    for _ident, keys in by.items():
+        keys.sort(key=lambda k: -_proven_at(ent[k]))
+        for k in keys[TRACED_CANDIDATES:]:
+            ent.pop(k, None)
+            gone += 1
+    return gone
+
+
+def _facts_gc(cache, ent, say=None):
+    """REG-2440 — a facts record no entry names any more leaves (an hour after it was written: a writer that has stored
+    it and not yet flushed its entry is never raced), and so does a dead writer's tmp of one. -> how many removed | None (folder unreadable)"""
+    folder = os.path.dirname(os.path.abspath(cache.path))
+    refs = set(e.get("factsRef") for e in ent.values() if isinstance(e, dict) and e.get("kind") == "traced")
+    gone = 0
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return None                             # the folder could not be listed: how many left is UNKNOWN, never 0
+    now = time.time()
+    for n in names:
+        if not n.startswith(".heart2_facts."):
+            continue
+        m = _FACTS_RX.match(n)
+        p = os.path.join(folder, n)
+        try:
+            age = now - os.path.getmtime(p)
+        except OSError:
+            continue
+        stale = (m is not None and n[len(".heart2_facts."):-len(".json")] not in refs) or (m is None and age > 86400)
+        if stale and age > 3600:
+            try:
+                os.remove(p)
+                gone += 1
+            except OSError:
+                pass
+    return gone
+
+
 def _kills_in(path):
     """REG-2350 — the K lines of one run's kill watch that no X line of the SAME run explains. -> [{pid, pgid, sig, head}]
 
@@ -2675,6 +3746,34 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     if widths:
         import law_widths as _LW
         env[_LW.ENV] = _LW.label(widths)
+    # #160 (REG-2439) — A LAW RUN'S TEMP FILES AND ITS REPO ARE ITS SANDBOX'S. It inherited the prover's TMPDIR (shared by
+    # every lane and every prover on the machine, and by a sibling's writes) and board_sync's default REPO (the real
+    # checkout). In a sandbox heart2 built, each run gets a temp dir of its own inside the sandbox, removed after it.
+    # ⚠ MEASURED: that dir is ~81 characters on his Mac, and macOS caps an AF_UNIX path at 104 - a Python 3.9
+    # multiprocessing Manager's listener under it (113) or a socket a law binds there will not bind. No law does today
+    # (searched tv/ hooks/ tests/); Chromium on macOS never reads TMPDIR for its singleton socket (crbug 698759).
+    # #160 — and never the prover's own slot dir: a prover the law starts finds its own (beside its sandbox), so it never
+    # counts this prover as a sibling, and a law driving heart2 in-process is never flipped onto it.
+    env.pop("HEART2_LANES_DIR", None)                                        # NO-INHERITED-SLOTS
+    _box = _box_of(sandbox_tv)
+    _run_tmp = None
+    if _box:
+        try:
+            os.makedirs(os.path.join(_box, "tmp"), exist_ok=True)
+            _run_tmp = tempfile.mkdtemp(prefix="run.", dir=os.path.join(_box, "tmp"))
+            env["TMPDIR"] = env["TEMP"] = env["TMP"] = _run_tmp          # PRIVATE-TMPDIR
+        except OSError:
+            _run_tmp = None                       # the shared temp dir, as before: a sibling's red is still confirmed
+        env["D2R_REPO"] = os.path.dirname(os.path.abspath(sandbox_tv))
+    # #147 R1 (REG-2440) — THE TRACE: what this run READ, so its proof can be remembered by that (a TRACED key) and not
+    # only by every file its import closure names. Armed on a run in a sandbox heart2 built, unless HEART2_TRACE says no.
+    _trace = (_trace_arm(env, _box, os.path.dirname(os.path.abspath(sandbox_tv)))
+              if (_box and trace_on() and getattr(_TF, "gate", None) is not None) else None)
+    if _trace and timeout:
+        # MEASURED: a run whose every python child boots the hook ~160 times (test_a_killed_run_is_never_a_red[15] tampers
+        # the hook's chain-once guard) took 119.2 s untraced against its 120 s deadline and 135.5 s traced (+14%). The
+        # trace's cost is the PROVER's patience, never the law's verdict (DEADLINE_SCALE's own rule): it widens here.
+        timeout = int(timeout * TRACE_PATIENCE)
     # ⚠⚠ v2888 — AN ABSOLUTE ARGUMENT POINTS AT THE REAL TREE, WHICH THE TAMPER NEVER TOUCHED.
     # A gate handed /Users/.../tv/x.py reads the ORIGINAL x.py no matter what this sandbox says,
     # so its proof can only ever come back green. Re-root every repo-absolute argument onto the
@@ -2723,24 +3822,30 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
         return None, "timed out after %ss" % timeout
     finally:
         try:
-            _killed = _kills_in(_watch) if _watch else []
-            _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
+            if _trace:
+                _facts_trace_read(_trace)     # REG-2440 - what the run read, before anything else touches its tree
         finally:
-            if _watch:
-                try:
-                    os.unlink(_watch)
-                except OSError:
-                    pass
-            if _tlog is not None:             # REG-2640 - recorded on every exit; complete only if it ran out, unkilled
-                _tseen, _tok = set(), False
-                try:
-                    _tseen, _tok = _trace_read(_tlog, os.getpid())
-                finally:
-                    _trace_record(filename, _tseen, bool(_tok and _tdone and _killed == []))
+            try:
+                _killed = _kills_in(_watch) if _watch else []
+                _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
+            finally:
+                if _watch:
                     try:
-                        os.unlink(_tlog)
+                        os.unlink(_watch)
                     except OSError:
                         pass
+                if _tlog is not None:         # REG-2640 - recorded on every exit; complete only if it ran out, unkilled
+                    _tseen, _tok = set(), False
+                    try:
+                        _tseen, _tok = _trace_read(_tlog, os.getpid())
+                    finally:
+                        _trace_record(filename, _tseen, bool(_tok and _tdone and _killed == []))
+                        try:
+                            os.unlink(_tlog)
+                        except OSError:
+                            pass
+                if _run_tmp:
+                    shutil.rmtree(_run_tmp, ignore_errors=True)     # #160 - the run's own temp dir leaves with it
     _sig = _ended_by_signal(r.returncode)
     if _sig is not None or _killed:
         # REG-2350 — NOT A VERDICT, before any line of it is read: a signal from outside ended the law or a child of it
@@ -3021,7 +4126,9 @@ class _LaneSay(object):
 #   3. ONE BROWSER AT A TIME: a gate that starts a browser (its import graph reaches render_check / playwright through
 #      any number of helpers - browser_gates(), not pixel_gates()' one file - or it declares widths) holds ONE lock
 #      while it is proved, whatever the lane count - four parallel Chrome lanes drove his Mac to load 100 on 2026-09-28.
-#      Every other gate keeps its lane.
+#      Every other gate keeps its lane. #160 (REG-2439): in heart2's own process that lock is the MACHINE's K browser
+#      slots (K = min(HEART2_BROWSER_SLOTS, 2), counted across every prover - his ruling is two Chromes at most); a law
+#      driving the prover in-process keeps one per-process lock.
 # The law: test_a_push_proof_runs_only_where_its_defect_shows. [[regression-guard]] [[unknown-stays-unknown]]
 NOT_RUN = "NOT RUN"     # a push-time proof the run STOPPED before reaching - never a verdict, never banked
 CLEAN = "CLEAN"         # REG-1992: a clean-only run came back green - the wave's answer, never a verdict, never banked
@@ -3045,7 +4152,7 @@ class _PushRun(object):
         self.keep_going = bool(keep_going)
         self.failures = []                      # REG-2591: every (gate, index, verdict, reason), in the order found
         self.browser = set(browser or ())       # the gates proved one at a time: they start a browser
-        self.browser_lock = threading.Lock()
+        self.browser_lock = _machine_browser_lock()   # #160 (REG-2439) - the machine's K browser slots, not this process's
         self.stop = threading.Event()
         self.first = None                       # (gate, index, verdict, reason): the failure that stopped the run
         self._lock = threading.Lock()
@@ -3283,6 +4390,35 @@ def _shared_cache_path(here=None, repo=None, env=None):
 
 #: #242 - the tree a verdict was proved in, carried on every banked entry (local only: the cache is never committed)
 TREE_ID = os.path.realpath(REPO)
+
+
+def platform_class(plat=None, osname=None):
+    """REG-2632 - the PLATFORM CLASS a proof is keyed under: "windows", "darwin", "linux", or "other:<sys.platform>".
+
+    A PROVEN counts only on the class it was proved on. Asked over every proof in the gate set (2026-10-24, 5680
+    proofs), not one law's python closure is free of a platform read (sys.platform, os.name, subprocess, signal...),
+    so "platform-neutral by law" names an empty set, and a Linux PROVEN served on a Mac or a PC is a guess. The class
+    is folded into every key, so a proof from another class can never even meet this machine's key."""
+    plat = sys.platform if plat is None else str(plat)
+    osname = os.name if osname is None else str(osname)
+    if osname == "nt" or plat.startswith(("win", "cygwin", "msys")):
+        return "windows"
+    if plat == "darwin":
+        return "darwin"
+    if plat.startswith("linux"):
+        return "linux"
+    return "other:" + plat
+
+
+def key_rel(path, repo, pathmod=None):
+    """REG-2632 - an input's name inside a key: repo-relative, "/"-separated, whatever this platform's separator, so a
+    Windows tree and a POSIX tree of the same commit name every input alike. `pathmod` (ntpath/posixpath) lets a law
+    spell it as the other platform would."""
+    pm = pathmod or os.path
+    return pm.relpath(path, repo).replace(pm.sep, "/")
+
+
+PLATFORM_CLASS = platform_class()       # REG-2632 - asked once; a law sets it to key as another class would
 CACHE = _shared_cache_path()
 #: R10 (REG-2340) - None when CACHE is the machine's shared store (or a seam named it); otherwise WHY it is this
 #: checkout's own. The first opener of a store says it - a store that dies with its checkout is never silent.
@@ -3529,9 +4665,13 @@ class _StoreFile(object):
     def _commit(self, merge):
         # ⛔ IT NEVER EDITS A GUARD: the only files written are ones named like CACHE or the red memory - refused BEFORE
         # anything is read, set aside or created, and the guard sits right above the write the instruments law admits.
+        # REG-2440 - and, deliberately, one more name: a traced proof's facts record beside the cache (.heart2_facts.<ref>)
+        _facts, _no = _FACTS_RX.match(os.path.basename(self.path)), ("refusing to write %s - heart2's stores are only "
+                                                                     "named %s or %s (or a facts record)"
+                                                                     % (self.path, os.path.basename(CACHE), _RED_NAME))
         if os.path.basename(self.path) != os.path.basename(CACHE) and os.path.basename(self.path) != _RED_NAME:
-            return False, "refusing to write %s - heart2's stores are only named %s or %s" % (
-                self.path, os.path.basename(CACHE), _RED_NAME)
+            if not _facts:
+                return False, _no
         with _store_locked(os.path.dirname(os.path.abspath(self.path)), self.say) as lockfd:
             body = self._merged(merge)
             if not isinstance(body, dict):
@@ -3994,11 +5134,31 @@ def _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, time
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(_orig)
+    _gname = label.split("[", 1)[0]
+    if ok_t is False and _concurrent(_gname) and _confirm_red(sandbox, filename, tgt, _orig, tampered, timeout, w, args,
+                                                               (), None) is not False:
+        return None                                # #160 R3 - an unconfirmed red under concurrency decides nothing
     if ok_t is False:
         say("     %-52s %s (%d match(es) tampered → red in the %d case(s) that caught it before, %.0f s)%s"
             % (label, PROVEN, got, len(ids), time.time() - t0, _at_widths(widths)))
         return PROVEN
     return None
+
+
+def _confirm_red(sandbox, filename, tgt, clean_text, tampered, timeout, w, ids, extra, script):
+    """#160 critic R3 (REG-2439) — the tampered run asked once more: the named red cases when there are any (and the
+    gate takes case ids), else the whole run. -> False (red again: confirmed) | True (green: not confirmed) | None"""
+    with io.open(tgt, "w", encoding="utf-8") as fh:
+        fh.write(tampered)
+    try:
+        if ids and not extra and not script:
+            ok2, _t2 = _run_gate(sandbox, filename, timeout=timeout, extra=list(ids), script=None, **w)
+        else:
+            ok2, _t2 = _run_gate(sandbox, filename, timeout=timeout, extra=extra, script=script, **w)
+    finally:
+        with io.open(tgt, "w", encoding="utf-8") as _rf:
+            _rf.write(clean_text)               # the clean bytes back, whatever the run did
+    return ok2
 
 
 def _sha_file(path, memo=None):
@@ -4063,7 +5223,10 @@ def _named_files(tree, sandbox, repo):
             continue
         for base in (sandbox, repo):
             p = os.path.normpath(os.path.join(base, s))
-            if _inside(repo, p) and os.path.isfile(p):
+            # REG-2433 - one stat first: MEASURED 2026-10-22, a census that served all 34 proofs of one law spent 19 of
+            # its 44 s in realpath - two per string constant, 124,482 constants in a heart2 law's closure - though most
+            # name no file at all. Both conditions are still required; only the cheap one is asked first.
+            if os.path.isfile(p) and _inside(repo, p):
                 out.add(p)
     return out
 
@@ -4121,6 +5284,11 @@ def _tracked_files(repo=None):
     data); the named-file half of the key counts only files git tracks. The closure, the tampered target, PROOF_NEEDS and
     the prover are unchanged. None (git not answering) leaves the key as it was - over-inclusion, never a stale PROVEN."""
     repo = REPO if repo is None else repo
+    if not _git_reachable(repo):
+        # REG-2440 - no .git here or above: nothing git could list, so UNKNOWN - git's own failure's answer, without its
+        # child. In a git-less heart2 sandbox that child was a `git ls-files` every law building a verdict cache ran, and a
+        # traced run can only note it as a fact no git-less tree can measure: not one such law was ever banked by facts.
+        return None
     try:
         r = subprocess.run(["git", "-C", repo, "ls-files", "-z"], capture_output=True, timeout=30, env=_git_free_env())
     except (OSError, subprocess.SubprocessError):
@@ -4128,6 +5296,18 @@ def _tracked_files(repo=None):
     if r.returncode != 0:
         return None
     return frozenset(x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x)
+
+
+def _git_reachable(path):
+    """Is there a .git in `path` or above it - the only places git's own discovery looks? -> bool"""
+    p = os.path.abspath(path)
+    while True:
+        if os.path.lexists(os.path.join(p, ".git")):          # GIT-REACHABLE
+            return True
+        parent = os.path.dirname(p)
+        if parent == p:
+            return False
+        p = parent
 
 
 def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False, skip_modules=(),
@@ -4304,6 +5484,58 @@ def _cache_evict(ent, cap, live=None):
     return over
 
 
+# ══ REG-2432 (#186, critic R14) — A BANKED VERDICT NAMES THE PROVER AND THE ENVIRONMENT THAT MEASURED IT ═══════════════
+# The key digests every byte a verdict depends on IN THE SANDBOX, the sandbox's heart2.py and law_widths.py among them.
+# Two things it cannot see: a prover PROCESS older than the file it keys (a heart2 started before its own file moved banks
+# the new bytes under the old rules), and the environment every law run inherits from the prover - the interpreter, and
+# the prover-side modules that shape each run (lane_ports stamps its ports, safe_copy builds its tree, gate_trace's
+# sitecustomize watches its kills - all HERE's copies, never the sandbox's). So every entry banked from now on carries
+# proverSha (this process's heart2.py + law_widths.py) and envFp (sys.version, the real interpreter path, lane_ports.py,
+# safe_copy.py, gate_trace/sitecustomize.py), and every lookup on BOTH paths requires both to equal this process's own.
+# An entry a store holds without them was banked by code from before this rule and is never served (said at the open).
+# A stamp is read once per process - the code that runs is the code that was read - and a file that cannot be read
+# stamps as UNREADABLE, never as an empty file: two unreadable runs never match a readable one. [[unknown-stays-unknown]]
+_STAMP = {}
+
+
+def _sha_or_unreadable(path):
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError as _se:
+        return "UNREADABLE:%s:%s" % (os.path.basename(path), type(_se).__name__)
+
+
+def prover_stamp():
+    """REG-2432 — this process's (proverSha, envFp), read once. -> (str, str)"""
+    if "v" not in _STAMP:
+        p = hashlib.sha256(b"heart2 prover v1\0")
+        for f in ("heart2.py", "law_widths.py"):
+            p.update(f.encode("ascii") + b"\0" + _sha_or_unreadable(os.path.join(HERE, f)).encode("ascii") + b"\0")
+        e = hashlib.sha256(b"heart2 env v1\0")
+        e.update(str(sys.version).encode("utf-8", "replace") + b"\0")
+        e.update(os.path.realpath(sys.executable or "?").encode("utf-8", "replace") + b"\0")
+        for f in ("lane_ports.py", "safe_copy.py", os.path.join("gate_trace", "sitecustomize.py")):
+            e.update(f.replace(os.sep, "/").encode("ascii") + b"\0"
+                     + _sha_or_unreadable(os.path.join(HERE, f)).encode("ascii") + b"\0")
+        _STAMP["v"] = (p.hexdigest()[:24], e.hexdigest()[:24])
+    return _STAMP["v"]
+
+
+def _stamped(e):
+    """REG-2432 — does a stored entry name a prover and an environment at all? -> bool"""
+    return isinstance(e, dict) and bool(e.get("proverSha")) and bool(e.get("envFp"))
+
+
+def census_servable(e):
+    """REG-2433 (#186, critic R14) — may the CENSUS reuse this (already peek-servable) entry? -> bool
+
+    The census proves every proof at EVERY width; a push proves a proof that declares widths only there. An entry proven
+    at declared widths (`at` names them) is a narrower proof than the census asks for, so the census never takes it; one
+    proven at every width (mode every-width, no `at`) serves both. A mode nobody recorded is never assumed wide."""
+    return isinstance(e, dict) and e.get("mode") == "every-width" and not e.get("at")
+
+
 class _VerdictCache(object):
     """#42 P3 — the PROVEN verdicts one machine may reuse at push time, and the counts a run prints beside them."""
 
@@ -4322,6 +5554,14 @@ class _VerdictCache(object):
         self.measured = {}               # gate -> the OLDEST provedAt among its reused proofs; the census stamp
         self.used = {}                   # R4 - key -> ms of this run's hits (usedAt), written at the next flush
         self._vidx, self._vgen = None, None   # REG-2640 - ident -> unread-sets, rebuilt when the entries are replaced
+        self.served = []                 # REG-2434 - (provedAt, gate, idx, key, filename, proof, by) every hit this run
+        self.audited = 0                 # REG-2434 - served PROVENs re-proved this run and found PROVEN again
+        self.contradictions = []         # REG-2434 - served PROVENs a re-proof found BLIND / INVALID: (gate, idx, verdict)
+        self.traced_hits = self.traced_stores = self.traced_static = 0   # REG-2440 - served / banked by facts, or not
+        self.traced_why = {}             # REG-2440 - why a PROVEN was banked by its static key only -> how many
+        self.gc_at = 0.0                 # REG-2440 - when this process last collected unreferenced facts records
+        self.facts_memo = {}             # REG-2440 - facts records read or written this run, by ref (content-addressed)
+        self.tidx, self.tidx_of = None, None   # REG-2440 - identity -> traced keys, over the entries it was built from
         self.file = _StoreFile(self.path, say)
         self.file.sweep()                # R9 - a tmp a dead writer left beside the store
         if self.path == CACHE and CACHE_WHY:
@@ -4335,6 +5575,12 @@ class _VerdictCache(object):
                 % (os.path.basename(self.path), why, "its last good generation (.prev, %d entr(ies)) stands in"
                    % len(prev) if prev is not None else "no readable .prev, so every proof runs"))
         self.entries = ent if ent is not None else (prev if prev is not None else {})
+        # REG-2432 - what the store holds without a prover/environment stamp was banked by older code: never served
+        self.unstamped = set(k for k, e in self.entries.items() if isinstance(e, dict) and not _stamped(e))
+        _n_old = sum(1 for k in self.unstamped if self.entries[k].get("verdict") == PROVEN)
+        if _n_old:
+            say("  #42 P3 CACHE (REG-2432): %d PROVEN entr(ies) carry no prover/environment stamp - banked by code from "
+                "before it, so none of them is ever served; each re-proves once and is banked stamped" % _n_old)
 
     def key_for(self, sandbox, name, filename, pr, unread=None):
         """-> (key | None, [repo-relative inputs], why-unkeyable | None), from the SANDBOX's bytes now.
@@ -4424,15 +5670,16 @@ class _VerdictCache(object):
             if mask:
                 inputs = sorted(set(inputs) | {os.path.join(sandbox, "gate_ledger.py"), os.path.join(sandbox, "stamp_leak.py")})
         unread = frozenset(unread or ())
-        if unread and not unread <= set(os.path.relpath(p, repo).replace(os.sep, "/") for p in inputs):
+        if unread and not unread <= set(key_rel(p, repo) for p in inputs):
             return None, [], "REG-2640: an unread input is not among this proof's inputs"
         h = hashlib.sha256(b"heart2 P3 key v2\0" if unread else b"heart2 P3 key v1\0")
         h.update(str(filename).encode("utf-8", "replace") + b"\0")
         h.update(_proof_key(pr).encode("utf-8", "replace") + b"\0")
         h.update(json.dumps(gate_spec(name), sort_keys=True, default=str).encode("utf-8", "replace") + b"\0")
+        h.update(b"REG-2632 platform\0" + str(PLATFORM_CLASS).encode("utf-8", "replace") + b"\0")   # PLATFORM-IN-KEY
         rels, away = [], []
         for p in inputs:
-            rel = os.path.relpath(p, repo).replace(os.sep, "/")
+            rel = key_rel(p, repo)                    # REG-2632 - one spelling on every platform
             if rel in unread:                         # REG-2640 - no traced run opened it: its name, never its bytes
                 d = "unread" if os.path.isfile(p) else None
             elif mask and rel in GL.STAMP_SURFACES:
@@ -4518,13 +5765,20 @@ class _VerdictCache(object):
         # facts reference) is served only by a reader that checks those facts - never by this byte key, never as "none"
         if e.get("kind", "static") != "static" or "facts" in e or "factsRef" in e:
             return None
+        # REG-2432 (critic R14) - ONLY THIS PROVER, IN THIS ENVIRONMENT: an entry a store holds with no stamp was banked by
+        # older code, and a stamp that is not this process's is another prover's or another interpreter's measurement
+        if key in self.unstamped or (_stamped(e) and (e.get("proverSha"), e.get("envFp")) != prover_stamp()):  # STAMP-MATCH
+            return None
         return e if isinstance(e, dict) and e.get("verdict") == PROVEN else None
 
-    def lookup(self, key):
+    def lookup(self, key, census=False):
         """The stored entry for `key` when it may be served (peek's answer, exactly); anything else in the file is not
         a shortcut. The serving read: a hit here is a proof the push reuses, and the only read that may mark it used
-        (R4, track T1: its usedAt mark goes HERE, between the answer and the return - never inside peek())."""
+        (R4, track T1: its usedAt mark goes HERE, between the answer and the return - never inside peek()).
+        REG-2433: `census` - the census's own read, which also refuses an entry proven only at declared widths."""
         e = self.peek(key)  # LOOKUP-ASKS-PEEK
+        if e is not None and census and not census_servable(e):
+            e = None                                            # CENSUS-MODE: a declared-widths proof is not every width
         if e is not None:
             with self.lock:
                 self.used[key] = int(time.time() * 1000)       # R4 - usedAt: eviction is by use, written at the flush
@@ -4532,11 +5786,39 @@ class _VerdictCache(object):
 
     def store(self, key, entry):
         """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run). R4: nothing is
-        trimmed here - the cap runs after the merge with the disk, which undid every trim made before it."""
+        trimmed here - the cap runs after the merge with the disk, which undid every trim made before it.
+        REG-2432: what THIS process banks carries this process's prover/environment stamp - it is the one that proved it."""
+        _ps, _ef = prover_stamp()
         with self.lock:
-            self.entries[key] = _compact_entry(entry)
+            e = dict(entry) if isinstance(entry, dict) else entry
+            if isinstance(e, dict):
+                e.setdefault("proverSha", _ps)
+                e.setdefault("envFp", _ef)
+            self.entries[key] = _compact_entry(e)
+            self.unstamped.discard(key)
             self.dirty = True
             self._vidx = None                 # REG-2640 - a new unread-set is servable at once
+
+    def evict(self, key, why):
+        """REG-2434 — a served PROVEN a re-proof CONTRADICTED leaves the store now, under the store's lock, and is never
+        served again this run. -> True when the store no longer holds it (said either way)"""
+        with self.lock:
+            self.entries.pop(key, None)
+            self.used.pop(key, None)
+            self.unstamped.discard(key)
+
+        def merge(disk):
+            ent = dict((disk or {}).get("entries") or {})
+            ent.pop(key, None)                                  # EVICT-UNDER-THE-LOCK
+            body = dict(disk or {})
+            body["entries"] = ent
+            body.setdefault("format", 2)
+            return body
+
+        ok, werr = self.file.commit(merge)
+        self.say("     ⚠ #42 P3 CACHE (REG-2434): entry %s %s - %s" % (str(key)[:8], "EVICTED from the store" if ok else
+                                                                     "could NOT be evicted (%s)" % werr, why))
+        return ok
 
     def flush(self):
         """Write what this run banked and used, merged with what is on disk NOW and capped after that merge, through
@@ -4558,6 +5840,7 @@ class _VerdictCache(object):
                 # under the lock, so no write lands between this read and this write
                 ent = _merged_cache((disk or {}).get("entries"), mine, used)
                 out["evicted"] = _cache_evict(ent, CACHE_MAX)
+                out["evicted"] += _traced_cap(ent)                # REG-2440 - the newest few traced per identity
                 body = dict((k, v) for k, v in (disk or {}).items() if k not in ("_why", "format", "entries"))
                 body.update(_why="#42 P3 - PROVEN verdicts this machine may reuse at push time, keyed by a digest of "
                                  "every byte each depends on (tv/heart2.py law_inputs). Per machine, never committed. "
@@ -4569,7 +5852,12 @@ class _VerdictCache(object):
             ok, why = self.file.commit(merge)
             if ok:
                 self.entries, self.used = out["entries"], {}
+                if time.time() - self.gc_at > 600:
+                    self.gc_at = time.time()
+                    _facts_gc(self, self.entries)                 # REG-2440 - a facts record no entry names leaves
                 self.readable, self.dirty = True, False
+                # REG-2432 - the merge brought in what other provers banked: anything unstamped among it is never served
+                self.unstamped = set(k for k, e in self.entries.items() if isinstance(e, dict) and not _stamped(e))
                 return True
             # a cache that cannot be written costs the next push a re-prove, never this push its verdict - said
             self.say("  #42 P3 CACHE: %s" % (why if str(why).startswith("refusing") else
@@ -4580,7 +5868,19 @@ class _VerdictCache(object):
     def summary(self, n_total):
         return ("#42 P3 CACHE: %d of %d proof(s) reused from the cache (byte-identical inputs, not re-run) · %d proved "
                 "and banked · %d missed and re-proved · %d not cacheable (ran, never banked) · %d moved under their "
-                "proof (not banked)" % (self.hits, n_total, self.stores, self.misses, self.unkeyable, self.moved))
+                "proof (not banked)" % (self.hits, n_total, self.stores, self.misses, self.unkeyable, self.moved)
+                + " · " + self.traced_summary())
+
+    def traced_summary(self):
+        """REG-2440 — the trace's part of the run, said whether it was on or off."""
+        if not trace_on():
+            return ("REG-2440 TRACED KEYS: OFF (%s) - every proof is keyed by its static closure only"
+                    % ("HEART2_TRACE=%s" % os.environ.get("HEART2_TRACE") if os.environ.get("HEART2_TRACE") else
+                       "the default where its cost was not measured: HEART2_TRACE=1 arms it"))
+        top = sorted(self.traced_why.items(), key=lambda kv: -kv[1])[:3]
+        return ("REG-2440 TRACED KEYS: %d of the hits served by what their runs read · %d PROVEN banked by their facts · "
+                "%d by their static key only%s" % (self.traced_hits, self.traced_stores, self.traced_static,
+                                                   (" (%s)" % "; ".join("%d: %s" % (n, w) for w, n in top)) if top else ""))
 
 
 def open_cache(say=print):
@@ -4996,9 +6296,14 @@ def _push_facts(have, say):
 
 
 def _browser_slot(name):
-    """#42 — the lock a gate is proved under at push time (a browser gate's), or a context that holds nothing."""
+    """#42 — the lock a gate is proved under at push time (a browser gate's), or a context that holds nothing.
+    #160 (REG-2439) — and in a census with the memory, a browser gate takes one of the machine's browser slots too."""
     import contextlib
-    return _PUSH.browser_slot(name) if _PUSH is not None else contextlib.nullcontext()
+    if _PUSH is not None:
+        return _PUSH.browser_slot(name)
+    if _CENSUS is not None and name in (getattr(_CENSUS, "browser", None) or ()):
+        return _CENSUS.browser_lock                          # CENSUS-BROWSER-SLOT
+    return contextlib.nullcontext()
 
 
 def _bankable(verdict):
@@ -5071,8 +6376,11 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
         _mark(key=key, u=kwhy if key is None else None)         # REG-2353 - the push record's keyable / unkeyable
         if key is None:
             cache.count("unkeyable")
-            cache.say_once(name, kwhy, "     %-52s   ↳ #42 P3: not cacheable - %s; every proof of this law runs on "
-                                       "every push" % (label, kwhy))
+            cache.say_once(name, kwhy, "     %-52s   ↳ #42 P3: not cacheable - %s; %s" % (
+                label, kwhy, "every proof of this law runs on every push" if not trace_on() else
+                "it can be served only by what its runs read (REG-2440)"))
+            if _push_traced(cache, sandbox, name, filename, pr, idx, say, label):
+                return PROVEN
         else:
             hit = cache.lookup(key)
             if hit is not None:
@@ -5083,12 +6391,37 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                 _mark(f="hit", a="hit")                          # REG-2353 - forecast and taken: served, not run
                 # the census keeps the age this proof was MEASURED at, never this run's clock [[stale-reading]]
                 cache.reused_at(name, idx, hit["provedAt"])
+                with cache.lock:                         # REG-2434 - a served PROVEN is a candidate for the run's audit
+                    cache.served.append((hit["provedAt"], name, idx, key, filename, pr, str(hit.get("by") or "push")))
                 say("     %-52s %s (cached %s: %d byte-identical input(s), proved %s ago%s - not re-run)"
                     % (label, PROVEN, key[:8], len(hit.get("inputs") or rels), _age_say(hit.get("provedAt")),
                        (" at %s" % hit["at"]) if hit.get("at") else ""))
                 return PROVEN
             cache.count("misses")
-    v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
+            if _push_traced(cache, sandbox, name, filename, pr, idx, say, label):
+                return PROVEN
+    _tp = _trace_proof_begin(pr, idx)                            # REG-2440 - what this proof's own runs read
+    try:
+        v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
+    finally:
+        _trace_proof_end(_tp)
+    if key is None and cache is not None and _bankable(v) and getattr(_TF, "gate", None) is not None:
+        try:
+            import law_widths as _LW
+            try:
+                _at = _LW.declared(pr)
+            except ValueError:
+                _at = None
+            _pend = getattr(_CLEAN, "pending", None)
+            if isinstance(_pend, list):                  # REG-2440 - no static key: only its facts can bank it
+                _pend.append((idx, None, {"verdict": PROVEN, "gate": name, "proof": idx,
+                                          "why": str(pr.get("why") or "")[:120], "at": _LW.label(_at) if _at else "",
+                                          "provedAt": int(time.time() * 1000), "target": str(pr.get("file") or ""),
+                                          "tree": TREE_ID, "mode": "declared-widths" if _at else "every-width",
+                                          "by": "push"}))
+        except Exception as _se:
+            say("     %-52s   ↳ REG-2440: could not be held for its facts (%s) - PROVEN stands, nothing is banked"
+                % ("%s[%d]" % (name, idx), type(_se).__name__))
     if key is not None and _bankable(v):
         # ⚠ KEYED AGAIN AFTER THE RUN: the tamper wrote and restored the target, and a law may write beside itself; a key
         # that moved means the bytes proved are not the bytes on disk, and a PROVEN banked under them would be a lie.
@@ -5108,6 +6441,8 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                 _entry = {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
                           "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
                           "target": str(pr.get("file") or ""), "inputs": rels, "tree": TREE_ID}
+                # REG-2433 - how wide it was proven and by whom: the census takes only an every-width proof
+                _entry.update(mode="declared-widths" if _at else "every-width", by="push")
                 _pend = getattr(_CLEAN, "pending", None)
                 if isinstance(_pend, list):
                     # REG-1988 - banked by _prove_gate_push after the closing run; REG-2640 - and keyed THEN, so the
@@ -5126,6 +6461,29 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
             say("     %-52s   ↳ #42 P3: the tree moved under this proof (%s) - PROVEN stands, "
                 "nothing is banked" % ("%s[%d]" % (name, idx), _how))
     return v
+
+
+def _push_traced(cache, sandbox, name, filename, pr, idx, say, label):
+    """REG-2440 — a push proof served by what its runs read (traced_lookup), said and counted as a hit. -> True if served"""
+    try:
+        tkey, hit = traced_lookup(cache, sandbox, name, filename, pr)
+    except Exception as _le:
+        tkey, hit = None, None
+        cache.say_once(name, "traced", "     %-52s   ↳ REG-2440: its traced entries could not be asked (%s) - it runs"
+                       % (label, type(_le).__name__))
+    if hit is None:
+        return False
+    cache.count("hits")
+    cache.count("traced_hits")
+    _mark(f="hit", a="hit", reusedFrom={"by": str(hit.get("by") or "push"), "provedAt": hit["provedAt"],
+                                        "kind": "traced"})
+    cache.reused_at(name, idx, hit["provedAt"])
+    with cache.lock:
+        cache.served.append((hit["provedAt"], name, idx, tkey, filename, pr, str(hit.get("by") or "push")))
+    say("     %-52s %s (cached traced %s: all %d fact(s) its runs read still hold, proved %s ago%s - not re-run)"
+        % (label, PROVEN, tkey[2:10], int(hit.get("nFacts") or 0), _age_say(hit.get("provedAt")),
+           (" at %s" % hit["at"]) if hit.get("at") else ""))
+    return True
 
 
 def _prove_push_one_run(sandbox, name, filename, pr, idx, say, why):
@@ -5361,8 +6719,11 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     _CLEAN.runs = {}
     _CLEAN.pending = []                                  # (index, key, entry) a PROVEN waits in until the closing run
     _CLEAN.served = []                                   # REG-2587 - (index, tree) of each proof the cache served
+    ck = {"sealed": set(), "t": None}                    # R8 (REG-2437) - this gate's checkpoints
+    _tg = _trace_gate_begin(sandbox, name, filename, run.cache)   # REG-2440 - what this gate's runs read, in this lane
     try:
-        for i in (run.order.get(name) or list(range(len(proofs)))):
+        _order = list(run.order.get(name) or list(range(len(proofs))))
+        for _n_done, i in enumerate(_order, 1):
             if run.stop.is_set():
                 break
             why = {}
@@ -5386,10 +6747,25 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                         "  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, "
                         "and the push is refused on this one." % (name, i, got[i], reason))
                 break
+            # R8 (REG-2437) - a long gate banks what a green clean run brackets NOW; a red one stops the gate
+            _ckv = [got.get(j) for j in range(len(proofs))]
+            _co = _checkpoint(name, _ckv, ck, say, run.cache, _CLEAN.pending,
+                              0 if run.stop.is_set() else len(_order) - _n_done)
+            got.update((j, v) for j, v in enumerate(_ckv) if v is not None)
+            with run._lock:
+                for j in ck.pop("banked", []):
+                    run.proofs.setdefault((name, j), {}).update(b=True)       # REG-2353 - banked at a checkpoint
+            if _co == "red":
+                for j in range(len(proofs)):
+                    got.setdefault(j, UNPROVABLE)        # never NOT RUN: nothing stopped the push, the sandbox drifted
+                break
         per = [got.get(i) for i in range(len(proofs))]
         per = _clean_here(sandbox, name, filename, proofs, per, say, run)   # REG-2587 - #242 on a push with no wave
+        per = [None if i in ck["sealed"] else v for i, v in enumerate(per)]   # R8 - SEALED-EXCLUDED: its checkpoint stands
         _before = list(per)
         per = _closing_clean(name, per, say)             # REG-1988 - None (NOT RUN) passes through untouched
+        for i in ck["sealed"]:
+            per[i] = got.get(i)
         _f = run.first if (run.first and run.first[0] == name) else None
         if _f is not None and _before[_f[1]] in (BLIND, INVALID) and per[_f[1]] == UNPROVABLE:
             # FAIL CLOSED: the stop already stands. Only its REASON is corrected - the failure may be the drift.
@@ -5401,8 +6777,8 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                 if _bankable(per[_i]):
                     if callable(_key):                   # REG-2640 - the v2 key is taken after the closing run
                         _key = _key()
-                    run.cache.store(_key, _entry)
-                    run.cache.count("stores")
+                    if not _bank_proven(run.cache, _key, _entry, _i, say):
+                        continue                         # REG-2440 - no static key, and its facts could not bank it
                     with run._lock:
                         run.proofs.setdefault((name, _i), {})["b"] = True     # REG-2353 - banked for its bytes
                 else:
@@ -5415,9 +6791,456 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
         _CLEAN.runs = None
         _CLEAN.served = None
         _CLEAN.green_here = False
+        _trace_gate_end(_tg)
     if run.cache is not None:
         run.cache.flush()          # P3: what this gate proved reaches the disk now, not only at the end of the run
     return _push_gate_verdict(per), per
+
+
+# ══ REG-2430..2434 (#186) — THE HEART'S OWN PROVER USES THE PROOF MEMORY ══════════════════════════════════════════════
+# His words, 2026-10-22, watching his heart's last 10 owed laws grind for 90 minutes: "yea this also needs memory maybe?
+# so it doesnt reprove also everytime". MEASURED that afternoon on his Mac (origin/main 7285e7efc): the census - his
+# console's self-prover, `heart2.py --prove <owed> --slice` - never asked the red memory (the machine's held all 27
+# test_control proofs, all 29 of war_stash's), never read or wrote the verdict cache (706 PROVEN banked by pushes), and
+# wrote the census once per minute at most, so a killed slice lost every gate it had finished since. Now, in heart2's own
+# CLI process only (or with stores a caller hands in - a law's fixtures; a law driving prove() in-process never touches
+# the machine's stores):
+#   REUSE   a proof whose key holds a banked PROVEN (peek's predicate, this prover's stamp, proven at EVERY width) is not
+#           run; a gate served from ANOTHER tree still owes this tree one full clean run (#242's wave rule).
+#   NARROW  the gate's one FULL clean run first (shared, REG-1669), then each proof asks the red memory's cases, then the
+#           full tampered run - so a narrowed PROVEN never stands without that green clean run in the same sandbox.
+#   LEARN   a full tampered run that goes red teaches the memory which cases caught it (the push's own rule).
+#   BANK    a PROVEN waits for the gate's closing clean run (REG-1988) and is banked, stamped by:census, at gate end.
+#   AUDIT   reuse removes the census's independent re-proof, so every run re-proves the HEART2_AUDIT_K oldest served
+#           PROVENs (narrow where the memory names the cases, else full); a BLIND / INVALID on the same bytes evicts the
+#           entry under the store lock, is said, is the gate's verdict, and at push refuses the push.
+#   RECORD  every census run appends a record (mode census) to the push record's file; `--pushes` shows which.
+# HEART2_PROVE_CACHE=0 / HEART2_RED_MEMORY=0 close each for one run, said. The laws: test_the_census_reuses_what_a_push_proved,
+# test_the_census_narrows_after_one_green_clean_run, test_a_killed_slice_keeps_every_gate_it_finished,
+# test_a_reused_proven_is_audited. [[regression-guard]] [[unknown-stays-unknown]]
+_CENSUS = None          # the running census context (_CensusRun) while prove(push=False) runs with the memory; None otherwise
+AUDIT_K = 2             # REG-2434 - served PROVENs re-proved per run (HEART2_AUDIT_K; 0 turns the audit off, said)
+
+
+class _CensusRun(object):
+    """REG-2430 — what the lanes of ONE census run with the proof memory share (the push's _PushRun, minus the order,
+    the stop and the browser chain the census never had)."""
+
+    def __init__(self, cache=None, red=True):
+        self.cache = cache                      # the verdict cache, or None (HEART2_PROVE_CACHE=0: every proof runs)
+        self.red = bool(red)                    # the red memory may be asked and taught this run
+        self.proofs = {}                        # (gate, index) -> what the proof was forecast to do and did (the record)
+        self.t0 = time.time()
+        self.sig0 = _SIGNAL_RUNS["n"]
+        # every key the CENSUS could serve when the run began (peek's predicate AND proven at every width): a proof that
+        # ran over one of these is a prove-once violation; a declared-widths entry is not one the census may take
+        self.keys0 = frozenset(k for k in _servable_keys(cache) if census_servable(cache.entries.get(k)))
+        self.first = None                       # the census never stops on a failure; the record reads it
+        self.wave_s = None
+        self.stop = threading.Event()           # never set: a census proves every gate it was handed
+        self._lock = threading.Lock()
+        self.browser = set()                    # #160 - the gates that reach a browser (set at census start)
+        self.browser_lock = None
+
+
+def _scaled_deadline(t):
+    """A registered timeout as this run's prover waits for it (DEADLINE_SCALE - _prove_one's own rule)."""
+    return int(t * DEADLINE_SCALE) if t else t
+
+
+def _census_asks_red():
+    """REG-2431 — may this thread's proof ask and teach the red memory as a census proof? -> bool"""
+    return _CENSUS is not None and _CENSUS.red
+
+
+def _audit_k(say=None):
+    """REG-2434 — how many served PROVENs this run re-proves (HEART2_AUDIT_K, default AUDIT_K; junk is said). -> int >= 0"""
+    raw = os.environ.get("HEART2_AUDIT_K")
+    if raw is None or str(raw).strip() == "":
+        return AUDIT_K
+    try:
+        return max(0, min(50, int(str(raw).strip())))
+    except ValueError:
+        if say:
+            say("  REG-2434: HEART2_AUDIT_K=%r is not a number - the default %d is used" % (raw, AUDIT_K))
+        return AUDIT_K
+
+
+def census_memory(say=print, stores=None):
+    """REG-2430 (a) — the census's proof memory for THIS run. -> _CensusRun | None (none: every proof runs, as before)
+
+    Opened only in heart2's own CLI process (_is_prover_process - the rule the red memory's fold uses) or when a caller
+    hands its stores in: {"cache": a _VerdictCache | None, "red": bool}. A dozen laws drive prove() / _prove_gates /
+    _prove_gate in-process, and not one of them may read or write the machine's cache or red memory. A caller's stores
+    that ARE the machine's (the default paths) are refused outside the prover's process. HEART2_PROVE_CACHE=0 and
+    HEART2_RED_MEMORY=0 each close their half for one run, and say so."""
+    prover = _is_prover_process()
+    if stores is None and not prover:
+        return None                                              # CENSUS-IN-PROCESS-STAYS-CLOSED
+    if stores is not None:
+        cache, red = stores.get("cache"), bool(stores.get("red"))
+        if not prover:
+            if cache is not None and os.path.abspath(getattr(cache, "path", "") or "") == os.path.abspath(_CACHE_DEFAULT):
+                say("  REG-2430: a census handed the MACHINE's verdict cache outside heart2's own process - refused, no "
+                    "proof is served or banked")
+                cache = None
+            if red and RED_MEMORY == _RED_DEFAULT and not os.environ.get("HEART2_RED_PATH"):
+                say("  REG-2430: a census handed the MACHINE's red memory outside heart2's own process - refused, no "
+                    "proof is narrowed or taught")
+                red = False
+    else:
+        cache = open_cache(say)                                  # HEART2_PROVE_CACHE=0: None, said there
+        red = True
+    if os.environ.get("HEART2_RED_MEMORY") == "0":
+        if red:
+            say("  #42 lever 1: the red memory is OFF for this run (HEART2_RED_MEMORY=0) - every proof runs in full")
+        red = False
+    say("  REG-2430 CENSUS MEMORY: %s · %s" % (
+        "the verdict cache serves and banks (%s)" % os.path.basename(cache.path) if cache is not None
+        else "the verdict cache is OFF - every proof runs, nothing is banked",
+        "the red memory narrows after each gate's green clean run, and learns" if red else "the red memory is closed"))
+    return _CensusRun(cache=cache, red=red)
+
+
+def _census_entry(name, idx, pr, rels):
+    """REG-2433 — what a census PROVEN is banked as: proven at EVERY width (the census never restricts one), by the
+    census, in this tree; the push's own entry carries the same fields (_prove_push_one)."""
+    return {"verdict": PROVEN, "gate": name, "proof": idx, "why": str((pr or {}).get("why") or "")[:120],
+            "at": "", "mode": "every-width", "by": "census", "provedAt": int(time.time() * 1000),
+            "target": str((pr or {}).get("file") or ""), "inputs": list(rels), "tree": TREE_ID}
+
+
+def _reused_ages(cache, results):
+    """#42 P3's census stamp for a census run - gate -> the OLDEST provedAt among its reused proofs, for the gates
+    `results` holds PROVEN. -> {gate: ms} [[stale-reading]]"""
+    ages = {}
+    if cache is None:
+        return ages
+    with cache.lock:
+        items = list(cache.reused.items())
+    for (gn, _i), ms in items:
+        if (results or {}).get(gn) == PROVEN:
+            ages[gn] = min(ages[gn], ms) if gn in ages else ms
+    return ages
+
+
+def _census_served(sandbox, name, filename, pr, idx, say, run):
+    """REG-2433 (b) — the banked PROVEN the census may take instead of running this proof. -> (entry | None, key, rels)
+
+    A proof decided before any run (_prove_one's own doors, dry) is never served - its verdict is not a run's. Then the
+    key over the sandbox's bytes and lookup(census=True): peek's predicate, this prover's stamp, proven at every width.
+    Unkeyable is never served and is said once per law."""
+    cache = run.cache
+    if cache is None:
+        return None, None, []
+    label = "%s[%d]" % (name, idx)
+    try:
+        key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)
+    except Exception as _ke:
+        key, rels, kwhy = None, [], "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
+    _mark(key=key, u=kwhy if key is None else None)
+    if key is None:
+        cache.count("unkeyable")
+        cache.say_once(name, kwhy, "     %-52s   ↳ #42 P3: not cacheable - %s; %s" % (
+            label, kwhy, "every proof of this law runs in every census" if not trace_on() else
+            "it can be served only by what its runs read (REG-2440)"))
+        hit = _census_traced(cache, sandbox, name, filename, pr, idx, say, label)
+        return (hit, hit["_tkey"], []) if hit is not None else (None, None, [])
+    hit = cache.lookup(key, census=True)
+    if hit is None:
+        cache.count("misses")
+        hit = _census_traced(cache, sandbox, name, filename, pr, idx, say, label)
+        return (hit, hit["_tkey"], []) if hit is not None else (None, key, rels)
+    cache.count("hits")
+    _by = str(hit.get("by") or "push")
+    _mark(f="hit", a="hit", reusedFrom={"by": _by, "provedAt": hit["provedAt"]})
+    cache.reused_at(name, idx, hit["provedAt"])
+    with cache.lock:
+        cache.served.append((hit["provedAt"], name, idx, key, filename, pr, _by))
+    say("     %-52s %s (cached by %s %s ago: %s, %d byte-identical input(s)%s - not re-run)"
+        % (label, PROVEN, _by, _age_say(hit.get("provedAt")), key[:8], int(hit.get("nInputs") or len(rels)),
+           "" if hit.get("tree") == TREE_ID else "; proved in another tree, so this tree owes one clean run"))
+    return hit, key, rels
+
+
+def _census_traced(cache, sandbox, name, filename, pr, idx, say, label):
+    """REG-2440 — a census proof served by what its runs read (traced_lookup), said and counted as a hit. -> the entry
+    (with its key under "_tkey") | None"""
+    try:
+        tkey, hit = traced_lookup(cache, sandbox, name, filename, pr, census=True)
+    except Exception as _le:
+        tkey, hit = None, None
+        cache.say_once(name, "traced", "     %-52s   ↳ REG-2440: its traced entries could not be asked (%s) - it runs"
+                       % (label, type(_le).__name__))
+    if hit is None:
+        return None
+    cache.count("hits")
+    cache.count("traced_hits")
+    _by = str(hit.get("by") or "push")
+    _mark(f="hit", a="hit", reusedFrom={"by": _by, "provedAt": hit["provedAt"], "kind": "traced"})
+    cache.reused_at(name, idx, hit["provedAt"])
+    with cache.lock:
+        cache.served.append((hit["provedAt"], name, idx, tkey, filename, pr, _by))
+    say("     %-52s %s (cached by %s %s ago: traced %s, all %d fact(s) its runs read still hold%s - not re-run)"
+        % (label, PROVEN, _by, _age_say(hit.get("provedAt")), tkey[2:10], int(hit.get("nFacts") or 0),
+           "" if hit.get("tree") == TREE_ID else "; proved in another tree, so this tree owes one clean run"))
+    return dict(hit, _tkey=tkey)
+
+
+def _prove_census_one(sandbox, name, filename, pr, idx, say, run, key, rels):
+    """REG-2431 / REG-2433 — one census proof that was not served: run (narrowed after the gate's clean run where the red
+    memory names its cases - _prove_one), then held for the closing clean run when PROVEN over unmoved bytes. -> verdict"""
+    _crk = _red_key(name, idx, pr) if run.red else None
+    _extra, _to, _script = gate_spec(name)
+    if _crk and not _extra and not _script and _red_peek(_crk):
+        _mark(once=True, f="narrow")                             # forecast: the memory names the cases that caught it
+    _tp = _trace_proof_begin(pr, idx)                            # REG-2440 - what this proof's own runs read
+    try:
+        v = _prove_one(sandbox, name, filename, pr, idx, say)
+    finally:
+        _trace_proof_end(_tp)
+    cache = run.cache
+    if key is None and cache is not None and _bankable(v) and getattr(_TF, "gate", None) is not None:
+        _held = getattr(_CLEAN, "pending", None)
+        if isinstance(_held, list):
+            _held.append((idx, None, _census_entry(name, idx, pr, [])))   # REG-2440 - only its facts can bank it
+        return v
+    if key is None or cache is None or not _bankable(v):
+        return v
+    _how = "its key changed while it ran"
+    try:
+        again, _r2, _w2 = cache.key_for(sandbox, name, filename, pr)
+    except Exception as _ke:
+        again, _how = None, "its key could not be taken again: %s" % type(_ke).__name__
+    if again != key:
+        cache.count("moved")
+        say("     %-52s   ↳ #42 P3: the tree moved under this proof (%s) - PROVEN stands, nothing is banked"
+            % ("%s[%d]" % (name, idx), _how))
+        return v
+    _held = getattr(_CLEAN, "pending", None)
+    if isinstance(_held, list):
+        _held.append((idx, key, _census_entry(name, idx, pr, rels)))   # banked after the closing clean run
+    return v
+
+
+def _prove_gate_census(sandbox, name, filename, proofs, say, run):
+    """REG-2430 — ONE gate's proofs in a census with the proof memory. -> (verdict, [verdict per proof])
+
+    _prove_gate's per-proof rule (a proof that raises is BLIND, the run goes on) and its gate verdict, with: each proof
+    served from the cache when it may be (_census_served), else run (_prove_census_one); a gate served from ANOTHER tree
+    owes this tree one full clean run, and a red or unknown one takes the served PROVENs away; the closing clean run
+    (REG-1669 / REG-1988) over every PROVEN; what stands is banked and flushed now, before the gate is reported done."""
+    got = [None] * len(proofs)
+    served = {}
+    _CLEAN.pending = []                                         # (index, key, entry) a census PROVEN waits in
+    _CLEAN.runs = {}
+    ck = {"sealed": set(), "t": None}                           # R8 (REG-2437) - this gate's checkpoints
+    _ck_red = False
+    _tg = _trace_gate_begin(sandbox, name, filename, run.cache)  # REG-2440 - what this gate's runs read, in this lane
+    try:
+        for i, pr in enumerate(proofs):
+            if _ck_red:
+                got[i] = UNPROVABLE                             # a red checkpoint stopped the gate: never NOT RUN
+                with run._lock:
+                    run.proofs[(name, i)] = {"v": UNPROVABLE, "s": 0.0, "a": "none"}
+                continue
+            _MARK.m = {"t0": time.time()}
+            try:
+                if _decided_before_a_run(sandbox, name, filename, pr, i) is not None:
+                    got[i] = _prove_one(sandbox, name, filename, pr, i, say)   # CENSUS-DOORS-FIRST: never served
+                else:
+                    hit, key, rels = _census_served(sandbox, name, filename, pr, i, say, run)
+                    if hit is not None:
+                        got[i], served[i] = PROVEN, hit
+                    else:
+                        got[i] = _prove_census_one(sandbox, name, filename, pr, i, say, run, key, rels)
+            except Exception as _pe:
+                say("    proof %d raised %s — recorded BLIND, run continues: %s" % (i, type(_pe).__name__, str(_pe)[:120]))
+                got[i] = BLIND
+            finally:
+                _m, _MARK.m = (getattr(_MARK, "m", None) or {}), None
+            with run._lock:
+                run.proofs[(name, i)] = dict(_m, v=got[i], s=round(time.time() - _m.get("t0", time.time()), 1))
+            # R8 (REG-2437) - a long gate banks what a green clean run brackets NOW; a red one stops the gate
+            if _checkpoint(name, got, ck, say, run.cache, _CLEAN.pending, len(proofs) - i - 1) == "red":
+                _ck_red = True
+                say("     %-52s   ↳ R8 CHECKPOINT: RED - this gate stops here; its unrun proofs are UNPROVABLE" % name)
+            with run._lock:
+                for j in ck.pop("banked", []):
+                    run.proofs.setdefault((name, j), {}).update(b=True)
+        # #242 — SERVED FROM ANOTHER TREE, THIS TREE STILL OWES ONE CLEAN RUN: a law that reads live state only that tree
+        # held can be red here and green there. A clean run this gate already paid (a proof that ran) answers it.
+        if any(e.get("tree") != TREE_ID for e in served.values()) and not _CLEAN.runs:
+            _extra, _to, _script = gate_spec(name)
+            _to = _scaled_deadline(_to)
+            ok, tail = None, ""
+            for _ask in (1, 2):                                  # R7's rule: a run that could not finish is asked once more
+                ok, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script)
+                if ok is not None:
+                    break
+            if ok is not True:
+                say("     %-52s %s - proved in another tree, and its clean run HERE is %s (%s): no served PROVEN of this "
+                    "gate stands" % (name, UNPROVABLE, "UNKNOWN" if ok is None else "RED", str(tail)[:60]))
+                for i in served:
+                    got[i] = UNPROVABLE                          # CROSS-TREE-CLEAN-RUN
+            else:
+                say("     %-52s   ↳ #242: proved in another tree - its one clean run here is green, the served proofs stand"
+                    % name)
+        per = _closing_clean(name, [None if i in ck["sealed"] else v for i, v in enumerate(got)], say)  # REG-1988
+        for i in ck["sealed"]:
+            per[i] = got[i]                                      # R8 - a sealed proof stands on its own green checkpoint
+        if run.cache is not None:
+            for _i, _key, _entry in (getattr(_CLEAN, "pending", None) or []):
+                if _bankable(per[_i]):
+                    if not _bank_proven(run.cache, _key, _entry, _i, say):
+                        continue                                 # REG-2440 - no static key, and its facts could not bank it
+                    with run._lock:
+                        run.proofs.setdefault((name, _i), {}).update(b=True)     # REG-2436 - banked for its bytes
+                else:
+                    run.cache.count("moved")
+                    say("     %-52s   ↳ #42 P3: not banked - the gate's closing clean run took its PROVEN away"
+                        % ("%s[%d]" % (name, _i)))
+    finally:
+        _CLEAN.pending = None
+        _CLEAN.runs = None
+        _trace_gate_end(_tg)
+    if run.cache is not None:
+        run.cache.flush()          # what this gate proved reaches the disk before the gate is reported done
+    return _gate_verdict(per)      # the one rule _prove_gate reads its verdict by
+
+
+def _audit_one(sandbox, name, filename, pr, idx, say):
+    """REG-2434 — re-prove one SERVED proof: narrowed where the red memory names its cases, else (or when the pair does
+    not decide it) in full with its own fresh clean run. Nothing is banked or taught. -> (verdict, how)"""
+    label = "%s[%d] (audit)" % (name, idx)
+    _extra, _to, _script = gate_spec(name)
+    _to = _scaled_deadline(_to)
+    rk = _red_key(name, idx, pr) if (not _extra and not _script) else None
+    ids = _red_peek(rk) if rk else None
+    if ids:
+        tgt_rel = str(pr.get("file") or "")
+        tgt = resolve_proof_target(sandbox, tgt_rel)
+        want = None if pr.get("matches") is None else int(pr.get("matches"))
+        if os.path.isfile(tgt) and _prove_narrow(sandbox, label, tgt, tgt_rel, str(pr.get("find") or ""),
+                                                 str(pr.get("replace") or ""), want, filename, _to, {}, ids, None,
+                                                 say) == PROVEN:
+            return PROVEN, "narrow"
+    return _prove_one(sandbox, name, filename, pr, idx, say), "full"
+
+
+def audit_served(cache, results, per_proof, say, run=None, k=None):
+    """REG-2434 (#186 f) — THE INDEPENDENT WITNESS REUSE TOOK AWAY. -> the contradictions found [(gate, idx, verdict)]
+
+    The census re-proved every proof, so a wrongly banked PROVEN was caught at the next census; once the census reuses,
+    nothing would ever look again. So each run (census and push) re-proves the K served PROVENs with the OLDEST provedAt,
+    in a sandbox of its own, over the bytes it served them for (a key that moved since is not an audit, said). PROVEN
+    again: audited. BLIND / INVALID: a CONTRADICTION - the entry is evicted under the store lock, said with a ⚠ line,
+    counted, and that verdict is the gate's (at push it refuses the push). Anything else (a clean run red or unknown) is
+    inconclusive - said, never counted as audited. An audit is never a prove-once violation (the record files it apart)."""
+    k = _audit_k(say) if k is None else k
+    if cache is None:
+        return []
+    with cache.lock:
+        pool = sorted(set((a, n, i, key, f, json.dumps(pr, sort_keys=True, default=str), by)
+                          for a, n, i, key, f, pr, by in cache.served))
+    if not pool:
+        return []
+    if k <= 0:
+        say("  REG-2434 AUDIT: OFF for this run (HEART2_AUDIT_K=0) - %d served PROVEN(s), none re-proved: auditedCount 0 "
+            "reads NOT AUDITED, never clean" % len(pool))
+        return []
+    picks = pool[:k]
+    say("  REG-2434 AUDIT: re-proving the %d oldest of %d served PROVEN(s) over the same bytes - reuse must never be the "
+        "only witness" % (len(picks), len(pool)))
+    sandbox, root = make_sandbox(say)
+    out = []
+    if not sandbox:
+        say("  REG-2434 AUDIT: no sandbox could be built - NOT AUDITED this run (UNKNOWN, never clean)")
+        return out
+    global _CENSUS, _PUSH
+    _prev = (_CENSUS, _PUSH)
+    import contextlib
+    _audit_browser = set(getattr(run, "browser", None) or ())
+    _audit_block = getattr(run, "browser_lock", None)
+    _CENSUS, _PUSH = None, None              # an audit runs the plain proof: no serving, no narrowing inside, no learning
+    _CLEAN.runs = None
+    try:
+        for at, name, idx, key, filename, prj, by in picks:
+            pr = json.loads(prj)
+            label = "%s[%d]" % (name, idx)
+            t0 = time.time()
+            try:
+                if str(key).startswith("t:"):                   # REG-2440 - a traced entry: its facts, not a static key
+                    again = key if traced_still_holds(cache, key, sandbox, filename) else None
+                else:
+                    again, _r, _w = cache.key_for(sandbox, name, filename, pr)
+            except Exception as _ke:
+                again = None
+            if again != key:
+                say("     %-52s   ↳ REG-2434 AUDIT: its bytes moved since it was served - not audited" % label)
+                continue
+            try:
+                # #160 (REG-2439) - the audit runs with no push or census set, so _browser_slot would hold nothing: an
+                # audited browser gate takes the run's own browser slot (the machine's K, in heart2's own process)
+                with (_audit_block if (_audit_block is not None and name in _audit_browser)    # AUDIT-BROWSER-SLOT
+                      else contextlib.nullcontext()):
+                    v, how = _audit_one(sandbox, name, filename, pr, idx, say)
+            except Exception as _ae:
+                v, how = None, "raised %s" % type(_ae).__name__
+            row = {"v": v, "how": how, "s": round(time.time() - t0, 1), "provedAt": at, "by": by}
+            if run is not None:
+                with run._lock:
+                    run.proofs.setdefault((name, idx), {})["audit"] = row
+            if v == PROVEN:
+                cache.count("audited")
+                say("     %-52s   ↳ REG-2434 AUDIT: PROVEN again (%s, proved by %s %s ago) - the served verdict holds"
+                    % (label, how, by, _age_say(at)))
+            elif v in (BLIND, INVALID):
+                cache.count("audited")
+                with cache.lock:
+                    cache.contradictions.append((name, idx, v))
+                out.append((name, idx, v))
+                say("     ⚠ %-50s REG-2434 AUDIT CONTRADICTION: banked PROVEN by %s %s ago, re-proved %s over the SAME "
+                    "bytes - the entry leaves the store and %s is this gate's verdict" % (label, by, _age_say(at), v, v))
+                cache.evict(key, "%s re-proved %s over the bytes it was banked for" % (label, v))
+                if isinstance(results, dict):
+                    results[name] = BLIND if BLIND in (v, results.get(name)) else v
+                if isinstance(per_proof, dict) and isinstance(per_proof.get(name), list) and idx < len(per_proof[name]):
+                    per_proof[name][idx] = v
+            else:
+                say("     %-52s   ↳ REG-2434 AUDIT: inconclusive (%s: %s) - not counted as audited" % (label, how, v))
+    finally:
+        _CENSUS, _PUSH = _prev
+        _CLEAN.runs = None
+        if root:
+            _drop_sandbox(root)
+    say("  REG-2434 AUDIT: %d audited · %d contradiction(s)" % (cache.audited, len(cache.contradictions)))
+    return out
+
+
+def _census_close(run, have, results, per_proof, say):
+    """REG-2434 / REG-2436 — a census run's end: the audit of its oldest served PROVENs, then its record (mode census),
+    which main() writes beside the push records. Never raises: a record that cannot be built costs a line."""
+    cache = run.cache
+    if cache is not None:
+        audit_served(cache, results, per_proof, say, run=run)
+        cache.flush()
+        say("  " + cache.summary(sum(len(p or []) for _n, _f, p in have)))
+    try:
+        rec = _push_record(run, have, cache, sum(len(p or []) for _n, _f, p in have), results, mode="census")
+        _PUSH_RECORD["record"] = rec
+        say("  REG-2436 CENSUS RECORD: forecast %d hit · %d narrow · %d full; actual %d hit · %d narrow · %d full · %d "
+            "decided before any run; %s audited · %s contradiction(s); %s prove-once violation(s); wall %.0f s"
+            % (rec["forecast"]["hit"], rec["forecast"]["narrow"], rec["forecast"]["full"], rec["actual"]["hit"],
+               rec["actual"]["narrow"], rec["actual"]["full"], rec["actual"]["none"],
+               "NOT AUDITED (the cache was off)" if rec["auditedCount"] is None else rec["auditedCount"],
+               "UNKNOWN" if rec["cacheContradictions"] is None else len(rec["cacheContradictions"]),
+               "UNKNOWN (the cache was off)" if rec["proveOnceViolations"] is None else len(rec["proveOnceViolations"]),
+               rec["wallS"]))
+    except Exception as _re:
+        _PUSH_RECORD["record"] = None
+        say("  REG-2436 CENSUS RECORD: could not be built (%s: %s) - UNKNOWN, the run's verdicts stand"
+            % (type(_re).__name__, str(_re)[:80]))
 
 
 #: REG-2353 — the record the last prove(push=True) assembled; main() adds its exit and summary, then writes it
@@ -5436,8 +7259,12 @@ def _proof_ident(name, pr):
     return (str(name), str(pr.get("file") or ""), str(pr.get("why") or "")[:120])
 
 
-def _push_record(run, have, cache, n_proofs, results):
+def _push_record(run, have, cache, n_proofs, results, mode="push"):
     """REG-2353 (#42 R16) — what this --push run forecast and did, proof by proof. -> dict (JSON; no absolute path)
+    REG-2436 (#186 h): a census run with the proof memory writes the same record, `mode` "census"; each served proof
+    names whom it was reused from (reusedFrom: push | census, provedAt) and what its audit found (audit), and the run
+    carries auditedCount (None: no cache - NOT AUDITED, never clean) and cacheContradictions. An audit re-runs a SERVED
+    proof (its `a` stays hit), so it is never a prove-once violation.
 
     forecast `f`: the path a proof was going to take, decided before any run of it - hit (served by the cache), narrow
     (the red memory names the cases that caught it), full; None when it was decided without a run (ELSEWHERE, INVALID,
@@ -5474,6 +7301,11 @@ def _push_record(run, have, cache, n_proofs, results):
             if m.get("posixOnly"):                       # REG-2357 (round 4) - caught only by cases that skip off POSIX
                 row["posixOnly"] = list(m["posixOnly"])
                 posix_only.append({"g": name, "i": i, "ids": list(m["posixOnly"])})
+            if m.get("reusedFrom"):                      # REG-2436 - whom a served proof was reused from
+                row["reusedFrom"] = dict(m["reusedFrom"])
+            if m.get("audit"):                           # REG-2434 - a served proof re-proved this run, and what it found
+                row["audit"] = dict(m["audit"])
+                ac["audit"] = ac.get("audit", 0) + 1
             if a != "hit":
                 key = m.get("key")
                 ident = _proof_ident(name, pr)
@@ -5492,7 +7324,9 @@ def _push_record(run, have, cache, n_proofs, results):
                     row["missWhy"] = "never banked on this machine"
             per.append(row)
     return {
-        "v": 1, "at": t0_ms, "wallS": round(time.time() - run.t0, 1), "waveS": run.wave_s,
+        "v": 1, "at": t0_ms, "wallS": round(time.time() - run.t0, 1), "waveS": run.wave_s, "mode": mode,
+        "auditedCount": None if cache is None else int(getattr(cache, "audited", 0) or 0),
+        "cacheContradictions": None if cache is None else [list(c) for c in (getattr(cache, "contradictions", None) or [])],
         "gates": sorted(n for n, _f, _p in have), "proofs": n_proofs,
         "forecast": fc, "actual": ac, "unkeyable": unkeyable, "fellThrough": fell,
         "proveOnceViolations": None if cache is None else violations,
@@ -5546,6 +7380,11 @@ def _proof_path(cache, sandbox, name, filename, pr, idx):
             key, why = None, "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
         if key is not None and cache.peek(key) is not None:
             return "hit", None, None
+        try:
+            if traced_lookup(cache, sandbox, name, filename, pr, mark=False)[0] is not None:   # REG-2440 - marks nothing
+                return "hit", None, None
+        except Exception:
+            pass                                           # a traced ask that fails is no hit - the static answer stands
         if key is None and not why:
             why = "no key could be taken"
     _decided = _decided_before_a_run(sandbox, name, filename, pr, idx)  # FORECAST-ASKS-THE-DOORS
@@ -5750,8 +7589,9 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
     _unk = []
     browser = _push_browser(have, _unk)
     if browser:
-        say("  #42 ONE BROWSER AT A TIME: %d gate(s) reach a browser through their imports (any depth) and are proved "
-            "one after another: %s" % (len(browser), ", ".join(sorted(browser)[:6]) + (" …" if len(browser) > 6 else "")))
+        say("  #42 BROWSER SLOTS (#160): %d gate(s) reach a browser through their imports (any depth) and are proved at "
+            "most %d at once across this machine: %s" % (len(browser), _browser_cap(), ", ".join(sorted(browser)[:6])
+                                                        + (" …" if len(browser) > 6 else "")))
     if _unk:
         say("  #42 ⚠ %d gate(s) import a file nobody could read or parse, so whether they start a browser is UNKNOWN - "
             "they hold the lock too: %s" % (len(_unk), ", ".join(sorted(_unk)[:6])))
@@ -5795,6 +7635,13 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
             per_proof = dict((n, [None] * len(by[n][2])) for n in gates)
         else:
             results, per_proof = _prove_gates([by[n] for n in gates], say, blank=blank)
+            # REG-2434 (#186 f) - reuse must never be the only witness: the oldest served PROVENs are re-proved, and a
+            # contradiction is the gate's verdict, so it refuses the push (a stopped push is refused already)
+            if results is not None and cache is not None and not run.stop.is_set():
+                for _cn, _ci, _cv in audit_served(cache, results, per_proof, say, run=run):
+                    if run.fail(_cn, _ci, _cv, "a served PROVEN re-proved %s over the same bytes (REG-2434)" % _cv):
+                        say("  ⛔ #42 REG-2434 — %s[%d] was served PROVEN and its audit re-proved it %s: the push is "
+                            "refused on it" % (_cn, _ci, _cv))
     finally:
         _PUSH = _prev
     if cache is not None:
@@ -5864,12 +7711,14 @@ def _prove_gate(sandbox, name, filename, proofs, say):
     declared widths and the stop.
     """
     try:
-        _reset_lane_records(sandbox, say)                # REG-2598 - the gate before this one's records never reach it
+        _reset_lane_records(sandbox, say, _gate_keeps(filename))   # REG-2598 + #182(3) only its own keeps stay live - the gate before this one's records never reach it
     except Exception as _re:
         say("     ⚠ REG-2598 the run records a gate before %s may have written could not be checked (%s) - its proofs "
             "may be keyed over them" % (name, type(_re).__name__))
     if _PUSH is not None:
         return _prove_gate_push(sandbox, name, filename, proofs, say, _PUSH)
+    if _CENSUS is not None:
+        return _prove_gate_census(sandbox, name, filename, proofs, say, _CENSUS)   # REG-2430 - the census's memory
     verdicts = []
     _CLEAN.runs = {}                                     # REG-1669 — this gate's proofs share one clean run
     try:
@@ -5877,6 +7726,12 @@ def _prove_gate(sandbox, name, filename, proofs, say):
         verdicts = _closing_clean(name, verdicts, say)
     finally:
         _CLEAN.runs = None
+    return _gate_verdict(verdicts)
+
+
+def _gate_verdict(verdicts):
+    """A census gate's verdict from its proofs' - the ONE rule _prove_gate and the census's memory path both read
+    (REG-2430: the second path calls this, never a copy of it). -> (verdict, verdicts)"""
     # REG-1686 — every proof judged only elsewhere: nothing was proven HERE, so the gate is not PROVEN here
     if verdicts and all(v == ELSEWHERE for v in verdicts):
         return UNPROVABLE, verdicts
@@ -5908,6 +7763,7 @@ def _closing_clean(name, verdicts, say):
     proof, so the REG-1988 bracket holds."""
     runs = getattr(_CLEAN, "runs", None) or {}
     shared = [r for r in runs.values() if r.get("reused")]
+    _CLEAN.closing = None           # R8 (REG-2437) - what this call found: None (nothing to ask) | green | red | unknown
     if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):
         return verdicts
     _reused = set()
@@ -5924,12 +7780,97 @@ def _closing_clean(name, verdicts, say):
             say("     %-52s   ↳ REG-2351: the CLOSING clean run could not finish (%s) - asked once more before this "
                 "gate's proofs are discarded" % (name, str(tail)[:80]))
         if not ok:
+            _CLEAN.closing = "unknown" if ok is None else "red"
             say("     %-52s %s - the CLOSING clean run is %s (%s): its proofs shared one clean run and the sandbox did "
                 "not stay clean across them, so no PROVEN of this gate is kept, and no BLIND judged on the shared run"
                 % (name, UNPROVABLE, "UNKNOWN" if ok is None else "RED", str(tail)[:60]))
             return [UNPROVABLE if (v == PROVEN or (j in _reused and v in (BLIND, INVALID))) else v
                     for j, v in enumerate(verdicts)]
+    _CLEAN.closing = "green"
     return verdicts
+
+
+# ══ R8 (#150, REG-2437) — A LONG GATE CHECKPOINTS ITS PROOFS, SO A KILL KEEPS ALL BUT THE LAST STRETCH ══════════════════
+# His order, 2026-10-21: "heart proofs also need memory registered so they pull and fetch, same for interrupted process".
+# A gate's PROVENs wait for its CLOSING clean run (REG-1988) and are banked only then, so a hard kill - the hook's
+# deadline, Ctrl-C, the Mac sleeping, the console relaunching - lost every proof of the gate in flight: war_stash is 29
+# proofs x ~70 s in ONE gate, test_control 27. Now, after a proof, when the time since the gate's last GREEN clean run has
+# passed max(HEART2_CHECKPOINT_MIN minutes - default 15 -, 10 x this gate's clean run), and proofs remain to run: the
+# closing clean run is asked NOW over the proofs since the last checkpoint (the sealed ones are not asked again).
+#   green -> those proofs are banked and the cache is flushed at once, they are SEALED (no later closing run takes them
+#            back - a green clean run brackets them on both sides), and the shared run starts counting afresh;
+#   red   -> that batch is UNPROVABLE (REG-1988's rule), and so is every proof not yet run - never NOT RUN, which reads as
+#            a push's fail-fast stop - and the gate stops: a sandbox that drifted judges nothing more;
+#   unknown -> asked once more (R7, inside _closing_clean); still unknown reads as red.
+# Fast gates (most) never reach the threshold and pay nothing. Both paths: the push (_prove_gate_push) and the census
+# (_prove_gate_census). HEART2_CHECKPOINT_S is a law's seam: the threshold in seconds, exactly.
+# ⚠ NOT BUILT, said on purpose: the spec's "os._exit only on a SECOND signal". self_prove stands a prover aside with
+# killpg SIGTERM and REG-1624 needs it gone at once (a slice that ignored one signal would hold his Mac while he plays);
+# the checkpoint flush is what a kill keeps. The law: test_a_long_gate_checkpoints_its_proofs.
+CHECKPOINT_MIN = 15
+
+
+def _checkpoint_after_s(runs):
+    """R8 — how long after the last green clean run a gate checkpoints. -> seconds"""
+    raw = os.environ.get("HEART2_CHECKPOINT_S")
+    if raw not in (None, ""):
+        try:
+            return max(0.0, float(raw))
+        except ValueError:
+            pass                                # junk is not a seam: the default below holds
+    try:
+        mins = float(os.environ.get("HEART2_CHECKPOINT_MIN") or CHECKPOINT_MIN)
+    except ValueError:
+        mins = float(CHECKPOINT_MIN)
+    clean_s = max([float(r.get("s") or 0) for r in (runs or {}).values()] or [0.0])
+    return max(mins * 60.0, 10.0 * clean_s)
+
+
+def _checkpoint(name, verdicts, ck, say, cache, pending, left):
+    """R8 (REG-2437) — after a proof: bank what a green clean run brackets NOW, or stop the gate on a red one.
+
+    verdicts  [verdict | None per proof] - updated in place (a red batch turns UNPROVABLE)
+    ck        this gate's checkpoint state: {"sealed": set of indices, "t": time of the last green clean run | None}
+    pending   the gate's (index, key, entry) list a PROVEN waits in (_CLEAN.pending) - what is banked here leaves it
+    left      how many proofs of this gate are still to run (0: the closing run comes next anyway - no checkpoint)
+    -> "green" | "red" | None (not due)"""
+    runs = getattr(_CLEAN, "runs", None) or {}
+    if left <= 0 or not runs or cache is None:           # no cache (HEART2_PROVE_CACHE=0): nothing to bank, no run paid
+        return None
+    t_last = ck.get("t") or min([r.get("at") or time.time() for r in runs.values()])
+    if time.time() - t_last < _checkpoint_after_s(runs):
+        return None
+    batch = [None if i in ck["sealed"] else v for i, v in enumerate(verdicts)]
+    judged = [i for i, v in enumerate(batch) if v is not None]
+    if not judged:
+        return None
+    say("     %-52s   ↳ R8 CHECKPOINT: %d proof(s) since the last green clean run - its closing run is asked now"
+        % (name, len(judged)))
+    res = _closing_clean(name, batch, say)
+    outcome = getattr(_CLEAN, "closing", None)
+    if outcome in ("red", "unknown"):                    # CHECKPOINT-RED: nothing of the batch is banked
+        for i in judged:
+            verdicts[i] = res[i]
+        return "red"
+    banked, keep = 0, []
+    for item in list(pending or []):
+        if item[0] not in judged:
+            keep.append(item)
+        elif _bankable(verdicts[item[0]]) and cache is not None:
+            if _bank_proven(cache, item[1], item[2], item[0], say):     # REG-2440 - by its static key and its facts
+                banked += 1
+                ck.setdefault("banked", []).append(item[0])
+    if pending is not None:
+        pending[:] = keep
+    if cache is not None:
+        cache.flush()                                    # CHECKPOINT-FLUSH: what a kill after this line keeps
+    ck["sealed"].update(judged)
+    ck["t"] = time.time()
+    for r in runs.values():                              # the shared run brackets only what comes after this
+        r["by"], r["reused"] = [], 0
+    say("     %-52s   ↳ R8 CHECKPOINT: the clean run is green - %d PROVEN banked now, %d proof(s) sealed "
+        "(checkpoint banked)" % (name, banked, len(judged)))
+    return "green"
 
 
 def _prove_gate_proofs(sandbox, name, filename, proofs, say):
@@ -6042,30 +7983,45 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
             _drop_sandbox(root)
 
 
-#: REG-1676 — the per-gate hook the lanes call after recording a gate (prove() sets it for a SLICE, clears it after). A
-#: module slot rather than a parameter so the lane and _prove_gates keep their shapes - one prover runs per process.
+#: REG-1676 — the per-gate hook the lanes call after recording a gate (prove() sets it for EVERY census run - REG-2435 -
+#: and clears it after). A module slot rather than a parameter so the lane and _prove_gates keep their shapes - one prover
+#: runs per process.
 _GATE_HOOK = {"fn": None}
-#: REG-1676 — how often (seconds) a slice may write its verdicts so far into the census; the gate scan costs ~1 s on his
-#: Mac and a few on the ALT, so a bank per gate is throttled, and the slice's final write is never skipped
-SLICE_BANK_EVERY_S = 60
+#: REG-1676 / REG-2435 — the least time (seconds) between two banks. 0: EVERY finished gate is banked. It was 60 because
+#: each bank re-read every gate file (~1 s on his Mac, seconds on the ALT); a run now reads them ONCE (_RUN_SNAP), and
+#: MEASURED on 2026-10-22 a throttled slice lost every gate it finished inside the minute before a kill.
+SLICE_BANK_EVERY_S = 0
+#: REG-2435 (#186 g) — what every census write of ONE run shares, read once at its start: the gate list, which gates
+#: declare a proof, the pixel split and each gate file's digest. None outside prove(): every other writer reads them fresh.
+_RUN_SNAP = {"snap": None}
 
 
-def _slice_banker(blank, say=print, every_s=None):
+def _census_snapshot(gates=None):
+    """REG-2435 — the per-run facts _write_state needs, read ONCE (red_proofs_in and pixel_gates parse every gate file;
+    per gate that was seconds per bank). The digests are the ones the run's sandboxes were copied from. -> dict"""
+    gates = gates if gates is not None else gate_files()
+    unk = []
+    return {"gates": list(gates), "have": [n for n, f in gates if red_proofs_in(f)],
+            "pixel": pixel_gates(gates, unk), "pixelUnk": list(unk), "shas": gate_shas(gates)}
+
+
+def _slice_banker(blank, say=print, every_s=None, measured=None):
     """REG-1676 — A SLICE BANKS WHAT IT HAS PROVED AS IT GOES. -> callable(out, lock)
 
     MEASURED on his ALT 2026-10-01: a 27-gate slice proved four once-BLIND gates PROVEN, then stood aside at "only 972 MB
     of memory left" before its end - and a slice wrote the census only at its end, so 70+ minutes of verdicts were
     thrown away, the BLIND records stood, and every lock on that PC (the river) stayed shut. Now each finished gate is
-    banked through the same _write_state a slice ends with (a partial result merged over the census, atomically), at
-    most once per `every_s`; a stand-aside then loses at most the gates since the last bank, and the lane reads the
-    banked ones as progress, never a failure."""
+    banked through the same _write_state a slice ends with (a partial result merged over the census, atomically); a
+    stand-aside then loses only the gate in flight, and the lane reads the banked ones as progress, never a failure.
+    REG-2435 (#186 g): every gate, every census run (a full run too - it stamps the fingerprint only at its final write);
+    a lane that finishes while another lane's bank is writing WAITS for it and banks after it (skipping was how a gate
+    finished between two banks was lost); `measured(results)` keeps a reused gate's age (the oldest provedAt it stands
+    on), never this bank's clock."""
     st = {"last": 0.0, "lk": threading.Lock()}
     every = SLICE_BANK_EVERY_S if every_s is None else every_s
 
     def bank(out, lock):
-        if not st["lk"].acquire(False):
-            return                                  # a bank is already writing: the next gate banks
-        try:
+        with st["lk"]:                              # REG-2435 - wait for a bank in flight, then bank what is done now
             now = __import__("time").time()
             if now - st["last"] < every:
                 return
@@ -6073,10 +8029,8 @@ def _slice_banker(blank, say=print, every_s=None):
                 snap = {k: v for k, (v, _p) in out.items()}
                 unm = set(blank or ())
             if snap:
-                _write_state(snap, stamp=False, unmeasured=unm)
+                _write_state(snap, stamp=False, unmeasured=unm, measured=measured(snap) if measured else None)
                 st["last"] = now
-        finally:
-            st["lk"].release()
     return bank
 
 
@@ -6194,7 +8148,51 @@ def unmatched_names(only, gates):
     return out
 
 
-def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True):
+#: REG-2632 - `--bank FILE [--bank-only]`: this slice imports FILE, then serves what it keys exactly before proving
+_BANK = {"on": False, "only": False}
+
+
+def serve_from_bank(have, say, cache, only=False):
+    """REG-2632 - the gates of `have` the verdict cache serves WHOLE under this checkout's own keys (its bytes, its
+    platform class), read only: nothing is written, nothing marked used. -> ({name: (PROVEN, [PROVEN...])}, rest,
+    {name: oldest provedAt}). A gate with ONE proof that misses, cannot be keyed, or raises is not served at all: it is
+    in `rest`, proved by the slice - or, `only` (bank-only, the ALT under REG-1502), left OWED and never run."""
+    served, rest, ages = {}, [], {}
+    for n, f, prs in have:
+        hits = []
+        for pr in prs or []:
+            try:
+                key = cache.key_for(HERE, n, f, pr)[0]
+            except Exception:
+                key = None
+            e = cache.peek(key) if key else None      # BANK-ASKS-PEEK
+            if e is None:
+                break
+            hits.append(e)
+        if prs and len(hits) == len(prs):
+            served[n] = (PROVEN, [PROVEN] * len(prs))
+            ages[n] = min(_proven_at(e) for e in hits)
+        else:
+            rest.append((n, f, prs))
+    say("  REG-2632 BANK: %d gate(s) served whole from proofs banked for this %s commit's exact bytes; %d %s"
+        % (len(served), PLATFORM_CLASS, len(rest),
+           "left OWED - bank-only never proves here (REG-1502)" if only else "proved here"))
+    return served, ([] if only else rest), ages
+
+
+def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True, stores=None):
+    """`stores` (REG-2430): a census's proof memory handed in by a caller - {"cache": _VerdictCache | None, "red": bool}
+    (a law's fixtures). None: only heart2's own CLI process opens the machine's (census_memory)."""
+    try:
+        return _prove(only, say, detail, push, stopped, stamp, stores)
+    finally:
+        _RUN_SNAP["snap"] = None                         # REG-2435 - a run's snapshot never outlives the run
+
+
+def _prove(only, say, detail, push, stopped, stamp, stores):
+    global _CENSUS
+    _prover_slot(say)                                    # #160 (REG-2439) - this process's ports are its own, both paths
+    _trace_say(say)                                      # REG-2440 - whether a proof may be remembered by what it read
     gates = gate_files()
     todo = gates_named(only, gates)                      # REG-2352 - the one predicate unmatched_names asks too
     # REG-2352 (#42 R11) — NO SILENT PROVE-NOTHING: every name that matches no gate is said here, and main() exits 2 on it
@@ -6251,12 +8249,48 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
             say("  #42 no gate was judged to the end, so the census is left exactly as it was")
             return {}
     else:
-        # REG-1676 — a SLICE (stamp=False) banks as it goes; a full run keeps its one write at the end
-        _GATE_HOOK["fn"] = None if stamp else _slice_banker(_blank, say)
+        # REG-1676 / REG-2435 (#186 g) — EVERY census run banks each gate it finishes (a slice, and a full run too, which
+        # stamps the fingerprint only at its final write), from facts read ONCE for the run - a killed run keeps every
+        # gate it finished, and only the gate in flight is owed again
+        _RUN_SNAP["snap"] = _census_snapshot(gates)
+        _crun = census_memory(say, stores)               # REG-2430 (a) - None in a law's process unless it handed stores
+        _cc = _crun.cache if _crun is not None else None
+        if _crun is not None:
+            # #160 (REG-2439) - the census's browser gates take one of the machine's K browser slots each (the push's
+            # own rule: a gate whose import closure reaches a browser), never a free run beside a push's Chromes
+            _bunk = []
+            _crun.browser = browser_gates([(n, f) for n, f, _p in have], unclassified=_bunk)
+            _crun.browser_lock = _machine_browser_lock(say)
+            if _crun.browser:
+                say("  #160 BROWSER SLOTS: %d gate(s) of this census reach a browser and are proved under the machine's "
+                    "%d browser slot(s): %s" % (len(_crun.browser), _browser_cap(),
+                                                ", ".join(sorted(_crun.browser)[:6]) + (" ..." if len(_crun.browser) > 6
+                                                                                         else "")))
+        _GATE_HOOK["fn"] = _slice_banker(_blank, say, measured=(lambda res: _reused_ages(_cc, res)) if _cc else None)
+        _prev_census, _CENSUS = _CENSUS, _crun
+        _served, _sages = {}, {}
         try:
-            results, per_proof = _prove_gates(have, say, blank=_blank)
+            if _BANK.get("on"):
+                # REG-2632 - a PC's slice serves first what its imported bank keys exactly (this class, these bytes);
+                # bank-only (the ALT, REG-1502) never runs the rest
+                _served, have, _sages = serve_from_bank(have, say, _VerdictCache(say=say), only=_BANK.get("only"))
+            results, per_proof = {}, {}
+            if have or not _BANK.get("on"):
+                results, per_proof = _prove_gates(have, say, blank=_blank)
+            if _crun is not None and results is not None:
+                _census_close(_crun, have, results, per_proof, say)    # REG-2434 audit + the census's record
+                _ages = _reused_ages(_cc, results)
         finally:
             _GATE_HOOK["fn"] = None     # #145 (the v3545 eye) - a raise must not leave this slice's banker installed
+            _CENSUS = _prev_census
+        if results is not None and _served:
+            results, per_proof = dict(results), dict(per_proof)
+            for _n, _v in _served.items():
+                results[_n], per_proof[_n] = _v
+            _ages.update(_sages)
+        if results is not None and not results and _BANK.get("on"):
+            say("  REG-2632 nothing was served or proved, so the census is left exactly as it was")
+            return {}
     if results is None:
         return {}
     # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
@@ -6271,14 +8305,27 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
     return results
 
 
-def _write_state(results, measured=None, stamp=True, unmeasured=None):
+def _write_state(results, measured=None, stamp=True, unmeasured=None, _held=None):
     """⚠ THE JOIN. Without this the whole loop is plumbing with no tap: `--prove` would measure
     beautifully and `_heart2_census()` in control_app.py would read an absent file and report
     UNKNOWN for ever, so the heart could never carry what the proving loop learned. This repo's
     single most repeated defect is two halves each built right and never joined.
-    [[the-unjoined-end]] [[plumbing-with-no-tap]]"""
-    gates = gate_files()
-    have = [n for n, f in gates if red_proofs_in(f)]
+    [[the-unjoined-end]] [[plumbing-with-no-tap]]
+
+    REG-2435 (#186 g) — ONE LOCKED READ-MERGE-WRITE. A census now writes after EVERY gate, a push writes at its end, and
+    his self-prover and a push share this file: the census is read, merged and replaced under an exclusive lock on its
+    directory (_store_locked - the stores' own lock), so neither writer's gates are lost between another's read and its
+    replace; the bytes are fsynced before the rename. The facts every write needs (the gate list, which gates declare a
+    proof, the pixel split, each gate file's digest) come from the run's snapshot (_RUN_SNAP), read once; a writer outside
+    a run reads them fresh, as before. An unreadable census is still REFUSED - never set aside, never written over.
+    `_held` is this function's own: the call that takes the lock hands itself (lock fd, snapshot) and runs the body."""
+    if _held is None:
+        snap = _RUN_SNAP.get("snap") or _census_snapshot()          # read OUTSIDE the lock: seconds, never held for
+        with _store_locked(os.path.dirname(os.path.abspath(STATE))) as _lockfd:    # CENSUS-LOCKED-WRITE
+            return _write_state(results, measured, stamp, unmeasured, _held=(_lockfd, snap))
+    lockfd, snap = _held
+    gates = list(snap["gates"])
+    have = list(snap["have"])
     blind = sorted(n for n, v in (results or {}).items() if v in (BLIND, INVALID))
     # ⚠⚠ AN UNREADABLE STATE FILE IS NOT AN EMPTY ONE, AND THE DIFFERENCE IS THE WHOLE CENSUS.
     # This used to swallow a parse failure into `prior = {}`, which the merge below then treats as
@@ -6335,8 +8382,8 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
         else:
             _proved.discard(_n)          # BLIND/INVALID/UNPROVABLE revokes a standing proof
     _proved &= _known                    # a gate that no longer exists is not proven
-    _pixel_unk = []
-    _pixel = pixel_gates(gates, _pixel_unk)   # v2858 — by imports, not by grep
+    _pixel_unk = list(snap["pixelUnk"])
+    _pixel = set(snap["pixel"])               # v2858 — by imports, not by grep (pixel_gates, read once per run: REG-2435)
     # ⚠⚠ v2847 — EVERY VERDICT CARRIES ITS OWN AGE, BECAUSE ONE `ranAt` FOR THE WHOLE FILE IS A
     # DATE ON THE FETCH AND NOT ON THE THING. The merge above deliberately keeps a prior blind
     # entry the current run did not re-test — correct, and until now indistinguishable from one
@@ -6374,7 +8421,7 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
     # the digest of the file it was proved against (`gateShas`), and a slice (stamp=False) stamps the fingerprint only
     # when no declaring gate is owed any more. Until then the census stays unstamped, may() stays closed, and
     # self_prove proves the rest a slice at a time - which is how a PC he plays on ever finishes. [[unknown-stays-unknown]]
-    _shas = gate_shas(gates)
+    _shas = dict(snap["shas"])                # #99 - each gate file's digest, as the run's sandboxes copied it (REG-2435)
     _gs = dict(prior.get("gateShas") or {}) if isinstance(prior.get("gateShas"), dict) else {}
     for _n in (results or {}):
         # second eye on v3528 (reproduced by reading): BLIND is also what a gate NOBODY MEASURED is written as - the
@@ -6441,11 +8488,16 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
     # #99 — tmp + os.replace. A stand-aside can end the prover at any moment and slices write often; a kill inside a
     # plain open(..., "w") left the census truncated, and a census that will not parse is one this file then refuses
     # to write over - every lock shut for good on that PC. [[open-for-write-truncates-first]]
+    # REG-2435 - under the lock (one writer at a time, across threads and processes), so this process's tmp is never shared
     _tmp = "%s.%d.tmp" % (STATE, os.getpid())
     try:
         with io.open(_tmp, "w", encoding="utf-8") as fh:
             json.dump(out, fh, indent=1, sort_keys=True)
+            fh.flush()
+            _fsync(fh.fileno())
         os.replace(_tmp, STATE)
+        if lockfd is not None:
+            _fsync(lockfd)                       # the rename itself reaches the disk
     except BaseException:
         try:
             os.unlink(_tmp)
@@ -6644,6 +8696,11 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
     # #42 lever 1 (REG-1710) — at push time, a plain unittest law whose sabotage was caught before is asked only of the
     # cases that caught it. PROVEN there is a proof; anything else falls through to the full proof below, unchanged.
     _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra and not clean_only) else None
+    # REG-2431 (#186) — THE CENSUS ASKS AND TEACHES THE RED MEMORY TOO (heart2's own CLI, or stores a caller handed in), by
+    # the same plain-unittest rule - but it has no clean wave, so it asks only AFTER this gate's green FULL clean run in this
+    # sandbox (below): a narrowed PROVEN never stands without one. A full proof that goes red teaches it (_rk at the tamper).
+    _crk = (_red_key(name, idx, pr) if (_PUSH is None and _census_asks_red() and not _script and not _extra
+                                        and not clean_only) else None)
     _rids = _red_recall(_rk) if _rk else None
     _mark(once=True, f="narrow" if _rids else "full")   # REG-2353 - the path this proof is forecast to take, before a run
     if _rids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _rids, widths,
@@ -6662,7 +8719,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         # reaches here - it stopped the run in the wave.
         _wv = (getattr(_PUSH, "clean_wave", None) or {}).get(_ck)
         if _wv is not None and _wv[0] is True:
-            _hit = _runs[_ck] = {"ok": True, "tail": _wv[1], "reused": 0,
+            _hit = _runs[_ck] = {"ok": True, "tail": _wv[1], "reused": 0, "at": time.time(), "s": None,
                                  "again": (lambda: _run_gate(sandbox, filename, timeout=_to, extra=_extra,
                                                              script=_script, **_w))}
     if _hit is not None:
@@ -6670,9 +8727,11 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         _hit["reused"] += 1
         _hit.setdefault("by", []).append(idx)                # REG-1677 — which proofs were judged on a reused clean run
     else:
+        _t_clean = time.time()
         ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
         if isinstance(_runs, dict) and ok_clean is not None:
-            _runs[_ck] = {"ok": ok_clean, "tail": tail, "reused": 0,
+            # R8 (REG-2437) - `at`: when this green clean run ended; `s`: what it cost - a checkpoint is timed from both
+            _runs[_ck] = {"ok": ok_clean, "tail": tail, "reused": 0, "at": time.time(), "s": time.time() - _t_clean,
                           "again": (lambda: _run_gate(sandbox, filename, timeout=_to, extra=_extra,
                                                       script=_script, **_w))}
     if ok_clean is None:
@@ -6702,6 +8761,36 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         say("     %-52s %s — the tamper matched %d time(s), expected %d. The SABOTAGE is wrong, "
             "not the law." % (label, INVALID, got, want))
         return INVALID
+    if _crk:
+        # REG-2431 (#186) — THE CENSUS'S NARROWED PAIR, asked only now: this gate's FULL clean run is green in THIS sandbox
+        # (just above, shared by its proofs and bracketed by the closing run), and the anchor matches as declared. PROVEN
+        # here is that pair; anything else falls through to the full tampered run below, which also teaches the memory.
+        # ⚠ A PAIR IS TWO RUNS, EACH PAYING THE LAW'S IMPORT AND SETUP. MEASURED 2026-10-22 on test_a_killed_run_is_never_a_red
+        # (34 proofs, ~6 s a full run, ~3.4 s a narrowed one): every proof narrowed, the census took 241.7 s against 225.3 s
+        # in full. Narrowing pays only where a full run is long (test_control: ~4 min against seconds). So the gate's own
+        # numbers decide: once a pair has cost more than this gate's full clean run, the rest of the gate runs in full.
+        _cs = _runs.get(_ck) if isinstance(_runs, dict) else None
+        _cs = _cs if isinstance(_cs, dict) else {}
+        _crids = None
+        if _cs.get("pairS") is not None and _cs.get("s") is not None and _cs["pairS"] > _cs["s"]:  # NARROW-PAYS
+            if not _cs.get("pairSaid"):
+                _cs["pairSaid"] = True
+                say("     %-52s   ↳ REG-2431: a narrowed pair cost %.1f s, more than this gate's full run (%.1f s) - its "
+                    "other proofs run in full" % (label, _cs["pairS"], _cs["s"]))
+        else:
+            _crids = _red_recall(_crk)
+        _t_pair = time.time()
+        if _crids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _crids, widths,
+                                    say) == PROVEN:
+            _cs["pairS"] = time.time() - _t_pair
+            _how = "narrow"
+            _mark(a=_how)                                  # REG-2353 - the path it took (the census record reads it too)
+            _say_posix_only_catch(sandbox, filename, label, _need, _crids, say)  # REG-2357 - its catching cases
+            return PROVEN
+        if _crids:
+            _cs["pairS"] = time.time() - _t_pair
+            _mark(fellThrough=True)
+        _rk = _crk                                         # the full run below teaches the memory what caught it
 
     # 2. TAMPER
     # ⚠⚠ v3243 — AND THE THIRD READER OF THE SAME FIELD. v3241 made `want` None when nobody
@@ -6746,6 +8835,16 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
             fh.write(original)
     _caught = list(_LAST_RED.get(threading.get_ident()) or []) if ok_tampered is False else []  # REG-2357 - who caught it
     _skips = _LAST_SKIPS.pop(threading.get_ident(), None)                    # REG-2359 - why each of its cases skipped
+    _cw = _concurrent(name) if ok_tampered is False else None
+    if _cw:
+        # #160 critic R3 (REG-2439) — A RED UNDER CONCURRENCY IS A VERDICT ONLY WHEN IT GOES RED AGAIN: the cases it named
+        # (or, with no case to name, the whole run), tampered once more. A sibling's one write cannot turn a blind law PROVEN.
+        _again = _confirm_red(sandbox, filename, tgt, original, _tampered, _to, _w, _caught, _extra, _script)
+        if _again is not False:                  # CONFIRM-RED
+            say("     %-52s %s — its tampered run went red under concurrency (%s) and %s, so the red is not this law's: "
+                "nothing is banked" % (label, UNPROVABLE, _cw, "stayed green asked again" if _again else
+                                       "could not be asked again"))
+            return UNPROVABLE
     if ok_tampered is False and _rk:
         _red_remember(_rk, name, idx, _LAST_RED.pop(threading.get_ident(), None))   # #42 lever 1 — learn what caught it
 
@@ -7187,6 +9286,31 @@ def import_shards(paths, say=print, target=None):
     return 0
 
 
+def export_tree(tree):
+    """REG-2632 - the tree an exported entry carries: "exported:" + 16 hex of the proving tree's path, never the path (a
+    bank is published to git: no home directory, user or host name leaves). Still never this tree's id, so an import
+    keeps owing REG-2599's clean run here."""
+    return "exported:" + hashlib.sha256(str(tree or "").encode("utf-8", "replace")).hexdigest()[:16]
+
+
+def export_take(entries, keyer):
+    """REG-2630/2632 - the entries an export carries: servable, and keyed by THIS checkout exactly as filed; each with its
+    tree replaced by export_tree(). -> ({key: entry}, stale count, not-servable count). Pure."""
+    import proof_shard as _PS
+    take, stale, other = {}, 0, 0
+    for key, e in (entries or {}).items():
+        if not _PS.servable(e):
+            other += 1
+            continue
+        if keyer(str(e.get("gate")), e.get("proof")) != key:
+            stale += 1
+            continue
+        e = dict(e)
+        e["tree"] = export_tree(e.get("tree"))    # REG-2632 - a bank is published: no machine path leaves this machine
+        take[key] = e
+    return take, stale, other
+
+
 def export_proved(out_dir, say=print, source=None):
     """REG-2630 - `heart2.py --export-proved DIR`: this machine's banked PROVENs that THIS checkout's bytes still key, into
     DIR/.heart2_cache.json with an `export` manifest (HEAD, clean), for another machine's `--import-proved`. The box
@@ -7215,16 +9339,7 @@ def export_proved(out_dir, say=print, source=None):
     if why is not None:
         say("  ✗ REG-2630 EXPORT REFUSED: %s. Nothing was written." % why)
         return 2
-    keyer = _shard_keyer(source)
-    take, stale, other = {}, 0, 0
-    for key, e in (body.get("entries") or {}).items():
-        if not _PS.servable(e):
-            other += 1
-            continue
-        if keyer(str(e.get("gate")), e.get("proof")) != key:
-            stale += 1
-            continue
-        take[key] = e
+    take, stale, other = export_take(body.get("entries"), _shard_keyer(source))
     if not os.path.isdir(os.path.dirname(out)):
         os.makedirs(os.path.dirname(out))
     m = _PS.export_manifest(head, False, len(take), int(time.time() * 1000))
@@ -7363,7 +9478,22 @@ def main(argv):
     ap.add_argument("--import-proved", nargs="+", default=None, metavar="FILE",
                     help="REG-2630 bank PROVENs proved elsewhere (a box export or census shard files, partial allowed) "
                          "of THIS HEAD, each only under the key this checkout's bytes give it; exits 2 on a refusal")
+    ap.add_argument("--bank", default=None, metavar="FILE",
+                    help="REG-2632 with --prove --slice: import FILE (--import-proved rules), then serve each gate whose "
+                         "every proof it keys exactly, and prove only the rest")
+    ap.add_argument("--bank-only", action="store_true",
+                    help="REG-2632 with --bank: never prove - what the bank does not serve stays owed (the ALT, REG-1502)")
     a = ap.parse_args(argv)
+    _BANK.update(on=False, only=False)
+    if a.bank is not None or a.bank_only:
+        if a.bank is None or a.prove is None or not a.slice or a.push:
+            print("  ✗ REG-2632: --bank FILE goes with --prove NAMES --slice (and --bank-only only with --bank)")
+            return 2
+        _bc = import_proved([a.bank])
+        if _bc != 0 and a.bank_only:
+            print("  ✗ REG-2632: the bank was refused, and bank-only never proves - every gate stays owed")
+            return 2
+        _BANK.update(on=True, only=bool(a.bank_only))
     if a.import_shards is not None:
         return import_shards(a.import_shards)
     if a.export_proved is not None:
@@ -7425,8 +9555,11 @@ def main(argv):
     _PUSH_RECORD["record"] = None               # REG-2353 - this run's record only
 
     def _done(code):
-        """REG-2353 - a --push run's record, with its exit, is written whatever the exit; the hook deletes its log."""
-        _rec = _PUSH_RECORD.get("record") if (a.prove is not None and a.push) else None
+        """REG-2353 - a --push run's record, with its exit, is written whatever the exit; the hook deletes its log.
+        REG-2436 - and a census run's (mode census), which exists only when the census ran with the proof memory."""
+        _rec = _PUSH_RECORD.get("record") if a.prove is not None else None
+        if not a.push and not (isinstance(_rec, dict) and _rec.get("mode") == "census"):
+            _rec = None                            # a run without --push writes a record only as a census (REG-2436)
         if isinstance(_rec, dict):
             _c, _b, _i = prove_exit_code(results)
             _rec.update({"exit": code, "broken": _b, "idle": _i, "unmatched": [n for n, _w in _PROVE_UNMATCHED]})
