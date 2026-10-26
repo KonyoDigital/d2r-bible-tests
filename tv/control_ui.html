@@ -6046,6 +6046,8 @@
   /* Shadow mode: their uploaded console, booted in its own frame on an in-memory store (bible.html SHADOW MODE BOOT). */
   #shadow-eng { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; border: 0; z-index: 945; background: #070605; }
   body:not(.shell-open) #shadow-eng, body:not(.shadow-snap) #shadow-eng { display: none !important; }
+  /* Their frame covers this browser. The claim bar lives on this browser's board, so that board stays hidden for the whole visit. */
+  body.shadow-on #tvd-eng, body.shadow-snap #tvd-eng { visibility: hidden !important; }
   .roster-person { display: block; width: 100%; text-align: left; margin: 4px 0; }
   .roster-stale { color: #e9b96e; }
   /* #95 (REG-2517) - whose signature each row carries, under its name, and THIS PC's own last publish leading the
@@ -27744,15 +27746,113 @@ function escC(s) {
   };
 
   var _shadowGen = 0;
+  /* The tab and the ADVANCED drawer, remembered once, before shadow lights Characters.
+     Leave puts both back. A second enter in the same visit does not overwrite the first. */
+  window._shadowRemember = function () {
+    var body = document.body;
+    if (!body || !body.getAttribute || body.getAttribute('data-shadow-tab') !== null) return;
+    var tab = '';
+    try {
+      if (body.dataset && typeof body.dataset.shellTab === 'string') tab = body.dataset.shellTab;
+    } catch (e) { tab = ''; }
+    if (!tab) tab = body.getAttribute('data-shell-tab') || '';
+    body.setAttribute('data-shadow-tab', tab);
+    var adv = document.getElementById('sig-adv');
+    var open = false;
+    if (adv) {
+      if (typeof adv.open === 'boolean') open = adv.open;
+      else if (adv.hasAttribute) open = adv.hasAttribute('open');
+    }
+    body.setAttribute('data-shadow-adv', open ? '1' : '0');
+  };
+  /* A published roster row plus the fleet platform, when that owner never uploaded a snapshot.
+     The book is bare keys, so the frame reads them as an owner world on profile main. That is the
+     book's shape, not a guess of his account. The ledger stays empty. Cousin is true unless this
+     fleet row is this PC, so this PC's seeds cannot land. Linux, and any platform with no closed
+     machine, returns no world: the frame then fails closed instead of opening this browser's board.
+     The hostname is compared in memory and is not copied into the stores. */
+  window._shadowRosterStores = function (row, fleet, owner) {
+    var OWNERS = ['Konyo \u00b7 Mac', 'Konyo \u00b7 ALT', 'Konyo \u00b7 GrokBot', 'Dean', 'Wife PC'];
+    function labelOf(m) {
+      if (typeof window._fleetRosterOwner === 'function') {
+        var got = window._fleetRosterOwner(m);
+        if (got) return got;
+      }
+      var nick = String((m && m.nickname) || '').trim();
+      if (OWNERS.indexOf(nick) >= 0) return nick;
+      if (nick === 'Konyo' && m && m.platform === 'mac') return 'Konyo \u00b7 Mac';
+      return '';
+    }
+    function storeOf(builds) {
+      var all = {};
+      builds.forEach(function (b, i) {
+        all['s' + i] = {
+          name: b.name, cls: b.cls || null, level: b.level || 1,
+          sets: (b.sets || []).map(function (s, n) {
+            return { name: s.name || ('Set ' + (n + 1)), slots: s.slots || {}, inv: s.inv || [], swap: {}, ws: 1 };
+          }),
+          active: 0, notes: '', stash: b.stash || [], shared: [], from: null, at: 1
+        };
+      });
+      return JSON.stringify(all);
+    }
+    var machines = [];
+    if (fleet && typeof fleet === 'object') {
+      ['online', 'offline'].forEach(function (k) {
+        if (Array.isArray(fleet[k])) machines = machines.concat(fleet[k]);
+      });
+    }
+    var hit = null;
+    for (var i = 0; i < machines.length; i++) {
+      if (labelOf(machines[i]) === owner) { hit = machines[i]; break; }
+    }
+    var machine = null, os = null;
+    var platform = hit && hit.platform;
+    if (platform === 'windows') { machine = 'windows'; os = 'WINDOWS'; }
+    else if (platform === 'mac') { machine = 'mac'; os = 'MAC'; }
+    var world = null;
+    if (machine && os) {
+      var mine = fleet && typeof fleet.me === 'string' ? fleet.me : '';
+      var cousin = !(mine && hit.machine && hit.machine === mine);
+      world = { machine: machine, profile: 'main', ledger: '', os: os, cousin: cousin };
+    }
+    var builds = [];
+    var chars = row && row.sections && row.sections.characters && row.sections.characters.rows;
+    if (Array.isArray(chars)) chars.forEach(function (r) { if (r && r.sets) builds.push(r); });
+    var seen = {}, names = [];
+    function addName(n) {
+      if (typeof n !== 'string' || !n || seen[n]) return;
+      seen[n] = 1;
+      names.push(n);
+    }
+    function addRows(list) {
+      if (!Array.isArray(list)) return;
+      list.forEach(function (r) {
+        if (typeof r === 'string') addName(r);
+        else if (r) addName(r.name);
+      });
+    }
+    var sections = (row && row.sections) || {};
+    ['vault', 'stash', 'owned'].forEach(function (k) {
+      addRows(sections[k] && sections[k].rows);
+    });
+    var stores = {
+      d2r_charBuilds: builds.length ? storeOf(builds) : '{}',
+      d2r_owned: JSON.stringify(names)
+    };
+    if (world) stores.d2r_api_world = JSON.stringify(world);
+    return { stores: stores, world: world };
+  };
   window._shadowEnter = function (owner) {
-    /* The same board pane he already opens from the header, with their book behind it.
-       The board covers his store before the pane is shown. */
+    /* No upload. The published roster row and the fleet platform open in their own frame.
+       This browser's board is never shown, and nothing is posted into it. */
     if (!owner) return;
+    if (typeof window._shadowRemember === 'function') window._shadowRemember();
     var gen = ++_shadowGen;
-    var f = document.getElementById('tvd-eng');
     var was = document.body.classList.contains('shell-open');
     document.body.setAttribute('data-shadow-was', was ? '1' : '0');
     document.body.removeAttribute('data-shadow-shown');
+    document.body.classList.add('shadow-on');
     var bar = document.getElementById('shadow-bar');
     try {
       var h = (typeof window._shellHeadH === 'function') ? window._shellHeadH() : 48;
@@ -27762,33 +27862,21 @@ function escC(s) {
     if (who) who.textContent = owner + ' · reading their console · read only';
     var box = document.getElementById('roster-box');
     if (box) box.setAttribute('hidden', '');
-    function reveal() {
-      if (gen !== _shadowGen || document.body.getAttribute('data-shadow-shown') === '1') return;
-      document.body.setAttribute('data-shadow-shown', '1');
-      document.body.classList.add('shell-open', 'shadow-on');
-      try { if (typeof window._shellSizePane === 'function') window._shellSizePane(); } catch (e) {}
-      try { if (typeof window._shellLight === 'function') window._shellLight('chars'); } catch (e) {}
-      if (bar) bar.removeAttribute('hidden');
-    }
-    function onReady(ev) {
-      if (!ev.data || ev.data.type !== 'tvd-shadow-ready') return;
-      if (ev.origin !== window.location.origin) return;
-      window.removeEventListener('message', onReady);
-      reveal();
-    }
-    window.addEventListener('message', onReady);
-    try {
-      f.contentWindow.postMessage({ type: 'tvd-shadow', owner: owner, pending: true, row: { owner: owner, published: false } }, window.location.origin);
-    } catch (e) {}
-    setTimeout(function () {
+    if (bar) bar.removeAttribute('hidden');
+    try { if (typeof window._shellSizePane === 'function') window._shellSizePane(); } catch (e) {}
+    function openFrame(words, pack) {
       if (gen !== _shadowGen) return;
-      window.removeEventListener('message', onReady);
-      if (document.body.getAttribute('data-shadow-shown') === '1') return;
-      if (who) who.textContent = owner + ' · the board did not open · read only';
-      if (bar) bar.removeAttribute('hidden');
-    }, 4000);
-    fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
+      if (who) who.textContent = words;
+      if (typeof window._shadowSnapEnter !== 'function') return;
+      window._shadowSnapEnter(owner, pack);
+    }
+    Promise.all([
+      fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }),
+      fetch('/api/fleet', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; })
+    ]).then(function (pair) {
       if (gen !== _shadowGen) return;
+      var data = pair[0];
+      var fleet = pair[1];
       var row = null;
       var owners = (data && data.owners) || [];
       for (var i = 0; i < owners.length; i++) {
@@ -27800,13 +27888,18 @@ function escC(s) {
       var say = owner + ' · published' + signed + ' · read only';
       if (!row || row.published !== true) say = owner + ' has not published a console · read only';
       else if (row.age === 'stale') say = owner + ' · published, stale' + signed + ' · read only';
-      if (who) who.textContent = say;
-      try {
-        f.contentWindow.postMessage({ type: 'tvd-shadow', owner: owner, row: row || { owner: owner, published: false } }, window.location.origin);
-      } catch (e) {}
+      var tail = ' · read only';
+      var words = say.slice(-tail.length) === tail ? say.slice(0, -tail.length) : say;
+      var built = null;
+      try { built = window._shadowRosterStores(row, fleet, owner); } catch (e) { built = null; }
+      var when = row && typeof row.t === 'number' ? row.t : 0;
+      var pack = (built && built.world) ? { t: when, words: words, stores: built.stores }
+        : { words: words, stores: { d2r_charBuilds: '{}' } };
+      openFrame(say, pack);
     }).catch(function () {
       if (gen !== _shadowGen) return;
-      if (who) who.textContent = owner + ' · the roster fetch could not be read · read only';
+      var say = owner + ' · the roster fetch could not be read · read only';
+      openFrame(say, { words: owner + ' · the roster fetch could not be read', stores: { d2r_charBuilds: '{}' } });
       if (bar) bar.removeAttribute('hidden');
     });
   };
@@ -27830,6 +27923,20 @@ function escC(s) {
         if (typeof window._shellDemotePane === 'function') window._shellDemotePane();
         if (typeof window._shellRestoreConsole === 'function') window._shellRestoreConsole();
       } catch (e) {}
+    }
+    var back = document.body.getAttribute('data-shadow-tab');
+    var advWas = document.body.getAttribute('data-shadow-adv');
+    document.body.removeAttribute('data-shadow-tab');
+    document.body.removeAttribute('data-shadow-adv');
+    if (back !== null) {
+      try { if (typeof window._shellLight === 'function') window._shellLight(back); } catch (e) {}
+    }
+    if (advWas !== null) {
+      var adv = document.getElementById('sig-adv');
+      if (adv) {
+        var want = advWas === '1';
+        if (adv.open !== want) adv.open = want;
+      }
     }
   };
   /* The board frame holds focus. In this WebKit the first click outside that frame is
@@ -27859,8 +27966,10 @@ function escC(s) {
      stores (tv/console_snapshot.py) and when they were uploaded; a frame of its own boots the same board on those
      stores held in memory (bible.html SHADOW MODE BOOT), so characters, gear, inventory, stash, mules and the vault
      draw exactly as on their console, and nothing it does reaches this PC's store or console. The bar says live or
-     offline and the upload's age. An owner with no upload falls back to the published roster row (_shadowEnter). */
+     offline and the upload's age. An owner with no upload still opens this same frame: _shadowEnter fills it
+     from the published roster row and the fleet platform, and never from this browser's board. */
   window._shadowSnapEnter = function (owner, d) {
+    if (typeof window._shadowRemember === 'function') window._shadowRemember();
     var gen = ++_shadowGen;
     var was = document.body.classList.contains('shell-open');
     document.body.setAttribute('data-shadow-was', was ? '1' : '0');
@@ -27888,11 +27997,23 @@ function escC(s) {
     document.body.appendChild(f);
     document.body.setAttribute('data-shadow-shown', '1');
     document.body.classList.add('shell-open', 'shadow-on', 'shadow-snap');
+    try { if (typeof window._shellSizePane === 'function') window._shellSizePane(); } catch (e) {}
     try { if (typeof window._shellLight === 'function') window._shellLight('chars'); } catch (e) {}
     return gen;
   };
   window._shadowOpen = function (owner) {
     if (!owner) return;
+    if (typeof window._shadowRemember === 'function') window._shadowRemember();
+    /* Hide this browser's board before the profile answer. A missing upload must not leave the claim bar up while that answer is in flight. */
+    document.body.classList.add('shadow-on');
+    var bar = document.getElementById('shadow-bar');
+    var who = document.getElementById('shadow-who');
+    try {
+      var h = (typeof window._shellHeadH === 'function') ? window._shellHeadH() : 48;
+      if (bar) bar.style.top = h + 'px';
+    } catch (e) {}
+    if (who) who.textContent = owner + ' · reading their console · read only';
+    if (bar) bar.removeAttribute('hidden');
     var gen = ++_shadowGen;
     fetch('/api/roster-cache?profile=' + encodeURIComponent(owner), { cache: 'no-store' })
       .then(function (r) { return r.json(); })

@@ -1157,7 +1157,7 @@ class TheSignatureReachesHisScreen(unittest.TestCase):
                          "the route no longer hands the panel each row's signature in words")
         _need_node(self)
         drawn = _panel(data, ["Konyo · Mac", "Dean", "Wife PC", "Konyo · ALT", "Konyo · GrokBot"])
-        self.assertEqual(drawn["fetched"], ["/api/roster-cache"] * 6)
+        self.assertEqual(drawn["fetched"], ["/api/roster-cache"] + ["/api/roster-cache", "/api/fleet"] * 5)
         panel = html.unescape(drawn["panel"])
         self.assertTrue(panel.startswith('<div class="roster-me roster-refused">this PC\'s last publish (2 min ago) '
                                          'was REFUSED: roster would not take this publish: Konyo · Mac has a registered key'),

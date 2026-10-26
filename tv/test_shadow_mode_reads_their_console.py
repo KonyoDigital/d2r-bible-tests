@@ -673,6 +673,92 @@ class TheViewerPanel(unittest.TestCase):
         self.assertIn("' · read only'", enter)
 
 
+class TheRosterRowOpensInItsOwnFrame(unittest.TestCase):
+    """No upload. Dean's published row and his fleet platform fill an isolated frame. A linux row has no closed machine, so it does not invent one."""
+
+    def _fn(self):
+        ui = _read(UI)
+        start = ui.index("  window._shadowRosterStores = function (row, fleet, owner) {")
+        end = ui.index("  window._shadowEnter = function (owner) {", start)
+        return ui[start:end]
+
+    def test_dean_gets_his_builds_and_a_closed_windows_world_and_linux_does_not(self):
+        if not NODE:
+            raise AssertionError("node is absent - the roster-row frame cannot be run here, so it is UNMEASURED")
+        fn = self._fn()
+        js = "var window = globalThis;\n" + fn + r"""
+var dean = { owner: 'Dean', published: true, t: 1792800000000, sections: {
+  characters: { rows: [
+    { name: 'A', cls: 'Sorceress', level: 90, sets: [{ name: 'Set 1', slots: { head: { name: 'Shako' } }, inv: [] }] },
+    { name: 'B', sets: [{ name: 'S', slots: {}, inv: [{ name: 'Torch' }] }] },
+    { name: 'C', sets: [{ name: 'S', slots: {}, inv: [] }] },
+    { name: 'plain' }
+  ]},
+  vault: { rows: [] },
+  stash: { rows: [{ name: 'Ist' }, { name: 'Mal' }, { name: 'Ist' }, { name: 'Um' }] }
+}};
+var host = 'not-a-store';
+var fleet = { me: 'viewer', online: [], offline: [
+  { nickname: 'Dean', platform: 'windows', machine: host }
+]};
+var out = window._shadowRosterStores(dean, fleet, 'Dean');
+var builds = JSON.parse(out.stores.d2r_charBuilds);
+var owned = JSON.parse(out.stores.d2r_owned);
+var world = JSON.parse(out.stores.d2r_api_world);
+var blob = JSON.stringify(out.stores);
+var mine = window._shadowRosterStores(dean, { me: host, offline: [{ nickname: 'Dean', platform: 'windows', machine: host }] }, 'Dean');
+var linux = window._shadowRosterStores(
+  { sections: { characters: { rows: [{ name: 'G', sets: [{ name: 'S', slots: {}, inv: [] }] }] } } },
+  { offline: [{ nickname: 'Konyo · GrokBot', platform: 'linux', machine: host }] },
+  'Konyo · GrokBot');
+var mac = window._shadowRosterStores({}, { offline: [{ nickname: 'Konyo', platform: 'mac', machine: host }] }, 'Konyo · Mac');
+var winKonyo = window._shadowRosterStores({}, { offline: [{ nickname: 'Konyo', platform: 'windows', machine: host }] }, 'Konyo · Mac');
+process.stdout.write(JSON.stringify({
+  nBuilds: Object.keys(builds).length,
+  gear: builds.s0.sets[0].slots.head.name,
+  owned: owned,
+  world: world,
+  leaked: blob.indexOf(host) !== -1,
+  claim: !!(out.stores.d2r_ownerClaim || out.stores.d2r_installId),
+  cousinWhenMine: JSON.parse(mine.stores.d2r_api_world).cousin,
+  mineLeaked: JSON.stringify(mine.stores).indexOf(host) !== -1,
+  linuxWorld: linux.world,
+  linuxStore: Object.prototype.hasOwnProperty.call(linux.stores, 'd2r_api_world'),
+  mac: mac.world && mac.world.machine,
+  winKonyo: winKonyo.world
+}));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["nBuilds"], 3, got)
+        self.assertEqual(got["gear"], "Shako")
+        self.assertEqual(got["owned"], ["Ist", "Mal", "Um"])
+        self.assertEqual(got["world"], {"machine": "windows", "profile": "main", "ledger": "", "os": "WINDOWS", "cousin": True})
+        self.assertFalse(got["leaked"], "the fleet hostname was copied into the stores")
+        self.assertFalse(got["claim"], "a claim or install id was put in the roster stores")
+        self.assertIs(got["cousinWhenMine"], False)
+        self.assertFalse(got["mineLeaked"])
+        self.assertIsNone(got["linuxWorld"])
+        self.assertFalse(got["linuxStore"])
+        self.assertEqual(got["mac"], "mac")
+        self.assertIsNone(got["winKonyo"])
+
+    def test_the_missing_snapshot_does_not_open_this_browser(self):
+        ui = _read(UI)
+        enter = ui[ui.index("  window._shadowEnter = function (owner) {"):ui.index("  window._shadowLeave = function () {")]
+        self.assertNotIn("getElementById('tvd-eng')", enter)
+        self.assertNotIn("pending: true", enter)
+        self.assertIn("window._shadowSnapEnter", enter)
+        self.assertIn("window._shadowRosterStores", enter)
+        html = _read(BIBLE)
+        b0 = html.index("/* SHADOW MODE BOOT")
+        boot = html[b0:html.index("</script>", b0)]
+        self.assertIn("#claim-bar{display:none !important}", boot)
+        self.assertIn("window._d2rClaimThisBrowser = function () { return false; }", boot)
+        self.assertIn("closest('#claim-bar, #claim-btn')", boot)
+
+
 class TheBoardSaysItsWorld(unittest.TestCase):
 
     def test_the_board_posts_the_world_its_stores_were_drawn_in(self):
@@ -827,6 +913,9 @@ function run(parentSnap, search) {
                mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')),
                tasks: fire(mk("window.vaultTasksTog()")), adv: fire(mk("window.vaultAdvTab('ledger')")),
                inSummary: fire(mk("_cbDelete('bx1')", null, true)) };
+  const claimEl = { id: 'claim-btn', getAttribute() { return null; }, matches() { return false; },
+    closest(sel) { return String(sel).indexOf('#claim') !== -1 ? this : null; } };
+  res.claimStopped = fire(claimEl);
   const key = (k, extra) => { const ev = Object.assign({ key: k, target: { tagName: 'DIV' }, preventDefault() {},
     stopImmediatePropagation() { this.stopped = true; } }, extra || {}); for (const f of listeners.keydown || []) f(ev);
     return !!ev.stopped; };
@@ -920,6 +1009,7 @@ class TheShadowFrameBoot(unittest.TestCase):
         # the vault's MOVE TASKS overlay and its ADVANCED panes open, as on his own console
         self.assertFalse(v["tasks"] or v["adv"], "a vault view toggle was stopped: %r" % v)
         self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
+        self.assertTrue(self.r["claimStopped"], "a click on the claim button was not stopped in the shadow frame")
         self.assertTrue(self.r["typing"])
         self.assertEqual(sorted(self.r["blocks"]),
                          sorted(["change", "input", "submit", "drop", "paste", "dragstart", "contextmenu", "pointerdown",

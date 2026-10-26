@@ -503,7 +503,13 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIn("their reels stay on their console, so in-game characters are not read here", board)
         self.assertEqual(board.count("document.documentElement.classList.contains('tvd-shadow')"), 3)
         self.assertIn("shadowMap[k] = null", board)
-        self.assertIn("pending: true", fn)
+        # A missing snapshot used to post pending:true into THIS browser's board, which is the claim trap.
+        # The visit now opens their frame and never arms this board.
+        enter = ui[ui.index("  window._shadowEnter = function (owner) {"):ui.index("  window._shadowLeave = function () {")]
+        self.assertNotIn("pending: true", enter)
+        self.assertNotIn("getElementById('tvd-eng')", enter)
+        self.assertIn("window._shadowSnapEnter", enter)
+        self.assertIn("window._shadowRosterStores", enter)
         self.assertEqual(board.count("if (on) { shadowMap[k] = v == null ? null : String(v); return; }"), 1)
         with open(APP, encoding="utf-8") as fh:
             app = fh.read()
