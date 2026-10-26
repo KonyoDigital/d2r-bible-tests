@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3801",
+  "ver": "v3802",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3801: Shadow draws a published row with no upload. Leave restores the sessions view. The vault mark is the gold pile.",
+  "note": "v3802: The sessions hub uses a sent list, then the published total, and never paints 0.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
