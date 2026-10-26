@@ -5,7 +5,7 @@ The layout MOVES doors; it removes none. This law proves, on the shipped page wi
 pressed — every destructive door is driven with its confirm answered NO or replaced), that:
 
   * every original vault door is still in the page with its original handler, in its new home
-    (AUTO INTAKE + folder doors -> Advanced "Auto-intake & screenshots"; lock panel -> Advanced "Locked on MAIN";
+    (AUTO INTAKE + folder doors -> Advanced "Auto-intake & screenshots"; lock panel -> a collapsed row at the bottom of the vault;
     Clear & reset -> footer "Reset & restore" / "Vault & mules"; the 3 footer resets unchanged in "Account & chronicle");
   * Advanced stays a collapsed <details> and still opens on Keepers;
   * the reset menu carries no "Danger" word, while the second step (the confirm) does;
@@ -70,6 +70,7 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
     def test_every_moved_door_lives_in_its_new_home(self):
         o = board().run(
             "function home(sel){ var e = document.querySelector(sel); if (!e) return null;"
+            "  if (e.closest('#vault-locks-fold')) return 'locks:bottom';"
             "  var p = e.closest('.vadv-pane'); if (p) return 'adv:' + p.getAttribute('data-adv');"
             "  if (e.closest('#reset-grp-vault')) return 'reset:vault'; if (e.closest('#reset-grp-account')) return 'reset:account';"
             "  if (e.closest('#vault-profile-grp')) return 'profile'; if (e.closest('.vault-toolbar')) return 'toolbar'; if (e.closest('.vault-deck')) return 'deck'; return 'other'; }"
@@ -84,12 +85,17 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
             "OUT.resetBtns = document.querySelectorAll('#reset-grp-account .reset-btn').length;"
             "var adv = document.getElementById('vault-advanced'); OUT.advOpen = adv.open; OUT.advTag = adv.tagName;"
             "OUT.advDefault = (adv.querySelector('.vadv-tab[aria-selected=true]') || {}).getAttribute('data-adv');"
-            "OUT.advLast = !adv.nextElementSibling || !adv.parentElement.querySelector('#vault-advanced ~ .vault-tasks-pop');")
+            "OUT.advLast = !adv.nextElementSibling || !adv.parentElement.querySelector('#vault-advanced ~ .vault-tasks-pop');"
+            "OUT.locksTab = !!document.querySelector('.vadv-tab[data-adv=locks]');"
+            "var fold0 = document.getElementById('vault-locks-fold');"
+            "OUT.foldClosed = !!(fold0 && fold0.tagName === 'DETAILS' && !fold0.open);")
         h = o["h"]
         for s in ["[onclick*='_vaultAutoIntakeToggle']", "#vault-folder-btn", "#vault-scan-btn", "#vault-clear-scan-btn",
                   "#vault-dir-input", "#vault-watcher"]:
             self.assertEqual(h[s], "adv:intake", "%s is not in Advanced → Auto-intake: %r" % (s, h))
-        self.assertEqual(h["#vault-lane-locks"], "adv:locks", h)
+        self.assertEqual(h["#vault-lane-locks"], "locks:bottom", h)
+        self.assertFalse(o["locksTab"], "Locked where they are went back into an Advanced tab: %r" % o)
+        self.assertTrue(o["foldClosed"], "the lock row must start collapsed: %r" % o)
         for s in ["#vault-danger-tog", "[onclick*='vaultClearUnsorted']", "[onclick*='window.vaultReset()']",
                   "[onclick*='vaultClearHistory']", "[onclick*='vaultWipeItems']", "#vault-danger-cancel"]:
             self.assertEqual(h[s], "reset:vault", "%s is not in Reset & restore → Vault & mules: %r" % (s, h))
@@ -110,8 +116,11 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         o = board().run("document.getElementById('vault-chip-intake').click();" + WAIT
                         + "var adv = document.getElementById('vault-advanced');"
                         "OUT.intake = [adv.open, !document.querySelector('.vadv-pane[data-adv=intake]').hidden];"
-                        "window.vaultAdvTab('locks');"
-                        "OUT.locks = !document.querySelector('.vadv-pane[data-adv=locks]').hidden;"
+                        "var fold = document.getElementById('vault-locks-fold');"
+                        "OUT.fold = [fold.tagName, fold.open];"
+                        "window.vaultLocksShow();"
+                        "OUT.locks = fold.open && !!document.getElementById('vault-lane-locks');"
+                        "fold.open = false;"
                         "OUT.chipSays = document.getElementById('vault-chip-intake').textContent;"
                         "window.vaultAdvTab('keepers'); adv.open = false;")
         self.assertEqual(o["intake"], [True, True], o)

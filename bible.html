@@ -10907,6 +10907,12 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vault-hand-link{background:none;border:0;padding:0;color:#7fd4ff;cursor:pointer;font-size:var(--fs-micro);text-decoration:underline dotted;text-underline-offset:3px}
 .vault-hand-link:hover{color:#fff}
 /* Vault v2 — ⚙ Advanced · Vault backdoor: one collapsed drawer, one tab per panel that used to stack below the mules */
+.vault-locks-fold{margin:16px 0 4px;border:1px solid rgba(240,192,96,.45);border-left:3px solid #f0c060;border-radius:10px;background:rgba(40,28,6,.72)}
+.vault-locks-fold[hidden]{display:none}
+.vault-locks-fold > summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:10px;padding:8px 12px;color:#f3dfae;font-weight:var(--fw-medium)}
+.vault-locks-fold > summary::-webkit-details-marker{display:none}
+.vault-locks-fold > summary .vll-n{margin-left:auto;color:var(--text-dim,#b5a48a);font-size:var(--fs-micro)}
+.vault-locks-fold .vault-lane-locks{margin:0;border:0;border-radius:0;background:transparent;padding:0 12px 10px}
 .vault-advanced{margin:16px 0 4px;border:1px solid rgba(212,168,71,.28);border-radius:12px;background:rgba(13,10,6,.35)}
 .vault-advanced > summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;padding:9px 13px;color:var(--gold-bright,#f0c060);font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide)}
 .vault-advanced > summary::-webkit-details-marker{display:none}
@@ -13207,7 +13213,7 @@ function d2jspPriceLine(q) {
         </div>
         <span class="vault-tb-sp" aria-hidden="true"></span>
         <div class="vault-tb-grp vault-tb-chips">
-          <button type="button" class="vault-chip" id="vault-chip-locks" hidden onclick="window.vaultAdvTab('locks')" title="Open Advanced → Locked on MAIN">🔒 <span id="vault-chip-locks-n">0</span> locked on MAIN</button>
+          <button type="button" class="vault-chip" id="vault-chip-locks" hidden onclick="window.vaultLocksShow()" title="Open Locked where they are, collapsed at the bottom of the vault">🔒 <span id="vault-chip-locks-n">0</span> locked on MAIN</button>
           <button type="button" class="vault-chip" id="vault-chip-intake" onclick="window.vaultAdvTab('intake')" title="Open Advanced → Auto-intake &amp; screenshots">📸 Auto-intake: <span id="vault-chip-intake-s">off</span></button>
         </div>
         <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
@@ -13275,9 +13281,14 @@ function d2jspPriceLine(q) {
       <div class="vault-detail" id="vault-detail" role="dialog" aria-modal="true" aria-label="Mule window (Esc closes)" hidden></div>
       <!-- Vault v2 (Elad 2026-10-23) — ADVANCED · Vault backdoor: one collapsed drawer at the bottom. Every panel that lived
            below the mules is here, unchanged, one tab each. Opening it closes MOVE TASKS and the reverse (never side by side). -->
+      <!-- Elad 2026-10-26 — Locked where they are stays. It is a collapsed row at the bottom of the vault, not a tab inside Advanced and not deleted. -->
+      <details id="vault-locks-fold" class="vault-locks-fold" hidden>
+        <summary>🔒 Locked where they are <span class="vll-n" id="vault-locks-n">0</span></summary>
+        <div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
+      </details>
       <details id="vault-advanced" class="vault-advanced" ontoggle="window._vaultAdvToggled&&window._vaultAdvToggled(this)">
-        <summary class="vadv-sum"><b>⚙ Advanced · Vault backdoor</b><span class="vadv-hint">Auto-intake · Locked on MAIN · Keepers · Registered · Stash map · Routing ledger · Keep on main · Reviews · Help</span></summary>
-        <div class="vadv-tabs" role="tablist"><button type="button" class="vadv-tab" role="tab" data-adv="intake" aria-selected="false" onclick="window.vaultAdvTab('intake')">📸 Auto-intake &amp; screenshots</button><button type="button" class="vadv-tab" role="tab" data-adv="locks" aria-selected="false" onclick="window.vaultAdvTab('locks')">🔒 Locked on MAIN</button><button type="button" class="vadv-tab" role="tab" data-adv="keepers" aria-selected="true" onclick="window.vaultAdvTab('keepers')">Keepers</button><button type="button" class="vadv-tab" role="tab" data-adv="registered" aria-selected="false" onclick="window.vaultAdvTab('registered')">Registered</button><button type="button" class="vadv-tab" role="tab" data-adv="stash" aria-selected="false" onclick="window.vaultAdvTab('stash')">Stash map</button><button type="button" class="vadv-tab" role="tab" data-adv="ledger" aria-selected="false" onclick="window.vaultAdvTab('ledger')">Routing ledger</button><button type="button" class="vadv-tab" role="tab" data-adv="keep" aria-selected="false" onclick="window.vaultAdvTab('keep')">Keep on main</button><button type="button" class="vadv-tab" role="tab" data-adv="reviews" aria-selected="false" onclick="window.vaultAdvTab('reviews')">Reviews</button><button type="button" class="vadv-tab" role="tab" data-adv="help" aria-selected="false" onclick="window.vaultAdvTab('help')">Help</button></div>
+        <summary class="vadv-sum"><b>⚙ Advanced · Vault backdoor</b><span class="vadv-hint">Auto-intake · Keepers · Registered · Stash map · Routing ledger · Keep on main · Reviews · Help</span></summary>
+        <div class="vadv-tabs" role="tablist"><button type="button" class="vadv-tab" role="tab" data-adv="intake" aria-selected="false" onclick="window.vaultAdvTab('intake')">📸 Auto-intake &amp; screenshots</button><button type="button" class="vadv-tab" role="tab" data-adv="keepers" aria-selected="true" onclick="window.vaultAdvTab('keepers')">Keepers</button><button type="button" class="vadv-tab" role="tab" data-adv="registered" aria-selected="false" onclick="window.vaultAdvTab('registered')">Registered</button><button type="button" class="vadv-tab" role="tab" data-adv="stash" aria-selected="false" onclick="window.vaultAdvTab('stash')">Stash map</button><button type="button" class="vadv-tab" role="tab" data-adv="ledger" aria-selected="false" onclick="window.vaultAdvTab('ledger')">Routing ledger</button><button type="button" class="vadv-tab" role="tab" data-adv="keep" aria-selected="false" onclick="window.vaultAdvTab('keep')">Keep on main</button><button type="button" class="vadv-tab" role="tab" data-adv="reviews" aria-selected="false" onclick="window.vaultAdvTab('reviews')">Reviews</button><button type="button" class="vadv-tab" role="tab" data-adv="help" aria-selected="false" onclick="window.vaultAdvTab('help')">Help</button></div>
         <div class="vadv-pane" data-adv="intake" hidden><!-- Vault v3 — AUTO INTAKE and the screenshot-folder doors, moved whole out of the toolbar -->
         <div class="vault-intake-strip" id="vault-intake-strip">
         <button class="vault-btn" type="button" id="vault-auto-intake" aria-pressed="false" data-state="off" onclick="window._vaultAutoIntakeToggle()">AUTO INTAKE · OFF</button>
@@ -13292,9 +13303,6 @@ function d2jspPriceLine(q) {
         <input type="file" id="vault-dir-input" webkitdirectory multiple accept="image/*" style="display:none">
         </div>
         <p class="vadv-note">Turn on AUTO INTAKE and connect your D2R screenshots folder once; the vault reads new captures every visit.</p>
-        </div>
-        <div class="vadv-pane" data-adv="locks" hidden><!-- Vault v3 — the lock panel (MAIN gear + lane locks), moved whole; its inputs and release buttons are unchanged -->
-<div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
         </div>
         <div class="vadv-pane" data-adv="keepers">
       <!-- v342.28: Multi-copy keepers editor — staples you want several of (merc/build), targets editable -->
@@ -49813,7 +49821,13 @@ window.renderLaneLocks = function(){
           var h = assign[n]; if (!h || h === '__keep' || h === '__throwout') return;
           var w = window._laneLockWhy && window._laneLockWhy(n);
           if (w) _inMule.push({ name: n, mule: h, why: w }); }); } catch(e){}
-  if (!names.length && !_mainRows.length && !_inMule.length){ el.hidden = true; el.innerHTML = ''; return; }
+  var fold = document.getElementById('vault-locks-fold');
+  if (!names.length && !_mainRows.length && !_inMule.length){
+    el.hidden = true; el.innerHTML = '';
+    if (fold) fold.hidden = true;
+    var nn0 = document.getElementById('vault-locks-n'); if (nn0) nn0.textContent = '0';
+    return;
+  }
   var esc = function(x){ return String(x == null ? '' : x)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
   var WHERE = { equipment: 'on your character', inventory: 'in your inventory' };
@@ -49874,6 +49888,9 @@ window.renderLaneLocks = function(){
   });
   H += '</div>';
   el.innerHTML = H; el.hidden = false;
+  if (fold) fold.hidden = false;
+  var nn = document.getElementById('vault-locks-n');
+  if (nn) nn.textContent = String(names.length + _mainRows.length + _inMule.length);
 };
 /* v1985 — HE NAMES THE CHARACTER, BECAUSE THE FILM CANNOT.
    Konyo asked for the lock to render "based on the character/mule that its currently on". I checked
@@ -52692,6 +52709,14 @@ window.vaultAutoAssign = function(){
   };
   window._vaultAdvToggled = function(el){
     if (el && el.open) { var p = document.getElementById('vault-tasks'); if (p && !p.hidden) window.vaultTasksTog(false); } /* never side by side */
+  };
+  window.vaultLocksShow = function(){
+    var fold = document.getElementById('vault-locks-fold');
+    if (!fold) return false;
+    fold.hidden = false;
+    fold.open = true;
+    try { fold.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    return true;
   };
   window.vaultAdvTab = function(name){
     var adv = document.getElementById('vault-advanced');
