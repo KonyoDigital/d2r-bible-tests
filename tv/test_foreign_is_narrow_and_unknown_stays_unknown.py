@@ -103,16 +103,16 @@ RED_PROOF = [
         "why": "drops the receiver requirement, so any unresolvable bare name becomes FOREIGN and "
                "a thread nobody can find is reported as not-our-code",
         "file": "lane_census.py",
-        "find": 'if k == "UNKNOWN" and name in dotted and not _defined_anywhere(name):',
-        "replace": 'if k == "UNKNOWN" and not _defined_anywhere(name):',
+        "find": '    if name not in dotted:\n        return k\n',
+        "replace": '    if False and name not in dotted:\n        return k\n',
         "matches": 1,
     },
     {
         "why": "drops the defined-anywhere check, so a lane THIS PACKAGE defines, started through "
                "a receiver, is absolved as foreign code",
         "file": "lane_census.py",
-        "find": 'if k == "UNKNOWN" and name in dotted and not _defined_anywhere(name):',
-        "replace": 'if k == "UNKNOWN" and name in dotted:',
+        "find": '    if not _defined_anywhere(name):\n        return "FOREIGN"\n',
+        "replace": '    if True:\n        return "FOREIGN"\n',
         "matches": 1,
     },
 ]
