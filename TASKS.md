@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3800** | `(this commit)` | v3800 — An unheld LocalStorage WAL is pruned at console open. A growing one is published every 30 minutes. |
+| **v3801** | `(this commit)` | v3801 — Shadow draws a published row with no upload. Leave restores the sessions view. The vault mark is the gold pile. |
+| **v3800** | `fd557ec3` | v3800 — An unheld LocalStorage WAL is pruned at console open. A growing one is published every 30 minutes. |
 | **v3799** | `d5922061` | v3799 — Save and Load sit above Add an item. Locked where they are stays collapsed at the bottom. |
 | **v3798** | `73781f17` | v3798 — Leave takes the click, and Escape in a shadow frame asks the console to leave. |
 | **v3797** | `2183f305` | v3797 — frames hist sheds above 8 GiB so the newest frames stay |

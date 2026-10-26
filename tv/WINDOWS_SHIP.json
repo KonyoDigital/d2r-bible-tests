@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3800",
+  "ver": "v3801",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3800: An unheld LocalStorage WAL is pruned at console open. A growing one is published every 30 minutes.",
+  "note": "v3801: Shadow draws a published row with no upload. Leave restores the sessions view. The vault mark is the gold pile.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
