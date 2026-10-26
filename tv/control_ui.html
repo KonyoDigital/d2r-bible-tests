@@ -27780,7 +27780,6 @@ function escC(s) {
       }
       var nick = String((m && m.nickname) || '').trim();
       if (OWNERS.indexOf(nick) >= 0) return nick;
-      if (nick === 'Konyo' && m && m.platform === 'mac') return 'Konyo \u00b7 Mac';
       return '';
     }
     function storeOf(builds) {

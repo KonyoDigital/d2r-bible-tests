@@ -687,6 +687,13 @@ class TheRosterRowOpensInItsOwnFrame(unittest.TestCase):
             raise AssertionError("node is absent - the roster-row frame cannot be run here, so it is UNMEASURED")
         fn = self._fn()
         js = "var window = globalThis;\n" + fn + r"""
+window._fleetRosterOwner = function (m) {
+  var nick = String((m && m.nickname) || '').trim();
+  var owners = ['Konyo \u00b7 Mac', 'Konyo \u00b7 ALT', 'Konyo \u00b7 GrokBot', 'Dean', 'Wife PC'];
+  if (owners.indexOf(nick) >= 0) return nick;
+  if (nick === 'Konyo' && m && m.platform === 'mac') return 'Konyo \u00b7 Mac';
+  return '';
+};
 var dean = { owner: 'Dean', published: true, t: 1792800000000, sections: {
   characters: { rows: [
     { name: 'A', cls: 'Sorceress', level: 90, sets: [{ name: 'Set 1', slots: { head: { name: 'Shako' } }, inv: [] }] },
