@@ -2876,7 +2876,7 @@
     "entryPoints": [
       "startup_prune",
       "periodic_check",
-      "loop"
+      "_ls_wal_loop"
     ],
     "gotcha": "It never truncates a WAL while any process holds it: TRUNCATE holds the writer lock while waiting on WebKit's readers and a WebKit write that hits busy is a lost localStorage write, so the live 30-min look is PASSIVE only and the shrink happens at the next --open startup. Holders that lsof cannot read are UNKNOWN and skipped. A holder found at startup is a leftover from an earlier console (no WebView exists yet) and is reported, never killed.",
     "purpose": "Automatic pruning of the Mac native console's WebKit LocalStorage write-ahead log (localstorage.sqlite3-wal, which reached 26 GB): wal_checkpoint(TRUNCATE) + integrity_check at startup before the WebView, and a 30-minute size watch that publishes lsWal on /api/status.",
