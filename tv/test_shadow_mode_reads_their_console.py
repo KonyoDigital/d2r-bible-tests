@@ -816,6 +816,96 @@ class TheSameConsoleDrawsIt(unittest.TestCase):
         self.assertLess(i, go.index("shellHome()"), "TV·D leaves the shadow for this PC's own cockpit")
         self.assertLess(i, go.index("showSessions()"), "Sessions leaves the shadow for this PC's own hub")
         self.assertIn("shellOpen(b.dataset.tab);\n      return;", go[i:])
+        branch = go[i:go.index("return;", i)]
+        self.assertNotIn("removeAttribute('data-view')", branch,
+                         "a shadow tab must not drop Sessions, or Leave comes back on STANDBY with ADVANCED open")
+
+    def test_leave_puts_the_sessions_view_back_after_a_vault_tab(self):
+        """A Vault tab inside a shadow used to drop data-view. Leave then lit the Sessions
+        button over the standby stage, and the advanced drawer (hidden on Sessions) showed open."""
+        if not NODE:
+            raise AssertionError("node is absent - leave cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        self.assertEqual(ui.count("  window._shadowRemember = function () {"), 1)
+        self.assertEqual(ui.count("  window._shadowLeave = function () {"), 1)
+        remember = ui[ui.index("  window._shadowRemember = function () {"):ui.index("  window._shadowRosterStores = function")]
+        leave = ui[ui.index("  window._shadowLeave = function () {"):ui.index("  /* The board frame holds focus.")]
+        js = "var window = globalThis;\nvar _shadowGen = 0;\n" + remember + "\n" + leave + r"""
+function box() {
+  var attrs = {};
+  return {
+    open: false,
+    dataset: {},
+    classList: { remove: function () {}, contains: function () { return false; } },
+    parentNode: null,
+    contentWindow: null,
+    setAttribute: function (k, v) { attrs[k] = String(v); },
+    getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(attrs, k) ? attrs[k] : null; },
+    removeAttribute: function (k) { delete attrs[k]; },
+    hasAttribute: function (k) { return Object.prototype.hasOwnProperty.call(attrs, k); }
+  };
+}
+var ids = { 'sig-adv': box() };
+var body = box();
+body.dataset.shellTab = 'session';
+var document = { body: body, getElementById: function (id) { return ids[id] || null; } };
+window.location = { origin: 'http://console.local' };
+var calls = { sessions: 0 };
+window._showSessions = function () { calls.sessions++; body.setAttribute('data-view', 'sessions'); };
+window._shellLight = function () {};
+window._shellDemotePane = function () {};
+window._shellRestoreConsole = function () {};
+function play(strip) {
+  var before = calls.sessions;
+  body.setAttribute('data-shadow-shown', '1');
+  window._shadowLeave();
+  return {
+    view: body.getAttribute('data-view'),
+    sessions: calls.sessions - before,
+    adv: ids['sig-adv'].open,
+    shadowView: body.getAttribute('data-shadow-view'),
+    shadowTab: body.getAttribute('data-shadow-tab'),
+    shadowAdv: body.getAttribute('data-shadow-adv')
+  };
+}
+body.setAttribute('data-view', 'sessions');
+ids['sig-adv'].open = false;
+window._shadowRemember();
+body.removeAttribute('data-view');
+ids['sig-adv'].open = true;
+var vault = play(true);
+body.setAttribute('data-view', 'sessions');
+ids['sig-adv'].open = false;
+window._shadowRemember();
+var dean = play(false);
+body.setAttribute('data-view', 'sessions');
+ids['sig-adv'].open = true;
+window._shadowRemember();
+body.removeAttribute('data-view');
+ids['sig-adv'].open = false;
+var keptOpen = play(true);
+body.setAttribute('data-view', 'sessions');
+ids['sig-adv'].open = false;
+window._shadowRemember();
+body.setAttribute('data-view', 'other');
+ids['sig-adv'].open = true;
+window._shadowRemember();
+body.removeAttribute('data-view');
+var second = play(true);
+process.stdout.write(JSON.stringify({ vault: vault, dean: dean, keptOpen: keptOpen, second: second }));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["vault"], {"view": "sessions", "sessions": 1, "adv": False,
+                                         "shadowView": None, "shadowTab": None, "shadowAdv": None}, got)
+        self.assertEqual(got["dean"]["sessions"], 0, got)
+        self.assertEqual(got["dean"]["view"], "sessions", got)
+        self.assertIs(got["dean"]["adv"], False, got)
+        self.assertIs(got["keptOpen"]["adv"], True, "Leave closed a drawer that was already open")
+        self.assertEqual(got["keptOpen"]["view"], "sessions", got)
+        self.assertEqual(got["second"], {"view": "sessions", "sessions": 1, "adv": False,
+                                          "shadowView": None, "shadowTab": None, "shadowAdv": None}, got)
 
     def test_the_marker_names_the_owner_and_the_profile_time(self):
         ui = _read(UI)
@@ -1159,6 +1249,11 @@ RED_PROOF = [
      "file": "control_ui.html",
      "find": "    if (document.body.classList && document.body.classList.contains('shadow-on')) {\n",
      "replace": "    if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }\n    if (document.body.classList && document.body.classList.contains('shadow-on')) {\n",
+     "matches": 1},
+    {"why": "Shadow: a shadow tab drops the sessions view, so Leave returns on standby",
+     "file": "control_ui.html",
+     "find": "      shellOpen(b.dataset.tab);\n      return;\n",
+     "replace": "      document.body.removeAttribute('data-view');\n      shellOpen(b.dataset.tab);\n      return;\n",
      "matches": 1},
     {"why": "Shadow: the marker loses the snapshot time",
      "file": "control_ui.html",

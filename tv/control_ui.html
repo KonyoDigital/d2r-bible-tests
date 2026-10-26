@@ -23033,8 +23033,8 @@ window._lockMark = function(isOpen, px, label){
           && typeof window.thClose === 'function') window.thClose();
     } catch (_tc) {}
     if (document.body.classList && document.body.classList.contains('shadow-on')) {
-      /* Their published board, not this PC's cockpit. Sessions and TV·D stay the board rooms. */
-      document.body.removeAttribute('data-view');
+      /* Their board only. shellOpen routes the shadow frame. Dropping data-view
+         here left Sessions on the STANDBY stage and showed the ADVANCED drawer. */
       shellOpen(b.dataset.tab);
       return;
     }
@@ -27757,6 +27757,8 @@ function escC(s) {
     } catch (e) { tab = ''; }
     if (!tab) tab = body.getAttribute('data-shell-tab') || '';
     body.setAttribute('data-shadow-tab', tab);
+    var view = body.getAttribute('data-view');
+    body.setAttribute('data-shadow-view', view === null ? '' : view);
     var adv = document.getElementById('sig-adv');
     var open = false;
     if (adv) {
@@ -27936,6 +27938,13 @@ function escC(s) {
         var want = advWas === '1';
         if (adv.open !== want) adv.open = want;
       }
+    }
+    var view = document.body.getAttribute('data-shadow-view');
+    document.body.removeAttribute('data-shadow-view');
+    if (view !== null && (document.body.getAttribute('data-view') || '') !== view) {
+      if (view === 'sessions' && typeof window._showSessions === 'function') window._showSessions();
+      else if (view) document.body.setAttribute('data-view', view);
+      else document.body.removeAttribute('data-view');
     }
   };
   /* The board frame holds focus. In this WebKit the first click outside that frame is
