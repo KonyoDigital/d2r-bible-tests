@@ -1062,6 +1062,235 @@ process.stdout.write(JSON.stringify({ vault: vault, dean: dean, keptOpen: keptOp
         self.assertIn("window._shadowLeave()", block)
 
 
+def _js_fn(src, start_needle):
+    """The function whose text begins at a unique needle, braces and strings included."""
+    if src.count(start_needle) != 1:
+        raise AssertionError("anchor %r occurs %d times" % (start_needle, src.count(start_needle)))
+    start = src.index(start_needle)
+    i = src.index("{", start)
+    depth = 0
+    k = i
+    n = len(src)
+    while k < n:
+        c = src[k]
+        if c in ("'", '"', "`"):
+            q = c
+            k += 1
+            while k < n:
+                if src[k] == "\\":
+                    k += 2
+                    continue
+                if src[k] == q:
+                    k += 1
+                    break
+                k += 1
+            continue
+        if c == "/" and k + 1 < n and src[k + 1] == "/":
+            nl = src.find("\n", k)
+            k = n if nl < 0 else nl
+            continue
+        if c == "/" and k + 1 < n and src[k + 1] == "*":
+            end = src.find("*/", k + 2)
+            if end < 0:
+                raise AssertionError("unclosed comment after %r" % start_needle)
+            k = end + 2
+            continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[start:k + 1]
+        k += 1
+    raise AssertionError("no end for %r" % start_needle)
+
+
+class TheShadowSessionsHub(unittest.TestCase):
+    """Sessions on this console is the hunt hub. The other header tabs open a board room, and a
+    shadow of those tabs opens that same room. Sessions was the one tab that opened a different
+    room. It now opens this same hub, read from their frame, and a click from the hub opens
+    their board."""
+
+    def test_the_session_tab_opens_the_hub_and_the_other_tabs_open_the_board(self):
+        ui = _read(UI)
+        go = ui[ui.index("  function _headTabGo(e){"):ui.index("  if (_ht) {", ui.index("  function _headTabGo(e){"))]
+        i = go.index("contains('shadow-on')")
+        branch = go[i:go.index("return;", i)]
+        self.assertIn("b.dataset.tab === 'session'", branch)
+        self.assertIn("showShadowSessions()", branch)
+        self.assertNotIn("showSessions()", branch)
+        self.assertNotIn("removeAttribute('data-view')", branch)
+        self.assertIn("document.body.classList.remove('shadow-hub');\n      shellOpen(b.dataset.tab);\n      return;", go[i:])
+        self.assertEqual(ui.count("      shellOpen(b.dataset.tab);\n      return;\n"), 1)
+        fn = _js_fn(ui, "function showShadowSessions(){")
+        for piece in ("getElementById('shadow-eng')", "_writeGrailFarm", "_writeSetFarm",
+                      "setAttribute('data-view', 'sessions')", "classList.add('shadow-hub')",
+                      "hubNextGrail()", "hubNextSet()", "hdForge()", "hdTaskForce(null)",
+                      "_shellRestoreConsole()"):
+            self.assertIn(piece, fn, piece)
+        self.assertNotIn("showSessions()", fn)
+        self.assertNotIn("removeAttribute('data-view')", fn)
+        self.assertNotIn("classList.remove", fn)
+        css = ui.index("body.shadow-hub:not(.shell-open) #shadow-eng")
+        self.assertEqual(ui.count("body.shadow-hub:not(.shell-open) #shadow-eng"), 1)
+        self.assertIn("display: block !important", ui[css:css + 280])
+        self.assertNotIn("body.shadow-hub #shadow-eng {", ui)
+
+    def test_the_hub_reads_the_frame_and_never_this_pc(self):
+        if not NODE:
+            raise AssertionError("node is absent - the hub reader cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        fork = _js_fn(ui, "function lsFork(bare){")
+        hub = _js_fn(ui, "function lsHub(bare){")
+        self.assertNotIn("function lsHub", fork)
+        board = _js_fn(ui, "function _hubBoard(){")
+        tz = _js_fn(ui, "window._tzRoute = function () {")
+        grail = _js_fn(ui, "async function hubNextGrail(){")
+        sets = _js_fn(ui, "async function hubNextSet(){")
+        forge = _js_fn(ui, "function hdForge(){")
+        self.assertIn("lsHub('d2r_grailFarm')", grail)
+        self.assertNotIn("lsFork(", grail)
+        self.assertIn("lsHub('d2r_setFarm')", sets)
+        self.assertNotIn("lsFork(", sets)
+        self.assertIn("lsHub('d2r_forgeSummary')", forge)
+        self.assertIn("lsHub('d2r_craftReady')", forge)
+        self.assertIn("the list wasn\\u2019t sent", forge)
+        task = ui[ui.index("function hdTaskForce(st){"):ui.index("function _watchdogCountSay(n){")]
+        self.assertIn("lsHub('d2r_forgeSummary')", task)
+        self.assertIn("lsHub('d2r_createNowAi')", task)
+        self.assertIn("if (!_onShadowHub)", task)
+        self.assertIn("the list wasn\\u2019t sent", task)
+        self.assertLess(task.index("if (!_onShadowHub)"), task.index("lsFork('d2r_tvdTallyLog')"))
+        js = "var window = globalThis;\n" + fork + "\n" + hub + "\n" + board + "\n" + tz + r"""
+function mem(seed) {
+  var d = {};
+  Object.keys(seed || {}).forEach(function (k) { d[k] = seed[k]; });
+  return { getItem: function (k) { return Object.prototype.hasOwnProperty.call(d, k) ? d[k] : null; } };
+}
+function route(owner, prof) {
+  return { v: 2, owner: owner, id: 'abcd1234efgh', m: owner ? 'owner' : 'guest', p: prof,
+           pfx: owner ? '' : 'I\u00b7abcd1234\u00b7', lpfx: owner ? 'L\u00b7' : 'IL\u00b7abcd1234\u00b7',
+           lp: ['d2r_grailFarm'], wp: ['d2r_grailFarm'] };
+}
+var classes = {};
+var frameLS = null;
+var frameMissing = false;
+var document = {
+  body: { classList: { contains: function (c) { return !!classes[c]; } } },
+  getElementById: function (id) {
+    asked.push(id);
+    if (id === 'shadow-eng') {
+      if (frameMissing) return null;
+      return { id: id, contentWindow: { localStorage: frameLS } };
+    }
+    return { id: id };
+  }
+};
+var localStorage = mem({});
+var asked = [];
+function arm(parentSeed, frameSeed, on) {
+  localStorage = mem(parentSeed);
+  frameLS = mem(frameSeed);
+  frameMissing = false;
+  classes = on ? { 'shadow-hub': true, 'shadow-snap': true } : {};
+  asked = [];
+}
+var macRoute = JSON.stringify(route(true, 'main'));
+var out = {};
+arm({ d2r_lsrRoute: macRoute, 'd2r_grailFarm': 'mac-farm' },
+    { d2r_lsrRoute: JSON.stringify(route(true, 'ladder')), 'L\u00b7d2r_grailFarm': 'alt-farm', 'd2r_grailFarm': 'mac-farm' },
+    false);
+out.off = lsHub('d2r_grailFarm');
+arm({ d2r_lsrRoute: macRoute, 'd2r_grailFarm': 'mac-farm' },
+    { d2r_lsrRoute: JSON.stringify(route(true, 'ladder')), 'L\u00b7d2r_grailFarm': 'alt-farm', 'd2r_grailFarm': 'mac-farm' },
+    true);
+out.ladder = lsHub('d2r_grailFarm');
+arm({ d2r_lsrRoute: macRoute, 'd2r_grailFarm': 'mac-farm' },
+    { d2r_lsrRoute: JSON.stringify(route(false, 'main')), 'I\u00b7abcd1234\u00b7d2r_grailFarm': 'guest-farm', 'd2r_grailFarm': 'mac-farm' },
+    true);
+out.guest = lsHub('d2r_grailFarm');
+arm({ d2r_lsrRoute: macRoute, 'd2r_grailFarm': 'mac-farm' }, { 'd2r_grailFarm': 'mac-farm' }, true);
+out.noRoute = lsHub('d2r_grailFarm');
+arm({ d2r_lsrRoute: macRoute, 'd2r_grailFarm': 'mac-farm' }, {}, true);
+frameMissing = true;
+out.noFrame = lsHub('d2r_grailFarm');
+frameMissing = false;
+classes = { 'shadow-snap': true };
+asked = [];
+var snapHit = _hubBoard().id;
+var snapAsked = asked.slice();
+classes = {};
+asked = [];
+var ownHit = _hubBoard().id;
+var ownAsked = asked.slice();
+var opened = [], shelled = [];
+window.open = function (u) { opened.push(u); };
+window._shellOpen = function (t) { shelled.push(t); };
+classes = { 'shadow-snap': true };
+window._tzRoute();
+out.tzShadow = { opened: opened.slice(), shelled: shelled.slice() };
+opened = []; shelled = [];
+classes = {};
+window._tzRoute();
+out.tzOwn = { opened: opened.slice(), shelled: shelled.slice() };
+out.board = { snapHit: snapHit, snapAsked: snapAsked, ownHit: ownHit, ownAsked: ownAsked };
+process.stdout.write(JSON.stringify(out));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["off"], "mac-farm", got)
+        self.assertEqual(got["ladder"], "alt-farm", got)
+        self.assertEqual(got["guest"], "guest-farm", got)
+        self.assertIsNone(got["noRoute"], got)
+        self.assertIsNone(got["noFrame"], got)
+        self.assertEqual(got["board"]["snapHit"], "shadow-eng", got)
+        self.assertEqual(got["board"]["snapAsked"], ["shadow-eng"], got)
+        self.assertEqual(got["board"]["ownHit"], "tvd-eng", got)
+        self.assertEqual(got["board"]["ownAsked"], ["tvd-eng"], got)
+        self.assertEqual(got["tzShadow"], {"opened": [], "shelled": ["tztracker"]}, got)
+        self.assertEqual(got["tzOwn"], {"opened": ["/board#tztracker"], "shelled": []}, got)
+
+    def test_leave_repaints_this_pc_after_the_shadow_hub(self):
+        if not NODE:
+            raise AssertionError("node is absent - leave cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        leave = ui[ui.index("  window._shadowLeave = function () {"):ui.index("  /* The board frame holds focus.")]
+        self.assertLess(leave.index("classList.remove('shadow-on', 'shadow-snap', 'shadow-hub')"),
+                        leave.index("_hubRepaintOwn()"))
+        self.assertLess(leave.index("removeAttribute('data-shadow-hub')"), leave.index("_hubRepaintOwn()"))
+        js = "var window = globalThis;\nvar _shadowGen = 0;\n" + leave + r"""
+var classes = { 'shadow-on': true, 'shadow-snap': true, 'shadow-hub': true };
+var attrs = { 'data-shadow-hub': '1', 'data-view': 'sessions' };
+var removed = [];
+var body = {
+  classList: {
+    remove: function () { for (var i = 0; i < arguments.length; i++) { removed.push(arguments[i]); delete classes[arguments[i]]; } },
+    contains: function (c) { return !!classes[c]; }
+  },
+  setAttribute: function (k, v) { attrs[k] = String(v); },
+  getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(attrs, k) ? attrs[k] : null; },
+  removeAttribute: function (k) { delete attrs[k]; }
+};
+var document = { body: body, getElementById: function () { return null; } };
+window.location = { origin: 'http://console.local' };
+var saw = { sessions: 0, repaint: 0, hubOn: null };
+window._showSessions = function () { saw.sessions++; };
+window._hubRepaintOwn = function () { saw.repaint++; saw.hubOn = !!classes['shadow-hub']; };
+window._shadowLeave();
+process.stdout.write(JSON.stringify({ saw: saw, removed: removed, view: body.getAttribute('data-view'), hub: body.getAttribute('data-shadow-hub') }));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["saw"]["sessions"], 0, got)
+        self.assertEqual(got["saw"]["repaint"], 1, got)
+        self.assertIs(got["saw"]["hubOn"], False, got)
+        self.assertIn("shadow-hub", got["removed"], got)
+        self.assertEqual(got["view"], "sessions", got)
+        self.assertIsNone(got["hub"], got)
+
+
 # The boot block of bible.html, run in node on fake window/document objects: the page's own script.
 _BOOT = r"""
 const fs = require('fs');

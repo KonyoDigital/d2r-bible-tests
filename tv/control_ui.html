@@ -6046,6 +6046,11 @@
   /* Shadow mode: their uploaded console, booted in its own frame on an in-memory store (bible.html SHADOW MODE BOOT). */
   #shadow-eng { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; border: 0; z-index: 945; background: #070605; }
   body:not(.shell-open) #shadow-eng, body:not(.shadow-snap) #shadow-eng { display: none !important; }
+  /* Sessions in a shadow is this console's hunt hub, so the frame steps aside the way this PC's
+     board does. display:none would drop the document, and the hub reads that document's stores.
+     shell-open means a click from that hub opened their board, so the frame is the full page again. */
+  body.shadow-hub:not(.shell-open) #shadow-eng { display: block !important; visibility: hidden !important;
+    pointer-events: none !important; width: 2px !important; height: 2px !important; opacity: 0 !important; }
   /* Their frame covers this browser. The claim bar lives on this browser's board, so that board stays hidden for the whole visit. */
   body.shadow-on #tvd-eng, body.shadow-snap #tvd-eng { visibility: hidden !important; }
   .roster-person { display: block; width: 100%; text-align: left; margin: 4px 0; }
@@ -10232,11 +10237,17 @@ window._lockMark = function(isOpen, px, label){
      ONE HELPER, because four ad-hoc onclicks is how four surfaces drift apart. _routeReceipt above
      already proved the mechanism (shellOpen + a call into the board iframe); this generalises it
      rather than copying it a fifth time. */
+  function _hubBoard(){
+    /* The hunt hub lives in this document. A click from it opens the board on screen:
+       their frame while a shadow is up, this PC's board otherwise. */
+    var snap = document.body.classList && document.body.classList.contains('shadow-snap');
+    return document.getElementById(snap ? 'shadow-eng' : 'tvd-eng');
+  }
   function _hubGo(tab, fnName, arg){
     try {
       shellOpen(tab);
       if (!fnName) return;
-      var fr = document.getElementById('tvd-eng');
+      var fr = _hubBoard();
       // the board boots its JS async — retry briefly instead of failing on a cold pane, which is
       // exactly the race _shellRoute already handles for switchTab
       var n = 0, t = setInterval(function(){
@@ -10271,7 +10282,7 @@ window._lockMark = function(isOpen, px, label){
     if (!name) return;
     shellOpen('funi');
     try {
-      var fr = document.getElementById('tvd-eng');
+      var fr = _hubBoard();
       var n = 0, t = setInterval(function(){
         n++;
         var w = null; try { w = fr && fr.contentWindow; } catch(e){ w = null; }
@@ -10346,7 +10357,7 @@ window._lockMark = function(isOpen, px, label){
     if (!name) return;
     try {
       shellOpen('fsets');
-      var fr = document.getElementById('tvd-eng'), n = 0;
+      var fr = _hubBoard(), n = 0;
       var t = setInterval(function(){
         n++;
         var w = null; try { w = fr && fr.contentWindow; } catch(e){ w = null; }
@@ -22959,6 +22970,40 @@ window._lockMark = function(isOpen, px, label){
   };
   window._shellHome = shellHome;
   window._shellOpen = shellOpen;
+  /* Sessions during a shadow is the same hunt hub as this console, read from their frame.
+     showSessions() would paint this PC. The frame stays alive so the stores can be read. */
+  function showShadowSessions(){
+    document.body.classList.add('shadow-hub');
+    document.body.setAttribute('data-shadow-hub', '1');
+    document.body.setAttribute('data-view', 'sessions');
+    _shellTab = 'session';
+    try { _shellLight('session'); } catch (e) {}
+    try {
+      var f = document.getElementById('shadow-eng');
+      var w = f && f.contentWindow;
+      if (w) {
+        if (typeof w._writeGrailFarm === 'function') w._writeGrailFarm();
+        if (typeof w._writeSetFarm === 'function') w._writeSetFarm();
+      }
+    } catch (e) {}
+    try { hubNextGrail(); } catch (e) {}
+    try { hubNextSet(); } catch (e) {}
+    try { hdForge(); } catch (e) {}
+    try { hdTaskForce(null); } catch (e) {}
+    try { if (typeof window._tzRefresh === 'function') window._tzRefresh(); } catch (e) {}
+    if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
+    _shellOpeningEnd();
+    _shellDemotePane();
+    _shellRestoreConsole();
+    _shellPaintAgain(function(){ _shellDemotePane(); _shellRestoreConsole(); });
+  }
+  function _hubRepaintOwn(){
+    try { hubNextGrail(); } catch (e) {}
+    try { hubNextSet(); } catch (e) {}
+    try { hdForge(); } catch (e) {}
+    try { hdTaskForce(null); } catch (e) {}
+  }
+  window._hubRepaintOwn = _hubRepaintOwn;
   /* The roster shadow lives in the second script block. These five stay inside
      this function, so that block can call them only once they are on window. */
   window._shellHeadH = _shellHeadH;
@@ -23033,8 +23078,11 @@ window._lockMark = function(isOpen, px, label){
           && typeof window.thClose === 'function') window.thClose();
     } catch (_tc) {}
     if (document.body.classList && document.body.classList.contains('shadow-on')) {
-      /* Their board only. shellOpen routes the shadow frame. Dropping data-view
-         here left Sessions on the STANDBY stage and showed the ADVANCED drawer. */
+      /* Their board, except Sessions. On this console Sessions is the hunt hub,
+         not the board cockpit, so the shadow shows that same hub from their frame.
+         Dropping data-view here left the standby stage and the advanced drawer. */
+      if (b.dataset.tab === 'session') { showShadowSessions(); return; }
+      document.body.classList.remove('shadow-hub');
       shellOpen(b.dataset.tab);
       return;
     }
@@ -23905,12 +23953,52 @@ window._lockMark = function(isOpen, px, label){
       return localStorage.getItem(k);
     } catch(e){ return null; }
   }
+  /* The hunt hub's reader. Off a shadow it is lsFork. On a shadow it reads the frame's
+     own route and never this PC's store. No route in that frame reads nothing. */
+  function lsHub(bare){
+    if (!document.body.classList || !document.body.classList.contains('shadow-hub')) return lsFork(bare);
+    var ls = null;
+    try {
+      var f = document.getElementById('shadow-eng');
+      var w = f && f.contentWindow;
+      ls = w && w.localStorage;
+    } catch (eLs) { ls = null; }
+    if (!ls || !ls.getItem) return null;
+    try {
+      var r = null;
+      try { r = JSON.parse(ls.getItem('d2r_lsrRoute') || 'null'); } catch (eR) { r = null; }
+      if (!r || r.v !== 2 || !r.id) return null;
+      var lp = r.lp || [], wp = r.wp || [];
+      var ladder = (r.p === 'ladder');
+      var k;
+      if (!r.owner) {
+        if (ladder && lp.indexOf(bare) >= 0) k = r.lpfx + bare;
+        else if (wp.indexOf(bare) >= 0) k = r.pfx + bare;
+        else k = bare;
+      } else {
+        k = (ladder && lp.indexOf(bare) >= 0) ? r.lpfx + bare : bare;
+      }
+      return ls.getItem(k);
+    } catch (e) { return null; }
+  }
   var _hdForgeSig = '';
   function hdForge(){
     try {
-      var raw = lsFork('d2r_forgeSummary');
-      var craftRaw = lsFork('d2r_craftReady');
-      if (!raw && !craftRaw) return;
+      var raw = lsHub('d2r_forgeSummary');
+      var craftRaw = lsHub('d2r_craftReady');
+      if (!raw && !craftRaw) {
+        if (document.body.classList.contains('shadow-hub')) {
+          var _blank = '<span class="hd-empty">the list wasn\u2019t sent</span>';
+          if (_blank !== _hdForgeSig) {
+            _hdForgeSig = _blank;
+            var _box = document.getElementById('hd-forge-chips');
+            if (_box) _box.innerHTML = _blank;
+            var _when = document.getElementById('hd-forge-when');
+            if (_when) _when.textContent = '';
+          }
+        }
+        return;
+      }
       var f = raw ? JSON.parse(raw) : {};
       var cr = null; try { cr = craftRaw ? JSON.parse(craftRaw) : null; } catch(e2){ cr = null; }
       var _art = f.art || {};
@@ -24213,8 +24301,8 @@ window._lockMark = function(isOpen, px, label){
   function hdTaskForce(st){
     try {
       var fs = null, ai = '', led = [];
-      try { fs = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
-      try { ai = lsFork('d2r_createNowAi') || ''; } catch(e){}
+      try { fs = JSON.parse(lsHub('d2r_forgeSummary') || 'null'); } catch(e){}
+      try { ai = lsHub('d2r_createNowAi') || ''; } catch(e){}
       /* v1616 — THE DAILY PICK NAMES AN ITEM, SO IT MUST SHOW IT AND LAND ON IT.
          Konyo: "for daily pick the item tancred here should also have the same logic".
          d2r_createNowAi is a free-text SENTENCE — the console cannot parse an item name out of
@@ -24224,7 +24312,7 @@ window._lockMark = function(isOpen, px, label){
          EXACTLY as it is today — plain text, no cursor, no link to a name nobody knows. An
          affordance that leads nowhere is worse than no affordance. */
       var aiArt = null;
-      try { aiArt = JSON.parse(lsFork('d2r_createNowAiArt') || 'null'); } catch(e){}
+      try { aiArt = JSON.parse(lsHub('d2r_createNowAiArt') || 'null'); } catch(e){}
       if (!aiArt || !aiArt.name) aiArt = null;
       /* v1636 — A SET PIECE GOES TO THE SETS CHRONICLE. The bridge already publishes the pick's
          rarity and v1617 already built the set-piece door (_hubGoSetPiece lands on the PIECE in
@@ -24247,7 +24335,7 @@ window._lockMark = function(isOpen, px, label){
          item. UNIQUE STAYS GOLD: a grail pick is caught by (1) or, if the bridge ever ships
          rarity-less, by (3) — the gold path never reaches the neutral case. */
       var _setFarm = null;
-      try { _setFarm = JSON.parse(lsFork('d2r_setFarm') || 'null'); } catch(e){}
+      try { _setFarm = JSON.parse(lsHub('d2r_setFarm') || 'null'); } catch(e){}
       var _setBy = {};
       if (Array.isArray(_setFarm)) _setFarm.forEach(function(f){ if (f && f.name) _setBy[f.name] = f; });
       var _aiRow = (aiArt && _setBy[aiArt.name]) || null;     // the pick, as the SETS hunt list knows it
@@ -24462,7 +24550,10 @@ window._lockMark = function(isOpen, px, label){
         });
         return headHtml + out + esc(s.slice(at));
       };
-      try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){}
+      /* The recorder and the tally log stay on the machine that made them. A shadow is not
+         sent either one, so this hub must not borrow this PC's counts for that row. */
+      var _onShadowHub = !!(document.body.classList && document.body.classList.contains('shadow-hub'));
+      if (!_onShadowHub) { try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){} }
       var rows = [];
       var nowList = (fs && fs.now) || [], oneList = (fs && fs.onestep) || [];
       // v1368 (SESSIONS R5) — TODAY'S TARGET: the single clearest next hunt, front-and-center so the hunt
@@ -24593,6 +24684,9 @@ window._lockMark = function(isOpen, px, label){
          with no footage, NOT a sim — so his six- and seven-frame SIM sessions were counted here as
          runs recorded today. They are separated rather than hidden: a sim that vanishes silently is
          its own kind of lie, and he pressed SIM on purpose. */
+      if (_onShadowHub) {
+        rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">the list wasn\u2019t sent</span><span class="tf-tag dim">TODAY</span></div>');
+      } else {
       var _todays = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); });
       var runsToday = _todays.filter(function(x){ return !x.sim; }).length;
       var simToday = _todays.length - runsToday;
@@ -24626,6 +24720,7 @@ window._lockMark = function(isOpen, px, label){
       rows.push('<div class="tf-row tf-stat" title="' + _tlyTitle + (simToday ? ' · ' + simToday + ' simulation' + (simToday === 1 ? '' : 's') + ' today read canned frames and are not counted as runs' : '') + '"><span class="tf-g">📼</span><span class="tf-t">' + runsToday + ' run' + (runsToday === 1 ? '' : 's') + ' recorded today'
         + (simToday ? ' <span style="opacity:.6">(+' + simToday + ' sim)</span>' : '')
         + ' · ' + _tlyTxt + '</span><span class="tf-tag dim">TODAY</span></div>');
+      }
       var box = $('hd-taskforce');
       var rowsEl = $('hd-tf-rows');
       // v1425 — skip identical repaint: status poll (~1.5s) was rewriting the whole roster →
@@ -24999,7 +25094,7 @@ window._lockMark = function(isOpen, px, label){
   var _HUB_RANK = null, _hubReq = 0;
   async function hubNextGrail(){
     var host = $('hub-hero'); if (!host) return;
-    var farm = null; try { farm = JSON.parse(lsFork('d2r_grailFarm') || 'null'); } catch(e){}
+    var farm = null; try { farm = JSON.parse(lsHub('d2r_grailFarm') || 'null'); } catch(e){}
     if (!farm || !farm.length){
       host.className = 'hub-hero idle';
       host.innerHTML = '<div class="hh-eye">✦ the next chronicle</div><div class="hh-idle">— your grail-farm data lands here · find a chronicle and the ledger updates live —</div>';
@@ -25097,7 +25192,7 @@ window._lockMark = function(isOpen, px, label){
        label and the picture could name two different bosses on a re-rank. */
     var _srcBossId = _hell.length ? _meta.hellSourceBossId : _meta.sourceBossId;
     var _srcArt = _hell.length ? _meta.hellSourceArt : _meta.sourceArt;
-    var _fsum = null; try { _fsum = JSON.parse(lsFork('d2r_forgeSummary') || 'null'); } catch(e){}
+    var _fsum = null; try { _fsum = JSON.parse(lsHub('d2r_forgeSummary') || 'null'); } catch(e){}
     var _gp = _fsum && _fsum.grail && _fsum.grail.total
       ? (_fsum.grail.found || 0) + ' / ' + _fsum.grail.total + ' claimed' : '';
     /* NO derived "difficulty" line here on purpose: the source string the board sends IS the
@@ -25226,7 +25321,7 @@ window._lockMark = function(isOpen, px, label){
      not to the specific one named. Claiming otherwise would overclaim by roughly the piece count. */
   async function hubNextSet(){
     var host = $('hub-hero-sets'); if (!host) return;
-    var farm = null; try { farm = JSON.parse(lsFork('d2r_setFarm') || 'null'); } catch(e){}
+    var farm = null; try { farm = JSON.parse(lsHub('d2r_setFarm') || 'null'); } catch(e){}
     if (!farm || !farm.length){ host.className = 'hub-hero hub-hero-sets idle'; host.innerHTML = ''; return; }
     var data = null;
     try {
@@ -27965,7 +28060,9 @@ function escC(s) {
 
   window._shadowLeave = function () {
     _shadowGen++;
-    document.body.classList.remove('shadow-on', 'shadow-snap');
+    var paintedHub = document.body.getAttribute('data-shadow-hub') === '1';
+    document.body.classList.remove('shadow-on', 'shadow-snap', 'shadow-hub');
+    document.body.removeAttribute('data-shadow-hub');
     var snapFrame = document.getElementById('shadow-eng');
     if (snapFrame && snapFrame.parentNode) snapFrame.parentNode.removeChild(snapFrame);
     try { delete window._tvdShadowSnap; } catch (e) { window._tvdShadowSnap = undefined; }
@@ -28003,6 +28100,9 @@ function escC(s) {
       if (view === 'sessions' && typeof window._showSessions === 'function') window._showSessions();
       else if (view) document.body.setAttribute('data-view', view);
       else document.body.removeAttribute('data-view');
+    }
+    if (paintedHub && (document.body.getAttribute('data-view') || '') === 'sessions') {
+      try { if (typeof window._hubRepaintOwn === 'function') window._hubRepaintOwn(); } catch (e) {}
     }
   };
   /* The board frame holds focus. In this WebKit the first click outside that frame is
@@ -29438,7 +29538,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
      worst of both. */
   /* one destination, the same one the footer button uses — the hunt-or-skip judgement lives on
      the board, and a second copy is a second thing that drifts (v1567's note, still true). */
-  window._tzRoute = function () { try { window.open('/board#tztracker', '_blank'); } catch (e) {} };
+  window._tzRoute = function () {
+    if (document.body.classList && document.body.classList.contains('shadow-snap')) {
+      try { if (typeof window._shellOpen === 'function') window._shellOpen('tztracker'); } catch (e) {}
+      return;
+    }
+    try { window.open('/board#tztracker', '_blank'); } catch (e) {}
+  };
 
   /* offsetParent is null for a display:none ancestor OR the element itself — one check covers the
      panel being hidden and the whole view being off. */
@@ -29515,7 +29621,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     };
     var op = document.getElementById('tz-open');
     // this server serves the board itself (v774), so the full tracker is one hop away
-    if (op) op.onclick = function () { try { window.open('/board#tztracker', '_blank'); } catch (e) {} };
+    if (op) op.onclick = function () { try { window._tzRoute(); } catch (e) {} };
     _tzFetch();
     _tzSchedule();
   }
