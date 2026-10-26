@@ -210,7 +210,7 @@ class AVenueTheSandboxNeverCarriesIsElsewhere(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2660 - the sandbox is no longer asked: a green reel_demo is filed ALREADY RED on his Mac",
      "file": "heart2.py",
-     "find": "if _sandbox_lacks(sandbox, _need) is True:",
+     "find": "if \"its probe failed\" not in _words and _sandbox_lacks(sandbox, _need) is True:",
      "replace": "if False:",
      "matches": 1},
     {"why": "REG-2592 - live-panel's proof no longer declares the console: every runner reads it red",

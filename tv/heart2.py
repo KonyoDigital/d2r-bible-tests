@@ -6538,7 +6538,8 @@ def _sandbox_lacks(sandbox, need):
     if not spec or not sandbox or not os.path.isdir(sandbox):
         return None
     mod, fn = spec
-    env = dict(os.environ)
+    # REG-2396 - the one helper. TV_HIST and TV_FRAMES_DIR stay. A leaked GIT_DIR must not.
+    env = _git_free_env()
     code = "import sys; sys.path.insert(0, '.'); import %s as m; sys.exit(0 if m.%s() else 3)" % (mod, fn)
     try:
         rc = subprocess.run([sys.executable, "-c", code], cwd=sandbox, env=env, stdout=subprocess.DEVNULL,
