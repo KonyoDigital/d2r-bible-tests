@@ -689,6 +689,39 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         self.assertIsNone(RP.chronicle_read({"ok": False, "why": "not read"}, 1000),
                           "a failed read (ok:False, no counts) must still be refused")
 
+    def test_found_names_ride_the_same_chronicle_section_and_an_empty_lane_does_not(self):
+        """The found-item names travel on the roster chronicle section. An empty lane is not a row.
+
+        A failed read stays None even when a list was handed in. A list that does not fit the
+        row cap is dropped and the counts stay, so the publish itself is not refused.
+        """
+        now = 1790000000001
+        board = {"sets": {"have": 132, "total": 135}, "uniques": {"have": 52, "total": 403},
+                 "runewords": {"have": 98, "total": 99}, "at": 1790000000000}
+        got = RP.chronicle_read(board, now, {
+            "uniques": ["Shako", "Shako", ""],
+            "sets": [],
+            "runewords": ["Enigma"],
+        })
+        sec = RP.sections_from({"chronicle": got}, now)["chronicle"]
+        self.assertEqual(sec["rows"], [
+            {"lane": "uniques", "name": "Shako"},
+            {"lane": "runewords", "name": "Enigma"},
+        ])
+        self.assertEqual(sec["counts"]["sets"], {"have": 132, "total": 135})
+        self.assertNotIn("sets", [row["lane"] for row in sec["rows"]])
+        zero = RP.chronicle_read(
+            {"uniques": {"have": 0, "total": 403}, "at": 1790000000000}, now, None)
+        self.assertEqual(zero["counts"]["uniques"], {"have": 0, "total": 403})
+        self.assertNotIn("rows", zero)
+        self.assertIsNone(RP.chronicle_read({"ok": False, "why": "not read"}, 1000, {"uniques": ["Shako"]}))
+        wide = RP.chronicle_read(board, now, {"uniques": ["Name %d" % i for i in range(40)]})
+        packed = RP.sections_from({"chronicle": wide}, now)
+        shrunk = RP.chronicle_within(packed, limit=80)
+        self.assertNotIn("rows", shrunk["chronicle"])
+        self.assertEqual(shrunk["chronicle"]["counts"]["runewords"], {"have": 98, "total": 99})
+        self.assertIn("rows", RP.chronicle_within(packed, limit=60000)["chronicle"])
+
     def test_a_future_timestamp_is_unknown_not_fresh(self):
         """REG-2201 (#99) — a reading stamped AHEAD of now (clock skew) scored `now - as_of` negative,
         so _age_state read 'current' and _ago 'under 1 min ago'. A future clock is unknown, never

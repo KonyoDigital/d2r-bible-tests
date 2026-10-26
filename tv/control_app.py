@@ -4659,6 +4659,36 @@ def _roster_book_take(body):
             "owned": len(clean.get("owned") or [])}
 
 
+def _chronicle_name_lists():
+    """The three found-item name lists, or None when the board was not read.
+
+    A failed read is None, never an empty list. An empty store is not published as
+    found-zero: the roster shaper drops an empty rows array, so the reader would
+    treat it as a list that was not sent. Names travel only when the board answered
+    and the store held some. [[unknown-stays-unknown]]
+    """
+    if not globals().get("_WINDOW_LIVE"):
+        return None
+    try:
+        own = board_ownership(sample=5000)
+    except Exception:
+        return None
+    if not isinstance(own, dict) or own.get("ok") is not True:
+        return None
+    sample = own.get("sample") if isinstance(own.get("sample"), dict) else {}
+    lists = {}
+    found = sample.get("foundLog")
+    pieces = sample.get("setPieces")
+    made = own.get("rwMadeFull")
+    if isinstance(found, list) and found:
+        lists["uniques"] = found
+    if isinstance(pieces, list) and pieces:
+        lists["sets"] = pieces
+    if isinstance(made, dict) and made:
+        lists["runewords"] = list(made.keys())
+    return lists or None
+
+
 def _roster_reads(now_ms):
     """Sections this PC actually read. A failed read stays out, never an empty list."""
     import roster_publish as _rp
@@ -4758,7 +4788,7 @@ def _roster_reads(now_ms):
     except Exception as e:
         _ROSTER_FAIL["chronicle"] = type(e).__name__
         tally = None
-    got = _rp.chronicle_read(tally, now_ms)
+    got = _rp.chronicle_read(tally, now_ms, _chronicle_name_lists())
     if got is not None:
         reads["chronicle"] = got
 
@@ -4842,7 +4872,7 @@ def _roster_publish_once(boot):
         _roster_remember("this PC has no roster label")
         return
     now_ms = int(time.time() * 1000)
-    sections = _rp.sections_from(_roster_reads(now_ms), now_ms)
+    sections = _rp.chronicle_within(_rp.sections_from(_roster_reads(now_ms), now_ms))
     state = _roster_state_load()
     if not isinstance(state, dict):
         state = {}

@@ -667,6 +667,7 @@ class TheViewerPanel(unittest.TestCase):
         body = ui[start:ui.index("  };", start)]
         self.assertIn("/api/roster-cache?profile=", body)
         self.assertIn("window._shadowSnapEnter(owner, d)", body)
+        self.assertIn("window._shadowFillFromRoster(owner, d, gen)", body)
         self.assertEqual(body.count("window._shadowEnter(owner)"), 2, "no fallback on a missing or failed snapshot")
         enter = ui[ui.index("  window._shadowSnapEnter = function"):start]
         self.assertIn("&tvd-shadow=1", enter)
@@ -723,6 +724,8 @@ var winKonyo = window._shadowRosterStores({}, { offline: [{ nickname: 'Konyo', p
 process.stdout.write(JSON.stringify({
   nBuilds: Object.keys(builds).length,
   gear: builds.s0.sets[0].slots.head.name,
+  plainHasSets: builds.s3 ? Object.prototype.hasOwnProperty.call(builds.s3, 'sets') : null,
+  plainLevel: builds.s3 ? builds.s3.level : null,
   owned: owned,
   world: world,
   leaked: blob.indexOf(host) !== -1,
@@ -738,8 +741,10 @@ process.stdout.write(JSON.stringify({
         r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         self.assertEqual(r.returncode, 0, r.stderr[-800:])
         got = json.loads(r.stdout.strip().splitlines()[-1])
-        self.assertEqual(got["nBuilds"], 3, got)
+        self.assertEqual(got["nBuilds"], 4, got)
         self.assertEqual(got["gear"], "Shako")
+        self.assertIs(got["plainHasSets"], False, "a named row with no sets was stored as an empty set, so the card counts 0 items")
+        self.assertIsNone(got["plainLevel"], "a row with no level was stored as level 1")
         self.assertEqual(got["owned"], ["Ist", "Mal", "Um"])
         self.assertEqual(got["world"], {"machine": "windows", "profile": "main", "ledger": "", "os": "WINDOWS", "cousin": True})
         self.assertFalse(got["leaked"], "the fleet hostname was copied into the stores")
@@ -750,6 +755,127 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(got["linuxStore"])
         self.assertEqual(got["mac"], "mac")
         self.assertIsNone(got["winKonyo"])
+
+    def test_a_missing_list_shows_the_published_total_and_a_gearless_name_stays_a_card(self):
+        """A published total with no name list is not 0. A named character with no sets is still a card.
+
+        have 0 with no list stays unknown. A snapshot that already has a named build, or a found
+        list, keeps those. An empty snapshot takes the roster names and the published totals.
+        """
+        if not NODE:
+            raise AssertionError("node is absent - the published-total frame cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        roster = ui[ui.index("  window._shadowRosterStores = function (row, fleet, owner) {"):ui.index("  window._shadowEnter = function (owner) {")]
+        merge = ui[ui.index("  window._shadowStoreEmpty = function (raw) {"):ui.index("  window._shadowFillFromRoster = function (owner, snap, gen) {")]
+        html = _read(BIBLE)
+        lane_at = html.index("window._publishedLane = function (lane) {")
+        lane = html[lane_at:html.index("\n};", lane_at) + 3]
+        self.assertNotIn("_tvdShadow", lane)
+        self.assertNotIn("tvd-shadow-snap", lane)
+        js = "var window = globalThis;\n" + roster + "\n" + merge + "\n" + lane + r"""
+window._fleetRosterOwner = function (m) {
+  var nick = String((m && m.nickname) || '').trim();
+  if (nick === 'Dean') return 'Dean';
+  return '';
+};
+function lsr(map) {
+  return { getItem: function (k) { return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; } };
+}
+var fleet = { me: 'viewer', offline: [{ nickname: 'Dean', platform: 'windows', machine: 'host' }] };
+var counts = window._shadowRosterStores({ owner: 'Dean', published: true, sections: {
+  characters: { rows: [
+    { name: 'A', cls: 'Sorceress', level: 90, title: 'blizz', sets: [{ name: 'Set 1', slots: { head: { name: 'Shako' } }, inv: [] }] },
+    { name: 'plain', cls: 'Paladin', title: '' }
+  ]},
+  chronicle: { counts: { sets: { have: 132, total: 135 }, uniques: { have: 0, total: 403 }, runewords: { have: 98, total: 99 } } }
+}}, fleet, 'Dean');
+var cards = JSON.parse(counts.stores.d2r_charBuilds);
+var progress = JSON.parse(counts.stores.d2r_shadowProgress);
+var named = window._shadowRosterStores({ owner: 'Dean', published: true, sections: {
+  characters: { counts: 125, rows: [{ name: 'AltOne', cls: 'Amazon', level: 88, title: 'javazon' }] },
+  chronicle: {
+    counts: { uniques: { have: 52, total: 403 }, sets: { have: 4, total: 135 }, runewords: { have: 0, total: 99 } },
+    rows: [{ lane: 'uniques', name: 'Shako' }, { lane: 'uniques', name: 'Shako' }, { lane: 'sets', name: 'Tal Rasha' }, { lane: 'runewords', name: '' }]
+  }
+}}, fleet, 'Dean');
+var found = JSON.parse(named.stores.d2r_foundLog);
+var pieces = JSON.parse(named.stores.d2r_setPieces);
+var namedProgress = JSON.parse(named.stores.d2r_shadowProgress);
+var kept = window._shadowMergeStores({
+  d2r_charBuilds: JSON.stringify({ keep: { name: 'Kept', sets: [{ name: 'S', slots: {} }] } }),
+  d2r_foundLog: JSON.stringify({ Windforce: '' })
+}, counts.stores);
+var filled = window._shadowMergeStores({ d2r_charBuilds: '{}', d2r_foundLog: '{}', d2r_setPieces: '[]' }, named.stores);
+window.LSR = lsr({});
+var own = window._publishedLane('runewords');
+window.LSR = lsr({ d2r_shadowProgress: counts.stores.d2r_shadowProgress });
+var uni0 = window._publishedLane('uniques');
+var setsN = window._publishedLane('sets');
+var rwN = window._publishedLane('runewords');
+window.LSR = lsr({ d2r_foundLog: named.stores.d2r_foundLog, d2r_shadowProgress: JSON.stringify({ uniques: { have: 52, total: 403, listed: false } }) });
+var namesWin = window._publishedLane('uniques');
+process.stdout.write(JSON.stringify({
+  names: Object.keys(cards).map(function (k) { return cards[k].name; }),
+  title: cards.s0 && cards.s0.title,
+  plainTitle: !!(cards.s1 && Object.prototype.hasOwnProperty.call(cards.s1, 'title')),
+  plainSets: !!(cards.s1 && Object.prototype.hasOwnProperty.call(cards.s1, 'sets')),
+  plainLevel: cards.s1 ? cards.s1.level : null,
+  gear: cards.s0.sets[0].slots.head.name,
+  wroteFound: Object.prototype.hasOwnProperty.call(counts.stores, 'd2r_foundLog')
+    || Object.prototype.hasOwnProperty.call(counts.stores, 'd2r_setPieces')
+    || Object.prototype.hasOwnProperty.call(counts.stores, 'd2r_rwMade'),
+  progress: progress,
+  foundKeys: Object.keys(found),
+  pieces: pieces,
+  wroteRw: Object.prototype.hasOwnProperty.call(named.stores, 'd2r_rwMade'),
+  namedProgress: namedProgress,
+  altName: JSON.parse(named.stores.d2r_charBuilds).s0.name,
+  altSets: Object.prototype.hasOwnProperty.call(JSON.parse(named.stores.d2r_charBuilds).s0, 'sets'),
+  keptName: Object.keys(JSON.parse(kept.d2r_charBuilds))[0],
+  keptFound: Object.keys(JSON.parse(kept.d2r_foundLog)),
+  keptProgress: kept.d2r_shadowProgress ? Object.keys(JSON.parse(kept.d2r_shadowProgress)) : [],
+  filledName: JSON.parse(filled.d2r_charBuilds).s0.name,
+  filledFound: Object.keys(JSON.parse(filled.d2r_foundLog)),
+  filledProgress: Object.keys(JSON.parse(filled.d2r_shadowProgress)),
+  own: own,
+  uni0: uni0,
+  setsN: setsN,
+  rwN: rwN,
+  namesWin: namesWin
+}));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-1200:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["names"], ["A", "plain"])
+        self.assertEqual(got["title"], "blizz")
+        self.assertIs(got["plainTitle"], False)
+        self.assertIs(got["plainSets"], False)
+        self.assertIsNone(got["plainLevel"])
+        self.assertEqual(got["gear"], "Shako")
+        self.assertIs(got["wroteFound"], False, "a counts-only chronicle was stored as an empty found list")
+        self.assertEqual(got["progress"]["sets"], {"have": 132, "total": 135, "listed": False})
+        self.assertEqual(got["progress"]["uniques"], {"have": 0, "total": 403, "listed": False})
+        self.assertEqual(got["progress"]["runewords"], {"have": 98, "total": 99, "listed": False})
+        self.assertEqual(got["foundKeys"], ["Shako"])
+        self.assertEqual(got["pieces"], ["Tal Rasha"])
+        self.assertIs(got["wroteRw"], False, "an empty runeword name was stored as a made word")
+        self.assertEqual(got["namedProgress"], {"runewords": {"have": 0, "total": 99, "listed": False}})
+        self.assertEqual(got["altName"], "AltOne")
+        self.assertIs(got["altSets"], False)
+        self.assertEqual(got["keptName"], "keep")
+        self.assertEqual(got["keptFound"], ["Windforce"])
+        self.assertNotIn("uniques", got["keptProgress"])
+        self.assertEqual(got["filledName"], "AltOne")
+        self.assertEqual(got["filledFound"], ["Shako"])
+        self.assertEqual(got["filledProgress"], ["runewords"])
+        self.assertIsNone(got["own"], "his own board, with no published blob, was given a shadow total")
+        self.assertIsNone(got["uni0"]["show"], "have 0 with no list was painted as 0")
+        self.assertEqual(got["uni0"]["sentence"], "the list wasn't sent")
+        self.assertEqual(got["setsN"]["show"], {"have": 132, "total": 135})
+        self.assertEqual(got["rwN"]["show"], {"have": 98, "total": 99})
+        self.assertEqual(got["rwN"]["sentence"], "the list wasn't sent")
+        self.assertIsNone(got["namesWin"], "a lane that already has names was replaced by the published total")
 
     def test_the_missing_snapshot_does_not_open_this_browser(self):
         ui = _read(UI)

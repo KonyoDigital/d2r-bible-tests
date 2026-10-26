@@ -27787,13 +27787,19 @@ function escC(s) {
     function storeOf(builds) {
       var all = {};
       builds.forEach(function (b, i) {
-        all['s' + i] = {
-          name: b.name, cls: b.cls || null, level: b.level || 1,
-          sets: (b.sets || []).map(function (s, n) {
-            return { name: s.name || ('Set ' + (n + 1)), slots: s.slots || {}, inv: s.inv || [], swap: {}, ws: 1 };
-          }),
+        var card = {
+          name: b.name, cls: b.cls || null,
+          level: (typeof b.level === 'number' && b.level >= 1 && b.level <= 99) ? b.level : null,
           active: 0, notes: '', stash: b.stash || [], shared: [], from: null, at: 1
         };
+        /* A row with no sets array was not counted. An empty array would paint 0 items. */
+        if (Array.isArray(b.sets)) {
+          card.sets = b.sets.map(function (s, n) {
+            return { name: (s && s.name) || ('Set ' + (n + 1)), slots: (s && s.slots) || {}, inv: (s && s.inv) || [], swap: {}, ws: 1 };
+          });
+        }
+        if (typeof b.title === 'string' && b.title) card.title = b.title;
+        all['s' + i] = card;
       });
       return JSON.stringify(all);
     }
@@ -27819,7 +27825,9 @@ function escC(s) {
     }
     var builds = [];
     var chars = row && row.sections && row.sections.characters && row.sections.characters.rows;
-    if (Array.isArray(chars)) chars.forEach(function (r) { if (r && r.sets) builds.push(r); });
+    if (Array.isArray(chars)) chars.forEach(function (r) {
+      if (r && typeof r.name === 'string' && r.name) builds.push(r);
+    });
     var seen = {}, names = [];
     function addName(n) {
       if (typeof n !== 'string' || !n || seen[n]) return;
@@ -27837,10 +27845,60 @@ function escC(s) {
     ['vault', 'stash', 'owned'].forEach(function (k) {
       addRows(sections[k] && sections[k].rows);
     });
+    function whole(n, min) {
+      return typeof n === 'number' && isFinite(n) && n >= min && Math.floor(n) === n;
+    }
+    function laneCount(counts, key) {
+      var pair = counts && counts[key];
+      if (!pair || typeof pair !== 'object' || Array.isArray(pair)) return null;
+      if (!whole(pair.have, 0)) return null;
+      var out = { have: pair.have, listed: false };
+      if (whole(pair.total, 1)) out.total = pair.total;
+      return out;
+    }
+    function namesOf(rows, lane) {
+      var out = [], seen = {};
+      if (!Array.isArray(rows)) return out;
+      rows.forEach(function (r) {
+        if (!r || r.lane !== lane || typeof r.name !== 'string' || !r.name || seen[r.name]) return;
+        seen[r.name] = 1;
+        out.push(r.name);
+      });
+      return out;
+    }
+    var chron = sections.chronicle || {};
+    var tally = (hit && hit.tally && typeof hit.tally === 'object') ? hit.tally : null;
+    function pairFor(key) {
+      return laneCount(chron.counts, key) || laneCount(tally, key);
+    }
+    var found = namesOf(chron.rows, 'uniques');
+    var pieces = namesOf(chron.rows, 'sets');
+    var made = namesOf(chron.rows, 'runewords');
+    var progress = {};
+    function note(key, list) {
+      if (list.length) return;
+      var pair = pairFor(key);
+      if (pair) progress[key] = pair;
+    }
+    note('uniques', found);
+    note('sets', pieces);
+    note('runewords', made);
     var stores = {
       d2r_charBuilds: builds.length ? storeOf(builds) : '{}',
       d2r_owned: JSON.stringify(names)
     };
+    if (found.length) {
+      var fl = {};
+      found.forEach(function (n) { fl[n] = ''; });
+      stores.d2r_foundLog = JSON.stringify(fl);
+    }
+    if (pieces.length) stores.d2r_setPieces = JSON.stringify(pieces);
+    if (made.length) {
+      var rw = {};
+      made.forEach(function (n) { rw[n] = true; });
+      stores.d2r_rwMade = JSON.stringify(rw);
+    }
+    if (Object.keys(progress).length) stores.d2r_shadowProgress = JSON.stringify(progress);
     if (world) stores.d2r_api_world = JSON.stringify(world);
     return { stores: stores, world: world };
   };
@@ -28009,6 +28067,65 @@ function escC(s) {
     try { if (typeof window._shellLight === 'function') window._shellLight('chars'); } catch (e) {}
     return gen;
   };
+  window._shadowStoreEmpty = function (raw) {
+    if (typeof raw !== 'string' || !raw || raw === '{}' || raw === '[]') return true;
+    try {
+      var v = JSON.parse(raw);
+      if (Array.isArray(v)) return v.length === 0;
+      if (v && typeof v === 'object') return Object.keys(v).length === 0;
+    } catch (e) {}
+    return true;
+  };
+  window._shadowBuildsEmpty = function (stores) {
+    return window._shadowStoreEmpty(stores && stores.d2r_charBuilds);
+  };
+  /* A profile snapshot wins when it has the thing. An empty builds store does not hide
+     the published names, and an empty found-item store does not hide a published total. */
+  window._shadowMergeStores = function (snapStores, builtStores) {
+    var stores = {};
+    var src = (snapStores && typeof snapStores === 'object') ? snapStores : {};
+    Object.keys(src).forEach(function (k) { stores[k] = src[k]; });
+    var add = (builtStores && typeof builtStores === 'object') ? builtStores : {};
+    if (window._shadowBuildsEmpty(stores) && typeof add.d2r_charBuilds === 'string' && add.d2r_charBuilds !== '{}') {
+      stores.d2r_charBuilds = add.d2r_charBuilds;
+    }
+    ['d2r_foundLog', 'd2r_setPieces', 'd2r_rwMade'].forEach(function (k) {
+      if (window._shadowStoreEmpty(stores[k]) && typeof add[k] === 'string') stores[k] = add[k];
+    });
+    if (typeof add.d2r_shadowProgress === 'string') {
+      var prog = {};
+      try { prog = JSON.parse(add.d2r_shadowProgress) || {}; } catch (e) { prog = {}; }
+      var keep = {};
+      [['uniques', 'd2r_foundLog'], ['sets', 'd2r_setPieces'], ['runewords', 'd2r_rwMade']].forEach(function (pair) {
+        if (window._shadowStoreEmpty(stores[pair[1]]) && prog[pair[0]]) keep[pair[0]] = prog[pair[0]];
+      });
+      if (Object.keys(keep).length) stores.d2r_shadowProgress = JSON.stringify(keep);
+    }
+    return stores;
+  };
+  window._shadowFillFromRoster = function (owner, snap, gen) {
+    function open(d) {
+      if (gen !== _shadowGen) return;
+      if (typeof window._shadowSnapEnter === 'function') window._shadowSnapEnter(owner, d);
+    }
+    Promise.all([
+      fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }),
+      fetch('/api/fleet', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; })
+    ]).then(function (pair) {
+      if (gen !== _shadowGen) return;
+      var data = pair[0];
+      var fleet = pair[1];
+      var row = null;
+      var owners = (data && data.owners) || [];
+      for (var i = 0; i < owners.length; i++) {
+        if (owners[i] && owners[i].owner === owner) row = owners[i];
+      }
+      var built = null;
+      try { built = window._shadowRosterStores(row, fleet, owner); } catch (e) { built = null; }
+      var stores = window._shadowMergeStores(snap && snap.stores, built && built.stores);
+      open({ t: snap && snap.t, words: snap && snap.words, stores: stores });
+    }).catch(function () { open(snap); });
+  };
   window._shadowOpen = function (owner) {
     if (!owner) return;
     if (typeof window._shadowRemember === 'function') window._shadowRemember();
@@ -28027,8 +28144,10 @@ function escC(s) {
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (gen !== _shadowGen) return;
-        if (d && d.ok === true && d.stores && typeof d.stores === 'object') window._shadowSnapEnter(owner, d);
-        else window._shadowEnter(owner);
+        if (d && d.ok === true && d.stores && typeof d.stores === 'object') {
+          if (typeof window._shadowFillFromRoster === 'function') window._shadowFillFromRoster(owner, d, gen);
+          else window._shadowSnapEnter(owner, d);
+        } else window._shadowEnter(owner);
       })
       .catch(function () { if (gen === _shadowGen) window._shadowEnter(owner); });
   };

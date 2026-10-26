@@ -4081,6 +4081,35 @@ window.d2rChronTotal = function(s){
   var c = s && s.total;
   return (typeof c === 'number' && isFinite(c) && c > 0) ? c : 0;
 };
+/* A published total whose name list was not on the roster. Absent on this PC's own
+   board, so his counters stay on his stores. A lane that already has names uses those
+   names. have 0 with no list is not a found total. */
+window._publishedLane = function (lane) {
+  var key = lane === 'uniques' ? 'd2r_foundLog' : lane === 'sets' ? 'd2r_setPieces' : lane === 'runewords' ? 'd2r_rwMade' : '';
+  if (!key) return null;
+  try {
+    var rawStore = (window.LSR && window.LSR.getItem) ? window.LSR.getItem(key) : null;
+    if (typeof rawStore === 'string' && rawStore && rawStore !== '{}' && rawStore !== '[]') {
+      var parsed = JSON.parse(rawStore);
+      var n = Array.isArray(parsed) ? parsed.length : (parsed && typeof parsed === 'object' ? Object.keys(parsed).length : 0);
+      if (n > 0) return null;
+    }
+  } catch (e) {}
+  var raw = null;
+  try { raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem('d2r_shadowProgress') : null; } catch (e2) { raw = null; }
+  if (typeof raw !== 'string' || !raw) return null;
+  var note = null;
+  try { note = JSON.parse(raw); } catch (e3) { return null; }
+  if (!note || typeof note !== 'object' || Array.isArray(note)) return null;
+  var row = note[lane];
+  if (!row || typeof row !== 'object' || Array.isArray(row) || row.listed === true) return null;
+  var have = row.have, total = row.total;
+  var whole = function (v, min) {
+    return typeof v === 'number' && isFinite(v) && v >= min && Math.floor(v) === v;
+  };
+  var show = (whole(have, 1) && whole(total, 1)) ? { have: have, total: total } : null;
+  return { show: show, sentence: "the list wasn't sent" };
+};
 
 // ══════════════════════════════════════════════════════════════════════════════
 // v635 — LADDER PROFILE STORAGE ROUTER (Konyo: "a smooth polished toggle that ascends perfectly
@@ -11166,7 +11195,7 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
     return '<article class="chx-card' + (isMain ? ' chx-main' : '') + '" data-build="' + esc(id) + '">'
       + '<div class="chx-top"><span class="chx-crest" aria-hidden="true">' + esc(String(b.cls || '?').charAt(0)) + '</span>'
       +   '<div class="chx-id"><div class="chx-name" title="' + esc(b.name || id) + '">' + esc(b.name || 'Unnamed build') + '</div>'
-      +   '<div class="chx-cls">' + cls + ' · ' + lv + '</div></div>'
+      +   '<div class="chx-cls">' + cls + ' · ' + lv + ((typeof b.title === 'string' && b.title) ? (' · ' + esc(b.title)) : '') + '</div></div>'
       +   (isMain ? '<span class="chx-badge" data-main="1">★ MAIN</span>' : '') + '</div>'
       + (t ? _proof(t) : '')
       + '<div class="chx-facts">' + facts + '</div>'
@@ -27152,18 +27181,22 @@ function renderGrailProgress() {
   // This file warns twice that a count in a comment is a number nobody re-measures. It has now
   // gone stale exactly that way four times in one day (REG-321, REG-323 twice, and this).
   const _realRoster = (typeof window._gUniqueRoster === 'function') ? window._gUniqueRoster() : allGrails.map(i => i.n);
-  const total = _fu ? window.d2rChronTotal(_fu) : _realRoster.length;
-  const have = _fu ? _fu.found : _realRoster.filter(n => _gFound(n)).length;
-  const pct = total ? have / total : 0;
+  let total = _fu ? window.d2rChronTotal(_fu) : _realRoster.length;
+  let have = _fu ? _fu.found : _realRoster.filter(n => _gFound(n)).length;
+  const _pubRing = (typeof window._publishedLane === 'function') ? window._publishedLane('uniques') : null;
+  if (_pubRing && _pubRing.show) { have = _pubRing.show.have; total = _pubRing.show.total; }
+  const pct = (_pubRing && !_pubRing.show) ? 0 : (total ? have / total : 0);
   const pctNum = Math.round(pct * 100);
   const circleC = 2 * Math.PI * 26;
   const offset = circleC * (1 - pct);
   $("gp-circle-fill").setAttribute("stroke-dashoffset", offset);
-  $("gp-circle-text").textContent = pctNum + "%";
+  $("gp-circle-text").textContent = (_pubRing && !_pubRing.show) ? "—" : (pctNum + "%");
   $("gp-bar-fill").style.width = pctNum + "%";
   const remaining = total - have;
   let msg = "";
-  if (have === 0) msg = `Mark chronicle items as ✓ owned to track your Chronicle collection. <strong>${total}</strong> grails tracked.`;
+  if (_pubRing && !_pubRing.show) msg = _pubRing.sentence;
+  else if (_pubRing && _pubRing.show) msg = `<strong>${have} / ${total}</strong> · ${_pubRing.sentence}`;
+  else if (have === 0) msg = `Mark chronicle items as ✓ owned to track your Chronicle collection. <strong>${total}</strong> grails tracked.`;
   /* v1560 — this fired at 83/83 while ~320 chronicle rows were still missing, because `total` was
      the elite sub-pool. On the real denominator 403 is unreachable by design (35 of those rows have
      no card here at all — see v1556), so the celebration names what was actually completed. */
@@ -31498,16 +31531,23 @@ function renderRunewordChronicle(){
   var madeN = items.filter(function(x){return x.made;}).length;
   var nowN  = items.filter(function(x){return x.now;}).length;
   var cubeN = items.filter(function(x){return x.cube;}).length;
-  var pct = total ? Math.round(madeN/total*100) : 0;
+  var _pubRw = (typeof window._publishedLane === 'function') ? window._publishedLane('runewords') : null;
+  var _barHave = madeN, _barTotal = total, _barGap = '';
+  if (_pubRw) {
+    _barGap = _pubRw.sentence;
+    if (_pubRw.show) { _barHave = _pubRw.show.have; _barTotal = _pubRw.show.total; }
+    else _barHave = null;
+  }
+  var pct = (_barHave !== null && _barTotal) ? Math.round(_barHave/_barTotal*100) : 0;
   var prog = document.getElementById('rwc-progress');
   if (prog) prog.innerHTML =
       '<div class="rwc-bar-row"><span class="rwc-bar-lbl">✨ Created</span>'
     + '<div class="rwc-bar"><span style="width:'+pct+'%"></span></div>'
-    + '<span class="rwc-bar-num">'+madeN+' / '+total+' · '+pct+'%</span></div>'
+    + '<span class="rwc-bar-num">'+(_barHave === null ? _barGap : (_barHave+' / '+_barTotal+' · '+pct+'%'+(_barGap?' · '+_barGap:'')))+'</span></div>'
     + '<div class="rwc-stats">'
     +   '<span class="rwc-stat rwc-s-now">✅ '+nowN+' can make now</span>'
     +   '<span class="rwc-stat rwc-s-cube">🧪 '+cubeN+' cube-up</span>'
-    +   '<span class="rwc-stat rwc-s-todo">⏳ '+(total-madeN)+' left to make</span>'
+    +   '<span class="rwc-stat rwc-s-todo">⏳ '+(_barHave === null ? _barGap : ((_pubRw ? (_barTotal - _barHave) : (total - madeN))+' left to make'))+'</span>'
     // v635 — the old in-place mode buttons flipped rwLadderMode on THIS account (the exact 'mixing'
     // Konyo rejected: ladder words suddenly claiming his non-ladder bases). Ladder is now a separate
     // ACCOUNT — the chip routes to the profile switch (full reload, zero bleed) instead.
@@ -31532,7 +31572,8 @@ function renderRunewordChronicle(){
   });
   var rank = function(x){ return x.made?3 : x.now?0 : x.cube?1 : 2; };
   shown.sort(function(a,b){ return rank(a)-rank(b) || a.tier-b.tier || a.n.localeCompare(b.n); });
-  var cntEl = document.getElementById('rwc-count'); if (cntEl) cntEl.textContent = '('+madeN+'/'+total+')';
+  var cntEl = document.getElementById('rwc-count');
+  if (cntEl) cntEl.textContent = _barHave === null ? ('(' + _barGap + ')') : ('('+_barHave+'/'+_barTotal+')');
   var rowHtml = function(x){
     var oc = x.n.replace(/'/g,"\\'");
     var cls, badge;
@@ -60341,6 +60382,17 @@ function renderJournal(){
     try {
       var _rwTotal=window._rwTotalN?window._rwTotalN():0;   // v2104 — the roster, not a literal 100 (_rwPct already guards 0)
       var _rwMadeN=_madeRw().length, _rwPct=_rwTotal?Math.round(_rwMadeN/_rwTotal*100):0;
+      var _rwGap = '';
+      var _pubForge = (!_isCrafts && typeof window._publishedLane === 'function') ? window._publishedLane('runewords') : null;
+      if (_pubForge && _pubForge.show) {
+        _rwMadeN = _pubForge.show.have;
+        _rwTotal = _pubForge.show.total;
+        _rwPct = _rwTotal ? Math.round(_rwMadeN / _rwTotal * 100) : 0;
+        _rwGap = ' · ' + _pubForge.sentence;
+      } else if (_pubForge) {
+        _rwMadeN = null;
+        _rwGap = _pubForge.sentence;
+      }
       // v1474 (Konyo: "how come ONE STEP is 91 if there are 99 forges? doesn't that counter it?")
       // The counts were CORRECT but not legible: three numbers sit inches apart on one screen
       // measuring different universes, and the reader is left to derive the relationship.
@@ -60384,19 +60436,21 @@ function renderJournal(){
          chronicle — so the crafts room drew a 99%-full green bar, and a "99%" coin, directly over
          the words "0 / 4 craft types ready". Three figures describing runewords under a sentence
          counting crafts. [[label-outlived-referent]] */
-      var _barPct = _isCrafts ? (_cTotN ? Math.round(_cReadyN / _cTotN * 100) : 0) : _rwPct;
+      var _barPct = _isCrafts ? (_cTotN ? Math.round(_cReadyN / _cTotN * 100) : 0) : (_rwMadeN === null ? null : _rwPct);
       var _barTtl = _isCrafts
         ? (_cTotN + ' craft types\n' + _cReadyN + ' have every ingredient tallied right now')
         : _recon;
-      H.push('<div class="forge-progress" title="'+_barTtl.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+_barPct+'%"></div></div>'
+      H.push('<div class="forge-progress" title="'+_barTtl.replace(/"/g,'&quot;')+'"><div class="fp-track"><div class="fp-fill" style="width:'+(_barPct===null?0:_barPct)+'%"></div></div>'
         +'<div class="fp-lbl">'+(_isCrafts
             ? '\u2697\ufe0f <b>'+_cReadyN+'</b> / '+_cTotN+' craft types ready'
-            : '\ud83d\udcdc <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged')
+            : (_rwMadeN === null
+                ? '\ud83d\udcdc ' + _rwGap
+                : '\ud83d\udcdc <b>'+_rwMadeN+'</b> / '+_rwTotal+' runewords forged' + _rwGap))
         + ((_ladN && !_isCrafts) ? '<span class="fp-note" title="'+_recon.replace(/"/g,'&quot;')+'"> · '
              + (_incLad ? 'all ' + _workable + ' planned here (' + _ladN + ' ladder-only included)'
                         : _workable + ' workable here, ' + _ladN + ' ladder-only')
              + '</span>' : '')
-        +'<span class="fp-pct">'+_barPct+'%</span></div></div>');
+        + (_barPct === null ? '' : '<span class="fp-pct">'+_barPct+'%</span>') + '</div></div>');
     } catch(e){}
     // toggle sub-tabs — mutually exclusive filter (pick one → only that bucket shows; click it again → All)
     var tab=function(key,emoji,label,cls,n){
@@ -62744,11 +62798,14 @@ function renderJournal(){
     // minus 127 set-piece names), not the 368-row boss-drop shortlist. 385 named + 18 still-dark =
     // the same 403 the game counts, so this meter and the grid below finally share one denominator.
     // The still-dark rows are unknowable until found (the game silhouettes them as bare base types).
-    H.push(_meter(s.found,window.d2rChronTotal(s),''));
+    var _pubUni = (typeof window._publishedLane === 'function') ? window._publishedLane('uniques') : null;
+    if (_pubUni && _pubUni.show) H.push(_meter(_pubUni.show.have, _pubUni.show.total, '', { label: '🏆 <b>'+_pubUni.show.have+'</b> / '+_pubUni.show.total+' found · '+_pubUni.sentence }));
+    else if (_pubUni) H.push('<div class="f-atomsub">'+_pubUni.sentence+'</div>');
+    else H.push(_meter(s.found,window.d2rChronTotal(s),''));
     // v663 — the IN-GAME line: the mod chronicle counts 403 entries, the game's % is found/403.
     // Keeping both numbers visible kills the '63% here, 59% in game' confusion at the source.
     // v682.1 — the headline meter above IS the in-game number now; this line explains the named-card grid
-    if (s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the remaining rows are still dark silhouettes in-game (bare base types), unknowable until they drop">🗂 named cards: <b>'+s.found+' / '+s.total+'</b> ticked · <b>'+Math.max(0,(s.chronTotal-s.total))+'</b> chronicle rows still dark (names reveal on find)</div>');
+    if (!_pubUni && s.chronTotal) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="the in-game Chronicle counts '+s.chronTotal+' unique entries (game-file truth: uniqueitems.txt) — the '+s.total+' cards here are the named subset; the remaining rows are still dark silhouettes in-game (bare base types), unknowable until they drop">🗂 named cards: <b>'+s.found+' / '+s.total+'</b> ticked · <b>'+Math.max(0,(s.chronTotal-s.total))+'</b> chronicle rows still dark (names reveal on find)</div>');
     H.push(_undoBar('uni'));   // v644 — mis-ticks are one ↩ away, forge-style
     /* v2739 — THE RESET, under the UNIQUES tab exactly where he asked for it. Deliberately quiet:
        it sits at the end of the header row in dim chrome, not as a primary action, because a
@@ -65353,7 +65410,13 @@ function renderJournal(){
        v775 had already noticed the sibling drift and unified the TITLE colour, noting "was #4ade80
        on Sets" — and left the FILL behind. Half a class is how it comes back.
        [[d2r-css-last-rule-wins]] [[feedback-generalize-fixes]] */
-    H.push(_meter(s.havePieces, s.totalPieces, '', {
+    var _pubSets = (typeof window._publishedLane === 'function') ? window._publishedLane('sets') : null;
+    if (_pubSets && _pubSets.show) H.push(_meter(_pubSets.show.have, _pubSets.show.total, '', {
+      title: _pubSets.show.have+' of '+_pubSets.show.total+' pieces',
+      label: '🧩 <b>'+_pubSets.show.have+'</b> / '+_pubSets.show.total+' pieces · '+_pubSets.sentence
+    }));
+    else if (_pubSets) H.push('<div class="f-atomsub">'+_pubSets.sentence+'</div>');
+    else H.push(_meter(s.havePieces, s.totalPieces, '', {
       title: s.havePieces+' of '+s.totalPieces+' pieces',
       label: '🧩 <b>'+s.havePieces+'</b> / '+s.totalPieces+' pieces · <b>'+s.done.length+'</b> / '+s.sets.length+' sets'
     }));
@@ -65362,7 +65425,7 @@ function renderJournal(){
     // above) — never a uniques number. There is no separate "in-game total sets" count to reconcile
     // against here (unlike uniques' chronTotal vs named-card subset), so this states what IS tracked
     // rather than inventing a dark-row figure that was never measured.
-    H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="every set tracked here, from the mod\'s own set roster">🗂 sets: <b>'+s.done.length+' / '+s.sets.length+'</b> completed · <b>'+(s.totalPieces-s.havePieces)+'</b> piece'+((s.totalPieces-s.havePieces)===1?'':'s')+' still missing</div>');
+    if (!_pubSets) H.push('<div class="f-atomsub" style="margin:-4px 0 8px;opacity:.85" title="every set tracked here, from the mod\'s own set roster">🗂 sets: <b>'+s.done.length+' / '+s.sets.length+'</b> completed · <b>'+(s.totalPieces-s.havePieces)+'</b> piece'+((s.totalPieces-s.havePieces)===1?'':'s')+' still missing</div>');
     H.push(_undoBar('set'));   // v644 — mis-ticks are one ↩ away, forge-style; v1813 — third, as on Uniques
     // group missing pieces by best run (same shape as Forge·Uniques)
     var bySrc={};
@@ -68196,7 +68259,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (st.draft) return st.draft;
     var all = _cbAll(); return st.bid && all[st.bid] || null;
   }
-  function _cbSet(){ var b = _cbBuild(); if (!b) return null; var s = b.sets[b.active | 0] || b.sets[0]; if (!s.inv) s.inv = []; if (!s.slots) s.slots = {}; if (!s.swap) s.swap = {}; return s; }
+  function _cbSet(){
+    var b = _cbBuild(); if (!b || !Array.isArray(b.sets) || !b.sets.length) return null;
+    var s = b.sets[b.active | 0] || b.sets[0];
+    if (!s || typeof s !== 'object') return null;
+    if (!s.inv) s.inv = []; if (!s.slots) s.slots = {}; if (!s.swap) s.swap = {};
+    return s;
+  }
   /* #245 review - THE BUILD ON SCREEN CAN BE DELETED NOW (the 👤 Characters tab - in this window it refuses while this
      window is open, but another window's does not; a Main / Ladder switch takes it out of reach the same way), and
      every edit to a build that is no longer saved used to be dropped in silence: _cbCommit found no build and returned
@@ -69503,6 +69572,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var box = _cbWin(), b = _cbBuild(); if (!box) return;
     if (!b){ if (st.bid && !st.draft && !st.newb) _cbGone(); return; }   // #245 review - the build on screen is no longer saved (a + New build flow is left to run)
     var s = _cbSet(), L = _cbLayout(window.innerWidth || 1440, window.innerHeight || 900);
+    if (!s) {
+      box.innerHTML = '<div class="cb" data-state="no-gear"><div class="cb-empty" role="status"><b>'
+        + esc(b.name || 'This character') + '</b> was published by name. The gear list was not sent.</div>'
+        + '<div class="cb-gone-acts"><button type="button" class="cb-btn" id="cb-close" onclick="window.closeCharBuilder()" aria-label="close the character builder (Esc closes)">\u2715 Close</button></div></div>';
+      return;
+    }
     var keep = box.scrollTop;
     box.setAttribute('style', '--u:' + L.u.toFixed(4) + 'px;--kf:' + L.kf.toFixed(4) + ';--dk:' + L.dk.toFixed(4) + 'px');
     var d = _cbDb();
@@ -72441,10 +72516,16 @@ window.renderSessionCockpit = function(){
     };
     try {
       var rwT = (typeof RUNEWORD_TIP!=='undefined') ? Object.keys(RUNEWORD_TIP).length : 0;
-      if (rwT) kh.push('<div class="sc-kpi k-rw"><b>'+_scRwMade()+'/'+rwT+'</b><span>Runewords</span></div>');
+      var _pubKpiRw = (typeof window._publishedLane === 'function') ? window._publishedLane('runewords') : null;
+      if (rwT && _pubKpiRw && _pubKpiRw.show) kh.push('<div class="sc-kpi k-rw"><b>'+_pubKpiRw.show.have+'/'+_pubKpiRw.show.total+'</b><span>Runewords · '+_pubKpiRw.sentence+'</span></div>');
+      else if (rwT && _pubKpiRw) kh.push('<div class="sc-kpi k-rw"><b>'+_pubKpiRw.sentence+'</b><span>Runewords</span></div>');
+      else if (rwT) kh.push('<div class="sc-kpi k-rw"><b>'+_scRwMade()+'/'+rwT+'</b><span>Runewords</span></div>');
     } catch(e){}
     var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}
-    if (_scFuni) kh.push('<div class="sc-kpi k-uni"><b>'+_scFuni.found+'/'+window.d2rChronTotal(_scFuni)+'</b><span>Uniques</span></div>');
+    var _pubKpiUni = (typeof window._publishedLane === 'function') ? window._publishedLane('uniques') : null;
+    if (_pubKpiUni && _pubKpiUni.show) kh.push('<div class="sc-kpi k-uni"><b>'+_pubKpiUni.show.have+'/'+_pubKpiUni.show.total+'</b><span>Uniques · '+_pubKpiUni.sentence+'</span></div>');
+    else if (_pubKpiUni) kh.push('<div class="sc-kpi k-uni"><b>'+_pubKpiUni.sentence+'</b><span>Uniques</span></div>');
+    else if (_scFuni) kh.push('<div class="sc-kpi k-uni"><b>'+_scFuni.found+'/'+window.d2rChronTotal(_scFuni)+'</b><span>Uniques</span></div>');
     /* v1562 — THIS TILE HAS NEVER RENDERED, NOT ONCE.
        The guard needs `SETS`, and there is no SETS anywhere in this file — the array is ITEM_SETS.
        `typeof` on a name that was never declared does not throw, it returns 'undefined', so the
@@ -72458,7 +72539,10 @@ window.renderSessionCockpit = function(){
        two-surfaces-two-answers defect this whole sweep is about. */
     try {
       var _fsk = (typeof window.fsetsScan==='function') ? window.fsetsScan() : null;
-      if (_fsk && _fsk.totalPieces)
+      var _pubKpiSets = (typeof window._publishedLane === 'function') ? window._publishedLane('sets') : null;
+      if (_pubKpiSets && _pubKpiSets.show) kh.push('<div class="sc-kpi k-set"><b>'+_pubKpiSets.show.have+'/'+_pubKpiSets.show.total+'</b><span>Sets · '+_pubKpiSets.sentence+'</span></div>');
+      else if (_pubKpiSets) kh.push('<div class="sc-kpi k-set"><b>'+_pubKpiSets.sentence+'</b><span>Sets</span></div>');
+      else if (_fsk && _fsk.totalPieces)
         kh.push('<div class="sc-kpi k-set"><b>'+_fsk.havePieces+'/'+_fsk.totalPieces+'</b><span>Sets</span></div>');
     } catch(e){}
     try { kh.push('<div class="sc-kpi"><b>'+((typeof mf!=='undefined')?mf:(window.LSR.getItem('d2r_mf')||'0'))+'%</b><span>MF</span></div>'); } catch(e){}
@@ -73142,7 +73226,13 @@ try { document.querySelectorAll('.tz-zone-card .tz-zone-tier').forEach(function(
 window._mainPeeks = function(){
   try {
     var gp = document.getElementById('grail-peek');
-    if (gp && typeof window.funiScan === 'function'){
+    var _pubPeek = (typeof window._publishedLane === 'function') ? window._publishedLane('uniques') : null;
+    if (gp && _pubPeek) {
+      if (_pubPeek.show) {
+        var pctP = _pubPeek.show.total ? Math.round(_pubPeek.show.have / _pubPeek.show.total * 100) : 0;
+        gp.innerHTML = '<b>'+_pubPeek.show.have+'/'+_pubPeek.show.total+'</b><span class="pk-track"><span class="pk-fill" style="width:'+pctP+'%"></span></span><span class="pk-dim">'+_pubPeek.sentence+'</span>';
+      } else gp.textContent = _pubPeek.sentence;
+    } else if (gp && typeof window.funiScan === 'function'){
       var fs3 = window.funiScan(); var tot = window.d2rChronTotal(fs3);
       var pct = tot ? Math.round(fs3.found / tot * 100) : 0;
       gp.innerHTML = '<b>'+fs3.found+'/'+tot+'</b><span class="pk-track"><span class="pk-fill" style="width:'+pct+'%"></span></span><span class="pk-dim">'+pct+'%</span>';
@@ -82753,7 +82843,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     var rows = row && row.sections && row.sections.characters && row.sections.characters.rows;
     var out = [];
     if (!Array.isArray(rows)) return out;
-    rows.forEach(function (r) { if (r && r.sets) out.push(r); });
+    rows.forEach(function (r) { if (r && typeof r.name === 'string' && r.name) out.push(r); });
     return out;
   }
   function storeOf(builds) {

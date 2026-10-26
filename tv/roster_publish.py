@@ -36,7 +36,7 @@ HOUR_MS = 3600 * 1000
 DAY_CAP = 25
 
 _ROW_KEYS = ("name", "cls", "level", "title", "tier", "mule", "locker",
-             "looks", "evidence", "date", "station", "provenance")
+             "looks", "evidence", "date", "station", "provenance", "lane")
 _INT_KEYS = ("level", "looks", "date", "x", "y", "w", "h")
 _BUILD_SLOTS = ("head", "neck", "tors", "rarm", "larm", "rrin", "lrin", "belt", "feet", "glov")
 
@@ -376,14 +376,71 @@ def stash_rows_of(book):
     return rows
 
 
-def chronicle_read(tally, now_ms):
-    """Counts only, from a tally that did not fail. No name list.
+def _list_names(raw, limit=400):
+    """Names from a store that was read. None means it was not read.
+
+    A dict's keys are the names (found log, runewords made). A list is strings or
+    {name}. An empty list is a read that found nothing, and it is not published as
+    rows: an empty rows array does not survive the shaper, so it cannot mean zero.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        src = list(raw.keys())
+    elif isinstance(raw, list):
+        src = []
+        for item in raw:
+            if isinstance(item, str):
+                src.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("name"), str):
+                src.append(item["name"])
+    else:
+        return None
+    names = []
+    seen = set()
+    for name in src:
+        text = _short_text(name, 80)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        names.append(text)
+        if len(names) >= limit:
+            break
+    return names
+
+
+def chronicle_rows(lists):
+    """Found-item name rows. None means no list was read. An empty lane is not a row.
+
+    The names travel on the chronicle section of the same roster post. A lane that
+    was not read stays absent, so a reader cannot treat it as found-zero.
+    """
+    if not isinstance(lists, dict):
+        return None
+    rows = []
+    for lane in ("uniques", "sets", "runewords"):
+        names = lists.get(lane)
+        if names is None:
+            continue
+        cleaned = _list_names(names)
+        if not cleaned:
+            continue
+        for name in cleaned:
+            rows.append({"lane": lane, "name": name})
+    return rows or None
+
+
+def chronicle_read(tally, now_ms, lists=None):
+    """Counts from a tally that did not fail, plus name rows when those stores were read.
 
     REG-2200 (#94): this REQUIRED ok:true, but a banked board_tally.json (written by
     board_tally_merge, read via board_tally_load) carries the owner's sets/uniques/runewords with
     NO 'ok' key — so every PC's chronicle came back None and NO PC ever published its progress. A
     failed read (`{ok: False, why: ...}`) still has no counts and is refused below; an explicit
     ok:False is refused here. The counts themselves are the read; a missing 'ok' is not a failure.
+
+    lists is the three found-item stores, or None when they were not read. A missing
+    list does not become an empty rows array. Names that were read ride this same section.
     """
     if not isinstance(tally, dict) or tally.get("ok") is False:
         return None
@@ -404,7 +461,36 @@ def chronicle_read(tally, now_ms):
     at = tally.get("at")
     if isinstance(at, bool) or not isinstance(at, int) or at <= 0:
         at = now_ms
-    return {"read": True, "asOf": at, "counts": counts}
+    out = {"read": True, "asOf": at, "counts": counts}
+    rows = chronicle_rows(lists)
+    if rows:
+        out["rows"] = rows
+        out["allow"] = ("lane", "name")
+    return out
+
+
+def chronicle_within(sections, limit=60000):
+    """Drop chronicle name rows when the packed sections would not fit the row cap.
+
+    The counts stay. A list that cannot travel is absent, which the reader says,
+    rather than refusing the whole publish.
+    """
+    if not isinstance(sections, dict) or not isinstance(limit, int) or limit < 1:
+        return sections
+    try:
+        size = len(packed(sections).encode("utf-8"))
+    except Exception:
+        return sections
+    if size <= limit:
+        return sections
+    chron = sections.get("chronicle")
+    if not isinstance(chron, dict) or "rows" not in chron:
+        return sections
+    shrunk = dict(sections)
+    chron = dict(chron)
+    chron.pop("rows", None)
+    shrunk["chronicle"] = chron
+    return shrunk
 
 
 def reels_read(names, stamps, station_counts, now_ms):
