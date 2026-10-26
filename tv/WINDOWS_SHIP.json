@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3797",
+  "ver": "v3798",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3797: frames hist sheds above 8 GiB so the newest frames stay",
+  "note": "v3798: Leave takes the click, and Escape in a shadow frame asks the console to leave.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
