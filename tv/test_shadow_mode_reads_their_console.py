@@ -860,7 +860,11 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(got["foundKeys"], ["Shako"])
         self.assertEqual(got["pieces"], ["Tal Rasha"])
         self.assertIs(got["wroteRw"], False, "an empty runeword name was stored as a made word")
-        self.assertEqual(got["namedProgress"], {"runewords": {"have": 0, "total": 99, "listed": False}})
+        self.assertEqual(got["namedProgress"], {
+            "uniques": {"have": 52, "total": 403, "listed": True},
+            "sets": {"have": 4, "total": 135, "listed": True},
+            "runewords": {"have": 0, "total": 99, "listed": False},
+        })
         self.assertEqual(got["altName"], "AltOne")
         self.assertIs(got["altSets"], False)
         self.assertEqual(got["keptName"], "keep")
@@ -868,7 +872,7 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("uniques", got["keptProgress"])
         self.assertEqual(got["filledName"], "AltOne")
         self.assertEqual(got["filledFound"], ["Shako"])
-        self.assertEqual(got["filledProgress"], ["runewords"])
+        self.assertEqual(got["filledProgress"], ["uniques", "sets", "runewords"])
         self.assertIsNone(got["own"], "his own board, with no published blob, was given a shadow total")
         self.assertIsNone(got["uni0"]["show"], "have 0 with no list was painted as 0")
         self.assertEqual(got["uni0"]["sentence"], "the list wasn't sent")
@@ -1244,6 +1248,132 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(got["paintedPublished"], mac)
         for key in ("listed", "published", "none", "scanned", "paintedLists", "paintedPublished"):
             self.assertNotIn("0/", got[key], key)
+
+    def test_a_shadow_hub_counts_that_pc_and_not_the_found_log_length(self):
+        """A shadow line counts that PC. The found log is longer than the chronicle.
+
+        400 unique names beside a published 332 must paint 332, the number the pages
+        already show. The found-log length is not a uniques count. A PC that sent no
+        names keeps its published totals. have 0 stays the sentence and never paints 0.
+        This PC's own forge summary must not appear on the line.
+        """
+        if not NODE:
+            raise AssertionError("node is absent - the shadow chronicle line cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        roster = ui[ui.index("  window._shadowRosterStores = function (row, fleet, owner) {"):ui.index("  window._shadowEnter = function (owner) {")]
+        count = _js_fn(ui, "function _listCount(raw) {")
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress, lists) {")
+        paint = _js_fn(ui, "function _paintChronicle(summary) {")
+        forge = _js_fn(ui, "function hdForge(){")
+        js = "var window = globalThis;\nvar _hdForgeSig = '';\n" + roster + "\n" + count + "\n" + counts + "\n" + paint + "\n" + forge + r"""
+window._fleetRosterOwner = function (m) {
+  var nick = String((m && m.nickname) || '').trim();
+  if (nick === 'Mac') return 'Mac';
+  if (nick === 'Alt') return 'Alt';
+  if (nick === 'Dean') return 'Dean';
+  return '';
+};
+function rows(lane, n) {
+  var out = [];
+  for (var i = 0; i < n; i++) out.push({ lane: lane, name: lane + '-' + i });
+  return out;
+}
+function row(counts, nameRows) {
+  var chron = { counts: counts };
+  if (nameRows) chron.rows = nameRows;
+  return { published: true, sections: { chronicle: chron } };
+}
+var fleet = { me: 'viewer', offline: [
+  { nickname: 'Mac', platform: 'mac', machine: 'mac-host' },
+  { nickname: 'Alt', platform: 'windows', machine: 'alt-host' },
+  { nickname: 'Dean', platform: 'windows', machine: 'dean-host' }
+]};
+var macBuilt = window._shadowRosterStores(row({
+  runewords: { have: 99, total: 99 },
+  sets: { have: 135, total: 135 },
+  uniques: { have: 332, total: 403 }
+}, rows('runewords', 99).concat(rows('sets', 135), rows('uniques', 400))), fleet, 'Mac');
+var altBuilt = window._shadowRosterStores(row({
+  runewords: { have: 0, total: 99 },
+  sets: { have: 4, total: 135 },
+  uniques: { have: 52, total: 403 }
+}, null), fleet, 'Alt');
+var deanBuilt = window._shadowRosterStores(row({
+  runewords: { have: 98, total: 99 },
+  sets: { have: 132, total: 135 },
+  uniques: { have: 0, total: 403 }
+}, null), fleet, 'Dean');
+var el = { textContent: '' };
+var chips = { innerHTML: '' };
+var when = { textContent: '' };
+var hostReads = 0;
+function lsHub() { hostReads++; return JSON.stringify({ chron: { made: 7, total: 99 } }); }
+var classes = { 'shadow-hub': true };
+var document = {
+  body: { classList: { contains: function (c) { return !!classes[c]; } } },
+  getElementById: function (id) {
+    if (id === 'hd-chron-counts') return el;
+    if (id === 'hd-forge-chips') return chips;
+    if (id === 'hd-forge-when') return when;
+    return null;
+  }
+};
+var hostSummary = { chron: { made: 7, total: 99 }, sets: { found: 7, total: 135 }, grail: { found: 7, total: 403 } };
+function paintOf(built) {
+  window._tvdShadowSnap = { stores: built.stores };
+  el.textContent = '';
+  chips.innerHTML = 'stale';
+  _hdForgeSig = 'stale';
+  hdForge();
+  return { line: el.textContent, chips: chips.innerHTML };
+}
+var macPaint = paintOf(macBuilt);
+var altPaint = paintOf(altBuilt);
+var deanPaint = paintOf(deanBuilt);
+window._tvdShadowSnap = null;
+el.textContent = '';
+chips.innerHTML = 'stale';
+_hdForgeSig = 'stale';
+hdForge();
+var noSnap = el.textContent;
+var noSnapChips = chips.innerHTML;
+var macFound = macBuilt.stores.d2r_foundLog ? Object.keys(JSON.parse(macBuilt.stores.d2r_foundLog)).length : 0;
+var macProg = macBuilt.stores.d2r_shadowProgress ? JSON.parse(macBuilt.stores.d2r_shadowProgress) : null;
+process.stdout.write(JSON.stringify({
+  macFound: macFound,
+  macProg: macProg,
+  macLine: macPaint.line,
+  altLine: altPaint.line,
+  deanLine: deanPaint.line,
+  macChips: macPaint.chips,
+  altChips: altPaint.chips,
+  noSnap: noSnap,
+  noSnapChips: noSnapChips,
+  hostReads: hostReads
+}));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        dot = " \u00b7 "
+        mac = "Runewords 99/99" + dot + "Sets 135/135" + dot + "Uniques 332/403"
+        self.assertEqual(got["macFound"], 400, got)
+        self.assertEqual(got["macProg"], {
+            "runewords": {"have": 99, "total": 99, "listed": True},
+            "sets": {"have": 135, "total": 135, "listed": True},
+            "uniques": {"have": 332, "total": 403, "listed": True},
+        }, got)
+        self.assertEqual(got["macLine"], mac, got)
+        self.assertNotIn("400/", got["macLine"], got)
+        self.assertEqual(got["macChips"], "", got)
+        self.assertEqual(got["altLine"], "Sets 4/135" + dot + "Uniques 52/403" + dot + "the list wasn\u2019t sent", got)
+        self.assertIn("the list wasn\u2019t sent", got["altChips"], got)
+        self.assertEqual(got["deanLine"], "Runewords 98/99" + dot + "Sets 132/135" + dot + "the list wasn\u2019t sent", got)
+        self.assertNotIn("7/", got["macLine"] + got["altLine"] + got["deanLine"] + got["noSnap"], got)
+        self.assertNotIn("0/", got["macLine"] + got["altLine"] + got["deanLine"] + got["noSnap"], got)
+        self.assertEqual(got["hostReads"], 0, got)
+        self.assertEqual(got["noSnap"], "", got)
+        self.assertIn("the list wasn\u2019t sent", got["noSnapChips"], got)
 
     def test_the_hub_reads_the_frame_and_never_this_pc(self):
         if not NODE:

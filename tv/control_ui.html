@@ -24009,7 +24009,7 @@ window._lockMark = function(isOpen, px, label){
       var row = progress && progress[spec[0]];
       if (!row || typeof row !== 'object' || Array.isArray(row)) row = null;
       var total = (block && whole(block[spec[4]], 1)) ? block[spec[4]]
-        : (row && row.listed !== true && whole(row.total, 1) ? row.total : null);
+        : (row && whole(row.total, 1) ? row.total : null);
       if (block && whole(block[spec[4]], 1) && whole(block[spec[3]], 1)) {
         parts.push(spec[1] + ' ' + block[spec[3]] + '/' + block[spec[4]]);
         return;
@@ -24019,7 +24019,13 @@ window._lockMark = function(isOpen, px, label){
         parts.push(spec[1] + ' ' + fromList + '/' + total);
         return;
       }
-      if (row && row.listed !== true && whole(row.have, 1) && whole(row.total, 1)) {
+      /* Uniques use the published chronicle count even when the names were
+         sent. The found log's length is a different question. Sets and
+         runewords still prefer the sent list, and a listed row with no list
+         in hand does not borrow the published have. */
+      var published = row && whole(row.have, 1) && whole(row.total, 1)
+        && (row.listed !== true || spec[0] === 'uniques');
+      if (published) {
         parts.push(spec[1] + ' ' + row.have + '/' + row.total);
         return;
       }
@@ -24031,13 +24037,28 @@ window._lockMark = function(isOpen, px, label){
     return line;
   }
   function _paintChronicle(summary) {
+    var shadow = !!(document.body && document.body.classList && document.body.classList.contains('shadow-hub'));
+    var snapStores = {};
+    if (shadow) {
+      /* The snap is the shadowed PC. The frame's storage is this PC's until
+         the board isolates it, so a shadow never asks lsHub for this line. */
+      var snap = window._tvdShadowSnap;
+      if (snap && snap.stores && typeof snap.stores === 'object') snapStores = snap.stores;
+      var snapSummary = null;
+      try { snapSummary = snapStores.d2r_forgeSummary ? JSON.parse(snapStores.d2r_forgeSummary) : null; } catch (eSnap) { snapSummary = null; }
+      summary = snapSummary;
+    }
+    function readHub(key) {
+      if (!shadow) return null;
+      return Object.prototype.hasOwnProperty.call(snapStores, key) ? snapStores[key] : null;
+    }
     var progress = null;
-    try { progress = JSON.parse(lsHub('d2r_shadowProgress') || 'null'); } catch (eP) { progress = null; }
+    try { progress = JSON.parse((shadow ? readHub('d2r_shadowProgress') : lsHub('d2r_shadowProgress')) || 'null'); } catch (eP) { progress = null; }
     if (!progress || typeof progress !== 'object' || Array.isArray(progress)) progress = null;
     var lists = {
-      runewords: _listCount(lsHub('d2r_rwMade')),
-      sets: _listCount(lsHub('d2r_setPieces')),
-      uniques: _listCount(lsHub('d2r_foundLog'))
+      runewords: _listCount(shadow ? readHub('d2r_rwMade') : lsHub('d2r_rwMade')),
+      sets: _listCount(shadow ? readHub('d2r_setPieces') : lsHub('d2r_setPieces')),
+      uniques: shadow ? null : _listCount(lsHub('d2r_foundLog'))
     };
     var line = _chronicleCounts(summary, progress, lists);
     var el = document.getElementById('hd-chron-counts');
@@ -24046,14 +24067,30 @@ window._lockMark = function(isOpen, px, label){
   var _hdForgeSig = '';
   function hdForge(){
     try {
-      var raw = lsHub('d2r_forgeSummary');
-      var craftRaw = lsHub('d2r_craftReady');
+      var shadowForge = !!(document.body && document.body.classList && document.body.classList.contains('shadow-hub'));
+      var raw = null, craftRaw = null;
+      if (shadowForge) {
+        var snapForge = window._tvdShadowSnap;
+        var snapForgeStores = (snapForge && snapForge.stores && typeof snapForge.stores === 'object') ? snapForge.stores : {};
+        raw = Object.prototype.hasOwnProperty.call(snapForgeStores, 'd2r_forgeSummary') ? snapForgeStores.d2r_forgeSummary : null;
+        craftRaw = Object.prototype.hasOwnProperty.call(snapForgeStores, 'd2r_craftReady') ? snapForgeStores.d2r_craftReady : null;
+      } else {
+        raw = lsHub('d2r_forgeSummary');
+        craftRaw = lsHub('d2r_craftReady');
+      }
       var summary = null;
       try { summary = raw ? JSON.parse(raw) : null; } catch (eS) { summary = null; }
       _paintChronicle(summary);
       if (!raw && !craftRaw) {
-        if (document.body.classList.contains('shadow-hub')) {
-          var _blank = '<span class="hd-empty">the list wasn\u2019t sent</span>';
+        if (shadowForge) {
+          /* The chronicle sentence lives on #hd-chron-counts. The chips repeat
+             it only when that line has nothing else to say. A sent chronicle
+             must not sit above a second copy of the sentence. */
+          var chronEl = document.getElementById('hd-chron-counts');
+          var chronText = chronEl ? String(chronEl.textContent || '') : '';
+          var _blank = (!chronText || chronText.indexOf('\u2019') !== -1)
+            ? '<span class="hd-empty">the list wasn\u2019t sent</span>'
+            : '';
           if (_blank !== _hdForgeSig) {
             _hdForgeSig = _blank;
             var _box = document.getElementById('hd-forge-chips');
@@ -28036,9 +28073,12 @@ function escC(s) {
     var made = namesOf(chron.rows, 'runewords');
     var progress = {};
     function note(key, list) {
-      if (list.length) return;
       var pair = pairFor(key);
-      if (pair) progress[key] = pair;
+      if (!pair) return;
+      /* A sent name list still keeps the published chronicle total. The found
+         log is longer than that total, so the total has to travel beside it. */
+      if (list.length) pair.listed = true;
+      progress[key] = pair;
     }
     note('uniques', found);
     note('sets', pieces);
@@ -28262,7 +28302,13 @@ function escC(s) {
       try { prog = JSON.parse(add.d2r_shadowProgress) || {}; } catch (e) { prog = {}; }
       var keep = {};
       [['uniques', 'd2r_foundLog'], ['sets', 'd2r_setPieces'], ['runewords', 'd2r_rwMade']].forEach(function (pair) {
-        if (window._shadowStoreEmpty(stores[pair[1]]) && prog[pair[0]]) keep[pair[0]] = prog[pair[0]];
+        var row = prog[pair[0]];
+        if (!row) return;
+        /* An empty name store keeps the published total. A sent list keeps it
+           too, marked listed, so the hub can count the chronicle and the page
+           can still count the names. A counts-only total does not cover a
+           snapshot that already has the names. */
+        if (window._shadowStoreEmpty(stores[pair[1]]) || row.listed === true) keep[pair[0]] = row;
       });
       if (Object.keys(keep).length) stores.d2r_shadowProgress = JSON.stringify(keep);
     }
