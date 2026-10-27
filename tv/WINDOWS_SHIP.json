@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3810",
+  "ver": "v3811",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3810: A memory stand-aside names its gates. A ctime proof is judged only where ctime moves.",
+  "note": "v3811: Space never flips your ON AIR from a shadow. An unknown census holds no proof back.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
