@@ -574,8 +574,8 @@ function collect(records){
 delete assign['Zzyzx Blade of Nothing'];
 var fromInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'inventory', cell: 'inventory:c0r2' } }]);
 var fromEquip = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'equipped', cell: 'equipped:weapon' } }]);
-var fromUnknown = collect([{ name: 'Zzyzx Blade of Nothing', copyIx: 0, sight: { location: 'stash', cell: 'stash:c1r1' } }]);
-var fromUnknownPlain = collect([{ name: 'Mystery Blade', copyIx: 0, sight: { location: 'stash', cell: 'stash:c2r2' } }]);
+var fromUnknown = collect([{ name: 'Zzyzx Blade of Nothing', copyIx: 0, sight: { location: 'stash', cell: 'stash:c1r1', witnesses: 1 } }]);
+var fromUnknownPlain = collect([{ name: 'Mystery Blade', copyIx: 0, sight: { location: 'stash', cell: 'stash:c2r2', witnesses: 1 } }]);
 assign['Zzyzx Blade of Nothing'] = '__throwout';
 window._seam = { loc: 'loose' };
 var fromRuled = collect([{ name: 'Zzyzx Blade of Nothing', copyIx: 0, sight: { location: 'stash', cell: 'stash:c1r1' } }]);
