@@ -20,6 +20,16 @@ the vault does not) sent any not-ok answer to vaultFailed, so a held row read as
 same pending bucket now (a second red-proof). And v712's vault-mirror spec is brought to his #202 ruling: one read (with
 its session, as a real read carries) holds Harlequin Crest, a socketed base and a RotW custom as seen-once, not owned; a
 second session's look registers each, and every stashed class then lands VISIBLE - the guarantee it was written for.
+### REG-2703 - A THROW OUT PICK READ AS "A MULE THE BOARD CAN'T FIND", AND SUPERIOR BASES WERE REFUSED (#154.20, #154.18)
+GrokBot's vault sweep, re-checked against the code at v3816:
+1. #154.20 - a name assigned '__throwout' fell through the records model to orphan, so the header said it was "filed to a mule
+   the board can't find". It is loose and off the dock - the seam's own discard rule (_vaultSeamHome: a junk route is loose)
+   - and REG-2697 counts it under looseThrow. test_v3764_records_classification_parity pinned it as orphan; its own guard
+   was "a throw-out was filed", which still holds (loose, no mule).
+2. #154.18 - + Add an item peeled only Eth/Ethereal off a typed base, so 'Superior Archon Plate' found no catalogue base and
+   was refused. Superior is the same kind of word, named 'Superior <base>' everywhere else on this board: up to two of
+   them come off (either order) and go back on the owned name as typed ('superior eth thresher' -> Superior Eth Thresher).
+Laws: test_v3764_records_classification_parity, test_the_vault_doors_take_only_what_is_his (a red-proof each, seen RED).
 
 ### REG-2702 - A READ THAT CARRIED ITS LOOKS AS `witnesses` SKIPPED HIS TWO-SESSION RULE (#202, caught by v3817's CI run)
 REG-2686 held a read of a name he does not own until a second session, but its "is this a read" test knew only `sessions`,

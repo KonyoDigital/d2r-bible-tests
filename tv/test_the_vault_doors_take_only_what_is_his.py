@@ -42,7 +42,7 @@ BODY = r"""
 var W = window;
 function add(n){ var r = W.vaultHandAdd(n); return r ? { ok: !!r.ok, name: r.name || null, refused: r.refused || null } : null; }
 OUT.ghost = ['Minor Healing Potion', 'Jewel', 'Grand Charm', "Khalim's Eye", 'Ber Rune', "Diablo's Horn"].map(add);
-OUT.bases = ['Monarch', 'Ethereal Monarch', 'eth thresher'].map(add);
+OUT.bases = ['Monarch', 'Ethereal Monarch', 'eth thresher', 'Superior Archon Plate', 'superior eth thresher'].map(add);
 OUT.cases = ['Grief', 'GRIEF', 'grief', 'SHAKO', 'Shako'].map(add);
 OUT.apos = ['Nightwings Veil', 'Halaberds Reign'].map(add);
 OUT.owned = Array.from(owned).sort();
@@ -99,7 +99,9 @@ class TheVaultDoorsTakeOnlyWhatIsHis(unittest.TestCase):
         for r in o["ghost"]:
             self.assertFalse(r["ok"], "a ghost item was added as owned (#144.1+8): %r" % r)
             self.assertEqual(r["refused"], "not-drawn", r)
-        self.assertEqual([r["name"] for r in o["bases"]], ["Monarch", "Ethereal Monarch", "Eth Thresher"], o["bases"])
+        self.assertEqual([r["name"] for r in o["bases"]],
+                         ["Monarch", "Ethereal Monarch", "Eth Thresher", "Superior Archon Plate", "Superior Eth Thresher"],
+                         "#154.18 - a Superior base was refused or misnamed: %r" % o["bases"])
         self.assertTrue(all(r["ok"] for r in o["bases"]), "PREMISE: a real base no longer adds: %r" % o["bases"])
         for g in ("Minor Healing Potion", "Jewel", "Grand Charm", "Ber Rune"):
             self.assertNotIn(g, o["owned"])
@@ -184,6 +186,11 @@ RED_PROOF = [
     {"why": "Grok v3815 - a Shared filing that throws keeps the new override again",
      "file": "bible.html", "find": "    } catch(e){ if (_ovSet) { try { _setShareOverride(name, _ov0); } catch (e2) {} } /* Grok v3815 - a filing that throws moved nothing */ }\n",
      "replace": "    } catch(e){}\n", "matches": 1, "needs": "node"},
+    {"why": "#154.18 - Superior is not peeled off a typed base again, so 'Superior Archon Plate' is refused",
+     "file": "bible.html",
+     "find": "  var _VH_QUAL = /^(eth|ethereal|superior)\\s+/i;\n",
+     "replace": "  var _VH_QUAL = /^(eth|ethereal)\\s+/i;\n",
+     "matches": 1, "needs": "node"},
 ]
 
 if __name__ == "__main__":

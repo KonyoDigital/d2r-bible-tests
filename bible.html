@@ -46075,12 +46075,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      base. */
   function _vaultHandGear(r){ return r[21] !== 'm' && r[1] !== 'tpot' && r[20] !== 0; }
   /* #148.2 - the catalogue's spelling of a typed base, its Eth / Ethereal prefix kept as he typed it */
+  /* #154.18 (GrokBot's vault sweep) - 'Superior Archon Plate' was refused: only Eth/Ethereal were peeled off before the
+     catalogue lookup. Superior is the same kind of word - a quality on a base, named 'Superior <base>' everywhere else on
+     this board - so up to two of them come off (either order) and go back on the owned name as typed. */
+  var _VH_QUAL = /^(eth|ethereal|superior)\s+/i;
+  function _vaultHandQuals(typed){
+    var t = String(typed == null ? '' : typed).trim(), pre = [], m;
+    while (pre.length < 2 && (m = _VH_QUAL.exec(t))) { pre.push(m[1].toLowerCase()); t = t.slice(m[0].length); }
+    return { pre: pre, rest: t };
+  }
   function _vaultHandBaseName(typed, base){
-    var m = /^(eth|ethereal)\s+/i.exec(String(typed || '').trim());
-    return (m ? (m[1].toLowerCase() === 'eth' ? 'Eth ' : 'Ethereal ') : '') + base;
+    var words = { eth: 'Eth', ethereal: 'Ethereal', superior: 'Superior' };
+    return _vaultHandQuals(typed).pre.map(function(w){ return words[w] + ' '; }).join('') + base;
   }
   function _vaultHandBase(name){
-    var n = String(name == null ? '' : name).trim().replace(/^(eth|ethereal)\s+/i, '').toLowerCase();
+    var n = _vaultHandQuals(name).rest.toLowerCase();
     if (!n) return null;
     var db = null;
     try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
@@ -53764,6 +53773,10 @@ window.vaultAutoAssign = function(){
         else if (mid === '__keep') kind = 'keep';                  // standing kit kept with MAIN — a legit non-mule home
         else if (sharedSet[name]) kind = 'sharedStash';
         else if (mid != null && mid !== '__throwout' && typeof muleById === 'function' && muleById(mid)) kind = 'filed';
+        /* #154.20 (GrokBot's vault sweep) - a THROW OUT pick fell through to orphan, and the header said it was "filed to a mule
+           the board can't find". It is loose and off the dock - the seam's own discard rule (_vaultSeamHome: a junk route is
+           loose) - and REG-2697 counts it under looseThrow. */
+        else if (mid === '__throwout') kind = 'loose';
         else if (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(name)))
           kind = 'keepInv';                                        // Anni/Torch/Gheed's drawn with MAIN — a kept charm with no mule is NOT an orphan
         else { kind = 'orphan'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }
