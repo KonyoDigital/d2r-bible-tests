@@ -44,7 +44,7 @@ FNS = [
     "_vaultRehomeCopies", "_vaultReconcileHomes",
     "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_vaultMisfiled", "_vaultWarSmall", "_vaultWarKeeper", "_vaultWarExtra", "_vaultWarRole", "_vaultWarMules",
-    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandGear", "_vaultHandBase", "_vaultHandBasePool",
+    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandGear", "_vaultHandQuals", "_vaultHandBase", "_vaultHandBasePool",
     "_vaultIntakeOwned", "_vaultSightLooks",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
@@ -198,6 +198,8 @@ def move_bundle(src):
     reload_owned = _assigned(src, r"window\._vaultReloadOwned\s*=\s*function\(")
     # REG-2690 - _vaultCellOk reads the page's own grid sizes, never a copy of them
     grid = re.search(r"  var MULE_STASH_W = [^\n]*\n  var MULE_INV_W = [^\n]*\n", src).group(0)
+    # REG-2703 - the hand door peels its quality words with the page's own _VH_QUAL, never a copy of it
+    grid += re.search(r"  var _VH_QUAL = [^\n]*\n", src).group(0)
     return "\n".join(
         [grid, lane, kit, looks, evidence, register, reload_owned, look_rule(src)] + [_fn(src, n) for n in FNS] + [TAIL])
 
