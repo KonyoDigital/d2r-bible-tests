@@ -68794,7 +68794,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
                      seen: L.visits | 0, pendingLevel: L.pendingLevel || null,
                      tier: L.tier || null, looks: (typeof L.looks === 'number') ? L.looks : null,
                      trials: (typeof L.trials === 'number') ? L.trials : null, title: L.title || null,
-                     lastTs: (typeof L.lastTs === 'number') ? L.lastTs : null });
+                     lastTs: (typeof L.lastTs === 'number') ? L.lastTs : null,
+                     /* #211 - the spellings the learner merged into this character: a build made from one still finds it */
+                     alias: (Array.isArray(L.aliases) ? L.aliases : []).map(function(a){ return 'seen:' + _cbFold(a && a.name); }) });
         }
       });
     } catch (e) {}
@@ -68835,6 +68837,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
          matched EITHER, so a build NAMED like one character but MADE from another went to whichever the roster listed
          first. The build's own link (b.from) is asked across every template first; its name only when no link holds. */
       if (b.from) groups.forEach(function(x){ if (!g && b.from === x.t.key) g = x; });
+      if (!g && b.from) groups.forEach(function(x){ if (!g && (x.t.alias || []).indexOf(b.from) >= 0) g = x; });   /* #211 */
       if (!g && fk) groups.forEach(function(x){ if (!g && fk === _cbFold(x.t.name)) g = x; });
       if (g) g.ids.push(id); else sim.push(id);
     });

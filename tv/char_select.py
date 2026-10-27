@@ -578,13 +578,92 @@ def proof(d, c):
             "bound": round(b, 3) if isinstance(b, float) else None, "why": got.get("why") or ""}
 
 
+def _cls_winner(c):
+    votes = {k: len(set(v)) for k, v in ((c or {}).get("cls") or {}).items()}
+    if not votes:
+        return None
+    best = max(votes.values())
+    w = [k for k, n in votes.items() if n == best]
+    return w[0] if len(w) == 1 else None
+
+
+def _merge_groups(d):
+    """#211 (the ALT's 45 'characters') - SPELLING VARIANTS OF ONE CHARACTER ARE ONE CHARACTER. -> {head key: [keys]}
+
+    The reader misspells a name now and then (Konylock, Konyblock for Konyolock); every spelling folded to its own key and
+    each with 2 visits became its own learned character, while the visits it was read under counted as MISSES against
+    the real one. Read-time only - the ledger is never rewritten. A key joins a head when chronicle_resolve.canonical (the
+    chronicle's own near-name rule: NEAR_CUTOFF, AMBIGUITY_GAP) names that head, both carry the same winning class, and
+    NO visit ever read both - two names on one screen are two characters. Heads are taken most-visited first."""
+    chars = (d or {}).get("chars") or {}
+    try:
+        import chronicle_resolve as _cr
+    except Exception:
+        return {k: [k] for k in chars}
+    order = sorted(chars, key=lambda k: (-len((chars[k] or {}).get("visitLevel") or {}),
+                                         (chars[k] or {}).get("firstTs") or 0, k))
+    groups, seen_by, heads = {}, {}, []
+    for k in order:
+        c = chars[k] or {}
+        mine = set(c.get("visitLevel") or {})
+        kc = _cls_winner(c)
+        h = None
+        if heads and kc is not None:
+            roster = {_cr._norm(_shown(chars[x]) or x): x for x in heads}
+            h = _cr.canonical(_shown(c) or k, roster)
+        if h and h != k and _cls_winner(chars[h]) == kc and not (mine & seen_by[h]):
+            groups[h].append(k)
+            seen_by[h] |= mine
+        else:
+            heads.append(k)
+            groups[k] = [k]
+            seen_by[k] = set(mine)
+    return groups
+
+
+def _merged(chars, keys):
+    """One record for a head and its variants: visits, class votes, titles unioned; first/last seen spanned; the head's
+    own spelling vote. -> dict"""
+    if len(keys) == 1:
+        return chars[keys[0]]
+    head = chars[keys[0]] or {}
+    m = {"name": head.get("name"), "forms": dict(head.get("forms") or {}), "cls": {}, "visitLevel": {}, "titles": {},
+         "firstTs": None, "lastTs": None}
+    firsts, lasts = [], []
+    for k in keys:
+        c = chars[k] or {}
+        for cl, vs in (c.get("cls") or {}).items():
+            per = m["cls"].setdefault(cl, [])
+            for v in vs or []:
+                if v not in per:
+                    per.append(v)
+        for v, lv in (c.get("visitLevel") or {}).items():
+            prev = m["visitLevel"].get(v)
+            m["visitLevel"][v] = lv if prev is None else (prev if lv is None else min(prev, lv))
+        for t, n in (c.get("titles") or {}).items():
+            m["titles"][t] = int(m["titles"].get(t) or 0) + int(n or 0)
+        if isinstance(c.get("firstTs"), (int, float)) and not isinstance(c.get("firstTs"), bool):
+            firsts.append(c["firstTs"])
+        if isinstance(c.get("lastTs"), (int, float)) and not isinstance(c.get("lastTs"), bool):
+            lasts.append(c["lastTs"])
+    m["firstTs"] = min(firsts) if firsts else None
+    m["lastTs"] = max(lasts) if lasts else None
+    return m
+
+
 def learned(d, min_visits=MIN_VISITS):
     """The characters the reels have witnessed enough: [{name, key, cls, level, pendingLevel, visits, title,
-    lastTs, tier, looks, trials, bound}], highest level first. None when the ledger is UNKNOWN."""
+    lastTs, tier, looks, trials, bound}], highest level first. None when the ledger is UNKNOWN.
+
+    #211 - spelling variants of one character are merged first (_merge_groups); a merged row names its variants in
+    `aliases` [{key, name, visits}] so a build linked to one still finds it, and the merge is never silent."""
     if d is None:
         return None
     out = []
-    for key, c in (d.get("chars") or {}).items():
+    _chars = d.get("chars") or {}
+    _groups = _merge_groups(d)
+    for key, _members in _groups.items():
+        c = _merged(_chars, _members)
         visits = sorted(c.get("visitLevel") or {})
         if len(visits) < min_visits:
             continue
@@ -600,10 +679,14 @@ def learned(d, min_visits=MIN_VISITS):
         pending = seen[0] if seen and (level is None or seen[0] > level) else None
         titles = c.get("titles") or {}
         p = proof(d, c)
-        out.append({"name": _shown(c), "key": key, "cls": winners[0], "level": level, "pendingLevel": pending,
-                    "visits": len(visits), "title": (max(titles, key=titles.get) if titles else None),
-                    "lastTs": c.get("lastTs"), "tier": p["tier"], "looks": p["looks"], "trials": p["trials"],
-                    "misses": p["misses"], "bound": p["bound"], "tierWhy": p["why"]})
+        row = {"name": _shown(c), "key": key, "cls": winners[0], "level": level, "pendingLevel": pending,
+               "visits": len(visits), "title": (max(titles, key=titles.get) if titles else None),
+               "lastTs": c.get("lastTs"), "tier": p["tier"], "looks": p["looks"], "trials": p["trials"],
+               "misses": p["misses"], "bound": p["bound"], "tierWhy": p["why"]}
+        if len(_members) > 1:
+            row["aliases"] = [{"key": k, "name": _shown(_chars[k]), "visits": len((_chars[k] or {}).get("visitLevel") or {})}
+                              for k in _members[1:]]
+        out.append(row)
     out.sort(key=lambda r: (-(r["level"] or 0), str(r["name"]).lower()))
     return out
 

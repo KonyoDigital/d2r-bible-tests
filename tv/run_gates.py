@@ -12045,6 +12045,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_impossible_cell_is_never_a_move.py")], 300,
          needs_app=False,
          why='REG-2690 (#153.7, GrokBot) - a sighting at stash:c99r99 became a move; a grid cell must sit inside its grid (MULE_* constants).'),
+    Gate("test_spelling_variants_are_one_character",
+         [sys.executable, os.path.join(HERE, "test_spelling_variants_are_one_character.py")], 300,
+         needs_app=False,
+         why='#211 - a misspelled name read twice is not a second character: variants merge at read time, never across classes or one screen'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

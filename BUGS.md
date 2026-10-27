@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2692 - EVERY SPELLING OF A NAME WAS ITS OWN CHARACTER (#211, GrokBot, the ALT's 45 learned characters)
+The reader misspells a name now and then. Each spelling folded to its own key and every one read on 2 visits became its
+own learned character (Konylock and Konyblock beside Konyolock), while the visits a variant was read under counted as
+MISSES against the real one. char_select.learned() merges at READ time - the ledger is never rewritten - when the
+chronicle's own near-name rule (chronicle_resolve.canonical) names a more-visited head, both carry the same winning
+class, and no visit read both (two names on one screen are two characters). A merged row names its variants (aliases)
+and the board finds a build linked to a variant under its character. Law: test_spelling_variants_are_one_character.
+
 ### REG-2683 - THE GROK EYE ON v3814: TWO ASKS SHARED ONE "ASKING" FLAG; A LATE FAILURE OVERWROTE A GOOD LIST
 Cross-family look at v3814 (grok-cli, verdict findings), each reproduced before acting:
 1. MED - the Characters room and the builder both ask /api/chars_learned. "Asking" was one boolean, so the first ask to
