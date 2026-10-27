@@ -310,6 +310,40 @@ def _fold(name):
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+#: GrokBot bug 11 (2026-10-27) - "KOnyORush", "SOcket", "ArmOr", "WeapOn", "SetOnami" on the Mac's list. Both reader
+#: prompts say to write the font's O as the letter O, so a mixed-case answer carries a capital O inside a word. Socket,
+#: Armor and Weapon are his real level-1 mules (this file's own SOCKET example), so this is the SPELLING, never a refusal.
+#: A capital O after a letter and before a lower-case one, or after a lower-case one, is a lower-case o. An all-caps
+#: answer still goes through .title(); a name's leading O stays (OsenbeiChan).
+_O_INSIDE = re.compile(r"(?<=[A-Za-z])O(?=[a-z])|(?<=[a-z])O")
+
+
+def _o_case(name):
+    s = str(name or "")
+    return s if s.isupper() else _O_INSIDE.sub("o", s)
+
+
+def _shown(c):
+    """The name a character is SHOWN as: its spelling vote, each form read through _o_case, the stored name winning a tie.
+
+    The vote is re-run on every read, so a ledger that stored "SOcket" (a tie that sorted 'O' before 'o' after a save)
+    shows "Socket" with nothing rewritten."""
+    forms = (c or {}).get("forms") or {}
+    stored = _o_case((c or {}).get("name")) if (c or {}).get("name") else (c or {}).get("name")
+    if not forms:
+        return stored
+    tally = {}
+    for f, n in forms.items():
+        k = _o_case(f)
+        try:
+            tally[k] = tally.get(k, 0) + int(n or 0)
+        except (TypeError, ValueError):
+            tally[k] = tally.get(k, 0)
+    best = max(tally.values())
+    tops = [f for f in tally if tally[f] == best]
+    return stored if stored in tops else sorted(tops)[0]
+
+
 def _clean_name(name):
     s = str(name or "").replace("⊕", "O").replace("Ø", "O").replace("◎", "O").strip()
     s = re.sub(r"\s+", " ", s)
@@ -318,7 +352,7 @@ def _clean_name(name):
         return None
     # the game's font is small capitals, so an all-caps answer ("RUNEWORDER") says nothing about the real case:
     # shown as "Runeworder". A mixed-case answer ("OsenbeiChan") is kept as the reader saw it. The KEY folds case.
-    return s.title() if s.isupper() else s
+    return s.title() if s.isupper() else _o_case(s)
 
 
 def _clean_class(cls):
@@ -566,7 +600,7 @@ def learned(d, min_visits=MIN_VISITS):
         pending = seen[0] if seen and (level is None or seen[0] > level) else None
         titles = c.get("titles") or {}
         p = proof(d, c)
-        out.append({"name": c.get("name"), "key": key, "cls": winners[0], "level": level, "pendingLevel": pending,
+        out.append({"name": _shown(c), "key": key, "cls": winners[0], "level": level, "pendingLevel": pending,
                     "visits": len(visits), "title": (max(titles, key=titles.get) if titles else None),
                     "lastTs": c.get("lastTs"), "tier": p["tier"], "looks": p["looks"], "trials": p["trials"],
                     "misses": p["misses"], "bound": p["bound"], "tierWhy": p["why"]})

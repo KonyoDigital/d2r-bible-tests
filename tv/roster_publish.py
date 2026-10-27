@@ -404,9 +404,18 @@ def _list_names(raw, limit=400):
             continue
         seen.add(text)
         names.append(text)
-        if len(names) >= limit:
-            break
-    return names
+    # #200 (the v3802 look) - THE CAP KEPT THE OLDEST. A found log is {name: date} in the order he found them, newest
+    # last, and the loop stopped at 400, so his 61 newest finds never reached the roster. The newest `limit` are kept;
+    # chronicle_read publishes how many there were.
+    return names[-limit:] if limit and len(names) > limit else names
+
+
+def _list_count(raw):
+    """#200 - how many distinct names a store that was read holds, or None when it was not read."""
+    if raw is None:
+        return None
+    full = _list_names(raw, limit=0)
+    return len(full) if isinstance(full, list) else None
 
 
 def chronicle_rows(lists):
@@ -461,6 +470,13 @@ def chronicle_read(tally, now_ms, lists=None):
     at = tally.get("at")
     if isinstance(at, bool) or not isinstance(at, int) or at <= 0:
         at = now_ms
+    # #200 - the rows carry at most 400 names a lane; the count of all of them rides beside the counts, so a reader can
+    # say "the newest 400 of 461" instead of calling 400 the whole list
+    if isinstance(lists, dict):
+        for lane in ("uniques", "sets", "runewords"):
+            n = _list_count(lists.get(lane))
+            if isinstance(n, int) and n > 0:
+                counts[lane + "Named"] = n
     out = {"read": True, "asOf": at, "counts": counts}
     rows = chronicle_rows(lists)
     if rows:
@@ -576,6 +592,22 @@ def hash_of(text):
         h ^= data[i] | (data[i + 1] << 8)
         h = (h * 16777619) & 0xFFFFFFFF
     return "%x" % h
+
+
+def reads_due(state, now_ms, boot):
+    """#200 - may this tick read the board at all? -> (open, why). The time half of due(), asked BEFORE the reads: the
+    lane ticks every 60 s and read the whole board (board_ownership over 5,000 rows) on every tick, only for due() to
+    say "within the hour". A boot always reads; a refusal waits the hour; otherwise the last post must be an hour old."""
+    state = state if isinstance(state, dict) else {}
+    if boot:
+        return True, "boot"
+    refused = state.get("refuseAt")
+    if isinstance(refused, int) and not isinstance(refused, bool) and now_ms - refused < HOUR_MS:
+        return False, state.get("why") or "the roster refused the last publish"
+    last = state.get("at")
+    if isinstance(last, int) and not isinstance(last, bool) and now_ms - last < HOUR_MS:
+        return False, "within the hour"
+    return True, "open"
 
 
 def due(state, owner, sections, now_ms, boot):

@@ -4877,10 +4877,16 @@ def _roster_publish_once(boot):
         _roster_remember("this PC has no roster label")
         return
     now_ms = int(time.time() * 1000)
-    sections = _rp.chronicle_within(_rp.sections_from(_roster_reads(now_ms), now_ms))
     state = _roster_state_load()
     if not isinstance(state, dict):
         state = {}
+    # #200 - nothing is read unless a post could go now (the reads cost a whole board read every 60 s)
+    _open, _shut_why = _rp.reads_due(state, now_ms, True if boot else False)
+    if not _open:
+        state["why"] = str(_shut_why)[:200]
+        _roster_state_save(state)
+        return
+    sections = _rp.chronicle_within(_rp.sections_from(_roster_reads(now_ms), now_ms))
     body, reason = _rp.due(state, owner, sections, now_ms, True if boot else False)
     if body is None:
         state["why"] = str(reason)[:200]

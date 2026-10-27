@@ -12009,6 +12009,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_leaving_a_shadow_goes_back_to_the_tab_it_lights.py")], 300,
          needs_app=False,
          why='REG-2674 (GrokBot 22:07) - Leave lit the remembered tab while the board showed Characters; the console sends the tab and the board goes back to it.'),
+    Gate("test_a_name_read_with_a_capital_o_is_shown_right",
+         [sys.executable, os.path.join(HERE, "test_a_name_read_with_a_capital_o_is_shown_right.py")], 300,
+         needs_app=False,
+         why='REG-2675 (GrokBot bug 11) - KOnyORush / SOcket / ArmOr: a capital O inside a word is a small o, and a stored tie reads as the plain spelling; his mules are never refused.'),
+    Gate("test_the_roster_keeps_the_newest_names",
+         [sys.executable, os.path.join(HERE, "test_the_roster_keeps_the_newest_names.py")], 300,
+         needs_app=False,
+         why='REG-2676 (#200) - the roster kept the OLDEST 400 found names and read the whole board every 60 s; it keeps the newest, counts them all, and reads only when it can post.'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
