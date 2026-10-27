@@ -58118,12 +58118,29 @@ function renderJournal(){
       + '</div>';
     report.innerHTML = html;
     // v908-R6 (Grok P0) — the vault wire carries a REAL summary now
-    return { ok: (typeof _newThis !== 'undefined' ? _newThis : logged.length) > 0,
-             total: (typeof _newThis !== 'undefined' ? _newThis : logged.length),
+    // #158.2 - ok is whether the READ worked (_vaultIntakeVerdict), never whether it found something new
+    return Object.assign(_vaultIntakeVerdict((typeof _newThis !== 'undefined' ? _newThis : logged.length),
+                                             (logged || []).length, errors, _aiErr), {
              added: (function(){ var a = {}; try { (logged || []).slice(0, 40).forEach(function(x){ var k = (x && (x.label || x.key || x.n)) || String(x); a[k] = (a[k] || 0) + 1; }); } catch(e){} return a; })(),
-             errors: errors || 0, dupes: (dupes || []).length, kind: 'vault' };
+             errors: errors || 0, dupes: (dupes || []).length, kind: 'vault' });
     } finally { window._vIntakeBusy = false; }   // v405 — ALWAYS clear (early return / throw included) so the folder auto-watch never wedges
   };
+
+  /* #158.2 (GrokBot, the vault on his real frames) - A READ THAT FOUND NOTHING NEW IS NOT A FAILED READ. vaultIntake answered
+     ok: (new items) > 0, so a frame read cleanly that showed only items he already owns was posted as ok:false - and the
+     receipt ledger counted every such re-read as an error ("0 of 39 real reads"). ok is whether the read WORKED (no
+     screenshot failed, no AI-service error); `total` stays the new items; `read` is everything it read; `why` says which
+     kind of nothing it was. -> {ok, total, read, why} */
+  function _vaultIntakeVerdict(newN, readN, errors, aiErr){
+    var n = (typeof newN === 'number' && newN > 0) ? newN : 0, r = (typeof readN === 'number' && readN > 0) ? readN : 0;
+    var e = (typeof errors === 'number' && errors > 0) ? errors : 0;
+    if (e || aiErr)
+      return { ok: false, total: n, read: r,
+               why: aiErr ? String(aiErr).slice(0, 200) : (e + ' screenshot' + (e === 1 ? '' : 's') + ' failed to read') };
+    return { ok: true, total: n, read: r,
+             why: n ? '' : (r ? 'read ' + r + ' item' + (r === 1 ? '' : 's') + ', none new' : 'read fine - nothing on this screen to count') };
+  }
+  window._vaultIntakeVerdict = _vaultIntakeVerdict;
 
   // ── v212: 📂 folder watch — connect the D2R screenshots dir ONCE (File System
   // Access API, Chrome/Edge); the handle persists in IndexedDB, a seen-ledger in
@@ -76723,6 +76740,7 @@ var body = JSON.stringify({ tab: tab, owner: owner, ttlMs: _ttl });
           body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
                                  ok: !!(_vr && _vr.ok), counts: (_vr && _vr.added) || {},
                                  total: (_vr && _vr.total) || 0, errors: (_vr && _vr.errors) || 0,
+                                 err: (_vr && !_vr.ok && _vr.why) || undefined,   /* #158.2 - the receipt says why */
                                  frameId: (opts && opts.frameId) || '' }) }).catch(function(){ try{ fetch('/intake_result', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ts: Date.now(), tab: (opts && opts.tab) || 'vault', kind: 'vault',
                                  ok: !!(_vr && _vr.ok), counts: (_vr && _vr.added) || {},
                                  total: (_vr && _vr.total) || 0, errors: (_vr && _vr.errors) || 0,
