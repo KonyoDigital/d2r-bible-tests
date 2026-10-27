@@ -173,8 +173,17 @@ def world_of(raw):
     return out
 
 
-def api_store(name, payload):
-    """-> (store name, JSON string) for one console answer, or None when it is not one the shadow serves."""
+#: REG-2688 (measured on the ALT, 2026-10-27 23:5x) - the fields an answer can travel without, LARGEST FIRST. v3814 added
+#: the character evidence (surfaceWitnesses, lobbyBySize) to the upload, and on the ALT surfaceWitnesses alone is 83 KB:
+#: the kept answer came to 104,837 bytes, over MAX_STORE, and api_store dropped the WHOLE character list without a word.
+#: Over the cap these are left out one at a time until the answer fits; the characters themselves always go up.
+API_OPTIONAL = {"chars_learned": ("surfaceWitnesses", "gear", "lobbyBySize")}
+
+
+def api_store(name, payload, left_out=None):
+    """-> (store name, JSON string) for one console answer, or None when it is not one the shadow serves.
+
+    `left_out`, a list, gets the optional fields (API_OPTIONAL) dropped to fit MAX_STORE, so the caller can say so."""
     fields = API_FIELDS.get(name)
     if name == "world":
         payload = world_of(payload)
@@ -182,18 +191,33 @@ def api_store(name, payload):
         return None
     kept = {f: payload[f] for f in fields if f in payload}
     text = scrub_store(json.dumps(kept, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
+    for opt in API_OPTIONAL.get(name, ()):
+        if text is not None and len(text) <= MAX_STORE:
+            break
+        if opt in kept:
+            kept.pop(opt)
+            if isinstance(left_out, list):
+                left_out.append(opt)
+            text = scrub_store(json.dumps(kept, ensure_ascii=False, separators=(",", ":"), sort_keys=True))
     if text is None or len(text) > MAX_STORE:
         return None
     return API_PREFIX + name, text
 
 
-def with_api(stores, answers):
-    """The board's cleaned stores plus the console answers that could be read. A failed read stays out."""
+def with_api(stores, answers, report=None):
+    """The board's cleaned stores plus the console answers that could be read. A failed read stays out.
+
+    `report`, a dict, gets {name: [fields left out to fit]} and {name: None} for an answer that would not fit at all."""
     out = dict(stores or {})
     for name in sorted(answers or {}):
-        got = api_store(name, answers[name])
+        left = []
+        got = api_store(name, answers[name], left)
         if got:
             out[got[0]] = got[1]
+            if left and isinstance(report, dict):
+                report[name] = left
+        elif isinstance(report, dict) and name in API_OPTIONAL and isinstance(answers[name], dict):
+            report[name] = None
     return out
 
 

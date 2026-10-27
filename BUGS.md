@@ -18,6 +18,14 @@ Also found while checking the shipped v3814 against the whole law set: two regis
 (test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
 REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
 Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+### REG-2688 - v3814 MADE THE ALT'S CHARACTER LIST TOO BIG TO UPLOAD (measured on the ALT, 2026-10-27 23:5x)
+GrokBot's 23:37 pass: the ALT's first v3814 publish was "skipped: unchanged" - its snapshot still had no character list.
+Measured on the ALT: the kept chars_learned answer is 104,837 bytes - surfaceWitnesses alone 83 KB (REG-2670 added it for
+bug 7) - over console_snapshot.MAX_STORE (64 KB), and api_store returned None for the WHOLE answer without a word. Over the
+cap, an answer now leaves out its optional fields (API_OPTIONAL: surfaceWitnesses, then gear, then lobbyBySize) one at a
+time until it fits; the characters always go up, and .roster_profile_state.json names what was left out (apiTrimmed). No
+new field rides the wire (the worker refuses unknown ones). Law: test_a_slow_character_read_still_reaches_the_shadow.
+
 ### REG-2687 - DEAN'S LOCKS WERE HELD SHUT BY TWO LAWS NO WINDOWS PC CAN RUN (measured on his PC, 2026-10-27)
 Dean's census (v3814, 873 of 1162 proved, a slice running) carried blind = [test_a_gate_busy_at_its_deadline_gets_one_
 extension, test_ci_spends_no_minutes_on_a_slow_mirror]; one BLIND shuts every lock on a PC, so his river's 135 reels

@@ -5190,7 +5190,14 @@ def _profile_publish_once(boot):
             state.pop("apiMiss", None)
         if isinstance(book.get("world"), dict):
             answers["world"] = book["world"]
-        stores = _cs.with_api(stores, answers)
+        _fit = {}
+        stores = _cs.with_api(stores, answers, _fit)
+        # REG-2688 - what had to be left out to fit the site's per-store cap, or an answer that did not fit at all: said
+        if _fit:
+            state["apiTrimmed"] = {k: (v if v is not None else "too large even without its optional fields - not uploaded")
+                                   for k, v in _fit.items()}
+        else:
+            state.pop("apiTrimmed", None)
     body, reason = _cs.due(state, owner, stores, now_ms, bool(boot))
     if body is None:
         state["why"] = str(reason)[:200]

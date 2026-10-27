@@ -124,13 +124,35 @@ class ASlowCharacterReadStillReachesTheShadow(unittest.TestCase):
         def _slow():
             raise socket.timeout("timed out")
 
-        st = self._publish(_slow)          # a boot post: it goes even though the stores are unchanged
+        # REG-2684: a boot inside the 75 min gap waits, so the last upload is moved past it first
+        import console_snapshot as SNAP
+        sp = os.path.join(self.tmp, ".roster_profile_state.json")
+        with io.open(sp, encoding="utf-8") as fh:
+            old = json.load(fh)
+        old["at"] = int(old["at"]) - SNAP.MIN_GAP_MS - 1000
+        with io.open(sp, "w", encoding="utf-8") as fh:
+            json.dump(old, fh)
+        st = self._publish(_slow)          # a boot post past the gap: it goes even though the stores are unchanged
         self.assertEqual(len(self.posted), 2)
         body = json.loads(self.posted[-1]["stores"]["d2r_api_chars_learned"])
         self.assertEqual(body["chars"][0]["name"], "KonyoBear", "a slow read dropped the characters from the upload")
         miss = (st.get("apiMiss") or {}).get("chars_learned") or ""
         self.assertIn("timeout", miss, "the miss was not named in the upload state: %r" % st)
         self.assertIn("last good answer", miss)
+
+    def test_an_answer_over_the_cap_goes_up_without_its_evidence(self):
+        """REG-2688 - on the ALT surfaceWitnesses alone was 83 KB and the whole character list was dropped at the cap."""
+        import console_snapshot as SNAP
+        big = dict(CHARS, surfaceWitnesses=[{"name": "KonyoBear", "frame": "f_%06d.jpg" % i, "why": "x" * 80}
+                                            for i in range(SNAP.MAX_STORE // 60)], lobbyBySize=[{"w": 1}])
+        st = self._publish(lambda: big)
+        body = self.posted[-1]["stores"].get("d2r_api_chars_learned")
+        self.assertIsNotNone(body, "an answer over the cap dropped the whole character list (REG-2688)")
+        got = json.loads(body)
+        self.assertEqual(got["chars"][0]["name"], "KonyoBear")
+        self.assertNotIn("surfaceWitnesses", got)
+        self.assertIn("lobbyBySize", got, "a field that fits was left out too")
+        self.assertEqual(st.get("apiTrimmed"), {"chars_learned": ["surfaceWitnesses"]}, st)
 
     def test_a_miss_with_nothing_to_fall_back_on_is_named(self):
         def _slow():
@@ -209,6 +231,14 @@ class TheCharactersRoomSaysItIsAsking(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2688 - an answer over the cap drops the whole character list again",
+     "file": "tv/console_snapshot.py",
+     "find": "API_OPTIONAL = {\"chars_learned\": (\"surfaceWitnesses\", \"gear\", \"lobbyBySize\")}\n",
+     "replace": "API_OPTIONAL = {}\n", "matches": 1},
+    {"why": "REG-2688 - what was left out to fit is not said in the upload state",
+     "file": "tv/control_app.py",
+     "find": "            state[\"apiTrimmed\"] = {k: (v if v is not None else",
+     "replace": "            state[\"apiTrimmedX\"] = {k: (v if v is not None else", "matches": 1},
     {"why": "the Grok eye on v3814 - a late failed answer replaces a good list again",
      "file": "bible.html",
      "find": "    if (d.ok === true || !(_cbLearned && _cbLearned.ok === true)) _cbLearned = d;\n",
