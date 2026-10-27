@@ -17086,13 +17086,21 @@ def _river_warm_once(now_ms=None, _urlopen=None, playing=None, busy_pct=None):
     _busy = _cpu_busy_pct() if busy_pct is None else busy_pct
     due, why = _river_warm_due(now, _RIVER_LAST, _play, _busy)
     if not due:
-        _RIVER_WARM.update(lastTs=now, owed=0, say=why)
+        # the Grok eye on v3813: a pass that waits (he plays, the machine is busy, a fresh read) never clears a failure
+        # the lane recorded - `owed` stays what the last real attempt left
+        _RIVER_WARM.update(lastTs=now, say=why)
         return dict(_RIVER_WARM)
     t0 = time.time()
     try:
         import urllib.request as _ur
-        (_urlopen or _ur.urlopen)("http://127.0.0.1:%d/api/river" % int(CONTROL_PORT),
-                                  timeout=RIVER_WARM_TIMEOUT_S).read()
+        _resp = (_urlopen or _ur.urlopen)("http://127.0.0.1:%d/api/river" % int(CONTROL_PORT),
+                                          timeout=RIVER_WARM_TIMEOUT_S)
+        try:
+            _resp.read()
+        finally:
+            _close = getattr(_resp, "close", None)      # the Grok eye on v3813: the response is closed, not left to GC
+            if callable(_close):
+                _close()
         _RIVER_WARM.update(worked=int(_RIVER_WARM.get("worked") or 0) + 1, lastTs=now, owed=0,
                            ms=int((time.time() - t0) * 1000), say="read the river (%s)" % why)
     except Exception as e:

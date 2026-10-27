@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2679 - THE GROK EYE ON v3813: A WAITING PASS ERASED A FAILURE, AND THE READ LEFT ITS RESPONSE OPEN
+Cross-family look at v3813 (grok-cli, verdict findings, 3 items), each reproduced before acting:
+1. "The starting chip hides a stuck station" - NOT REPRODUCED. _fleetStuckChip draws the stuck chip first and the boot
+   branch returns the chips already drawn; a new law case pins "river stuck" beside "river · starting".
+2. A warm pass that waited (he plays, the machine is busy, a fresh read) wrote owed=0 over a failed read - REAL; owed now
+   stays what the last real attempt left.
+3. The river read never closed its HTTP response - REAL; it is closed in a finally.
+The eye's unseen question (can the self-call deadlock a single-threaded server?) - no: the console is a
+ThreadingHTTPServer. Law: test_a_console_reads_its_own_river (2 new red-proofs).
+
 ### REG-2678 - THE SHADOW BAR SAT OVER THE HEADER TABS; THE SHADOW SPOKE TWO CLOCKS (#215, #214, GrokBot)
 _shadowSnapEnter measured the header (~66 px) before shell-open fixed the topbar with its extra padding (~100 px), and
 nothing moved the bar after, so on the Mac and the ALT the bar covered the tab row. _shadowPlace places the bar and the

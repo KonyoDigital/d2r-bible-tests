@@ -112,6 +112,34 @@ class TheConsoleAsksItsOwnRiver(unittest.TestCase):
         self.assertEqual(asked, [], "the warm pass walked the river while he played")
         self.assertIn("playing", r["say"])
 
+    def test_a_waiting_pass_keeps_a_failure_and_a_read_closes_its_response(self):
+        """The Grok eye on v3813: a pass that waits wrote owed=0 over a failure; the response was never closed."""
+        import control_app as ca
+
+        def _boom(url, timeout=None):
+            raise OSError("refused")
+
+        rec = dict(ca._RIVER_WARM, worked=0, owed=None)
+        with mock.patch.object(ca, "_RIVER_WARM", rec), \
+                mock.patch.object(ca, "_RIVER_LAST", {"good": None, "fail": None}):
+            ca._river_warm_once(now_ms=NOW, _urlopen=_boom, playing=False, busy_pct=5.0)
+            r = ca._river_warm_once(now_ms=NOW + 60000, _urlopen=_boom, playing=True, busy_pct=5.0)
+        self.assertEqual(r["owed"], 1, "a pass that waited for his game cleared the failed read: %r" % r)
+        closed = []
+
+        class _R(object):
+            def read(self):
+                return b"{}"
+
+            def close(self):
+                closed.append(1)
+
+        with mock.patch.object(ca, "_RIVER_WARM", dict(ca._RIVER_WARM)), \
+                mock.patch.object(ca, "_RIVER_LAST", {"good": None, "fail": None}):
+            r = ca._river_warm_once(now_ms=NOW, _urlopen=lambda url, timeout=None: _R(), playing=False, busy_pct=5.0)
+        self.assertEqual(closed, [1], "the river read left its response open")
+        self.assertEqual(r["owed"], 0)
+
     def test_the_lane_is_on_the_roster_stood_down_in_a_harness_and_leaves_a_trace(self):
         import control_app as ca
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
@@ -184,6 +212,14 @@ class TheRowSaysStartingNotUnknown(unittest.TestCase):
         self.assertEqual(out["p"]["proved"]["t"], "first check pending")
         self.assertTrue(out["p"]["proved"]["unk"], "the boot window read as a measured answer")
 
+    def test_a_stuck_river_still_shows_through_the_boot_window(self):
+        """The Grok eye on v3813 said the starting chip hides a stuck station. Measured: the stuck chip is drawn first."""
+        out = self._card({"lanes": {"PRINTER": 3}, "stuck": [{"station": "PRINTER", "n": 3, "oldestS": 40 * 3600,
+                                                              "why": "vault lane: owes 1"}],
+                          "heart": {"census": None, "key": "starting", "blind": None}})
+        self.assertIn("river stuck", out["chip"], "a stuck station was hidden by the boot window: %r" % out["chip"])
+        self.assertIn("river \u00b7 starting", out["chip"])
+
     def test_a_null_census_without_the_key_is_still_unknown(self):
         out = self._card({"stuck": None, "heart": {"census": None, "key": None, "blind": None}})
         self.assertIn("river UNKNOWN", out["chip"])
@@ -194,6 +230,16 @@ class TheRowSaysStartingNotUnknown(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "the Grok eye on v3813 - a pass that waits clears the lane's recorded failure again",
+     "file": "tv/control_app.py",
+     "find": "        _RIVER_WARM.update(lastTs=now, say=why)\n        return dict(_RIVER_WARM)\n",
+     "replace": "        _RIVER_WARM.update(lastTs=now, owed=0, say=why)\n        return dict(_RIVER_WARM)\n",
+     "matches": 1},
+    {"why": "the Grok eye on v3813 - the river read leaves its response open again",
+     "file": "tv/control_app.py",
+     "find": "            if callable(_close):\n                _close()",
+     "replace": "            if False:\n                _close()",
+     "matches": 1},
     {"why": "#193 - the beacon sends a bare null census through the boot window again",
      "file": "tv/control_app.py",
      "find": "        _key = \"starting\"\n",
