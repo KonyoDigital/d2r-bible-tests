@@ -51349,19 +51349,22 @@ window.vaultAutoAssign = function(){
      vault never acted on. The witness says an ISO time now; a refused filing puts the old override back; an item not on
      his owned list only records the preference (the switch never files - and so never owns - an item he does not have). */
   window.vaultShareToggle = function(name, want){
+    var _ov0, _ovSet = false;
     try {
-      var _ov0 = _shareOverride(name);
-      _setShareOverride(name, want ? 'shared' : 'mule');
+      _ov0 = _shareOverride(name);
+      _setShareOverride(name, want ? 'shared' : 'mule'); _ovSet = true;
       var target = want ? 'shared' : ((suggestMule(name) || {}).id);
       var ok = (target === 'shared') || (typeof _vHomeOk === 'function' ? _vHomeOk(target) : (target && String(target).indexOf('__') !== 0));
       var mine = (typeof owned !== 'undefined' && owned && owned.has(name));
+      /* Grok v3815 - an item he owns with nowhere to go keeps where it is, and the switch says so */
+      if (mine && !ok){ _setShareOverride(name, _ov0); var st0 = document.getElementById('vault-status'); if (st0) st0.textContent = name + ': no mule can take it - not moved'; }
       if (ok && mine){
         var w = { by:'hand', at: new Date().toISOString(), where:'Shared-stash switch — your click' };
         var filed = (typeof assign !== 'undefined' && assign[name] != null);
         var r = filed ? window.vaultFile(name, w, { move:true, mule:target }) : window.vaultFile(name, w, { mule:target });
         if (r && !r.ok){ _setShareOverride(name, _ov0); var st = document.getElementById('vault-status'); if (st) st.textContent = name + ': ' + (r.why || r.refused || 'not moved'); }
       }
-    } catch(e){}
+    } catch(e){ if (_ovSet) { try { _setShareOverride(name, _ov0); } catch (e2) {} } /* Grok v3815 - a filing that throws moved nothing */ }
     try { renderVault(); } catch(e){}
   };
   /* REG-2240 (#137) — HONEST SHARED-TAB OVERFLOW. A shared stash tab IS 10×10 = 100 cells, the same size as

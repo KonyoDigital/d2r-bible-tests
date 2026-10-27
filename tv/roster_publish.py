@@ -475,7 +475,7 @@ def chronicle_read(tally, now_ms, lists=None):
     if isinstance(lists, dict):
         for lane in ("uniques", "sets", "runewords"):
             n = _list_count(lists.get(lane))
-            if isinstance(n, int) and n > 0:
+            if isinstance(n, int) and n >= 0:      # Grok v3815 - a lane read with no names says 0, never absent
                 counts[lane + "Named"] = n
     out = {"read": True, "asOf": at, "counts": counts}
     rows = chronicle_rows(lists)

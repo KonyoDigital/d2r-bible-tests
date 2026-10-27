@@ -13,6 +13,7 @@ same way, through the real doors on a fresh board:
   - #154.14 a blank mule name and a second mule with an existing name were accepted.
   - #148.3 "Spirit" in Multi-copy Keepers added Spirit Forge (the first name that began that way).
   - #154.16 FIND: "tal rashas" found nothing; a hand-added Shako was not in FIND's pool.
+  - Grok v3815: a Shared filing that THREW, or an item he owns with no mule to go to, kept the new override.
 RED_PROOF below.
 """
 import os
@@ -70,6 +71,11 @@ W.vaultFile = function(){ return { ok: false, refused: 'locked', why: 'locked to
 var before = JSON.stringify(W._shareOverride('The Stone of Jordan'));
 W.vaultShareToggle('The Stone of Jordan', false);
 OUT.ovKept = JSON.stringify(W._shareOverride('The Stone of Jordan')) === before;
+/* Grok v3815 - a filing that throws puts the old override back too */
+W.vaultFile = function(){ throw new Error('the law'); };
+var before2 = JSON.stringify(W._shareOverride('The Stone of Jordan'));
+W.vaultShareToggle('The Stone of Jordan', false);
+OUT.ovKeptThrow = JSON.stringify(W._shareOverride('The Stone of Jordan')) === before2;
 W.vaultFile = realFile;
 })();
 """
@@ -137,6 +143,7 @@ class TheVaultDoorsTakeOnlyWhatIsHis(unittest.TestCase):
         self.assertEqual(o["shared"], "shared", "the Shared switch did not move the item (#152.1): %r" % o.get("sharedSay"))
         self.assertNotIn("not a date", o["sharedSay"] or "")
         self.assertTrue(o["ovKept"], "a refused filing kept the new override (#152.1)")
+        self.assertTrue(o["ovKeptThrow"], "a filing that threw kept the new override (Grok v3815)")
 
 
 RED_PROOF = [
@@ -174,6 +181,9 @@ RED_PROOF = [
     {"why": "#152.1 - a refused Shared filing keeps the new override again",
      "file": "bible.html", "find": "        if (r && !r.ok){ _setShareOverride(name, _ov0); var st",
      "replace": "        if (r && !r.ok){ var st", "matches": 1, "needs": "node"},
+    {"why": "Grok v3815 - a Shared filing that throws keeps the new override again",
+     "file": "bible.html", "find": "    } catch(e){ if (_ovSet) { try { _setShareOverride(name, _ov0); } catch (e2) {} } /* Grok v3815 - a filing that throws moved nothing */ }\n",
+     "replace": "    } catch(e){}\n", "matches": 1, "needs": "node"},
 ]
 
 if __name__ == "__main__":

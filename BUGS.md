@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2693 - THE GROK EYE ON v3815: A THROWN FILING KEPT THE SHARED SWITCH; AN EMPTY LANE SAID NOTHING
+Cross-family look at v3815 (grok-cli), each checked before acting:
+1. vaultShareToggle set the new override before filing and put it back only on a refused answer. A filing that THREW,
+   and an item he owns with no mule to go to, kept the new override while the item stayed where it was. Both put the
+   old choice back now, and the no-home case says "no mule can take it - not moved".
+2. chronicle_read carried <lane>Named only when it was over 0, so a lane read with no names read the same as a lane
+   that was never read. A read lane says 0 now; an unread lane stays absent.
+Not defects: "MuleBox" (not reproduced - the rule only folds a capital O), and the loose line's sp (counted from the
+dock list). Laws: test_the_vault_doors_take_only_what_is_his, test_the_roster_keeps_the_newest_names.
+
 ### REG-2692 - EVERY SPELLING OF A NAME WAS ITS OWN CHARACTER (#211, GrokBot, the ALT's 45 learned characters)
 The reader misspells a name now and then. Each spelling folded to its own key and every one read on 2 visits became its
 own learned character (Konylock and Konyblock beside Konyolock), while the visits a variant was read under counted as

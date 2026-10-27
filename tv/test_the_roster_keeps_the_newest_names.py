@@ -47,6 +47,8 @@ class TheRosterKeepsTheNewestNames(unittest.TestCase):
         self.assertEqual(len([r for r in sec["rows"] if r["lane"] == "uniques"]), 400)
         none = RP.chronicle_read(tally, NOW, None)
         self.assertNotIn("uniquesNamed", none["counts"], "an unread list was given a count")
+        empty = RP.chronicle_read(tally, NOW, {"uniques": {}})
+        self.assertEqual(empty["counts"].get("uniquesNamed"), 0, "a lane read with no names reads as unread (Grok v3815)")
 
     def test_reads_wait_for_a_post_that_could_go(self):
         hour = RP.HOUR_MS
@@ -90,6 +92,10 @@ RED_PROOF = [
      "find": "    _open, _shut_why = _rp.reads_due(state, now_ms, True if boot else False)\n",
      "replace": "    _open, _shut_why = True, \"\"\n",
      "matches": 1},
+    {"why": "Grok v3815 - a lane read with no names carries no count, so it reads as unread",
+     "file": "tv/roster_publish.py",
+     "find": "            if isinstance(n, int) and n >= 0:      # Grok v3815 - a lane read with no names says 0, never absent\n",
+     "replace": "            if isinstance(n, int) and n > 0:\n", "matches": 1},
 ]
 
 if __name__ == "__main__":
