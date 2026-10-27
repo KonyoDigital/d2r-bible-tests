@@ -144,6 +144,7 @@ function row(n){ return prov()[n] || {}; }
 function frames(list){ return (list || []).map(function(d){ return d && d.frame; }); }
 // the real resolver slice stands where the page's does, and the stub register files the RESOLVED name as the real one does
 window._vaultResolveName = RESOLVE;
+window._vaultNotAnItem = function(){ return null; };   /* REG-2663 (#209, v3813): not this law's question */
 var _reg0 = window.tvVaultRegister;
 window.tvVaultRegister = function(name, w){ return _reg0(window._vaultResolveName(name), w); };
 // the door's own answer to the last add (the stub register discards it), so a law can read the write's mode

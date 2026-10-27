@@ -83,6 +83,8 @@ def _pieces(s):
              + D.start_to_close(s, wa + 2, "the register's frame gate") + ")();\n"
              + "window.__V = { assign: function(){ return assign; } };\n")
     pre = ("window._vaultResolveName = function(n){ return n; };\nvar EXTRA_ITEMS = {};\n"
+           # REG-2663 (#209, v3813): the register head asks whether a name is an item at all - not this law's question
+           "window._vaultNotAnItem = function(){ return null; };\n"
            "window._ownedAdd = function(n){ owned.add(n); return { ok: true }; };\n"
            "window._vaultRemovalNote = function(){ return { noted: 0 }; };\n")
     chron = (D.between(s, "  function _chLsGet(key, fallback){", "  function _chFoldApos(s){", keep_b=False)
