@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2637 - AN UNKNOWN CENSUS HELD GATES BACK, AND A SLOW STAND-ASIDE'S NAMING WAS UNPINNED (the Grok eye on v3810)
+Reproduced from the Grok CLI's v3810 look: _memory_stall stored stalledFor = None for a census with no fingerprint, and
+the planner compared None == None, so gates stalled under one UNKNOWN census stayed held under the next. Now an unknown
+census names nothing and the planner requires a real fingerprint. Its other two findings were checked and are not
+defects: stand_aside has exactly two reasons (playing, memory), and the slow path (a stand-aside that outlives its tick)
+does name its gates when it ends - now pinned by a case and a RED_PROOF. Law: the small-slice law, 6 RED_PROOFs, all red.
+
+### REG-2636 - SPACE WHILE VIEWING A SHADOW TOGGLED HIS OWN ON AIR (#206, GrokBot's v3808 sweep)
+control_ui.html's hotkey handler posted /api/on or /api/off for Space, and clicked the log and theatre for L / T, with no
+shadow check. Focus stays on the host page after a tab or Leave click, so pressing Space while viewing another PC's
+shadow flipped THIS PC's recording. Now _consoleShadowUp() (shadow-on, shadow-snap or shadow-hub) stops all three keys.
+Law: test_shadow_mode_reads_their_console HisKeysNeverReachThisPcThroughAShadow - the real handler run in node, RED on
+the old page, 2 RED_PROOFs red.
+
 ### REG-2635 - ONE RED-PROOF WAS BLIND ON EVERY WINDOWS PC BY CONSTRUCTION, AND ONE BLIND SHUT EVERY LOCK (#193, 2026-10-27)
 His ALT's census recorded test_an_all_hit_push_reads_each_input_once BLIND. Its REG-2631 proof drops st_ctime_ns from
 the memo key, and the only case that catches it skips where "this filesystem's ctime did not move" - on Windows

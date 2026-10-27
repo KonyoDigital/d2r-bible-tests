@@ -1956,6 +1956,52 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertEqual(self.r["partial"], ["tvd-shadow: closed"] * 5, "a half world opened, drawn half theirs half ours")
 
 
+class HisKeysNeverReachThisPcThroughAShadow(unittest.TestCase):
+    """#206 - GrokBot's v3808 sweep: Space while viewing another PC's shadow toggled THIS PC's ON AIR (focus stays on the
+    host page after a tab or Leave click), and L / T opened this PC's log and theatre. The real handler, run in node."""
+
+    def test_space_l_and_t_act_on_this_pc_only_with_no_shadow_up(self):
+        if not NODE:
+            raise AssertionError("node is absent - the hotkey law cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        start = "  // keyboard: space = cut if live/sim else ON \u00b7 L = log \u00b7 T = theatre\n"
+        end = "      if (thBtn) thBtn.click();\n    }\n  });\n"
+        self.assertEqual(ui.count(start), 1, "the hotkey block's anchor is not unique")
+        i = ui.index(start)
+        block = ui[i:ui.index(end, i) + len(end)]
+        js = r"""
+var posts = [], clicks = [], listeners = [];
+var document = { addEventListener: function (t, fn) { if (t === 'keydown') listeners.push(fn); },
+  body: { _cls: {}, classList: { contains: function (c) { return !!document.body._cls[c]; } },
+          getAttribute: function () { return 'off'; } },
+  getElementById: function (id) { return { click: function () { clicks.push(id); } }; } };
+var window = {};
+var TH = { open: false }, busy = false, thBtn = { click: function () { clicks.push('theatre'); } };
+function $(id) { return document.getElementById(id); }
+function post(u) { posts.push(u); }
+""" + block + r"""
+function press(code, key) {
+  var e = { code: code, key: key, target: { tagName: 'DIV' }, preventDefault: function () {} };
+  listeners.forEach(function (fn) { fn(e); });
+}
+function round() { posts.length = 0; clicks.length = 0; press('Space', ' '); press('KeyL', 'l'); press('KeyT', 't');
+  return { posts: posts.slice(), clicks: clicks.slice() }; }
+var out = { host: round() };
+['shadow-on', 'shadow-snap', 'shadow-hub'].forEach(function (c) {
+  document.body._cls = {}; document.body._cls[c] = true; out[c] = round(); });
+console.log(JSON.stringify(out));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["host"]["posts"], ["/api/on"], "PREMISE: Space with no shadow up did not turn ON AIR on: %r" % got)
+        self.assertEqual(got["host"]["clicks"], ["btn-log", "theatre"], "PREMISE: L / T with no shadow up: %r" % got)
+        for c in ("shadow-on", "shadow-snap", "shadow-hub"):
+            self.assertEqual(got[c]["posts"], [], "Space under %s reached this PC's agent: %r" % (c, got))
+            self.assertEqual(got[c]["clicks"], [], "L / T under %s opened this PC's log or theatre: %r" % (c, got))
+
+
 RED_PROOF = [
     {"why": "Shadow: the worker does not decode each string literal, so an escaped path or token (even under a dropped duplicate key) is stored",
      "file": "functions/api/roster.js",
@@ -2159,6 +2205,16 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "        return s === '' || s === 'the list wasn\\u2019t sent';",
      "replace": "        return true;",
+     "matches": 1},
+    {"why": "#206 - Space while viewing a shadow posts /api/on or /api/off to this PC's agent again",
+     "file": "tv/control_ui.html",
+     "find": "    if (_consoleShadowUp()) return;   /* #206 - never this PC's ON AIR from a shadow */\n",
+     "replace": "    void 0;\n",
+     "matches": 1},
+    {"why": "#206 - the shadow hub is not counted as a shadow, so the keys reach this PC from it",
+     "file": "tv/control_ui.html",
+     "find": "    return !!(cl && (cl.contains('shadow-on') || cl.contains('shadow-snap') || cl.contains('shadow-hub')));\n  }\n  window._consoleShadowUp",
+     "replace": "    return !!(cl && (cl.contains('shadow-on') || cl.contains('shadow-snap')));\n  }\n  window._consoleShadowUp",
      "matches": 1},
 ]
 

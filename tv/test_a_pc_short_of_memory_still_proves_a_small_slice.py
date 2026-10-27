@@ -169,6 +169,27 @@ class AMemoryStandAsideNamesItsGates(unittest.TestCase):
         other = self._stand_aside(playing=False, free=600, prior={"stalledGates": ["test_old"], "stalledFor": "older"})
         self.assertEqual(other.get("stalledGates"), ["test_heavy"], other)
 
+    def test_a_stand_aside_that_outlives_its_tick_still_names_its_gates(self):
+        """The Grok eye on v3810: a slice told to stand aside whose process is still alive that tick (the kill did not
+        take) carries the memory flag, and the tick that sees it gone names its gates then."""
+        from unittest import mock
+        self._write({"pid": 4242, "pidBirth": 1234.5, "startedFor": "fp", "sliceGates": ["test_heavy"],
+                     "standingAside": "only 600 MB of memory left - the proof gives it back", "standingAsideForMemory": True})
+        with mock.patch.object(SP, "pid_alive", lambda pid: False), \
+                mock.patch.object(SP, "proc_birth", lambda pid: None), \
+                mock.patch.object(SP, "census_state", lambda: dict(self.CENSUS)), \
+                mock.patch.object(SP, "tree_state", lambda: ("installed", "fixture")):
+            SP.guard(now_s=5000.0, path=self.store, playing=False, free=3000,
+                     kill_fn=lambda pid, birth: True)
+        mem = SP.load(self.store)
+        self.assertEqual(mem.get("stalledGates"), ["test_heavy"], mem)
+
+    def test_an_unknown_census_holds_no_gate_back(self):
+        """The Grok eye on v3810: with no fingerprint, None == None kept gates stalled across two UNKNOWN censuses."""
+        mem = {"sliceGates": ["test_heavy"]}
+        SP._memory_stall(mem, {"state": "unknown"}, False)
+        self.assertFalse(mem.get("stalledGates"), "an UNKNOWN census stalled a gate: %r" % mem)
+
     def test_the_next_slice_proves_the_others_first(self):
         self._write({"stalledGates": ["test_heavy"], "stalledFor": "fp"})
         calls = []
@@ -208,8 +229,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#193 - the planner ignores stalled gates, so a stalled BLIND gate is put first and alone again",
      "file": "tv/self_prove.py",
-     "find": "            _stuck = (set(mem.get(\"stalledGates\") or []) if mem.get(\"stalledFor\") == census.get(\"fingerprint\")\n                      else set())\n",
+     "find": "            _stuck = (set(mem.get(\"stalledGates\") or []) if census.get(\"fingerprint\")\n                      and mem.get(\"stalledFor\") == census.get(\"fingerprint\") else set())\n",
      "replace": "            _stuck = set()\n",
+     "matches": 1},
+    {"why": "the Grok eye on v3810 - an UNKNOWN census (no fingerprint) stalls gates again",
+     "file": "tv/self_prove.py",
+     "find": "    if not fp:\n        return                                   # the Grok eye on v3810: an UNKNOWN census never holds a gate back\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "the Grok eye on v3810 - a stand-aside that outlived its tick forgets its gates when it ends",
+     "file": "tv/self_prove.py",
+     "find": "            if mem.get(\"standingAsideForMemory\"):\n                _memory_stall(mem, census, False)              # #193 - the same naming for a slow stand-aside\n",
+     "replace": "",
      "matches": 1},
 ]
 

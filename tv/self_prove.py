@@ -412,6 +412,8 @@ def _memory_stall(mem, census, playing):
     if not gates:
         return
     fp = (census or {}).get("fingerprint")
+    if not fp:
+        return                                   # the Grok eye on v3810: an UNKNOWN census never holds a gate back
     prior = [str(g) for g in (mem.get("stalledGates") or []) if g] if mem.get("stalledFor") == fp else []
     mem.update(stalledGates=list(dict.fromkeys(prior + gates)), stalledFor=fp, stalledWhy="memory")
 
@@ -1398,8 +1400,8 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             _owed_g = census.get("owedGates")
             _costs = _gate_costs() if isinstance(_owed_g, list) and _owed_g else None
             # REG-1674 - a slice whose prover went silent is proved AFTER every other owed gate (for these gates)
-            _stuck = (set(mem.get("stalledGates") or []) if mem.get("stalledFor") == census.get("fingerprint")
-                      else set())
+            _stuck = (set(mem.get("stalledGates") or []) if census.get("fingerprint")
+                      and mem.get("stalledFor") == census.get("fingerprint") else set())
             _plan = ([t for t in _owed_g if str(t[0]) not in _stuck] or _owed_g) if isinstance(_owed_g, list) else _owed_g
             _sm = bool(d.get("small"))                     # GBL census-lowmem - short of the full start: a small slice
             _slice = (plan_slice(_plan, _costs, blind=census.get("blind"))     # REG-1673 - a recorded BLIND first

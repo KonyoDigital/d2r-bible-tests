@@ -23824,8 +23824,18 @@ window._lockMark = function(isOpen, px, label){
   paint = function(st){ _paintOrig(st); try { paintChronicleInbox(); } catch(e){} };
 
   // keyboard: space = cut if live/sim else ON · L = log · T = theatre
+  /* #206 (GrokBot's v3808 sweep) - A SHADOW IS ANOTHER PC'S CONSOLE. Focus stays on this page after a tab or a Leave
+     click, so Space while he was VIEWING a shadow posted /api/on or /api/off to THIS PC's agent - his own ON AIR - and
+     L / T opened this PC's log and theatre. While any shadow is up (shadow-on, shadow-snap or shadow-hub) these keys
+     do nothing; the shadow frame gates its own keys. */
+  function _consoleShadowUp(){
+    var cl = document.body && document.body.classList;
+    return !!(cl && (cl.contains('shadow-on') || cl.contains('shadow-snap') || cl.contains('shadow-hub')));
+  }
+  window._consoleShadowUp = _consoleShadowUp;
   document.addEventListener('keydown', function(e){
     if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (_consoleShadowUp()) return;   /* #206 - never this PC's ON AIR from a shadow */
     if (e.code === 'Space') {
       if (TH.open) return;   // v859 — the theatre owns Space; it must NEVER cut a live agent
       e.preventDefault();
