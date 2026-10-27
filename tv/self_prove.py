@@ -89,6 +89,15 @@ MIN_FREE_MB_WHILE_RUNNING = 1024
 #: streaming on an Iris Xe that borrows RAM as video memory). With no game and no stream, a proof may run down to
 #: this; playing, it still stands aside at once, and an UNKNOWN 'is he playing' keeps the strict floor.
 MIN_FREE_MB_WHILE_RUNNING_IDLE = 700
+#: GBL census-lowmem - A PC THAT NEVER HAS 1,536 MB FREE STILL MAKES PROGRESS. MEASURED on his ALT 2026-10-27 (v3806,
+#: 7.9 GB): 1,019 MB free with the window already sent away, "low-memory" on 69 ticks, 143 gates owed, census stale and
+#: every river lock shut with no end. Under MIN_FREE_MB_TO_START, a MEASURED-idle PC with a sliceable owed list starts
+#: a SMALL slice (one lane, SMALL_SLICE_MAX_GATES, SMALL_SLICE_BUDGET_S) down to this floor. It changes only whether
+#: the census may make progress: frame.release still opens only on a census the proof wrote, and guard() still stands
+#: the slice aside under MIN_FREE_MB_WHILE_RUNNING_IDLE or the moment he plays.
+MIN_FREE_MB_TO_START_SMALL = 1000
+SMALL_SLICE_MAX_GATES = 6
+SMALL_SLICE_BUDGET_S = 180
 #: REG-1670 — a PC proves on as many lanes as it has clear room for (heart2's HEART2_PROVE_WORKERS). His words,
 #: 2026-10-01: "yea good idea" and "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or 32g
 #: ram". MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. One lane per LANE_BUDGET_MB free
@@ -765,9 +774,14 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
     if free is None or free != free:
         return {"start": False, "key": "mem-unknown",
                 "why": "free memory could not be measured - a proof is not started on a guess"}
+    _small = False
     if free < MIN_FREE_MB_TO_START:
-        return {"start": False, "key": "low-memory",
-                "why": "only %d MB of memory free - a proof starts at %d MB" % (int(free), MIN_FREE_MB_TO_START)}
+        _owed_g = (census or {}).get("owedGates")
+        if not (playing is False and free >= MIN_FREE_MB_TO_START_SMALL and isinstance(_owed_g, list) and _owed_g):
+            return {"start": False, "key": "low-memory",
+                    "why": "only %d MB of memory free - a proof starts at %d MB (a small slice at %d MB when idle)"
+                           % (int(free), MIN_FREE_MB_TO_START, MIN_FREE_MB_TO_START_SMALL)}
+        _small = True
     # REG-1511 — A STAND-ASIDE HOLDS THE NEXT START. Simulated in the review of v3524: free RAM 2500 MB idle and 900 MB
     # with the proof running gave start, stood-aside, start, stood-aside... every 600 s tick - each run rebuilt its
     # sandbox and threw the work away, the census never went current, and the doctor called both keys healthy.
@@ -807,6 +821,11 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
                 "why": "the machine is %.0f%% busy - a proof starts only when it is idle%s" % (
                     busy_pct, (" (busy for %s; past %s it proves anyway, at the lowest priority)"
                                % (_span(_for), _span(BUSY_STARVE_S))) if _for is not None else "")}
+    if _small:
+        return {"start": True, "key": "start-small", "small": True,
+                "why": "census %s (%s) - only %d MB free, under the %d MB full start, so a small slice proves "
+                       "(one lane, at most %d gates)" % (st, census.get("why"), int(free), MIN_FREE_MB_TO_START,
+                                                         SMALL_SLICE_MAX_GATES)}
     return {"start": True, "key": "start",
             "why": "census %s (%s) on an idle installed console - proving" % (st, census.get("why"))}
 
@@ -1356,10 +1375,14 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             _stuck = (set(mem.get("stalledGates") or []) if mem.get("stalledFor") == census.get("fingerprint")
                       else set())
             _plan = ([t for t in _owed_g if str(t[0]) not in _stuck] or _owed_g) if isinstance(_owed_g, list) else _owed_g
-            _slice = (plan_slice(_plan, _costs, blind=census.get("blind"))     # REG-1673 - a recorded BLIND first
+            _sm = bool(d.get("small"))                     # GBL census-lowmem - short of the full start: a small slice
+            _slice = (plan_slice(_plan, _costs, blind=census.get("blind"),     # REG-1673 - a recorded BLIND first
+                                 budget_s=SMALL_SLICE_BUDGET_S if _sm else None,
+                                 max_gates=SMALL_SLICE_MAX_GATES if _sm else None)
                       if isinstance(_owed_g, list) and _owed_g else None)
             if _slice:
-                mem["pid"] = (spawn_fn or spawn)(log_path, names=_slice)
+                mem["pid"] = ((spawn_fn or spawn)(log_path, names=_slice, workers=1) if _sm
+                              else (spawn_fn or spawn)(log_path, names=_slice))
                 mem["sliceGates"] = _slice
                 d = dict(d, why="%s - this slice: %d gate(s)%s" % (
                     census.get("owedWhy") or d["why"], len(_slice),

@@ -26864,8 +26864,11 @@ function escC(s) {
       bits.push('<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '">river stuck</span>');
     }
     if (census === 'missing' || census === 'stale' || census === 'unreadable') {
+      /* GBL census-lowmem - a proof held back ONLY by free memory says so on the row, not the bare word a broken lock wears */
+      var _memWait = hs && hs.key === 'low-memory';
       bits.push('<span class="fleet-riverstuck" title="' + escC('the locks that move this PC\u2019s river are shut \u2014 its proof is '
-        + census + ', so nothing that spends a reel may act here') + '">locks shut</span>');
+        + census + (_memWait ? ' and waiting for free memory to prove' : '') + ', so nothing that spends a reel may act here')
+        + '">' + (_memWait ? 'locks shut \u00b7 census waiting for memory' : 'locks shut') + '</span>');
     }
     if (sk === null || census === null) {
       var unk = [];
