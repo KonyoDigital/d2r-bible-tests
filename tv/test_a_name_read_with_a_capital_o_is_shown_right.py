@@ -77,8 +77,9 @@ RED_PROOF = [
      "matches": 1},
     {"why": "bug 11 - the shown name is the stored one again, so a tie saved as SOcket shows SOcket",
      "file": "tv/char_select.py",
-     "find": "        out.append({\"name\": _shown(c), \"key\": key,",
-     "replace": "        out.append({\"name\": c.get(\"name\"), \"key\": key,",
+     # REG-2692 (#211) built the row in a local before appending it; the shown name is still read in one place
+     "find": "        row = {\"name\": _shown(c), \"key\": key,",
+     "replace": "        row = {\"name\": c.get(\"name\"), \"key\": key,",
      "matches": 1},
 ]
 
