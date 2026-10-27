@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3807** | `(this commit)` | v3807 — A PC short of the full proof start proves a small slice when idle |
+| **v3808** | `(this commit)` | v3808 — A move needs a look, owned needs a record, intake review fixes |
+| **v3807** | `0f93d22a` | v3807 — A PC short of the full proof start proves a small slice when idle |
 | **v3806** | `b04be462` | v3806 — A shadow keeps its lists. Repeated sightings skip the store write. A dead proof reads as unknown. |
 | **v3805** | `c8855707` | v3805 — An auto sighting joins the manual vault move and the top intake chip is gone. |
 | **v3804** | `741365a6` | v3804 — The sessions hub counts a shadowed PC sent list, then that PC published totals. |

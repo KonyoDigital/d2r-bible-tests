@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3807",
+  "ver": "v3808",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3807: A PC short of the full proof start proves a small slice when idle",
+  "note": "v3808: A move needs a look, owned needs a record, intake review fixes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
