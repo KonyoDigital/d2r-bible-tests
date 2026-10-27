@@ -265,38 +265,66 @@ def scan(root=None):
             if not fn.endswith(".py"):
                 continue
             p = os.path.join(dp, fn)
-            try:
-                src = io.open(p, encoding="utf-8").read()
-                tree = ast.parse(src)
-            except Exception as e:
+            got, bad = _file_rows(p, root)
+            if bad is not None:
                 # ⚠ A FILE THIS TOOL COULD NOT PARSE IS NOT A FILE WITH NO SWALLOWS. Naming it is
                 # the whole difference between a census and a comforting number.
-                unreadable.append((os.path.relpath(p, root), str(e)[:60]))
+                unreadable.append(bad)
                 continue
-            # give each Try the statements that FOLLOW it in its own block, so a defaulted
-            # name that is tested two lines later can be recognised as a sentinel
-            for parent in ast.walk(tree):
-                body = getattr(parent, "body", None)
-                if not isinstance(body, list):
-                    continue
-                for i, st in enumerate(body):
-                    if isinstance(st, ast.Try):
-                        for h in st.handlers:
-                            h._next_stmts = body[i + 1:i + 4]
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Try):
-                    continue
-                for h in node.handlers:
-                    r, why = _rank(node, h)
-                    rows.append({
-                        "file": os.path.relpath(p, root),
-                        "line": h.lineno,
-                        "rank": r,
-                        "why": why,
-                        "shape": _body_shape(h),
-                    })
+            rows.extend(dict(r) for r in got)
     return {"rows": rows, "unreadable": unreadable, "root": root,
             "skippedDirs": sorted(set(state["skippedDirs"]))}
+
+
+#: #172 (2026-10-27) - ONE PARSE PER FILE, NOT ONE PER TICK. The console's doctor runs this census on every eagle tick
+#: (every 10 min) and it ast.parses every .py in the repo, _archive included - about 1,500 files each time, in the
+#: console's own process, whose freed parse arenas stay resident (his ALT's console holds 1.28 GB private). A file's
+#: rows depend on its bytes and its path alone, so they are kept per (path, root) and re-derived only when its size or
+#: mtime moved. An unreadable file is not cached: it is asked again next time and stays NAMED as unreadable.
+_FILE_ROWS = {}
+
+
+def _file_rows(p, root):
+    """-> (rows, None) | (None, (relpath, why)). Kept per file until its size or mtime moves."""
+    rel = os.path.relpath(p, root)
+    try:
+        st = os.stat(p)
+        key = (st.st_mtime_ns, int(st.st_size))
+    except OSError as e:
+        return None, (rel, str(e)[:60])
+    hit = _FILE_ROWS.get((p, root))
+    if hit is not None and hit[0] == key:
+        return hit[1], None
+    try:
+        src = io.open(p, encoding="utf-8").read()
+        tree = ast.parse(src)
+    except Exception as e:
+        return None, (rel, str(e)[:60])
+    # give each Try the statements that FOLLOW it in its own block, so a defaulted
+    # name that is tested two lines later can be recognised as a sentinel
+    for parent in ast.walk(tree):
+        body = getattr(parent, "body", None)
+        if not isinstance(body, list):
+            continue
+        for i, st_ in enumerate(body):
+            if isinstance(st_, ast.Try):
+                for h in st_.handlers:
+                    h._next_stmts = body[i + 1:i + 4]
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for h in node.handlers:
+            r, why = _rank(node, h)
+            out.append({
+                "file": rel,
+                "line": h.lineno,
+                "rank": r,
+                "why": why,
+                "shape": _body_shape(h),
+            })
+    _FILE_ROWS[(p, root)] = (key, tuple(out))
+    return tuple(out), None
 
 
 # ══ THE RATCHET ══════════════════════════════════════════════════════════════════════════════

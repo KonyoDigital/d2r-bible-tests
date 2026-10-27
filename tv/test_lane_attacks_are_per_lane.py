@@ -126,6 +126,79 @@ class TestLaneAttacksArePerLane(unittest.TestCase):
                          "is not evidence of anything")
 
 
+class TheConsoleParsesEachSourceOnce(unittest.TestCase):
+    """#172 (2026-10-27) - his console spent its memory re-parsing its own source: the attack tally ast.parsed ~1,100 gate
+    files each time the census moved, and the doctor's swallow census ~1,500 files on every 10-min eagle tick. Each file's
+    answer depends on its bytes alone, so it is parsed once and again only when its size or mtime moves."""
+
+    def setUp(self):
+        import tempfile
+        import shutil
+        self.d = tempfile.mkdtemp(prefix="parse_once_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self._rp = dict(HE._RP_FILE_CACHE)
+        HE._RP_FILE_CACHE.clear()
+        self.addCleanup(lambda: (HE._RP_FILE_CACHE.clear(), HE._RP_FILE_CACHE.update(self._rp)))
+
+    def _write(self, name, text):
+        with io.open(os.path.join(self.d, name), "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def _touch(self, name):
+        p = os.path.join(self.d, name)
+        with io.open(p, "a", encoding="utf-8") as fh:
+            fh.write("\n# edited\n")
+        st = os.stat(p)
+        os.utime(p, ns=(st.st_atime_ns, st.st_mtime_ns + 2000000000))
+
+    def test_a_gate_files_red_proofs_are_read_once_until_it_changes(self):
+        self._write("test_x.py", "RED_PROOF = []\n")
+        calls = []
+
+        class FakeHeart2(object):
+            HERE = self.d
+
+            @staticmethod
+            def red_proofs_in(fn):
+                calls.append(fn)
+                return [{"file": "control_app.py", "find": "x"}]
+        a = HE._red_proofs_cached(FakeHeart2, "test_x.py")
+        b = HE._red_proofs_cached(FakeHeart2, "test_x.py")
+        self.assertEqual(a, b)
+        self.assertEqual(len(calls), 1, "an unchanged gate file was parsed again: %r" % calls)
+        self._touch("test_x.py")
+        HE._red_proofs_cached(FakeHeart2, "test_x.py")
+        self.assertEqual(len(calls), 2, "an edited gate file was not read again: %r" % calls)
+
+    def test_the_swallow_census_parses_each_file_once_until_it_changes(self):
+        import ast as _ast
+        import swallow_census as SC
+        self._write("a.py", "try:\n    x = 1\nexcept Exception:\n    pass\n")
+        self._write("b.py", "try:\n    y = 2\nexcept ValueError:\n    y = None\n")
+        real, parsed = _ast.parse, []
+
+        def counting(src, *a, **k):
+            parsed.append(1)
+            return real(src, *a, **k)
+        SC.ast.parse = counting
+        try:
+            first = SC.scan(self.d)
+            n1 = len(parsed)
+            second = SC.scan(self.d)
+            n2 = len(parsed) - n1
+            self._touch("a.py")
+            third = SC.scan(self.d)
+            n3 = len(parsed) - n1 - n2
+        finally:
+            SC.ast.parse = real
+        rows = lambda r: sorted((x["file"], x["line"], x["rank"], x["shape"]) for x in r["rows"])  # noqa: E731
+        self.assertEqual(n1, 2, "PREMISE: the first census did not parse both files")
+        self.assertEqual(rows(first), rows(second), "a cached census answered differently")
+        self.assertEqual(n2, 0, "an unchanged tree was parsed again on the next tick")
+        self.assertEqual(n3, 1, "editing one file did not re-parse exactly that file")
+        self.assertEqual(len(third["rows"]), len(first["rows"]))
+
+
 RED_PROOF = [
     {
         "why": "takes min(k) and min(n) INDEPENDENTLY, which invents a pair no lane holds: a "
@@ -156,6 +229,26 @@ RED_PROOF = [
         "replace": "            if True:",
         "matches": 1,
     },
+    {"why": "#172 - the attack tally parses every gate file again whenever the census moves",
+     "file": "health_engine.py",
+     "find": "    hit = _RP_FILE_CACHE.get(fn)\n    if hit is not None and hit[0] == key:\n        return hit[1]\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "#172 - an edited gate file keeps its old red-proof list for ever",
+     "file": "health_engine.py",
+     "find": "        key = (st.st_mtime_ns, int(st.st_size))\n    except OSError:\n        return h2.red_proofs_in(fn)\n",
+     "replace": "        key = 0\n    except OSError:\n        return h2.red_proofs_in(fn)\n",
+     "matches": 1},
+    {"why": "#172 - the swallow census parses every file again on every eagle tick",
+     "file": "swallow_census.py",
+     "find": "    if hit is not None and hit[0] == key:\n        return hit[1], None\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "#172 - an edited file keeps its old swallow rows for ever",
+     "file": "swallow_census.py",
+     "find": "        key = (st.st_mtime_ns, int(st.st_size))\n    except OSError as e:\n",
+     "replace": "        key = 0\n    except OSError as e:\n",
+     "matches": 1},
 ]
 
 if __name__ == "__main__":

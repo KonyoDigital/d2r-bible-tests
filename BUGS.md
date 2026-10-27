@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2638 - THE CONSOLE RE-PARSED ITS OWN SOURCE ON EVERY TICK (#172, his ALT's console holds 1.28 GB private)
+MEASURED 2026-10-27 on a private console booted on a no-.git copy of his tree (harness port, no beacon, no paid read,
+tracemalloc, 150 s): the console's memory goes to parsing its own source. The attack tally ast.parsed every gate file's
+RED_PROOF list (~1,100 files) each time the census store moved - every proof slice - and the doctor's swallow census
+ast.parsed every .py in the repo (~1,500, _archive included) on every 10-min eagle tick. ast.parse's C arena is
+invisible to tracemalloc and its freed blocks stay resident (vmmap on his Mac: 1.2 GB of freed MALLOC_LARGE 55 s after a
+start). Both are now kept PER FILE and re-derived only when that file's size or mtime moves; the census answers exactly
+what it answered (5,537 rows identical on his tree). Law: test_lane_attacks_are_per_lane TheConsoleParsesEachSourceOnce
+(RED on the old modules, 4 RED_PROOFs red). STILL OPEN (#172 phase B): the FIRST parse after each update still happens
+in the console's own process (route census, lane spans) - it belongs in a short-lived child.
+
 ### REG-2637 - AN UNKNOWN CENSUS HELD GATES BACK, AND A SLOW STAND-ASIDE'S NAMING WAS UNPINNED (the Grok eye on v3810)
 Reproduced from the Grok CLI's v3810 look: _memory_stall stored stalledFor = None for a census with no fingerprint, and
 the planner compared None == None, so gates stalled under one UNKNOWN census stayed held under the next. Now an unknown

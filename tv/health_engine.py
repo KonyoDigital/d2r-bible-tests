@@ -740,6 +740,29 @@ def check_self_arming():
 
 #: One walk of the gate roster, memoised on the ledger's mtime. See `_attack_tally`.
 _ATK_CACHE = {"key": None, "per_file": None}
+#: #172 (2026-10-27) - ONE PARSE PER GATE FILE, NOT ONE PER CENSUS CHANGE. MEASURED on a private console booted on a copy of
+#: his tree: the attack tally ast.parses every gate file's RED_PROOF list (~1,100 files) each time the census store moves -
+#: and the self-prover moves it every slice - so the console re-parsed the whole suite again and again, and the parse's
+#: freed C arenas stay resident (the ALT's console holds 1.28 GB private). A file's RED_PROOF list depends on that file's
+#: bytes alone, so each is kept per file and re-read only when the file's size or mtime moved. Replaced in ONE binding
+#: per file (control_app is threaded); an unreadable file is not cached - it is asked again next time.
+_RP_FILE_CACHE = {}
+
+
+def _red_proofs_cached(h2, fn):
+    """heart2.red_proofs_in(fn), kept per gate file until its size or mtime moves. -> list | None"""
+    try:
+        st = os.stat(os.path.join(h2.HERE, fn))
+        key = (st.st_mtime_ns, int(st.st_size))
+    except OSError:
+        return h2.red_proofs_in(fn)
+    hit = _RP_FILE_CACHE.get(fn)
+    if hit is not None and hit[0] == key:
+        return hit[1]
+    got = h2.red_proofs_in(fn)
+    if got is not None:
+        _RP_FILE_CACHE[fn] = (key, got)
+    return got
 
 
 _LANE_SPAN_CACHE = {"key": None, "val": None}
@@ -900,7 +923,7 @@ def _attack_rollup():
     per, _ca_hits = {}, []
     try:
         for _name, _fn in _h2.gate_files():
-            _proofs = _h2.red_proofs_in(_fn) or []
+            _proofs = _red_proofs_cached(_h2, _fn) or []   # #172 - one parse per gate file until it changes
             if not _proofs:
                 continue
             _files = {str(_p.get("file") or "") for _p in _proofs}
