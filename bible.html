@@ -4916,6 +4916,8 @@ window.LSR = (function(){
     setItem:    function(k,v){
       if (window._tvdShadow) return;
       if (_QUAR[k]) return _qRefuse(String(k), 'write');
+      /* The same bytes are not a new fact. A poll that writes them again grows the browser log. */
+      try { if (RAW.getItem(key(k)) === String(v)) return true; } catch (eSame) {}
       if (k === 'd2r_setPieces'){ try { _spHistory(v); } catch(e){} }
       return RAW.setItem(key(k), v);
     },
@@ -47574,8 +47576,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try {
           if (nm && r && r.ok){ try { if (typeof window._vaultRecordsPersist === 'function') window._vaultRecordsPersist(); } catch (ePers) {} }
           if (nm && r && r.ok && _witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.cell || _witIn.frame)){
-            /* A move needs one look the filing would keep: its own session and its own frame.
-               A frame with no session, or a score under the floor, is zero looks and opens nothing.
+            /* A new move needs one look the filing would keep: its own session and its own frame.
+               A frame with no session, or a score under the floor, opens nothing.
+               A sighting on a cell a saved move already names still verifies that row.
                A hand declaration is not a frame look and keeps the path it already had. */
             var _lookN = _byHand ? 1 : 0;
             if (!_byHand){
@@ -47603,7 +47606,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 }
               } catch (eLook) { _lookN = 0; }
             }
-            if (_lookN >= 1){
+            var _savedCell = false;
+            if (!_byHand && _lookN < 1){
+              try {
+                var _bagS = (typeof _vaultMoveBag === 'function') ? _vaultMoveBag() : null;
+                var _mapS = _bagS && _bagS.map;
+                var _cellS = _witIn.cell;
+                if (_mapS && _cellS != null && _cellS !== ''){
+                  var _preS = String(nm) + '\u0000';
+                  for (var _sk in _mapS){
+                    if (!Object.prototype.hasOwnProperty.call(_mapS, _sk) || _sk.indexOf(_preS) !== 0) continue;
+                    var _rowS = _mapS[_sk];
+                    if (!_rowS) continue;
+                    var _toC = _rowS.to && _rowS.to.cell;
+                    var _frC = _rowS.from && _rowS.from.cell;
+                    if (_toC === _cellS || _frC === _cellS){ _savedCell = true; break; }
+                  }
+                }
+              } catch (eSaved) { _savedCell = false; }
+            }
+            if (_lookN >= 1 || _savedCell){
               var _autoRow = (typeof window._vaultMoveAutoRow === 'function') ? window._vaultMoveAutoRow((r && r.label) || (r && r.name) || nm, _witIn) : { row: true };
               if ((!_autoRow || _autoRow.row !== false) && typeof window._vaultMoveApplySight === 'function')
                 window._vaultMoveApplySight((r && r.label) || (r && r.name) || nm, _witIn); /* v3769 register sight */
@@ -53981,6 +54003,16 @@ window.vaultAutoAssign = function(){
     var outRecs = built.rows;
     var seq = built.seq;
     var store = { v: 1, ts: Date.now(), seq: seq, carUnknown: false, dockUnknown: false, records: outRecs };
+    /* A poll that re-derives the same records is not a new fact. The stamp alone must not rewrite the store. */
+    if (prior && typeof prior === 'object') {
+      var _sameRec = false;
+      try {
+        var _a = JSON.stringify(Object.assign({}, prior, { ts: 0 }));
+        var _b = JSON.stringify(Object.assign({}, store, { ts: 0 }));
+        _sameRec = _a === _b;
+      } catch (eSame) { _sameRec = false; }
+      if (_sameRec) return { ok: true, wrote: false, skipped: true, count: outRecs.length, seq: seq, why: null };
+    }
     var wrote = _vrRecGuardedSet(store);
     return { ok: wrote, wrote: wrote, count: outRecs.length, seq: seq, why: (wrote ? null : 'guarded set refused - a corrupt store is never overwritten') };
   }
@@ -74049,12 +74081,12 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
        admit "the oldest decisions drop"; this makes that honest again, because array position now
        tracks last-touch and .slice(-400) keeps the 400 the panel treats as newest. The cap itself
        is unchanged — 400 is his number. [[the-unjoined-end]] [[unknown-stays-unknown]] */
-    /* An unchanged row is not a new sighting. Restamping lastTs and statusTs rewrote the
-       whole ledger on every sync and grew the browser log with no new fact. A real change,
-       or a bumped sighting, still moves to the tail. */
-    if (prev && !row._bump) {
+    /* An unchanged row is not a new sighting. Restamping lastTs or statusTs, or bumping
+       seenCount on the same decision, rewrote the whole ledger on every poll and grew the
+       browser log with no new fact. A real change still moves to the tail. */
+    if (prev) {
       var _chSame = true;
-      var _chSkip = { lastTs: 1, statusTs: 1 };
+      var _chSkip = { lastTs: 1, statusTs: 1, seenCount: 1 };
       var _chKeys = {};
       Object.keys(prev).forEach(function (k) { if (!_chSkip[k]) _chKeys[k] = 1; });
       Object.keys(next).forEach(function (k) { if (!_chSkip[k]) _chKeys[k] = 1; });

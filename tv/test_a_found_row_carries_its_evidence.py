@@ -260,6 +260,94 @@ class AFoundRowCarriesItsEvidence(unittest.TestCase):
                          "the chronicle log is no longer trimmed to 400 in the one save. Re-read whether a separate "
                          "durable evidence store is still the right answer before trusting this file.")
 
+    def test_an_unchanged_chronicle_row_is_not_rewritten(self):
+        """A poll re-records the same decision with a bump. That is not a new sighting, and the
+        chronicle log must stay on disk as it was. A real status change still writes."""
+        from test_v3767_copy_witness import _fn
+        src = _src()
+        js = "\n".join([
+            "var window = globalThis;",
+            "var writes = [];",
+            "var store = {};",
+            "window.LSR = {",
+            "  getItem: function(k){ return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },",
+            "  setItem: function(k, v){ writes.push(k); store[k] = String(v); }",
+            "};",
+            "var _CH_LOG_KEY = 'd2r_chronicleInboxLog';",
+            _fn(src, "_chLsGet"),
+            _fn(src, "_chLsSet"),
+            _fn(src, "_chLogLoad"),
+            _fn(src, "_chLogSave"),
+            _fn(src, "_chLogUpsert"),
+            r"""
+var first = _chLogUpsert({ name: 'Spirit', status: 'tv-routed', source: 'tv-route', _bump: true, why: 'first' });
+var n1 = writes.length;
+var again = _chLogUpsert({ name: 'Spirit', status: 'tv-routed', source: 'tv-route', _bump: true, why: 'first' });
+var n2 = writes.length;
+var row = JSON.parse(store.d2r_chronicleInboxLog)[0];
+var changed = _chLogUpsert({ name: 'Spirit', status: 'route-failed', source: 'tv-route', _bump: true, why: 'changed' });
+var n3 = writes.length;
+var row2 = JSON.parse(store.d2r_chronicleInboxLog)[0];
+console.log(JSON.stringify({
+  n1: n1, n2: n2, n3: n3,
+  seen: row.seenCount, againSeen: again && again.seenCount, againStatus: again && again.status,
+  status: row2.status, changedSeen: changed && changed.seenCount
+}));
+""",
+        ])
+        raw = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(raw.returncode, 0, (raw.stderr or "")[-1500:])
+        got = json.loads([ln for ln in raw.stdout.splitlines() if ln.startswith("{")][-1])
+        self.assertEqual(got["n1"], 1, got)
+        self.assertEqual(got["n2"], 1, got)
+        self.assertEqual(got["seen"], 1, got)
+        self.assertEqual(got["againSeen"], 1, got)
+        self.assertEqual(got["againStatus"], "tv-routed", got)
+        self.assertEqual(got["n3"], 2, got)
+        self.assertEqual(got["status"], "route-failed", got)
+        self.assertEqual(got["changedSeen"], 2, got)
+
+    def test_an_unchanged_vault_record_is_not_rewritten(self):
+        """The register calls persist on every sighting. The same records with a new stamp are not a write."""
+        from test_v3767_copy_witness import _fn
+        src = _src()
+        js = "\n".join([
+            "var window = globalThis;",
+            "var sets = 0;",
+            "var prior = null;",
+            "var rows = [{ name: 'Spirit', copyIx: 0 }];",
+            "function _vaultRecords(){ return { ok: true }; }",
+            "function _vrRecLoadRaw(){ return prior; }",
+            "var _vrRecUnread = {};",
+            "function _vrRecWitness(){ return {}; }",
+            "function _vrRecRowsFrom(){ return { rows: rows, seq: 3 }; }",
+            "function _vrRecGuardedSet(obj){ sets++; prior = JSON.parse(JSON.stringify(obj)); return true; }",
+            _fn(src, "_vaultRecordsPersist"),
+            r"""
+var a = _vaultRecordsPersist();
+var n1 = sets;
+var b = _vaultRecordsPersist();
+var n2 = sets;
+rows = [{ name: 'Spirit', copyIx: 0 }, { name: 'Thresher', copyIx: 0 }];
+var c = _vaultRecordsPersist();
+var n3 = sets;
+console.log(JSON.stringify({
+  n1: n1, n2: n2, n3: n3,
+  aWrote: a && a.wrote, bWrote: b && b.wrote, bSkip: b && b.skipped, cWrote: c && c.wrote
+}));
+""",
+        ])
+        raw = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(raw.returncode, 0, (raw.stderr or "")[-1500:])
+        got = json.loads([ln for ln in raw.stdout.splitlines() if ln.startswith("{")][-1])
+        self.assertEqual(got["n1"], 1, got)
+        self.assertTrue(got["aWrote"], got)
+        self.assertEqual(got["n2"], 1, got)
+        self.assertFalse(got["bWrote"], got)
+        self.assertTrue(got["bSkip"], got)
+        self.assertEqual(got["n3"], 2, got)
+        self.assertTrue(got["cWrote"], got)
+
     # ── LAW 1 — a swept row lands with its proof ────────────────────────────────────────────
     def test_a_swept_unique_lands_with_the_reel_and_frame_the_payload_CARRIED(self):
         got, why = _run({"uniques": [SWEPT], "sets": []}, reads=["Harlequin Crest"])

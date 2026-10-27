@@ -91,6 +91,33 @@ class AStoreThatWillNotReadIsKeptAside(unittest.TestCase):
         self.assertEqual(o["after"], BAD["d2r_owned"])
         self.assertGreaterEqual(o["refused"], 3, "persist(), the write and the remove were all refused")
 
+    def test_the_same_bytes_are_not_written_again(self):
+        o = D.page(
+            D.stage(D.src()),
+            r"""
+var writes = 0;
+var _set = localStorage.setItem;
+localStorage.setItem = function(k, v){ if (k === 'd2r_runeStash') writes++; return _set(k, v); };
+var same = window.LSR.setItem('d2r_runeStash', '{"Ber":1}');
+var again = window.LSR.setItem('d2r_runeStash', '{"Ber":1}');
+var changed = window.LSR.setItem('d2r_runeStash', '{"Ber":2}');
+window.LSR.quarantine('d2r_wishlist', 'will not parse');
+var refused = window.LSR.setItem('d2r_wishlist', 'GARBAGE {{{');
+OUT.writes = writes;
+OUT.same = same; OUT.again = again; OUT.changed = changed !== false;
+OUT.stored = localStorage.getItem('d2r_runeStash');
+OUT.refused = refused;
+OUT.held = localStorage.getItem('d2r_wishlist');
+""",
+            seed={"d2r_runeStash": '{"Ber":1}', "d2r_wishlist": "GARBAGE {{{"})
+        self.assertEqual(o["writes"], 1, o)
+        self.assertTrue(o["same"], o)
+        self.assertTrue(o["again"], o)
+        self.assertTrue(o["changed"], o)
+        self.assertEqual(o["stored"], '{"Ber":2}')
+        self.assertFalse(o["refused"], o)
+        self.assertEqual(o["held"], "GARBAGE {{{")
+
     def test_absent_empty_and_healthy_stores_are_not_quarantined(self):
         o = _boot("OUT.q = window.LSR.quarantined().length; OUT.owned = Array.from(owned); OUT.wish = wishlist.size;"
                   "OUT.mk = Object.keys(multiKeep).length > 0;",
@@ -222,8 +249,8 @@ RED_PROOF = [
      "replace": ""},
     {"why": "REG-2410 - a quarantined store's remove is no longer refused",
      "file": "bible.html", "matches": 1,
-     "find": "    removeItem: function(k){ if (_QUAR[k]) return _qRefuse(String(k), 'remove'); return RAW.removeItem(key(k)); },",
-     "replace": "    removeItem: function(k){ return RAW.removeItem(key(k)); },"},
+     "find": "    removeItem: function(k){ if (window._tvdShadow) return; if (_QUAR[k]) return _qRefuse(String(k), 'remove'); return RAW.removeItem(key(k)); },",
+     "replace": "    removeItem: function(k){ if (window._tvdShadow) return; return RAW.removeItem(key(k)); },"},
     {"why": "REG-2410 - the bytes are no longer copied aside (a later release would lose them)",
      "file": "bible.html", "matches": 1,
      "find": "        if (RAW.getItem(slot) !== raw) RAW.setItem(slot, raw);\n",
