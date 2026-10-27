@@ -52177,10 +52177,13 @@ window.vaultAutoAssign = function(){
       if (typeof w === 'number') return w > 0 ? w : 0;
       if (Array.isArray(w)) {
         var seen = {}, n = 0;
+        /* same law as the filing: a score, when the set has any, must clear 0.55; a set with no scores counts session + frame */
+        var scored = w.some(function(x){ return x && typeof x === 'object' && typeof x.conf === 'number'; });
         w.forEach(function(x){
           if (!x || typeof x !== 'object') return;
           var sid = x.session || x.id;
-          if (!sid || !x.frame || !((+x.conf || 0) >= 0.55) || seen[sid]) return;
+          if (!sid || !x.frame || seen[sid]) return;
+          if (scored && !(typeof x.conf === 'number' && x.conf >= 0.55)) return;
           seen[sid] = 1; n++;
         });
         return n;
@@ -52868,7 +52871,7 @@ window.vaultAutoAssign = function(){
     (rec.records || []).forEach(function(r){
       if (!r || r.name == null) return;
       var _sightLane = (r.sight && (r.sight.location || r.sight.lane)) || '';
-      var _autoRow = null, _ruledJunkRow = false;
+      var _autoRow = null;
       try { _autoRow = _vaultMoveAutoRow(r.name, { lane: _sightLane, cell: r.sight && r.sight.cell }); }
       catch (eAuto) { _autoRow = null; }
       if (_autoRow && _autoRow.row === false) {
@@ -52881,11 +52884,9 @@ window.vaultAutoAssign = function(){
           } catch (eRuleC) { _ruledJunk = false; }
         }
         if (!_ruledJunk) return; /* main lane or no home: no move row */
-        _ruledJunkRow = true;
       }
-      try { if (!_ruledJunkRow && typeof assign !== 'undefined' && assign && assign[r.name] === '__throwout') _ruledJunkRow = true; } catch (eRJ) {}
       var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
-      var hasSight = !!(r.sight && r.sight.cell && (_ruledJunkRow || _vaultSightLooks(r.sight) >= 1)); /* intake zero looks: a cell with no session behind it is not a look, so it opens no move; his throw-out ruling keeps its cell */
+      var hasSight = !!(r.sight && r.sight.cell && _vaultSightLooks(r.sight) >= 1); /* intake zero looks: a cell with no session behind it is not a look, so it opens no move */
       var thr = (typeof _vaultThrowTask === 'function') ? _vaultThrowTask(r, stored) : null;
       if (thr) {
         if (_vaultMoveMainLane(thr.task.from && thr.task.from.location)) return; /* a stored inventory from stays locked */

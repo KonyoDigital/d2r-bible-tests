@@ -590,6 +590,13 @@ var listLook = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash
 var listNoSession = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: [
   { frame: 'f_1791358157119.jpg', conf: 0.85, cell: 'stash:c7r1' }] } }]);
 /* #230 v3806: a cell with no session behind it (witnesses null) is zero looks and opens no move */
+/* #230 review: his __throwout ruling with a 'throwout' seam is no throw route; a cell with 0 looks still opens nothing */
+assign['Mystery Blade'] = '__throwout'; window._seam = { loc: 'throwout' };
+var ruledZero = collect([{ name: 'Mystery Blade', copyIx: 0, sight: { location: 'stash', cell: 'stash:c2r2', witnesses: null } }]);
+delete assign['Mystery Blade']; window._seam = null;
+/* the live reader's looks carry conf null: a session + frame with no score in the set is a look */
+var listNullConf = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: [
+  { session: 's_1791356557071_58418', frame: 'f_1791358157119.jpg', conf: null, cell: 'stash:c7r1' }] } }]);
 window._ensFrom = 'inventory';
 var zeroLook = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: null } }]);
 var storedInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: '', cell: null } }]);
@@ -600,7 +607,7 @@ console.log(JSON.stringify({
   fromInv: names(fromInv), fromEquip: names(fromEquip),
   fromUnknown: names(fromUnknown), fromUnknownPlain: names(fromUnknownPlain),
   fromRuled: names(fromRuled), fromStash: names(fromStash), fromShared: names(fromShared),
-  storedInv: names(storedInv), zeroLook: names(zeroLook), listLook: names(listLook), listNoSession: names(listNoSession),
+  storedInv: names(storedInv), zeroLook: names(zeroLook), listLook: names(listLook), listNoSession: names(listNoSession), listNullConf: names(listNullConf), ruledZero: (ruledZero.tasks || []).filter(function(t){ return t.task.kind !== 'throw'; }).map(function(t){ return t.name; }),
   committedUnknown: fromUnknownPlain.committed || []
 }));
 """,
@@ -625,6 +632,8 @@ console.log(JSON.stringify({
         self.assertEqual(o["zeroLook"], [])
         self.assertEqual(o["listLook"], ["Thresher"])
         self.assertEqual(o["listNoSession"], [])
+        self.assertEqual(o["listNullConf"], ["Thresher"])
+        self.assertEqual(o["ruledZero"], [])
         self.assertEqual(o["committedUnknown"], [])
 
 
@@ -639,12 +648,15 @@ console.log(JSON.stringify({
   n2: _vaultSightLooks({ witnesses: 2 }), nNull: _vaultSightLooks({ witnesses: null }),
   lst: _vaultSightLooks({ witnesses: [
     { session: 's_1', frame: 'f_1.jpg', conf: 0.9 }, { session: 's_1', frame: 'f_2.jpg', conf: 0.9 },
-    { session: 's_2', frame: 'f_3.jpg', conf: 0.4 }, { session: 's_3', frame: null, conf: 0.9 }, { session: 's_4', frame: 'f_4.jpg', conf: 0.7 }] })
+    { session: 's_2', frame: 'f_3.jpg', conf: 0.4 }, { session: 's_3', frame: null, conf: 0.9 }, { session: 's_4', frame: 'f_4.jpg', conf: 0.7 }] }),
+  unscored: _vaultSightLooks({ witnesses: [{ session: 's_1', frame: 'f_1.jpg', conf: null }, { session: 's_2', frame: 'f_2.jpg' }] }),
+  mixed: _vaultSightLooks({ witnesses: [{ session: 's_1', frame: 'f_1.jpg', conf: null }, { session: 's_2', frame: 'f_2.jpg', conf: 0.9 }] })
 }));
 """])
         o = self._run(prog)
         self.assertEqual(o, {"direct": True, "filed": True, "boom": False, "str": False, "arr": False,
-                             "nul": False, "hand": False, "n2": 2, "nNull": 0, "lst": 2})
+                             "nul": False, "hand": False, "n2": 2, "nNull": 0, "lst": 2,
+                             "unscored": 2, "mixed": 1})
 
 
 RED_PROOF = [
