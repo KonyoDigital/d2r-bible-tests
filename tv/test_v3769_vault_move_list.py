@@ -587,10 +587,11 @@ window._laneLockNote("Eschuta's Temper", 'equipment', 'b');
 window._laneLockNote("Eschuta's Temper", 'equipment', 'c');
 var home = _vaultMoveCollect();
 var names = (home.tasks || []).map(function(r){ return r.name; });
+ROUTES["Griffon's Eye"] = { id: 'uni-armor', why: 'helm' };
 var gear = _vaultMoveShown({
-  name: "Eschuta's Temper", status: 'to-move',
-  from: { holder: 'MAIN', location: 'equipment', cell: 'equipment:c0r0' },
-  to: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c0r0' }
+  name: "Griffon's Eye", status: 'to-move',
+  from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c0r0' },
+  to: { holder: 'UNI-ARMOR', location: 'stash', cell: 'stash:c0r0', id: 'uni-armor' }
 });
 var bare = _vaultMoveShown({
   name: "Eschuta's Temper", status: 'to-move',
@@ -719,10 +720,10 @@ RED_PROOF = [
      "find": "try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3773 owned persist */",
      "replace": "try { void 0; } catch (eOw) {} /* v3773 owned persist */",
      "matches": 1},
-    {"why": "A keep already on MAIN inventory or equipment is painted as a move.",
+    {"why": "Inventory on MAIN is painted as a move.",
      "file": "bible.html",
-     "find": "if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */",
-     "replace": "if (false && _vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */",
+     "find": "    if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
+     "replace": "    if (false && _vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
      "matches": 1},
     {"why": "A row with no target location and no cell is still painted.",
      "file": "bible.html",
