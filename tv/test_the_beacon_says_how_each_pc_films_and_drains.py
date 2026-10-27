@@ -592,6 +592,24 @@ class TheRouteIsNewsAndTheAgesSayWhen(_World):
                       % v["replies"][1])
         self.assertEqual(v["lastseen"]["system"]["river"]["heart"]["census"], "missing")
 
+    def test_a_console_that_stops_starting_is_written_at_once(self):
+        """#193 (his Fleet, 2026-10-28) - the row prints 'river · starting' from the prover's key. A console whose first
+        proof tick raised (census still null) kept drawing 'starting' for up to 15 min, because only the census was news."""
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        a["system"]["river"]["heart"] = {"census": None, "key": "starting", "blind": None}
+        b["system"]["river"]["heart"] = {"census": None, "key": "raised", "blind": None}
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a console past its boot window kept 'river · starting' on every other PC: %r" % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["river"]["heart"]["key"], "raised")
+
+    def test_premise_a_prover_key_the_row_does_not_print_is_not_news(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        a["system"]["river"]["heart"] = {"census": "stale", "key": "running", "blind": 0}
+        b["system"]["river"]["heart"] = {"census": "stale", "key": "start", "blind": 0}
+        v = self._run([a, b])
+        self.assertNotIn("console", v["replies"][1]["stored"], "a prover slice moving spent a KV write")
+
     def test_REG1771_premise_the_same_census_with_a_moved_age_is_not_news(self):
         a, b = self._body("native", 12.0), self._body("native", 95.0)
         for x in (a, b):
@@ -870,6 +888,11 @@ RED_PROOF = [
              "                           triageWord, placeWord]);\n",
      "replace": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord,\n"
                 "                           placeWord]);\n",
+     "matches": 1},
+    {"why": "#193 - the row's 'river · starting' is not news again: a console past its boot window keeps it for up to 15 min",
+     "file": "functions/api/console.js",
+     "find": "                           (h.key === 'starting' || h.key === 'low-memory') ? h.key : null] : null;\n",
+     "replace": "                           null] : null;\n",
      "matches": 1},
     {"why": "REG-1771 - a tree or a shelf count that changes is not news again: the hover keeps the old words for up to 15 min",
      "file": "functions/api/console.js",

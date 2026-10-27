@@ -723,7 +723,10 @@ export async function onRequestPost(context) {
         : sk;
     }
     const h = (rv.heart && typeof rv.heart === 'object') ? rv.heart : null;
-    const heartWord = h ? [h.census, (typeof h.blind === 'number') ? h.blind : null] : null;
+    // #193 (his Fleet, 2026-10-28: Dean "says STarting it could be stale") - the row prints two of the prover's keys as
+    // words ('river · starting', 'census waiting for memory'), so those two are news; the others move each slice and are not.
+    const heartWord = h ? [h.census, (typeof h.blind === 'number') ? h.blind : null,
+                           (h.key === 'starting' || h.key === 'low-memory') ? h.key : null] : null;
     let laneWord = null;
     if (rv.lanes && typeof rv.lanes === 'object' && !Array.isArray(rv.lanes)) {
       laneWord = Object.keys(rv.lanes).sort().map((k) => [k, rv.lanes[k]]);

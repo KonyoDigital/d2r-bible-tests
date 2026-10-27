@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2694 - THE FLEET'S "river · starting" WAS NOT NEWS TO THE WORKER (#193, his Fleet 2026-10-28: Dean "says STarting")
+Measured first: Dean's row read river · starting at 00:05 because his console relaunched onto v3815 at 23:58 and its first
+proof tick lands ~5 min after a start - his next beacon (22:11:51Z) carried census stale, key start, and the row moved.
+The gap it exposed is real: functions/api/console.js wrote a row at once only when the census or the blind count moved,
+while the row PRINTS two of the prover's keys as words ('river · starting', 'census waiting for memory'). A first tick
+that raised (census still null) kept 'starting' on every other PC for up to REFRESH_S (15 min). Those two keys are news
+now; every other key moves each slice and still spends no write. Law: test_the_beacon_says_how_each_pc_films_and_drains.
+
 ### REG-2693 - THE GROK EYE ON v3815: A THROWN FILING KEPT THE SHARED SWITCH; AN EMPTY LANE SAID NOTHING
 Cross-family look at v3815 (grok-cli), each checked before acting:
 1. vaultShareToggle set the new override before filing and put it back only on a refused answer. A filing that THREW,
