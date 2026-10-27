@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3813",
+  "ver": "v3814",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3813: the river is read a minute after a start (#193), one look rule (#201), NPC names refused (#209), shadow view links work",
+  "note": "v3814: shadow characters arrive (#203), private consoles keep off his pid files (#177), quiet relaunch stays minimized",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

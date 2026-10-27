@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3813** | `(this commit)` | v3813 — the river is read a minute after a start (#193), one look rule (#201), NPC names refused (#209), shadow view links work |
+| **v3814** | `(this commit)` | v3814 — shadow characters arrive (#203), private consoles keep off his pid files (#177), quiet relaunch stays minimized |
+| **v3813** | `1738e992` | v3813 — the river is read a minute after a start (#193), one look rule (#201), NPC names refused (#209), shadow view links work |
 | **v3812** | `4e0df16c` | v3812 — Each source file is parsed once, not every tick. No shadow of yourself. Unfiled items read no home. |
 | **v3811** | `f68fdaca` | v3811 — Space never flips your ON AIR from a shadow. An unknown census holds no proof back. |
 | **v3810** | `bc133c9c` | v3810 — A memory stand-aside names its gates. A ctime proof is judged only where ctime moves. |
