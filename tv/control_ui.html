@@ -24055,10 +24055,14 @@ window._lockMark = function(isOpen, px, label){
     var progress = null;
     try { progress = JSON.parse((shadow ? readHub('d2r_shadowProgress') : lsHub('d2r_shadowProgress')) || 'null'); } catch (eP) { progress = null; }
     if (!progress || typeof progress !== 'object' || Array.isArray(progress)) progress = null;
+    var uniRow = progress && progress.uniques;
+    var uniHave = (uniRow && typeof uniRow.have === 'number' && isFinite(uniRow.have)) ? uniRow.have : null;
     var lists = {
       runewords: _listCount(shadow ? readHub('d2r_rwMade') : lsHub('d2r_rwMade')),
       sets: _listCount(shadow ? readHub('d2r_setPieces') : lsHub('d2r_setPieces')),
-      uniques: shadow ? null : _listCount(lsHub('d2r_foundLog'))
+      /* A published uniques count of 1 or more wins over a longer found log.
+         Zero is not a count. Names that were sent are the count then. */
+      uniques: (shadow && uniHave != null && uniHave >= 1) ? null : _listCount(shadow ? readHub('d2r_foundLog') : lsHub('d2r_foundLog'))
     };
     var line = _chronicleCounts(summary, progress, lists);
     var el = document.getElementById('hd-chron-counts');
@@ -24087,9 +24091,10 @@ window._lockMark = function(isOpen, px, label){
              it only when that line has nothing else to say. A sent chronicle
              must not sit above a second copy of the sentence. */
           var chronEl = document.getElementById('hd-chron-counts');
-          var chronText = chronEl ? String(chronEl.textContent || '') : '';
-          var _blank = (!chronText || chronText.indexOf('\u2019') !== -1)
-            ? '<span class="hd-empty">the list wasn\u2019t sent</span>'
+          var chronText = chronEl ? String(chronEl.textContent || '').trim() : '';
+          var _unsentLine = 'the list wasn\u2019t sent';
+          var _blank = (!chronText || chronText === _unsentLine)
+            ? '<span class="hd-empty">' + _unsentLine + '</span>'
             : '';
           if (_blank !== _hdForgeSig) {
             _hdForgeSig = _blank;
@@ -24786,8 +24791,14 @@ window._lockMark = function(isOpen, px, label){
          with no footage, NOT a sim — so his six- and seven-frame SIM sessions were counted here as
          runs recorded today. They are separated rather than hidden: a sim that vanishes silently is
          its own kind of lie, and he pressed SIM on purpose. */
-      if (_onShadowHub) {
+      function _shadowTodayUnsent(line){
+        var s = String(line == null ? '' : line).trim();
+        return s === '' || s === 'the list wasn\u2019t sent';
+      }
+      if (_onShadowHub && _shadowTodayUnsent((document.getElementById('hd-chron-counts') || {}).textContent)) {
         rows.push('<div class="tf-row tf-stat"><span class="tf-g">📼</span><span class="tf-t">the list wasn\u2019t sent</span><span class="tf-tag dim">TODAY</span></div>');
+      } else if (_onShadowHub) {
+        /* The chronicle line already counts what was sent. Today does not repeat the sentence. */
       } else {
       var _todays = (HD_ALL || []).filter(function(x){ return x.t0 && new Date(x.t0).toDateString() === new Date().toDateString(); });
       var runsToday = _todays.filter(function(x){ return !x.sim; }).length;

@@ -1367,13 +1367,113 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("400/", got["macLine"], got)
         self.assertEqual(got["macChips"], "", got)
         self.assertEqual(got["altLine"], "Sets 4/135" + dot + "Uniques 52/403" + dot + "the list wasn\u2019t sent", got)
-        self.assertIn("the list wasn\u2019t sent", got["altChips"], got)
+        self.assertEqual(got["altChips"], "", got)
         self.assertEqual(got["deanLine"], "Runewords 98/99" + dot + "Sets 132/135" + dot + "the list wasn\u2019t sent", got)
         self.assertNotIn("7/", got["macLine"] + got["altLine"] + got["deanLine"] + got["noSnap"], got)
         self.assertNotIn("0/", got["macLine"] + got["altLine"] + got["deanLine"] + got["noSnap"], got)
         self.assertEqual(got["hostReads"], 0, got)
         self.assertEqual(got["noSnap"], "", got)
         self.assertIn("the list wasn\u2019t sent", got["noSnapChips"], got)
+
+    def test_a_sent_unique_list_counts_when_the_published_have_is_zero(self):
+        """Dean sent 132 unique names and a published have of 0. The line counts 132.
+
+        Mac's found log is longer than the published 332, so 332 stays. The missing-list
+        sentence stays on the chips only when the chronicle line itself was not sent.
+        """
+        if not NODE:
+            raise AssertionError("node is absent - the sent unique list cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        roster = ui[ui.index("  window._shadowRosterStores = function (row, fleet, owner) {"):ui.index("  window._shadowEnter = function (owner) {")]
+        count = _js_fn(ui, "function _listCount(raw) {")
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress, lists) {")
+        paint = _js_fn(ui, "function _paintChronicle(summary) {")
+        forge = _js_fn(ui, "function hdForge(){")
+        task = ui[ui.index("function hdTaskForce(st){"):ui.index("function _watchdogCountSay(n){")]
+        self.assertEqual(task.count("function _shadowTodayUnsent(line)"), 1)
+        self.assertEqual(task.count("if (_onShadowHub && _shadowTodayUnsent("), 1)
+        self.assertIn("the list wasn\\u2019t sent", task)
+        pred = task[task.index("function _shadowTodayUnsent(line)"):task.index("if (_onShadowHub && _shadowTodayUnsent(")]
+        js = "var window = globalThis;\nvar _hdForgeSig = '';\n" + roster + "\n" + count + "\n" + counts + "\n" + paint + "\n" + forge + "\n" + pred + r"""
+window._fleetRosterOwner = function (m) {
+  var nick = String((m && m.nickname) || '').trim();
+  if (nick === 'Mac') return 'Mac';
+  if (nick === 'Dean') return 'Dean';
+  return '';
+};
+function rows(lane, n) {
+  var out = [];
+  for (var i = 0; i < n; i++) out.push({ lane: lane, name: lane + '-' + i });
+  return out;
+}
+function row(counts, nameRows) {
+  var chron = { counts: counts };
+  if (nameRows) chron.rows = nameRows;
+  return { published: true, sections: { chronicle: chron } };
+}
+var fleet = { me: 'viewer', offline: [
+  { nickname: 'Mac', platform: 'mac', machine: 'mac-host' },
+  { nickname: 'Dean', platform: 'windows', machine: 'dean-host' }
+]};
+var macBuilt = window._shadowRosterStores(row({
+  runewords: { have: 99, total: 99 },
+  sets: { have: 135, total: 135 },
+  uniques: { have: 332, total: 403 }
+}, rows('uniques', 400)), fleet, 'Mac');
+var deanBuilt = window._shadowRosterStores(row({
+  runewords: { have: 98, total: 99 },
+  sets: { have: 132, total: 135 },
+  uniques: { have: 0, total: 403 }
+}, rows('uniques', 132)), fleet, 'Dean');
+var el = { textContent: '' };
+var chips = { innerHTML: '' };
+var when = { textContent: '' };
+var classes = { 'shadow-hub': true };
+var document = {
+  body: { classList: { contains: function (c) { return !!classes[c]; } } },
+  getElementById: function (id) {
+    if (id === 'hd-chron-counts') return el;
+    if (id === 'hd-forge-chips') return chips;
+    if (id === 'hd-forge-when') return when;
+    return null;
+  }
+};
+function paintOf(built) {
+  window._tvdShadowSnap = { stores: built.stores };
+  el.textContent = '';
+  chips.innerHTML = 'stale';
+  _hdForgeSig = 'stale';
+  hdForge();
+  return { line: el.textContent, chips: chips.innerHTML };
+}
+var macPaint = paintOf(macBuilt);
+var deanPaint = paintOf(deanBuilt);
+var sentence = 'the list wasn\u2019t sent';
+var both = 'Runewords 98/99 \u00b7 ' + sentence;
+console.log(JSON.stringify({
+  macLine: macPaint.line,
+  deanLine: deanPaint.line,
+  deanChips: deanPaint.chips,
+  empty: _shadowTodayUnsent(''),
+  only: _shadowTodayUnsent(sentence),
+  counts: _shadowTodayUnsent('Runewords 99/99'),
+  both: _shadowTodayUnsent(both)
+}));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        dot = " \u00b7 "
+        self.assertEqual(got["macLine"], "Runewords 99/99" + dot + "Sets 135/135" + dot + "Uniques 332/403", got)
+        self.assertNotIn("400/", got["macLine"])
+        self.assertEqual(got["deanLine"], "Runewords 98/99" + dot + "Sets 132/135" + dot + "Uniques 132/403", got)
+        self.assertNotIn("the list wasn\u2019t sent", got["deanLine"])
+        self.assertNotIn("0/", got["deanLine"])
+        self.assertEqual(got["deanChips"], "", got)
+        self.assertTrue(got["empty"])
+        self.assertTrue(got["only"])
+        self.assertFalse(got["counts"])
+        self.assertFalse(got["both"])
 
     def test_the_hub_reads_the_frame_and_never_this_pc(self):
         if not NODE:
@@ -1918,6 +2018,21 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "      .catch(function () { if (gen === _shadowGen) window._shadowEnter(owner); });\n",
      "replace": "      .catch(function () {});\n", "matches": 1},
+    {"why": "Shadow: a sent unique list is ignored when the published count is zero.",
+     "file": "tv/control_ui.html",
+     "find": "uniques: (shadow && uniHave != null && uniHave >= 1) ? null : _listCount(shadow ? readHub('d2r_foundLog') : lsHub('d2r_foundLog'))",
+     "replace": "uniques: shadow ? null : _listCount(lsHub('d2r_foundLog'))",
+     "matches": 1},
+    {"why": "Shadow: the chips repeat the missing-list sentence whenever the line contains an apostrophe.",
+     "file": "tv/control_ui.html",
+     "find": "var _blank = (!chronText || chronText === _unsentLine)",
+     "replace": "var _blank = (!chronText || chronText.indexOf('\\u2019') !== -1)",
+     "matches": 1},
+    {"why": "Shadow: today repeats the missing-list sentence even when the chronicle line already counts.",
+     "file": "tv/control_ui.html",
+     "find": "        return s === '' || s === 'the list wasn\\u2019t sent';",
+     "replace": "        return true;",
+     "matches": 1},
 ]
 
 
