@@ -5884,6 +5884,9 @@
   .rlog-kind { flex: 1 1 auto; min-width: 0; opacity: .55; font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rlog-when { flex: 0 0 auto; opacity: .6; font-size: var(--fs-xs); }
   .rlog-fid { flex: 0 0 auto; opacity: .5; font-size: var(--fs-xs); }
+  /* #158.3 - a guard HOLD, and the reason the record carries (one line, cut with an ellipsis; the whole of it is the hover) */
+  .rlog-row.rlog-held { border-color: rgba(240,160,80,.45); }
+  .rlog-why { flex: 1 1 auto; min-width: 0; color: #f0c08c; font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #tly-receipts-btn { color: #cbbcff; border-color: rgba(185,165,255,.4); }
   #tly-receipts-btn:hover { color: #e0d6ff; border-color: rgba(185,165,255,.8); }
   /* v949 — ❓ THE KEY: the legend overlay that decodes the mirror. Reuses the overlay/panel language. */
@@ -25920,7 +25923,7 @@ window._lockMark = function(isOpen, px, label){
   // with a status dot (🟢 ok · 🟡 empty · 🔴 error). This is the plumbing view where the 0-total
   // misses show themselves. Distinct from the TALLY ENGINE (item counts) — this is the transport. ══
   var RLOG = { open:false, rows:[], summary:null };
-  var _RDOT = { ok:'🟢', empty:'🟡', error:'🔴' };
+  var _RDOT = { ok:'🟢', empty:'🟡', error:'🔴', held:'🟠' };   /* #158.3 - a guard HOLD is not an error */
   function _rlogEl(){
     var ov = document.getElementById('rlog-ov');
     if (ov) return ov;
@@ -25941,7 +25944,8 @@ window._lockMark = function(isOpen, px, label){
     var sum = RLOG.summary || {};
     var sumEl = document.getElementById('rlog-sum');
     if (sumEl) sumEl.textContent = (sum.total || 0) + ' receipt' + ((sum.total===1)?'':'s')
-      + ' · ' + (sum.empty || 0) + ' empty · ' + (sum.error || 0) + ' error';
+      + ' · ' + (sum.empty || 0) + ' empty · ' + (sum.error || 0) + ' error'
+      + (sum.held ? ' · ' + sum.held + ' held by a guard' : '');
     var list = document.getElementById('rlog-list');
     if (!RLOG.rows.length){
       list.innerHTML = '<div class="tly-empty">no receipts yet<br>go <b>ON AIR</b> and pause on a stash tab — each intake the server takes lands here</div>';
@@ -25962,6 +25966,8 @@ window._lockMark = function(isOpen, px, label){
         + '<span class="rlog-kind">' + esc(r.kind||'') + (r.lane ? ' · ' + esc(r.lane) : '') + '</span>'
         + '<span class="rlog-when">' + esc(when) + '</span>'
         + (r.frameId ? '<span class="rlog-fid" title="' + esc(r.frameId) + '">🖼 ' + esc(String(r.frameId).slice(0,18)) + '</span>' : '')
+        /* #158.3 - the reason the record carries, said on the row (an old receipt with none says nothing) */
+        + (r.why ? '<span class="rlog-why" title="' + esc(r.why) + '">' + esc(String(r.why).slice(0, 90)) + '</span>' : '')
         + '</div>';
     }).join('');
   }
