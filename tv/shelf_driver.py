@@ -396,6 +396,7 @@ LANES = {
 #:                         only its own receipt; no reel, no frame, no ledger is on its work-list
 #:     tvd-orphan-fold     REG-2463 - folds LOOSE frames (no reel yet) into new reels; its work-list is
 #:                         orphan_fold.plan's clusters, and no shelved reel waits on it
+#:     tvd-river-warm      #193 - READS the river (the read-only route) so the Fleet has one; it moves no reel
 #: [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
 # ⚠⚠ v3018 — "tvd-retro-triage" REMOVED FROM THIS LIST, because it is now a declared shelf lane.
 # It sat here because every lane the driver supervised took its work-list from retention TAGS, and
@@ -405,7 +406,8 @@ LANES = {
 # true. Declared AND excused is the one state this census must never be in.
 NOT_SHELF_LANES = ("tvd-shadow-watch", "tvd-stash-watch", "tvd-rolling-prune",
                    "tvd-ledger-backup", "tvd-space-warden", "tvd-version-drift",
-                   "tvd-eagle-watch", "tvd-runaway-watch", "tvd-tooltip-oracle", "tvd-orphan-fold")
+                   "tvd-eagle-watch", "tvd-runaway-watch", "tvd-tooltip-oracle", "tvd-orphan-fold",
+                   "tvd-river-warm")
 
 
 def declared_covers_the_map(owed_by=None, lanes=None):

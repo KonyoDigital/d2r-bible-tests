@@ -3952,10 +3952,15 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     // handlers named in VIEW (open a character, pick a gear set, open a stash tab, scroll the vault). Every other
     // button, link, field and form control is stopped before the page's own handler sees it, and typing goes
     // nowhere. Writes the page makes on its own (boot repairs, timers) land in the memory store above.
+    // GrokBot's shadow debug (#230, 2026-10-27, bugs 2+3): the filters and jumps that only move the view were not here,
+    // so "Best runs ->", "open recipe" and all 12 Tools chips were stopped in the shadow while the owner's own page
+    // moved. Each one below only sets a filter, opens a card or scrolls (read at v3812): funiSetFilter / fsetsSetFilter /
+    // forgeSetFilter set a list filter, forgeCraftToggle opens a recipe, forgeLegendToggle a legend, _toolJump scrolls.
     var VIEW = ['switchTab', '_cbSetActive', '_cbView', '_cbOpenStash', '_cbCloseStash', '_cbStashTab', '_cbStashArea',
                 '_cbStashCat', '_cbStashFold', 'closeCharBuilder', '_charsOpen', 'openCharBuilder',
                 'openMuleCard', 'vaultCloseCard', '_muleSetPage', '_muleOpenAt', '_sharedSetPage', '_mpSet',
-                'vaultTasksTog', 'vaultAdvTab'];
+                'vaultTasksTog', 'vaultAdvTab',
+                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump'];
     window._tvdShadowView = VIEW;
     function viewOnly(el) {
       // the control itself must be a tab or a fold: a button that only sits INSIDE a summary is still a button
@@ -45461,6 +45466,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var VAULT_RETRO_KEEP_MIN = 1;
   window.VAULT_WITNESS_FLOOR = VAULT_WITNESS_FLOOR;
   window.VAULT_WITNESS_MIN = VAULT_WITNESS_MIN;
+  /* #201 (the v3808 cross-family look, MED) - ONE RULE FOR "A LOOK THAT COUNTS". v3808's rule is its own session, its own
+     frame and, when the set carries any score, conf >= VAULT_WITNESS_FLOOR. It lived in the register wrapper and in
+     _vaultSightLooks' list branch, and NOT in _vaultSightGroups, which counted any look with a session and a cell. That
+     count is what a stored record's sight.witnesses carries, so a 0.40 look WITH a session reached the move collector as
+     witnesses 1 and opened a move the wrapper had scored 0 looks. All three now ask this. -> the look's session id, or
+     null when it does not count. `scored` = the set this look came in carries at least one score. */
+  function _vaultLookConf(look){
+    var c = look && look.conf;
+    c = (typeof c === 'number') ? c : parseFloat(c);
+    return isFinite(c) ? c : null;
+  }
+  function _vaultLooksScored(list){
+    if (!Array.isArray(list)) return false;
+    for (var i = 0; i < list.length; i++) if (list[i] && typeof list[i] === 'object' && _vaultLookConf(list[i]) != null) return true;
+    return false;
+  }
+  function _vaultLookCounts(look, scored){
+    if (!look || typeof look !== 'object') return null;
+    var sid = String(look.witness || look.session || look.reel || look.sid || look.id || '').trim();
+    if (!sid || !(look.frame || look.frameId)) return null;
+    var c = _vaultLookConf(look);
+    if (c == null ? !!scored : c < VAULT_WITNESS_FLOOR) return null;
+    return sid;
+  }
+  window._vaultLooksScored = _vaultLooksScored;
+  window._vaultLookCounts = _vaultLookCounts;
   /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
   var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1, shared: 1, 'shared stash': 1 };
   var _WIT_MAIN = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
@@ -47232,9 +47263,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } catch(e){}
     return name;
   };
+  /* #209 (GrokBot's v3808 sweep) - THE READER READ WORDS THAT ARE NOT ITEMS. "Deckard Cain", "Tyrael" and "Stash" were registered
+     as owned loose records: a town NPC's name or a panel title read off a frame is not something he can own. The WHOLE name is
+     matched, so an item that merely contains one ("Tyrael's Might", "Gheed's Fortune", "Natalya's ...") still registers. Plain
+     gems are not here: whether a gem is a vault item is his ruling, and it is not made. -> why | null */
+  var _NOT_ITEMS = { 'deckard cain': 'a town NPC', 'cain': 'a town NPC', 'tyrael': 'a town NPC', 'akara': 'a town NPC',
+    'charsi': 'a town NPC', 'gheed': 'a town NPC', 'kashya': 'a town NPC', 'warriv': 'a town NPC', 'fara': 'a town NPC',
+    'lysander': 'a town NPC', 'drognan': 'a town NPC', 'elzix': 'a town NPC', 'greiz': 'a town NPC', 'meshif': 'a town NPC',
+    'jerhyn': 'a town NPC', 'atma': 'a town NPC', 'asheara': 'a town NPC', 'hratli': 'a town NPC', 'natalya': 'a town NPC',
+    'ormus': 'a town NPC', 'alkor': 'a town NPC', 'halbu': 'a town NPC', 'jamella': 'a town NPC', 'larzuk': 'a town NPC',
+    'malah': 'a town NPC', 'qual-kehk': 'a town NPC', 'anya': 'a town NPC',
+    'stash': 'a panel title', 'shared stash': 'a panel title', 'personal': 'a panel title', 'shared': 'a panel title',
+    'inventory': 'a panel title', 'equipment': 'a panel title', 'gold': 'a panel word' };
+  window._vaultNotAnItem = function(name){
+    var f = String(name == null ? '' : name).replace(/[\u2018\u2019\u02bc`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim();
+    var what = Object.prototype.hasOwnProperty.call(_NOT_ITEMS, f) ? _NOT_ITEMS[f] : null;
+    return what ? ('"' + String(name).trim() + '" is ' + what + ', not an item - nothing was registered') : null;
+  };
   window.tvVaultRegister = function(name, witness){
     try {
       name = String(name || '').trim(); if (!name) return { ok:false, why:'empty' };
+      var _notItem = window._vaultNotAnItem(name);   /* #209 - an NPC or a panel word read off a frame is never owned */
+      if (_notItem) return { ok:false, refused:'not-an-item', registered:false, why:_notItem };
       /* REG-2521 (review of REG-2411, rv2c) — THE HOLD IS ASKED FOR EVERY WITNESS, HIS HAND INCLUDED. The wrapper below asks
          the frame gate only for a read; a hand witness skipped it, so the Chronicle inbox's "Vault only" (his hand) was
          answered {ok, vault:'filed'} while d2r_owned and the mule map refused the write - and kaiVaultFileOnly deleted his
@@ -47597,23 +47647,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (!_byHand){
               try {
                 var _ls = Array.isArray(_witIn.sessions) ? _witIn.sessions : (Array.isArray(_witIn.looks) ? _witIn.looks : []);
-                var _floor = (typeof VAULT_WITNESS_FLOOR === 'number') ? VAULT_WITNESS_FLOOR : 0.55;
-                var _cOf = function(ent){
-                  var c = ent && ent.conf;
-                  c = (typeof c === 'number') ? c : parseFloat(c);
-                  return isFinite(c) ? c : null;
-                };
-                var _anyC = false;
-                for (var _i = 0; _i < _ls.length; _i++){ if (_cOf(_ls[_i]) != null) _anyC = true; }
-                var _seenL = {};
+                var _anyC = window._vaultLooksScored(_ls), _seenL = {};   /* #201 - the one rule */
                 for (var _j = 0; _j < _ls.length; _j++){
-                  var _e = _ls[_j];
-                  if (!_e || typeof _e !== 'object') continue;
-                  var _id = String(_e.witness || _e.session || _e.reel || _e.sid || _e.id || '').trim();
-                  var _frL = _e.frame || _e.frameId;
-                  var _cv = _cOf(_e);
-                  if (!_id || !_frL || (_cv == null && _anyC) || (_cv != null && _cv < _floor)) continue;
-                  if (_seenL[_id]) continue;
+                  var _id = window._vaultLookCounts(_ls[_j], _anyC);
+                  if (!_id || _seenL[_id]) continue;
                   _seenL[_id] = 1;
                   _lookN++;
                 }
@@ -51648,6 +51685,7 @@ window.vaultAutoAssign = function(){
     } catch (e) { return null; }
     if (!Array.isArray(looks)) return null;
     var order = [], by = {};
+    var _scored = window._vaultLooksScored(looks);   /* #201 - a witness is a look that counts, nothing less */
     looks.forEach(function(k){
       if (!k) return;
       var location = k.loc || k.location || null;
@@ -51662,7 +51700,7 @@ window.vaultAutoAssign = function(){
         by[key] = g;
         order.push(g);
       } else g = by[key]; /* v3767 same cell */
-      var sid = k.session || k.id || null;
+      var sid = window._vaultLookCounts(k, _scored);   /* #201 - own session, own frame, over the floor when scored */
       if (sid) g.sessions[String(sid)] = 1; /* v3767 session witness */
     });
     order.forEach(function(g){
@@ -52192,13 +52230,11 @@ window.vaultAutoAssign = function(){
       if (typeof w === 'number') return w > 0 ? w : 0;
       if (Array.isArray(w)) {
         var seen = {}, n = 0;
-        /* same law as the filing: a score, when the set has any, must clear 0.55; a set with no scores counts session + frame */
-        var scored = w.some(function(x){ return x && typeof x === 'object' && typeof x.conf === 'number'; });
+        /* #201 - the one rule (window._vaultLookCounts): own session, own frame, a score over the floor when the set has any */
+        var scored = window._vaultLooksScored(w);
         w.forEach(function(x){
-          if (!x || typeof x !== 'object') return;
-          var sid = x.session || x.id;
-          if (!sid || !x.frame || seen[sid]) return;
-          if (scored && !(typeof x.conf === 'number' && x.conf >= 0.55)) return;
+          var sid = window._vaultLookCounts(x, scored);
+          if (!sid || seen[sid]) return;
           seen[sid] = 1; n++;
         });
         return n;

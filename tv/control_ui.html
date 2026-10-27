@@ -26730,7 +26730,8 @@ function escC(s) {
                  why: 'this console does not report whether it has proved its own instruments (an older build)' }));
     } else {
       var hw = { current: 'proved', stale: 'proof out of date', missing: 'never proved on this PC',
-                 unreadable: 'proof unreadable', unknown: 'UNKNOWN' }[hs.census] || 'UNKNOWN';
+                 unreadable: 'proof unreadable', unknown: 'UNKNOWN' }[hs.census]
+               || (hs.key === 'starting' ? 'first check pending' : 'UNKNOWN');   /* #193 - the boot window, named */
       var hb = (typeof hs.blind === 'number') ? (hs.blind + ' blind') : null;
       out.push(_fleetPart('proved', hb ? [hw, hb] : [hw], {
                  warn: hs.census !== 'current' || (typeof hs.blind === 'number' && hs.blind > 0),
@@ -26879,6 +26880,16 @@ function escC(s) {
       bits.push('<span class="fleet-riverstuck" title="' + escC('the locks that move this PC\u2019s river are shut \u2014 its proof is '
         + census + (_memWait ? ' and waiting for free memory to prove' : '') + ', so nothing that spends a reel may act here')
         + '">' + (_memWait ? 'locks shut \u00b7 census waiting for memory' : 'locks shut') + '</span>');
+    }
+    /* #193 (his "river says unknown now", 2026-10-27) - A CONSOLE THAT JUST STARTED IS NOT A BROKEN ONE. Its first proof
+       check runs about 5 minutes after a start, and its river is read about a minute after. Until then the beacon says
+       key 'starting' with census null: still UNKNOWN, but the row names the wait instead of a bare word that reads as a
+       fault after every self-update. */
+    if (census === null && hs && hs.key === 'starting') {
+      bits.push('<span class="fleet-riverunk" title="' + escC('this console started moments ago - its own proof check runs '
+        + 'about 5 minutes after a start and its river is read about a minute after, so whether its river drains is '
+        + 'UNKNOWN until then (not a fault)') + '">river · starting</span>');
+      return bits.join('');
     }
     if (sk === null || census === null) {
       var unk = [];

@@ -1821,6 +1821,11 @@ function run(parentSnap, search) {
                mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')),
                tasks: fire(mk("window.vaultTasksTog()")), adv: fire(mk("window.vaultAdvTab('ledger')")),
                inSummary: fire(mk("_cbDelete('bx1')", null, true)) };
+  // GrokBot bugs 2+3 (2026-10-27): the in-page view links and the Tools chips, in the shapes the page writes them
+  res.links = { runs: fire(mk("window.funiSetFilter('runs')")), sets: fire(mk("window.fsetsSetFilter('runs')")),
+                recipe: fire(mk("window.forgeSetFilter&&window.forgeSetFilter('crafts');try{window.forgeCraftToggle&&window.forgeCraftToggle('blood')}catch(e){}")),
+                legend: fire(mk("window.forgeLegendToggle()")), tool: fire(mk("window._toolJump('gem-stash-card')")),
+                gotBase: fire(mk("window.forgeGotBase(this,'Spirit','Monarch',4)")) };
   const claimEl = { id: 'claim-btn', getAttribute() { return null; }, matches() { return false; },
     closest(sel) { return String(sel).indexOf('#claim') !== -1 ? this : null; } };
   res.claimStopped = fire(claimEl);
@@ -1927,6 +1932,11 @@ class TheShadowFrameBoot(unittest.TestCase):
         # the vault's MOVE TASKS overlay and its ADVANCED panes open, as on his own console
         self.assertFalse(v["tasks"] or v["adv"], "a vault view toggle was stopped: %r" % v)
         self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
+        # GrokBot bugs 2+3 - "Best runs ->", "open recipe" and the Tools chips move the view in the shadow too
+        lk = self.r["links"]
+        for k in ("runs", "sets", "recipe", "legend", "tool"):
+            self.assertFalse(lk[k], "the view link %r was stopped in the shadow: %r" % (k, lk))
+        self.assertTrue(lk["gotBase"], "a forge write (got the base) passed the veil: %r" % lk)
         self.assertTrue(self.r["claimStopped"], "a click on the claim button was not stopped in the shadow frame")
         self.assertTrue(self.r["typing"])
         self.assertEqual(sorted(self.r["blocks"]),
@@ -2042,10 +2052,14 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
      "replace": "", "matches": 1, "needs": "node"},
+    {"why": "GrokBot bugs 2+3 - the Tools chips and the forge/uniques/sets filters are stopped in the shadow again",
+     "file": "bible.html",
+     "find": "                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump'];\n",
+     "replace": "                ];\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: MOVE TASKS and the ADVANCED panes stay shut in the vault",
      "file": "bible.html",
-     "find": "                'vaultTasksTog', 'vaultAdvTab'];\n",
-     "replace": "                ];\n", "matches": 1, "needs": "node"},
+     "find": "                'vaultTasksTog', 'vaultAdvTab',\n",
+     "replace": "", "matches": 1, "needs": "node"},
     {"why": "Shadow: the worker stores a board install id the console blanks",
      "file": "functions/api/roster.js",
      "find": "  /\\bI?L?·[0-9a-f]{8}·/,\n",

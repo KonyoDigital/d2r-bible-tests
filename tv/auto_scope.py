@@ -194,6 +194,17 @@ LANES = {
         "brakes": "asks what is in flight first and moves nothing on a refusal or when nobody can be asked; one fold "
                   "at a time - while the healer's fold runs it moves nothing; what it leaves loose is named",
     },
+    # #193 - his "river says unknown now", 2026-10-27
+    "tvd-river-warm": {
+        "does": "reads this console's own river (the same read the River tab makes) so the Fleet row has a river to "
+                "show instead of 'nothing has asked for the river yet'",
+        "touches": "nothing on disk - it asks the console's own read-only river route and keeps the answer in memory",
+        "forbids": ["delete"],
+        "never": "a reel, a frame, a ledger or a stamp - the route it asks is read-only and it never asks it to walk",
+        "when": "a minute after a start, then every five minutes only if the last river read is over 15 minutes old",
+        "brakes": "never while he plays or the machine is over 80% busy; a read that fails stays a failed read, "
+                  "retried on the same cadence, never in a tight loop",
+    },
 }
 
 
@@ -404,6 +415,7 @@ LANE_FN = {
     "tvd-runaway-watch": "_runaway_watch_loop",
     "tvd-tooltip-oracle": "_tooltip_oracle_loop",
     "tvd-orphan-fold": "_orphan_fold_loop",
+    "tvd-river-warm": "_river_warm_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed

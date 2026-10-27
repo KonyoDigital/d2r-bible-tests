@@ -68,12 +68,62 @@ class ARefusedSocketFilingIsNeverSaidRegistered(unittest.TestCase):
         self.assertEqual(o["keep"]["refused"], "locked")
 
 
+BODY_209 = r"""
+(function(){
+var W = window;
+function hand(n){ return W.tvVaultRegister(n, { by: 'hand', where: 'the law (#209)' }); }
+function pick(r){ return r ? { ok: r.ok, refused: r.refused || null, why: r.why || '' } : null; }
+OUT.npc = pick(hand('Deckard Cain'));
+OUT.panel = pick(hand('Stash'));
+OUT.real = pick(hand("Tyrael's Might"));
+OUT.owned = Array.from(owned);
+OUT.words = ['Deckard Cain', 'tyrael', 'Gheed’s Fortune', 'Inventory', 'Shako'].map(function (n) { return W._vaultNotAnItem(n); });
+})();
+"""
+
+
+def page_209():
+    if "n" not in _RUNS:
+        _RUNS["n"] = VPN.run(BODY_209, prelude=SEED, timeout=300)
+    return _RUNS["n"]
+
+
+@unittest.skipUnless(VPN.NODE, "node is absent on this machine - UNMEASURED here, never a pass")
+class ANameThatIsNotAnItemIsNeverOwned(unittest.TestCase):
+    """#209 (GrokBot's v3808 sweep): "Deckard Cain", "Tyrael", "Stash" were registered as owned loose records."""
+
+    def test_an_npc_and_a_panel_word_are_refused_and_never_owned(self):
+        o = page_209()
+        self.assertEqual(o["__boot"]["errors"], [], o["__boot"])
+        for k in ("npc", "panel"):
+            self.assertFalse(o[k]["ok"], "%s was registered: %r" % (k, o))
+            self.assertEqual(o[k]["refused"], "not-an-item", o)
+            self.assertIn("not an item", o[k]["why"], o)
+        self.assertNotIn("Deckard Cain", o["owned"], o["owned"])
+        self.assertNotIn("Stash", o["owned"], o["owned"])
+
+    def test_a_real_item_that_contains_such_a_word_still_registers(self):
+        o = page_209()
+        self.assertTrue(o["real"]["ok"], "a real unique was refused: %r" % o["real"])
+        self.assertIn("Tyrael's Might", o["owned"], o["owned"])
+        self.assertIsNotNone(o["words"][0]); self.assertIsNotNone(o["words"][1]); self.assertIsNotNone(o["words"][3])
+        self.assertIsNone(o["words"][2], "an item that contains an NPC's name was called not an item: %r" % o["words"])
+        self.assertIsNone(o["words"][4], o["words"])
+
+
 RED_PROOF = [
     {"why": "REG-2571 - set sockets says 'registered' and ok over a refused filing again",
      "file": "bible.html", "find": "      if (_vfS && !_vfS.ok){\n", "replace": "      if (false){\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2571 - keep as base says 'kept' and ok over a refused filing again",
      "file": "bible.html", "find": "      if (_vfK && !_vfK.ok){\n", "replace": "      if (false){\n",
+     "matches": 1, "needs": "node"},
+    {"why": "#209 - an NPC name or a panel word read off a frame is registered as owned again",
+     "file": "bible.html", "find": "      if (_notItem) return { ok:false, refused:'not-an-item', registered:false, why:_notItem };\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "#209 - the non-item test matches inside a name, so a real item that contains an NPC's name is refused",
+     "file": "bible.html", "find": "    var what = Object.prototype.hasOwnProperty.call(_NOT_ITEMS, f) ? _NOT_ITEMS[f] : null;\n",
+     "replace": "    var what = null; Object.keys(_NOT_ITEMS).forEach(function(k){ if (f.indexOf(k) >= 0) what = _NOT_ITEMS[k]; });\n",
      "matches": 1, "needs": "node"},
 ]
 

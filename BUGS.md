@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2666 - IN THE SHADOW, "BEST RUNS", "OPEN RECIPE" AND ALL 12 TOOLS CHIPS DID NOTHING (GrokBot bugs 2+3, 2026-10-27)
+GrokBot's full shadow debug (Mac viewing the ALT): Uniques "Best runs ->", Sets "Best runs ->", Crafts "open recipe" and
+every Tools chip worked on the owner's page and were dead in the shadow. The shadow's click veil passes only the handlers
+named in VIEW, and funiSetFilter, fsetsSetFilter, forgeSetFilter, forgeCraftToggle, forgeLegendToggle and _toolJump were
+not there. Each only sets a list filter, opens a card or scrolls (read at v3812), and an audit of all 832 onclick bodies
+found none that pairs one of them with a write. Added to VIEW. Law: test_shadow_mode_reads_their_console (the links pass,
+"got the base" is still stopped), RED on the old list.
+
+### REG-2665 - A LOOK UNDER THE 0.55 FLOOR COULD OPEN A MOVE THROUGH THE STORED RECORD (#201, my v3808 cross-family look)
+The rule "a look counts only with its own session, its own frame and, when scored, conf >= 0.55" had three copies: the
+register wrapper, _vaultSightLooks' list branch, and none in _vaultSightGroups, which counted any look with a session and
+a cell. A stored record's sight.witnesses is that count, so a 0.40 look with a session reached the move collector as 1
+witness. One helper now (window._vaultLookCounts / _vaultLooksScored, beside VAULT_WITNESS_FLOOR), used by all three; the
+copies (distinct cells) are unchanged. Law: test_a_look_under_the_floor_opens_no_move (node, the real door, persist and
+collector), RED on the old page; 4 red-proofs.
+
+### REG-2664 - THE FLEET SAID "river UNKNOWN" FOR EVERY PC THAT HAD JUST STARTED (#193, his "river says unknown now")
+Measured on his Fleet: the ALT row had lanes but a null heart census; asked directly minutes later it said census stale,
+key aside-cooldown. The null came from the beacon a self-update sends before the self-prove lane's first tick (~5 min
+after a start). And only /api/river fills the river memory, so a console nobody had opened the River on sent "nothing
+has asked for the river yet". Now a tvd-river-warm lane reads the console's own read-only river a minute after a start
+and whenever the last read is over 15 min old (never while he plays or the machine is over 80% busy; stood down under a
+harness; leaves a lane trace for the corroborator), and the beacon names the boot window: key "starting", census still
+null. The row says "river · starting" (muted, with what it waits for) and "first check pending", still UNKNOWN; a null
+census without that key is still "river UNKNOWN". Law: test_a_console_reads_its_own_river; 8 red-proofs.
+
+### REG-2663 - "DECKARD CAIN", "TYRAEL" AND "STASH" WERE REGISTERED AS OWNED ITEMS (#209, GrokBot's v3808 sweep)
+The reader registered words off a frame that are not items - town NPCs and panel words - as owned loose records. The inner
+tvVaultRegister now refuses a name that is exactly a known non-item (refused: 'not-an-item', with the reason), by exact
+match, so a real item that contains an NPC's name (Tyrael's Might) still registers. Law: test_a_refused_socket_filing_is_
+never_said_registered (node, the whole page), RED on the old page. Plain gems are left alone pending his answer.
+
 ### REG-2662 - A SURVIVING STAND-ASIDE'S MEMORY FLAG WAS NEVER EXERCISED (the Grok eye on v3811)
 Reproduced: the slow-path case wrote standingAsideForMemory itself, so the tick branch that SETS it (a stand-aside whose
 kill did not take) was never run - a regression there passed. The case is now two real ticks through guard(): alive with

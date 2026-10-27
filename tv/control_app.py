@@ -9758,7 +9758,7 @@ def _win_tint_caption():
 # REG-2463 — and the orphan fold: a harness's loose frames are its fixture, and folding them on a timer would
 # change the footage a render or a demo is reading while it reads it.
 _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
-                      "tvd-retro-triage", "tvd-orphan-fold")
+                      "tvd-retro-triage", "tvd-orphan-fold", "tvd-river-warm")
 
 #: v3297 — lanes the roster SKIPPED at boot (TV_STUB harness), kept module-readable so a doctor
 #: row can say "stood down by design" instead of grading a deliberate absence as a dead loop.
@@ -9935,6 +9935,8 @@ def start_background_watchers(why):
         ("tvd-version-drift", _drift_loop),
         # v2078 — the eagle on a timer, so being out of sync is NOTICED rather than waited for.
         ("tvd-eagle-watch", _eagle_watch_loop),
+        # #193 - the river, read by the console itself, so the Fleet never says "nothing has asked for the river yet"
+        ("tvd-river-warm", _river_warm_loop),
         # v2080 — closes the extract -> prune cycle. ⚠ THIS LINE SAID "Deletes ONLY below the ON
         # AIR floor" until v2377 and that had been FALSE since v2226, which reversed the floor
         # gate on his explicit ruling ("regardless of room memory it should still be looped and
@@ -16921,13 +16923,93 @@ def _river_for_wire(now_ms=None):
             except Exception:
                 pass
     _sp = dict(_SELF_PROVE)
-    out["heart"] = {"census": _sp.get("census"), "key": _sp.get("key"),
+    # #193 (his "river says unknown now", 2026-10-27) - THE BOOT WINDOW HAS A NAME. The self-prove lane's first tick lands
+    # SELF_PROVE_FIRST_TICK rescue ticks (~5 min) after a start, and until then its record has no key and no census, so
+    # the beacon a self-update sends carried census null and the Fleet row said a bare "river UNKNOWN" for 5 minutes on
+    # every relaunch. It is still UNKNOWN (census stays null); the key says WHY: the check has not run yet.
+    _key = _sp.get("key")
+    if _key is None and _sp.get("census") is None and _sp.get("lastTs") is None:
+        _key = "starting"
+    out["heart"] = {"census": _sp.get("census"), "key": _key,
                     "blind": (len(_sp.get("blind") or []) if _sp.get("blind") is not None else None)}
     return out
 
 
 #: #74 (REG-1461) — a station whose OLDEST reel has waited this long is STUCK, and the fleet card says so.
 RIVER_STUCK_AFTER_S = 6 * 3600
+
+#: #193 (his "river says unknown now", 2026-10-27) - THE RIVER WAS READ ONLY WHEN SOMEONE ASKED FOR IT. _RIVER_LAST is
+#: filled only by /api/river, and the beacon never computes it (2-4 s on his Mac, 10.5 s for 772 reels on the ALT), so a
+#: console nobody had opened the river on sent "this console has not computed its river since it started" and the Fleet
+#: row said river UNKNOWN - measured on the Mac and the ALT the evening he asked. This lane asks the console's own route a
+#: minute after a start, then again whenever the last good read is older than RIVER_WARM_STALE_S. It never asks while
+#: he plays or the machine is busy (a 10 s walk is his CPU), and a refused or failed read stays a failed read.
+RIVER_WARM_FIRST_S = 60
+RIVER_WARM_EVERY_S = 300
+RIVER_WARM_STALE_S = 15 * 60
+RIVER_WARM_BUSY_PCT = 80.0
+RIVER_WARM_TIMEOUT_S = 120
+_RIVER_WARM = {"on": True, "worked": 0, "lastTs": None, "owed": None, "ms": None,
+               "say": "the river warm lane has not run yet since this console started"}
+
+
+def _river_warm_due(now_ms, last, playing, busy_pct):
+    """#193 - should the warm lane read the river now? -> (bool, why). Pure.
+
+    `last` is _RIVER_LAST. A good read younger than RIVER_WARM_STALE_S is enough; a failed read is retried on the same
+    cadence, never in a tight loop. He plays -> never. A busy machine (CPU over RIVER_WARM_BUSY_PCT) -> later."""
+    if playing:
+        return False, "he is playing - the river walk waits for the game to close"
+    if isinstance(busy_pct, (int, float)) and not isinstance(busy_pct, bool) and busy_pct >= RIVER_WARM_BUSY_PCT:
+        return False, "the machine is busy (%.0f%% CPU) - the river walk waits" % busy_pct
+    g = (last or {}).get("good") if isinstance(last, dict) else None
+    f = (last or {}).get("fail") if isinstance(last, dict) else None
+    newest = max([int(r["ts"]) for r in (g, f) if isinstance(r, dict) and isinstance(r.get("ts"), int)] or [0])
+    if newest and now_ms - newest < RIVER_WARM_STALE_S * 1000:
+        return False, "the river was read %.0f s ago" % ((now_ms - newest) / 1000.0)
+    return True, ("no river read since this console started" if not newest
+                  else "the last river read is %.0f min old" % ((now_ms - newest) / 60000.0))
+
+
+def _river_warm_once(now_ms=None, _urlopen=None, playing=None, busy_pct=None):
+    """#193 - one pass of the warm lane. Never raises. -> the lane record."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    try:
+        _play = _sp_playing_here() if playing is None else playing
+    except Exception:
+        _play = False
+    _busy = _cpu_busy_pct() if busy_pct is None else busy_pct
+    due, why = _river_warm_due(now, _RIVER_LAST, _play, _busy)
+    if not due:
+        _RIVER_WARM.update(lastTs=now, owed=0, say=why)
+        return dict(_RIVER_WARM)
+    t0 = time.time()
+    try:
+        import urllib.request as _ur
+        (_urlopen or _ur.urlopen)("http://127.0.0.1:%d/api/river" % int(CONTROL_PORT),
+                                  timeout=RIVER_WARM_TIMEOUT_S).read()
+        _RIVER_WARM.update(worked=int(_RIVER_WARM.get("worked") or 0) + 1, lastTs=now, owed=0,
+                           ms=int((time.time() - t0) * 1000), say="read the river (%s)" % why)
+    except Exception as e:
+        # The route remembers its own failure in _RIVER_LAST; a read that never reached the route says so here.
+        _RIVER_WARM.update(lastTs=now, owed=1, ms=int((time.time() - t0) * 1000),
+                           say="the river read could not ask its own route (%s)" % type(e).__name__)
+    return dict(_RIVER_WARM)
+
+
+def _river_warm_loop():
+    """#193 - read this console's own river a minute after a start, then whenever the last read went stale."""
+    time.sleep(RIVER_WARM_FIRST_S)
+    while True:
+        try:
+            _lane_tick('tvd-river-warm', RIVER_WARM_EVERY_S)
+            r = _river_warm_once()
+            import lane_trace as _lt
+            _lt.note('tvd-river-warm', worked=r.get("worked"), owed=r.get("owed"), ms=r.get("ms"),
+                     why=str(r.get("say") or "")[:200])
+        except Exception:
+            pass
+        time.sleep(RIVER_WARM_EVERY_S)
 #: The stations a reel is meant to LEAVE, and the lane that moves it on. CAPTURE is not here: it waits on a
 #: capture change by design (REG-340), so it is never an alarm; ROUTED and TOMBSTONE are the far end.
 #: REG-1812: that holds inside the newest window only. Past it, every station owes the drain (_river_owed_why).
