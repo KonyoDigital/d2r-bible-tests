@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3806",
+  "ver": "v3807",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3806: A shadow keeps its lists. Repeated sightings skip the store write. A dead proof reads as unknown.",
+  "note": "v3807: A PC short of the full proof start proves a small slice when idle",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
