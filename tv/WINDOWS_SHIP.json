@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3805",
+  "ver": "v3806",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3805: An auto sighting joins the manual vault move and the top intake chip is gone.",
+  "note": "v3806: A shadow keeps its lists. Repeated sightings skip the store write. A dead proof reads as unknown.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
