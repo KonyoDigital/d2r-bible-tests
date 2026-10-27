@@ -43,23 +43,33 @@ def _ring_line(src):
     return lines[0]
 
 
-def _live_stmt(src):
-    start = "var _liveW = { lane: 'stash', by: 'tv-live',"
+def _live_fn(src):
+    start = "function _vaultLiveWitness(rd){"
     n = src.count(start)
     if n != 1:
-        raise AssertionError("the live witness builder is not the one statement (%d)" % n)
+        raise AssertionError("the live witness builder is not the one function (%d)" % n)
     i = src.index(start)
-    j = src.index("};", i)
-    return src[i:j + 2]
+    depth, k = 0, src.index("{", i)
+    while k < len(src):
+        c = src[k]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[i:k + 1]
+        k += 1
+    raise AssertionError("the live witness function does not close")
 
 
 def _drive():
     src = WIT._src()
     ring = _ring_line(src)
-    live = _live_stmt(src)
+    live = _live_fn(src)
     body = (
         "var OUT = {};\n"
-        "function liveWitness(rd){\n" + live + "\n  return _liveW;\n}\n"
+        + live + "\n"
+        "function liveWitness(rd){ return _vaultLiveWitness(rd || {}); }\n"
         "function paint(vr){\n  var x = {};\n  " + ring + "\n  return x.vault === true;\n}\n"
         "var oneW = liveWitness({});\n"
         "var one = window.vaultFile('Harlequin Crest', oneW, { mule: 'uni-armor' });\n"

@@ -128,7 +128,12 @@ CAPTURE = r"""function (w, step) {
     out.tips = tips;
     return out;
   }
-  if (step === 'mules') return JSON.parse(w.LSR.getItem('d2r_muleRoster') || '[]').map(function (m) { return m.id; });
+  if (step === 'mules') {
+    w.switchTab('vault');
+    return Array.prototype.map.call(w.document.querySelectorAll('.vault-mule[data-vault-mule]'), function (el) {
+      return el.getAttribute('data-vault-mule');
+    });
+  }
 }"""
 
 OWN = "document.getElementById('tvd-eng').contentWindow"
@@ -391,6 +396,15 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
 
     def _same(self, key):
         self.assertIn(key, self.a)
+        if key == "chars":
+            def norm(blob):
+                out = dict(blob)
+                out["text"] = (out.get("text") or "").replace(OWNER + "'s reels", "this console's reels")
+                return out
+            self.assertEqual(norm(self.b[key]), norm(self.a[key]), "chars draws differently in shadow")
+            self.assertIn(OWNER + "'s reels", self.b["chars"]["text"])
+            self.assertIn("this console's reels", self.a["chars"]["text"])
+            return
         self.assertEqual(self.b.get(key), self.a[key], "%s draws differently in shadow" % key)
 
     def test_it_is_their_console_in_this_consoles_own_shell(self):

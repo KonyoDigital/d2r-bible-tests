@@ -438,16 +438,16 @@ out.reArmed = !!(again && again.ran && again.stamped);
         """The arm is the one source caller of the migrate function. Page load calls the arm once.
 
         That is two `_vaultRecordsArm(` sites: the definition and the `_seedCleanseArm` call. A third
-        is another door. Migrate stays at two (definition + the arm body). Persist stays at five
-        (definition, the migration, the write refresh, the move-list store create, and the move-list
-        row refresh). Window exports carry no '('."""
+        is another door. Migrate stays at two (definition + the arm body). Persist stays at six
+        (definition, the migration, the write refresh, the move-list store create, the move-list
+        row refresh, and the register wrapper that files a live arrival). Window exports carry no '('."""
         code = re.sub(r"/\*.{0,4000}?\*/", "", self.src, flags=re.S)
         self.assertEqual(code.count("_vaultRecordsMigrate("), 2,
                          "migrate callers drifted: definition plus the arm body are the only two")
         self.assertEqual(code.count("_vaultRecordsArm("), 2,
                          "the arm call count drifted from definition plus the one page-load call")
-        self.assertEqual(code.count("_vaultRecordsPersist("), 5,
-                         "_vaultRecordsPersist callers drifted from the definition, the migration, the write refresh and the two move-list writers")
+        self.assertEqual(code.count("_vaultRecordsPersist("), 6,
+                         "_vaultRecordsPersist callers drifted from the definition, the migration, the write refresh, the two move-list writers, and the register wrapper")
 
     def test_the_arm_is_the_migration_and_undo_rearms_it(self):
         """The seam v3765 calls. One arm persists and stamps. Undo drops both keys and the next arm runs."""

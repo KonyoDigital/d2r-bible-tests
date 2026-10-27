@@ -52206,9 +52206,27 @@ window.vaultAutoAssign = function(){
     if (!(st.on === true && st.known === true)) return { applied: false, task: null, why: 'auto-off' }; /* v3769 auto off */
     if (!sighting || !name) return { applied: false, task: null };
     var _auto = (typeof _vaultMoveAutoRow === 'function') ? _vaultMoveAutoRow(name, sighting) : null;
-    if (_auto && _auto.row === false) return { applied: false, task: null, why: _auto.why || 'no-row' };
     var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc || sighting.lane, sighting.cell);
     if (place.cell == null) return { applied: false, task: null };
+    if (_auto && _auto.row === false) {
+      /* A sighting on the character does not open a new move. A row already saved parks its from there and leaves the list. */
+      if (_auto.why === 'main') {
+        var _bagM = _vaultMoveBag();
+        var _park = null, _parkIx = 0;
+        Object.keys(_bagM.map || {}).forEach(function(k){
+          if (_park || String(k).split('\u0000')[0] !== String(name)) return;
+          if (_bagM.map[k]) { _park = _bagM.map[k]; _parkIx = +String(k).split('\u0000')[1] || 0; }
+        });
+        if (_park) {
+          var _held = _vaultMoveTask(_park);
+          _held.from = place;
+          _vaultMoveCommit([{ name: name, copyIx: _parkIx, task: _held }]);
+          try { if (!window._movePaintBusy && typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (ePark) {}
+          return { applied: true, task: _held, parked: true, why: 'main' };
+        }
+      }
+      return { applied: false, task: null, why: _auto.why || 'no-row' };
+    }
     var bag = _vaultMoveBag();
     var recs = [];
     try { recs = (_vaultRecords().records || []).filter(function(r){ return r && r.name === name; }); } catch (e) { recs = []; }
@@ -52304,9 +52322,12 @@ window.vaultAutoAssign = function(){
     if (t.status === 'closed') return false; /* L1 a drained row is done */
     if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */
     if (t.kind === 'throw') {
-      /* An unknown name has no home and no cell to move to. A junk row he ruled still shows. */
+      /* An unknown name has no home and no cell to move to. A junk route, or a row he ruled, still shows. */
       var _ruled = false;
-      try { _ruled = (typeof assign !== 'undefined' && assign && assign[t.name] === '__throwout'); } catch (eRule) { _ruled = false; }
+      try {
+        _ruled = (typeof assign !== 'undefined' && assign && assign[t.name] === '__throwout')
+          || !!(typeof _vaultThrowRoute === 'function' && _vaultThrowRoute(t.name));
+      } catch (eRule) { _ruled = false; }
       if (!_ruled) {
         var _hm = null;
         try { _hm = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name, 0) : null; } catch (eHm) { _hm = null; }
@@ -52765,10 +52786,13 @@ window.vaultAutoAssign = function(){
       try { _autoRow = _vaultMoveAutoRow(r.name, { lane: _sightLane, cell: r.sight && r.sight.cell }); }
       catch (eAuto) { _autoRow = null; }
       if (_autoRow && _autoRow.row === false) {
-        /* A junk row he ruled still gets its throw. A main lane and an unknown name do not. */
+        /* A junk route still gets its throw. A main lane and an unknown name do not. */
         var _ruledJunk = false;
         if (_autoRow.why !== 'main') {
-          try { _ruledJunk = (typeof assign !== 'undefined' && assign && assign[r.name] === '__throwout'); } catch (eRuleC) { _ruledJunk = false; }
+          try {
+            _ruledJunk = (typeof assign !== 'undefined' && assign && assign[r.name] === '__throwout')
+              || !!(typeof _vaultThrowRoute === 'function' && _vaultThrowRoute(r.name));
+          } catch (eRuleC) { _ruledJunk = false; }
         }
         if (!_ruledJunk) return; /* main lane or no home: no move row */
       }

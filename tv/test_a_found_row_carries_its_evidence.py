@@ -64,7 +64,7 @@ RED_PROOF = [
     {
         "why": 'the law requires this text in bible.html, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'bible.html',
-        "find": '_chLsSet(_CH_LOG_KEY, (log || []).slice(-400));',
+        "find": 'var next = (log || []).slice(-400);',
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
@@ -256,9 +256,9 @@ class AFoundRowCarriesItsEvidence(unittest.TestCase):
         cap ever goes away the premise of this whole fix changes, and a stale premise is how a
         gate outlives its subject. [[stale-reading]]"""
         src = _src()
-        self.assertIn("_chLsSet(_CH_LOG_KEY, (log || []).slice(-400));", src,
-                      "the inbox ring is no longer trimmed to 400. Re-read whether a separate "
-                      "durable evidence store is still the right answer before trusting this file.")
+        self.assertEqual(src.count("var next = (log || []).slice(-400);"), 1,
+                         "the chronicle log is no longer trimmed to 400 in the one save. Re-read whether a separate "
+                         "durable evidence store is still the right answer before trusting this file.")
 
     # ── LAW 1 — a swept row lands with its proof ────────────────────────────────────────────
     def test_a_swept_unique_lands_with_the_reel_and_frame_the_payload_CARRIED(self):
