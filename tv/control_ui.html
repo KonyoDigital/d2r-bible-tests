@@ -853,6 +853,7 @@
     viewport at some sizes; scroll honestly instead of letting panels overlap the buttons */
     overflow-x: hidden;
     scrollbar-width: thin;
+    overscroll-behavior: contain;   /* #87 (GrokBot) - a wheel at the rail's end no longer scrolls the page behind it */
   }
   /* v2381 — WAS `flex: 0 0 auto`, WHICH IS "NEVER SHRINK". ON AIR and MINI only ever looked
      fine because their subtitles are short enough to fit by luck; give any of these three a
@@ -11824,8 +11825,10 @@ window._lockMark = function(isOpen, px, label){
     // After filter, prefer current mode counts; fall back to session totals before first filter
     var n = st.curPhoto || st.allPhoto || '—';
     var f = st.curFoot || st.allFoot || 0;
-    /* #252 (REG-2158) - the pill says photos. A different film-lane count is named beside it. */
-    var _fpExtra = (st.allFoot !== st.allPhoto) ? _filmPhotoSay(st.allFoot, st.allPhoto) : '';
+    /* #252 (REG-2158) - the pill says photos. A different film-lane count is named beside it.
+       #92 (GrokBot) - in SHORT words on the button (the full sentence made a 97-character pill); the whole sentence is
+       the button's hover (thModePill). */
+    var _fpExtra = (st.allFoot !== st.allPhoto) ? _filmShortSay(st.allFoot) : '';
     if (m === 'highlight')
       return '🎬 STORY · ' + n + ' photos · centered on each AI read' + _fpExtra;
     if (m === 'full')
@@ -11866,11 +11869,17 @@ window._lockMark = function(isOpen, px, label){
   }
   // v943 (Konyo, REAL pacing R2) — the mode pill wears its state as a colored left-border accent so
   // you can read the playback mode at a glance: REAL=mint · HIGHLIGHTS=amber · EVERY FRAME=steel.
+  /* #92 - the film count in two words for the mode button; UNKNOWN when it was not counted */
+  function _filmShortSay(film){
+    return (typeof film === 'number' && isFinite(film) && film >= 0) ? ' · 📹 film ' + film : ' · 📹 film UNKNOWN';
+  }
   function thModePill(m){
     var el = $('th-mode'); if (!el) return;
     el.classList.remove('md-real', 'md-highlight', 'md-full');
     el.classList.add(m === 'highlight' ? 'md-highlight' : (m === 'full' ? 'md-full' : 'md-real'));
     el.textContent = thModeLabel(m);
+    try { var st = thSessionPhotoStats();   /* #92 - the whole sentence rides in the hover */
+          el.title = (st.allFoot !== st.allPhoto) ? ('film and photos differ' + _filmPhotoSay(st.allFoot, st.allPhoto)) : ''; } catch (eTt) {}
     // v948.8 — STORY is the AI-reader cut: pin the read's dossier/verdict prominently while it plays
     try { $('theatre').classList.toggle('story-mode', m === 'highlight'); } catch (e) {}
   }
@@ -19160,6 +19169,9 @@ window._lockMark = function(isOpen, px, label){
       if (pin){ _sesPinToggle(pin.dataset.pinSid); thShelf(true); return; }   // D26 — ⭐ toggles pin (never opens the dossier)
       var hi = e.target.closest && e.target.closest('.shi-clk');
       if (hi && hi.dataset.n){ _sessionDossier(Number(hi.dataset.n) || 1, hi.dataset.sid || ''); return; }   // D17 — a highlight card jumps to that run's dossier
+      /* #86 (GrokBot) - a click on the ACTIVITY chart, the shelf's head or its live strip CLOSED the Shelf: they are part of
+         the shelf, not "outside a card". Only the backdrop and ✕ dismiss it. */
+      if (e.target.closest && (e.target.closest('.sh-timeline') || e.target.closest('.sh-head') || e.target.closest('.sh-live'))) return;
       var c = e.target.closest('.sh-card');
       if (!c){ _shDismiss(); return; }   // click-outside a card = dismiss, the SAME way ✕ does
       _sessionDossier(Number(c.dataset.n) || 1, c.dataset.sid || '');   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
@@ -22868,24 +22880,31 @@ window._lockMark = function(isOpen, px, label){
     var _hiddenDoc = false; try { _hiddenDoc = (document.visibilityState === 'hidden'); } catch (_h) {}
     if (!_hiddenDoc) _shellVeil(tab);   /* REG-2110 - the pane says what it is waiting for; REG-2321 - never on a hidden (occluded) window, whose pixels freeze it */
     if (_shellRouteTimer) clearInterval(_shellRouteTimer);
-    var n = 0, _reloaded = false;
+    var n = 0, _reloaded = false, _t0 = Date.now(), _unbootedAt = 0;
     _shellRouteTimer = setInterval(function(){
       n++;
       if (_shellTab !== tab) { clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done(); return; }   // he went elsewhere
       if (_shellRoute(tab)) { clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done(); return; }
-      if (n > 250 && !_reloaded) {
+      /* #141 (HIGH) - A BOARD STILL BOOTING IS WAITED FOR, NOT RELOADED. At 20 s the board was reloaded even while it was
+         still loading (no switchTab yet), which threw away a boot that was nearly done and started it again - the
+         stuck-tab loop on a busy machine. A board that has not booted gets up to 60 s; one that has booted gets 20 s
+         from the moment it booted to route, before the one reload. */
+      var _bw = null; try { _bw = document.getElementById('tvd-eng').contentWindow; } catch (_bwe) { _bw = null; }
+      if (!(_bw && typeof _bw.switchTab === 'function')) _unbootedAt = n;   /* #141 a booting board is waited for */
+      if (!_reloaded && (n > 750 || (n > 250 && n - _unbootedAt > 250))) {
         /* REG-2321 - a board that never routes is reloaded ONCE (cache-busted) before anyone is told anything */
         _reloaded = true; n = 0;
         try { var _fr = document.getElementById('tvd-eng'); if (_fr) _fr.src = '/board?app=1&engine=1&v=' + Date.now() + '#' + encodeURIComponent(tab); } catch (_r) {}
         try { var _vv = document.getElementById('shell-opening'); if (_vv) _vv.textContent = 'reloading the board to open ' + tab + '...'; } catch (_r2) {}
         return;
       }
-      if (n > 250) {
+      if (_reloaded && n > 250) {   /* #141 - the give-up comes only after the one reload */
         clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done();
         try { toast('The board did not open ' + tab + ' even after a reload - it failed to load. Reload the console window (Cmd+R).'); } catch (_t) {}
         try {
           fetch('/api/ui_fault', {method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({kind: 'shell-route-gave-up', why: 'switchTab(' + tab + ') never moved the board in 20 s',
+            body: JSON.stringify({kind: 'shell-route-gave-up', why: 'switchTab(' + tab + ') never moved the board in '
+                                  + Math.round((Date.now() - _t0) / 1000) + ' s' + (_reloaded ? ', one reload included' : ''),   /* #141 the real time */
                                   where: 'control_ui shellOpen'})});
         } catch (_f) {}
       }

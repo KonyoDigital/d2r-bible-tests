@@ -18,6 +18,22 @@ Also found while checking the shipped v3814 against the whole law set: two regis
 (test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
 REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
 Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+### REG-2682 - THE THEATRE'S MODE BUTTON CARRIED A 97-CHARACTER LABEL (#92, GrokBot)
+"⏱ REAL · all 20 photos · 1:1 time · 📹 film 12 (film-lane stills) · photos 20 (every framed beat)" on one button. The
+button names the film count in two words (_filmShortSay, UNKNOWN when uncounted) and the whole #252 sentence is its
+hover. Law: test_the_theatre_mode_button_stays_short (node; every mode <= 60 characters).
+
+### REG-2681 - A CLICK ON THE SHELF'S CHART CLOSED THE SHELF; THE RAIL'S WHEEL SCROLLED THE PAGE (#86, #87, GrokBot)
+Any click that was not on a card was "click-outside" and dismissed the Shelf, so the ACTIVITY chart, the shelf's head and
+its live strip closed it. They keep their clicks now; only the backdrop and ✕ dismiss. And the console rail contains its
+overscroll, so a wheel at its end no longer scrolls the page behind it. Law: test_the_shelf_keeps_its_own_clicks.
+
+### REG-2680 - A BOARD STILL BOOTING WAS RELOADED AT 20 S (#141, HIGH, the stuck TV·D tabs)
+shellOpen's route watcher reloaded the board at 20 s whatever state it was in, so a busy machine's board that was still
+loading (no switchTab yet) was thrown away and booted again - the stuck-tab loop. A board that has not booted gets up to
+60 s; one that has booted gets 20 s from that moment to route; the give-up comes only after the one reload, and its fault
+says the real elapsed time ("... in 83 s, one reload included"). Law: test_a_tab_click_is_never_silently_dropped (a board
+that boots at 32 s and routes at 36 s is never reloaded; one that never boots: 60 s, one reload, 20 s).
 
 ### REG-2679 - THE GROK EYE ON v3813: A WAITING PASS ERASED A FAILURE, AND THE READ LEFT ITS RESPONSE OPEN
 Cross-family look at v3813 (grok-cli, verdict findings, 3 items), each reproduced before acting:

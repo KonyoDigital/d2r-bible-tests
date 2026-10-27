@@ -55,7 +55,12 @@ function Cls(){ var s = {}; return {add: function(c){ s[c] = 1; }, remove: funct
                                     contains: function(c){ return !!s[c]; }}; }
 var btn = {classList: Cls(), textContent: ' Vault '};
 var VEIL = null;
-var document = {getElementById: function(id){ return id === 'tvd-eng' ? {} : (id === 'shell-opening' ? VEIL : null); },
+/* #141 - the board's window: switchTab exists from tick bootAt (-1 = it never boots); a reload is counted */
+var ENG = {};
+Object.defineProperty(ENG, 'contentWindow', {get: function(){
+  return (cfg.bootAt >= 0 && out.ticks >= cfg.bootAt) ? {switchTab: function(){}} : {}; }});
+Object.defineProperty(ENG, 'src', {get: function(){ return ''; }, set: function(){ out.reloads = (out.reloads || 0) + 1; }});
+var document = {getElementById: function(id){ return id === 'tvd-eng' ? ENG : (id === 'shell-opening' ? VEIL : null); },
                 createElement: function(){ return {style: {}, setAttribute: function(){}}; },
                 querySelector: function(){ return btn; },
                 querySelectorAll: function(){ return btn.classList.contains('ht-opening') ? [btn] : []; },
@@ -87,10 +92,10 @@ process.stdout.write(JSON.stringify(out));
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
 
-    def drive(self, ok_at=0, leave_at=0):
+    def drive(self, ok_at=0, leave_at=0, boot_at=0):
         fn = _lift()
         self.assertIsNotNone(fn, "shellOpen is gone from tv/control_ui.html")
-        js = HARNESS % (json.dumps({"okAt": ok_at, "leaveAt": leave_at}), fn)
+        js = HARNESS % (json.dumps({"okAt": ok_at, "leaveAt": leave_at, "bootAt": boot_at}), fn)
         p = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, "the shipped shellOpen would not run: %s" % p.stderr[-800:])
         return json.loads(p.stdout)
@@ -99,6 +104,7 @@ class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
         out = self.drive(ok_at=121)          # the first call is shellOpen's own; 120 retries x 80 ms = 9.6 s
         self.assertEqual(out["toasts"], [], "a board that moved at 9.6 s was given up on (REG-1946): %s" % out)
         self.assertEqual(out["ticks"], 120, "the retry did not run until the board moved: %s" % out)
+        self.assertEqual(out.get("reloads", 0), 0, "a board that moved at 9.6 s was reloaded first: %s" % out)
         self.assertFalse(out["openingAfter"], "the tab still says it is opening after the pane opened")
 
     def test_the_tab_says_it_is_opening_while_it_waits(self):
@@ -111,6 +117,16 @@ class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
         self.assertIn("did not open vault", out["toasts"][0])
         self.assertEqual(out["faults"], ["shell-route-gave-up"], "the give-up was not recorded")
         self.assertFalse(out["openingAfter"])
+
+    def test_a_board_still_booting_is_waited_for_not_reloaded(self):
+        """#141 (HIGH) - at 20 s the board was reloaded even while it was still booting; it is waited for up to 60 s."""
+        out = self.drive(ok_at=450, boot_at=400)
+        self.assertEqual(out.get("reloads", 0), 0, "a board that was still booting was reloaded (#141): %s" % out)
+        self.assertEqual(out["toasts"], [])
+        never = self.drive(ok_at=0, boot_at=-1)
+        self.assertEqual(never.get("reloads", 0), 1, "a board that never boots was never reloaded: %s" % never)
+        self.assertEqual(never["ticks"], 1002, "a board that never boots: 60 s, one reload, 20 s: %s" % never["ticks"])
+        self.assertEqual(len(never["toasts"]), 1)
 
     def test_the_pane_says_it_is_opening_and_stops_saying_it(self):
         """REG-2110 - the veil covers the pane while the board is slow, and is gone after it lands, gives up, or he leaves."""
@@ -129,10 +145,17 @@ class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "#141 - a board still booting is reloaded at 20 s again, throwing the nearly-done boot away",
+        "file": "tv/control_ui.html",
+        "find": "      if (!(_bw && typeof _bw.switchTab === 'function')) _unbootedAt = n;   /* #141 a booting board is waited for */\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
         "why": "REG-1946 - the retry gives up at 4 s again: a board that moves at 9.6 s never opens and the click is dead",
         "file": "tv/control_ui.html",
-        "find": "      if (n > 250) {",
-        "replace": "      if (n > 50) {",
+        "find": "      if (!_reloaded && (n > 750 || (n > 250 && n - _unbootedAt > 250))) {",
+        "replace": "      if (!_reloaded && (n > 750 || (n > 50 && n - _unbootedAt > 50))) {",
         "matches": 1,
     },
     {

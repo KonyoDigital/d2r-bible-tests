@@ -12025,6 +12025,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_shadow_bar_sits_below_the_header.py")], 300,
          needs_app=False,
          why="REG-2678 (#215 + #214, GrokBot) - the shadow bar sat over the header tabs; it is placed from the header on every sizing; one 24-hour clock; 'online now' words; labels dimmed."),
+    Gate("test_the_shelf_keeps_its_own_clicks",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_keeps_its_own_clicks.py")], 300,
+         needs_app=False,
+         why="REG-2681 (#86 + #87, GrokBot) - a click on the Shelf's ACTIVITY chart closed the Shelf; a wheel at the rail's end scrolled the page."),
+    Gate("test_the_theatre_mode_button_stays_short",
+         [sys.executable, os.path.join(HERE, "test_the_theatre_mode_button_stays_short.py")], 300,
+         needs_app=False,
+         why='REG-2682 (#92, GrokBot) - the theatre mode button carried a 97-character label; short on the button, the whole sentence in its hover.'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
