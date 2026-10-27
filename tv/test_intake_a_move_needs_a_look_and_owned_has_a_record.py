@@ -151,5 +151,15 @@ class IntakeTwoLooks(unittest.TestCase):
         self.assertGreaterEqual(o["s"]["records"], 1, o)
 
 
+    def test_a_base_filed_after_two_real_sessions_keeps_its_record(self):
+        # real ledger looks: Thresher seen at c7r1 in one reel and c8r1 in a later one;
+        # the second look files it and the filing prov keeps the owned stamp under ownedBy
+        o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85)]);"
+                "OUT.r2 = reg('Thresher', 'stash', 'stash:c8r1', [look('s_1791473772294_11798', 'f_1791474195360.jpg', 'stash', 'stash:c8r1', 0.8)]);"
+                "OUT.s = state('Thresher');")
+        self.assertTrue(o["s"]["owned"], o)
+        self.assertGreaterEqual(o["s"]["records"], 1, o)
+
+
 if __name__ == "__main__":
     unittest.main()

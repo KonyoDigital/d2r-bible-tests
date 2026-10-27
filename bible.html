@@ -45918,7 +45918,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (pool.indexOf(n) >= 0 || !_vaultHandBase(n)) return;
         void prov;
         if (_vaultHandTyped(n)) out.push(n); /* L1 hand-typed base */
-        else if (prov[n] && prov[n].kind === 'owned' && prov[n].by === 'tvVaultRegister') out.push(n); /* intake own record: a base the TV registered is owned, so it is a record too */
+        else if (prov[n] && ((prov[n].kind === 'owned' && prov[n].by === 'tvVaultRegister') || (prov[n].ownedBy && prov[n].ownedBy.kind === 'owned' && prov[n].ownedBy.by === 'tvVaultRegister'))) out.push(n); /* intake own record: a base the TV registered is owned, so it is a record too */
       });
     } catch (e) { return []; }
     return out;
