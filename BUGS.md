@@ -28,6 +28,12 @@ header rebuilt from the persisted store - had no split, the persisted rows carri
 `|| 0` read a store that could not say as 0 in the dock. Where each loose name sat is decided once when the records are
 built and saved on its row (looseWhere, loose rows only), both headers count it, and a store saved before the split reads
 UNKNOWN. Law: test_v3758_records_persist_parity (3 new red-proofs, each seen RED).
+### REG-2696 - A SHADOW BUILT FROM THE ROSTER CALLED 400 NAMES THE WHOLE LIST (#200, the v3802 look)
+REG-2676 kept the newest 400 found names and sent <lane>Named beside the tally, but nothing read it: the roster shadow
+marked 400 of his 461 finds and the chronicle line called that the list. _shadowRosterStores now carries sent/named on a
+lane whose names were cut, and _chronicleCounts says "Uniques names: the newest 400 of 461". A whole list says nothing
+new. Law: test_shadow_mode_reads_their_console (2 red-proofs, each seen RED).
+
 ### REG-2695 - A SHADOW NEVER SAID WHICH STORES IT WAS NOT SENT (#210, GrokBot)
 Measured first on the Mac's own profile book: d2r_mulePos and d2r_muleEquip are not dropped. They are absent because they
 only hold hand spots and equipped records, and the shadow derives packer cells exactly as the owner's board does. All 19
@@ -191,6 +197,8 @@ oldest 400 and dropped his 61 newest without a word. It keeps the newest 400 now
 <lane>Named (461) beside the tally so a reader can say "the newest 400 of 461". And _roster_publish_once ran every read -
 a board read over 5,000 rows - on every 60 s tick before due() said "within the hour"; reads_due asks first. Still open on
 #200: the shadow's "newest N of M" sentence, and a rowsAsOf for the names (excluded from the hash on both sides).
+2026-10-28 (REG-2696): the shadow's sentence is built - the roster shadow carries sent/named beside a cut lane and the
+chronicle line says "Uniques names: the newest 400 of 461". Law: test_shadow_mode_reads_their_console.
 
 ### REG-2675 - "KOnyORush", "SOcket", "ArmOr" ON HIS CHARACTER LIST (GrokBot bug 11)
 Both reader prompts write the font's O as the letter O, so a mixed-case answer carries a capital O inside a word, and

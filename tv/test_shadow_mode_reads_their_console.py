@@ -936,6 +936,33 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(got["rwN"]["sentence"], "the list wasn't sent")
         self.assertIsNone(got["namesWin"], "a lane that already has names was replaced by the published total")
 
+    def test_a_name_list_cut_at_the_cap_says_newest_n_of_m(self):
+        """#200 (the v3802 look) - a roster lane carries at most 400 names and <lane>Named rides beside the tally. The
+        shadow built from it marked 400 of his 461 finds and called that the list; it says "the newest 400 of 461"."""
+        if not NODE:
+            raise AssertionError("node is absent - the roster shadow cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        start = ui.index("  window._shadowRosterStores = function (row, fleet, owner) {")
+        builder = ui[start:ui.index("\n  };\n", start) + 5]
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress, lists) {")
+        js = "var window = globalThis;\n" + builder + "\n" + counts + r"""
+var fleet = { ok: true, me: 'm1', online: [{ nickname: 'Dean', platform: 'windows', machine: 'm2' }], offline: [] };
+var b = window._shadowRosterStores({ owner: 'Dean', published: true, sections: { chronicle: {
+  counts: { uniques: { have: 461, total: 403 }, uniquesNamed: 461, sets: { have: 2, total: 135 }, setsNamed: 2 },
+  rows: [{ lane: 'uniques', name: 'Shako' }, { lane: 'uniques', name: 'Arkaine' }, { lane: 'sets', name: 'A' }, { lane: 'sets', name: 'B' }]
+} } }, fleet, 'Dean');
+var prog = JSON.parse(b.stores.d2r_shadowProgress);
+process.stdout.write(JSON.stringify({ prog: prog, line: _chronicleCounts(null, prog, { uniques: 2, sets: 2 }) }));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-1200:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["prog"]["uniques"].get("named"), 461, got["prog"])
+        self.assertEqual(got["prog"]["uniques"].get("sent"), 2)
+        self.assertNotIn("named", got["prog"]["sets"], "a whole list was marked as cut: %r" % got["prog"])
+        self.assertIn("Uniques names: the newest 2 of 461", got["line"], "a cut list read as the whole list (#200)")
+        self.assertNotIn("Sets names", got["line"])
+
     def test_an_empty_arrived_list_is_zero_and_a_missing_list_keeps_the_sentence(self):
         """A list that arrived empty is 0. A list that was not sent keeps the sentence.
 
@@ -2356,6 +2383,16 @@ RED_PROOF = [
      "find": "_fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me)) + '</div>';",
      "replace": "_fleetOpenEyesHtml(m) + '</div>';",
      "matches": 1},
+    {"why": "#200 - the roster shadow stops carrying how many names there were",
+     "file": "tv/control_ui.html",
+     "find": "      if (list.length && whole(namedN, 1) && namedN > list.length) { pair.sent = list.length; pair.named = namedN; }\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "#200 - the chronicle line calls a cut name list the whole list again",
+     "file": "tv/control_ui.html",
+     "find": "    if (partial.length) line = line ? (line + ' \\u00b7 ' + partial.join(' \\u00b7 ')) : partial.join(' \\u00b7 ');\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
     {"why": "#210 - the snapshot stops naming what it could not send",
      "file": "tv/console_snapshot.py",
      "find": "    return {\"stores\": out, \"dropped\": dropped, \"unsent\": unsent_of(dropped)}\n",

@@ -24100,9 +24100,18 @@ window._lockMark = function(isOpen, px, label){
       }
       if ((row && row.listed !== true) || (block && whole(total, 1))) sentence = true;
     });
-    if (!parts.length && !sentence) return '';
+    /* #200 - a name list cut at the cap is the NEWEST N of M, never the whole list */
+    var partial = [];
+    lanes.forEach(function (spec) {
+      var row = progress && progress[spec[0]];
+      if (row && whole(row.named, 1) && whole(row.sent, 0) && row.named > row.sent) {
+        partial.push(spec[1] + ' names: the newest ' + row.sent + ' of ' + row.named);
+      }
+    });
+    if (!parts.length && !sentence && !partial.length) return '';
     var line = parts.join(' \u00b7 ');
     if (sentence) line = line ? (line + ' \u00b7 the list wasn\u2019t sent') : 'the list wasn\u2019t sent';
+    if (partial.length) line = line ? (line + ' \u00b7 ' + partial.join(' \u00b7 ')) : partial.join(' \u00b7 ');
     return line;
   }
   function _paintChronicle(summary) {
@@ -28175,6 +28184,9 @@ function escC(s) {
       /* A sent name list still keeps the published chronicle total. The found
          log is longer than that total, so the total has to travel beside it. */
       if (list.length) pair.listed = true;
+      /* #200 - a lane carries at most 400 names; <lane>Named is how many there were, so a short list says so */
+      var namedN = chron.counts && chron.counts[key + 'Named'];
+      if (list.length && whole(namedN, 1) && namedN > list.length) { pair.sent = list.length; pair.named = namedN; }
       progress[key] = pair;
     }
     note('uniques', found);
