@@ -44170,8 +44170,8 @@ def _self_prove_row(_spv):
     # the row read OK over exactly that. It warns now and says so; a lane that is off over a current census is still OK.
     _sp_census = str(_spv.get("census") or "")
     _sp_shut = _sp_key == "off" and _sp_census != "current"
-    _sp_ok = (_sp_key in (None, "current", "running", "start", "start-small", "dev", "off", "busy",
-                        "playing", "stood-aside", "running-unverified", "low-memory", "aside-cooldown")
+    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy",
+                        "start-small", "playing", "stood-aside", "running-unverified", "low-memory", "aside-cooldown")
               and not _sp_blind and not _sp_shut)   # REG-1502: deferring to his game is healthy
     line = ("self-prove: census %s - %s%s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",
                                                 (" · %d instrument(s) BLIND here (%s) - every lock stays shut "

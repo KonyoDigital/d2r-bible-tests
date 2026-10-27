@@ -1376,13 +1376,15 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                       else set())
             _plan = ([t for t in _owed_g if str(t[0]) not in _stuck] or _owed_g) if isinstance(_owed_g, list) else _owed_g
             _sm = bool(d.get("small"))                     # GBL census-lowmem - short of the full start: a small slice
-            _slice = (plan_slice(_plan, _costs, blind=census.get("blind"),     # REG-1673 - a recorded BLIND first
-                                 budget_s=SMALL_SLICE_BUDGET_S if _sm else None,
-                                 max_gates=SMALL_SLICE_MAX_GATES if _sm else None)
+            _slice = (plan_slice(_plan, _costs, blind=census.get("blind"))     # REG-1673 - a recorded BLIND first
                       if isinstance(_owed_g, list) and _owed_g else None)
+            if _slice and _sm:
+                _slice = plan_slice(_plan, _costs, blind=census.get("blind"),
+                                    budget_s=SMALL_SLICE_BUDGET_S, max_gates=SMALL_SLICE_MAX_GATES)
+                _sp_one = spawn_fn or spawn
+                spawn_fn = lambda _lp, names=None, _f=_sp_one: _f(_lp, names=names, workers=1)  # noqa: E731
             if _slice:
-                mem["pid"] = ((spawn_fn or spawn)(log_path, names=_slice, workers=1) if _sm
-                              else (spawn_fn or spawn)(log_path, names=_slice))
+                mem["pid"] = (spawn_fn or spawn)(log_path, names=_slice)
                 mem["sliceGates"] = _slice
                 d = dict(d, why="%s - this slice: %d gate(s)%s" % (
                     census.get("owedWhy") or d["why"], len(_slice),
