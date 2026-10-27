@@ -162,7 +162,7 @@ RED_PROOF = [
     {
         "why": "REG-2321 - a board that never routes is never reloaded",
         "file": "tv/control_ui.html",
-        "find": "      if (n > 250 && !_reloaded) {",
+        "find": "      if (!_reloaded && (n > 750 || (n > 250 && n - _unbootedAt > 250))) {",
         "replace": "      if (false) {",
         "matches": 1,
     },
