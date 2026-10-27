@@ -85,13 +85,20 @@ class TheTickSpawnsTheSmallSlice(unittest.TestCase):
         try:
             SP.tick(now_s=100000.0, busy=0, tree=("installed", "fixture"), census=_census(), path=path,
                     spawn_fn=spawn, env={"TV_SELF_PROVE": "1"})
-        except TypeError:
-            self.skipTest("tick signature differs")
         finally:
             SP.free_mb, SP.playing_state, SP.proc_birth = orig
         self.assertTrue(calls, "no slice was spawned at 1,019 MB free")
         self.assertEqual(calls[0]["workers"], 1)
         self.assertLessEqual(len(calls[0]["names"]), SP.SMALL_SLICE_MAX_GATES)
+
+
+class ABusyPcNeverStarvesIntoASmallSlice(unittest.TestCase):
+
+    def test_busy_past_the_starve_window_stays_busy_under_the_full_floor(self):
+        r = SP.decide(_census(), ("installed", "fixture"), None, 99.0,
+                      {"busySince": 1.0}, 10 * SP.BUSY_STARVE_S, playing=False, free=1019)
+        self.assertFalse(r["start"], r)
+        self.assertEqual(r["key"], "busy")
 
 
 class TheFleetRowSaysWhy(unittest.TestCase):

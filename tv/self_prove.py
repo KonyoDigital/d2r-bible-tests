@@ -812,6 +812,8 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         except (TypeError, ValueError):
             _since = None                          # unreadable: no starve claim on a guess - the run starts over
         _for = (now_s - _since) if _since is not None else None
+        if _small:                                 # a small slice never starves its way in past a busy machine
+            _for = None
         if _for is not None and _for >= BUSY_STARVE_S:
             return {"start": True, "key": "start",
                     "why": "the machine has been %.0f%% busy or more for %s without a break - a proof that waits for "
