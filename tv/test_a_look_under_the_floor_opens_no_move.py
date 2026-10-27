@@ -28,7 +28,9 @@ import vault_page_node as VPN  # noqa: E402
 
 SEED = r"""
 localStorage.setItem('d2r_ownerClaim', '*');
-localStorage.setItem('d2r_owned', JSON.stringify([]));
+/* #202 (his 2026-10-27 ruling): a FIRST read of a name he does not own is held until a second session. This law is about
+   the floor on a look, so both items are already his - a re-read records its sight and asks the move rule. */
+localStorage.setItem('d2r_owned', JSON.stringify(["Hellfire Torch", "Treachery"]));
 localStorage.setItem('d2r_vaultProv', JSON.stringify({}));
 localStorage.setItem('d2r_muleAssign', JSON.stringify({}));
 """

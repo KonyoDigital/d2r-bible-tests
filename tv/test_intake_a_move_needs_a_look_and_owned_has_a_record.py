@@ -88,11 +88,12 @@ class IntakeTwoLooks(unittest.TestCase):
         fresh()
 
     def test_a_frame_with_no_session_is_zero_looks_and_opens_no_move(self):
+        # #202 (his 2026-10-27 ruling): a read with no look registers nothing - not owned, no move
         o = run("OUT.r = reg('Treachery', 'stash', 'stash:c3r4', [{ frame: 'f_1791233980015.jpg', lane: 'stash', cell: 'stash:c3r4' }]);"
                 "OUT.s = state('Treachery');")
-        self.assertTrue(o["r"]["ok"], o)
-        self.assertTrue(o["s"]["owned"], o)
-        self.assertGreaterEqual(o["s"]["records"], 1, o)
+        self.assertFalse(o["r"]["ok"], o)
+        self.assertEqual(o["r"]["refused"], "no-look", o)
+        self.assertFalse(o["s"]["owned"], o)
         self.assertEqual(o["s"]["moves"], [], o)
 
     def test_the_v3806_demo_read_a_bare_frame_on_a_cell_opens_no_move(self):
@@ -102,11 +103,12 @@ class IntakeTwoLooks(unittest.TestCase):
                 "try { window._vaultMoveCollect && window._vaultMoveCollect(); } catch (e) {}"
                 "OUT.t = state('Treachery'); OUT.h = state('Hellfire Torch');")
         for k in ("t", "h"):
-            self.assertTrue(o[k]["owned"], o)
-            self.assertGreaterEqual(o[k]["records"], 1, o)
+            self.assertFalse(o[k]["owned"], "#202: a bare frame registered an item: %r" % o)
             self.assertEqual(o[k]["moves"], [], o)
 
     def test_one_session_over_three_frames_is_one_look_and_one_move(self):
+        # #202 Q2 (his default): an item ALREADY his still opens one move on one session
+        board().seed({"d2r_owned": ["Hellfire Torch"], "d2r_vaultProv": {}, "d2r_muleAssign": {}, "d2r_vaultRecords": None})
         o = run("OUT.r = reg('Hellfire Torch', 'shared', 'shared:c9r6', ["
                 "look('s_1791547225746_227', 'f_1791548118549.jpg', 'shared', 'shared:c9r6'),"
                 "look('s_1791547225746_227', 'f_1791548119559.jpg', 'shared', 'shared:c9r6'),"
@@ -129,6 +131,8 @@ class IntakeTwoLooks(unittest.TestCase):
         self.assertEqual(mv[0]["status"], "to-move", o)
 
     def test_a_second_session_on_a_later_read_joins_the_same_row(self):
+        # #202: an item already his, so the first read records its row (a new item is held until its second session)
+        board().seed({"d2r_owned": ["Treachery"], "d2r_vaultProv": {}, "d2r_muleAssign": {}, "d2r_vaultRecords": None})
         o = run("OUT.a = reg('Treachery', 'stash', 'stash:c3r4', [look('%s', 'f_1791233980015.jpg', 'stash', 'stash:c3r4')]);"
                 "OUT.s1 = state('Treachery');"
                 "OUT.b = reg('Treachery', 'stash', 'stash:c3r4', [look('%s', 'f_1791239854999.jpg', 'stash', 'stash:c3r4')]);"
@@ -159,8 +163,13 @@ class IntakeTwoLooks(unittest.TestCase):
             self.assertEqual(o[k]["moves"], [], o)
 
     def test_a_base_the_tv_registered_is_owned_and_has_a_record(self):
+        # #202: one session holds it; the second registers it
         o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85)]);"
+                "OUT.s0 = state('Thresher');"
+                "OUT.r2 = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791473772294_11798', 'f_1791474195360.jpg', 'stash', 'stash:c7r1', 0.8)]);"
                 "OUT.s = state('Thresher');")
+        self.assertFalse(o["s0"]["owned"], "#202: one session registered Thresher: %r" % o)
+        self.assertEqual(o["r"]["refused"], "one-session", o)
         self.assertTrue(o["s"]["owned"], o)
         self.assertGreaterEqual(o["s"]["records"], 1, o)
 
@@ -181,13 +190,14 @@ class IntakeTwoLooks(unittest.TestCase):
                 "OUT.r2 = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791473772294_11798', 'f_1791474195360.jpg', 'stash', 'stash:c7r1', 0.8)]);"
                 "OUT.s2 = state('Thresher');")
         p1, p2 = o["s1"]["prov"], o["s2"]["prov"]
-        self.assertEqual((p1["kind"], p1["by"]), ("owned", "tvVaultRegister"), o)
+        self.assertIsNone(p1, "#202: the first session wrote a receipt for an item that is not his yet: %r" % o)
         self.assertTrue(p2["mule"], o)                        # 2 sessions filed it
         self.assertEqual(p2["ownedBy"], {"kind": "owned", "by": "tvVaultRegister"}, o)
         self.assertGreaterEqual(o["s2"]["records"], 1, o)
 
     def test_a_zero_look_read_does_not_touch_a_stored_row(self):
         # a stored hand row with no FROM cell yet: a frame with no session must not fill it in
+        board().seed({"d2r_owned": ["Treachery"], "d2r_vaultProv": {}, "d2r_muleAssign": {}, "d2r_vaultRecords": None})
         o = run("window._vaultMoveAdd ? 0 : 0;"
                 "OUT.a = reg('Treachery', 'stash', 'stash:c3r4', [look('%s', 'f_1791233980015.jpg', 'stash', 'stash:c3r4')]);"
                 "OUT.s1 = state('Treachery');"
@@ -200,7 +210,8 @@ class IntakeTwoLooks(unittest.TestCase):
         board().seed({"d2r_owned": [], "d2r_vaultProv": {"Gothic Axe": {"ownedBy": "owned"}, "Giant Thresher": {"ownedBy": [1]},
                                                          "Great Axe": None, "Ogre Axe": 7},
                       "d2r_muleAssign": {}, "d2r_vaultRecords": None})
-        o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85)]);"
+        o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85),"
+                " look('s_1791473772294_11798', 'f_1791474195360.jpg', 'stash', 'stash:c7r1', 0.8)]);"
                 "OUT.s = state('Thresher');")
         self.assertTrue(o["s"]["owned"], o)
         self.assertGreaterEqual(o["s"]["records"], 1, o)

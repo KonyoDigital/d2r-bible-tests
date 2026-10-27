@@ -12033,6 +12033,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_theatre_mode_button_stays_short.py")], 300,
          needs_app=False,
          why='REG-2682 (#92, GrokBot) - the theatre mode button carried a 97-character label; short on the button, the whole sentence in its hover.'),
+    Gate("test_auto_intake_registers_on_two_sessions",
+         [sys.executable, os.path.join(HERE, "test_auto_intake_registers_on_two_sessions.py")], 300,
+         needs_app=False,
+         why="REG-2686 (#202, his ruling 2026-10-27) - auto intake owned an item on ONE read; a read of a name he does not own is held until its second session (the filing's own rule), then registers and files. Whole page in node."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -570,13 +570,16 @@ window.vaultFile = function(name, w, o){ FILED.push({ name: name, mule: o && o.m
 %(lanes)s
 %(furn)s
 %(region)s
+%(rule)s
 %(reg)s
 var OUT = {};
+/* #202 (his 2026-10-27 ruling) - a read registers on its SECOND session: each fixture brings two */
+OUT.once = window.tvVaultRegister('Arachnid Mesh', { lane: 'stash', by: 'kai-register', sessions: [{ session: 's_5', frame: '50_1' }] });
 OUT.carried = window.tvVaultRegister('Shako', { lane: 'inventory', by: 'kai-register', carried: true, character: 'KonyoSorc',
-                                                sessions: [{ session: 's_3', frame: '30_1' }] });
+                                                sessions: [{ session: 's_3', frame: '30_1' }, { session: 's_4', frame: '40_1' }] });
 OUT.carriedRow = JSON.parse(STORE['d2r_vaultProv'] || '{}')['Shako'];
 OUT.filedAfterCarried = FILED.slice();
-OUT.stash = window.tvVaultRegister('Nagelring', { lane: 'stash', by: 'kai-register', sessions: [{ session: 's_3', frame: '31_1' }] });
+OUT.stash = window.tvVaultRegister('Nagelring', { lane: 'stash', by: 'kai-register', sessions: [{ session: 's_3', frame: '31_1' }, { session: 's_4', frame: '41_1' }] });
 OUT.filed = FILED.slice();
 OUT.owned = Array.from(owned).sort();
 process.stdout.write(JSON.stringify(OUT));
@@ -639,6 +642,15 @@ process.stdout.write(JSON.stringify({ r: R, owned: JSON.parse(STORE['d2r_owned']
 FURN_FROM = "var _FURNITURE_WORDS = ['horadric cube'"
 FURN_TO = "/* THE MAIN LEDGER, AS THE CONSOLE PUBLISHES IT"
 REG_FROM = "  window.tvVaultRegister = function(name, witness){\n"
+
+
+def _intake_rule(s):
+    """#202 - the floor, the bar, the one look rule and the seen-once hold, cut from the page the way the register finds them."""
+    import re as _re
+    floor = _re.search(r"\n  var VAULT_WITNESS_FLOOR = [^;]+;", s).group(0).strip()
+    bar = _re.search(r"\n  var VAULT_WITNESS_MIN = [^;]+;", s).group(0).strip()
+    return "\n".join([floor, bar, _between(s, "  function _vaultLookConf(look){\n", "  window._vaultIntakePending = function(){\n"),
+                      "window._vaultNotAnItem = window._vaultNotAnItem || function(){ return null; };"])
 REG_TO = "\n  // v731 — reverse a mistaken vault"
 #: L-1 (round 4) published the register's name resolution as window._vaultResolveName and the register calls it, so the SHIPPED
 #: register cut below must carry that door too (it sits directly above the register on the page)
@@ -1182,7 +1194,9 @@ class TheRegisterNeverFilesCarriedLoot(unittest.TestCase):
     def test_the_shipped_register_owns_a_carried_read_and_files_a_stash_read(self):
         s = _src()
         o = _node(REGISTER % {"lanes": _lanes(s), "furn": _between(s, FURN_FROM, FURN_TO), "region": owned_prov_region(s),
+                              "rule": _intake_rule(s),
                               "reg": _between(s, RESOLVER_FROM, REG_FROM) + _between(s, REG_FROM, REG_TO)}, "register")
+        self.assertEqual(o["once"].get("refused"), "one-session", "a one-session read was registered (#202): %r" % o["once"])
         self.assertEqual("carried", o["carried"].get("refused"), o["carried"])
         self.assertEqual([], o["filedAfterCarried"], "the register FILED carried loot to a mule")
         self.assertTrue(o["carriedRow"]["carried"])

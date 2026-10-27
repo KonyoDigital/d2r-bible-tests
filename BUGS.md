@@ -32,6 +32,21 @@ extension, test_ci_spends_no_minutes_on_a_slow_mirror]; one BLIND shuts every lo
 past the window could not drain. Neither is his PC's fault: the first runs the pre-push hook's perl timer (no perl on
 Windows), the second's `timeout` stand-in kills a process group (os.killpg). Their red-proofs now declare "needs":
 "posix" and "posix-signals" (REG-1686): proven where POSIX is, ELSEWHERE on Windows - never BLIND there.
+### REG-2686 - AUTO INTAKE OWNED AN ITEM ON ONE READ (#202, HIS RULING 2026-10-27 ~21:00)
+His words: "auto intake needs two witnesses at least ... its the 2 sessions to file to a mule is the same logic in
+registering that item". Measured at v3812: the inner tvVaultRegister called _ownedAdd on every call, so one frame made an
+item his and only the filing waited for 2 sessions. Now a READ (a witness carrying looks, sessions or a frame) of a name he
+does not own is held in d2r_vaultSighted (through window.LSR, so it forks per profile) until VAULT_WITNESS_MIN distinct
+sessions have seen it - counted by the filing's own rule (_vaultLookCounts; a 0.40 look is not a session; s_1 and its
+re-look s_1#2 are one). Then it registers AND files in the same call, both sessions in the receipt, and the hold clears.
+Not held: his hand; a name he already owns (a re-read - one session still opens a move, his Q2 default); a call with no
+witness at all (the evidence restore and migration queues re-register what he already had). An unreadable hold store holds
+every read and is never written over. The ledger says 'vault-pending' ("seen once - a 2nd session registers it") instead
+of route-failed, and the vault's population line says "N seen once (not yours yet - a 2nd session registers them)".
+Fixtures moved with the rule: the Chrome intake law (cases bring two sessions, or an item already his), the #201 law
+(both items already his), test_every_owned_door_writes_provenance (two sessions, a one-session case). Open questions to him
+(defaults applied): carried loot waits too (yes); un-own today's single-read items (no); the other single-read doors (AI
+checker keep tier, folder/photo intake) are not in this ship. Law: test_auto_intake_registers_on_two_sessions (7 red-proofs).
 
 ### REG-2685 - NINE LAWS WENT RED ON v3813/v3814 OUTSIDE THE PRE-PUSH SUBSET (CI's agent tests)
 CI's "TV DIABLO - agent tests" ran the whole gate set and failed on v3813 and v3814; the pre-push gate runs a subset, so

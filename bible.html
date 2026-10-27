@@ -23805,6 +23805,10 @@ try {
       return bits.join(sep);
     }
     if (p.carried) bits.push(n(p.carried) + ' carried');
+    /* #202 (his 2026-10-27 ruling) - read once, not his until a second session sees it: said, never folded into owned */
+    if (p.pending === null) bits.push('seen once <b>UNKNOWN</b> <i>(the seen-once store would not read)</i>');
+    else if (typeof p.pending === 'number' && p.pending > 0)
+      bits.push(n(p.pending) + ' seen once <i>(not yours yet \u2014 a 2nd session registers ' + (p.pending === 1 ? 'it' : 'them') + ')</i>');
     var sp = +p.sp || 0, lo = +p.loose || 0;
     /* #208 (GrokBot) - "13 still loose (5 set pieces · 8 other)" beside a dock that showed 8: the set pieces were counted
        from the dock and taken from a total that also held 5 THROW OUT names. With the split, each part is named from its
@@ -45009,6 +45013,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                        carried: _carUnknown ? null : _carried.length, loose: (_asgUnread || _dockUnread) ? null : unsorted.length, sp: _sp,
                        orphans: (_rh76 ? _rh76.orphans : undefined), orphansNoHome: (_rh76 ? _rh76.orphansNoHome : undefined) };
         if (typeof _vaultPopFromHeader === 'function') _sub76 = _vaultPopFromHeader(_sub76, _rh76);
+        /* #202 - what the reader saw once and is waiting on a second session to register (null = the store is UNKNOWN) */
+        try { var _pend202 = (typeof window._vaultIntakePending === 'function') ? window._vaultIntakePending() : undefined;
+              _sub76.pending = (_pend202 === null) ? null : (Array.isArray(_pend202) ? _pend202.length : undefined); } catch (eP202) { _sub76.pending = null; }
         /* REG-2411 — held: no count is claimed, the line names the store instead */
         var _popHeld = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
         if (_popHeld) { _sub76.owned = null; _sub76.heldWhy = _popHeld; }
@@ -45550,6 +45557,75 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._vaultLooksScored = _vaultLooksScored;
   window._vaultLookCounts = _vaultLookCounts;
+  /* #202 - HIS RULING 2026-10-27 ~21:00: "auto intake needs two witnesses at least ... its the 2 sessions to file to a mule
+     is the same logic in registering that item". Measured at v3812: the register owned an item on ONE frame read and only
+     the filing waited for 2 sessions. A READ (a witness carrying looks or a frame) of a name he does not own is now HELD
+     here - name, looks, first and last seen - until VAULT_WITNESS_MIN distinct sessions have seen it, counted by the same
+     rule the filing uses (_vaultLookCounts; s_1 and its re-look s_1#2 are one session). Then it registers and files in the
+     same call. His hand is never held, a name he already owns is a re-read, and a call with no witness at all (a restore
+     or a migration of what he already had) is not a read and is not held. The store is d2r_vaultSighted; an unreadable
+     store holds every read (UNKNOWN, never a guess) and is never written over. */
+  var VAULT_SIGHTED_KEY = 'd2r_vaultSighted';
+  /* through window.LSR when the board has it - the same door every vault store takes, so the store forks per profile */
+  function _vaultSightedStore(){ return (window.LSR && typeof window.LSR.getItem === 'function') ? window.LSR : localStorage; }
+  function _vaultSightedAll(){
+    var raw = null;
+    try { raw = _vaultSightedStore().getItem(VAULT_SIGHTED_KEY); } catch (e) { return null; }
+    if (raw == null || raw === '') return {};
+    try { var m = JSON.parse(raw); return (m && typeof m === 'object' && !Array.isArray(m)) ? m : null; } catch (e2) { return null; }
+  }
+  function _vaultSightedSave(m){
+    try { _vaultSightedStore().setItem(VAULT_SIGHTED_KEY, JSON.stringify(m)); return true; } catch (e) { return false; }
+  }
+  function _vaultLookSessions(list){
+    var scored = _vaultLooksScored(list), seen = {};
+    (list || []).forEach(function(l){ var sid = _vaultLookCounts(l, scored); if (sid) seen[String(sid).split('#')[0]] = 1; });
+    return Object.keys(seen);
+  }
+  window._vaultLookSessions = _vaultLookSessions;
+  /* -> {hold:true, answer} while fewer than VAULT_WITNESS_MIN sessions have seen it; {hold:false, witness, looks} at the bar */
+  window._vaultIntakeHold = function(name, w, rec){
+    var looks = Array.isArray(w.sessions) ? w.sessions : (Array.isArray(w.looks) ? w.looks : []);
+    if (!looks.length && (w.frame || w.frameId))
+      looks = [{ session: w.session || w.sessionId || null, frame: w.frame || w.frameId, conf: w.conf, cell: w.cell, loc: w.lane || w.location || null }];
+    var all = _vaultSightedAll();
+    if (all === null) return { hold: true, answer: { ok: false, refused: 'hold-unknown', registered: false, label: name,
+      why: 'the seen-once store (d2r_vaultSighted) would not read - UNKNOWN, so this read was not registered' } };
+    var prev = (all[name] && Array.isArray(all[name].looks)) ? all[name].looks : [];
+    var seen = {}, merged = [];
+    prev.concat(looks).forEach(function(l){
+      if (!l || typeof l !== 'object') return;
+      var k = String(l.session || l.witness || l.reel || l.sid || l.id || '') + '|' + String(l.frame || l.frameId || '');
+      if (seen[k]) return; seen[k] = 1; merged.push(l);
+    });
+    var n = _vaultLookSessions(merged).length;
+    if (n >= VAULT_WITNESS_MIN) return { hold: false, witness: Object.assign({}, w, { sessions: merged }), looks: merged, sessions: n };
+    if (!n) return { hold: true, answer: { ok: false, refused: 'no-look', registered: false, label: name,
+      why: 'no look with its own session and frame - not registered (the same look the filing asks for)' } };
+    var now = new Date().toISOString();
+    all[name] = { looks: merged.slice(-12), firstAt: (all[name] && all[name].firstAt) || now, lastAt: now,
+                  by: (rec && rec.source) || null, lane: (rec && rec.loc) || null };
+    if (!_vaultSightedSave(all)) return { hold: true, answer: { ok: false, refused: 'hold-unwritable', registered: false, label: name,
+      why: 'the seen-once store could not be written - not registered' } };
+    return { hold: true, answer: { ok: false, refused: 'one-session', registered: false, label: name,
+      pending: { sessions: n, need: VAULT_WITNESS_MIN },
+      why: 'seen in ' + n + ' session' + (n === 1 ? '' : 's') + ' - not yours yet; the next session that sees it registers it (the same ' + VAULT_WITNESS_MIN + ' sessions that file to a mule)' } };
+  };
+  window._vaultIntakeHoldForget = function(name){
+    var all = _vaultSightedAll();
+    if (!all || !all[name]) return false;
+    delete all[name];
+    return _vaultSightedSave(all);
+  };
+  /* -> [{name, sessions, firstAt, lastAt, lane}] seen but not yet his, or null when the store is UNKNOWN */
+  window._vaultIntakePending = function(){
+    var all = _vaultSightedAll();
+    if (all === null) return null;
+    return Object.keys(all).sort().map(function(nm){
+      var e = all[nm] || {};
+      return { name: nm, sessions: _vaultLookSessions(e.looks || []).length, firstAt: e.firstAt || null, lastAt: e.lastAt || null, lane: e.lane || null };
+    }).filter(function(e){ return !(typeof owned !== 'undefined' && owned && owned.has(e.name)); });
+  };
   /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
   var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1, shared: 1, 'shared stash': 1 };
   var _WIT_MAIN = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
@@ -47426,6 +47502,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          THE STUB STILL RUNS, just after — and before the __throwout branch returns, so BOTH exits
          keep the drawability guarantee v739 added. Moving it below that branch would resurrect the
          invisible-item bug instead. [[the-unjoined-end]] */
+      /* #202 - a READ of a name he does not own registers only on its second session (the hold above) */
+      var _isRead202 = !!(witness && typeof witness === 'object' && !Array.isArray(witness)
+        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks) || witness.frame || witness.frameId));
+      if (_isRead202 && !(_w0.by === 'hand' || _w0.source === 'hand') && !owned.has(name)) {
+        var _h202 = (typeof window._vaultIntakeHold === 'function') ? window._vaultIntakeHold(name, _w0, _rec)
+          : { hold: true, answer: { ok: false, refused: 'hold-unknown', registered: false, label: name,
+              why: 'the 2-session intake rule is not on this page - UNKNOWN, not registered' } };
+        if (_h202 && _h202.hold) return _h202.answer; /* #202 two sessions register */
+        if (_h202 && _h202.witness){ witness = _h202.witness; _w0 = witness; /* #202 the filing sees both sessions */ }
+      }
       var sg = null;
       try { sg = suggestMule(name); } catch(e){}
       // v739 — UNIVERSE GUARANTEE: anything TV registers must be drawable by the Vault Manager.
@@ -47470,6 +47556,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           }
         } catch(e){}
         window._ownedAdd(name, _rec);
+        try { window._vaultIntakeHoldForget(name); } catch (eHf) {} /* #202 promote (throw-out) */
         /* §31.2 — carried loot is never filed, not even to the throw-out review; his manual placement still outranks */
         var _vfX = (_w0.carried === true) ? null
                  : ((witness && !assign[name]) ? window.vaultFile(name, witness, { mule: '__throwout' }) : null);
@@ -47482,6 +47569,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       var already = owned.has(name);
       window._ownedAdd(name, _rec);   /* already owned: the look joins its receipt's tally */
+      try { window._vaultIntakeHoldForget(name); } catch (eHf2) {} /* #202 held looks are his now */
       try {
         var spg = window.findSetPiece && window.findSetPiece(name);
         if (spg && window.__setStemOf && typeof ITEMS !== 'undefined'){
@@ -47784,7 +47872,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                  : (r.filed === false ? (r.refused === 'carried' ? 'carried' : r.refused === 'no-home' ? 'no-home'
                                          : ((r.refused === 'locked' || r.refused === 'main') ? 'lane-locked' : 'no-witness'))
                                       : (_known(nm) ? 'vault-registered' : 'vault-unknown')))
-              : 'route-failed',
+              : ((r && (r.refused === 'one-session' || r.refused === 'no-look')) ? 'vault-pending' : 'route-failed'),   /* #202 */
             /* v3000 \u2014 `store` WAS A FLAT LITERAL IN THE SAME OBJECT AS A COMPUTED `status`.
                Three lines up, `status` is derived from the outcome and can say 'route-failed';
                `store: 'owned'` was asserted on EVERY row regardless, so one row could read
@@ -74296,7 +74384,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
        able to overturn an acceptance, and a blanket freeze would break them.
        [[label-outlived-referent]] [[the-unjoined-end]] */
     var _RULED = { 'accepted': 1, 'dismissed': 1 };
-    var _VAULT_STATUS = { 'vault-registered': 1, 'vault-unknown': 1, 'throw-suggested': 1, 'route-failed': 1 };
+    var _VAULT_STATUS = { 'vault-registered': 1, 'vault-unknown': 1, 'throw-suggested': 1, 'route-failed': 1, 'vault-pending': 1 };
     if (prev && _RULED[prev.status] && row.status && _VAULT_STATUS[row.status]){
       next.status = prev.status;
       next.vaultStatus = row.status;
@@ -74864,6 +74952,7 @@ window._CH_PILL_MAP = {
          that nothing renders. [[the-unjoined-end]] */
       'muled':           ['⚖ filed to a mule', 'var(--best,#66ff88)'],
       'throw-suggested': ['🗑 suggested throw-out', '#f0c060'],
+      'vault-pending': ['⏳ seen once — a 2nd session registers it', '#9fd4ff'],   /* #202 */
       /* v1950 — the reel sweep changes his STASH and said nothing. vaultAccumApply raises rune,
          gem and material counts from what the readers found in his film, and called
          kaiChronicleRecord exactly zero times in 220 lines — so the one path that edits the store
