@@ -85,6 +85,10 @@ EXEMPT = {
     "_child_guard_status":      "copies three in-memory child_guard dicts; the disk census is not called here",
     # REG-1799 — the stream itself is the timed producer. This only splits list-or-reason.
     "_receipts_for_wire":       "reshapes the timed receipt stream into a list or None; no I/O of its own",
+    # REG-2701 (#172 phase B) — READ BEFORE EXEMPTING: audit_child.status() copies its module STATE dicts and asks
+    # wanted() (one os.environ lookup and frame_ref's in-memory console mark). It never spawns: a child runs only from
+    # chronicle_route_state / _lane_spans, never from here.
+    "_audit_child_status":      "copies audit_child's in-memory STATE and its console mark; no I/O, never spawns",
 }
 
 

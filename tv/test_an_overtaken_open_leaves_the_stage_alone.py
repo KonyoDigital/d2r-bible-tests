@@ -75,7 +75,8 @@ class TestAnOvertakenOpenLeavesTheStageAlone(unittest.TestCase):
         self.assertIsNotNone(
             m, "thOpen() does not claim a generation on entry. Without one there is no way for a "
                "resolved-but-overtaken attempt to know it lost, so it re-shows a torn-down stage.")
-        wait = fn.find("await fetch('/api/sessions'")
+        # REG-2698 moved the bounded /api/sessions wait into thSessionsWait; thOpen awaits that, here
+        wait = fn.find("j = await thSessionsWait(")
         self.assertGreater(wait, -1, "thOpen no longer awaits /api/sessions")
         self.assertLess(
             m.start(), wait,
@@ -93,7 +94,7 @@ class TestAnOvertakenOpenLeavesTheStageAlone(unittest.TestCase):
             "belongs to a LATER open — the same defect arriving from the error path." % len(guards))
 
         # the happy-path guard must sit BEFORE anything that touches TH or the DOM
-        after = fn[fn.find("j = await r.json();"):]
+        after = fn[fn.find("j = await thSessionsWait("):]
         g = after.find("if (_thGen !== TH.gen) return;")
         paint = after.find("TH.sessions =")
         self.assertGreater(g, -1, "no stand-down guard after the response is parsed")

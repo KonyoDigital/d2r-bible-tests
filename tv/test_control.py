@@ -34156,7 +34156,11 @@ class TestTheConsoleCanSayItIsBroken(unittest.TestCase):
         the apostrophes in the fork-set comment. A guard fails on its own REACH before it fails on
         the code, and the cure is always the same: bound by the syntactic thing, never by a string
         search or a character count. [[source-reading-guard]]"""
-        i = self.ui.index("async function thOpen()")
+        return self._fn_body("async function thOpen()")
+
+    def _fn_body(self, sig):
+        """The body of the function whose head is `sig`, bounded by brace depth."""
+        i = self.ui.index(sig)
         b = self.ui.index("{", i)
         depth, j = 0, b
         while j < len(self.ui):
@@ -34167,13 +34171,19 @@ class TestTheConsoleCanSayItIsBroken(unittest.TestCase):
                 if depth == 0:
                     return self.ui[b:j + 1]
             j += 1
-        self.fail("could not bound thOpen — HARNESS fault, not a pass")
+        self.fail("could not bound %s — HARNESS fault, not a pass" % sig)
 
     def test_the_theatre_fetch_is_BOUNDED(self):
-        """An unbounded await is what left the stage black. A timeout is the whole fix."""
+        """An unbounded await is what left the stage black. A timeout is the whole fix.
+        REG-2698 (#86) moved the bounded /api/sessions wait into thSessionsWait (45 s, and it says it is waiting), so
+        thOpen must wait THROUGH it, and the bound must sit on that fetch."""
         window = self._thOpen()
-        self.assertIn("/api/sessions", window, "thOpen no longer fetches sessions — retarget this")
-        self.assertIn("AbortController", window,
+        self.assertIn("j = await thSessionsWait(", window,
+                      "thOpen no longer waits for sessions through thSessionsWait — retarget this")
+        wait = self._fn_body("async function thSessionsWait(")
+        self.assertIn("await fetch('/api/sessions', ac ? { signal: ac.signal } : undefined)", wait,
+                      "the sessions wait no longer fetches /api/sessions on an abort signal")
+        self.assertIn("AbortController", wait,
                       "the theatre still awaits /api/sessions with no bound, so a server replaced "
                       "mid-fetch leaves the black stage he reported")
 

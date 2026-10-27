@@ -17724,8 +17724,7 @@ window._lockMark = function(isOpen, px, label){
      stage says it is waiting and for how long instead of sitting silent. -> the /api/sessions JSON; throws on abort/failure */
   var TH_SESSIONS_BOUND_MS = 45000, TH_SLOW_SAY_MS = 4000;
   async function thSessionsWait(gen, shelfDoor){
-    var t0 = Date.now(), ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var to = setTimeout(function(){ try { if (ac) ac.abort(); } catch (e) {} }, TH_SESSIONS_BOUND_MS);
+    var t0 = Date.now();
     var tick = setInterval(function(){
       if (gen !== TH.gen) return;
       var ms = Date.now() - t0;
@@ -17737,6 +17736,9 @@ window._lockMark = function(isOpen, px, label){
         try { var lead = document.querySelector('#th-shelfov .she-lead'); if (lead) lead.textContent = say; } catch (e) {}
       }
     }, 1000);
+    /* the bound sits beside the fetch it bounds (test_the_theatre_open_chain_cannot_hang reads them together) */
+    var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var to = setTimeout(function(){ try { if (ac) ac.abort(); } catch (e) {} }, TH_SESSIONS_BOUND_MS);
     try {
       var r = await fetch('/api/sessions', ac ? { signal: ac.signal } : undefined);
       return await r.json();

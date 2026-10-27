@@ -380,11 +380,12 @@ class TestADoorMayNotFailInSilence(unittest.TestCase):
             io.open(UI, encoding="utf-8").read())
 
     def test_the_shelf_door_catches_a_refused_stage(self):
-        m = re.search(r"_bshelf\.onclick\s*=\s*async function\s*\([^)]*\)\s*\{(.{0,1400}?)\n  \};",
-                      self.code, re.S)
-        self.assertIsNotNone(m, "the Shelf handler could not be found — this guard cannot answer, "
-                                "which is not the same as passing")
-        body = m.group(1)
+        # REG-2700 grew the handler by a shadow check, and a 1400-character window then stopped short of its end and found
+        # nothing. Bounded by its own braces now, like the other Shelf-door laws here. [[source-reading-guard]]
+        i = self.code.find("_bshelf.onclick = async function")
+        self.assertGreater(i, 0, "the Shelf handler could not be found — this guard cannot answer, "
+                                 "which is not the same as passing")
+        body = _block(self.code, i)
         self.assertIn("await thOpen()", body, "the handler no longer opens the stage — if that is "
                                               "deliberate this guard is measuring nothing")
         # the await must sit inside a try, and the shelf must still be attempted afterwards

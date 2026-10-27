@@ -198,8 +198,17 @@ def _drive(src, names, scenario, extra_stubs=""):
 
 
 _LAST = ["function thPickEntrySession(", "window._shelfLastSession = async function(){"]
-_OPEN = ["async function thOpen(){", "async function thLoadSession(", "function thApplyCardPref(){",
-         "function thPickEntrySession("]
+# REG-2698 - thOpen's /api/sessions wait is thSessionsWait now; it rides with thOpen, and so do its two bounds (_bounds)
+_OPEN = ["async function thOpen(){", "async function thSessionsWait(", "async function thLoadSession(",
+         "function thApplyCardPref(){", "function thPickEntrySession("]
+
+
+def _bounds(src):
+    """The page's own TH_SESSIONS_BOUND_MS / TH_SLOW_SAY_MS line, never a copy of its numbers. [[copy-drift]]"""
+    for line in src.split("\n"):
+        if line.startswith("  var TH_SESSIONS_BOUND_MS = "):
+            return line.strip() + "\n"
+    raise AssertionError("PREMISE: the sessions wait's bounds moved - re-point this harness")
 _TOGGLE = ["function _thShelfWasTheDoor(){", "function thShelfToggle(){"]
 
 
@@ -223,7 +232,7 @@ def a_reel_opened_from_the_shelf_door(src):
         "FETCH['/api/session'] = { beats: [{frame: 'f_1790000000000.jpg', ts: 1}], sessionId: 's7' };\n"
         "TH.shelfAsDoor = true;\n"
         "(async function(){ await thOpen(); var atShelf = CARD.open; await thLoadSession(7);\n"
-        "  _done({atShelf: atShelf}); })();"))
+        "  _done({atShelf: atShelf}); })();"), extra_stubs=_bounds(src))
 
 
 def hiding_the_shelf(src, was_door):

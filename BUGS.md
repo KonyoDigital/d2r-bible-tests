@@ -41,6 +41,12 @@ Each read from CI's own table, reproduced locally where it is not a browser law,
    bundle lacked FIND's _vfNorm/_vfKey (REG-2673); the v3769 bundle lacked _vaultCellOk and the grid sizes (REG-2690).
 Not a break: test_v3769_vault_move_list_visual ERRORED once on v3816 after its 6th shot (no traceback in CI's log), and the
 re-run of the same commit (40596124719, attempt 2) passed it - a runner flake, left as measured.
+5. The batch's own CI run (cbbf68d49 on a ci/ branch, before anything published) - laws that find code by its old shape:
+   REG-2698 moved the sessions wait into thSessionsWait (test_control's bound law, test_an_overtaken_open, the theatre
+   chain law, the shelf harness now follow it; the bound sits beside its fetch); REG-2700 grew the Shelf handler past a
+   1400-character window (test_heart_surface bounds it by braces now); REG-2701's cache writer moved out of health_engine
+   (it reports, never writes) into audit_child, its status is exempt from the timing law with its reason, audit_child.py
+   is in the engine index, and its law contains its scratch first.
 
 ### REG-2697 - THE PERSISTED VAULT HEADER LOST THE LOOSE SPLIT (REG-2677's sibling, #208, found by v3816's full CI)
 REG-2677 split "loose" into in-the-dock / routed-to-THROW-OUT on the live header only. _vaultRecordsViewHeader - the same

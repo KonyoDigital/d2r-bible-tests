@@ -32,10 +32,10 @@ try:
     _enable()
 except Exception:
     pass
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()                       # first: the world below, and every child's scratch, leave with this run
 _WORLD = tempfile.mkdtemp(prefix="audit_child_world_")
 os.environ["TV_HIST"] = _WORLD          # before anything resolves a cache root
-import fixture_tmp as _fx_tmp  # noqa: E402
-_fx_tmp.contain()
 import audit_child as AC  # noqa: E402
 import chronicle_routes as CR  # noqa: E402
 import frame_ref as FR  # noqa: E402

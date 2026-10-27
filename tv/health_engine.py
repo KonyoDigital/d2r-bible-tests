@@ -849,23 +849,6 @@ def _lane_spans_disk(key):
         return None
 
 
-def write_lane_spans_cache():
-    """The child's half: write the spans this process just derived, keyed on the stat they were derived from. -> bool"""
-    snap = _LANE_SPAN_CACHE
-    p = _lane_spans_cache_path()
-    if not p or snap.get("val") is None or not snap.get("key"):
-        return False
-    try:
-        tmp = p + ".tmp"
-        with io.open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"key": [int(snap["key"][0]), int(snap["key"][1])],
-                       "val": {k: list(v) for k, v in snap["val"].items()}}, fh)
-        os.replace(tmp, p)              # atomic: a half-written cache is never readable
-        return True
-    except Exception:
-        return False
-
-
 def _attribute_to_lanes(hits):
     """Which WATCHER LANE each sabotage actually struck. -> {lane: (k, n)}
 

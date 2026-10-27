@@ -38,6 +38,17 @@
     "purpose": "Writes .view_request.json naming ONE console pane the console should bring to front once, so a human eye can photograph it; the harness has eyes and no hands.",
     "territory": "console-ui"
   },
+  "audit_child.py": {
+    "entryPoints": [
+      "wanted",
+      "run",
+      "hit",
+      "status"
+    ],
+    "gotcha": "Only a CONSOLE spawns (frame_ref.on_console_path(), set by control_app.main()); every law, the gate and CI derive in their own process, because a child cannot see a monkeypatch. A child carries TVD_AUDIT_CHILD=1 so it never spawns a child. It FAILS OPEN: a child that times out or exits non-zero leaves the console to derive itself, and STATE says so.",
+    "purpose": "#172 phase B: runs a cold source audit (the route census, the lane spans of control_app.py) in a short-lived child that writes the same cache the console reads, so ~600 MB of parse memory leaves with the child.",
+    "territory": "heart-organs"
+  },
   "auto_scope.py": {
     "entryPoints": [
       "report",

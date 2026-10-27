@@ -104,6 +104,24 @@ def status():
     return out
 
 
+def _write_lane_spans(he):
+    """The child's half: write the spans it just derived, keyed on the stat they were derived from, where the engine reads
+    them (health_engine._lane_spans_disk). health_engine itself never writes - it reports. -> bool"""
+    snap = getattr(he, "_LANE_SPAN_CACHE", None) or {}
+    p = he._lane_spans_cache_path()
+    if not p or snap.get("val") is None or not snap.get("key"):
+        return False
+    try:
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"key": [int(snap["key"][0]), int(snap["key"][1])],
+                       "val": {k: list(v) for k, v in snap["val"].items()}}, fh)
+        os.replace(tmp, p)              # atomic: a half-written cache is never readable
+        return True
+    except Exception:
+        return False
+
+
 def _child(name):
     if name == "routes":
         import chronicle_routes as _cr
@@ -116,7 +134,7 @@ def _child(name):
     if name == "lane_spans":
         import health_engine as _he
         spans, _src = _he._lane_spans()
-        if not _he.write_lane_spans_cache():
+        if not _write_lane_spans(_he):
             print("the lane spans were derived but their cache could not be written")
             return 3
         print(json.dumps({"ok": True, "audit": name, "lanes": len(spans)}))
