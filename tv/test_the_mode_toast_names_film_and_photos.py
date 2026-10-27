@@ -56,8 +56,8 @@ def _say(cases):
     src = _src()
     js = (
         "%s\n%s\nconsole.log(JSON.stringify(%s.map(function(c){"
-        " return _modeFlashSay(c[0], c[1], c[2], c[3]); })));\n"
-    ) % (_fn(src, "_filmPhotoSay(film, photos){"), _fn(src, "_modeFlashSay(mode, film, photos, plays){"), json.dumps(cases))
+        " return _modeFlashSay(c[0], c[1], c[2], c[3], c[4]); })));\n"
+    ) % (_fn(src, "_filmPhotoSay(film, photos){"), _fn(src, "_modeFlashSay(mode, film, photos, plays, speed){"), json.dumps(cases))
     r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise AssertionError("_modeFlashSay did not run in node: %s" % r.stderr[-600:])
@@ -97,19 +97,30 @@ class TheModeToastNamesFilmAndPhotos(unittest.TestCase):
         self.assertNotIn("photos 11", missing_photos)
         self.assertIn("plays UNKNOWN", missing_photos)
 
+    def test_fast_says_its_speed_when_it_is_known(self):
+        """#97(b) - FAST lost its ' @N x' in REG-2160 (a13b91afa)"""
+        with_speed, no_speed = _say([["full", 11, 20, "3m00s", 8], ["full", 11, 20, "3m00s", None]])
+        self.assertIn("@8\u00d7", with_speed, with_speed)
+        self.assertNotIn("@", no_speed, "an unknown speed was printed: %r" % no_speed)
+
     def test_the_flash_asks_the_one_sentence(self):
         s = _src()
-        self.assertEqual(s.count("function _modeFlashSay(mode, film, photos, plays){"), 1)
+        self.assertEqual(s.count("function _modeFlashSay(mode, film, photos, plays, speed){"), 1)
         self.assertEqual(s.count("_modeFlashSay("), 2,
                          "the mode click must ask _modeFlashSay, and nobody else copies it")
         self.assertIn("var counts = _filmPhotoSay(film, photos);", s)
-        self.assertIn("var msg = _modeFlashSay(TH.mode, st2.allFoot, st2.allPhoto, _wallTxt);", s,
-                      "the 1.6s flash went back to a bare photo count")
+        self.assertIn("var msg = _modeFlashSay(TH.mode, _cut ? st2.curFoot : st2.allFoot, _cut ? st2.curPhoto : st2.allPhoto, _wallTxt, TH.speed);", s,
+                      "the 1.6s flash went back to a bare photo count, or STORY counts the whole session (#97b)")
         self.assertNotIn("⏱ REAL 1:1 · ' + framedCount + ' photos", s,
                          "the flash still prints a bare photo count")
 
 
 RED_PROOF = [
+    {"why": "#97(b) - FAST drops the speed it plays at again",
+     "file": "tv/control_ui.html",
+     "find": "    if (mode === 'full') return '\u23e9 FAST \u00b7 time-zipped ~' + play + _spd + counts;\n",
+     "replace": "    if (mode === 'full') return '\u23e9 FAST \u00b7 time-zipped ~' + play + counts;\n",
+     "matches": 1, "needs": "node"},
     {
         "why": "REG-2160 - the flash prints a bare photo count and drops the film count",
         "file": "tv/control_ui.html",
@@ -120,7 +131,7 @@ RED_PROOF = [
     {
         "why": "REG-2160 - the mode click goes back to a bare photo count",
         "file": "tv/control_ui.html",
-        "find": "    var msg = _modeFlashSay(TH.mode, st2.allFoot, st2.allPhoto, _wallTxt);\n",
+        "find": "    var msg = _modeFlashSay(TH.mode, _cut ? st2.curFoot : st2.allFoot, _cut ? st2.curPhoto : st2.allPhoto, _wallTxt, TH.speed);\n",
         "replace": "    var msg = '⏱ REAL 1:1 · ' + st2.allPhoto + ' photos · plays ' + _wallTxt;\n",
         "matches": 1,
     },

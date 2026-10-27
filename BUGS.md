@@ -18,6 +18,11 @@ Also found while checking the shipped v3814 against the whole law set: two regis
 (test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
 REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
 Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+### REG-2691 - FAST LOST ITS SPEED, AND STORY'S TOAST COUNTED THE WHOLE SESSION (#97b, GrokBot)
+REG-2160 rewrote the theatre's 1.6 s mode flash to name film and photos and dropped FAST's " @N×" on the way; and STORY
+(the AI-read cut) was handed the whole session's counts. _modeFlashSay takes the speed and says it when it is known (an
+unknown speed prints nothing); the STORY click hands it the cut's counts (cur*). Law: test_the_mode_toast_names_film_and_photos.
+
 ### REG-2690 - A SIGHTING AT AN IMPOSSIBLE CELL BECAME A MOVE (#153.7, GrokBot's vault sweep)
 _vaultMoveApplySight applied stash:c99r99 as a move's FROM. A grid cell must sit inside its grid - the stash and the shared
 stash MULE_STASH_W x MULE_STASH_H, the inventory MULE_INV_W x MULE_INV_H, 0-based (_vaultCellOk, one source); a cell in

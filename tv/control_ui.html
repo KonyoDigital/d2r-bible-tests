@@ -12527,7 +12527,7 @@ window._lockMark = function(isOpen, px, label){
     if (film === photos) return ' · 📹 film ' + film + ', the same frames as the photos';
     return ' · 📹 film ' + film + ' (film-lane stills) · photos ' + photos + ' (every framed beat)';
   }
-  function _modeFlashSay(mode, film, photos, plays){
+  function _modeFlashSay(mode, film, photos, plays, speed){
     /* #252 (REG-2160) - the 1.6s flash by the mode pill. It said "N photos" and never
        named the film count, so film 11 and photos 20 looked like one number that
        had slipped. The counts are _filmPhotoSay. A missing count stays UNKNOWN.
@@ -12535,7 +12535,9 @@ window._lockMark = function(isOpen, px, label){
     var counts = _filmPhotoSay(film, photos);
     var play = (plays == null || plays === '') ? 'UNKNOWN' : String(plays);
     if (mode === 'highlight') return '🎬 STORY · centered on each AI read' + counts;
-    if (mode === 'full') return '⏩ FAST · time-zipped ~' + play + counts;
+    /* #97(b) (GrokBot) - FAST lost its ' @N×' in REG-2160; the speed it plays at is said again when it is known */
+    var _spd = (typeof speed === 'number' && isFinite(speed) && speed > 0) ? ' @' + speed + '\u00d7' : '';
+    if (mode === 'full') return '⏩ FAST · time-zipped ~' + play + _spd + counts;
     return '⏱ REAL 1:1 · plays ' + play + counts;
   }
   function _modePageSay(mode, film, photos){
@@ -21068,7 +21070,9 @@ window._lockMark = function(isOpen, px, label){
     var st2 = thSessionPhotoStats();
     var _wallTxt = _playSay(TH.Tplay) || 'UNKNOWN';
     /* #252 (REG-2160) - the 1.6s flash names film and photos. A bare photo count hid the film. */
-    var msg = _modeFlashSay(TH.mode, st2.allFoot, st2.allPhoto, _wallTxt);
+    /* #97(b) - STORY plays the AI-read cut, so its counts are the cut's (cur*), not the whole session's */
+    var _cut = TH.mode === 'highlight';
+    var msg = _modeFlashSay(TH.mode, _cut ? st2.curFoot : st2.allFoot, _cut ? st2.curPhoto : st2.allPhoto, _wallTxt, TH.speed);
     thToast(msg, this);
     /* #252 (REG-2161) - the longer toast on this same click names film and photos too. */
     toast(_modePageSay(TH.mode, st2.allFoot, st2.allPhoto));
