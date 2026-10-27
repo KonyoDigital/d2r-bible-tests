@@ -1514,13 +1514,14 @@ function route(owner, prof) {
 var classes = {};
 var frameLS = null;
 var frameMissing = false;
+var frameDoc = null;
 var document = {
   body: { classList: { contains: function (c) { return !!classes[c]; } } },
   getElementById: function (id) {
     asked.push(id);
     if (id === 'shadow-eng') {
       if (frameMissing) return null;
-      return { id: id, contentWindow: { localStorage: frameLS } };
+      return { id: id, contentWindow: { localStorage: frameLS }, contentDocument: frameDoc };
     }
     return { id: id };
   }
@@ -1531,6 +1532,8 @@ function arm(parentSeed, frameSeed, on) {
   localStorage = mem(parentSeed);
   frameLS = mem(frameSeed);
   frameMissing = false;
+  frameDoc = null;
+  window._tvdShadowSnap = null;
   classes = on ? { 'shadow-hub': true, 'shadow-snap': true } : {};
   asked = [];
 }
@@ -1554,6 +1557,22 @@ arm({ d2r_lsrRoute: macRoute, 'd2r_grailFarm': 'mac-farm' }, {}, true);
 frameMissing = true;
 out.noFrame = lsHub('d2r_grailFarm');
 frameMissing = false;
+classes = { 'shadow-on': true, 'shadow-snap': true };
+frameDoc = null;
+frameLS = mem({ d2r_lsrRoute: JSON.stringify(route(true, 'main')), 'd2r_grailFarm': 'their-farm' });
+localStorage = mem({ 'd2r_grailFarm': 'viewer-farm' });
+window._tvdShadowSnap = null;
+out.tab = lsHub('d2r_grailFarm');
+frameDoc = { documentElement: { classList: { contains: function () { return false; } } } };
+frameLS = mem({ 'd2r_grailFarm': 'viewer-in-frame' });
+out.unshimmed = lsHub('d2r_grailFarm');
+window._tvdShadowSnap = { stores: { d2r_grailFarm: 'profile-farm' } };
+out.snap = lsHub('d2r_grailFarm');
+window._tvdShadowSnap = null;
+frameDoc = { documentElement: { classList: { contains: function (c) { return c === 'tvd-shadow'; } } } };
+frameLS = mem({ d2r_lsrRoute: JSON.stringify(route(true, 'main')), 'd2r_grailFarm': 'their-farm' });
+classes = { 'shadow-on': true };
+out.shimmedTab = lsHub('d2r_grailFarm');
 classes = { 'shadow-snap': true };
 asked = [];
 var snapHit = _hubBoard().id;
@@ -1578,8 +1597,15 @@ process.stdout.write(JSON.stringify(out));
         r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         self.assertEqual(r.returncode, 0, r.stderr[-800:])
         got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertIn("cl.contains('shadow-on')", hub)
+        self.assertIn("tvd-shadow", hub)
+        self.assertLess(hub.index("cl.contains('shadow-on')"), hub.index("return lsFork(bare)"))
         self.assertEqual(got["off"], "mac-farm", got)
         self.assertEqual(got["ladder"], "alt-farm", got)
+        self.assertEqual(got["tab"], "their-farm", got)
+        self.assertIsNone(got["unshimmed"], got)
+        self.assertEqual(got["snap"], "profile-farm", got)
+        self.assertEqual(got["shimmedTab"], "their-farm", got)
         self.assertEqual(got["guest"], "guest-farm", got)
         self.assertIsNone(got["noRoute"], got)
         self.assertIsNone(got["noFrame"], got)

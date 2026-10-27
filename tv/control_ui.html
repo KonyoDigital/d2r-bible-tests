@@ -22981,7 +22981,13 @@ window._lockMark = function(isOpen, px, label){
     try {
       var f = document.getElementById('shadow-eng');
       var w = f && f.contentWindow;
-      if (w) {
+      var shimOn = false;
+      try {
+        var doc = f && f.contentDocument;
+        shimOn = !!(doc && doc.documentElement && doc.documentElement.classList
+          && doc.documentElement.classList.contains('tvd-shadow'));
+      } catch (eShim) { shimOn = false; }
+      if (shimOn && w) {
         if (typeof w._writeGrailFarm === 'function') w._writeGrailFarm();
         if (typeof w._writeSetFarm === 'function') w._writeSetFarm();
       }
@@ -23957,10 +23963,22 @@ window._lockMark = function(isOpen, px, label){
   /* The hunt hub's reader. Off a shadow it is lsFork. On a shadow it reads the frame's
      own route and never this PC's store. No route in that frame reads nothing. */
   function lsHub(bare){
-    if (!document.body.classList || !document.body.classList.contains('shadow-hub')) return lsFork(bare);
+    var cl = document.body && document.body.classList;
+    var shadow = !!(cl && (cl.contains('shadow-hub') || cl.contains('shadow-on') || cl.contains('shadow-snap')));
+    if (!shadow) return lsFork(bare);
+    /* The snap is the profile that was entered. The frame is this PC until its
+       boot isolates it, so an unisolated frame is not a reading. */
+    var snap = (typeof window !== 'undefined') ? window._tvdShadowSnap : null;
+    var stores = (snap && snap.stores && typeof snap.stores === 'object') ? snap.stores : null;
+    if (stores && Object.prototype.hasOwnProperty.call(stores, bare) && typeof stores[bare] === 'string') {
+      return stores[bare];
+    }
     var ls = null;
     try {
       var f = document.getElementById('shadow-eng');
+      var doc = f && f.contentDocument;
+      if (doc && !(doc.documentElement && doc.documentElement.classList
+          && doc.documentElement.classList.contains('tvd-shadow'))) return null;
       var w = f && f.contentWindow;
       ls = w && w.localStorage;
     } catch (eLs) { ls = null; }
@@ -24659,7 +24677,7 @@ window._lockMark = function(isOpen, px, label){
       };
       /* The recorder and the tally log stay on the machine that made them. A shadow is not
          sent either one, so this hub must not borrow this PC's counts for that row. */
-      var _onShadowHub = !!(document.body.classList && document.body.classList.contains('shadow-hub'));
+      var _onShadowHub = !!(document.body.classList && (document.body.classList.contains('shadow-hub') || document.body.classList.contains('shadow-on') || document.body.classList.contains('shadow-snap')));
       if (!_onShadowHub) { try { led = JSON.parse(lsFork('d2r_tvdTallyLog') || '[]'); } catch(e){} }
       var rows = [];
       var nowList = (fs && fs.now) || [], oneList = (fs && fs.onestep) || [];
