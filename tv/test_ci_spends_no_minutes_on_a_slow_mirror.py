@@ -181,54 +181,56 @@ if __name__ == "__main__":
     unittest.main()
 
 
+# REG-2687 (Dean's PC, 2026-10-27): the `timeout` stand-in kills a process GROUP (os.killpg), which Windows has no such
+# signal for, so these proofs filed BLIND there and held every lock shut. Judged where POSIX signals are; ELSEWHERE on Windows.
 RED_PROOF = [
     {
         "why": "gbl/ci-speed review - the skip reads 'no word missing' again, so an older Playwright's apt-get line skips apt",
         "file": "../.github/scripts/chromium-os-deps.sh",
         "find": "grep -qx 'All system dependencies are installed\\.'",
         "replace": "! grep -qi 'missing'",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "gbl/ci-speed - apt runs even when nothing is missing",
         "file": "../.github/scripts/chromium-os-deps.sh",
         "find": "  exit 0\nfi\n",
         "replace": "fi\n",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "gbl/ci-speed - the install is unbounded again",
         "file": "../.github/scripts/chromium-os-deps.sh",
         "find": "timeout -k 10 90 npx playwright install-deps chromium; rc=$?",
         "replace": "npx playwright install-deps chromium; rc=$?",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "gbl/ci-speed - a cut or failed install turns the step red",
         "file": "../.github/scripts/chromium-os-deps.sh",
         "find": "  echo \"::warning title=OS deps failed::npx playwright install-deps exited $rc - continuing\"\nfi\nexit 0\n",
         "replace": "  echo \"::warning title=OS deps failed::npx playwright install-deps exited $rc - continuing\"\nfi\nexit $rc\n",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "gbl/ci-speed - tv-tests runs apt unbounded again",
         "file": "../.github/workflows/tv-tests.yml",
         "find": "        run: bash .github/scripts/chromium-os-deps.sh\n",
         "replace": "        run: npx playwright install-deps chromium\n",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "gbl/ci-speed - Routine I runs on every census push again",
         "file": "../.github/workflows/routine-i-playwright.yml",
         "find": "    branches-ignore:\n      - 'ci/proof-keys-**'\n",
         "replace": "",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "gbl/ci-speed - tv-tests runs on every census push again",
         "file": "../.github/workflows/tv-tests.yml",
         "find": "    branches-ignore:\n      - 'ci/proof-keys-**'\n",
         "replace": "",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
 ]

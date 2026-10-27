@@ -18,6 +18,13 @@ Also found while checking the shipped v3814 against the whole law set: two regis
 (test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
 REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
 Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+### REG-2687 - DEAN'S LOCKS WERE HELD SHUT BY TWO LAWS NO WINDOWS PC CAN RUN (measured on his PC, 2026-10-27)
+Dean's census (v3814, 873 of 1162 proved, a slice running) carried blind = [test_a_gate_busy_at_its_deadline_gets_one_
+extension, test_ci_spends_no_minutes_on_a_slow_mirror]; one BLIND shuts every lock on a PC, so his river's 135 reels
+past the window could not drain. Neither is his PC's fault: the first runs the pre-push hook's perl timer (no perl on
+Windows), the second's `timeout` stand-in kills a process group (os.killpg). Their red-proofs now declare "needs":
+"posix" and "posix-signals" (REG-1686): proven where POSIX is, ELSEWHERE on Windows - never BLIND there.
+
 ### REG-2685 - NINE LAWS WENT RED ON v3813/v3814 OUTSIDE THE PRE-PUSH SUBSET (CI's agent tests)
 CI's "TV DIABLO - agent tests" ran the whole gate set and failed on v3813 and v3814; the pre-push gate runs a subset, so
 none of these stopped a push. Each was a HARNESS that cuts functions out of bible.html and had not learned a helper the

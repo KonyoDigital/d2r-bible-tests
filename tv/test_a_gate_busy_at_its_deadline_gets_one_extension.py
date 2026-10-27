@@ -106,22 +106,24 @@ class AGateBusyAtItsDeadlineGetsOneExtension(unittest.TestCase):
         self.assertEqual(code.count(GRACE_UNSET), 1, "the grace mark outlives the render gate")
 
 
+# REG-2687 (Dean's PC, 2026-10-27): every case runs the pre-push hook's perl timer, which Windows has no perl for, so these
+# proofs filed BLIND there and one BLIND shuts every lock on the PC. Judged where POSIX (and perl) is; ELSEWHERE on Windows.
 RED_PROOF = [
     {"why": "REG-1995 - a gate busy at its deadline is killed again (load that arrived mid-run starves the render)",
      "file": "hooks/pre-push",
      "find": "             if ($grace) { $grace = 0;\n",
      "replace": "             if (0) { $grace = 0;\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
     {"why": "REG-1995 - the grace no longer asks the load: every marked gate is extended, quiet or not",
      "file": "hooks/pre-push",
      "find": "               my $s = $l > 5 ? $l / 5 : 1; $s = 2.5 if $s > 2.5;",
      "replace": "               my $s = 2.5;",
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
     {"why": "REG-1995 - the render call site never marks its gate, so the grace never applies to it",
      "file": "hooks/pre-push",
      "find": '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}" GATE_LOAD_GRACE=1\n',
      "replace": '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}"\n',
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
 ]
 
 
