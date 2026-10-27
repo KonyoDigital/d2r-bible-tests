@@ -48883,7 +48883,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        so. Only the pick's own single copy is removed, and through the removal door (dated, journaled, undoable). */
     _vpDropSaid = '';
     var cnt = (typeof copies !== 'undefined' && copies && copies[nm] > 0) ? (copies[nm] | 0) : 1;
-    if (cnt > 1 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
+    /* Claude's v3790 look (HIGH) - vaultRemove keeps a removed name's d2r_copies count (its undo needs it), so "above 1"
+       did not mean "another door counted one while the pick was held": Grief x2, his remove, a fresh pick, a clear, and
+       the removed Grief stayed owned and filed. Only a count that ROSE past what the pick itself left is another door's. */
+    var cnt0 = (typeof m.cnt0 === 'number' && m.cnt0 > 0) ? m.cnt0 : 1;
+    if (cnt > cnt0 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
       if (cnt - 1 > 1) copies[nm] = cnt - 1; else delete copies[nm];
       try { persistOwned(); } catch (eCd) {}
       if (window._vaultPlannerOn) window._vaultPlannerDirty = true;
@@ -49189,7 +49193,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e7) {}
     }
     var introduced = keepFresh || (!beforeOwned && !beforeMagic && beforeAssign == null);
-    _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept) };
+    _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept),
+                cnt0: (typeof copies !== 'undefined' && copies && copies[nm] > 0) ? (copies[nm] | 0) : 1 }; /* the count this pick left */
     if (routed && (routed.mode === 'filed' || routed.mode === 'confirmed') && assign[nm] != null && typeof window.kaiChronicleRecord === 'function'){
       try {
         window.kaiChronicleRecord({ name: nm, status: 'filed-by-hand', store: 'assign', ledger: 'vault',
@@ -52281,7 +52286,7 @@ window.vaultAutoAssign = function(){
     if (lane === 'inv') lane = 'inventory';
     var main = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
     if (typeof _WIT_MAIN === 'object' && _WIT_MAIN) main = _WIT_MAIN;
-    if (main[lane]) return { row: false, why: 'main' };
+    if (main[lane] && !(lane === 'inventory' && _vaultMoveFarmLoot(name))) return { row: false, why: 'main' };
     var home = null;
     try { home = (typeof _vaultMoveHome === 'function') ? _vaultMoveHome(name, 0) : null; } catch (eH) { home = null; }
     var sharedHome = !!(home && (home.id === 'shared' || home.location === 'shared'));
@@ -52399,17 +52404,30 @@ window.vaultAutoAssign = function(){
     var loc = String((place && place.location) || '').toLowerCase();
     return loc === 'equipment' || loc === 'equipped';
   }
-  function _vaultMoveMainLane(loc){
+  /* His ruling 2026-10-27: inventory items get no move row, except the farming space (the 8-20 cells of the 40 where loot
+     lands). Loot is told apart from kit by what it IS, not by a cell (the read cell is the hover point, #197): standing
+     kit (charms, Annihilus, Torch, Gheed's, the Cube, tomes, keys) and any name locked to his MAIN stay where they are.
+     A name the kit law cannot answer for stays too. Worn gear, the belt and the Cube's contents never move. */
+  function _vaultMoveFarmLoot(name){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return false;
+    try { if (typeof window._laneLocked !== 'function' || window._laneLocked(nm)) return false; } catch (eLk) { return false; }
+    var kit = null;
+    try { kit = (typeof window._standingKit === 'function') ? window._standingKit(nm) : null; } catch (eKit) { kit = null; }
+    return kit === false;
+  }
+  function _vaultMoveMainLane(loc, name){
     var lane = String(loc || '').trim().toLowerCase();
     if (lane === 'inv') lane = 'inventory';
     var main = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
     if (typeof _WIT_MAIN === 'object' && _WIT_MAIN) main = _WIT_MAIN;
-    return !!main[lane];
+    if (!main[lane]) return false;
+    return !(lane === 'inventory' && _vaultMoveFarmLoot(name));
   }
   function _vaultMoveShown(task){
     var t = _vaultMoveTask(task);
     if (t.status === 'closed') return false; /* L1 a drained row is done */
-    if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */
+    if (_vaultMoveMainLane(t.from && t.from.location, t.name)) return false; /* worn gear and inventory kit stay locked; farming loot moves */
     if (t.kind === 'throw') {
       /* An unknown name has no home and no cell to move to. A junk route, or a row he ruled, still shows. */
       var _ruled = false;
@@ -52889,7 +52907,7 @@ window.vaultAutoAssign = function(){
       var hasSight = !!(r.sight && r.sight.cell && _vaultSightLooks(r.sight) >= 1); /* intake zero looks: a cell with no session behind it is not a look, so it opens no move */
       var thr = (typeof _vaultThrowTask === 'function') ? _vaultThrowTask(r, stored) : null;
       if (thr) {
-        if (_vaultMoveMainLane(thr.task.from && thr.task.from.location)) return; /* a stored inventory from stays locked */
+        if (_vaultMoveMainLane(thr.task.from && thr.task.from.location, r.name)) return; /* a stored inventory from stays locked unless it is farming loot */
         if (thr.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task });
         if (_vaultMoveShown(thr.task)) shown.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task,
           witnesses: r.sight ? r.sight.witnesses : null });
@@ -52898,7 +52916,7 @@ window.vaultAutoAssign = function(){
       } /* L1 a junk route is a THROW OUT row, never a dock chip */
       if (!stored && !hasSight && !_vaultMisfiled(r.name)) return; /* L1 a misfiled item gets its move row */
       var ens = _vaultMoveEnsure(r.name, r.copyIx || 0, bag);
-      if (_vaultMoveMainLane(ens.task.from && ens.task.from.location)) return; /* an ensured inventory from stays locked */
+      if (_vaultMoveMainLane(ens.task.from && ens.task.from.location, r.name)) return; /* an ensured inventory from stays locked unless it is farming loot */
       if (ens.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task });
       if (ens.task.status === 'closed') done.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task }); /* L1 done collapsed */
       if (_vaultMoveShown(ens.task)) shown.push({

@@ -85,6 +85,33 @@ OUT.owned = Array.from(owned);
 })();
 """
 
+#: Claude's v3790 look (HIGH): Monarch (4os) x2, removed through the real removal door (d2r_copies keeps its 2 for
+#: the undo), then picked FRESH in the planner and the pick cleared. The removed Monarch must not come back.
+REMOVED_SEED = r"""
+localStorage.setItem('d2r_ownerClaim', '*');
+localStorage.setItem('d2r_owned', JSON.stringify(['Monarch (4os)']));
+localStorage.setItem('d2r_muleAssign', JSON.stringify({ 'Monarch (4os)': 'bases' }));
+localStorage.setItem('d2r_copies', JSON.stringify({ 'Monarch (4os)': 2 }));
+"""
+
+REMOVED_BODY = r"""
+(function(){
+var W = window, L = 'Monarch (4os)';
+function disk(k){ try { return JSON.parse(W.LSR.getItem(k) || 'null'); } catch (e) { return 'UNREADABLE'; } }
+var d = W._cbDb(), code = Object.keys(d.b).find(function(c){ return d.b[c][0] === 'Monarch'; });
+function ent(s){ var e = W._cbEntryFor(W._cbItem('b:' + code)); e.sockets = s; e.eth = false; return e; }
+var rm = W.vaultRemove([L], { lane: 'hand', quiet: true, exact: true, why: 'his remove' });
+OUT.removed = { ok: !!(rm && rm.removed && rm.removed.indexOf(L) >= 0), owned: owned.has(L),
+                copies: (copies[L] == null ? null : copies[L]) };
+W._vaultPlannerOn = true;
+var p = W.vaultPlannerFile(ent(4), 'vp-removed');
+OUT.pick = { mode: (p && p.mode) || null, owned: owned.has(L) };
+var c = W.vaultPlannerFile(null, 'vp-removed');
+OUT.clear = { ownedMem: owned.has(L), ownedDisk: (disk('d2r_owned') || []).indexOf(L) >= 0,
+              home: (disk('d2r_muleAssign') || {})[L] || null, why: (c && c.why) || '' };
+})();
+"""
+
 SCEN = {"reader-clear": {"door": "reader", "end": "clear"}, "reader-reroll": {"door": "reader", "end": "reroll"},
         "none-clear": {"door": "none", "end": "clear"}}
 _RUNS = {}
@@ -94,6 +121,8 @@ def run(name):
     if name not in _RUNS:
         if name == "held":
             _RUNS[name] = VPN.run(HELD_BODY, prelude=AUTOMATED + HELD_SEED, timeout=300)
+        elif name == "removed":
+            _RUNS[name] = VPN.run(REMOVED_BODY, prelude=AUTOMATED + REMOVED_SEED, timeout=300)
         else:
             _RUNS[name] = VPN.run(FRESH_BODY.replace("__S__", json.dumps(SCEN[name])), prelude="", timeout=300)
     return _RUNS[name]
@@ -157,12 +186,24 @@ class AFreshPicksUndoAndAHeldPickKeepWhatHeOwns(unittest.TestCase):
         self.assertEqual(o["rawAfter"], o["rawBefore"], "the held d2r_copies bytes changed")
         self.assertEqual(o["owned"], ["Monarch (4os)"], "a held pick changed what he owns: %r" % o["owned"])
 
+    def test_5_a_removed_item_picked_and_cleared_stays_removed(self):
+        """Claude's v3790 look (HIGH): vaultRemove keeps the removed name's d2r_copies count, so a fresh pick's undo read
+        that stale 2 as 'another door counted one' and kept the removed item owned and filed."""
+        o = run("removed")
+        self.assertEqual(o["__boot"]["errors"], [], o["__boot"])
+        self.assertTrue(o["removed"]["ok"] and not o["removed"]["owned"], "PREMISE: the remove did not take: %r" % o["removed"])
+        self.assertEqual(o["removed"]["copies"], 2, "PREMISE: the removal no longer keeps the count - this case needs a new seed: %r" % o["removed"])
+        self.assertTrue(o["pick"]["owned"], "PREMISE: the fresh pick did not make it owned: %r" % o["pick"])
+        c = o["clear"]
+        self.assertFalse(c["ownedMem"] or c["ownedDisk"], "clearing the pick brought back the item he removed: %r" % c)
+        self.assertIsNone(c["home"], "clearing the pick left the removed item filed: %r" % c)
+
 
 RED_PROOF = [
     {"why": "REG-2566 - a fresh pick's undo drops the name outright again, taking the copy another door counted",
      "file": "bible.html",
-     "find": "    if (cnt > 1 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
-     "replace": "    if (false && cnt > 1 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
+     "find": "    if (cnt > cnt0 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
+     "replace": "    if (false && cnt > cnt0 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2566 - the take-back walks around the removal door again: no dated, journaled, undoable row",
      "file": "bible.html",
@@ -173,6 +214,12 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    if (_hdP){\n",
      "replace": "    if (false && _hdP){\n",
+     "matches": 1, "needs": "node"},
+    {"why": "Claude's v3790 look - a stale d2r_copies count above 1 is read as another door's copy again, so a removed item "
+            "picked and cleared comes back owned and filed",
+     "file": "bible.html",
+     "find": "    var cnt0 = (typeof m.cnt0 === 'number' && m.cnt0 > 0) ? m.cnt0 : 1;\n",
+     "replace": "    var cnt0 = 1;\n",
      "matches": 1, "needs": "node"},
 ]
 

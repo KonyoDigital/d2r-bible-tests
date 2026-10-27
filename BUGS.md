@@ -7,6 +7,27 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2633 - CLEARING A PLANNER PICK BROUGHT BACK AN ITEM HE HAD REMOVED (Claude's v3790 look, 2026-10-27)
+vaultRemove keeps a removed name's d2r_copies count (its undo needs it), and _vpDrop read any live count above 1 as
+"another door counted a copy while the pick was held" (REG-2566). So Monarch (4os) x2, his remove, a FRESH planner pick
+of it, then a clear: the count still read 2, one copy came off, and the removed item stayed owned and filed with the
+sentence "still filed". REPRODUCED by running it on origin/main 8bab1035a (the whole page in node, the real removal and
+planner doors). Fix: the pick records the count it left (_vpMade.cnt0); only a count that ROSE past it is another door's.
+Otherwise the pick's own item leaves through the removal door (dated, journaled, undoable). Law:
+tv/test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py test_5 (RED on the old page, 4 RED_PROOFs all red).
+Not closed by this: a fresh add of a removed name inherits its stale count (the vault can read x2 for one item).
+
+### REG-2632 - FARMING LOOT IN HIS INVENTORY GOT NO MOVE ROW (his ruling 2026-10-27, v3806 "a main lane stays put")
+v3806 returned false from _vaultMoveShown, the collector and _vaultMoveAutoRow for ANY item whose FROM is MAIN inventory,
+so a find sitting in the farming space (Griffon's Eye routed to UNI-ARMOR) was never told to move. His ruling: "inventory
+items should get moves no... only the space thats meant for farming which is really small space usally like between 8-20
+unit cells within the inventory out of the 40". The farming space is told apart by what an item IS, not by a cell (the
+read cell is the hover point, #197; and only 21 inventory sightings exist, all kit, so no cell map can be measured):
+_vaultMoveFarmLoot is true only when the page's own kit law (_standingKit: charms, Annihilus, Torch, Gheed's, the Cube,
+tomes, keys) answers false and the name is not locked to his MAIN; unknown stays. Worn gear, belt and cube never move.
+Laws: tv/test_v3769_vault_move_list.py and tv/test_an_auto_sighting_joins_the_manual_move.py (RED on the old page;
+every new RED_PROOF red; one lock red-proof dropped as inert - a locked name's home is MAIN, refused downstream too).
+
 ### REG-2631 - AN ALL-HIT PUSH STILL SPENT MINUTES PROVING (heart2 keyer, GB-box, 2026-10-24)
 v3792's hook served 303 of 303 proofs from the cache and still spent 2m39 proving. MEASURED on the box (19 gates, 226
 proofs, all served, 0 clean runs): 563,770 file reads - ~1,250 inputs for each of 452 keys, since the clean wave's peek

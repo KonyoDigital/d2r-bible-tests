@@ -48,7 +48,7 @@ FNS = [
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
-    "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveMainLane", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
+    "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveFarmLoot", "_vaultMoveMainLane", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
     "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml", "_vaultMoveCompareModel", "_vaultMoveCompareHtml",
     "_vaultMoveCollect", "_vaultMovePaint", "_vaultMoveCellMarkHtml", "_vaultFrameMeta",
@@ -189,12 +189,14 @@ window._vaultMovePaint = _vaultMovePaint;
 
 def move_bundle(src):
     lane = _slice_fn(src, "var _LANE_LOCK_KEY = 'd2r_laneLock';", "window._laneLockWhy = function(name){")
+    # his 2026-10-27 ruling: only farming loot moves out of MAIN inventory - the page's OWN kit law decides, not a stub
+    kit = _slice_fn(src, "  function _foldNm(n){", "  window._standingKit = function(name){")
     looks = _assigned(src, r"window\._vaultEvidenceLooks\s*=\s*function\s*\(")
     evidence = _assigned(src, r"window\._vaultEvidenceHtml\s*=\s*function\s*\(")
     register = _assigned(src, r"window\.tvVaultRegister = function\(name\)\{")
     reload_owned = _assigned(src, r"window\._vaultReloadOwned\s*=\s*function\(")
     return "\n".join(
-        [lane, looks, evidence, register, reload_owned] + [_fn(src, n) for n in FNS] + [TAIL])
+        [lane, kit, looks, evidence, register, reload_owned] + [_fn(src, n) for n in FNS] + [TAIL])
 
 
 class TestV3769VaultMoveList(unittest.TestCase):
@@ -588,12 +590,31 @@ window._laneLockNote("Eschuta's Temper", 'equipment', 'b');
 window._laneLockNote("Eschuta's Temper", 'equipment', 'c');
 var home = _vaultMoveCollect();
 var names = (home.tasks || []).map(function(r){ return r.name; });
+var lockedInv = _vaultMoveShown({
+  name: "Eschuta's Temper", status: 'to-move',
+  from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c1r1' },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0', id: 'uni-weap' }
+});
 ROUTES["Griffon's Eye"] = { id: 'uni-armor', why: 'helm' };
 var gear = _vaultMoveShown({
   name: "Griffon's Eye", status: 'to-move',
   from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c0r0' },
   to: { holder: 'UNI-ARMOR', location: 'stash', cell: 'stash:c0r0', id: 'uni-armor' }
 });
+ROUTES["Gheed's Fortune"] = { id: 'uni-small', why: 'charm' };
+var kitInv = _vaultMoveShown({
+  name: "Gheed's Fortune", status: 'to-move',
+  from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c9r0' },
+  to: { holder: 'UNI-JEWELRY', location: 'stash', cell: 'stash:c0r0', id: 'uni-small' }
+});
+var _kitLaw = window._standingKit;
+window._standingKit = undefined;
+var unasked = _vaultMoveShown({
+  name: "Griffon's Eye", status: 'to-move',
+  from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c0r0' },
+  to: { holder: 'UNI-ARMOR', location: 'stash', cell: 'stash:c0r0', id: 'uni-armor' }
+});
+window._standingKit = _kitLaw;
 var bare = _vaultMoveShown({
   name: "Eschuta's Temper", status: 'to-move',
   from: { holder: 'Mule', location: 'stash', cell: 'stash:c2r2' },
@@ -612,6 +633,9 @@ var row = (built.tasks || []).filter(function(r){ return r.name === "Eschuta's T
 console.log(JSON.stringify({
   homeNames: names,
   gear: gear,
+  kitInv: kitInv,
+  lockedInv: lockedInv,
+  unasked: unasked,
   bare: bare,
   shown: !!row,
   holder: to && to.holder,
@@ -621,7 +645,13 @@ console.log(JSON.stringify({
 }));
 """)
         self.assertNotIn("Eschuta's Temper", o["homeNames"], o)
-        self.assertFalse(o["gear"], o)
+        # His ruling 2026-10-27: inventory items get no move row - only the farming space, where loot lands, does.
+        self.assertTrue(o["gear"], "farming loot in MAIN inventory got no move row: %r" % o)
+        self.assertFalse(o["kitInv"], "standing kit in MAIN inventory got a move row: %r" % o)
+        self.assertFalse(o["unasked"], "a name the kit law could not answer for got a move row: %r" % o)
+        # A lock is also enforced downstream (a locked name's home is MAIN, "v3769 already home"), so the farm-loot
+        # helper's own lock check is defense in depth: no single sabotage of it can show, and it carries no red-proof.
+        self.assertFalse(o["lockedInv"], "a name locked to his MAIN got a move row out of his inventory: %r" % o)
         self.assertFalse(o["bare"], o)
         self.assertTrue(o["shown"], o)
         self.assertEqual(o["holder"], "MAIN", o)
@@ -740,10 +770,20 @@ RED_PROOF = [
      "find": "try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3773 owned persist */",
      "replace": "try { void 0; } catch (eOw) {} /* v3773 owned persist */",
      "matches": 1},
-    {"why": "Inventory on MAIN is painted as a move.",
+    {"why": "Standing kit in MAIN inventory is painted as a move.",
      "file": "bible.html",
-     "find": "    if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
-     "replace": "    if (false && _vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
+     "find": "    if (_vaultMoveMainLane(t.from && t.from.location, t.name)) return false; /* worn gear and inventory kit stay locked; farming loot moves */",
+     "replace": "    if (false && _vaultMoveMainLane(t.from && t.from.location, t.name)) return false; /* worn gear and inventory kit stay locked; farming loot moves */",
+     "matches": 1},
+    {"why": "Farming loot in MAIN inventory gets no move row again (his 2026-10-27 ruling).",
+     "file": "bible.html",
+     "find": "    return !(lane === 'inventory' && _vaultMoveFarmLoot(name));",
+     "replace": "    return true;",
+     "matches": 1},
+    {"why": "A name the kit law cannot answer for is treated as loot and moved out of his inventory.",
+     "file": "bible.html",
+     "find": "    return kit === false;",
+     "replace": "    return kit !== true;",
      "matches": 1},
     {"why": "A row with no target location and no cell is still painted.",
      "file": "bible.html",

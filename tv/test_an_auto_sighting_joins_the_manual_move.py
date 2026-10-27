@@ -32,6 +32,12 @@ UI = os.path.join(HERE, "control_ui.html")
 NODE = os.environ.get("NODE") or shutil.which("node")
 
 
+def _kit_law(src):
+    """The page's own standing-kit law (his #264 / REG-426 split: charms, Annihilus, Torch, Gheed's stay on him), whole."""
+    i = src.index("  function _foldNm(n){")
+    return src[i:src.index("  window._vaultHoldingRoute = function(loc, scene, name){", i)]
+
+
 def _fn(src, name):
     m = re.search(r"\bfunction %s\s*\(" % re.escape(name), src)
     if not m:
@@ -211,6 +217,7 @@ console.log(JSON.stringify({
     def test_a_main_lane_and_an_unknown_name_do_not_get_a_move_row(self):
         prog = "\n".join([
             "var window = globalThis;",
+            _fn(self.src, "_vaultMoveFarmLoot"),
             _fn(self.src, "_vaultMoveAutoRow"),
             r"""
 function _vaultMoveHome(name){
@@ -485,7 +492,7 @@ console.log(JSON.stringify({ conf: row.looks[0].conf, id: row.looks[0].id, frame
         self.assertEqual(receipt["frame"], "frame-a")
         self.assertEqual(receipt["kind"], "owned")
 
-    def test_inventory_and_an_unknown_name_are_not_move_rows(self):
+    def test_inventory_kit_and_an_unknown_name_are_not_move_rows_but_farming_loot_is(self):
         prog = "\n".join([
             "var window = globalThis;",
             "var assign = {};",
@@ -517,6 +524,8 @@ console.log(JSON.stringify({ conf: row.looks[0].conf, id: row.looks[0].id, frame
             _fn(self.src, "_vaultMoveTask"),
             _fn(self.src, "_vaultMoveWorn"),
             _fn(self.src, "_vaultMoveOnKeep"),
+            _kit_law(self.src),
+            _fn(self.src, "_vaultMoveFarmLoot"),
             _fn(self.src, "_vaultMoveMainLane"),
             _fn(self.src, "_vaultMoveAutoRow"),
             _fn(self.src, "_vaultMoveShown"),
@@ -600,6 +609,19 @@ var listNullConf = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 's
 window._ensFrom = 'inventory';
 var zeroLook = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: null } }]);
 var storedInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: '', cell: null } }]);
+/* His ruling 2026-10-27: inventory items get no move row - only the farming space, where loot lands, does.
+   Above, with no kit law and no lock law on the page, every inventory name stayed (unknown stays). */
+window._furnitureLocked = function(){ return false; };
+window._laneLocked = function(){ return ''; };
+homes["Gheed's Fortune"] = { id: 'uni-small', holder: 'UNI-JEWELRY', location: 'stash' };
+window._ensFrom = 'inventory';
+var farmRow = _vaultMoveAutoRow('Thresher', { lane: 'inventory', cell: 'inventory:c0r2' });
+var farmLoot = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'inventory', cell: 'inventory:c0r2', witnesses: 1 } }]);
+var farmKit = collect([{ name: "Gheed's Fortune", copyIx: 0, sight: { location: 'inventory', cell: 'inventory:c9r0', witnesses: 1 } }]);
+window._laneLocked = function(n){ return n === 'Thresher' ? 'inventory' : ''; };
+var farmLocked = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'inventory', cell: 'inventory:c0r2', witnesses: 1 } }]);
+window._laneLocked = undefined;
+window._furnitureLocked = undefined;
 function names(pack){ return (pack.tasks || []).map(function(r){ return r.name; }); }
 console.log(JSON.stringify({
   invThrow: invThrow, equipped: equipped, invFilled: invFilled, unknown: unknown, ruledOff: ruledOff, ruled: ruled,
@@ -608,7 +630,8 @@ console.log(JSON.stringify({
   fromUnknown: names(fromUnknown), fromUnknownPlain: names(fromUnknownPlain),
   fromRuled: names(fromRuled), fromStash: names(fromStash), fromShared: names(fromShared),
   storedInv: names(storedInv), zeroLook: names(zeroLook), listLook: names(listLook), listNoSession: names(listNoSession), listNullConf: names(listNullConf), ruledZero: (ruledZero.tasks || []).filter(function(t){ return t.task.kind !== 'throw'; }).map(function(t){ return t.name; }),
-  committedUnknown: fromUnknownPlain.committed || []
+  committedUnknown: fromUnknownPlain.committed || [],
+  farmRow: !!(farmRow && farmRow.row), farmLoot: names(farmLoot), farmKit: names(farmKit), farmLocked: names(farmLocked)
 }));
 """,
         ])
@@ -635,6 +658,11 @@ console.log(JSON.stringify({
         self.assertEqual(o["listNullConf"], ["Thresher"])
         self.assertEqual(o["ruledZero"], [])
         self.assertEqual(o["committedUnknown"], [])
+        # his ruling 2026-10-27: farming loot in MAIN inventory moves; standing kit and a name locked to MAIN stay
+        self.assertTrue(o["farmRow"], "the auto row refused farming loot in MAIN inventory: %r" % o)
+        self.assertEqual(o["farmLoot"], ["Thresher"], o)
+        self.assertEqual(o["farmKit"], [], o)
+        self.assertEqual(o["farmLocked"], [], o)
 
 
     def test_the_intake_owned_stamp_never_throws_on_a_bad_prov_row(self):
@@ -685,10 +713,20 @@ RED_PROOF = [
      "find": "    var one = { conf: null };",
      "replace": "    var one = { conf: rd.conf };",
      "matches": 1},
-    {"why": "Inventory and equipped gear still get a move row.",
+    {"why": "Inventory kit and equipped gear still get a move row.",
      "file": "bible.html",
-     "find": "    if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
-     "replace": "    if (false && _vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
+     "find": "    if (_vaultMoveMainLane(t.from && t.from.location, t.name)) return false; /* worn gear and inventory kit stay locked; farming loot moves */",
+     "replace": "    if (false && _vaultMoveMainLane(t.from && t.from.location, t.name)) return false; /* worn gear and inventory kit stay locked; farming loot moves */",
+     "matches": 1},
+    {"why": "The auto row refuses farming loot in MAIN inventory again (his 2026-10-27 ruling).",
+     "file": "bible.html",
+     "find": "    if (main[lane] && !(lane === 'inventory' && _vaultMoveFarmLoot(name))) return { row: false, why: 'main' };",
+     "replace": "    if (main[lane]) return { row: false, why: 'main' };",
+     "matches": 1},
+    {"why": "The collector's ensured inventory row is locked again whatever the item is.",
+     "file": "bible.html",
+     "find": "      if (_vaultMoveMainLane(ens.task.from && ens.task.from.location, r.name)) return; /* an ensured inventory from stays locked unless it is farming loot */",
+     "replace": "      if (_vaultMoveMainLane(ens.task.from && ens.task.from.location)) return; /* an ensured inventory from stays locked unless it is farming loot */",
      "matches": 1},
     {"why": "An unknown name with no home still gets a move row.",
      "file": "bible.html",
