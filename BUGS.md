@@ -28,6 +28,15 @@ header rebuilt from the persisted store - had no split, the persisted rows carri
 `|| 0` read a store that could not say as 0 in the dock. Where each loose name sat is decided once when the records are
 built and saved on its row (looseWhere, loose rows only), both headers count it, and a store saved before the split reads
 UNKNOWN. Law: test_v3758_records_persist_parity (3 new red-proofs, each seen RED).
+### REG-2695 - A SHADOW NEVER SAID WHICH STORES IT WAS NOT SENT (#210, GrokBot)
+Measured first on the Mac's own profile book: d2r_mulePos and d2r_muleEquip are not dropped. They are absent because they
+only hold hand spots and equipped records, and the shadow derives packer cells exactly as the owner's board does. All 19
+stores the Mac leaves out are kept home on purpose. The real gap: console_snapshot.clean() named what it dropped in the
+book on disk only, so a store left out for size or for carrying something private was simply missing in the shadow. Now
+clean() splits unsent (too big, private, not a string) from kept-home-by-design, the signed upload carries it beside the
+stores (not in the hash), roster.js keeps it on the record and serves it, this PC's last copy keeps it, and the banner
+says "not sent (too big or private): ...". An upload from before the list is UNKNOWN, never "everything was sent".
+Law: test_shadow_mode_reads_their_console (9 new red-proofs, each seen RED).
 
 ### REG-2694 - THE FLEET'S "river · starting" WAS NOT NEWS TO THE WORKER (#193, his Fleet 2026-10-28: Dean "says STarting")
 Measured first: Dean's row read river · starting at 00:05 because his console relaunched onto v3815 at 23:58 and its first

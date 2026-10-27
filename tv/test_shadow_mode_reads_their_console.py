@@ -176,6 +176,41 @@ class WhatLeavesThePC(unittest.TestCase):
                                 "the console's pace would run into the worker's daily cap")
 
 
+class TheShadowNamesWhatItWasNotSent(unittest.TestCase):
+    """#210 (GrokBot, 2026-10-27) - a store the owner's PC could not send (too big, or carrying something private) is
+    MISSING from the shadow, and nothing said which. A store kept home on purpose (DENY) is not missing."""
+
+    def _clean(self):
+        s = _stores()
+        s["d2r_huge"] = json.dumps(["x" * (CS.MAX_STORE + 10)])
+        s["d2r_tvdHist"] = json.dumps([{"t": 1}])
+        return CS.clean({"stores": s})
+
+    def test_too_big_is_unsent_and_kept_home_is_not(self):
+        got = self._clean()
+        self.assertEqual(got["unsent"], ["d2r_huge"], "the shadow cannot say what it is missing: %r" % got)
+        self.assertIn("d2r_tvdHist", got["dropped"], "PREMISE: the history log is no longer kept home")
+
+    def test_the_upload_carries_it_and_the_banner_names_it(self):
+        got = self._clean()
+        body, why = CS.due({}, OWNER, got["stores"], T0, True, unsent=got["unsent"])
+        self.assertEqual(why, "post")
+        self.assertEqual(body["unsent"], ["d2r_huge"], "the upload did not carry what it left out")
+        self.assertNotIn("unsent", CS.due({}, OWNER, got["stores"], T0, True)[0], "an unknown list was sent as empty")
+        v = CS.view(OWNER, _record(unsent=["d2r_huge"]), T0 + 60000, online=True)
+        self.assertEqual(v["unsent"], ["d2r_huge"])
+        self.assertIn("not sent (too big or private): d2r_huge", v["words"], "the banner does not say what is missing")
+        old = CS.view(OWNER, _record(), T0 + 60000, online=True)
+        self.assertIsNone(old["unsent"], "an upload from before the list read as 'everything was sent'")
+        self.assertNotIn("not sent", old["words"])
+
+    def test_this_pcs_last_copy_keeps_it(self):
+        d = tempfile.mkdtemp(prefix="tvd_unsent_cache_")
+        self.addCleanup(shutil.rmtree, d, True)
+        self.assertTrue(CS.write_cache(d, _record(unsent=["d2r_huge"])))
+        self.assertEqual(CS.read_cache(d, OWNER).get("unsent"), ["d2r_huge"], "the last copy lost what was not sent")
+
+
 class WhenItUploads(unittest.TestCase):
 
     def test_change_only_gap_boot_and_refusal(self):
@@ -383,6 +418,19 @@ class TheWorker(unittest.TestCase):
         self.assertEqual(row["puts"], ["roster:" + OWNER], "a rows publish wrote %r (%r)" % (row["puts"], row["reply"]))
         self.assertEqual(got["get"]["stores"], _wstores())
         self.assertTrue(CS.profile_key(OWNER) == "roster:" + OWNER + ":profile")
+
+    def test_what_was_not_sent_is_stored_and_served(self):
+        """#210 - the worker keeps the upload's unsent list beside the record and GET serves it; a list that is not
+        d2r_ store names is left off, never stored half-understood."""
+        out = _node({"steps": [self._post(self._body(unsent=["d2r_huge"]), self.key_a, seed=self.seed, now=T0),
+                               {"get": OWNER}]})
+        post, got = out["steps"]
+        self.assertTrue(post["reply"]["ok"], post["reply"])
+        self.assertEqual(got["get"].get("unsent"), ["d2r_huge"], "the site dropped what the PC could not send")
+        bad = _node({"steps": [self._post(self._body(unsent=["/" + "Users/x/secret"]), self.key_a, seed=self.seed,
+                                          now=T0), {"get": OWNER}]})
+        self.assertTrue(bad["steps"][0]["reply"]["ok"], bad["steps"][0]["reply"])
+        self.assertNotIn("unsent", bad["steps"][1]["get"], "a list that is not store names was stored")
 
     def test_the_hash_is_the_same_on_both_sides(self):
         s = dict(_wstores(), d2r_emoji=json.dumps({"icon": "🛡️ ✓ ü"}))
@@ -633,6 +681,7 @@ class TheConsoleDoors(unittest.TestCase):
         self.assertEqual(key, os.path.join(self.tmp, ".roster_key.json"))
         self.assertIn("d2r_api_chars_learned", body["stores"])
         self.assertNotIn("d2r_api_main_locks", body["stores"], "an unreadable console answer was uploaded")
+        self.assertEqual(body.get("unsent"), [], "#210 - the lane did not carry what the book left out (none here)")
 
     def test_a_suppressed_pc_uploads_nothing(self):
         self.CA._profile_book_take({"stores": _stores()})
@@ -2307,6 +2356,51 @@ RED_PROOF = [
      "find": "_fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me)) + '</div>';",
      "replace": "_fleetOpenEyesHtml(m) + '</div>';",
      "matches": 1},
+    {"why": "#210 - the snapshot stops naming what it could not send",
+     "file": "tv/console_snapshot.py",
+     "find": "    return {\"stores\": out, \"dropped\": dropped, \"unsent\": unsent_of(dropped)}\n",
+     "replace": "    return {\"stores\": out, \"dropped\": dropped, \"unsent\": []}\n",
+     "matches": 1},
+    {"why": "#210 - a store kept home on purpose is reported as missing",
+     "file": "tv/console_snapshot.py",
+     "find": "        if isinstance(k, str) and _KEY.match(k) and k not in DENY and not any(k.startswith(p) for p in DENY_PREFIX):\n",
+     "replace": "        if isinstance(k, str) and _KEY.match(k):\n",
+     "matches": 1},
+    {"why": "#210 - the upload leaves the unsent list behind",
+     "file": "tv/console_snapshot.py",
+     "find": "        body[\"unsent\"] = unsent_of(unsent)\n",
+     "replace": "        pass\n",
+     "matches": 1},
+    {"why": "#210 - the banner stops saying what is missing",
+     "file": "tv/console_snapshot.py",
+     "find": "    if unsent:\n        words += \" · not sent (too big or private): \"",
+     "replace": "    if False:\n        words += \" · not sent (too big or private): \"",
+     "matches": 1},
+    {"why": "#210 - an upload from before the list reads as everything sent",
+     "file": "tv/console_snapshot.py",
+     "find": "    unsent = unsent_of(rec.get(\"unsent\")) if isinstance(rec.get(\"unsent\"), list) else None\n",
+     "replace": "    unsent = unsent_of(rec.get(\"unsent\") or [])\n",
+     "matches": 1},
+    {"why": "#210 - this PC's last copy drops the unsent list",
+     "file": "tv/console_snapshot.py",
+     "find": "\"keyId\", \"dropped\", \"unsent\")\n",
+     "replace": "\"keyId\", \"dropped\")\n",
+     "matches": 1},
+    {"why": "#210 - the console's lane leaves the book's unsent list behind",
+     "file": "tv/control_app.py",
+     "find": "                           unsent=book.get(\"unsent\") if isinstance(book.get(\"unsent\"), list) else None)   # #210\n",
+     "replace": "                           unsent=None)\n",
+     "matches": 1},
+    {"why": "#210 - the site stops keeping the unsent list",
+     "file": "functions/api/roster.js",
+     "find": "  if (unsent) rec.unsent = unsent;\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "#210 - the site stores any list as unsent, paths included",
+     "file": "functions/api/roster.js",
+     "find": "  for (const k of v) if (typeof k !== \"string\" || !/^d2r_[A-Za-z0-9_]{1,60}$/.test(k)) return null;\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
 ]
 
 

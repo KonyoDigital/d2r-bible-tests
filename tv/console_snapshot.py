@@ -252,7 +252,23 @@ def clean(body):
         dropped.append(k)
     if not out:
         return None
-    return {"stores": out, "dropped": sorted(set(dropped))}
+    dropped = sorted(set(dropped))
+    return {"stores": out, "dropped": dropped, "unsent": unsent_of(dropped)}
+
+
+#: #210 - how many left-out names an upload names; past it the banner says "and N more".
+UNSENT_MAX = 40
+
+
+def unsent_of(dropped):
+    """#210 (GrokBot) - the stores a shadow is MISSING: dropped for size, for carrying something private, or for not being
+    a string. A store kept home on purpose (DENY, DENY_PREFIX) is not missing, and a name that is not a d2r_ store is
+    not a store. -> sorted [names] (at most UNSENT_MAX)"""
+    out = []
+    for k in dropped or []:
+        if isinstance(k, str) and _KEY.match(k) and k not in DENY and not any(k.startswith(p) for p in DENY_PREFIX):
+            out.append(k)
+    return sorted(set(out))[:UNSENT_MAX]
 
 
 def digest(stores):
@@ -279,9 +295,10 @@ def gate(state, now_ms, boot):
     return True, "open"
 
 
-def due(state, owner, stores, now_ms, boot):
+def due(state, owner, stores, now_ms, boot, unsent=None):
     """-> (body or None, why). Change-only, MIN_GAP_MS apart (a boot too - the quota, see gate); a boot past the gap
-    posts even unchanged; a refusal waits MIN_GAP_MS."""
+    posts even unchanged; a refusal waits MIN_GAP_MS. #210 - `unsent` (the book's unsent_of list) rides beside the
+    stores so the shadow can name what it is missing; it is not in the hash."""
     state = state if isinstance(state, dict) else {}
     if not profile_key(owner):
         return None, "the owner is not one of the five labels"
@@ -296,7 +313,10 @@ def due(state, owner, stores, now_ms, boot):
     _open, _why = gate(state, now_ms, boot)
     if not _open:
         return None, _why
-    return {"kind": "profile", "owner": owner, "boot": bool(boot), "signedAt": now_ms, "hash": d, "stores": stores}, "post"
+    body = {"kind": "profile", "owner": owner, "boot": bool(boot), "signedAt": now_ms, "hash": d, "stores": stores}
+    if isinstance(unsent, list):
+        body["unsent"] = unsent_of(unsent)
+    return body, "post"
 
 
 def apply_reply(state, stores, reply, now_ms):
@@ -358,7 +378,8 @@ def write_cache(directory, rec):
     path = cache_path(directory, owner)
     if not path:
         return False
-    keep = {k: rec[k] for k in ("owner", "t", "hash", "stores", "intentVerified", "keyId", "dropped") if k in rec}
+    keep = {k: rec[k] for k in ("owner", "t", "hash", "stores", "intentVerified", "keyId", "dropped", "unsent")
+            if k in rec}
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(keep, fh, ensure_ascii=False, separators=(",", ":"))
@@ -427,8 +448,14 @@ def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
         state, words = "unknown", "%s · online UNKNOWN · last upload %s" % (owner, ago)
     if source == "cache":
         words += " · the site could not be read, showing this PC's last copy"
+    # #210 (GrokBot) - a store the owner's PC could not send is MISSING here, and the banner says which. An upload from
+    # before the list (no `unsent`) is UNKNOWN, never "everything was sent".
+    unsent = unsent_of(rec.get("unsent")) if isinstance(rec.get("unsent"), list) else None
+    if unsent:
+        words += " · not sent (too big or private): " + ", ".join(unsent[:5]) + (
+            " and %d more" % (len(unsent) - 5) if len(unsent) > 5 else "")
     out = {"ok": True, "owner": owner, "t": t, "hash": rec["hash"], "stores": rec["stores"],
-           "state": state, "words": words, "source": source, "ago": ago}
+           "state": state, "words": words, "source": source, "ago": ago, "unsent": unsent}
     iv = rec.get("intentVerified")
     out["intentVerified"] = iv if isinstance(iv, bool) else None
     kid = _rp.short_key_id(rec.get("keyId"))

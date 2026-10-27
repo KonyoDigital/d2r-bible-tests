@@ -553,6 +553,13 @@ async function registeredOf(kv, owner) {
 
 // The profile half of the one roster publish: same route, same registered key, its own KV record
 // roster:<owner>:profile. roster's onRequestPost hands over the bytes it read and verified.
+// #210 - a list of d2r_ store names (at most 40), or null when it is not one.
+function unsentOf(v) {
+  if (!Array.isArray(v) || v.length > 40) return null;
+  for (const k of v) if (typeof k !== "string" || !/^d2r_[A-Za-z0-9_]{1,60}$/.test(k)) return null;
+  return v.slice();
+}
+
 async function profilePost(env, bytes, sig, body) {
   const kv = env && env.TZ_HISTORY;
   if (!kv) return pRefuse("storage unavailable");
@@ -620,6 +627,10 @@ async function profilePost(env, bytes, sig, body) {
   const rec = { owner: owner, t: now, day: today, n: n + 1, hash: hash, stores: stores,
                 intentVerified: true, keyId: intent.keyId, pub: sig.pub };
   rec.signedAt = signedAt;
+  // #210 (GrokBot) - the stores the owner's PC could not send ride beside the record so the shadow can name them.
+  // Only d2r_ store names, at most 40; anything else is left off (absent = an older console, UNKNOWN).
+  const unsent = unsentOf(body.unsent);
+  if (unsent) rec.unsent = unsent;
   try {
     await kv.put(key, JSON.stringify(rec), { expirationTtl: TTL_S });
   } catch (e) {
@@ -656,5 +667,7 @@ async function profileGet(kv, owner) {
   const out = { ok: true, owner: owner, published: true, corrupt: false, t: prev.t, hash: prev.hash,
                 stores: prev.stores, intentVerified: prev.intentVerified === true };
   if (typeof prev.keyId === "string" && /^[0-9a-f]{12}$/.test(prev.keyId)) out.keyId = prev.keyId;
+  const unsent = unsentOf(prev.unsent);
+  if (unsent) out.unsent = unsent;
   return pJson(out);
 }

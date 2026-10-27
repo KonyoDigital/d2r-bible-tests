@@ -5203,7 +5203,8 @@ def _profile_publish_once(boot):
                                    for k, v in _fit.items()}
         else:
             state.pop("apiTrimmed", None)
-    body, reason = _cs.due(state, owner, stores, now_ms, bool(boot))
+    body, reason = _cs.due(state, owner, stores, now_ms, bool(boot),
+                           unsent=book.get("unsent") if isinstance(book.get("unsent"), list) else None)   # #210
     if body is None:
         state["why"] = str(reason)[:200]
         _profile_json_save(_profile_state_path(), state)
