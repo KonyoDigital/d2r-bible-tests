@@ -27,6 +27,11 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable     # a child on a cp1255 console must never crash while it reports
+    _enable()
+except Exception:
+    pass
 
 #: the marker a child carries, so a child never spawns a child
 CHILD_ENV = "TVD_AUDIT_CHILD"
