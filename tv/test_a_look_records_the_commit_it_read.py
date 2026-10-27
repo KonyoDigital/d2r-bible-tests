@@ -50,10 +50,8 @@ class TestALookRecordsTheCommitItRead(unittest.TestCase):
         stored sha null. A reached look has to name the commit it read."""
         with open(R.__file__, encoding="utf-8") as fh:
             src = fh.read()
-        at = src.find("answer_model=_model_from_transport()")
-        self.assertGreater(at, 0)
-        window = src[at:at + 240]
-        self.assertIn("sha=sha", window, window)
+        needle = "answer_model=_model_from_transport(), sha=sha"
+        self.assertEqual(src.count(needle), 1)
 
     def test_a_row_carries_the_commit_the_eye_actually_read(self):
         fd, path = tempfile.mkstemp(suffix=".jsonl")

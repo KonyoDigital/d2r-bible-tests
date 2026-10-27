@@ -111,7 +111,7 @@ class AutoSightingJoinsTheManualMove(unittest.TestCase):
             _fn(self.src, "_vaultMoveTask"),
             _fn(self.src, "_vaultMoveWitness"),
             r"""
-function muleById(){ return null; }
+function muleById(id){ return id === 'magic' ? { id: 'magic', name: 'NEW NAME' } : null; }
 var task = _vaultMoveTask({
   name: 'Thresher', manual: false, status: 'to-move',
   from: { holder: null, location: null, cell: null },
@@ -133,6 +133,16 @@ var there = _vaultMoveWitness(_vaultMoveTask({
   from: { holder: null, location: null, cell: null },
   to: { holder: 'MAGIC', location: 'stash', cell: 'stash:c0r0' }
 }), { holder: 'MAGIC', lane: 'stash', cell: 'stash:c2r1', frame: 'f2' });
+var home = _vaultMoveWitness(_vaultMoveTask({
+  name: 'Charm', manual: false, status: 'to-move',
+  from: { holder: null, location: null, cell: null },
+  to: { holder: 'MAGIC', location: 'stash', cell: 'stash:c0r0' }
+}), { holder: 'MAGIC', lane: 'stash', cell: 'stash:c0r0', frame: 'f3' });
+var renamed = _vaultMoveWitness(_vaultMoveTask({
+  name: 'Charm', manual: false, status: 'to-move',
+  from: { holder: null, location: null, cell: null },
+  to: { id: 'magic', holder: 'OLD NAME', location: 'stash', cell: 'stash:c0r0' }
+}), { holder: 'NEW NAME', lane: 'stash', cell: 'stash:c0r0', frame: 'f4' });
 var queued = _vaultMoveWitness(_vaultMoveTask({
   name: 'Harlequin Crest', manual: true, status: 'to-move',
   from: { holder: 'MAIN', location: 'stash', cell: 'stash:c1r1' },
@@ -140,7 +150,7 @@ var queued = _vaultMoveWitness(_vaultMoveTask({
 }), { holder: 'Other', location: 'inventory', cell: 'inventory:c2r2', frame: 'else' });
 console.log(JSON.stringify({
   status: seen.status, fromCell: seen.from.cell, fromLoc: seen.from.location, toCell: seen.to.cell,
-  third: third.status, blank: blank.status, there: there.status, queued: queued.status
+  third: third.status, blank: blank.status, there: there.status, home: home.status, renamed: renamed.status, queued: queued.status
 }));
 """,
         ])
@@ -151,7 +161,9 @@ console.log(JSON.stringify({
         self.assertEqual(o["toCell"], "stash:c0r0")
         self.assertEqual(o["third"], "moved-elsewhere")
         self.assertEqual(o["blank"], "to-move")
-        self.assertEqual(o["there"], "verified")
+        self.assertEqual(o["there"], "to-move")
+        self.assertEqual(o["home"], "verified")
+        self.assertEqual(o["renamed"], "verified")
         self.assertEqual(o["queued"], "moved-elsewhere")
 
     def test_shared_is_a_container_and_a_bare_frame_is_one_look(self):
@@ -280,6 +292,44 @@ console.log(JSON.stringify({
         self.assertIn("window._vaultIntakeLook", wrap)
         self.assertIn("window._vaultRecordsPersist", wrap)
         self.assertIn("window._vaultMoveAutoRow", wrap)
+
+    def test_a_zero_look_witness_does_not_open_a_move(self):
+        wrap = _assigned(self.src, r"window\.tvVaultRegister = function\(name\)\{")
+        prog = "\n".join([
+            "var window = globalThis;",
+            "var owned = new Set();",
+            _fn(self.src, "_vaultIntakeLook"),
+            r"""
+function _inner(name, wit){
+  owned.add(name);
+  return { ok: true, mode: 'new', label: name, filed: false, refused: null };
+}
+window._vaultIntakeLook = _vaultIntakeLook;
+window._vaultIntakeGate = function(){ return null; };
+window._vaultRecordsPersist = function(){ return { ok: true }; };
+window._vaultMoveApplySight = function(n, w){ window._applied = n; return { applied: true }; };
+window._vaultMoveAutoRow = function(){ return { row: true, why: null }; };
+""",
+            wrap,
+            r"""
+window.LSR = { getItem: function(){ return 'on'; }, setItem: function(){} };
+function took(name, wit){
+  window._applied = null;
+  window.tvVaultRegister(name, wit);
+  return window._applied;
+}
+var treachery = took('Treachery', { lane: 'stash', cell: 'stash:c1r1', frame: 'made-up-frame', by: 'tv-live' });
+var charm = took('Small Charm', { lane: 'stash', cell: 'stash:c0r1', frame: 'f-charm', session: '   ', by: 'tv-live' });
+var torch = took('Hellfire Torch', { lane: 'stash', cell: 'stash:c3r1', frame: 'f-torch', session: 's-torch', conf: 0.40, by: 'tv-live' });
+var one = took('Thresher', { lane: 'stash', cell: 'stash:c7r1', frame: 'f1', session: 's1', by: 'tv-live' });
+console.log(JSON.stringify({ treachery: treachery, charm: charm, torch: torch, one: one }));
+""",
+        ])
+        o = self._run(prog)
+        self.assertIsNone(o["treachery"])
+        self.assertIsNone(o["charm"])
+        self.assertIsNone(o["torch"])
+        self.assertEqual(o["one"], "Thresher")
 
     def test_a_live_frame_counts_and_two_sessions_file(self):
         """The read's score is the frame's, copied onto every name. It is not a look's confidence.

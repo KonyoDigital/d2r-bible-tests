@@ -2227,7 +2227,8 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
     # v3229 — the transport names the family when the answer does not. FALLBACK ONLY:
     # record_answer prefers the model the answer's own bytes name.
     return record_answer(version, answer, sent, dropped, prompt_text=prompt,
-                         answer_model=_model_from_transport(), sha=sha, absent=absent, reach=reach,
+                         answer_model=_model_from_transport(), sha=sha,
+                         absent=absent, reach=reach,
                          stripped=stripped, structured=structured)
 
 

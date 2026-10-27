@@ -47574,9 +47574,40 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try {
           if (nm && r && r.ok){ try { if (typeof window._vaultRecordsPersist === 'function') window._vaultRecordsPersist(); } catch (ePers) {} }
           if (nm && r && r.ok && _witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.cell || _witIn.frame)){
-            var _autoRow = (typeof window._vaultMoveAutoRow === 'function') ? window._vaultMoveAutoRow((r && r.label) || (r && r.name) || nm, _witIn) : { row: true };
-            if ((!_autoRow || _autoRow.row !== false) && typeof window._vaultMoveApplySight === 'function')
-              window._vaultMoveApplySight((r && r.label) || (r && r.name) || nm, _witIn); /* v3769 register sight */
+            /* A move needs one look the filing would keep: its own session and its own frame.
+               A frame with no session, or a score under the floor, is zero looks and opens nothing.
+               A hand declaration is not a frame look and keeps the path it already had. */
+            var _lookN = _byHand ? 1 : 0;
+            if (!_byHand){
+              try {
+                var _ls = Array.isArray(_witIn.sessions) ? _witIn.sessions : (Array.isArray(_witIn.looks) ? _witIn.looks : []);
+                var _floor = (typeof VAULT_WITNESS_FLOOR === 'number') ? VAULT_WITNESS_FLOOR : 0.55;
+                var _cOf = function(ent){
+                  var c = ent && ent.conf;
+                  c = (typeof c === 'number') ? c : parseFloat(c);
+                  return isFinite(c) ? c : null;
+                };
+                var _anyC = false;
+                for (var _i = 0; _i < _ls.length; _i++){ if (_cOf(_ls[_i]) != null) _anyC = true; }
+                var _seenL = {};
+                for (var _j = 0; _j < _ls.length; _j++){
+                  var _e = _ls[_j];
+                  if (!_e || typeof _e !== 'object') continue;
+                  var _id = String(_e.witness || _e.session || _e.reel || _e.sid || _e.id || '').trim();
+                  var _frL = _e.frame || _e.frameId;
+                  var _cv = _cOf(_e);
+                  if (!_id || !_frL || (_cv == null && _anyC) || (_cv != null && _cv < _floor)) continue;
+                  if (_seenL[_id]) continue;
+                  _seenL[_id] = 1;
+                  _lookN++;
+                }
+              } catch (eLook) { _lookN = 0; }
+            }
+            if (_lookN >= 1){
+              var _autoRow = (typeof window._vaultMoveAutoRow === 'function') ? window._vaultMoveAutoRow((r && r.label) || (r && r.name) || nm, _witIn) : { row: true };
+              if ((!_autoRow || _autoRow.row !== false) && typeof window._vaultMoveApplySight === 'function')
+                window._vaultMoveApplySight((r && r.label) || (r && r.name) || nm, _witIn); /* v3769 register sight */
+            }
           }
         } catch (eSight) {}
         /* v1959 \u2014 `!r.dup` WAS ALWAYS TRUE. tvVaultRegister returns `mode: 'new' | 'already'`
@@ -51745,9 +51776,7 @@ window.vaultAutoAssign = function(){
     var frame = sighting.frame || null;
     if (frame != null && frame !== '' && t.evidence.indexOf(String(frame)) < 0) t.evidence.push(String(frame)); /* v3767 move proof */
     if ((t.from == null || t.from.cell == null) && !t.manual) { /* auto intake from */
-      var sameBox = !!(place.holder && t.to && t.to.holder
-        && String(place.holder) === String(t.to.holder)
-        && String(place.location || '') === String(t.to.location || ''));
+      var sameBox = _vaultMoveSamePlace(place, t.to);
       t.from = place;
       if (sameBox) { t.status = 'verified'; return t; }
       t.status = 'to-move';
