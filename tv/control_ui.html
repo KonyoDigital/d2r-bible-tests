@@ -27000,7 +27000,10 @@ function escC(s) {
     return '';
   };
   window._fleetRosterOwner = _fleetRosterOwner;
-  var _fleetOpenEyesHtml = function (m) {
+  var _fleetOpenEyesHtml = function (m, isMe) {
+    /* GrokBot's 21:09 pass (v3809): each console offered "see <its own profile>'s console" on its OWN row - a shadow of
+       yourself shows the stores you are already looking at. This PC's row carries no shadow button. */
+    if (isMe) return '';
     var owner = _fleetRosterOwner(m);
     var eyes = '<svg class="fleet-hd-svg" viewBox="0 0 44 18" aria-hidden="true">'
       + '<ellipse cx="11" cy="9" rx="9" ry="6"/><circle cx="11" cy="9" r="3"/>'
@@ -27821,7 +27824,7 @@ function escC(s) {
           /* 2026-09-29 — HIS WORDS, looking at the card: "i dont want it rendering to me all this here upfront. only if
              clicked on or something like a backdoor to the informational background". The films / river / triage lines
              (and a renamed host's "formerly" line) live in the box a click opens (_fleetCompare), never on the row. */
-          + _tip(m) + _fleetOpenEyesHtml(m) + '</div>';
+          + _tip(m) + _fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me)) + '</div>';
       };
       /* 2026-09-29 — the click box reads a PC's films / river / triage from here (the backdoor) */
       window._fleetByMachine = {};

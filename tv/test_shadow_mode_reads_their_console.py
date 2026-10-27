@@ -2002,6 +2002,37 @@ console.log(JSON.stringify(out));
             self.assertEqual(got[c]["clicks"], [], "L / T under %s opened this PC's log or theatre: %r" % (c, got))
 
 
+class ThisPcsRowOffersNoShadowOfItself(unittest.TestCase):
+    """GrokBot's 21:09 pass (v3809): each console offered "see <its own profile>'s console" on its own Fleet row."""
+
+    def test_the_own_row_has_no_shadow_button_and_the_others_keep_theirs(self):
+        if not NODE:
+            raise AssertionError("node is absent - the Fleet button law cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        call = "_fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me))"
+        self.assertEqual(ui.count(call), 1, "the Fleet row does not tell the button whether it is this PC's row")
+        start = "  var _FLEET_ROSTER_OWNERS = "
+        end = "  window._fleetOpenEyesHtml = _fleetOpenEyesHtml;\n"
+        self.assertEqual(ui.count(start), 1)
+        i = ui.index(start)
+        block = ui[i:ui.index(end, i) + len(end)]
+        js = "var window = {};\nfunction escC(s) { return String(s); }\n" + block + """
+var me = { nickname: 'Konyo', platform: 'mac', machine: 'm1' };
+var alt = { nickname: 'Konyo \\u00b7 ALT', platform: 'windows', machine: 'm2' };
+var stranger = { nickname: 'nobody', platform: 'windows', machine: 'm3' };
+console.log(JSON.stringify({ me: _fleetOpenEyesHtml(me, true), alt: _fleetOpenEyesHtml(alt, false),
+                             none: _fleetOpenEyesHtml(stranger, false), legacy: _fleetOpenEyesHtml(alt) }));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["me"], "", "this PC's own row offered a shadow of itself: %r" % got)
+        self.assertIn("see Konyo · ALT’s console", got["alt"], got)
+        self.assertIn("no roster profile", got["none"], got)
+        self.assertIn("data-roster-owner", got["legacy"], "a caller that does not say isMe lost the button: %r" % got)
+
+
 RED_PROOF = [
     {"why": "Shadow: the worker does not decode each string literal, so an escaped path or token (even under a dropped duplicate key) is stored",
      "file": "functions/api/roster.js",
@@ -2215,6 +2246,16 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "    return !!(cl && (cl.contains('shadow-on') || cl.contains('shadow-snap') || cl.contains('shadow-hub')));\n  }\n  window._consoleShadowUp",
      "replace": "    return !!(cl && (cl.contains('shadow-on') || cl.contains('shadow-snap')));\n  }\n  window._consoleShadowUp",
+     "matches": 1},
+    {"why": "GrokBot 21:09 - this PC's Fleet row offers a shadow of itself again",
+     "file": "tv/control_ui.html",
+     "find": "    if (isMe) return '';\n    var owner = _fleetRosterOwner(m);",
+     "replace": "    var owner = _fleetRosterOwner(m);",
+     "matches": 1},
+    {"why": "GrokBot 21:09 - the Fleet row stops telling the button it is this PC's row",
+     "file": "tv/control_ui.html",
+     "find": "_fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me)) + '</div>';",
+     "replace": "_fleetOpenEyesHtml(m) + '</div>';",
      "matches": 1},
 ]
 

@@ -729,8 +729,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - the fleet row renders films / river / triage upfront again (his 'only if clicked on')",
         "file": "control_ui.html",
-        "find": "          + _tip(m) + _fleetOpenEyesHtml(m) + '</div>';\n",
-        "replace": "          + _fleetSysHtml(m, Date.now()) + _tip(m) + _fleetOpenEyesHtml(m) + '</div>';\n",
+        "find": "          + _tip(m) + _fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me)) + '</div>';\n",
+        "replace": "          + _fleetSysHtml(m, Date.now()) + _tip(m) + _fleetOpenEyesHtml(m, !!(_me && m && m.machine === _me)) + '</div>';\n",
         "matches": 1,
     },
     {

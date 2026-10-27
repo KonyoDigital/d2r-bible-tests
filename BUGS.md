@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2639 - EACH CONSOLE OFFERED A SHADOW OF ITSELF ON ITS OWN FLEET ROW (GrokBot's 21:09 pass, v3809)
+The Fleet card drew "see <owner>'s console" on every row with a roster profile, this PC's included: "see Konyo · Mac's
+console" on the Mac, "see Konyo · ALT's console" on the ALT - a shadow of the stores already on screen. The row now tells
+_fleetOpenEyesHtml whether it is this PC (m.machine === the fleet's me) and this PC's row carries no shadow button;
+a caller that does not say keeps the button. Law: test_shadow_mode_reads_their_console ThisPcsRowOffersNoShadowOfItself
+(the real helper in node + the call site pinned), RED on the old page, 2 RED_PROOFs red; the fleet-card law's red-proof
+on that call line re-anchored (20 of 20 match).
+
 ### REG-2638 - THE CONSOLE RE-PARSED ITS OWN SOURCE ON EVERY TICK (#172, his ALT's console holds 1.28 GB private)
 MEASURED 2026-10-27 on a private console booted on a no-.git copy of his tree (harness port, no beacon, no paid read,
 tracemalloc, 150 s): the console's memory goes to parsing its own source. The attack tally ast.parsed every gate file's
