@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3808",
+  "ver": "v3809",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3808: A move needs a look, owned needs a record, intake review fixes",
+  "note": "v3809: Farming loot in your inventory moves, kit stays. A cleared pick never brings back a removed item.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
