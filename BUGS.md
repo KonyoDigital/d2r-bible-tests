@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2699 - THE FULL CI GATE SET WAS RED ON v3815 AND v3816 - WHAT THE PRE-PUSH SUBSET DOES NOT RUN
+Each read from CI's own table, reproduced locally where it is not a browser law, fixed at its cause:
+1. test_the_mule_window_fits_at_every_width (9) and two render_check seeds: a bare tvVaultRegister is refused while AUTO
+   INTAKE is off (v3767's register stop), so these seeds only ever filed through vaultAssign owning the name as a side
+   effect - the #148.4 defect v3815 closed. They add through his hand door now, then file (the vault-full seed's fix).
+2. test_a_roster_name_opens_its_row_with_the_eyes (2): GrokBot's 21:09 ruling (v3809) - this PC's own row carries no shadow
+   button. The law still asked every row for eyes; it asks the own row for none now, with a red-proof.
+3. test_a_slow_character_read_still_reaches_the_shadow: on Python 3.10+ socket.timeout IS TimeoutError, so a miss named by
+   its class said "TimeoutError" and never "timeout" on CI. A timed-out read says timeout in words on every Python, and the
+   law raises both spellings so the Mac's 3.9 grades it too.
+4. Harnesses a fix outgrew: the builder's "console down" stub never reached a .then(ok, bad) handler (REG-2683); the v3765
+   bundle lacked FIND's _vfNorm/_vfKey (REG-2673); the v3769 bundle lacked _vaultCellOk and the grid sizes (REG-2690).
+Not yet explained: test_v3769_vault_move_list_visual ERRORED once on v3816 after its 6th shot (no traceback in CI's log);
+its failed shard was re-run to tell a runner flake from a break.
+
+### REG-2697 - THE PERSISTED VAULT HEADER LOST THE LOOSE SPLIT (REG-2677's sibling, #208, found by v3816's full CI)
+REG-2677 split "loose" into in-the-dock / routed-to-THROW-OUT on the live header only. _vaultRecordsViewHeader - the same
+header rebuilt from the persisted store - had no split, the persisted rows carried no word for it, and the live header's
+`|| 0` read a store that could not say as 0 in the dock. Where each loose name sat is decided once when the records are
+built and saved on its row (looseWhere, loose rows only), both headers count it, and a store saved before the split reads
+UNKNOWN. Law: test_v3758_records_persist_parity (3 new red-proofs, each seen RED).
+
 ### REG-2694 - THE FLEET'S "river · starting" WAS NOT NEWS TO THE WORKER (#193, his Fleet 2026-10-28: Dean "says STarting")
 Measured first: Dean's row read river · starting at 00:05 because his console relaunched onto v3815 at 23:58 and its first
 proof tick lands ~5 min after a start - his next beacon (22:11:51Z) carried census stale, key start, and the row moved.

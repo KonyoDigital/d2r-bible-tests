@@ -12,6 +12,7 @@ RED_PROOF below. [[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]] 
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -47,7 +48,7 @@ FNS = [
     "_vaultIntakeOwned", "_vaultSightLooks",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
-    "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
+    "_vaultCellOk", "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
     "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveFarmLoot", "_vaultMoveMainLane", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
     "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml", "_vaultMoveCompareModel", "_vaultMoveCompareHtml",
@@ -195,8 +196,10 @@ def move_bundle(src):
     evidence = _assigned(src, r"window\._vaultEvidenceHtml\s*=\s*function\s*\(")
     register = _assigned(src, r"window\.tvVaultRegister = function\(name\)\{")
     reload_owned = _assigned(src, r"window\._vaultReloadOwned\s*=\s*function\(")
+    # REG-2690 - _vaultCellOk reads the page's own grid sizes, never a copy of them
+    grid = re.search(r"  var MULE_STASH_W = [^\n]*\n  var MULE_INV_W = [^\n]*\n", src).group(0)
     return "\n".join(
-        [lane, kit, looks, evidence, register, reload_owned, look_rule(src)] + [_fn(src, n) for n in FNS] + [TAIL])
+        [grid, lane, kit, looks, evidence, register, reload_owned, look_rule(src)] + [_fn(src, n) for n in FNS] + [TAIL])
 
 
 class TestV3769VaultMoveList(unittest.TestCase):

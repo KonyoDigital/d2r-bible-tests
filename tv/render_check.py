@@ -799,9 +799,9 @@ TARGETS = {
              'Bonehew','Steeldriver','Earth Shifter','Lightsabre','Tomb Reaver','Eaglehorn',
              'Widowmaker','Buriza-Do Kyanon','Gimmershred','Lacerator','Warshrike','Hellrack',
              'Silver-Edged Axe'].forEach(function(n){
-                try{ window.tvVaultRegister(n); window.vaultAssign(n,'uni-weap'); }catch(e){} });
+                try{ var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
             ['Nagelring','Raven Frost','Manald Heal'].forEach(function(n){
-                try{ window.tvVaultRegister(n); window.vaultAssign(n,'uni-small'); }catch(e){} });
+                try{ var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n,'uni-small'); }catch(e){} });
             return 1; })()""",
         "activate": """(function(){
             var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){

@@ -193,7 +193,10 @@ def _our_slot(s):
 SEED = r"""(function(items, mule){
   try { localStorage.setItem('d2r_ownerClaim','*'); } catch(e){}
   var ok = 0;
-  items.forEach(function(n){ try { window.tvVaultRegister(n); window.vaultAssign(n, mule); ok++; } catch(e){} });
+  /* REG-2697 (v3815/v3816 CI): a bare tvVaultRegister is refused while AUTO INTAKE is off (v3767's register stop), so this
+     seed only ever filed through vaultAssign owning the name as a side effect - the #148.4 defect v3815 closed. His hand
+     door adds it (answering the name it filed under), then it is filed. */
+  items.forEach(function(n){ try { var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n, mule); ok++; } catch(e){} });
   return ok; })(%s, %s)"""
 
 MEASURE = r"""(function(){ try {
@@ -556,7 +559,7 @@ BIG_SEED = r"""(function(mule){
   try { localStorage.setItem('d2r_ownerClaim','*'); } catch(e){}
   var names = Object.keys(ITEM_CODEX).filter(function(n){ var c = ITEM_CODEX[n] || {}; return c.rarity === 'unique'
     && /Plate|Mail|Armor|Coat|Hauberk|Robe|Shell|Cuirass|Breast|Jacket|Leather|Wyrmhide|Scarab|Serpent/i.test(c.base || ''); }).sort().slice(0, 34);
-  var ok = 0; names.forEach(function(n){ try { window.tvVaultRegister(n); window.vaultAssign(n, mule); ok++; } catch(e){} });
+  var ok = 0; names.forEach(function(n){ try { var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n, mule); ok++; } catch(e){} });
   return JSON.stringify(ok); })(%s)"""
 FIRST_STASH_KEY = r"""(function(){ var g = document.querySelector('#vault-detail .vd-grid[data-area="personal"][data-page="0"]');
   var e = g && g.querySelector('.vd-item[data-key]'); return e ? e.getAttribute('data-key') : null; })()"""
@@ -804,7 +807,7 @@ def _measure():
             t.send("Emulation.setDeviceMetricsOverride", width=390, height=464, deviceScaleFactor=1, mobile=True)
             time.sleep(0.6)                      # past the handler's 160ms debounce
             res["keyboard"] = json.loads(t.ev(FOCUS_READ))
-        t.ev("(function(){ window.tvVaultRegister('Lacerator'); window.vaultAssign('Lacerator', %s); return 1; })()"
+        t.ev("(function(){ window.vaultHandAdd('Lacerator'); window.vaultAssign('Lacerator', %s); return 1; })()"
              % json.dumps(MULE))
         time.sleep(0.3)
         if _typing:

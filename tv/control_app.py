@@ -5089,7 +5089,12 @@ def _profile_api_answers(now_ms=None, reads=None):
         try:
             got = read()
         except Exception as e:
-            got, why = None, "could not be read (%s)" % type(e).__name__
+            # v3816 CI: on Python 3.10+ socket.timeout IS TimeoutError, so the class name alone stopped saying "timeout"
+            # (the Mac's 3.9 still names it `timeout`) - a read that ran out of time says so in words on every Python
+            if isinstance(e, (socket.timeout, TimeoutError)):
+                got, why = None, "timeout - the console took too long to answer (%s)" % type(e).__name__
+            else:
+                got, why = None, "could not be read (%s)" % type(e).__name__
         if isinstance(got, dict) and got.get("ok") is True:
             answers[name] = got
             kept[name] = {"at": now, "answer": got}

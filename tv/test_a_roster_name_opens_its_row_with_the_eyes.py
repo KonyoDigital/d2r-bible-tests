@@ -39,6 +39,9 @@ RC = F.RC
 BASE = "694e4378"          # gbl/shadow before the row eyes (control_ui.html as Elad knows it; also what the v3796 stamp sat on)
 NOW_MS = 1790000000000
 OWNERS = {"box-a": "Konyo \u00b7 Mac", "box-b": "Konyo \u00b7 ALT", "box-c": "Wife PC", "box-d": ""}
+# GrokBot's 21:09 pass (v3809): a console never offers a shadow of ITSELF - this PC's own row carries no eyes. The fleet
+# fixture's "me" is box-a; read from it, so a fixture that moves "me" moves this law with it.
+ME = F._fixture()["me"]
 
 CLOCK = r"""(function(){ var N = %d, D = Date;
   function FD(){ if (!arguments.length) return new D(N);
@@ -243,6 +246,11 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
             self.assertEqual(sorted(c), sorted(OWNERS), k)
             for m, owner in OWNERS.items():
                 got = c[m]
+                if m == ME:
+                    self.assertIsNone(got["owner"], "%s %s: this PC's own row offered a shadow of itself (v3809)" % (k, m))
+                    self.assertEqual(got["vis1"], -1, "%s %s: this PC's own row grew eyes" % (k, m))
+                    self.assertNotIn("routed", got)
+                    continue
                 if owner:
                     self.assertTrue(got["esc"], "%s %s: Escape on the eyes did not close the modal" % (k, m))
                     self.assertEqual(got["owner"], owner, "%s %s: the eyes name another profile" % (k, m))
@@ -257,8 +265,9 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
         for k in r["ship"]:
             for m, got in r["ship"][k]["click"].items():
                 self.assertFalse(got["before"], "%s %s: a row was open before any click" % (k, m))
-                self.assertEqual(got["vis0"], 0, "%s %s: the eyes showed before the click" % (k, m))
-                self.assertGreater(got["vis1"], 0, "%s %s: the click did not show the eyes on the row" % (k, m))
+                if m != ME:                       # this PC's own row has no eyes at all (v3809), the rest show on click
+                    self.assertEqual(got["vis0"], 0, "%s %s: the eyes showed before the click" % (k, m))
+                    self.assertGreater(got["vis1"], 0, "%s %s: the click did not show the eyes on the row" % (k, m))
                 self.assertEqual(got["calls"], 1, "%s %s: the click did not open the cross-reference" % (k, m))
                 self.assertTrue(got["modal"], "%s %s: the modal is not open after the click" % (k, m))
                 self.assertTrue(got["open"] and got["aria"] == "true", "%s %s: a second click shut the row" % (k, m))
@@ -312,6 +321,11 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "click: how this PC films and drains, and their set pieces against yours</div>';",
      "replace": "click: how this PC films and drains, their set pieces against yours, and the eyes</div>';",
+     "matches": 1},
+    {"why": "GrokBot 21:09 (v3809) - this PC's own row offers a shadow of itself again",
+     "file": "tv/control_ui.html",
+     "find": "    if (isMe) return '';\n",
+     "replace": "    if (false) return '';\n",
      "matches": 1},
 ]
 

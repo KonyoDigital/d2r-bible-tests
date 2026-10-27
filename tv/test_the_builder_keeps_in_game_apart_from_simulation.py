@@ -49,7 +49,8 @@ var LEARNED_ANSWER = null, FETCHED = [];
 function _syncThen(v){ return { then: function(f){ var r; try { r = f(v); } catch (e) { r = undefined; } return _syncThen(r); },
                                 catch: function(){ return this; } }; }
 function fetch(url){ FETCHED.push(String(url));
-  if (LEARNED_ANSWER === 'FAIL') return { then: function(){ return this; }, catch: function(f){ f(new Error('down')); return this; } };
+  /* a console that is down REJECTS: the failure reaches a .then(ok, bad) handler as well as a .catch (REG-2683) */
+  if (LEARNED_ANSWER === 'FAIL') return { then: function(ok, bad){ if (bad) bad(new Error('down')); return this; }, catch: function(f){ f(new Error('down')); return this; } };
   return _syncThen({ ok: true, json: function(){ return LEARNED_ANSWER; } }); }
 """
 

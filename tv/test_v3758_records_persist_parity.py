@@ -128,6 +128,26 @@ class TestV3758RecordsPersistParity(unittest.TestCase):
         return json.loads(p.stdout)
 
     # ───────────────────────────────────────────────────────────────────────────────────────────
+    def test_a_loose_split_is_persisted_and_an_older_store_reads_it_unknown(self):
+        """#208 (REG-2677's sibling, found by v3815's CI): the loose split (in the dock / routed to THROW OUT) is decided when
+        the records are built and SAVED on each loose row, so the persisted header counts what was known. A store saved
+        before the split has no word for it and reads UNKNOWN - never 0 in the dock."""
+        o = self._run(r"""
+_vaultRecordsMigrate();
+var raw = JSON.parse(window.LSR.getItem('d2r_vaultRecords'));
+out.saved = raw.records.filter(function(r){ return r.kind === 'loose'; }).map(function(r){ return r.looseWhere || null; });
+out.other = raw.records.filter(function(r){ return r.kind !== 'loose' && Object.prototype.hasOwnProperty.call(r, 'looseWhere'); }).length;
+out.fresh = _vaultRecordsViewHeader(_vaultRecordsLoad());
+raw.records.forEach(function(r){ delete r.looseWhere; });
+window.LSR.setItem('d2r_vaultRecords', JSON.stringify(raw));
+out.old = _vaultRecordsViewHeader(_vaultRecordsLoad());
+""")
+        self.assertEqual(o["saved"], ["dock"], "a loose row was saved without where it sat: %r" % o["saved"])
+        self.assertEqual(o["other"], 0, "a row that is not loose grew a looseWhere field")
+        self.assertEqual((o["fresh"]["looseDock"], o["fresh"]["looseThrow"]), (1, 0), o["fresh"])
+        self.assertIsNone(o["old"]["looseDock"], "a store from before the split read %r in the dock, not UNKNOWN" % o["old"])
+        self.assertIsNone(o["old"]["looseThrow"])
+
     def test_persisted_views_equal_the_in_memory_model_at_parity(self):
         o = self._run(r"""
 var mem = _vaultRecords();
@@ -681,6 +701,21 @@ RED_PROOF = [
         "replace": "      return { ran: false, already: true, receipt: done };\n",
         "matches": 1,
     },
+    {"why": "#208 - a saved loose row forgets where it sat",
+     "file": "bible.html",
+     "find": "      row.looseWhere = spec.looseWhere;\n",
+     "replace": "      void 0;\n",
+     "matches": 1, "needs": "node"},
+    {"why": "#208 - the persisted header loses the loose split",
+     "file": "bible.html",
+     "find": "      looseDock:  (unk || typeof model.looseDockN !== 'number') ? null : model.looseDockN,\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "#208 - a store from before the split reads 0 in the dock instead of UNKNOWN",
+     "file": "bible.html",
+     "find": "    if (_lwOld) { model.looseDockN = null; model.looseThrowN = null; }\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
 ]
 
 if __name__ == "__main__":

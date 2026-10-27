@@ -58,7 +58,7 @@ EXTRACT = [
     "_vaultRecordsPersist", "_vaultRecordsRefresh", "_vaultRecordsMigrate",
     "_vaultRecordsMigrateUndo", "_vaultRecordsMayArm", "_vaultRecordsArm",
     "_shelfCopyCount", "_shelfDrawNames", "_muleLoad",
-    "_inMagicRare", "_dockNames", "_vaultWhereIs", "_vaultFindHome", "_vaultFindMatches",
+    "_inMagicRare", "_dockNames", "_vaultWhereIs", "_vaultFindHome", "_vfNorm", "_vfKey", "_vaultFindMatches",
     "saveA", "persistOwned",
 ]
 
@@ -122,7 +122,6 @@ function esc(t){ return String(t == null ? '' : t); }
 function art(){ return ''; }
 function isAggregate(){ return false; }
 function _vfCanon(n){ return n; }
-function _vfNorm(x){ return String(x == null ? '' : x).toLowerCase(); }
 var _VF_ALIAS = {};
 var magicFinds = {};
 var document = { getElementById: function(){ return null; } };

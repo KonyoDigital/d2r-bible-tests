@@ -154,6 +154,15 @@ class ASlowCharacterReadStillReachesTheShadow(unittest.TestCase):
         self.assertIn("lobbyBySize", got, "a field that fits was left out too")
         self.assertEqual(st.get("apiTrimmed"), {"chars_learned": ["surfaceWitnesses"]}, st)
 
+    def test_a_timeout_says_timeout_on_every_python(self):
+        """v3816 CI (Python 3.12): socket.timeout IS TimeoutError on 3.10+, so a miss named by its class read "could not be
+        read (TimeoutError)" there and "timeout" only on the Mac's 3.9. Both spellings are raised here, so 3.9 grades it."""
+        for exc in (socket.timeout("timed out"), TimeoutError("timed out")):
+            def _slow(e=exc):
+                raise e
+            _, misses = self.CA._profile_api_answers(now_ms=1792800000000, reads=(("chars_learned", _slow),))
+            self.assertIn("timeout", misses["chars_learned"], "%s did not say timeout: %r" % (type(exc).__name__, misses))
+
     def test_a_miss_with_nothing_to_fall_back_on_is_named(self):
         def _slow():
             raise socket.timeout("timed out")
@@ -281,6 +290,11 @@ RED_PROOF = [
      "find": "    var tpls = _cbTemplates(), state, why = '', asking = !_cbLearned && _cbLearnedAsking > 0;\n",
      "replace": "    var tpls = _cbTemplates(), state, why = '', asking = false;\n",
      "matches": 1, "needs": "node"},
+    {"why": "v3816 CI - a timed-out read is named by its class only, so 3.10+ says TimeoutError and never timeout",
+     "file": "tv/control_app.py",
+     "find": "            if isinstance(e, (socket.timeout, TimeoutError)):\n",
+     "replace": "            if False:\n",
+     "matches": 1},
 ]
 
 if __name__ == "__main__":
