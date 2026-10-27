@@ -29,8 +29,8 @@ Each read from CI's own table, reproduced locally where it is not a browser law,
    law raises both spellings so the Mac's 3.9 grades it too.
 4. Harnesses a fix outgrew: the builder's "console down" stub never reached a .then(ok, bad) handler (REG-2683); the v3765
    bundle lacked FIND's _vfNorm/_vfKey (REG-2673); the v3769 bundle lacked _vaultCellOk and the grid sizes (REG-2690).
-Not yet explained: test_v3769_vault_move_list_visual ERRORED once on v3816 after its 6th shot (no traceback in CI's log);
-its failed shard was re-run to tell a runner flake from a break.
+Not a break: test_v3769_vault_move_list_visual ERRORED once on v3816 after its 6th shot (no traceback in CI's log), and the
+re-run of the same commit (40596124719, attempt 2) passed it - a runner flake, left as measured.
 
 ### REG-2697 - THE PERSISTED VAULT HEADER LOST THE LOOSE SPLIT (REG-2677's sibling, #208, found by v3816's full CI)
 REG-2677 split "loose" into in-the-dock / routed-to-THROW-OUT on the live header only. _vaultRecordsViewHeader - the same
