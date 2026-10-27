@@ -686,8 +686,50 @@ def _bound_commit(version):
             body = fh.read()
     except Exception:
         return None
+    return _sha_named_by_tasks(version, body)
+
+
+# The bump writes the newest row as `(this commit)` because that commit does not exist yet, and the
+# next bump is what replaces it. Until then a subject scan cannot see the ship: subjects must not
+# lead with the version. MEASURED 2026-10-27: v3805's row was still `(this commit)`, its subject is
+# "Stamp the auto intake move", and the runner refused with "cannot find the commit".
+_STAMP_ADDED = re.compile(r'^\+VERSION = "(v\d{4})"')
+
+
+def _sha_named_by_tasks(version, body):
+    """The sha cell, or the stamp commit when the cell is still `(this commit)`. -> sha | None"""
     m = re.search(r"\|\s*\*\*%s\*\*\s*\|\s*`([0-9a-f]{7,40})`" % re.escape(version), body)
-    return m.group(1) if m else None
+    if m:
+        return m.group(1)
+    if re.search(r"\|\s*\*\*%s\*\*\s*\|\s*`\(this commit\)`" % re.escape(version), body):
+        return _sha_from_version_stamp(version)
+    return None
+
+
+def _sha_from_version_stamp(version):
+    """Newest commit that added this version's VERSION line in tv/tv_diablo.py. None if that is not shown.
+
+    Same added line stamp_versions.version_commits reads, asked for one version. A commit that only
+    drops the line, or mentions it, is not the ship.
+    """
+    if not re.fullmatch(r"v\d{4}", str(version or "")):
+        return None
+    needle = 'VERSION = "%s"' % version
+    out, _why = _sh(["git", "log", "--format=%H", "-S", needle, "--", "tv/tv_diablo.py"], timeout=60)
+    if not out:
+        return None
+    for sha in out.splitlines():
+        sha = sha.strip()
+        if not re.fullmatch(r"[0-9a-f]{7,40}", sha):
+            continue
+        diff, _dw = _sh(["git", "show", "--format=", "--unified=0", sha, "--", "tv/tv_diablo.py"], timeout=60)
+        if diff is None:
+            return None
+        for line in diff.splitlines():
+            added = _STAMP_ADDED.match(line)
+            if added and added.group(1) == version:
+                return sha
+    return None
 
 
 def commit_for(version):

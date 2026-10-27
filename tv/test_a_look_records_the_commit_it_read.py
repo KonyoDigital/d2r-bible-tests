@@ -125,6 +125,58 @@ class TestALookRecordsTheCommitItRead(unittest.TestCase):
         self.assertIsNone(got["v3508"], "a version only MENTIONED (a merge onto it) was given a commit: %s" % got["v3508"])
         self.assertIsNone(got["v3494"], "a version only mentioned in a fix subject was given a commit: %s" % got["v3494"])
 
+    def test_a_this_commit_cell_binds_through_the_stamp_and_a_sha_cell_wins(self):
+        """The newest row stays `(this commit)` until the next bump. That cell is the stamp commit,
+        not a later subject that mentions the version. A cell that already holds a sha is left as written."""
+        body = "\n".join([
+            "| **v3805** | `(this commit)` | v3805 — note |",
+            "| **v3804** | `741365a6` | v3804 — note |",
+            "| **v3799** | `d5922061` (in the v3800 commit) | carried |",
+        ])
+        real = R._sha_from_version_stamp
+        R._sha_from_version_stamp = lambda version: "c8855707d" if version == "v3805" else None
+        try:
+            self.assertEqual(R._sha_named_by_tasks("v3805", body), "c8855707d")
+            self.assertEqual(R._sha_named_by_tasks("v3804", body), "741365a6")
+            self.assertEqual(R._sha_named_by_tasks("v3799", body), "d5922061")
+            self.assertIsNone(R._sha_named_by_tasks("v3803", body))
+        finally:
+            R._sha_from_version_stamp = real
+
+    def test_a_stamp_mention_or_a_removed_line_is_not_the_ship(self):
+        """`git log -S` also hits a commit that drops the line. Only an added VERSION assignment counts."""
+        real = R._sh
+
+        def fake(args, timeout=60):
+            if args[:3] == ["git", "log", "--format=%H"]:
+                return ("aaaa1111\nbbbb2222\n", "")
+            if args[:3] == ["git", "show", "--format="] and args[4] == "aaaa1111":
+                return ('-VERSION = "v3805"\n+VERSION = "v3806"\n', "")
+            if args[:3] == ["git", "show", "--format="] and args[4] == "bbbb2222":
+                return (' mention VERSION = "v3805" in a comment\n+VERSION = "v3805"\n', "")
+            return real(args, timeout)
+
+        R._sh = fake
+        try:
+            self.assertEqual(R._sha_from_version_stamp("v3805"), "bbbb2222")
+            self.assertIsNone(R._sha_from_version_stamp("nope"))
+        finally:
+            R._sh = real
+
+    def test_the_shipped_version_resolves_when_its_row_still_says_this_commit(self):
+        """v3805's row is still `(this commit)` and its subject does not lead with the version.
+        The commit that added the VERSION line is the ship. Its parent does not carry that line."""
+        sha, why = R.commit_for("v3805")
+        self.assertTrue(sha, why)
+        parent, pwhy = R._sh(["git", "rev-parse", "%s^" % sha], timeout=30)
+        self.assertTrue(parent, pwhy)
+        here, hwhy = R._sh(["git", "grep", "-h", 'VERSION = "', sha, "--", "tv/tv_diablo.py"], timeout=30)
+        before, bwhy = R._sh(["git", "grep", "-h", 'VERSION = "', parent.strip(), "--", "tv/tv_diablo.py"], timeout=30)
+        self.assertTrue(here, hwhy)
+        self.assertTrue(before, bwhy)
+        self.assertIn('VERSION = "v3805"', here)
+        self.assertNotIn('VERSION = "v3805"', before)
+
     def test_a_hyphen_range_in_a_commit_subject_is_a_range(self):
         """v3304-v3307 ships FOUR versions; the parser saw one. [[v2862]] with a new separator."""
         got = R.versions_in_run("v3304-v3307 — attribution, the overtaken open, and red-on-purpose")
