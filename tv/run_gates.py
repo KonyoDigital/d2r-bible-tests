@@ -11977,6 +11977,14 @@ GATES = [
              "folded under ADVANCED, the eyes are never in the modal, each routes to its own roster profile (none "
              "for a PC with no profile), and no diagnostic fact (last walk included) is clipped. No browser is a "
              "declared skip."),
+    Gate("test_a_console_reads_its_own_river",
+         [sys.executable, os.path.join(HERE, "test_a_console_reads_its_own_river.py")], 300,
+         needs_app=False,
+         why='REG-2664 (#193) - his river said UNKNOWN: the console reads its own river a minute after a start, and a just-started PC says starting, not a bare UNKNOWN.'),
+    Gate("test_a_look_under_the_floor_opens_no_move",
+         [sys.executable, os.path.join(HERE, "test_a_look_under_the_floor_opens_no_move.py")], 300,
+         needs_app=False,
+         why='REG-2665 (#201) - one rule for a look that counts; a 0.40 look never opens a move through the stored record. Whole page in node.'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
