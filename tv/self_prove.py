@@ -1367,6 +1367,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             else:
                 mem["pid"] = (spawn_fn or spawn)(log_path)
             mem["pidBirth"] = proc_birth(mem["pid"])       # REG-1511 — who it is, not just its number
+            if mem["pidBirth"] is _PROC_EXITED:
+                # Died before ps could name it. The marker is not a birth, and the store cannot
+                # hold it: the save would fail and the next tick would keep the previous record.
+                mem["pidBirth"] = None
             mem["startedBy"] = console_id()                 # REG-2613 - the console that owns it (child_guard)
             _STARTED.update(pid=mem["pid"], birth=mem["pidBirth"])
             _hold_awake(mem["pid"], real=_real_prover(spawn_fn, "spawn"))  # REG-2483 - awake from its first second

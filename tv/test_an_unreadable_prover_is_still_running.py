@@ -226,6 +226,42 @@ class AZombieIsAnEndedProof(_Store):
         self.assertEqual(started, [1], "the lane did not move on to the proof the stale census still owes: %r" % r)
         self.assertEqual(r.get("key"), "start", r)
 
+    def test_a_prover_that_dies_before_its_birth_is_read_stores_unknown(self):
+        """The new pid's birth read can already be the exit marker. That object cannot be written, so the
+        save fails and the next tick still has the previous record. Unknown is stored instead, and the
+        next tick can load it and compare."""
+        started = []
+
+        def _birth(pid):
+            return SP._PROC_EXITED
+
+        def _spawn(*a, **k):
+            started.append(1)
+            return 6161
+
+        census = {"state": "stale", "why": "fixture", "fingerprint": "new-gates", "owed": 1}
+        with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", _birth):
+            r = SP.tick(now_s=5000.0, path=self.store, census=census, tree=("installed", "fixture"),
+                        busy=0.0, playing=False, free=3000, spawn_fn=_spawn)
+        self.assertEqual(r.get("key"), "start", r)
+        self.assertIsNone(SP._STARTED.get("birth"), "the exit marker was kept in memory for the next compare")
+        mem = SP.load(self.store)
+        self.assertNotIn("unreadable", mem, mem)
+        self.assertEqual(mem.get("pid"), 6161, "the proof that just started was not the one the store kept: %r" % mem)
+        self.assertIsNone(mem.get("pidBirth"), "a proof that died before its birth was read stored %r" % mem.get("pidBirth"))
+        with io.open(self.store, encoding="utf-8") as fh:
+            raw = fh.read()
+        self.assertIn('"pidBirth": null', raw, "unknown was not what the store wrote")
+        with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", _birth):
+            r2 = SP.tick(now_s=5060.0, path=self.store, census=census, tree=("installed", "fixture"),
+                         busy=0.0, playing=False, free=3000, spawn_fn=_spawn)
+        self.assertEqual(started, [1], "the next check started another proof beside the one whose birth is unknown: %r" % r2)
+        self.assertEqual(r2.get("key"), "running-unverified", r2)
+        mem2 = SP.load(self.store)
+        self.assertNotIn("unreadable", mem2, mem2)
+        self.assertEqual(mem2.get("pid"), 6161)
+        self.assertIsNone(mem2.get("pidBirth"), "the next check replaced unknown with %r" % mem2.get("pidBirth"))
+
 
 RED_PROOF = [
     {"why": "REG-1652 - a read that failed is answered 'not ours' again: a live prover is booked ended and forgotten",
@@ -257,6 +293,11 @@ RED_PROOF = [
      "file": "child_guard.py",
      "find": "        return proc.poll() is not None\n",
      "replace": "        return None\n",
+     "matches": 1},
+    {"why": "a prover that dies before its birth is read stores the exit marker, which cannot be saved and breaks the next check",
+     "file": "self_prove.py",
+     "find": "            if mem[\"pidBirth\"] is _PROC_EXITED:\n",
+     "replace": "            if False and mem[\"pidBirth\"] is _PROC_EXITED:\n",
      "matches": 1},
 ]
 
