@@ -27705,6 +27705,45 @@ def _audit_child_status():
         return {"on": None, "audits": None, "say": "the audit-child state could not be read (%s)" % type(e).__name__}
 
 
+def intake_log_answer(journal):
+    """/api/intake_log - the RECEIPT LEDGER: every intake receipt the journal recorded, newest first. -> dict
+
+    #158.3 (GrokBot, his real frames): the rows dropped the reason each record already carries - v1945 kept `err`, `why`,
+    `guardHeld` and `refused` on the record "because a deliberate guard hold, a failed read, and a read that honestly found
+    nothing were indistinguishable" - and this route threw them away again, so 39 failed reads on his frames read only
+    'error'. A row carries its reason now, and a guard HOLD is its own status, not an error."""
+    rows = []
+    for r in journal or []:
+        ik = r.get("intake") if isinstance(r, dict) else None
+        if not isinstance(ik, dict):
+            continue
+        _tot = int(ik.get("total") or 0)
+        _ok = bool(ik.get("ok", True))
+        _held = bool(ik.get("guardHeld"))
+        _why = str(ik.get("why") or ik.get("err") or "")[:300] or None
+        rows.append({
+            "ts": r.get("ts") or r.get("captureTs") or 0,
+            "tab": ik.get("tab") or ik.get("kind") or "",
+            "kind": ik.get("kind") or "",
+            "ok": _ok,
+            "total": _tot,
+            "errors": int(ik.get("errors") or 0),
+            "types": len(ik.get("counts") or {}) if isinstance(ik.get("counts"), dict) else 0,
+            "frameId": r.get("frameId") or "",
+            "sessionId": r.get("sessionId") or "",
+            "lane": r.get("lane") or "",
+            "why": _why,                                   # None: the record carried no reason (an old receipt)
+            "refused": bool(ik.get("refused")),
+            # the plumbing verdict: landed-empty misses vs real receipts vs a deliberate hold vs errors
+            "status": ("held" if (_held and not _ok) else ("error" if not _ok else ("empty" if _tot == 0 else "ok"))),
+        })
+    rows.sort(key=lambda s: s["ts"], reverse=True)
+    summary = {"total": len(rows)}
+    for st in ("empty", "error", "held"):
+        summary[st] = sum(1 for r in rows if r["status"] == st)
+    return {"ok": True, "rows": rows[:400], "summary": summary}
+
+
 def chronicle_route_state():
     """A21c — the chronicle routes for the heart. -> dict
 
@@ -47780,32 +47819,7 @@ class Handler(BaseHTTPRequestHandler):
             # frame it came from, session). This is the RECEIPT LEDGER, distinct from /api/tallies
             # (which is the item counts) — here you watch receipts LAND and spot the 0-total misses.
             try:
-                rows = []
-                for r in self._load_journal_cached():
-                    ik = r.get("intake")
-                    if not isinstance(ik, dict):
-                        continue
-                    _tot = int(ik.get("total") or 0)
-                    _ok = bool(ik.get("ok", True))
-                    rows.append({
-                        "ts": r.get("ts") or r.get("captureTs") or 0,
-                        "tab": ik.get("tab") or ik.get("kind") or "",
-                        "kind": ik.get("kind") or "",
-                        "ok": _ok,
-                        "total": _tot,
-                        "errors": int(ik.get("errors") or 0),
-                        "types": len(ik.get("counts") or {}) if isinstance(ik.get("counts"), dict) else 0,
-                        "frameId": r.get("frameId") or "",
-                        "sessionId": r.get("sessionId") or "",
-                        "lane": r.get("lane") or "",
-                        # the plumbing verdict: landed-empty misses vs real receipts vs errors
-                        "status": ("error" if not _ok else ("empty" if _tot == 0 else "ok")),
-                    })
-                rows.sort(key=lambda s: s["ts"], reverse=True)
-                _empty = sum(1 for r in rows if r["status"] == "empty")
-                _err = sum(1 for r in rows if r["status"] == "error")
-                self._json(200, {"ok": True, "rows": rows[:400],
-                                 "summary": {"total": len(rows), "empty": _empty, "error": _err}})
+                self._json(200, intake_log_answer(self._load_journal_cached()))
             except Exception as e:
                 self._json(200, {"ok": False, "msg": str(e)[:160], "rows": []})
             return

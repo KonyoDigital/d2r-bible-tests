@@ -12061,6 +12061,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_source_audit_runs_in_a_child.py")], 300,
          needs_app=False,
          why='#172 phase B - a console sends a cold route census and lane-span parse to a short-lived child; zero ast.parse in its own heap, fails open'),
+    Gate("test_a_receipt_says_why_it_failed",
+         [sys.executable, os.path.join(HERE, "test_a_receipt_says_why_it_failed.py")], 300,
+         needs_app=False,
+         why='#158.3 - the receipt ledger carries the reason each intake record holds, and a guard hold is not an error'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

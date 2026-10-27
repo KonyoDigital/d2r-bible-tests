@@ -38,6 +38,14 @@ the vault does not) sent any not-ok answer to vaultFailed, so a held row read as
 same pending bucket now (a second red-proof). And v712's vault-mirror spec is brought to his #202 ruling: one read (with
 its session, as a real read carries) holds Harlequin Crest, a socketed base and a RotW custom as seen-once, not owned; a
 second session's look registers each, and every stashed class then lands VISIBLE - the guarantee it was written for.
+### REG-2704 - THE RECEIPT LEDGER DROPPED THE REASON EVERY RECEIPT CARRIES (#158.3, GrokBot on his real frames)
+v1945 kept the reason on every intake record (`err`, `why`, `guardHeld`, `refused`) because 45 of 46 receipts read
+ok:false with nothing to tell a deliberate hold, a failed read and an honest empty apart. /api/intake_log then built its rows
+from seven fields and dropped the reason again, so the 39 failed reads on his frames read only 'error'. The route's rows
+come from control_app.intake_log_answer now: each carries its reason (None on an old receipt that has none), a guard HOLD
+is its own status ('held', not 'error'), and the RECEIPT LEDGER row and summary say both.
+Law: test_a_receipt_says_why_it_failed (3 red-proofs, each seen RED).
+
 ### REG-2703 - A THROW OUT PICK READ AS "A MULE THE BOARD CAN'T FIND", AND SUPERIOR BASES WERE REFUSED (#154.20, #154.18)
 GrokBot's vault sweep, re-checked against the code at v3816:
 1. #154.20 - a name assigned '__throwout' fell through the records model to orphan, so the header said it was "filed to a mule
