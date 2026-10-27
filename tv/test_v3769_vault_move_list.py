@@ -43,7 +43,8 @@ FNS = [
     "_vaultRehomeCopies", "_vaultReconcileHomes",
     "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_vaultMisfiled", "_vaultWarSmall", "_vaultWarKeeper", "_vaultWarExtra", "_vaultWarRole", "_vaultWarMules",
-    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandBasePool",
+    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandBase", "_vaultHandBasePool",
+    "_vaultIntakeOwned", "_vaultSightLooks",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
@@ -627,6 +628,25 @@ console.log(JSON.stringify({
         self.assertEqual(o["location"], "inventory", o)
         self.assertRegex(o["cell"] or "", r"^inventory:c\d+r\d+$")
         self.assertNotIn("UNKNOWN", o["say"] or "", o)
+
+    def test_every_bare_vault_helper_the_bundle_calls_is_in_the_bundle(self):
+        """A new helper (like _vaultSightLooks) that the move code calls bare must be
+        sliced in here too, or the move list dies with a ReferenceError."""
+        import re
+        b = self.bundle
+        called = set(re.findall(r"(?<![\w.$])(_vault\w+)\s*\(", b))
+        defined = set(re.findall(r"function\s+(_vault\w+)\s*\(", b)) | \
+            set(re.findall(r"(?:var|let|const)\s+(_vault\w+)\s*=", b)) | \
+            set(re.findall(r"window\.(_vault\w+)\s*=", b))
+        guarded = set(re.findall(r"typeof\s+(_vault\w+)", b))
+        self.assertEqual(sorted(called - defined - guarded), [])
+
+    def test_a_zero_look_cell_opens_no_move_through_the_collector(self):
+        """Grok CLI blocker: a sight cell with no session/frame look is not a move row."""
+        import re
+        m = re.search(r"var hasSight = ([^;]*);", self.src)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1).strip(), "!!(r.sight && r.sight.cell && _vaultSightLooks(r.sight) >= 1)")
 
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
