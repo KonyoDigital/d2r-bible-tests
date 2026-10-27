@@ -12001,6 +12001,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_empty_sentence_adds_no_separator.py")], 300,
          needs_app=False,
          why="REG-2671 (GrokBot bug 10) - an empty published sentence glued a stray ' · ' (forged · · 91 workable)."),
+    Gate("test_the_vault_doors_take_only_what_is_his",
+         [sys.executable, os.path.join(HERE, "test_the_vault_doors_take_only_what_is_his.py")], 300,
+         needs_app=False,
+         why='REG-2673 (#144 #148 #152 #154, GrokBot vault sweeps) - ghost items, case variants, names without apostrophes, assigning an unowned name, blank or taken mule names, a keeper prefix, FIND, and the Shared switch that never moved. Whole page in node.'),
+    Gate("test_leaving_a_shadow_goes_back_to_the_tab_it_lights",
+         [sys.executable, os.path.join(HERE, "test_leaving_a_shadow_goes_back_to_the_tab_it_lights.py")], 300,
+         needs_app=False,
+         why='REG-2674 (GrokBot 22:07) - Leave lit the remembered tab while the board showed Characters; the console sends the tab and the board goes back to it.'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

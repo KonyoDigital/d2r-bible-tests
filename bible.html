@@ -3976,7 +3976,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
                 '_cbStashCat', '_cbStashFold', 'closeCharBuilder', '_charsOpen', 'openCharBuilder',
                 'openMuleCard', 'vaultCloseCard', '_muleSetPage', '_muleOpenAt', '_sharedSetPage', '_mpSet',
                 'vaultTasksTog', 'vaultAdvTab',
-                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump'];
+                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump',
+                // GrokBot 22:07: TV·D's LIVE / LAST SESSION switch and a Tools card's fold header only move the view too
+                '_tvdHistTab', 'toggleCardCollapse'];
     window._tvdShadowView = VIEW;
     function viewOnly(el) {
       // the control itself must be a tab or a fold: a button that only sits INSIDE a summary is still a button
@@ -43574,12 +43576,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _VF_ALIAS = { soj:'stone of jordan', cta:'call to arms', hoto:'heart of the oak', coh:'chains of honor',
                     botd:'breath of the dying', wf:'windforce', tgods:"thundergod's vigor" };
   function _vfNorm(x){ return String(x==null?'':x).toLowerCase().replace(/[\u2018\u2019\u02bc\u00b4`]/g, "'"); }
+  /* #154.16 (GrokBot) - "tal rashas" found nothing: the fold kept the apostrophe in "rasha's". FIND compares with every
+     apostrophe dropped on both sides, so a name typed without one still finds it. */
+  function _vfKey(x){ return _vfNorm(x).replace(/'/g, ''); }
   function _vaultFindMatches(pool, q){
     var qn = _vfNorm(q).trim(); if (!qn) return [];
-    var qa = _VF_ALIAS[qn] || qn;
+    var qa = _vfKey(_VF_ALIAS[qn] || qn);
     var reWord = new RegExp('\\b' + qa.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
-    function score(n){ var ln=_vfNorm(n); if(ln===qa) return 0; if(ln.indexOf(qa)===0) return 1; if(reWord.test(ln)) return 2; return 3; }
-    return pool.filter(function(n){ return _vfNorm(n).indexOf(qa) !== -1; })
+    function score(n){ var ln=_vfKey(n); if(ln===qa) return 0; if(ln.indexOf(qa)===0) return 1; if(reWord.test(ln)) return 2; return 3; }
+    return pool.filter(function(n){ return _vfKey(n).indexOf(qa) !== -1; })
                .sort(function(a,b){ var sa=score(a), sb=score(b); return sa!==sb ? sa-sb : a.localeCompare(b); });
   }
   /* #76 — a set piece stored under TWO name-forms (bare "Natalya's Totem" + slotted "Natalya's Totem (helm)")
@@ -43682,6 +43687,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     q = String(q||'').trim().toLowerCase();
     if (!q){ res.hidden = true; res.innerHTML = ''; return; }
     var pool = ownedPool();
+    /* #154.16 - a base he typed through + Add an item (Shako, a Monarch) is a record he owns; FIND finds it too */
+    try { (typeof _vaultHandBasePool === 'function' ? _vaultHandBasePool() : []).forEach(function(n){ if (pool.indexOf(n) < 0) pool.push(n); }); } catch (eHbp) {}
     // A name registered in Magic & Rare is found here. It stays out of ownedPool, so the registered panel does not count it twice.
     try {
       if (typeof magicFinds !== 'undefined' && magicFinds) {
@@ -43827,15 +43834,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (window.EXTRA_ITEMS) v=v.concat(Object.keys(window.EXTRA_ITEMS)); } catch(e){}
     return v;
   }
+  /* #148.3 (GrokBot) - "Spirit" typed into Multi-copy Keepers added SPIRIT FORGE: the first name that began with the text
+     won. An exact name still wins; a beginning counts only when exactly one item begins that way. */
   function _resolveGrailName(input){
     var q=String(input||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); if(!q) return null;
-    var v=_grailVocab(), pref=null;
+    var v=_grailVocab(), pref=[];
     for(var i=0;i<v.length;i++){ var nl=v[i].toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
       if(nl===q) return v[i];
-      if(!pref && q.length>=4 && nl.indexOf(q)===0) pref=v[i];
+      if(q.length>=4 && nl.indexOf(q)===0 && pref.indexOf(v[i])<0) pref.push(v[i]);
     }
-    return pref;
+    return pref.length === 1 ? pref[0] : null;
   }
+  try { window._resolveGrailName = _resolveGrailName; } catch (eRg) {}
   function renderMultiKeep(){
     var el=document.getElementById('vault-multikeep'); if(!el) return;
     var names=Object.keys(multiKeep||{}).filter(function(n){ return multiKeep[n]>1; });
@@ -45406,6 +45416,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // ── actions ──
   function assignItem(name, muleId, opts){
     if (!muleById(muleId)) return;
+    /* #148.4 (GrokBot) - ASSIGNING A NAME HE DOES NOT OWN filed it AND made it owned (vaultFile adds to owned). A drag or a
+       click only ever carries an owned name; anything else is refused and said, and nothing is written. */
+    if (!(typeof owned !== 'undefined' && owned && owned.has(name))){
+      try { _vaultLockSay(name, '\ud83d\udd12 ' + name + ' was not filed \u2014 it is not on your owned list', false); } catch (eNo) {}
+      return { ok: false, refused: 'not-owned' };
+    }
     /* #246 — HIS HAND IS A WITNESS, AND IT GOES THROUGH THE ONE DOOR. A drag or a click onto a locker is a
        manual declaration for that locker (his ruling: a manual add counts for the section it is made in),
        so it files and leaves a provenance row saying so. The door still refuses a MAIN-locked name.
@@ -45962,6 +45978,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* L1 (Elad 2026-10-19: bases are hand-added too) — a white or ethereal base the builder catalogue names (CB_DB .b,
      the table _cbFoot sizes) is a real stash item. Only the HAND door and the move packer ask this; _vaultKeeps and every
      owned list it feeds are unchanged. -> the catalogue base name, or null */
+  /* #144.1+8 (GrokBot eyes-pass) - GHOST ITEMS. Every catalogue base row was a hand-add base, so "Minor Healing Potion",
+     "Jewel", "Grand Charm", "Khalim's Eye", "Ber Rune" and "Diablo's Horn" were each added as owned (measured in node). A
+     hand-typed BASE is armor or a weapon that can drop: the row's [21] is the file it came from ('a' armor, 'w' weapons,
+     'm' misc), [1] its type, [20] spawnable (tv/char_builder_db.py). It excludes, so a stub row with only a name stays a
+     base. */
+  function _vaultHandGear(r){ return r[21] !== 'm' && r[1] !== 'tpot' && r[20] !== 0; }
+  /* #148.2 - the catalogue's spelling of a typed base, its Eth / Ethereal prefix kept as he typed it */
+  function _vaultHandBaseName(typed, base){
+    var m = /^(eth|ethereal)\s+/i.exec(String(typed || '').trim());
+    return (m ? (m[1].toLowerCase() === 'eth' ? 'Eth ' : 'Ethereal ') : '') + base;
+  }
   function _vaultHandBase(name){
     var n = String(name == null ? '' : name).trim().replace(/^(eth|ethereal)\s+/i, '').toLowerCase();
     if (!n) return null;
@@ -45970,7 +45997,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!db || !db.b) return null;
     if (!db._handBaseByName){
       var map = {};
-      Object.keys(db.b).forEach(function(k){ var r = db.b[k]; if (r && r[0]) map[String(r[0]).toLowerCase()] = String(r[0]); });
+      Object.keys(db.b).forEach(function(k){ var r = db.b[k]; if (r && r[0] && _vaultHandGear(r)) map[String(r[0]).toLowerCase()] = String(r[0]); });
       db._handBaseByName = map;
     }
     return db._handBaseByName[n] || null;
@@ -46008,7 +46035,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* L1 — a catalogue name typed without its leading "The" or in another case ("stone of jordan") is that item. Hand door
      only, and only when the register's own resolution did not land on a drawn name. -> the ITEMS name, or null */
   function _vhAlias(name){
-    function k(x){ return String(x == null ? '' : x).trim().toLowerCase().replace(/[\u2018\u2019`]/g, "'").replace(/^the\s+/, ''); }
+    /* #144.12 - "Nightwings Veil" (no apostrophe) found nothing: the match drops apostrophes on both sides now */
+    function k(x){ return String(x == null ? '' : x).trim().toLowerCase().replace(/[\u2018\u2019`']/g, '').replace(/^the\s+/, ''); }
     var q = k(name);
     if (!q || typeof ITEMS === 'undefined') return null;
     var hit = ITEMS.filter(function(i){ return i && i.n && k(i.n) === q; });
@@ -46033,6 +46061,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var r = _vhResolve(raw, (opts && opts.kind) || null);
     if (!r.ok) return r;
     if (!_vaultKeeps(r.name)) { var al = _vhAlias(r.name); if (al && _vaultKeeps(al)) r = { ok: true, name: al }; } /* L1 alias */
+    /* #148.2 (GrokBot) - CASE VARIANTS. "GRIEF" and "Grief" were two owned names, "SHAKO" and "Shako" too: the name was
+       kept exactly as typed. A runeword takes its own spelling, and a base the catalogue spelling (an Eth / Ethereal
+       prefix kept as typed, capitalised), so one item is one owned name. */
+    if (!_vaultKeeps(r.name)) { var _hb = _vaultHandBase(r.name); if (_hb) r = { ok: true, name: _vaultHandBaseName(r.name, _hb) }; }
+    try { var _rw = (typeof window.findRuneword === 'function') ? window.findRuneword(r.name) : null;
+          if (_rw && String(_rw).toLowerCase() === String(r.name).toLowerCase()) r = { ok: true, name: String(_rw) }; } catch (eRw) {}
     if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */
       return { ok: false, refused: 'not-drawn', name: r.name,
                why: r.name + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
@@ -50642,17 +50676,30 @@ window.vaultAutoAssign = function(){
     try { window._repaintOwned(); } catch(e){}
     status('\ud83d\udcd6 removed ' + n + ' menu-read name(s) from owned');
   };
+  /* #154.14 (GrokBot) - MULE NAMES WERE UNCHECKED: "   " made a blank mule, and a second "WAR1" made two mules of one name
+     (both read as war mule 1). A name is trimmed, upper-cased and cut to 15 (the game's limit); an empty one, or one
+     another mule already has (any case), is refused and said. -> {ok, name} | {ok:false, why} */
+  function _vmNameOk(name, selfId){
+    var v = String(name == null ? '' : name).trim().toUpperCase().slice(0, 15);
+    if (!v) return { ok: false, why: 'a mule needs a name - nothing was changed' };
+    var clash = (roster || []).filter(function(x){ return x && x.id !== selfId && String(x.name || '').trim().toUpperCase() === v; })[0];
+    if (clash) return { ok: false, why: 'another mule is already called ' + v + ' - nothing was changed' };
+    return { ok: true, name: v };
+  }
+  try { window._vmNameOk = _vmNameOk; } catch (eVn) {}
   window.vaultAddMule = function(){
     var name=prompt('New mule name (this IS your in-game character name — make it say what it holds):','UNI-WEAP-2');
-    if (!name) return;
+    if (name == null) return;
+    var v = _vmNameOk(name, null); if (!v.ok){ try { status('\u26a0 ' + v.why); } catch (eS) {} return; }
     var id='m'+Date.now().toString(36);
-    roster.push({id:id, name:name.toUpperCase().slice(0,15), icon:'📦', note:'', added:true}); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
+    roster.push({id:id, name:v.name, icon:'📦', note:'', added:true}); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
   };
   window.vaultRenameMule = function(id){
     var m=muleById(id); if(!m) return;
-    var name=prompt('Rename mule:', m.name); if(!name) return;
+    var name=prompt('Rename mule:', m.name); if(name == null) return;
+    var v = _vmNameOk(name, id); if (!v.ok){ try { status('\u26a0 ' + v.why); } catch (eS) {} return; }
     try { if (window._vaultWarRole) window._vaultWarRole(m); } catch (eWr) {} /* L1 the role rides the id, not the name */
-    m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
+    m.name=v.name; saveR(); renderVault();
   };
   // REG-2195 (GrokBot batch K) — only a mule HE added can be deleted. A core locker (uni-weap, magic-rare, …)
   // has no delete button and this door refuses it, so a mis-click can never drop his taxonomy. Added mules
@@ -51194,16 +51241,23 @@ window.vaultAutoAssign = function(){
     box.innerHTML = head + body;
   }
   try { window.renderShareSettings = renderShareSettings; } catch(e){}
+  /* #152.1 (GrokBot sweep, HIGH) - THE SHARED SWITCH ALWAYS FAILED. Its witness said at: Date.now(), a number, and the
+     witness check reads at with Date.parse(String(at)) -> NaN -> refused "is not a date", so no tick ever moved an item.
+     And the override was written before the filing and kept when the filing was refused, so the row showed a tick the
+     vault never acted on. The witness says an ISO time now; a refused filing puts the old override back; an item not on
+     his owned list only records the preference (the switch never files - and so never owns - an item he does not have). */
   window.vaultShareToggle = function(name, want){
     try {
+      var _ov0 = _shareOverride(name);
       _setShareOverride(name, want ? 'shared' : 'mule');
       var target = want ? 'shared' : ((suggestMule(name) || {}).id);
       var ok = (target === 'shared') || (typeof _vHomeOk === 'function' ? _vHomeOk(target) : (target && String(target).indexOf('__') !== 0));
-      if (ok){
-        var w = { by:'hand', at: Date.now(), where:'Shared-stash switch — your click' };
+      var mine = (typeof owned !== 'undefined' && owned && owned.has(name));
+      if (ok && mine){
+        var w = { by:'hand', at: new Date().toISOString(), where:'Shared-stash switch — your click' };
         var filed = (typeof assign !== 'undefined' && assign[name] != null);
         var r = filed ? window.vaultFile(name, w, { move:true, mule:target }) : window.vaultFile(name, w, { mule:target });
-        if (r && !r.ok){ var st = document.getElementById('vault-status'); if (st) st.textContent = esc(name) + ': ' + (r.why || r.refused || 'not moved'); }
+        if (r && !r.ok){ _setShareOverride(name, _ov0); var st = document.getElementById('vault-status'); if (st) st.textContent = name + ': ' + (r.why || r.refused || 'not moved'); }
       }
     } catch(e){}
     try { renderVault(); } catch(e){}
@@ -83301,6 +83355,15 @@ window.tvStashAutoIntake = async function(tab, opts){
   function paint() {
     try { if (typeof switchTab === 'function') switchTab('chars'); } catch (e) {}
   }
+  /* GrokBot 22:07 (MED): own console -> Vault -> Fleet -> see the ALT -> Leave lit VAULT on the header while this board
+     showed CHARACTERS - leave called paint(). The console now sends the tab it remembered, and the board goes back to
+     it. A console-native view (TV·D, Sessions) or an older console that sends no tab keeps the old paint. */
+  function backTo(tab) {
+    var t = String(tab || '');
+    if (!t || t === 'tvd' || t === 'session' || !document.getElementById('tab-' + t)) return false;
+    try { if (typeof switchTab === 'function') { switchTab(t); return true; } } catch (e) {}
+    return false;
+  }
   function ready(owner) {
     try { parent.postMessage({ type: 'tvd-shadow-ready', owner: owner || '' }, window.location.origin); } catch (e) {}
   }
@@ -83315,7 +83378,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     if (ev.origin !== window.location.origin) return;
     var data = ev.data;
     if (!data || data.type !== 'tvd-shadow') return;
-    if (data.leave) { disarm(); paint(); return; }
+    if (data.leave) { disarm(); if (!backTo(data.tab)) paint(); return; }
     if (data.pending) {
       arm(veil());
       var pendingNote = document.getElementById('tvd-shadow-note');

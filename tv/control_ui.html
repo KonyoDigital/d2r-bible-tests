@@ -28233,8 +28233,9 @@ function escC(s) {
     var bar = document.getElementById('shadow-bar');
     if (bar) bar.setAttribute('hidden', '');
     var f = document.getElementById('tvd-eng');
+    var _backTab = document.body.getAttribute('data-shadow-tab') || '';   /* GrokBot 22:07 - the board goes back to it */
     try {
-      f.contentWindow.postMessage({ type: 'tvd-shadow', leave: true }, window.location.origin);
+      f.contentWindow.postMessage({ type: 'tvd-shadow', leave: true, tab: _backTab }, window.location.origin);
     } catch (e) {}
     var showed = document.body.getAttribute('data-shadow-shown') === '1';
     document.body.removeAttribute('data-shadow-shown');

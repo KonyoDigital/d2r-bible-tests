@@ -7,6 +7,31 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2674 - LEAVING A SHADOW LIT ONE TAB AND SHOWED ANOTHER (GrokBot's 22:07 pass, MED)
+Own console -> Vault -> Fleet -> see the ALT -> Leave: the header lit VAULT (the tab _shadowRemember kept) and the board
+showed CHARACTERS, because the board's leave handler called paint() = switchTab('chars') unconditionally. _shadowLeave now
+sends the remembered tab with the leave message and the board goes back to it (backTo); a console-native view or an older
+console keeps the old paint. Also from the same pass: TV·D's LIVE / LAST SESSION switch (_tvdHistTab) and a Tools card's
+fold header (toggleCardCollapse, beside a render call) only move the view and pass the shadow's veil now. Laws:
+test_leaving_a_shadow_goes_back_to_the_tab_it_lights, test_shadow_mode_reads_their_console.
+
+### REG-2673 - THE VAULT'S DOORS TOOK WHAT WAS NOT HIS, UNDER MORE THAN ONE NAME (GrokBot vault sweeps, #144 #148 #152 #154)
+Reproduced on the whole page in node, each through its real door:
+- #152.1 the Shared-stash switch never moved an item: its witness said at: Date.now() (a number) and the check reads
+  Date.parse(String(at)) -> "is not a date". The witness is an ISO time; a refused filing puts the old override back; an
+  item not on his owned list only records the preference.
+- #144.1+8 ghost items: Minor Healing Potion, Jewel, Grand Charm, Khalim's Eye, Ber Rune, Diablo's Horn added as owned (every
+  catalogue row was a hand-add base). A hand-typed base is armor or a weapon that can drop (_vaultHandGear).
+- #148.2 GRIEF/grief/Grief and SHAKO/Shako were separate owned names: a runeword takes its own spelling, a base the
+  catalogue's (Eth / Ethereal kept as typed).
+- #144.12 "Nightwings Veil" was refused: the alias match drops apostrophes.
+- #148.4 assigning a name he does not own filed it AND owned it: refused, nothing written.
+- #154.14 a blank mule name, and a second mule with a taken name, were accepted (_vmNameOk).
+- #148.3 "Spirit" in Multi-copy Keepers added Spirit Forge: a beginning counts only when one item begins that way.
+- #154.16 FIND: "tal rashas" found nothing (apostrophes dropped both sides); a hand-added base is in FIND's pool.
+Left for his rulings: SHARED STASH renames, "Superior <base>", "Shako" alone meaning Harlequin Crest, keepers for runewords.
+Law: test_the_vault_doors_take_only_what_is_his (RED on the v3812 page; 10 red-proofs).
+
 ### REG-2672 - THE SHADOW'S TV·D COULD GO LIVE ON THE VIEWER'S OWN CAPTURE AGENT (GrokBot bug 5, 2026-10-27)
 The shadow frame refused writes and every /api/ path, but the board's TV·D probe asks http://127.0.0.1:17771/ping (the
 VIEWER's capture agent) and polls /state: a GET with no /api/ in it, so it passed. In a shadow, TV·D could show the

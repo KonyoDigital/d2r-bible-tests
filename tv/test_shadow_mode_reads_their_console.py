@@ -1830,6 +1830,8 @@ function run(parentSnap, search) {
   res.links = { runs: fire(mk("window.funiSetFilter('runs')")), sets: fire(mk("window.fsetsSetFilter('runs')")),
                 recipe: fire(mk("window.forgeSetFilter&&window.forgeSetFilter('crafts');try{window.forgeCraftToggle&&window.forgeCraftToggle('blood')}catch(e){}")),
                 legend: fire(mk("window.forgeLegendToggle()")), tool: fire(mk("window._toolJump('gem-stash-card')")),
+                hist: fire(mk("window._tvdHistTab('last')")),
+                fold: fire(mk("window.toggleCardCollapse('smart-insights-card'); window.renderSmartInsights&&window.renderSmartInsights();")),
                 gotBase: fire(mk("window.forgeGotBase(this,'Spirit','Monarch',4)")) };
   const claimEl = { id: 'claim-btn', getAttribute() { return null; }, matches() { return false; },
     closest(sel) { return String(sel).indexOf('#claim') !== -1 ? this : null; } };
@@ -1944,7 +1946,7 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
         # GrokBot bugs 2+3 - "Best runs ->", "open recipe" and the Tools chips move the view in the shadow too
         lk = self.r["links"]
-        for k in ("runs", "sets", "recipe", "legend", "tool"):
+        for k in ("runs", "sets", "recipe", "legend", "tool", "hist", "fold"):
             self.assertFalse(lk[k], "the view link %r was stopped in the shadow: %r" % (k, lk))
         self.assertTrue(lk["gotBase"], "a forge write (got the base) passed the veil: %r" % lk)
         self.assertTrue(self.r["claimStopped"], "a click on the claim button was not stopped in the shadow frame")
@@ -2072,7 +2074,11 @@ RED_PROOF = [
      "replace": "return refused(); }", "matches": 1, "needs": "node"},
     {"why": "GrokBot bugs 2+3 - the Tools chips and the forge/uniques/sets filters are stopped in the shadow again",
      "file": "bible.html",
-     "find": "                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump'];\n",
+     "find": "                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump',\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "GrokBot 22:07 - TV·D's LIVE / LAST SESSION and the Tools card folds are stopped in the shadow again",
+     "file": "bible.html",
+     "find": "                '_tvdHistTab', 'toggleCardCollapse'];\n",
      "replace": "                ];\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: MOVE TASKS and the ADVANCED panes stay shut in the vault",
      "file": "bible.html",
