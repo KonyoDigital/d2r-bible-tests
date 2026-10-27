@@ -13,9 +13,17 @@ RED_PROOF below.
 import io
 import os
 import re
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
 
 # a separator glued straight onto a published lane's sentence, in either string form the page uses
