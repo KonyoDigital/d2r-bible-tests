@@ -23161,12 +23161,13 @@ try {
     }
     /* L-4 — what KIND of thing the row says it read (its own store), so a bare name several known items share can be settled */
     var kindH = row.kind ? String(row.kind) : (row.store === 'rwMade' ? 'runeword' : (row.store === 'foundLog' ? 'unique' : (row.store === 'setPieces' ? 'set' : null)));
+    var _liveSid = String(row.sessionId || '').trim();
+    var _liveFid = String(h.frame || '').trim();
     var wit = { lane: String(h.loc).trim().toLowerCase(), by: String(row.source || 'kai-register'),
                 door: row.door || null, scene: h.scene || null, tier: row.tier || null, kind: kindH,
                 at: h.ts || row.firstSeenTs || row.ts || null,
                 carried: v.route === 'carried', character: row.character || null,
-                sessions: [{ session: String(row.sessionId || ''), frame: String(h.frame || '') || null,
-                             conf: (typeof row.conf === 'number') ? row.conf : null }] };
+                sessions: [{ session: _liveSid || null, frame: _liveFid || null, conf: null }] };
     var r = null;
     try { r = window.tvVaultRegister(nm, wit); } catch (e) { r = { ok: false, why: String(e && e.message || e) }; }
     out.register = r;
@@ -47376,11 +47377,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* A reel sighting is one look: lane, cell, frame and session on the witness itself. The filer
      and the receipt read sessions[], so the frame becomes one look before the register runs.
      A hand add is left as it arrived. The same session and frame is not a second look. */
+  function _vaultLiveWitness(rd){
+    /* The read's conf is the frame's score, copied onto every name in that frame.
+       It is not this item's confidence. An empty session or an empty frame is not a look. */
+    rd = (rd && typeof rd === 'object') ? rd : {};
+    var session = String(rd.sessionId || rd.session || '').trim();
+    var frame = String(rd.frameId || rd.frame_id || rd.frame || '').trim();
+    var one = { conf: null };
+    if (session) one.session = session;
+    if (frame) one.frame = frame;
+    return { lane: 'stash', by: 'tv-live', sessions: [one] }; /* live witness frame */
+  }
+  window._vaultLiveWitness = _vaultLiveWitness;
   function _vaultIntakeLook(w){
     if (!w || typeof w !== 'object' || Array.isArray(w)) return w;
     if (w.by === 'hand' || w.source === 'hand') return w;
-    var frame = w.frame || w.frameId || null;
-    var session = w.session || w.sessionId || w.reel || w.sid || null;
+    var src0 = Array.isArray(w.sessions) ? w.sessions : (Array.isArray(w.witnesses) ? w.witnesses : (Array.isArray(w.looks) ? w.looks : []));
+    var carried = null;
+    for (var s = 0; s < src0.length; s++){
+      var ent = src0[s];
+      if (!ent || typeof ent !== 'object') continue;
+      var es0 = String(ent.session || ent.sessionId || ent.witness || ent.reel || ent.sid || ent.id || '').trim();
+      var ef0 = String(ent.frame || ent.frameId || '').trim();
+      if (es0 && ef0){ carried = { session: es0, frame: ef0 }; break; }
+    }
+    var frame = String(w.frame || w.frameId || (carried && carried.frame) || '').trim();
+    var session = String(w.session || w.sessionId || w.reel || w.sid || (carried && carried.session) || '').trim();
     if (!frame || !session) return w;
     var src = Array.isArray(w.sessions) ? w.sessions : (Array.isArray(w.witnesses) ? w.witnesses : (Array.isArray(w.looks) ? w.looks : []));
     var list = src.slice();
@@ -52216,10 +52238,29 @@ window.vaultAutoAssign = function(){
     var loc = String((place && place.location) || '').toLowerCase();
     return loc === 'equipment' || loc === 'equipped';
   }
+  function _vaultMoveMainLane(loc){
+    var lane = String(loc || '').trim().toLowerCase();
+    if (lane === 'inv') lane = 'inventory';
+    var main = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
+    if (typeof _WIT_MAIN === 'object' && _WIT_MAIN) main = _WIT_MAIN;
+    return !!main[lane];
+  }
   function _vaultMoveShown(task){
     var t = _vaultMoveTask(task);
     if (t.status === 'closed') return false; /* L1 a drained row is done */
-    if (t.kind === 'throw') return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
+    if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */
+    if (t.kind === 'throw') {
+      /* An unknown name has no home and no cell to move to. A junk row he ruled still shows. */
+      var _ruled = false;
+      try { _ruled = (typeof assign !== 'undefined' && assign && assign[t.name] === '__throwout'); } catch (eRule) { _ruled = false; }
+      if (!_ruled) {
+        var _hm = null;
+        try { _hm = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name, 0) : null; } catch (eHm) { _hm = null; }
+        var _sharedHome = !!(_hm && (_hm.id === 'shared' || _hm.location === 'shared'));
+        if (!_sharedHome && (!_hm || _hm.id == null || _hm.id === 'main')) return false;
+      }
+      return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
+    }
     if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
     if (t.manual && t.status === 'to-move' && t.to && t.to.holder != null && t.to.cell == null) return true; /* L1 a hand add always has its row, even with no room */
     if (t.status === 'moved-manual' && t.undo && t.to && t.to.holder != null && t.to.cell == null) return true; /* Vault v2 — his tick on a no-room row stays in Done, so it can be unticked */
@@ -52665,10 +52706,23 @@ window.vaultAutoAssign = function(){
     rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : { records: [] };
     (rec.records || []).forEach(function(r){
       if (!r || r.name == null) return;
+      var _sightLane = (r.sight && (r.sight.location || r.sight.lane)) || '';
+      var _autoRow = null;
+      try { _autoRow = _vaultMoveAutoRow(r.name, { lane: _sightLane, cell: r.sight && r.sight.cell }); }
+      catch (eAuto) { _autoRow = null; }
+      if (_autoRow && _autoRow.row === false) {
+        /* A junk row he ruled still gets its throw. A main lane and an unknown name do not. */
+        var _ruledJunk = false;
+        if (_autoRow.why !== 'main') {
+          try { _ruledJunk = (typeof assign !== 'undefined' && assign && assign[r.name] === '__throwout'); } catch (eRuleC) { _ruledJunk = false; }
+        }
+        if (!_ruledJunk) return; /* main lane or no home: no move row */
+      }
       var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
       var hasSight = !!(r.sight && r.sight.cell);
       var thr = (typeof _vaultThrowTask === 'function') ? _vaultThrowTask(r, stored) : null;
       if (thr) {
+        if (_vaultMoveMainLane(thr.task.from && thr.task.from.location)) return; /* a stored inventory from stays locked */
         if (thr.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task });
         if (_vaultMoveShown(thr.task)) shown.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task,
           witnesses: r.sight ? r.sight.witnesses : null });
@@ -52677,6 +52731,7 @@ window.vaultAutoAssign = function(){
       } /* L1 a junk route is a THROW OUT row, never a dock chip */
       if (!stored && !hasSight && !_vaultMisfiled(r.name)) return; /* L1 a misfiled item gets its move row */
       var ens = _vaultMoveEnsure(r.name, r.copyIx || 0, bag);
+      if (_vaultMoveMainLane(ens.task.from && ens.task.from.location)) return; /* an ensured inventory from stays locked */
       if (ens.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task });
       if (ens.task.status === 'closed') done.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task }); /* L1 done collapsed */
       if (_vaultMoveShown(ens.task)) shown.push({
@@ -77813,9 +77868,8 @@ window.tvStashAutoIntake = async function(tab, opts){
           var _tMeta = { sid: rd.sessionId || '', frameId: rd.frameId || rd.frame_id || '' };
           /* #246 — the live read is ONE look in his stash; handed to the vault door, which files it only when a
              second independent look joins it. Until then the pickup is owned and waits in the dock. */
-          var _liveW = { lane: 'stash', by: 'tv-live',
-                         sessions: [{ session: rd.sessionId || '', frame: rd.frameId || rd.frame_id || '',
-                                      conf: (typeof rd.conf === 'number') ? rd.conf : null }] };
+          var _liveW = (typeof window._vaultLiveWitness === 'function') ? window._vaultLiveWitness(rd)
+                         : { lane: 'stash', by: 'tv-live', sessions: [] };
           window.__tvLiveW = _liveW;
           vaultList.forEach(function(n){ if (window.tvToolsDelta) window.tvToolsDelta(n, +1, _tMeta); });
           unvaultList.forEach(function(n){ if (window.tvToolsDelta) window.tvToolsDelta(n, -1, _tMeta); });

@@ -281,6 +281,289 @@ console.log(JSON.stringify({
         self.assertIn("window._vaultRecordsPersist", wrap)
         self.assertIn("window._vaultMoveAutoRow", wrap)
 
+    def test_a_live_frame_counts_and_two_sessions_file(self):
+        """The read's score is the frame's, copied onto every name. It is not a look's confidence.
+
+        Two sessions with that score file. One session stays owned and unfiled. An empty
+        session is not a look. A look that itself carries a confidence under the floor still fails.
+        """
+        self.assertEqual(self.src.count("/* live witness frame */"), 1)
+        self.assertEqual(self.src.count(
+            "var _liveW = (typeof window._vaultLiveWitness === 'function') ? window._vaultLiveWitness(rd)"), 1)
+        self.assertEqual(self.src.count(
+            "sessions: [{ session: _liveSid || null, frame: _liveFid || null, conf: null }]"), 1)
+        prog = "\n".join([
+            "var window = globalThis;",
+            "var PROV_KEY = 'd2r_vaultProv';",
+            "var assign = {};",
+            "var owned = new Set();",
+            "var store = {};",
+            "function _provAll(){ return store; }",
+            "function _provWrite(all){ store = all; }",
+            "function _vHomeOk(id){ return id === 'uni-weap'; }",
+            "function _vHomeName(id){ return 'UNI-WEAPONS'; }",
+            "function _vMainName(){ return 'MAIN'; }",
+            "function _vNoHomeWhy(nm){ return nm + ' has no mule'; }",
+            "function saveA(){ return true; }",
+            "function persistOwned(){}",
+            "window._consumable = function(){ return false; };",
+            "window.LSR = {};",
+            "window.D2R_BUILD = { id: 'law' };",
+            _fn(self.src, "_str"),
+            _fn(self.src, "_num"),
+            _fn(self.src, "_iso"),
+            _fn(self.src, "_receipt"),
+            _fn(self.src, "_lookConf"),
+            _var(self.src, "_WIT_STASH"),
+            _var(self.src, "_WIT_MAIN"),
+            _var(self.src, "VAULT_WITNESS_FLOOR"),
+            _var(self.src, "VAULT_WITNESS_MIN"),
+            _var(self.src, "VAULT_RETRO_KEEP_MIN"),
+            _assigned(self.src, r"window\._vaultWitnessCheck\s*=\s*function\s*\("),
+            _fn(self.src, "_vaultLiveWitness"),
+            _fn(self.src, "_vaultIntakeLook"),
+            _fn(self.src, "_receiptStashWitness"),
+            _assigned(self.src, r"window\.vaultFile = function\(name, witness, opts\)\{"),
+            r"""
+function live(rd){
+  return _vaultIntakeLook(_vaultLiveWitness(rd));
+}
+function keep(name, wit){
+  var look = wit.sessions[0];
+  store[name] = _receipt({
+    source: 'tv-live', by: 'tvVaultRegister', loc: 'stash',
+    sessionId: look.session || null, frameId: look.frame || null, conf: look.conf
+  }, 1700000000000, true);
+}
+var first = live({ conf: 0.45, sessionId: 'sess-a', frameId: 'frame-a' });
+var second = live({ conf: 0.45, sessionId: 'sess-b', frameId: 'frame-b' });
+keep('Thresher', first);
+var gathered = _receiptStashWitness('Thresher', second);
+var judged = window._vaultWitnessCheck(gathered);
+var oneCheck = window._vaultWitnessCheck(first);
+var oneFile = window.vaultFile('Spirit', first, { mule: 'uni-weap' });
+var filed = window.vaultFile('Thresher', gathered, { mule: 'uni-weap' });
+keep('Treachery', first);
+var again = live({ conf: 0.45, sessionId: 'sess-a', frameId: 'frame-c' });
+var sameG = _receiptStashWitness('Treachery', again);
+var same = window._vaultWitnessCheck(sameG);
+var sameFile = window.vaultFile('Treachery', sameG, { mule: 'uni-weap' });
+var empty = live({ conf: 0.45, sessionId: '   ', frameId: 'frame-a' });
+var emptyJ = window._vaultWitnessCheck(empty);
+var low = window._vaultWitnessCheck({ lane: 'stash', by: 'reader', sessions: [
+  { session: 'sess-a', frame: 'frame-a', conf: 0.40 },
+  { session: 'sess-b', frame: 'frame-b', conf: 0.40 }
+]});
+var copied = window._vaultWitnessCheck({ lane: 'stash', by: 'reader', sessions: [
+  { session: 'sess-a', frame: 'frame-a', conf: 0.45 },
+  { session: 'sess-b', frame: 'frame-b', conf: 0.45 }
+]});
+console.log(JSON.stringify({
+  conf: first.sessions[0].conf,
+  session: first.sessions[0].session,
+  frame: first.sessions[0].frame,
+  judgedOk: judged.ok,
+  looks: judged.ok ? judged.sessions.length : judged.looks,
+  filed: !!(filed && filed.ok),
+  filedMode: filed && filed.mode,
+  mule: assign.Thresher || null,
+  oneOk: oneCheck.ok,
+  oneLooks: oneCheck.looks,
+  oneRefused: oneFile && oneFile.refused,
+  spirit: assign.Spirit || null,
+  sameOk: same.ok,
+  sameLooks: same.looks,
+  treachery: assign.Treachery || null,
+  emptySession: empty.sessions[0].session || null,
+  emptyLooks: emptyJ.looks,
+  emptyOk: emptyJ.ok,
+  lowLooks: low.looks,
+  lowOk: low.ok,
+  copiedLooks: copied.looks,
+  copiedOk: copied.ok,
+  min: VAULT_WITNESS_MIN
+}));
+""",
+        ])
+        # The receipt written for Thresher is replaced when the filing succeeds. Read it before that
+        # by asking the program for the look it stored. The print above lost that row, so judge the
+        # stored confidence from a second, smaller run that stops before vaultFile.
+        o = self._run(prog)
+        self.assertIsNone(o["conf"])
+        self.assertEqual(o["session"], "sess-a")
+        self.assertEqual(o["frame"], "frame-a")
+        self.assertTrue(o["judgedOk"], o)
+        self.assertEqual(o["looks"], 2)
+        self.assertTrue(o["filed"], o)
+        self.assertEqual(o["filedMode"], "filed")
+        self.assertEqual(o["mule"], "uni-weap")
+        self.assertFalse(o["oneOk"])
+        self.assertEqual(o["oneLooks"], 1)
+        self.assertEqual(o["oneRefused"], "witness")
+        self.assertIsNone(o["spirit"])
+        self.assertFalse(o["sameOk"])
+        self.assertEqual(o["sameLooks"], 1)
+        self.assertIsNone(o["treachery"])
+        self.assertIsNone(o["emptySession"])
+        self.assertEqual(o["emptyLooks"], 0)
+        self.assertFalse(o["emptyOk"])
+        self.assertEqual(o["lowLooks"], 0)
+        self.assertFalse(o["lowOk"])
+        self.assertEqual(o["copiedLooks"], 0)
+        self.assertFalse(o["copiedOk"])
+        self.assertEqual(o["min"], 2)
+        receipt = self._run("\n".join([
+            "var window = globalThis;",
+            "window.D2R_BUILD = { id: 'law' };",
+            _fn(self.src, "_str"),
+            _fn(self.src, "_num"),
+            _fn(self.src, "_iso"),
+            _fn(self.src, "_receipt"),
+            _fn(self.src, "_vaultLiveWitness"),
+            r"""
+var w = _vaultLiveWitness({ conf: 0.45, sessionId: 'sess-a', frameId: 'frame-a' });
+var look = w.sessions[0];
+var row = _receipt({
+  source: 'tv-live', by: 'tvVaultRegister', loc: 'stash',
+  sessionId: look.session, frameId: look.frame, conf: look.conf
+}, 1700000000000, true);
+console.log(JSON.stringify({ conf: row.looks[0].conf, id: row.looks[0].id, frame: row.looks[0].frame, kind: row.kind }));
+""",
+        ]))
+        self.assertIsNone(receipt["conf"])
+        self.assertEqual(receipt["id"], "sess-a")
+        self.assertEqual(receipt["frame"], "frame-a")
+        self.assertEqual(receipt["kind"], "owned")
+
+    def test_inventory_and_an_unknown_name_are_not_move_rows(self):
+        prog = "\n".join([
+            "var window = globalThis;",
+            "var assign = {};",
+            "var homes = {",
+            "  'Thresher': { id: 'uni-weap', holder: 'UNI-WEAPONS', location: 'stash' },",
+            "  'Treachery': { id: 'shared', holder: 'SHARED STASH', location: 'shared' }",
+            "};",
+            "function _vaultMoveHome(name){ return homes[name] || { id: null, holder: null, location: null }; }",
+            "function muleById(){ return null; }",
+            "function _vaultSeamHome(){ return window._seam || null; }",
+            "function suggestMule(){ return null; }",
+            "function _vaultMisfiled(){ return false; }",
+            "function _vaultMoveBag(){ return { map: {}, prior: { records: [] }, unread: false }; }",
+            "function _vaultRecords(){ return { records: window._recs || [] }; }",
+            "function _vaultMoveCommit(list){ window._committed = (window._committed || []).concat(list || []); return { ok: true, wrote: true }; }",
+            "function _vaultMoveGroup(rows){ return rows || []; }",
+            "function _vaultMoveLocks(){ return []; }",
+            "function _vaultMoveEnsure(name){",
+            "  var fromLoc = window._ensFrom || 'stash';",
+            "  var home = _vaultMoveHome(name);",
+            "  return { fresh: true, task: _vaultMoveTask({",
+            "    name: name, status: 'to-move', manual: false,",
+            "    from: { holder: 'MAIN', location: fromLoc, cell: fromLoc + ':c1r1' },",
+            "    to: { holder: home.holder || 'UNI-WEAPONS', location: home.location || 'stash', cell: 'stash:c0r0', id: home.id }",
+            "  }) };",
+            "}",
+            _fn(self.src, "_vaultMovePlace"),
+            _fn(self.src, "_vaultMoveSamePlace"),
+            _fn(self.src, "_vaultMoveTask"),
+            _fn(self.src, "_vaultMoveWorn"),
+            _fn(self.src, "_vaultMoveOnKeep"),
+            _fn(self.src, "_vaultMoveMainLane"),
+            _fn(self.src, "_vaultMoveAutoRow"),
+            _fn(self.src, "_vaultMoveShown"),
+            _fn(self.src, "_vaultThrowReason"),
+            _fn(self.src, "_vaultThrowRoute"),
+            _fn(self.src, "_vaultThrowTask"),
+            _fn(self.src, "_vaultMoveCollect"),
+            r"""
+function task(spec){ return _vaultMoveTask(spec); }
+var invThrow = _vaultMoveShown(task({
+  name: 'Thresher', kind: 'throw', status: 'to-move',
+  from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c0r0' }, to: {}
+}));
+var equipped = _vaultMoveShown(task({
+  name: 'Thresher', status: 'to-move',
+  from: { holder: 'MAIN', location: 'equipped', cell: 'equipped:weapon' },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0', id: 'uni-weap' }
+}));
+var invFilled = _vaultMoveShown(task({
+  name: 'Thresher', status: 'to-move',
+  from: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c1r1' },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0', id: 'uni-weap' }
+}));
+var unknown = _vaultMoveShown(task({
+  name: 'Zzyzx Blade of Nothing', kind: 'throw', status: 'to-move',
+  from: { holder: null, location: 'stash', cell: 'stash:c1r1' }, to: {}
+}));
+var ruledOff = _vaultMoveShown(task({
+  name: 'Zzyzx Blade of Nothing', kind: 'throw', status: 'to-move',
+  from: { holder: null, location: 'stash', cell: 'stash:c1r1' }, to: {}
+}));
+assign['Zzyzx Blade of Nothing'] = '__throwout';
+var ruled = _vaultMoveShown(task({
+  name: 'Zzyzx Blade of Nothing', kind: 'throw', status: 'to-move',
+  from: { holder: null, location: 'stash', cell: 'stash:c1r1' }, to: {}
+}));
+var stash = _vaultMoveShown(task({
+  name: 'Thresher', status: 'to-move', manual: false,
+  from: { holder: 'MAIN', location: 'stash', cell: 'stash:c7r1' },
+  to: { holder: 'UNI-WEAPONS', location: 'stash', cell: 'stash:c0r0', id: 'uni-weap' }
+}));
+var shared = _vaultMoveShown(task({
+  name: 'Treachery', status: 'to-move', manual: false,
+  from: { holder: null, location: 'shared', cell: 'shared:c3r4' },
+  to: { holder: 'SHARED STASH', location: 'shared', cell: 'shared:c0r0', id: 'shared' }
+}));
+function collect(records){
+  window._recs = records;
+  window._committed = [];
+  var pack = _vaultMoveCollect();
+  pack.committed = (window._committed || []).map(function(x){ return x.name; });
+  return pack;
+}
+delete assign['Zzyzx Blade of Nothing'];
+var fromInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'inventory', cell: 'inventory:c0r2' } }]);
+var fromEquip = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'equipped', cell: 'equipped:weapon' } }]);
+var fromUnknown = collect([{ name: 'Zzyzx Blade of Nothing', copyIx: 0, sight: { location: 'stash', cell: 'stash:c1r1' } }]);
+var fromUnknownPlain = collect([{ name: 'Mystery Blade', copyIx: 0, sight: { location: 'stash', cell: 'stash:c2r2' } }]);
+assign['Zzyzx Blade of Nothing'] = '__throwout';
+window._seam = { loc: 'loose' };
+var fromRuled = collect([{ name: 'Zzyzx Blade of Nothing', copyIx: 0, sight: { location: 'stash', cell: 'stash:c1r1' } }]);
+window._seam = null;
+var fromStash = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1' } }]);
+var fromShared = collect([{ name: 'Treachery', copyIx: 0, sight: { location: 'shared', cell: 'shared:c3r4' } }]);
+window._ensFrom = 'inventory';
+var storedInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: '', cell: null } }]);
+function names(pack){ return (pack.tasks || []).map(function(r){ return r.name; }); }
+console.log(JSON.stringify({
+  invThrow: invThrow, equipped: equipped, invFilled: invFilled, unknown: unknown, ruledOff: ruledOff, ruled: ruled,
+  stash: stash, shared: shared,
+  fromInv: names(fromInv), fromEquip: names(fromEquip),
+  fromUnknown: names(fromUnknown), fromUnknownPlain: names(fromUnknownPlain),
+  fromRuled: names(fromRuled), fromStash: names(fromStash), fromShared: names(fromShared),
+  storedInv: names(storedInv),
+  committedUnknown: fromUnknownPlain.committed || []
+}));
+""",
+        ])
+        o = self._run(prog)
+        self.assertFalse(o["invThrow"])
+        self.assertFalse(o["equipped"])
+        self.assertFalse(o["invFilled"])
+        self.assertFalse(o["unknown"])
+        self.assertFalse(o["ruledOff"])
+        self.assertTrue(o["ruled"])
+        self.assertTrue(o["stash"])
+        self.assertTrue(o["shared"])
+        self.assertEqual(o["fromInv"], [])
+        self.assertEqual(o["fromEquip"], [])
+        self.assertEqual(o["fromUnknown"], [])
+        self.assertEqual(o["fromUnknownPlain"], [])
+        self.assertEqual(o["fromRuled"], ["Zzyzx Blade of Nothing"])
+        self.assertEqual(o["fromStash"], ["Thresher"])
+        self.assertEqual(o["fromShared"], ["Treachery"])
+        self.assertEqual(o["storedInv"], [])
+        self.assertEqual(o["committedUnknown"], [])
+
 
 RED_PROOF = [
     {"why": "An auto sighting with no from-cell is marked moved elsewhere again.",
@@ -302,6 +585,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "if (!_byHand && _witIn && typeof window._vaultIntakeLook === 'function') _witIn = window._vaultIntakeLook(_witIn); /* auto intake look */",
      "replace": "/* auto intake look */",
+     "matches": 1},
+    {"why": "The live read's score is copied onto every item, so two sessions count as zero looks.",
+     "file": "bible.html",
+     "find": "    var one = { conf: null };",
+     "replace": "    var one = { conf: rd.conf };",
+     "matches": 1},
+    {"why": "Inventory and equipped gear still get a move row.",
+     "file": "bible.html",
+     "find": "    if (_vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
+     "replace": "    if (false && _vaultMoveMainLane(t.from && t.from.location)) return false; /* inventory and equipped stay locked */",
+     "matches": 1},
+    {"why": "An unknown name with no home still gets a move row.",
+     "file": "bible.html",
+     "find": "        if (!_ruledJunk) return; /* main lane or no home: no move row */",
+     "replace": "        if (false && !_ruledJunk) return; /* main lane or no home: no move row */",
      "matches": 1},
 ]
 
