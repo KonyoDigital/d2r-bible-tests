@@ -91,8 +91,22 @@ class ASlowCharacterReadStillReachesTheShadow(unittest.TestCase):
             for k in SNAP.API_FIELDS["chars_learned"]:
                 self.assertIn(k, got, "the upload lost a field the shadow keeps: %s" % k)
             full = self.CA.chars_learned_answer()
-            self.assertFalse(full["ok"], "PREMISE: the route's whole answer no longer asks status()")
+            self.assertIn("statusWhy", full, "PREMISE: the route's whole answer no longer asks status()")
         self.assertEqual(calls["status"], 1)
+
+    def test_a_raising_status_is_its_own_unknown(self):
+        """the Grok eye on v3814: status() raising failed the whole /api/chars_learned answer"""
+        import char_select as CS
+
+        def _boom():
+            raise OSError("a frame glob")
+
+        with mock.patch.object(CS, "load", lambda: {"chars": {}}), mock.patch.object(CS, "learned", lambda d: []), \
+                mock.patch.object(CS, "status", _boom):
+            full = self.CA.chars_learned_answer()
+        self.assertTrue(full["ok"], "a raising status() failed the whole answer: %r" % full)
+        self.assertIsNone(full["status"])
+        self.assertIn("OSError", full["statusWhy"])
 
     def test_nothing_is_asked_inside_the_gap(self):
         reads = []
@@ -148,6 +162,26 @@ OUT.before = W._cbSections({}, []);
 W._cbLearnedFetch(function(){});          /* the harness's fetch never answers: the ask stays in flight */
 OUT.asking = W._cbLearnedAskingNow();
 OUT.during = W._cbSections({}, []);
+/* the Grok eye on v3814 - an answer that is not ok never replaces one that is */
+W._cbLearnedTakeForLaw({ ok: true, chars: [] });
+W._cbLearnedTakeForLaw({ ok: false, chars: null, why: 'the learner raised OSError' });
+OUT.kept = W._cbSections({}, []).state;
+})();
+"""
+
+TWO_ASKS = r"""
+(function(){
+/* a synchronous stand-in for fetch(...).then(json).then(ok, err): each ask's callbacks are kept and settled by hand */
+var W = window, pend = [];
+fetch = function(){ var c = {}; var t2 = { then: function(ok, err){ c.ok = ok; c.err = err; return t2; } };
+  pend.push(c); return { then: function(f){ c.map = f; return t2; } }; };
+W._cbLearnedFetch(function(){}); W._cbLearnedFetch(function(){});
+OUT.two = W._cbLearnedAskingNow();
+pend[0].err(new Error('net'));
+OUT.afterFirst = W._cbLearnedAskingNow();
+OUT.whyAfterFirst = W._cbSections({}, []).why;
+pend[1].ok({ ok: true, chars: [] });
+OUT.afterBoth = W._cbLearnedAskingNow();
 })();
 """
 
@@ -164,9 +198,29 @@ class TheCharactersRoomSaysItIsAsking(unittest.TestCase):
         self.assertTrue(o["asking"], "PREMISE: the ask did not start")
         self.assertTrue(o["during"]["asking"], "the room did not say it is asking: %r" % o["during"])
         self.assertIn("asking this console", o["during"]["why"])
+        self.assertEqual(o["kept"], "none", "a late failed answer replaced a good one (the Grok eye on v3814)")
+
+    def test_the_first_ask_to_settle_does_not_end_the_other(self):
+        o = VPN.run(TWO_ASKS, timeout=300)
+        self.assertTrue(o["two"])
+        self.assertTrue(o.get("afterFirst"), "the first ask to fail ended 'asking' while the second was in flight: %r" % o)
+        self.assertIn("asking this console", o.get("whyAfterFirst") or "")
+        self.assertFalse(o["afterBoth"], "asking outlived both answers")
 
 
 RED_PROOF = [
+    {"why": "the Grok eye on v3814 - a late failed answer replaces a good list again",
+     "file": "bible.html",
+     "find": "    if (d.ok === true || !(_cbLearned && _cbLearned.ok === true)) _cbLearned = d;\n",
+     "replace": "    _cbLearned = d;\n", "matches": 1, "needs": "node"},
+    {"why": "the Grok eye on v3814 - the first ask to settle ends 'asking' for both again",
+     "file": "bible.html",
+     "find": "        _cbLearnedAsking = Math.max(0, _cbLearnedAsking - 1); _cbLearnedTake(d); if (then) then(); };\n",
+     "replace": "        _cbLearnedAsking = 0; _cbLearnedTake(d); if (then) then(); };\n", "matches": 1, "needs": "node"},
+    {"why": "the Grok eye on v3814 - a raising status() fails the whole answer again",
+     "file": "tv/control_app.py",
+     "find": "            except Exception as _se:\n                out[\"status\"], out[\"statusWhy\"] = None, \"the learner's status raised %s\" % type(_se).__name__\n",
+     "replace": "            except Exception:\n                raise\n", "matches": 1},
     {"why": "#203 - the upload builds the route's whole answer again, frame glob and all",
      "file": "tv/control_app.py",
      "find": "    return chars_learned_answer(full=False)\n",
@@ -194,7 +248,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "GrokBot bug 6 - the Characters room says UNKNOWN while the console is still answering",
      "file": "bible.html",
-     "find": "    var tpls = _cbTemplates(), state, why = '', asking = !_cbLearned && _cbLearnedAsking;\n",
+     "find": "    var tpls = _cbTemplates(), state, why = '', asking = !_cbLearned && _cbLearnedAsking > 0;\n",
      "replace": "    var tpls = _cbTemplates(), state, why = '', asking = false;\n",
      "matches": 1, "needs": "node"},
 ]

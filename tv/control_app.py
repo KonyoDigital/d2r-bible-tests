@@ -5055,7 +5055,11 @@ def chars_learned_answer(full=True):
                     "cPanel": _cs.CPANEL_SAY,
                     "gear": _gear, "gearWhy": _gwhy})
         if full:
-            out["status"] = _cs.status()
+            # the Grok eye on v3814: status() globs the frames and can raise; that is its own UNKNOWN, never the whole answer's
+            try:
+                out["status"] = _cs.status()
+            except Exception as _se:
+                out["status"], out["statusWhy"] = None, "the learner's status raised %s" % type(_se).__name__
         return out
     except Exception as e:
         return {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__}
@@ -5098,7 +5102,8 @@ def _profile_api_answers(now_ms=None, reads=None):
         if isinstance(at, int) and not isinstance(at, bool) and isinstance(last.get("answer"), dict) \
                 and 0 <= now - at < PROFILE_API_KEEP_S * 1000:
             answers[name] = last["answer"]
-            misses[name] = "%s - the last good answer, %d min old, went up instead" % (why, (now - at) // 60000)
+            # the Grok eye on v3814: this is said before anything is posted, so it names what stands in, not that it went up
+            misses[name] = "%s - the last good answer, %d min old, stands in for it" % (why, (now - at) // 60000)
         else:
             misses[name] = "%s - not uploaded (no good answer in the last %d h)" % (why, PROFILE_API_KEEP_S // 3600)
     if changed:
@@ -43355,7 +43360,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3814",
+        "ver": "v3815",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

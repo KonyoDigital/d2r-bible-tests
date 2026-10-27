@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2683 - THE GROK EYE ON v3814: TWO ASKS SHARED ONE "ASKING" FLAG; A LATE FAILURE OVERWROTE A GOOD LIST
+Cross-family look at v3814 (grok-cli, verdict findings), each reproduced before acting:
+1. MED - the Characters room and the builder both ask /api/chars_learned. "Asking" was one boolean, so the first ask to
+   settle ended it while the other was still in flight, and an answer that was not ok (status() raised) replaced a good
+   list when it arrived last. "Asking" is a count of asks in flight now, and a not-ok answer never replaces an ok one.
+   The route's status() - the frame glob - is its own UNKNOWN (status null + statusWhy) instead of failing the answer.
+2. LOW - apiMiss said the last good answer "went up instead" before anything was posted; it says it "stands in for it".
+Also found while checking the shipped v3814 against the whole law set: two register-head harnesses
+(test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
+REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
+Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+
 ### REG-2679 - THE GROK EYE ON v3813: A WAITING PASS ERASED A FAILURE, AND THE READ LEFT ITS RESPONSE OPEN
 Cross-family look at v3813 (grok-cli, verdict findings, 3 items), each reproduced before acting:
 1. "The starting chip hides a stuck station" - NOT REPRODUCED. _fleetStuckChip draws the stuck chip first and the boot
