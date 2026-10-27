@@ -22573,8 +22573,23 @@ window._lockMark = function(isOpen, px, label){
     } catch (_e) {}
     thOpen();
   };
+  /* REG-2700 (#86/#218, GrokBot's v3816 pass) - THE SHELF IN A SHADOW SAID NOTHING. In a shadow the owner's board fills the
+     shell, and this button opened THIS PC's theatre underneath it: nothing visible, no word, and the wrong PC's reels
+     besides. Their reels stay on their PC (his 2026-10-07 ruling; #218's sessions digest waits on his shadow-gate call), so
+     the door says so instead of failing silently. -> the sentence while any shadow is up, else null */
+  function _shelfShadowRefusal(){
+    try {
+      if (typeof window._consoleShadowUp === 'function' && window._consoleShadowUp())
+        return 'THE SHELF is this PC\u2019s own reels, and a shadow shows another PC\u2019s console - their reels stay on '
+          + 'their PC, so nothing was opened. Leave the shadow to open this PC\u2019s Shelf.';
+    } catch (e) {}
+    return null;
+  }
+  window._shelfShadowRefusal = _shelfShadowRefusal;
   var _bshelf = $('btn-shelf');
   if (_bshelf) _bshelf.onclick = async function(){
+    var _shR = _shelfShadowRefusal();
+    if (_shR) { try { toast(_shR, 6000); } catch (eT) {} return; }   /* REG-2700 - never this PC's shelf under a shadow */
     /* ⚠⚠ v2446 — THE SWALLOWED SHELF. Konyo: "now the theatre mode/shelf mode is swallowed i
        cant see it rendering when i click on it... but its like swallowed."
        `await thOpen()` had no catch. If it REJECTS, the await throws straight out of this async

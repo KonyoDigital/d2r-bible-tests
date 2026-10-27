@@ -28,6 +28,13 @@ header rebuilt from the persisted store - had no split, the persisted rows carri
 `|| 0` read a store that could not say as 0 in the dock. Where each loose name sat is decided once when the records are
 built and saved on its row (looseWhere, loose rows only), both headers count it, and a store saved before the split reads
 UNKNOWN. Law: test_v3758_records_persist_parity (3 new red-proofs, each seen RED).
+### REG-2700 - THE SHELF IN A SHADOW DID NOTHING VISIBLE (#86/#218, GrokBot's v3816 pass)
+Mac viewing the ALT: THE SHELF "did nothing visible: the theatre stayed hidden and there was no toast". In a shadow the
+owner's board fills the shell, and the button opened THIS PC's theatre underneath it - a silent door, and the wrong PC's
+reels besides. Their reels stay on their PC (his 2026-10-07 ruling; #218's sessions digest waits on his shadow-gate call),
+so while any shadow is up the button says so and opens nothing; with no shadow it opens exactly as before.
+Law: test_the_shelf_says_why_a_shadow_cannot_open_it (2 red-proofs, each seen RED).
+
 ### REG-2698 - A SLOW CONSOLE CLOSED THE SHELF BEFORE IT COULD OPEN (#86, GrokBot's v3816 pass)
 Measured on his Mac under load (load ~20): /api/sessions answered in 10.8 s and 21.6 s for 266 KB. thOpen aborted it at
 8 s and closed the stage, four times in a row ("[theatre] /api/sessions did not answer - stage closed (AbortError)"), so

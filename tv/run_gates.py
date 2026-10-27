@@ -12053,6 +12053,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_slow_console_still_opens_the_shelf.py")], 300,
          needs_app=False,
          why='REG-2698 - a 10-22 s /api/sessions under load opens the Shelf instead of closing the stage, and the stage says it is waiting'),
+    Gate("test_the_shelf_says_why_a_shadow_cannot_open_it",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_says_why_a_shadow_cannot_open_it.py")], 300,
+         needs_app=False,
+         why="REG-2700 - in a shadow the Shelf says their reels stay on their PC instead of opening this PC's theatre under the board"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
