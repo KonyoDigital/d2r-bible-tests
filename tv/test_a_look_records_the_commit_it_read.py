@@ -45,6 +45,16 @@ import second_eye_run as R          # noqa: E402
 
 class TestALookRecordsTheCommitItRead(unittest.TestCase):
 
+    def test_a_reached_look_passes_the_commit_into_the_row(self):
+        """The empty-seat path passed sha. The path that prints LOOKED did not, so the v3805 row
+        stored sha null. A reached look has to name the commit it read."""
+        with open(R.__file__, encoding="utf-8") as fh:
+            src = fh.read()
+        at = src.find("answer_model=_model_from_transport()")
+        self.assertGreater(at, 0)
+        window = src[at:at + 240]
+        self.assertIn("sha=sha", window, window)
+
     def test_a_row_carries_the_commit_the_eye_actually_read(self):
         fd, path = tempfile.mkstemp(suffix=".jsonl")
         os.close(fd)
