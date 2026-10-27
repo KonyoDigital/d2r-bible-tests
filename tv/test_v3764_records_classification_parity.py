@@ -204,8 +204,10 @@ out.regexHitsShard = !!isSharedStash('Worldstone Shard');
         self.assertIsNone(o["findLoose"], o["findLoose"])
         self.assertEqual(o["keep"], [{"copyIx": 0, "kind": "keep", "mule": None}], o["keep"])
         self.assertEqual(o["locKeep"], ["__keep"], o["locKeep"])
-        self.assertEqual(o["throwout"], [{"copyIx": 0, "kind": "orphan", "mule": None}],
-                         "a throw-out was filed: %r" % o["throwout"])
+        # #154.20 - a THROW OUT pick is loose (off the dock, the seam's discard rule), never an orphan "filed to a mule the
+        # board can't find"; and never filed
+        self.assertEqual(o["throwout"], [{"copyIx": 0, "kind": "loose", "mule": None}],
+                         "a throw-out was filed, or read as a lost mule: %r" % o["throwout"])
         self.assertEqual(o["charm"], [{"copyIx": 0, "kind": "keepInv", "mule": None}], o["charm"])
         self.assertEqual(o["orphan"], [{"copyIx": 0, "kind": "orphan", "mule": None}], o["orphan"])
         self.assertIsNone(o["findOrphan"], o["findOrphan"])
@@ -310,6 +312,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "        else { kind = 'orphan'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }\n",
         "replace": "        else { kind = 'filed'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }\n",
+        "matches": 1,
+    },
+    {
+        "why": "#154.20 - a THROW OUT pick falls to orphan again, 'filed to a mule the board can't find'",
+        "file": "bible.html",
+        "find": "        else if (mid === '__throwout') kind = 'loose';\n",
+        "replace": "",
         "matches": 1,
     },
 ]
