@@ -47640,6 +47640,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            seenCount, which is the behaviour worth having anyway \u2014 so the guard is removed rather
            than repaired, and the row now says which of the two actually happened. */
         if (nm && r && typeof window.kaiChronicleRecord === 'function'){
+          /* A poll of a row already owned, or a throw-out seen again, is not a new sighting. Only mode new bumps. */
           window.kaiChronicleRecord({
             name: (r && r.name) || nm,
             /* v1959 \u2014 A THROW-OUT IS THE ONE DECISION HE MUST BE ABLE TO SEE.
@@ -47683,7 +47684,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                                   return _o === true ? 'owned'
                                        : (_o === false ? 'missing-from-store' : null); })())
               : null,
-            /* A poll of a row already owned, or a throw-out seen again, is not a new sighting. Only mode new bumps. */
             ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: !!(r && r.ok && r.mode === 'new'),
             why: (r && r.ok)
               ? (r.mode === 'throwout'
@@ -47771,12 +47771,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              stays tv-routed; only the reason distinguishes the two, so nothing new must be taught
              to the pill map. */
           if (nm && r){
+            /* A later poll of a row already routed passes no bump. A new route still bumps. */
             window.kaiChronicleRecord({
               name: (r && r.name) || nm,
               status: (r && r.ok) ? 'tv-routed' : 'route-failed',
               store: (r && r.kind === 'set') ? 'setPieces' : 'foundLog',
               ledger: (r && r.kind === 'set') ? 'sets' : 'uniques',
-              /* A later poll of a row already routed passes no bump. A new route still bumps. */
               target: String(src || 'tv'), source: 'tv-route', _bump: !!(r && r.ok && !r.already),
               why: (r && r.ok && r.already)
                 ? 'the TV read this again \u2014 it was already in your ' + ((r.kind === 'set') ? 'set ledger' : 'grail')
