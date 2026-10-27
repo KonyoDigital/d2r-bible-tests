@@ -396,6 +396,26 @@ def _log_says_no_sandbox(log_path, start=None):
     return bool(lines) and NO_SANDBOX_MARK in lines[-1]
 
 
+def _memory_stall(mem, census, playing):
+    """#193 (his ALT, 2026-10-27) - A MEMORY STAND-ASIDE NAMES THE GATES IT COULD NOT FINISH. -> None (mutates mem)
+
+    MEASURED on the ALT: 23 stand-asides in a row, each a slice whose one gate - a recorded BLIND, so REG-1673 put it
+    first and alone - took the PC under the 700 MB idle floor before it finished. The stand-aside booked a cooldown
+    and forgot the slice, so 30 minutes later the planner picked the SAME gate first again: the census stayed stale,
+    every lock stayed shut, and 139 cheaper gates never got a turn. A slice stood aside for MEMORY now leaves its gates
+    in stalledGates for this census (merged with any already there), and the next slice proves the others first - the
+    same "proved after the others" the silent-prover stall already uses. When every owed gate has stalled, the planner
+    falls back to all of them. A stand-aside because he is PLAYING is not the gates' fault and names none."""
+    if playing is True:
+        return
+    gates = [str(g) for g in (mem.get("sliceGates") or []) if g]
+    if not gates:
+        return
+    fp = (census or {}).get("fingerprint")
+    prior = [str(g) for g in (mem.get("stalledGates") or []) if g] if mem.get("stalledFor") == fp else []
+    mem.update(stalledGates=list(dict.fromkeys(prior + gates)), stalledFor=fp, stalledWhy="memory")
+
+
 def stand_aside(playing, free):
     """Must a RUNNING proof stop now? -> (bool, why). Pure. UNKNOWN never stops it: it already runs below him."""
     if playing is True:
@@ -1205,8 +1225,8 @@ def _ask(v, probe):
 
 def _forget(mem):
     """The proof this lane was tracking is over (ended, or stood aside and gone): drop every trace of it."""
-    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates", "logFrom",
-              "startedBy"):
+    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "standingAsideForMemory", "sliceGates",
+              "logFrom", "startedBy"):
         mem.pop(k, None)
     _STARTED.update(pid=None, birth=None)
 
@@ -1280,11 +1300,13 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         if gone:
             mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=now_ms,
                        lastStoodAsideWhy=aside_why)
+            _memory_stall(mem, census, play_now)               # #193 - before _forget drops the slice's gates
             _forget(mem)
             pid = running = None
         else:
             mem.update(asideSurvived=_int(mem.get("asideSurvived")) + 1, lastAsideSurvivedAt=now_ms,
-                       standingAside=aside_why, pid=running, pidBirth=birth)
+                       standingAside=aside_why, standingAsideForMemory=(play_now is not True), pid=running,
+                       pidBirth=birth)
     if pid and not running and not unverified:
         # the proof we started has ended (or its pid now names another process): did it leave a current census?
         if mem.get("finishingSince"):
@@ -1295,6 +1317,8 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             # told to stand aside, survived that tick, ended since: a stand-aside, never a failure
             mem.update(stoodAside=_int(mem.get("stoodAside")) + 1, lastStoodAsideAt=now_ms,
                        lastStoodAsideWhy=mem.get("standingAside"))
+            if mem.get("standingAsideForMemory"):
+                _memory_stall(mem, census, False)              # #193 - the same naming for a slow stand-aside
         elif mem.get("sliceGates") and (_slice_landed(census, mem.get("sliceGates")) or 0) > 0:
             # #99 — a SLICE that proved its gates is progress, not a failure: the census is still owed the rest, and
             # the next slice starts on a later tick. (A slice that landed NONE falls through to the failure below.)

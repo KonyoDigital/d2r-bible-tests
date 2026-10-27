@@ -48,6 +48,10 @@ RED_PROOF = [
         "find": "st.st_size, st.st_mtime_ns, st.st_ctime_ns, st.st_ino, gen)",
         "replace": "st.st_size, st.st_mtime_ns, st.st_ino, gen)",
         "matches": 1,
+        # #193 (his ALT, 2026-10-27) - the only case that catches this tamper skips where "this filesystem's ctime did
+        # not move", and on Windows st_ctime is the CREATION time, so it never moves: the proof read BLIND there, and
+        # one BLIND shut every lock on the PC. It is judged where ctime is the inode-change time (POSIX), ELSEWHERE here.
+        "needs": "posix",
     },
     {
         "why": "REG-2631 - the memo is never asked, so every proof re-reads every input",

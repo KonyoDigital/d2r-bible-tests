@@ -7,6 +7,26 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2635 - ONE RED-PROOF WAS BLIND ON EVERY WINDOWS PC BY CONSTRUCTION, AND ONE BLIND SHUT EVERY LOCK (#193, 2026-10-27)
+His ALT's census recorded test_an_all_hit_push_reads_each_input_once BLIND. Its REG-2631 proof drops st_ctime_ns from
+the memo key, and the only case that catches it skips where "this filesystem's ctime did not move" - on Windows
+st_ctime is the CREATION time, so it never moves: the tampered run stayed green about nothing, on every Windows PC,
+and REG-1677 shuts every lock on one BLIND. The proof now declares "needs": "posix" (REG-1686's door, used for
+the same class four times on the ALT and Dean's PC): judged where ctime is the inode-change time, ELSEWHERE here.
+No heart2.py edit - heart2's bytes are an input to every law's key, so a new capability there would re-prove all
+1,101 gates on a PC that cannot finish 139.
+
+### REG-2634 - A MEMORY STAND-ASIDE FORGOT ITS SLICE, SO THE SAME HEAVY GATE WAS PLANNED FIRST EVERY 30 MIN (#193)
+MEASURED on his ALT 2026-10-27 (Claude over SSH + GrokBot): 23 stand-asides, census 955/1101 stale, 139 owed, every
+lock shut. Each small slice was one gate - the recorded BLIND above, which REG-1673 puts first and alone - and it took
+the PC under the 700 MB idle floor (start ~1,000-1,200 MB available). The stand-aside booked a cooldown and _forget
+dropped the slice; stalledGates was written only by the silent-prover branch, so the next slice planned the same gate.
+Now a stand-aside for MEMORY (never one because he is playing) leaves its gates in stalledGates for this census,
+merged with any already there, and the planner proves the others first. Law: test_a_pc_short_of_memory_still_proves_
+a_small_slice (4 new cases, its first 4 RED_PROOFs - it had none; RED on the old self_prove.py).
+STILL OPEN (#193, #172): the ALT console itself grows from ~530 MB to ~1,280 MB private within 4 min of a start
+(sampled 21:01-21:06), which is most of the PC's headroom; the heavy gate still needs ~300-550 MB to prove there.
+
 ### REG-2633 - CLEARING A PLANNER PICK BROUGHT BACK AN ITEM HE HAD REMOVED (Claude's v3790 look, 2026-10-27)
 vaultRemove keeps a removed name's d2r_copies count (its undo needs it), and _vpDrop read any live count above 1 as
 "another door counted a copy while the pick was held" (REG-2566). So Monarch (4os) x2, his remove, a FRESH planner pick

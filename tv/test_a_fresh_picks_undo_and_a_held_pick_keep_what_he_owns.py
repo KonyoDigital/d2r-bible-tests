@@ -107,7 +107,7 @@ W._vaultPlannerOn = true;
 var p = W.vaultPlannerFile(ent(4), 'vp-removed');
 OUT.pick = { mode: (p && p.mode) || null, owned: owned.has(L) };
 var c = W.vaultPlannerFile(null, 'vp-removed');
-OUT.clear = { ownedMem: owned.has(L), ownedDisk: (disk('d2r_owned') || []).indexOf(L) >= 0,
+OUT.clear = { copies: (copies[L] == null ? null : copies[L]), ownedMem: owned.has(L), ownedDisk: (disk('d2r_owned') || []).indexOf(L) >= 0,
               home: (disk('d2r_muleAssign') || {})[L] || null, why: (c && c.why) || '' };
 })();
 """
@@ -197,6 +197,8 @@ class AFreshPicksUndoAndAHeldPickKeepWhatHeOwns(unittest.TestCase):
         c = o["clear"]
         self.assertFalse(c["ownedMem"] or c["ownedDisk"], "clearing the pick brought back the item he removed: %r" % c)
         self.assertIsNone(c["home"], "clearing the pick left the removed item filed: %r" % c)
+        # the Grok eye on v3809: the take-back must leave the count the removal door keeps for its own undo
+        self.assertEqual(c["copies"], 2, "the take-back changed the count the removal door keeps for its undo: %r" % c)
 
 
 RED_PROOF = [
