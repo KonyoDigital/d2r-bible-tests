@@ -523,6 +523,7 @@ console.log(JSON.stringify({ conf: row.looks[0].conf, id: row.looks[0].id, frame
             _fn(self.src, "_vaultThrowReason"),
             _fn(self.src, "_vaultThrowRoute"),
             _fn(self.src, "_vaultThrowTask"),
+            _fn(self.src, "_vaultSightLooks"),
             _fn(self.src, "_vaultMoveCollect"),
             r"""
 function task(spec){ return _vaultMoveTask(spec); }
@@ -582,7 +583,14 @@ window._seam = null;
 var fromStash = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: 1 } }]);
 var fromShared = collect([{ name: 'Treachery', copyIx: 0, sight: { location: 'shared', cell: 'shared:c3r4', witnesses: 1 } }]);
 window._ensFrom = 'inventory';
+/* #230 review: the sight may carry its LIST of looks; one real session in it is one look */
+window._ensFrom = 'stash';
+var listLook = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: [
+  { session: 's_1791356557071_58418', frame: 'f_1791358157119.jpg', conf: 0.85, cell: 'stash:c7r1' }] } }]);
+var listNoSession = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: [
+  { frame: 'f_1791358157119.jpg', conf: 0.85, cell: 'stash:c7r1' }] } }]);
 /* #230 v3806: a cell with no session behind it (witnesses null) is zero looks and opens no move */
+window._ensFrom = 'inventory';
 var zeroLook = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: null } }]);
 var storedInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: '', cell: null } }]);
 function names(pack){ return (pack.tasks || []).map(function(r){ return r.name; }); }
@@ -592,7 +600,7 @@ console.log(JSON.stringify({
   fromInv: names(fromInv), fromEquip: names(fromEquip),
   fromUnknown: names(fromUnknown), fromUnknownPlain: names(fromUnknownPlain),
   fromRuled: names(fromRuled), fromStash: names(fromStash), fromShared: names(fromShared),
-  storedInv: names(storedInv), zeroLook: names(zeroLook),
+  storedInv: names(storedInv), zeroLook: names(zeroLook), listLook: names(listLook), listNoSession: names(listNoSession),
   committedUnknown: fromUnknownPlain.committed || []
 }));
 """,
@@ -615,7 +623,28 @@ console.log(JSON.stringify({
         self.assertEqual(o["fromShared"], ["Treachery"])
         self.assertEqual(o["storedInv"], [])
         self.assertEqual(o["zeroLook"], [])
+        self.assertEqual(o["listLook"], ["Thresher"])
+        self.assertEqual(o["listNoSession"], [])
         self.assertEqual(o["committedUnknown"], [])
+
+
+    def test_the_intake_owned_stamp_never_throws_on_a_bad_prov_row(self):
+        prog = "\n".join([_fn(self.src, "_vaultIntakeOwned"), _fn(self.src, "_vaultSightLooks"), r"""
+var boom = {}; Object.defineProperty(boom, 'ownedBy', { get: function(){ throw new Error('bad row'); } });
+var S = { by: 'tvVaultRegister', kind: 'owned' };
+console.log(JSON.stringify({
+  direct: _vaultIntakeOwned(S), filed: _vaultIntakeOwned({ mule: 'bases', ownedBy: S }),
+  boom: _vaultIntakeOwned(boom), str: _vaultIntakeOwned({ ownedBy: 'owned' }), arr: _vaultIntakeOwned({ ownedBy: [S] }),
+  nul: _vaultIntakeOwned(null), hand: _vaultIntakeOwned({ kind: 'owned', by: 'hand' }),
+  n2: _vaultSightLooks({ witnesses: 2 }), nNull: _vaultSightLooks({ witnesses: null }),
+  lst: _vaultSightLooks({ witnesses: [
+    { session: 's_1', frame: 'f_1.jpg', conf: 0.9 }, { session: 's_1', frame: 'f_2.jpg', conf: 0.9 },
+    { session: 's_2', frame: 'f_3.jpg', conf: 0.4 }, { session: 's_3', frame: null, conf: 0.9 }, { session: 's_4', frame: 'f_4.jpg', conf: 0.7 }] })
+}));
+"""])
+        o = self._run(prog)
+        self.assertEqual(o, {"direct": True, "filed": True, "boom": False, "str": False, "arr": False,
+                             "nul": False, "hand": False, "n2": 2, "nNull": 0, "lst": 2})
 
 
 RED_PROOF = [

@@ -45918,7 +45918,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (pool.indexOf(n) >= 0 || !_vaultHandBase(n)) return;
         void prov;
         if (_vaultHandTyped(n)) out.push(n); /* L1 hand-typed base */
-        else if (prov[n] && ((prov[n].kind === 'owned' && prov[n].by === 'tvVaultRegister') || (prov[n].ownedBy && prov[n].ownedBy.kind === 'owned' && prov[n].ownedBy.by === 'tvVaultRegister'))) out.push(n); /* intake own record: a base the TV registered is owned, so it is a record too */
+        else if (typeof window._vaultIntakeOwned === 'function' && window._vaultIntakeOwned(prov[n])) out.push(n); /* intake own record: a base the TV registered is owned, so it is a record too */
       });
     } catch (e) { return []; }
     return out;
@@ -47564,7 +47564,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!_byHand && _witIn && typeof window._vaultIntakeLook === 'function') _witIn = window._vaultIntakeLook(_witIn); /* auto intake look */
       var r;
       var _preMap = null; /* intake zero looks: a row saved BEFORE this read counts, not one this read itself just wrote */
-      try { _preMap = (typeof _vaultMoveBag === 'function') ? (_vaultMoveBag().map || null) : null; } catch (ePre) { _preMap = null; }
+      try { _preMap = (typeof _vaultMoveBag === 'function') ? JSON.parse(JSON.stringify(_vaultMoveBag().map || {})) : null; } catch (ePre) { _preMap = null; } /* a copy: the inner register may edit the stored rows in place */
       try {
         var _call = arguments;
         if (arguments.length > 1 && arguments[1] !== _witIn){
@@ -52158,6 +52158,37 @@ window.vaultAutoAssign = function(){
     }
     return { holder: g.holder || null, location: g.location || null, cell: g.cell || null };
   }
+  /* intake own record: the TV's owned stamp, on prov itself or (once filed) under prov.ownedBy. A malformed entry is
+     simply not intake-owned; it never throws, so one bad prov row cannot drop every base record. */
+  function _vaultIntakeOwned(p){
+    try {
+      if (!p || typeof p !== 'object') return false;
+      if (p.kind === 'owned' && p.by === 'tvVaultRegister') return true;
+      var o = p.ownedBy;
+      return !!(o && typeof o === 'object' && !Array.isArray(o) && o.kind === 'owned' && o.by === 'tvVaultRegister');
+    } catch (e) { return false; }
+  }
+  try { window._vaultIntakeOwned = _vaultIntakeOwned; } catch (eIO) {}
+  /* intake zero looks: how many real looks a sight carries. A number is the count; a list of looks counts its
+     distinct sessions that have their own frame and conf >= 0.55; anything else is 0. */
+  function _vaultSightLooks(sight){
+    try {
+      var w = sight && sight.witnesses;
+      if (typeof w === 'number') return w > 0 ? w : 0;
+      if (Array.isArray(w)) {
+        var seen = {}, n = 0;
+        w.forEach(function(x){
+          if (!x || typeof x !== 'object') return;
+          var sid = x.session || x.id;
+          if (!sid || !x.frame || !((+x.conf || 0) >= 0.55) || seen[sid]) return;
+          seen[sid] = 1; n++;
+        });
+        return n;
+      }
+    } catch (e) {}
+    return 0;
+  }
+  try { window._vaultSightLooks = _vaultSightLooks; } catch (eSL) {}
   function _vaultMoveBag(){
     var prior = (typeof _vrRecLoadRaw === 'function') ? _vrRecLoadRaw() : undefined;
     var map = {};
@@ -52837,7 +52868,7 @@ window.vaultAutoAssign = function(){
     (rec.records || []).forEach(function(r){
       if (!r || r.name == null) return;
       var _sightLane = (r.sight && (r.sight.location || r.sight.lane)) || '';
-      var _autoRow = null;
+      var _autoRow = null, _ruledJunkRow = false;
       try { _autoRow = _vaultMoveAutoRow(r.name, { lane: _sightLane, cell: r.sight && r.sight.cell }); }
       catch (eAuto) { _autoRow = null; }
       if (_autoRow && _autoRow.row === false) {
@@ -52850,9 +52881,11 @@ window.vaultAutoAssign = function(){
           } catch (eRuleC) { _ruledJunk = false; }
         }
         if (!_ruledJunk) return; /* main lane or no home: no move row */
+        _ruledJunkRow = true;
       }
+      try { if (!_ruledJunkRow && typeof assign !== 'undefined' && assign && assign[r.name] === '__throwout') _ruledJunkRow = true; } catch (eRJ) {}
       var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
-      var hasSight = !!(r.sight && r.sight.cell && (r.sight.witnesses | 0) >= 1); /* intake zero looks: a cell with no session behind it is not a look, so it opens no move */
+      var hasSight = !!(r.sight && r.sight.cell && (_ruledJunkRow || _vaultSightLooks(r.sight) >= 1)); /* intake zero looks: a cell with no session behind it is not a look, so it opens no move; his throw-out ruling keeps its cell */
       var thr = (typeof _vaultThrowTask === 'function') ? _vaultThrowTask(r, stored) : null;
       if (thr) {
         if (_vaultMoveMainLane(thr.task.from && thr.task.from.location)) return; /* a stored inventory from stays locked */

@@ -46,7 +46,12 @@ function reg(nm, lane, cell, looks, extra){
 }
 function state(nm){
   var owned = []; try { owned = JSON.parse(LSR.getItem('d2r_owned') || '[]'); } catch (e) {}
-  return { owned: owned.indexOf(nm) >= 0, records: rowsOf(nm).length, moves: movesOf(nm) };
+  var pv = {}; try { pv = JSON.parse(LSR.getItem('d2r_vaultProv') || '{}') || {}; } catch (e) {}
+  var p = pv[nm] || null;
+  return { owned: owned.indexOf(nm) >= 0, records: rowsOf(nm).length, moves: movesOf(nm),
+           rows: rowsOf(nm).map(function(r){ return { copyIx: r.copyIx || 0, move: r.move || null, sight: r.sight || null }; }),
+           prov: p ? { kind: p.kind || null, by: p.by || null, mule: p.mule || null,
+                       ownedBy: p.ownedBy ? { kind: p.ownedBy.kind || null, by: p.ownedBy.by || null } : null } : null };
 }
 """
 
@@ -128,10 +133,19 @@ class IntakeTwoLooks(unittest.TestCase):
                 "OUT.s1 = state('Treachery');"
                 "OUT.b = reg('Treachery', 'stash', 'stash:c3r4', [look('%s', 'f_1791239854999.jpg', 'stash', 'stash:c3r4')]);"
                 "OUT.s2 = state('Treachery');" % (S1, S2))
-        self.assertEqual(len(o["s1"]["moves"]), 1, o)
-        self.assertEqual(len(o["s2"]["moves"]), 1, o)
-        self.assertEqual(o["s2"]["moves"][0]["from"]["cell"], "stash:c3r4", o)
-        self.assertTrue(o["s2"]["moves"][0]["to"].get("cell"), o)
+        r1, r2 = o["s1"]["rows"], o["s2"]["rows"]
+        self.assertEqual(len(r1), 1, o)
+        self.assertEqual(len(r2), 1, o)                      # no second copy, no second row
+        self.assertEqual(r2[0]["copyIx"], r1[0]["copyIx"], o)
+        self.assertEqual(r1[0]["sight"]["witnesses"], 1, o)
+        self.assertEqual(r2[0]["sight"]["witnesses"], 2, o)  # the second session joined THIS row
+        m1, m2 = r1[0]["move"], r2[0]["move"]
+        self.assertTrue(m1 and m2, o)
+        self.assertEqual(m2["from"]["cell"], "stash:c3r4", o)
+        self.assertEqual(m2["from"]["cell"], m1["from"]["cell"], o)
+        self.assertEqual(m2["to"], m1["to"], o)                # same target
+        self.assertTrue(m2["to"].get("cell"), o)
+        self.assertEqual(m2["status"], "to-move", o)
 
     def test_inventory_and_equipped_have_a_record_and_no_move(self):
         o = run("reg('Horadric Cube', 'inventory', 'inventory:c0r0', [look('%s', 'f_1791233340172.jpg', 'inventory', 'inventory:c0r0'),"
@@ -156,6 +170,37 @@ class IntakeTwoLooks(unittest.TestCase):
         # the second look files it and the filing prov keeps the owned stamp under ownedBy
         o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85)]);"
                 "OUT.r2 = reg('Thresher', 'stash', 'stash:c8r1', [look('s_1791473772294_11798', 'f_1791474195360.jpg', 'stash', 'stash:c8r1', 0.8)]);"
+                "OUT.s = state('Thresher');")
+        self.assertTrue(o["s"]["owned"], o)
+        self.assertGreaterEqual(o["s"]["records"], 1, o)
+
+
+    def test_the_owned_stamp_is_persisted_and_survives_filing(self):
+        o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85)]);"
+                "OUT.s1 = state('Thresher');"
+                "OUT.r2 = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791473772294_11798', 'f_1791474195360.jpg', 'stash', 'stash:c7r1', 0.8)]);"
+                "OUT.s2 = state('Thresher');")
+        p1, p2 = o["s1"]["prov"], o["s2"]["prov"]
+        self.assertEqual((p1["kind"], p1["by"]), ("owned", "tvVaultRegister"), o)
+        self.assertTrue(p2["mule"], o)                        # 2 sessions filed it
+        self.assertEqual(p2["ownedBy"], {"kind": "owned", "by": "tvVaultRegister"}, o)
+        self.assertGreaterEqual(o["s2"]["records"], 1, o)
+
+    def test_a_zero_look_read_does_not_touch_a_stored_row(self):
+        # a stored hand row with no FROM cell yet: a frame with no session must not fill it in
+        o = run("window._vaultMoveAdd ? 0 : 0;"
+                "OUT.a = reg('Treachery', 'stash', 'stash:c3r4', [look('%s', 'f_1791233980015.jpg', 'stash', 'stash:c3r4')]);"
+                "OUT.s1 = state('Treachery');"
+                "OUT.b = reg('Treachery', 'stash', 'stash:c5r5', [{ frame: 'f_1791233980999.jpg', lane: 'stash', cell: 'stash:c5r5' }]);"
+                "OUT.s2 = state('Treachery');" % S1)
+        self.assertEqual(len(o["s1"]["moves"]), 1, o)
+        self.assertEqual([m["from"]["cell"] for m in o["s2"]["moves"]], ["stash:c3r4"], o)
+
+    def test_a_bad_prov_row_never_drops_the_other_base_records(self):
+        board().seed({"d2r_owned": [], "d2r_vaultProv": {"Gothic Axe": {"ownedBy": "owned"}, "Giant Thresher": {"ownedBy": [1]},
+                                                         "Great Axe": None, "Ogre Axe": 7},
+                      "d2r_muleAssign": {}, "d2r_vaultRecords": None})
+        o = run("OUT.r = reg('Thresher', 'stash', 'stash:c7r1', [look('s_1791356557071_58418', 'f_1791358157119.jpg', 'stash', 'stash:c7r1', 0.85)]);"
                 "OUT.s = state('Thresher');")
         self.assertTrue(o["s"]["owned"], o)
         self.assertGreaterEqual(o["s"]["records"], 1, o)
