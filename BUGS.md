@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2662 - A SURVIVING STAND-ASIDE'S MEMORY FLAG WAS NEVER EXERCISED (the Grok eye on v3811)
+Reproduced: the slow-path case wrote standingAsideForMemory itself, so the tick branch that SETS it (a stand-aside whose
+kill did not take) was never run - a regression there passed. The case is now two real ticks through guard(): alive with
+a kill that does not take (the flag is set, nothing named yet), then gone (its gates are named). A RED_PROOF on the
+flag-setting line goes red. The eye's other notes - the #206 harness presses Space only in OFF, and red-proof anchors
+that include a comment - were checked: the guard is an early return before unchanged code, and the hook refuses any
+anchor that stops matching, so drift cannot pass silently.
+
+### REG-2661 - A NEVER-FILED ITEM WAS CALLED "FILED TO A MULE THE BOARD CAN'T FIND" (#204, GrokBot v3808 + v3809)
+The vault header's orphan line counted every owned name that resolves to no real mule as "filed to a mule the board
+can't find". On the ALT all 5 had mule=null (its mule map is {}), and v3809 put 5 such names on the Mac too: they were
+never filed at all. The header now also carries orphansNoHome (orphans whose assign is null) and the line splits: "N
+with no home" and "M filed to a mule the board can't find"; an unknown split keeps the old single line. Law:
+test_v3754_header_surfaces_orphans (2 new cases + 1 RED_PROOF; its old label proof re-anchored), RED on the old page.
+
 ### REG-2639 - EACH CONSOLE OFFERED A SHADOW OF ITSELF ON ITS OWN FLEET ROW (GrokBot's 21:09 pass, v3809)
 The Fleet card drew "see <owner>'s console" on every row with a roster profile, this PC's included: "see Konyo · Mac's
 console" on the Mac, "see Konyo · ALT's console" on the ALT - a shadow of the stores already on screen. The row now tells

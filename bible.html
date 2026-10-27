@@ -23755,7 +23755,15 @@ try {
        surfaces in EVERY path, not only when the carried strip reads. Derived from _vaultRecordsHeader (dock+mule map),
        not the carried strip. orphans===null = UNKNOWN, never a false 0. [[the-unjoined-end]] [[unknown-stays-unknown]] */
     if (p.orphans == null) bits.push('mule/unsorted agreement <b>UNKNOWN</b>');  /* v3757, #231 eye on v3756: == null catches BOTH null (dock unread) AND undefined (records failed -> _rh76 null -> the sole caller passes undefined); either is UNKNOWN, never a silent false-agree. 0 == null is false, so orphans:0 (measured, they agree) stays silent. [[unknown-stays-unknown]] */
-    else if (p.orphans > 0) bits.push('\u26a0 ' + n(p.orphans) + ' filed to a mule the board can\u2019t find <i>(unsorted and the mules disagree)</i>');
+    else if (p.orphans > 0){
+      /* #204 (GrokBot's v3808/v3809 passes) - 5 of the ALT's and 5 of the Mac's "filed to a mule the board can't find" had NO mule
+         at all (mule=null, the ALT's map is {}): never filed, so they have no home - a different fact from a filing that points at
+         a mule the roster lost. Split when the split is known; with no split the line stays as it was. */
+      var _noHome = (typeof p.orphansNoHome === 'number') ? Math.max(0, Math.min(p.orphansNoHome, p.orphans)) : null;
+      var _lost = (_noHome == null) ? p.orphans : (p.orphans - _noHome);
+      if (_noHome) bits.push('\u26a0 ' + n(_noHome) + ' with no home <i>(owned, on no mule and not in the unsorted dock)</i>');
+      if (_lost > 0) bits.push('\u26a0 ' + n(_lost) + ' filed to a mule the board can\u2019t find <i>(unsorted and the mules disagree)</i>');
+    }
     if (p.carried === null){
       bits.push('carried <b>UNKNOWN</b>');
       bits.push(n(p.loose) + ' not filed <i>(how many of them are in your hands is UNKNOWN — the vault’s records would not read)</i>');
@@ -44765,13 +44773,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       carried: sub ? sub.carried : undefined,
       loose: sub ? sub.loose : undefined,
       sp: sub ? sub.sp : undefined,
-      orphans: sub ? sub.orphans : undefined
+      orphans: sub ? sub.orphans : undefined,
+      orphansNoHome: sub ? sub.orphansNoHome : undefined
     };
     if (!header || typeof header !== 'object') return o;
     ['owned', 'filed', 'loose', 'carried'].forEach(function(k){
       if (header[k] === null || typeof header[k] === 'number') o[k] = header[k];
     });
     if (header.orphans === null || typeof header.orphans === 'number') o.orphans = header.orphans;
+    if (header.orphansNoHome === null || typeof header.orphansNoHome === 'number') o.orphansNoHome = header.orphansNoHome;
     return o;
   }
   try { window._vaultPopFromHeader = _vaultPopFromHeader; } catch (e) {}
@@ -44940,7 +44950,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _rh76 = null; try { _rh76 = (typeof window._vaultRecordsHeader === 'function') ? window._vaultRecordsHeader() : null; } catch(e){ _rh76 = null; }
         var _sub76 = { owned: poolAll.length, shared: _shared, filed: (_asgUnread || _dockUnread) ? null : _filed,
                        carried: _carUnknown ? null : _carried.length, loose: (_asgUnread || _dockUnread) ? null : unsorted.length, sp: _sp,
-                       orphans: (_rh76 ? _rh76.orphans : undefined) };
+                       orphans: (_rh76 ? _rh76.orphans : undefined), orphansNoHome: (_rh76 ? _rh76.orphansNoHome : undefined) };
         if (typeof _vaultPopFromHeader === 'function') _sub76 = _vaultPopFromHeader(_sub76, _rh76);
         /* REG-2411 — held: no count is claimed, the line names the store instead */
         var _popHeld = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
@@ -53654,7 +53664,9 @@ window.vaultAutoAssign = function(){
       loose:    unk ? null : (k.loose || 0),
       filed:    unk ? null : ((k.filed || 0) + (k.keep || 0)),
       keepInv:  (k.keepInv || 0),
-      orphans:  (r.dockUnknown || r.assignUnknown) ? null : r.orphans.length
+      orphans:  (r.dockUnknown || r.assignUnknown) ? null : r.orphans.length,
+      /* #204 (GrokBot, 2026-10-27) - of those, the ones with NO mule at all: never filed, so "no home", not a lost mule */
+      orphansNoHome: (r.dockUnknown || r.assignUnknown) ? null : r.orphans.filter(function(o){ return o && o.assign == null; }).length
     };
   }
   window._vaultRecordsHeader = _vaultRecordsHeader;
@@ -54263,7 +54275,8 @@ window.vaultAutoAssign = function(){
       loose:   unk ? null : (k.loose || 0),
       filed:   unk ? null : ((k.filed || 0) + (k.keep || 0)),
       keepInv: (k.keepInv || 0),
-      orphans: model.dockUnknown ? null : model.orphans.length
+      orphans: model.dockUnknown ? null : model.orphans.length,
+      orphansNoHome: model.dockUnknown ? null : model.orphans.filter(function(o){ return o && o.assign == null; }).length
     };
   }
   window._vaultRecordsViewHeader = _vaultRecordsViewHeader;

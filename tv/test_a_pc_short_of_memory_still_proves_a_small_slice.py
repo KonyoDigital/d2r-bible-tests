@@ -170,17 +170,26 @@ class AMemoryStandAsideNamesItsGates(unittest.TestCase):
         self.assertEqual(other.get("stalledGates"), ["test_heavy"], other)
 
     def test_a_stand_aside_that_outlives_its_tick_still_names_its_gates(self):
-        """The Grok eye on v3810: a slice told to stand aside whose process is still alive that tick (the kill did not
-        take) carries the memory flag, and the tick that sees it gone names its gates then."""
+        """The Grok eye on v3810 and v3811: tick 1 - the slice is told to stand aside for MEMORY and its process is still
+        alive (the kill did not take), so it must carry the memory flag and name nothing yet; tick 2 - the process is
+        gone, and that tick names its gates. Both ticks run through the real guard."""
         from unittest import mock
-        self._write({"pid": 4242, "pidBirth": 1234.5, "startedFor": "fp", "sliceGates": ["test_heavy"],
-                     "standingAside": "only 600 MB of memory left - the proof gives it back", "standingAsideForMemory": True})
-        with mock.patch.object(SP, "pid_alive", lambda pid: False), \
-                mock.patch.object(SP, "proc_birth", lambda pid: None), \
-                mock.patch.object(SP, "census_state", lambda: dict(self.CENSUS)), \
-                mock.patch.object(SP, "tree_state", lambda: ("installed", "fixture")):
-            SP.guard(now_s=5000.0, path=self.store, playing=False, free=3000,
-                     kill_fn=lambda pid, birth: True)
+        self._write({"pid": 4242, "pidBirth": 1234.5, "startedFor": "fp", "sliceGates": ["test_heavy"]})
+        base = (mock.patch.object(SP, "proc_birth", lambda pid: 1234.5 if pid == 4242 else None),
+                mock.patch.object(SP, "is_ours", lambda pid, birth: True),
+                mock.patch.object(SP, "census_state", lambda: dict(self.CENSUS)),
+                mock.patch.object(SP, "tree_state", lambda: ("installed", "fixture")))
+        for p_ in base:
+            p_.start()
+            self.addCleanup(p_.stop)
+        with mock.patch.object(SP, "pid_alive", lambda pid: True):
+            SP.guard(now_s=5000.0, path=self.store, playing=False, free=SP.MIN_FREE_MB_WHILE_RUNNING_IDLE - 100,
+                     kill_fn=lambda pid, birth: False)
+        mid = SP.load(self.store)
+        self.assertTrue(mid.get("standingAsideForMemory"), "PREMISE: a surviving memory stand-aside lost its flag: %r" % mid)
+        self.assertFalse(mid.get("stalledGates"), "gates were named while the slice was still running: %r" % mid)
+        with mock.patch.object(SP, "pid_alive", lambda pid: False):
+            SP.guard(now_s=5600.0, path=self.store, playing=False, free=3000, kill_fn=lambda pid, birth: True)
         mem = SP.load(self.store)
         self.assertEqual(mem.get("stalledGates"), ["test_heavy"], mem)
 
@@ -241,6 +250,11 @@ RED_PROOF = [
      "file": "tv/self_prove.py",
      "find": "            if mem.get(\"standingAsideForMemory\"):\n                _memory_stall(mem, census, False)              # #193 - the same naming for a slow stand-aside\n",
      "replace": "",
+     "matches": 1},
+    {"why": "the Grok eye on v3811 - a stand-aside whose kill did not take forgets that it was for memory",
+     "file": "tv/self_prove.py",
+     "find": "standingAside=aside_why, standingAsideForMemory=(play_now is not True), pid=running,",
+     "replace": "standingAside=aside_why, standingAsideForMemory=False, pid=running,",
      "matches": 1},
 ]
 
