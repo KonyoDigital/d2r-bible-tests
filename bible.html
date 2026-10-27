@@ -47503,8 +47503,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          keep the drawability guarantee v739 added. Moving it below that branch would resurrect the
          invisible-item bug instead. [[the-unjoined-end]] */
       /* #202 - a READ of a name he does not own registers only on its second session (the hold above) */
+      /* REG-2702 (v3817 CI) - `witnesses` too: the filing door (_vaultIntakeLook, vaultFile) reads a look from it, so a read
+         that carried its looks there registered on ONE read - the two-session rule never saw it */
       var _isRead202 = !!(witness && typeof witness === 'object' && !Array.isArray(witness)
-        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks) || witness.frame || witness.frameId));
+        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks) || Array.isArray(witness.witnesses)
+            || witness.frame || witness.frameId));
       if (_isRead202 && !(_w0.by === 'hand' || _w0.source === 'hand') && !owned.has(name)) {
         var _h202 = (typeof window._vaultIntakeHold === 'function') ? window._vaultIntakeHold(name, _w0, _rec)
           : { hold: true, answer: { ok: false, refused: 'hold-unknown', registered: false, label: name,

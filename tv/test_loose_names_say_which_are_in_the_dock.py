@@ -80,8 +80,9 @@ class LooseNamesSayWhichAreInTheDock(unittest.TestCase):
 RED_PROOF = [
     {"why": "#208 - a THROW OUT name is counted into the loose total with nothing saying so again",
      "file": "bible.html",
-     "find": "            if (_thr) out.looseThrowN = (out.looseThrowN || 0) + 1;\n",
-     "replace": "            void _thr;\n", "matches": 1, "needs": "node"},
+     # REG-2697 decides the split once into looseWhere (saved on the row); a THROW OUT name stops being counted apart here
+     "find": "        else if (looseWhere === 'throw') out.looseThrowN += 1;\n",
+     "replace": "", "matches": 1, "needs": "node"},
     {"why": "#208 - the split never reaches the population line",
      "file": "bible.html",
      "find": "    if (typeof header.looseDock === 'number') o.looseDock = header.looseDock;\n",

@@ -77,6 +77,15 @@ var a = W.tvVaultRegister('The Gnasher', { lane: 'stash', sessions: [look(S1, 'f
 OUT.already = !!(a && a.ok);
 var b = W.tvVaultRegister('Arreat’s Face');
 OUT.bare = !!(b && b.ok);
+/* REG-2702 (v3817 CI) - a read that carries its looks under `witnesses` (the filing door's other key) is a read too */
+function regW(nm, looks){ var r = W.tvVaultRegister(nm, { lane: 'stash', location: 'stash', cell: 'stash:c3r4', witnesses: looks });
+  return r ? { ok: !!r.ok, refused: r.refused || null } : null; }
+OUT.w1 = regW('Crown of Ages', [look(S1, 'f_11.jpg')]);
+OUT.w1Owned = owned.has('Crown of Ages');
+OUT.w2 = regW('Crown of Ages', [look(S2, 'f_12.jpg')]);
+OUT.w2Owned = owned.has('Crown of Ages');
+OUT.wFrameOnly = regW('Arachnid Mesh', [{ frame: 'f_13.jpg', lane: 'stash', cell: 'stash:c3r4' }]);
+OUT.wFrameOnlyOwned = owned.has('Arachnid Mesh');
 /* an unreadable hold store */
 localStorage.setItem('d2r_vaultSighted', '{broken');
 OUT.broken = reg('Shaftstop', [look(S1, 'f_7.jpg')]);
@@ -135,6 +144,14 @@ class AutoIntakeRegistersOnTwoSessions(unittest.TestCase):
         self.assertTrue(o["already"], "a read of an item he owns was held")
         self.assertTrue(o["bare"], "a register with no witness (a restore of what he had) was held")
 
+    def test_a_read_carrying_its_looks_as_witnesses_is_held_too(self):
+        o = page()
+        self.assertEqual(o["w1"]["refused"], "one-session", "a read under `witnesses` registered on ONE session: %r" % o["w1"])
+        self.assertFalse(o["w1Owned"], "a read under `witnesses` made an item his on one session (REG-2702)")
+        self.assertTrue(o["w2"]["ok"] and o["w2Owned"], "the second session under `witnesses` did not register: %r" % o["w2"])
+        self.assertEqual(o["wFrameOnly"]["refused"], "no-look", "a frame with no session registered: %r" % o["wFrameOnly"])
+        self.assertFalse(o["wFrameOnlyOwned"])
+
     def test_an_unreadable_hold_store_holds_every_read_and_is_never_written(self):
         o = page()
         self.assertEqual(o["broken"]["refused"], "hold-unknown", o["broken"])
@@ -168,6 +185,9 @@ RED_PROOF = [
     {"why": "#202 - his hand is held too",
      "file": "bible.html", "find": "      if (_isRead202 && !(_w0.by === 'hand' || _w0.source === 'hand') && !owned.has(name)) {\n",
      "replace": "      if (_isRead202 && !owned.has(name)) {\n", "matches": 1, "needs": "node"},
+    {"why": "REG-2702 - a read carrying its looks as `witnesses` is not a read to the two-session rule again",
+     "file": "bible.html", "find": "        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks) || Array.isArray(witness.witnesses)\n",
+     "replace": "        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks)\n", "matches": 1, "needs": "node"},
 ]
 
 if __name__ == "__main__":

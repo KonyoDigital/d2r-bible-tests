@@ -45,8 +45,9 @@ PATCHES = [
     ("    ix = new Map();\n    var map = bag.map || {};", "    ix = new Map(); window.__C.keeperWalk++;\n    var map = bag.map || {};"),
     ("    else Object.keys(bag.map || {}).forEach(function(k){",
      "    else (window.__C.keeperWalk++, Object.keys(bag.map || {})).forEach(function(k){"),
-    ("    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, assignUnknown: false, ok: true };",
-     "    window.__C.recordsBuild++; var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, assignUnknown: false, ok: true };"),
+    # REG-2697 added the loose split to the model's first line; the anchor is that line's opening, which is unique
+    ("    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, assignUnknown: false, ok: true,\n",
+     "    window.__C.recordsBuild++; var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, assignUnknown: false, ok: true,\n"),
 ]
 PRELUDE = "window.__C = { ask: 0, lookupWalk: 0, keeperWalk: 0, recordsBuild: 0, fold: 0, plannerParse: 0, itemsWalk: 0, etherNorm: 0 };"
 

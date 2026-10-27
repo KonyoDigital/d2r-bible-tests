@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2702 - A READ THAT CARRIED ITS LOOKS AS `witnesses` SKIPPED HIS TWO-SESSION RULE (#202, caught by v3817's CI run)
+REG-2686 held a read of a name he does not own until a second session, but its "is this a read" test knew only `sessions`,
+`looks` and a top-level frame. The filing door (_vaultIntakeLook, vaultFile) also reads a look from `witnesses`, so a read
+that carried its looks there registered on ONE sighting, and a frame with no session at all registered too - CI's
+test_intake_a_move_needs_a_look_and_owned_has_a_record showed 'Treachery' owned after a session-less frame. The read test
+names `witnesses` now. (A second change to the hold's own look list was tried and dropped: its sabotage stayed GREEN because
+the outer register already copies a witness with a session into `sessions` - dead code, not a fix.)
+Law: test_auto_intake_registers_on_two_sessions (a witnesses-only read is held, then registers on its 2nd session; a
+session-less frame is refused no-look).
+
 ### REG-2701 - THE CONSOLE PARSED ITS OWN SOURCE IN ITS OWN HEAP (#172 phase B)
 The ~1 GB of data-driven console memory measured on 2026-10-27 was its own source being parsed: the route census
 (chronicle_routes.routes(): ~1,400 files, 939k ast objects) and the lane spans (health_engine._lane_spans(): the 49k-line
