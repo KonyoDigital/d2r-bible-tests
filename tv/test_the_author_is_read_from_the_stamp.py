@@ -9,7 +9,7 @@ stamps a version, two failures are the same bug:
   · a Claude look the recorder stored as model "claude" (it strips the parenthesis)
     is refused, because anthropic equals the hardcoded author
 
-The stamp commit decides. `Seat: Grok CLI (code)` means the author family is xai.
+The stamp commit decides. A `Seat: Grok CLI (code)` or `Seat: Grok Bot (code)` line means the author family is xai.
 A look counts only when its family differs from that.
 """
 import io
@@ -126,6 +126,28 @@ class TestTheAuthorIsReadFromTheStamp(unittest.TestCase):
         self.assertEqual(L.author_family("v0002"), "xai",
                          "a later rewrite of the stamp line took the Grok seat's authorship (REG-2011)")
 
+    def test_a_grok_bot_stamp_is_the_grok_family_too(self):
+        """v3807 was stamped `Seat: Grok Bot (code)` (Grok Bot's coder seat, #230 GB-L), and its only look was grok-cli.
+        The ledger read only the CLI spelling, so that stamp fell back to anthropic and the author's own family passed
+        as the second eye. Both Grok seats are xai. A message that only QUOTES the seat line inside a sentence decides
+        nothing, because a comment about who wrote a ship is not the commit that stamped it."""
+        bot_sha = self._commit("v0003", "v0003 the small slice\n\nSeat: Grok Bot (code)\n")
+        self.assertEqual(L.author_family("v0003"), "xai", "a Grok Bot stamp was read as anthropic")
+        self.assertTrue(L._commit_is_grok_seat(bot_sha, "v0003", repo=self.repo),
+                        "the Grok Bot stamp is not a Grok code seat to the Claude-row check")
+        L.record("v0003", "grok-cli", "clean", answer_head="the seat's own family looking",
+                 reached=True, sha=bot_sha, path=self.led)
+        self.assertTrue(L.owes_a_look("v0003", self.led), "a grok-cli look closed a Grok Bot ship")
+        L.record("v0003", "claude", "findings", answer_head="the other family looking",
+                 reached=True, sha=bot_sha, path=self.led)
+        self.assertFalse(L.owes_a_look("v0003", self.led), "a Claude look on a Grok Bot ship did not count")
+
+        prose_sha = self._commit(
+            "v0004", "v0004 docs: the ledger reads `Seat: Grok Bot (code)` from the stamp\n")
+        self.assertEqual(L.author_family("v0004"), "anthropic",
+                         "a sentence quoting the seat line took the authorship")
+        self.assertFalse(L._commit_is_grok_seat(prose_sha, "v0004", repo=self.repo))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -157,6 +179,35 @@ RED_PROOF = [
         "file": "tv/second_eye_ledger.py",
         "find": "        elif fam and fam == author:\n",
         "replace": "        elif fam == AUTHOR_FAMILY:\n",
+        "matches": 1,
+    },
+    {
+        "why": "only the Grok CLI spelling is a Grok seat again, so a Seat: Grok Bot (code) stamp reads anthropic "
+               "and a grok-cli look closes it (v3807)",
+        "file": "tv/second_eye_ledger.py",
+        "find": '_GROK_SEAT_LINE = re.compile(r"^Seat: Grok (?:CLI|Bot) \\(code\\)[ \\t]*$", re.M)\n',
+        "replace": '_GROK_SEAT_LINE = re.compile(r"^Seat: Grok CLI \\(code\\)[ \\t]*$", re.M)\n',
+        "matches": 1,
+    },
+    {
+        "why": "the seat line is matched anywhere in the message, so a sentence that quotes it takes the authorship",
+        "file": "tv/second_eye_ledger.py",
+        "find": '_GROK_SEAT_LINE = re.compile(r"^Seat: Grok (?:CLI|Bot) \\(code\\)[ \\t]*$", re.M)\n',
+        "replace": '_GROK_SEAT_LINE = re.compile(r"Seat: Grok (?:CLI|Bot) \\(code\\)", re.M)\n',
+        "matches": 1,
+    },
+    {
+        "why": "the Claude-row check reads the CLI literal again, so a Grok Bot stamp is not a Grok seat there",
+        "file": "tv/second_eye_ledger.py",
+        "find": "        if msg.returncode != 0 or not _is_grok_seat_message(msg.stdout):\n",
+        "replace": "        if msg.returncode != 0 or \"Seat: Grok CLI (code)\" not in (msg.stdout or \"\"):\n",
+        "matches": 1,
+    },
+    {
+        "why": "the stamp reader takes the CLI literal again, so a Grok Bot stamp falls back to anthropic",
+        "file": "tv/second_eye_ledger.py",
+        "find": "        out[ver] = \"xai\" if _is_grok_seat_message(msg) else AUTHOR_FAMILY\n",
+        "replace": "        out[ver] = \"xai\" if \"Seat: Grok CLI (code)\" in msg else AUTHOR_FAMILY\n",
         "matches": 1,
     },
 ]

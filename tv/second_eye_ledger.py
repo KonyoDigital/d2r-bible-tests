@@ -418,6 +418,17 @@ _FAMILY = (
 # this name is the fallback, not a claim that every ship was written by Claude.
 AUTHOR_FAMILY = "anthropic"
 
+# The Grok code seats that sign a stamp commit. Both are xai: the Grok CLI and Grok Bot's coder seat
+# (#230 GB-L). Until v3808 only the CLI spelling was read, so every `Seat: Grok Bot (code)` stamp fell
+# back to anthropic and a grok-cli look on it passed as the other family (v3807: grok-cli was its only
+# look). A whole line is required, so prose that quotes the seat line decides nothing.
+_GROK_SEAT_LINE = re.compile(r"^Seat: Grok (?:CLI|Bot) \(code\)[ \t]*$", re.M)
+
+
+def _is_grok_seat_message(msg):
+    """The commit message carries a Grok code-seat line of its own. -> bool"""
+    return bool(_GROK_SEAT_LINE.search(msg or ""))
+
 #: ⚠ THERE IS DELIBERATELY NO MODULE GLOBAL FOR THE SHIP-TABLE VERDICT. v3162 kept
 #: LAST_SHIP_TABLE_OK "for older callers" beside the per-call `state` dict; the Codex eye pointed
 #: out that any such caller still races, and a grep found ZERO of them repo-wide. Keeping a racy
@@ -1022,7 +1033,7 @@ def _commit_is_grok_seat(sha, version, repo=None):
             ["git", "show", "-s", "--format=%B", sha],
             cwd=(repo or _REPO), capture_output=True, text=True,
             encoding="utf-8", errors="replace", timeout=15)
-        if msg.returncode != 0 or "Seat: Grok CLI (code)" not in (msg.stdout or ""):
+        if msg.returncode != 0 or not _is_grok_seat_message(msg.stdout):
             return False
         ship = subprocess.run(
             ["git", "show", "%s:tv/WINDOWS_SHIP.json" % sha],
@@ -1082,15 +1093,15 @@ def _stamp_authors(repo):
         ver = norm_version(added[-1])
         if not ver or ver in out:
             continue
-        out[ver] = "xai" if "Seat: Grok CLI (code)" in msg else AUTHOR_FAMILY
+        out[ver] = "xai" if _is_grok_seat_message(msg) else AUTHOR_FAMILY
     return out
 
 
 def author_family(version, repo=None):
     """Who wrote this version, read from the commit that stamped it.
 
-    A stamp whose message carries `Seat: Grok CLI (code)` is the Grok code seat, so
-    its author family is xai. Every other stamp, and a version this cannot read,
+    A stamp whose message carries a `Seat: Grok CLI (code)` or `Seat: Grok Bot (code)` line is a Grok code
+    seat, so its author family is xai. Every other stamp, and a version this cannot read,
     stays anthropic. The model string is not evidence: the recording tool strips a
     parenthesis, so a comment that merely says who wrote the ship decides nothing.
     """

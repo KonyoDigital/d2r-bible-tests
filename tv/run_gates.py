@@ -1088,7 +1088,7 @@ GATES = [
          why="The second-eye gate hardcoded the author as anthropic, so a grok-cli look on a "
              "Grok-seat ship counted as the other family, and a Claude look recorded as model "
              "claude (the parenthesis stripped) was refused as the author. The author is now the "
-             "stamp commit: Seat: Grok CLI (code) is xai, and a look counts only when its family "
+             "stamp commit: a Seat: Grok CLI (code) or Grok Bot (code) line is xai, and a look counts only when its family "
              "differs from that."),
     Gate("test_no_pinned_footage", [sys.executable,
                                     os.path.join(HERE, "test_a_gate_may_not_pin_his_footage.py")], 90,
