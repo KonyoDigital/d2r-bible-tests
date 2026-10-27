@@ -21,6 +21,9 @@ except Exception:
     pass
 
 import self_prove as SP  # noqa: E402
+import fixture_tmp  # noqa: E402
+
+fixture_tmp.contain()
 
 OWED = [("test_a", 10.0), ("test_b", 10.0), ("test_c", 10.0), ("test_d", 10.0), ("test_e", 10.0),
         ("test_f", 10.0), ("test_g", 10.0), ("test_h", 10.0)]
