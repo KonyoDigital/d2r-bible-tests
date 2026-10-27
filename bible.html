@@ -45918,6 +45918,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (pool.indexOf(n) >= 0 || !_vaultHandBase(n)) return;
         void prov;
         if (_vaultHandTyped(n)) out.push(n); /* L1 hand-typed base */
+        else if (prov[n] && prov[n].kind === 'owned' && prov[n].by === 'tvVaultRegister') out.push(n); /* intake own record: a base the TV registered is owned, so it is a record too */
       });
     } catch (e) { return []; }
     return out;
@@ -47562,6 +47563,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_stopped) return _stopped; /* v3767 register stop */
       if (!_byHand && _witIn && typeof window._vaultIntakeLook === 'function') _witIn = window._vaultIntakeLook(_witIn); /* auto intake look */
       var r;
+      var _preMap = null; /* intake zero looks: a row saved BEFORE this read counts, not one this read itself just wrote */
+      try { _preMap = (typeof _vaultMoveBag === 'function') ? (_vaultMoveBag().map || null) : null; } catch (ePre) { _preMap = null; }
       try {
         var _call = arguments;
         if (arguments.length > 1 && arguments[1] !== _witIn){
@@ -47609,8 +47612,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             var _savedCell = false;
             if (!_byHand && _lookN < 1){
               try {
-                var _bagS = (typeof _vaultMoveBag === 'function') ? _vaultMoveBag() : null;
-                var _mapS = _bagS && _bagS.map;
+                var _mapS = _preMap;
                 var _cellS = _witIn.cell;
                 if (_mapS && _cellS != null && _cellS !== ''){
                   var _preS = String(nm) + '\u0000';
@@ -52850,7 +52852,7 @@ window.vaultAutoAssign = function(){
         if (!_ruledJunk) return; /* main lane or no home: no move row */
       }
       var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
-      var hasSight = !!(r.sight && r.sight.cell);
+      var hasSight = !!(r.sight && r.sight.cell && (r.sight.witnesses | 0) >= 1); /* intake zero looks: a cell with no session behind it is not a look, so it opens no move */
       var thr = (typeof _vaultThrowTask === 'function') ? _vaultThrowTask(r, stored) : null;
       if (thr) {
         if (_vaultMoveMainLane(thr.task.from && thr.task.from.location)) return; /* a stored inventory from stays locked */

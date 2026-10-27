@@ -579,9 +579,11 @@ assign['Zzyzx Blade of Nothing'] = '__throwout';
 window._seam = { loc: 'loose' };
 var fromRuled = collect([{ name: 'Zzyzx Blade of Nothing', copyIx: 0, sight: { location: 'stash', cell: 'stash:c1r1' } }]);
 window._seam = null;
-var fromStash = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1' } }]);
-var fromShared = collect([{ name: 'Treachery', copyIx: 0, sight: { location: 'shared', cell: 'shared:c3r4' } }]);
+var fromStash = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: 1 } }]);
+var fromShared = collect([{ name: 'Treachery', copyIx: 0, sight: { location: 'shared', cell: 'shared:c3r4', witnesses: 1 } }]);
 window._ensFrom = 'inventory';
+/* #230 v3806: a cell with no session behind it (witnesses null) is zero looks and opens no move */
+var zeroLook = collect([{ name: 'Thresher', copyIx: 0, sight: { location: 'stash', cell: 'stash:c7r1', witnesses: null } }]);
 var storedInv = collect([{ name: 'Thresher', copyIx: 0, sight: { location: '', cell: null } }]);
 function names(pack){ return (pack.tasks || []).map(function(r){ return r.name; }); }
 console.log(JSON.stringify({
@@ -590,7 +592,7 @@ console.log(JSON.stringify({
   fromInv: names(fromInv), fromEquip: names(fromEquip),
   fromUnknown: names(fromUnknown), fromUnknownPlain: names(fromUnknownPlain),
   fromRuled: names(fromRuled), fromStash: names(fromStash), fromShared: names(fromShared),
-  storedInv: names(storedInv),
+  storedInv: names(storedInv), zeroLook: names(zeroLook),
   committedUnknown: fromUnknownPlain.committed || []
 }));
 """,
@@ -612,6 +614,7 @@ console.log(JSON.stringify({
         self.assertEqual(o["fromStash"], ["Thresher"])
         self.assertEqual(o["fromShared"], ["Treachery"])
         self.assertEqual(o["storedInv"], [])
+        self.assertEqual(o["zeroLook"], [])
         self.assertEqual(o["committedUnknown"], [])
 
 
