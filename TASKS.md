@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3815** | `(this commit)` | v3815 — 8 vault door fixes, leaving a shadow goes back, names read right, roster keeps newest, loose count split |
+| **v3816** | `(this commit)` | v3816 — upload fits the cap and waits the gap, Dean blind laws, a booting board is waited for, shelf and theatre |
+| **v3815** | `892d4d09` | v3815 — 8 vault door fixes, leaving a shadow goes back, names read right, roster keeps newest, loose count split |
 | **v3814** | `630bc2c6` | v3814 — shadow characters arrive (#203), private consoles keep off his pid files (#177), quiet relaunch stays minimized |
 | **v3813** | `1738e992` | v3813 — the river is read a minute after a start (#193), one look rule (#201), NPC names refused (#209), shadow view links work |
 | **v3812** | `4e0df16c` | v3812 — Each source file is parsed once, not every tick. No shadow of yourself. Unfiled items read no home. |
