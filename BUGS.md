@@ -7,6 +7,43 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2672 - THE SHADOW'S TV·D COULD GO LIVE ON THE VIEWER'S OWN CAPTURE AGENT (GrokBot bug 5, 2026-10-27)
+The shadow frame refused writes and every /api/ path, but the board's TV·D probe asks http://127.0.0.1:17771/ping (the
+VIEWER's capture agent) and polls /state: a GET with no /api/ in it, so it passed. In a shadow, TV·D could show the
+viewer's own live reads. Another origin, and the agent's own paths (/frame, /hist, /state, /ping), are now refused with a
+not-ok status, so a probe reads "no agent here". The owner's Sessions and TV·D content itself (bugs 4+5) is board #218.
+Law: test_shadow_mode_reads_their_console, 2 red-proofs.
+
+### REG-2671 - "0 / 99 RUNEWORDS FORGED · · 91 WORKABLE" (GrokBot bugs 9 + 10)
+Seven joins glued ' · ' to a published lane's sentence, which is '' when the owner's list was sent empty. Each is guarded
+now. And the D2JSP price line printed its reading's raw UTC stamp; it now says a local 24-hour time, and a page that no
+price reader answered says so instead of reporting a reading at a made-up time. Laws: test_an_empty_sentence_adds_no_
+separator (RED on the old page: 8 bare joins), test_the_d2jsp_desk_reads_a_price_before_it_posts.
+
+### REG-2670 - THE SHADOW'S CHARACTER EVIDENCE WAS TRIMMED, AND THE OWNER'S ROOM SAID UNKNOWN WHILE ASKING (bugs 6 + 7)
+The upload kept only ok/chars/gear/gearWhy/minVisits/tierBars/cPanel, so the shadow's "named on the lobby or the
+character panel, citing the frame" block drew nothing. surfaceWitnesses and lobbyBySize ride now (console_snapshot and
+functions/api/roster.js together, frame names as text only). And the Characters room said "UNKNOWN - no console has
+answered this page yet" for the 4-14 s the console took; it starts the ask before its first paint and says it is asking.
+
+### REG-2669 - A QUIET RELAUNCH'S WINDOW CAME BACK HIDDEN ON THE NEXT ONE (#179, GrokBot WINDOW_GONE; Dean)
+A quiet relaunch opens the window minimized and records "quiet relaunch: ..."; only exactly "minimized" counted as
+minimized, so the next automatic relaunch set TV_START_HIDDEN: no window, no Dock tile. A window born minimized is
+minimized now (_bg_minimized), for the relaunch and for what the console says. Law: test_a_quiet_relaunch_stays_minimized.
+
+### REG-2668 - A PUSH'S PRIVATE CONSOLE COULD STOP HIS ON AIR AGENT (#177, his ruling 2026-10-22)
+The demo and test_button_matrix start tv/control_app.py from his tv/ with TV_HIST set. The log and state moved into the
+fixture's world, but the four pid files stayed in tv/, and a private console's stop path SIGTERMs then SIGKILLs the pid in
+PID_PATH and deletes the file. The pid files follow _fixture_root_for_state now: tv/ on his console, the fixture's world
+on every private one. Law: test_a_private_console_never_reads_his_pid_files (a real import in a subprocess, both ways).
+
+### REG-2667 - THE ALT'S CHARACTERS NEVER REACHED ITS SHADOW (#203, GrokBot bug 1)
+The upload asked the console's /api/chars_learned over loopback with an 8 s timeout; the ALT takes 4.7-14 s (status()
+globs every reel folder and frame), and a timeout was dropped silently. It also asked on every 60 s tick, before due()
+said "within 75 min". Now chars_learned_answer(full=False) builds only the uploaded fields in-process, nothing is asked
+unless an upload could go (console_snapshot.gate), a miss sends the last good answer under 24 h old and is named in
+.roster_profile_state.json (apiMiss), and an unsent answer reads "their console did not send this" in the shadow.
+
 ### REG-2666 - IN THE SHADOW, "BEST RUNS", "OPEN RECIPE" AND ALL 12 TOOLS CHIPS DID NOTHING (GrokBot bugs 2+3, 2026-10-27)
 GrokBot's full shadow debug (Mac viewing the ALT): Uniques "Best runs ->", Sets "Best runs ->", Crafts "open recipe" and
 every Tools chip worked on the owner's page and were dead in the shadow. The shadow's click veil passes only the handlers

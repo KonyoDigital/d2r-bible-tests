@@ -11985,6 +11985,22 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_look_under_the_floor_opens_no_move.py")], 300,
          needs_app=False,
          why='REG-2665 (#201) - one rule for a look that counts; a 0.40 look never opens a move through the stored record. Whole page in node.'),
+    Gate("test_a_slow_character_read_still_reaches_the_shadow",
+         [sys.executable, os.path.join(HERE, "test_a_slow_character_read_still_reaches_the_shadow.py")], 300,
+         needs_app=False,
+         why="REG-2667 (#203, GrokBot bug 1) - the ALT's characters never reached its shadow: the upload's answer is built in-process, asked only when due, falls back to the last good answer and names a miss. Bug 6 asking state."),
+    Gate("test_a_private_console_never_reads_his_pid_files",
+         [sys.executable, os.path.join(HERE, "test_a_private_console_never_reads_his_pid_files.py")], 300,
+         needs_app=False,
+         why="REG-2668 (#177) - a private console's stop path read HIS tv/control_agent.pid and could kill his ON AIR agent; its pid files live in its own world now."),
+    Gate("test_a_quiet_relaunch_stays_minimized",
+         [sys.executable, os.path.join(HERE, "test_a_quiet_relaunch_stays_minimized.py")], 300,
+         needs_app=False,
+         why="REG-2669 (#179) - a quiet relaunch's minimized window came back HIDDEN on the next relaunch (WINDOW_GONE); it stays minimized."),
+    Gate("test_an_empty_sentence_adds_no_separator",
+         [sys.executable, os.path.join(HERE, "test_an_empty_sentence_adds_no_separator.py")], 300,
+         needs_app=False,
+         why="REG-2671 (GrokBot bug 10) - an empty published sentence glued a stray ' · ' (forged · · 91 workable)."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
