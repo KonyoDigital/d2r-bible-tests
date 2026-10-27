@@ -12,8 +12,9 @@ disk or an install id is blanked; nothing else in a store is changed, so the vie
 same bytes the owner's board reads and draws the same screens, mods and all.
 
 The profile rides the roster publish (same route, same signing key) to its own record `roster:<owner>:profile`
-(functions/api/roster.js (profile)). It is change-only and at most once per MIN_GAP_MS, plus one at boot; the
-worker holds the daily cap. A viewer reads that record. When the worker cannot be reached the last
+(functions/api/roster.js (profile)). It is change-only and at most once per MIN_GAP_MS, a boot
+included (a boot past the gap posts even unchanged); the worker holds the daily cap, and a boot that skipped the gap
+spent it on every restart (the ALT, 2026-10-27). A viewer reads that record. When the worker cannot be reached the last
 copy this PC fetched is shown with the time it was synced: shadow works whether the other console
 is up or not.
 """
@@ -237,20 +238,26 @@ def digest(stores):
 
 def gate(state, now_ms, boot):
     """#203 - could an upload go now, whatever the stores say? -> (open, why). The time half of due(), asked BEFORE the
-    console's answers are built, so a tick inside the gap costs nothing. A refusal waits MIN_GAP_MS; outside a boot
-    post, the last upload must be MIN_GAP_MS old."""
+    console's answers are built, so a tick inside the gap costs nothing. A refusal waits MIN_GAP_MS, and the last upload
+    must be MIN_GAP_MS old - for a boot post too.
+
+    THE QUOTA (measured on the ALT 2026-10-27 23:32): the site takes 20 profile uploads a day per owner, and a boot post
+    skipped the gap, so every self-update restart spent one. After an evening of ships the ALT's .roster_profile_state.json
+    read "quota: 20 uploads a day", the upload carrying its character list (v3814) was refused, and nothing could go up
+    until the site's day turned. A boot inside the gap now waits like any tick; a boot past it still skips "unchanged"."""
     state = state if isinstance(state, dict) else {}
     refused = state.get("refuseAt")
     if isinstance(refused, int) and not isinstance(refused, bool) and now_ms - refused < MIN_GAP_MS:
         return False, state.get("why") or "the snapshot was refused"
     last = state.get("at")
-    if (not boot and isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS):
+    if isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS:   # the quota - boot too
         return False, "within %d min of the last upload" % (MIN_GAP_MS // 60000)
     return True, "open"
 
 
 def due(state, owner, stores, now_ms, boot):
-    """-> (body or None, why). Change-only, MIN_GAP_MS apart, one boot post; a refusal waits MIN_GAP_MS."""
+    """-> (body or None, why). Change-only, MIN_GAP_MS apart (a boot too - the quota, see gate); a boot past the gap
+    posts even unchanged; a refusal waits MIN_GAP_MS."""
     state = state if isinstance(state, dict) else {}
     if not profile_key(owner):
         return None, "the owner is not one of the five labels"

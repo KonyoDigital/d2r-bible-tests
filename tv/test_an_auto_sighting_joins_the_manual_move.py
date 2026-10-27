@@ -18,6 +18,12 @@ import subprocess
 import sys
 import unittest
 
+
+def _look_rule(src):
+    """#201 (v3813) - the floor and the one look rule, as the v3767 harnesses cut them."""
+    from test_v3767_copy_witness import look_rule
+    return look_rule(src)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
@@ -112,6 +118,7 @@ class AutoSightingJoinsTheManualMove(unittest.TestCase):
     def test_a_lane_sighting_with_no_from_cell_is_a_to_move(self):
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             _fn(self.src, "_vaultMovePlace"),
             _fn(self.src, "_vaultMoveSamePlace"),
             _fn(self.src, "_vaultMoveTask"),
@@ -175,6 +182,7 @@ console.log(JSON.stringify({
     def test_shared_is_a_container_and_a_bare_frame_is_one_look(self):
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             _var(self.src, "_WIT_STASH"),
             _var(self.src, "_WIT_MAIN"),
             _var(self.src, "VAULT_WITNESS_FLOOR"),
@@ -217,6 +225,7 @@ console.log(JSON.stringify({
     def test_a_main_lane_and_an_unknown_name_do_not_get_a_move_row(self):
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             _fn(self.src, "_vaultMoveFarmLoot"),
             _fn(self.src, "_vaultMoveAutoRow"),
             r"""
@@ -251,6 +260,7 @@ console.log(JSON.stringify({
         wrap = _assigned(self.src, r"window\.tvVaultRegister = function\(name\)\{")
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             "var owned = new Set();",
             _fn(self.src, "_vaultIntakeLook"),
             r"""
@@ -304,6 +314,7 @@ console.log(JSON.stringify({
         wrap = _assigned(self.src, r"window\.tvVaultRegister = function\(name\)\{")
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             "var owned = new Set();",
             _fn(self.src, "_vaultIntakeLook"),
             r"""
@@ -351,6 +362,7 @@ console.log(JSON.stringify({ treachery: treachery, charm: charm, torch: torch, o
             "sessions: [{ session: _liveSid || null, frame: _liveFid || null, conf: null }]"), 1)
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             "var PROV_KEY = 'd2r_vaultProv';",
             "var assign = {};",
             "var owned = new Set();",
@@ -471,6 +483,7 @@ console.log(JSON.stringify({
         self.assertEqual(o["min"], 2)
         receipt = self._run("\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             "window.D2R_BUILD = { id: 'law' };",
             _fn(self.src, "_str"),
             _fn(self.src, "_num"),
@@ -495,6 +508,7 @@ console.log(JSON.stringify({ conf: row.looks[0].conf, id: row.looks[0].id, frame
     def test_inventory_kit_and_an_unknown_name_are_not_move_rows_but_farming_loot_is(self):
         prog = "\n".join([
             "var window = globalThis;",
+            _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             "var assign = {};",
             "var homes = {",
             "  'Thresher': { id: 'uni-weap', holder: 'UNI-WEAPONS', location: 'stash' },",
@@ -666,7 +680,7 @@ console.log(JSON.stringify({
 
 
     def test_the_intake_owned_stamp_never_throws_on_a_bad_prov_row(self):
-        prog = "\n".join([_fn(self.src, "_vaultIntakeOwned"), _fn(self.src, "_vaultSightLooks"), r"""
+        prog = "\n".join(["var window = globalThis;", _look_rule(self.src), _fn(self.src, "_vaultIntakeOwned"), _fn(self.src, "_vaultSightLooks"), r"""
 var boom = {}; Object.defineProperty(boom, 'ownedBy', { get: function(){ throw new Error('bad row'); } });
 var S = { by: 'tvVaultRegister', kind: 'owned' };
 console.log(JSON.stringify({

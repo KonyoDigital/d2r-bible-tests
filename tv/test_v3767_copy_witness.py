@@ -167,6 +167,16 @@ window._vaultAutoIntakePaint = _vaultAutoIntakePaint;
 """
 
 
+def look_rule(src):
+    """#201 (v3813) - THE ONE RULE FOR A LOOK THAT COUNTS, cut from bible.html with its floor. _vaultSightGroups,
+    _vaultSightLooks and the register wrapper ask it through window.*, so a harness that cuts any of them carries it."""
+    m = re.search(r"\n  var VAULT_WITNESS_FLOOR = [^;]+;", src)
+    if not m:
+        raise AssertionError("VAULT_WITNESS_FLOOR is gone from bible.html")
+    return "\n".join([m.group(0).strip()] + [_fn(src, n) for n in ("_vaultLookConf", "_vaultLooksScored", "_vaultLookCounts")]
+                     + ["globalThis._vaultLooksScored = _vaultLooksScored; globalThis._vaultLookCounts = _vaultLookCounts;"])
+
+
 def witness_bundle(src):
     """The pure law, cut from bible.html. No browser."""
     lane = _slice_fn(src, "var _LANE_LOCK_KEY = 'd2r_laneLock';", "window._laneLockWhy = function(name){")
@@ -176,7 +186,7 @@ def witness_bundle(src):
         r"window\.vaultIntake = async function\(files, opts\)\{",
         r"window\.tvVaultAutoIntake = async function\(opts\)\{",
     ))
-    return "\n".join([lane, looks] + [_fn(src, n) for n in FNS] + [doors, TAIL])
+    return "\n".join([lane, looks, look_rule(src)] + [_fn(src, n) for n in FNS] + [doors, TAIL])
 
 
 class TestV3767CopyWitness(unittest.TestCase):

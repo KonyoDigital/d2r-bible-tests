@@ -190,7 +190,13 @@ class WhenItUploads(unittest.TestCase):
         s2 = dict(s, d2r_owned=json.dumps(["Harlequin Crest", "Enigma"]))
         self.assertIsNone(CS.due(st, OWNER, s2, T0 + CS.MIN_GAP_MS - 1, False)[0])
         self.assertIsNotNone(CS.due(st, OWNER, s2, T0 + CS.MIN_GAP_MS, False)[0])
-        self.assertIsNotNone(CS.due(st, OWNER, s, T0 + 1, True)[0], "the boot post was held back")
+        # the quota (2026-10-27): every restart's boot post skipped the gap and the ALT spent the site's 20 uploads a day,
+        # so the upload with its character list was refused. A boot inside the gap waits like any tick.
+        self.assertEqual(CS.due(st, OWNER, s, T0 + 1, True),
+                         (None, "within %d min of the last upload" % (CS.MIN_GAP_MS // 60000)),
+                         "a boot inside the gap still posts - every restart spends one of the 20 uploads a day")
+        self.assertIsNotNone(CS.due(st, OWNER, s, T0 + CS.MIN_GAP_MS, True)[0], "a boot past the gap was held back")
+        self.assertIsNotNone(CS.due({}, OWNER, s, T0, True)[0], "a first boot with nothing uploaded yet was held back")
         refused = {"refuseAt": T0, "why": "quota"}
         self.assertEqual(CS.due(refused, OWNER, s, T0 + 1, True), (None, "quota"))
         self.assertIsNotNone(CS.due(refused, OWNER, s, T0 + CS.MIN_GAP_MS, True)[0])
@@ -2065,6 +2071,11 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
      "replace": "", "matches": 1, "needs": "node"},
+    {"why": "the quota - a boot post skips the 75 min gap again, so restarts spend the site's 20 uploads a day",
+     "file": "tv/console_snapshot.py",
+     "find": "    if isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS:   # the quota - boot too\n",
+     "replace": "    if not boot and isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS:\n",
+     "matches": 1},
     {"why": "GrokBot bug 5 - the viewer's own capture agent on another origin answers inside a shadow again",
      "file": "bible.html",
      "find": "      if (foreign(url)) return true;\n",

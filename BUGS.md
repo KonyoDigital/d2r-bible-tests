@@ -18,6 +18,26 @@ Also found while checking the shipped v3814 against the whole law set: two regis
 (test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
 REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
 Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+### REG-2685 - NINE LAWS WENT RED ON v3813/v3814 OUTSIDE THE PRE-PUSH SUBSET (CI's agent tests)
+CI's "TV DIABLO - agent tests" ran the whole gate set and failed on v3813 and v3814; the pre-push gate runs a subset, so
+none of these stopped a push. Each was a HARNESS that cuts functions out of bible.html and had not learned a helper the
+shipped code now calls - the product was right and the laws could not run it:
+- test_an_auto_sighting_joins_the_manual_move, test_v3767_copy_witness(+_visual), test_v3767_vault_spread,
+  test_v3769_vault_move_list: the #201 look rule (window._vaultLookCounts / _vaultLooksScored and the floor). One
+  shared cut, test_v3767_copy_witness.look_rule, now rides in each; test_v3769 also slices _vaultHandGear (#144.1+8).
+- test_v3767_vault_spread: #209's _vaultNotAnItem stubbed (as REG-2683 did for two more harnesses).
+- test_a_fresh_d2jsp_quote_is_not_asked_again: d2jspWhen (bug 9) cut beside d2jspPriceLine.
+- test_every_decision_file_is_ignored: tv/.roster_profile_api.json (#203's last good answers) is gitignored.
+- test_a_slow_character_read_still_reaches_the_shadow: CI's Python names socket.timeout TimeoutError; fixed in v3815.
+
+### REG-2684 - EVERY RESTART SPENT ONE OF THE SITE'S 20 PROFILE UPLOADS A DAY (measured on the ALT, 2026-10-27 23:32)
+The ALT's .roster_profile_state.json read "roster would not take this profile: quota: 20 uploads a day". A boot post
+skipped the 75-minute gap, so each self-update restart uploaded once; after an evening of ships the cap was spent, the
+v3814 upload carrying its character list was refused, and nothing could go up until the site's day turned (GrokBot's
+23:10 pass saw "uploaded 77 min ago" and no character list). console_snapshot.gate: a boot inside the gap waits like any
+tick; a boot past the gap still posts even unchanged. Law: test_shadow_mode_reads_their_console (a red-proof restores
+the old boot exemption). This changes the "one boot post" design - flagged to him on #230 for a veto.
+
 ### REG-2682 - THE THEATRE'S MODE BUTTON CARRIED A 97-CHARACTER LABEL (#92, GrokBot)
 "⏱ REAL · all 20 photos · 1:1 time · 📹 film 12 (film-lane stills) · photos 20 (every framed beat)" on one button. The
 button names the film count in two words (_filmShortSay, UNKNOWN when uncounted) and the whole #252 sentence is its

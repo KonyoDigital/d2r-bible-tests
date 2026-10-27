@@ -130,7 +130,8 @@ class AFreshD2jspQuoteIsNotAskedAgain(unittest.TestCase):
         if NODE is None:
             self.fail("node is not on this machine")
         src = self.bible
-        price = _js_fn(src, "function d2jspPriceLine(q)")
+        # REG-2671 (bug 9, v3814): the price line says its reading's time through d2jspWhen
+        price = _js_fn(src, "function d2jspWhen(iso)") + "\n" + _js_fn(src, "function d2jspPriceLine(q)")
         send = _js_fn(src, "function d2jspPriceToSend(quoted, typed)")
         fresh = _js_fn(src, "function quoteFresh(name)")
         ask = _js_fn(src, "function ask(name, done, force)")

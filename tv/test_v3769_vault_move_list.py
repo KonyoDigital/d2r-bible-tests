@@ -28,7 +28,7 @@ except Exception:
 BIBLE = os.path.join(HERE, "..", "bible.html")
 NODE = os.environ.get("NODE") or shutil.which("node")
 
-from test_v3767_copy_witness import _assigned, _fn, _slice_fn  # noqa: E402
+from test_v3767_copy_witness import _assigned, _fn, _slice_fn, look_rule  # noqa: E402
 
 FNS = [
     "packGrid", "vaultSize",
@@ -43,7 +43,7 @@ FNS = [
     "_vaultRehomeCopies", "_vaultReconcileHomes",
     "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_vaultMisfiled", "_vaultWarSmall", "_vaultWarKeeper", "_vaultWarExtra", "_vaultWarRole", "_vaultWarMules",
-    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandBase", "_vaultHandBasePool",
+    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandGear", "_vaultHandBase", "_vaultHandBasePool",
     "_vaultIntakeOwned", "_vaultSightLooks",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
@@ -196,7 +196,7 @@ def move_bundle(src):
     register = _assigned(src, r"window\.tvVaultRegister = function\(name\)\{")
     reload_owned = _assigned(src, r"window\._vaultReloadOwned\s*=\s*function\(")
     return "\n".join(
-        [lane, kit, looks, evidence, register, reload_owned] + [_fn(src, n) for n in FNS] + [TAIL])
+        [lane, kit, looks, evidence, register, reload_owned, look_rule(src)] + [_fn(src, n) for n in FNS] + [TAIL])
 
 
 class TestV3769VaultMoveList(unittest.TestCase):

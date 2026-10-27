@@ -88,6 +88,7 @@ def _line_has(src, needle):
 
 PREAMBLE = r"""
 var window = globalThis;
+window._vaultNotAnItem = function(){ return null; };   /* REG-2663 (#209, v3813): not this law's question */
 window.D2R_PROFILE = 'main';
 var BARE = "Natalya's Totem";
 var SLOT = "Natalya's Totem (helm)";
@@ -190,7 +191,8 @@ class TestV3767VaultSpread(unittest.TestCase):
             raise AssertionError("node is not on this machine — this law does not skip")
         with open(BIBLE, encoding="utf-8") as f:
             cls.src = f.read()
-        cls.bundle = "\n".join(_fn(cls.src, n) for n in FNS)
+        from test_v3767_copy_witness import look_rule   # #201 - the one rule the sight groups ask
+        cls.bundle = look_rule(cls.src) + "\n" + "\n".join(_fn(cls.src, n) for n in FNS)
         cls.bundle += "\n" + "\n".join(_assigned_fn(cls.src, n) for n in ASSIGNED)
         cls.dims = "\n".join([
             _line_has(cls.src, "var MULE_STASH_W = 10"),
