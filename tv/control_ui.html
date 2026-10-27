@@ -22741,6 +22741,20 @@ window._lockMark = function(isOpen, px, label){
     } catch(e){}
     return 72;
   }
+  /* #215 (GrokBot) - THE SHADOW BAR SAT OVER THE HEADER TABS on the Mac and the ALT: _shadowSnapEnter measured the header
+     (~66 px) BEFORE shell-open fixed the topbar with its extra padding (~100 px), and nothing moved the bar after. The
+     bar and the shadow frame are placed from the header height whenever the shell pane is sized - entering, and on every
+     resize - and once more right after the shadow opens the shell. */
+  function _shadowPlace(h){
+    var bar = document.getElementById('shadow-bar'), sf = document.getElementById('shadow-eng');
+    if (bar && !bar.hidden) bar.style.top = h + 'px';
+    if (sf){
+      var below = h + ((bar && !bar.hidden && bar.offsetHeight) || 34);
+      sf.style.top = below + 'px';
+      sf.style.height = 'calc(100vh - ' + below + 'px)';
+    }
+  }
+  window._shadowPlace = _shadowPlace;
   function _shellSizePane(){
     var f = document.getElementById('tvd-eng'); if (!f) return;
     var h = _shellHeadH();
@@ -22749,6 +22763,7 @@ window._lockMark = function(isOpen, px, label){
       'position:fixed;left:0;right:0;top:' + h + 'px;width:100vw;' +
       'height:calc(100vh - ' + h + 'px);bottom:auto;opacity:1;' +
       'pointer-events:auto;border:0;z-index:940;background:#070605;';
+    _shadowPlace(h);   /* #215 */
   }
   function _shellDemotePane(){
     var f = document.getElementById('tvd-eng'); if (!f) return;
@@ -28316,7 +28331,9 @@ function escC(s) {
     if (bar) { bar.style.top = h + 'px'; bar.removeAttribute('hidden'); }
     /* The marker: whose console this is and when its snapshot was taken, as a clock time beside the age words. */
     var at = '';
-    try { if (typeof d.t === 'number' && d.t > 0) at = ' · snapshot ' + new Date(d.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch (e) { at = ''; }
+    /* #214 (GrokBot) - the snapshot time was 12-hour AM/PM beside a 24-hour clock in the header; one clock now */
+    try { if (typeof d.t === 'number' && d.t > 0) { var _sd = new Date(d.t), _p2 = function (x) { return (x < 10 ? '0' : '') + x; };
+      at = ' · snapshot ' + _sd.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + _p2(_sd.getHours()) + ':' + _p2(_sd.getMinutes()); } } catch (e) { at = ''; }
     if (who) who.textContent = String(d.words || owner) + at + ' · read only';
     var f = document.createElement('iframe');
     f.id = 'shadow-eng';
@@ -28328,6 +28345,7 @@ function escC(s) {
     document.body.appendChild(f);
     document.body.setAttribute('data-shadow-shown', '1');
     document.body.classList.add('shell-open', 'shadow-on', 'shadow-snap');
+    try { window._shadowPlace(window._shellHeadH()); } catch (ePl) {}   /* #215 - measured again once the shell is open */
     try { if (typeof window._shellSizePane === 'function') window._shellSizePane(); } catch (e) {}
     try { if (typeof window._shellLight === 'function') window._shellLight('chars'); } catch (e) {}
     return gen;

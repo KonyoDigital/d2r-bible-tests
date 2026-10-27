@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2678 - THE SHADOW BAR SAT OVER THE HEADER TABS; THE SHADOW SPOKE TWO CLOCKS (#215, #214, GrokBot)
+_shadowSnapEnter measured the header (~66 px) before shell-open fixed the topbar with its extra padding (~100 px), and
+nothing moved the bar after, so on the Mac and the ALT the bar covered the tab row. _shadowPlace places the bar and the
+frame from the header height every time the shell pane is sized, and once more after the shadow opens the shell. Also
+#214: the snapshot time is 24-hour like the header clock; "live · last change uploaded 20 min ago" reads "online now ·
+last upload 20 min ago" (the console is online; the stores are the upload); a label (Load profile) is dimmed with the
+other stopped controls. Law: test_the_shadow_bar_sits_below_the_header. GrokBot checks the pixels on both consoles.
+
 ### REG-2677 - "13 STILL LOOSE" BESIDE A DOCK OF 8 (#208, GrokBot's v3808 sweep)
 The header's loose count is every owned name whose home is loose: the names in the unsorted dock AND the names off it
 because they route to THROW OUT (the dock drops a junk route). So 13 = 8 + 5, and "(5 set pieces · 8 other)" took a

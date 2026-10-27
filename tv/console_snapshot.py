@@ -388,7 +388,8 @@ def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
     t = rec["t"]
     ago = _ago_words(now_ms - t)
     if online is True:
-        state, words = "live", "%s · live · last change uploaded %s" % (owner, ago)
+        # #214 (GrokBot) - "live" beside "uploaded 20 min ago" read as a live view; the CONSOLE is online, the stores are the upload
+        state, words = "live", "%s · online now · last upload %s" % (owner, ago)
     elif online is False:
         state, words = "offline", "%s · offline · last upload %s" % (owner, ago)
     else:

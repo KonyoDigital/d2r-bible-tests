@@ -12021,6 +12021,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_loose_names_say_which_are_in_the_dock.py")], 300,
          needs_app=False,
          why="REG-2677 (#208) - '13 loose' beside a dock of 8: the records count the dock and THROW OUT apart and the line names each part."),
+    Gate("test_the_shadow_bar_sits_below_the_header",
+         [sys.executable, os.path.join(HERE, "test_the_shadow_bar_sits_below_the_header.py")], 300,
+         needs_app=False,
+         why="REG-2678 (#215 + #214, GrokBot) - the shadow bar sat over the header tabs; it is placed from the header on every sizing; one 24-hour clock; 'online now' words; labels dimmed."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

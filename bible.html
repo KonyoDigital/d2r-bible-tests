@@ -4083,7 +4083,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var live = VIEW.map(function (n) { return ':not([onclick*="' + n + '("])'; }).join('');
       var css = document.createElement('style');
       css.id = 'tvd-shadow-dead';
-      css.textContent = 'html.tvd-shadow-snap :is(button, input, select, textarea, [contenteditable], .vault-chip)'
+      css.textContent = 'html.tvd-shadow-snap :is(button, input, select, textarea, label, [contenteditable], .vault-chip)'
         + ':not(.tab)' + live + '{opacity:.38 !important;cursor:not-allowed !important;filter:grayscale(.6)}';
       (document.head || document.documentElement).appendChild(css);
     } catch (e) {}

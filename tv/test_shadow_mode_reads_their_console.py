@@ -214,7 +214,7 @@ class WhatTheViewerIsTold(unittest.TestCase):
         off = CS.view(OWNER, rec, now, online=False)
         unk = CS.view(OWNER, rec, now, online=None)
         self.assertEqual((live["state"], off["state"], unk["state"]), ("live", "offline", "unknown"))
-        self.assertEqual(live["words"], "Dean · live · last change uploaded 42 min ago")
+        self.assertEqual(live["words"], "Dean · online now · last upload 42 min ago")
         self.assertEqual(off["words"], "Dean · offline · last upload 42 min ago")
         self.assertEqual(unk["words"], "Dean · online UNKNOWN · last upload 42 min ago")
         for v in (live, off, unk):
@@ -1125,7 +1125,8 @@ process.stdout.write(JSON.stringify({ vault: vault, dean: dean, keptOpen: keptOp
     def test_the_marker_names_the_owner_and_the_profile_time(self):
         ui = _read(UI)
         enter = ui[ui.index("  window._shadowSnapEnter = function"):ui.index("  window._shadowOpen = function")]
-        self.assertIn("at = ' · snapshot ' + new Date(d.t).toLocaleString(", enter)
+        # #214 - one clock: the date and a 24-hour HH:MM, as the header's clock
+        self.assertIn("at = ' · snapshot ' + _sd.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + _p2(_sd.getHours())", enter)
         self.assertIn("who.textContent = String(d.words || owner) + at + ' · read only';", enter)
         self.assertIn('<div id="shadow-bar" hidden><span id="shadow-who">', ui)
 
@@ -2242,7 +2243,7 @@ RED_PROOF = [
      "replace": "", "matches": 1},
     {"why": "Shadow: the viewer is told 'live' with no age of the upload",
      "file": "tv/console_snapshot.py",
-     "find": "        state, words = \"live\", \"%s · live · last change uploaded %s\" % (owner, ago)\n",
+     "find": "        state, words = \"live\", \"%s · online now · last upload %s\" % (owner, ago)\n",
      "replace": "        state, words = \"live\", \"%s · live\" % owner\n", "matches": 1},
     {"why": "Shadow: with the site down the viewer gets nothing instead of the PC's last copy",
      "file": "tv/control_app.py",
