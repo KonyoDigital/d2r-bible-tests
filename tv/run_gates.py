@@ -12057,6 +12057,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_shelf_says_why_a_shadow_cannot_open_it.py")], 300,
          needs_app=False,
          why="REG-2700 - in a shadow the Shelf says their reels stay on their PC instead of opening this PC's theatre under the board"),
+    Gate("test_a_source_audit_runs_in_a_child",
+         [sys.executable, os.path.join(HERE, "test_a_source_audit_runs_in_a_child.py")], 300,
+         needs_app=False,
+         why='#172 phase B - a console sends a cold route census and lane-span parse to a short-lived child; zero ast.parse in its own heap, fails open'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

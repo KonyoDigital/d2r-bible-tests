@@ -506,6 +506,28 @@ def _source_key():
         return None                     # unkeyable -> never cached, which is slow and never wrong
 
 
+def cached():
+    """#172 phase B - the routes answer when the memo or the disk cache already holds it for the CURRENT sources, else None.
+    Never derives. The console asks this before sending a cold derivation to a child (audit_child.py), and the child's
+    routes() call writes the same disk cache this reads. -> dict | None"""
+    _k = _source_key()
+    if _k is None:
+        return None                     # unkeyable: nothing can be cached, so nothing is ever read as cached
+    if _MEMO["key"] == _k and _MEMO["val"] is not None:
+        return _MEMO["val"]
+    try:
+        import hashlib as _hl
+        _ckey = _hl.sha1(repr(_k).encode("utf-8", "replace")).hexdigest()
+        with open(_CACHE_PATH, "r", encoding="utf-8") as _fh:
+            _blob = json.load(_fh) or {}
+        if _blob.get("key") == _ckey and isinstance(_blob.get("val"), dict):
+            _MEMO["key"], _MEMO["val"] = _k, _blob["val"]
+            return _blob["val"]
+    except Exception:
+        pass
+    return None
+
+
 def routes():
     """-> dict. Every chronicle route, its lanes, and the sibling divergences.
 

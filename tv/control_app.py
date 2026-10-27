@@ -27696,6 +27696,15 @@ def heart_state(force=False):
     return out
 
 
+def _audit_child_status():
+    """#172 phase B - where the console's cold source audits ran: on / worked / lastTs / say per audit. Never raises."""
+    try:
+        import audit_child as _ac
+        return _ac.status()
+    except Exception as e:
+        return {"on": None, "audits": None, "say": "the audit-child state could not be read (%s)" % type(e).__name__}
+
+
 def chronicle_route_state():
     """A21c — the chronicle routes for the heart. -> dict
 
@@ -27714,6 +27723,19 @@ def chronicle_route_state():
         return {"ok": False, "routes": [], "counts": None, "flags": [],
                 "why": "the chronicle-route module will not import (%s), so the routes are "
                        "UNKNOWN rather than absent" % str(e)[:90]}
+    # #172 phase B - A COLD ROUTE CENSUS IS DERIVED IN A SHORT-LIVED CHILD on a console (audit_child.py): it reads ~1,400
+    # files and ast.parses them all, and those freed arenas stayed resident in the console. The child writes the routes'
+    # own disk cache and exits; routes() below then answers from it. A child that fails leaves routes() to derive here,
+    # exactly as before, and audit_child.STATE says so.
+    try:
+        import audit_child as _ac
+        if _ac.wanted() and _cr._source_key() is not None:
+            if _cr.cached() is not None:
+                _ac.hit("routes")
+            else:
+                _ac.run("routes")
+    except Exception:
+        pass
     try:
         d = _cr.routes()
     except Exception as e:
@@ -43370,7 +43392,7 @@ def status_payload():
         # 2026-09-29 — front / background / headless / window-only: the window is a view of the service
         "window": _t("window", window_mode_payload),
         # #71 — can this console still answer its own port (the fault it cannot report over that port)
-        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
+        "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "auditChild": _audit_child_status(), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
         "ver": "v3816",

@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2701 - THE CONSOLE PARSED ITS OWN SOURCE IN ITS OWN HEAP (#172 phase B)
+The ~1 GB of data-driven console memory measured on 2026-10-27 was its own source being parsed: the route census
+(chronicle_routes.routes(): ~1,400 files, 939k ast objects) and the lane spans (health_engine._lane_spans(): the 49k-line
+control_app.py, 930k objects), whose freed arenas stay resident. A console (frame_ref.on_console_path(), never a law, the
+gate or CI) now sends each cold derivation to tv/audit_child.py, a short-lived child that writes the same cache the
+console reads, keyed on the same source stamps, and exits with the memory. A child that fails leaves the console to derive
+itself as before, and status_payload's auditChild says so (on / worked / lastTs / say). MEASURED, a fresh process doing
+both cold audits: max RSS 651 MB in-process, 52 MB as a console with the child (6.3 s vs 6.7 s). A stale lane cache (another
+stat of control_app.py) is never served. Law: test_a_source_audit_runs_in_a_child (5 red-proofs, each seen RED).
+
 ### REG-2699 - THE FULL CI GATE SET WAS RED ON v3815 AND v3816 - WHAT THE PRE-PUSH SUBSET DOES NOT RUN
 Each read from CI's own table, reproduced locally where it is not a browser law, fixed at its cause:
 1. test_the_mule_window_fits_at_every_width (9) and two render_check seeds: a bare tvVaultRegister is refused while AUTO

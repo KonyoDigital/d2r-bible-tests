@@ -781,7 +781,6 @@ def _lane_spans():
     function that runs it in one (name, fn) table; a copy in this file is a second source that
     goes stale the first time a lane is renamed. [[copy-drift]] [[source-reading-guard]]
     """
-    import ast as _ast
     _p = os.path.join(HERE, "control_app.py")
     with io.open(_p, encoding="utf-8") as _fh:
         _src = _fh.read()
@@ -790,6 +789,24 @@ def _lane_spans():
     _snap = _LANE_SPAN_CACHE
     if _snap.get("key") == _key and _snap.get("val") is not None:
         return _snap["val"], _src
+    # #172 phase B - A CONSOLE NEVER PARSES ITS OWN 49k LINES IN ITS OWN HEAP. The ast of control_app.py is ~930k objects
+    # and its freed arenas stay resident; a console reads the answer a short-lived child derived (audit_child.py), keyed
+    # on the same stat, and derives here only when the child could not (fails open, and the doctor says so).
+    try:
+        import audit_child as _ac
+        if _ac.wanted():
+            _got = _lane_spans_disk(_key)
+            if _got is not None:
+                _ac.hit("lane_spans")
+            else:
+                _ac.run("lane_spans")
+                _got = _lane_spans_disk(_key)
+            if _got is not None:
+                globals()["_LANE_SPAN_CACHE"] = {"key": _key, "val": _got}
+                return _got, _src
+    except Exception:
+        pass
+    import ast as _ast
     _tree = _ast.parse(_src)
     _lanes = {}
     for _n in _ast.walk(_tree):
@@ -805,6 +822,48 @@ def _lane_spans():
             out[_n.name] = (_lanes[_n.name], _n.lineno, _n.end_lineno or _n.lineno)
     globals()["_LANE_SPAN_CACHE"] = {"key": _key, "val": out}   # ONE binding: control_app is threaded
     return out, _src
+
+
+def _lane_spans_cache_path():
+    """#172 phase B - where the lane spans a child derived are kept: beside the route census's own cache, so a fixture
+    world keeps both in its own root and never in his tree. -> path | None"""
+    try:
+        import chronicle_routes as _cr
+        return os.path.join(_cr._routes_cache_root(), ".lane_spans_cache.json")
+    except Exception:
+        return None
+
+
+def _lane_spans_disk(key):
+    """The lane spans a child wrote for this exact stat of control_app.py, else None. -> {fn: (lane, a, b)} | None"""
+    p = _lane_spans_cache_path()
+    if not p:
+        return None
+    try:
+        with io.open(p, encoding="utf-8") as fh:
+            blob = json.load(fh) or {}
+        if blob.get("key") != [int(key[0]), int(key[1])] or not isinstance(blob.get("val"), dict):
+            return None
+        return {str(k): (str(v[0]), int(v[1]), int(v[2])) for k, v in blob["val"].items()}
+    except Exception:
+        return None
+
+
+def write_lane_spans_cache():
+    """The child's half: write the spans this process just derived, keyed on the stat they were derived from. -> bool"""
+    snap = _LANE_SPAN_CACHE
+    p = _lane_spans_cache_path()
+    if not p or snap.get("val") is None or not snap.get("key"):
+        return False
+    try:
+        tmp = p + ".tmp"
+        with io.open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"key": [int(snap["key"][0]), int(snap["key"][1])],
+                       "val": {k: list(v) for k, v in snap["val"].items()}}, fh)
+        os.replace(tmp, p)              # atomic: a half-written cache is never readable
+        return True
+    except Exception:
+        return False
 
 
 def _attribute_to_lanes(hits):
