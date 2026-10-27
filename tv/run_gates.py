@@ -12017,6 +12017,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_roster_keeps_the_newest_names.py")], 300,
          needs_app=False,
          why='REG-2676 (#200) - the roster kept the OLDEST 400 found names and read the whole board every 60 s; it keeps the newest, counts them all, and reads only when it can post.'),
+    Gate("test_loose_names_say_which_are_in_the_dock",
+         [sys.executable, os.path.join(HERE, "test_loose_names_say_which_are_in_the_dock.py")], 300,
+         needs_app=False,
+         why="REG-2677 (#208) - '13 loose' beside a dock of 8: the records count the dock and THROW OUT apart and the line names each part."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

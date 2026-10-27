@@ -23806,6 +23806,17 @@ try {
     }
     if (p.carried) bits.push(n(p.carried) + ' carried');
     var sp = +p.sp || 0, lo = +p.loose || 0;
+    /* #208 (GrokBot) - "13 still loose (5 set pieces · 8 other)" beside a dock that showed 8: the set pieces were counted
+       from the dock and taken from a total that also held 5 THROW OUT names. With the split, each part is named from its
+       own list; without it the line reads as it did. */
+    var _ld = (typeof p.looseDock === 'number') ? p.looseDock : null, _lt = (typeof p.looseThrow === 'number') ? p.looseThrow : 0;
+    if (lo && _ld !== null) {
+      var _spD = Math.min(sp, _ld), _rest = Math.max(0, lo - _ld - _lt);
+      bits.push(n(lo) + ' still loose <i>(' + _ld + ' in the unsorted dock'
+        + (_ld ? ': ' + _spD + ' set piece' + (_spD === 1 ? '' : 's') + ' \u00b7 ' + (_ld - _spD) + ' other' : '')
+        + (_lt ? ' \u00b7 ' + _lt + ' marked THROW OUT' : '') + (_rest ? ' \u00b7 ' + _rest + ' not in the dock' : '') + ')</i>');
+      return bits.join(sep);
+    }
     bits.push(n(lo) + ' still loose' + (lo ? ' <i>(' + sp + ' set piece' + (sp === 1 ? '' : 's') + ' \u00b7 ' + (lo - sp) + ' other)</i>' : ''));
     return bits.join(sep);
   };
@@ -44825,6 +44836,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     if (header.orphans === null || typeof header.orphans === 'number') o.orphans = header.orphans;
     if (header.orphansNoHome === null || typeof header.orphansNoHome === 'number') o.orphansNoHome = header.orphansNoHome;
+    /* #208 - the split rides only from the records; absent stays absent, so the line keeps its old words */
+    if (typeof header.looseDock === 'number') o.looseDock = header.looseDock;
+    if (typeof header.looseThrow === 'number') o.looseThrow = header.looseThrow;
     return o;
   }
   try { window._vaultPopFromHeader = _vaultPopFromHeader; } catch (e) {}
@@ -53657,6 +53671,16 @@ window.vaultAutoAssign = function(){
         }
         out.index[name] = ids;
         out.byKind[kind] = (out.byKind[kind] || 0) + 1;            // DISTINCT NAMES per kind
+        /* #208 (GrokBot) - "13 loose" vs the dock's 8: a loose name is in the unsorted dock, or off it because it routes to
+           THROW OUT (the dock drops a junk route). Counted apart, so the header can say which. */
+        if (kind === 'loose') {
+          if (looseSet[name]) out.looseDockN = (out.looseDockN || 0) + 1;
+          else {
+            var _thr = false;
+            try { _thr = assign[name] === '__throwout' || !!(typeof _vaultThrowRoute === 'function' && _vaultThrowRoute(name)); } catch (eThr) { _thr = false; }
+            if (_thr) out.looseThrowN = (out.looseThrowN || 0) + 1;
+          }
+        }
       });
     } catch(e){ out.ok = false; }
     return out;
@@ -53780,6 +53804,9 @@ window.vaultAutoAssign = function(){
       shared:   (k.sharedStash || 0),
       carried:  r.carUnknown ? null : (k.carried || 0),
       loose:    unk ? null : (k.loose || 0),
+      /* #208 - of the loose names: in the unsorted dock (the dock bar's own list), and off it because they route to THROW OUT */
+      looseDock:  unk ? null : (r.looseDockN || 0),
+      looseThrow: unk ? null : (r.looseThrowN || 0),
       filed:    unk ? null : ((k.filed || 0) + (k.keep || 0)),
       keepInv:  (k.keepInv || 0),
       orphans:  (r.dockUnknown || r.assignUnknown) ? null : r.orphans.length,

@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2677 - "13 STILL LOOSE" BESIDE A DOCK OF 8 (#208, GrokBot's v3808 sweep)
+The header's loose count is every owned name whose home is loose: the names in the unsorted dock AND the names off it
+because they route to THROW OUT (the dock drops a junk route). So 13 = 8 + 5, and "(5 set pieces · 8 other)" took a
+dock-only count from the 13. The records now count looseDock and looseThrow apart, the header carries both, and the line
+reads "13 still loose (8 in the unsorted dock: 2 set pieces · 6 other · 5 marked THROW OUT)". With no split it reads as
+before. Law: test_loose_names_say_which_are_in_the_dock (whole page in node), 3 red-proofs.
+
+### REG-2676 - THE ROSTER KEPT THE OLDEST 400 FOUND NAMES AND READ THE WHOLE BOARD EVERY MINUTE (#200, the v3802 look)
+_list_names stopped at 400 in store order, and a found log keeps his newest finds LAST, so a list of 461 published the
+oldest 400 and dropped his 61 newest without a word. It keeps the newest 400 now, and chronicle_read publishes
+<lane>Named (461) beside the tally so a reader can say "the newest 400 of 461". And _roster_publish_once ran every read -
+a board read over 5,000 rows - on every 60 s tick before due() said "within the hour"; reads_due asks first. Still open on
+#200: the shadow's "newest N of M" sentence, and a rowsAsOf for the names (excluded from the hash on both sides).
+
+### REG-2675 - "KOnyORush", "SOcket", "ArmOr" ON HIS CHARACTER LIST (GrokBot bug 11)
+Both reader prompts write the font's O as the letter O, so a mixed-case answer carries a capital O inside a word, and
+_clean_name kept mixed case as read; a tie in the spelling vote then went to the capital-O form because save() sorts
+keys and 'O' sorts before 'o'. Socket, Armor and Weapon are his real level-1 mules, so a "UI word" denylist would have
+refused them: the fix is the spelling. A capital O inside a word is a small o (a leading O stays, all-caps still
+title-cases), and learned() re-runs the spelling vote through that rule, so a stored tie reads "Socket" with nothing
+rewritten. Law: test_a_name_read_with_a_capital_o_is_shown_right.
+
 ### REG-2674 - LEAVING A SHADOW LIT ONE TAB AND SHOWED ANOTHER (GrokBot's 22:07 pass, MED)
 Own console -> Vault -> Fleet -> see the ALT -> Leave: the header lit VAULT (the tab _shadowRemember kept) and the board
 showed CHARACTERS, because the board's leave handler called paint() = switchTab('chars') unconditionally. _shadowLeave now
