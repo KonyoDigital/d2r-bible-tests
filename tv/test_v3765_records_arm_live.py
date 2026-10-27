@@ -830,6 +830,7 @@ window.LSR.setItem = function(k, v){
 };
 mf = 250;
 players = 8;
+_vrRecSigSame = function(){ return false; };
 persist();
 out.idle = writes;
 assign[NATALYA] = 'mule-other';
@@ -1333,10 +1334,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "An unchanged persist must not rewrite the records store. Skipping the signature check writes it from every slider tick.",
+        "why": "An unchanged persist must not rewrite the records store. Skipping the same-record check writes it from every slider tick.",
         "file": "bible.html",
-        "find": "    if (typeof _vrRecSigSame === 'function' && _vrRecSigSame()) return { ok: true, skipped: true, why: 'owned, copies, assign and provenance are unchanged' };",
-        "replace": "    /* every persist rewrites the records store */",
+        "find": "      if (_sameRec) return { ok: true, wrote: false, skipped: true, count: outRecs.length, seq: seq, why: null };",
+        "replace": "      if (false && _sameRec) return { ok: true, wrote: false, skipped: true, count: outRecs.length, seq: seq, why: null };",
         "matches": 1,
     },
     {
