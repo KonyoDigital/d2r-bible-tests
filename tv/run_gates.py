@@ -9919,6 +9919,14 @@ GATES = [
              "seen. A MAIN lane and a name with no home do not get a move row. Shared stash is a "
              "container. Two frames of one session stay one look.")
          ),
+    Gate("test_intake_a_move_needs_a_look_and_owned_has_a_record", [sys.executable,
+         os.path.join(HERE, "test_intake_a_move_needs_a_look_and_owned_has_a_record.py")], 60,
+         needs_app=False,
+         why=("#230 - a frame with no session is zero looks and opens no move; one real reel session "
+             "(even over several frames) is one look and one move from the seen cell to a target; a "
+             "later second session joins the same row. Inventory and equipped get a record and no "
+             "move. A base the TV registered is owned and has a Vault record, also after it files.")
+         ),
     Gate("test_v3767_intake_identity", [sys.executable,
          os.path.join(HERE, "test_v3767_intake_identity.py")], 60,
          needs_app=False,
