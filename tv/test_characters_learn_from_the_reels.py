@@ -388,6 +388,10 @@ class TheConsoleCarriesIt(unittest.TestCase):
     def test_the_route_answers_unknown_as_none(self):
         i = self.src.index('if path == "/api/chars_learned":')
         body = self.src[i:self.src.index("return", i) + 6]
+        # #203 (v3814) - the route returns chars_learned_answer(), the one builder the shadow upload also asks
+        self.assertIn("self._json(200, chars_learned_answer())", body)
+        j = self.src.index("def chars_learned_answer(full=True):")
+        body = self.src[j:self.src.index("\ndef ", j + 10)]
         self.assertIn('"chars": _cs.learned(_d)', body)
         self.assertIn('"ok": _d is not None', body)
 

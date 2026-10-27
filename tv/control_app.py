@@ -5042,12 +5042,12 @@ def chars_learned_answer(full=True):
             _gear = _el.gear_by_key(_gd, _cs._fold, _cs.tier_bars())
         except Exception as _ge:
             _gear, _gwhy = None, "the gear ledger raised %s" % type(_ge).__name__
-        out = {"ok": _d is not None, "chars": _cs.learned(_d),
-               "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars(),
-               "surfaceWitnesses": _cs.surface_witnesses(_d),
-               "lobbyBySize": _cs.lobby_by_size(_d),
-               "cPanel": _cs.CPANEL_SAY,
-               "gear": _gear, "gearWhy": _gwhy}
+        out = dict({"ok": _d is not None, "chars": _cs.learned(_d),
+                    "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars(),
+                    "surfaceWitnesses": _cs.surface_witnesses(_d),
+                    "lobbyBySize": _cs.lobby_by_size(_d),
+                    "cPanel": _cs.CPANEL_SAY,
+                    "gear": _gear, "gearWhy": _gwhy})
         if full:
             out["status"] = _cs.status()
         return out

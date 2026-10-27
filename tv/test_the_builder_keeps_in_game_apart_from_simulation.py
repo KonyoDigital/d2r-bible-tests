@@ -366,6 +366,11 @@ class TheTierIsTheVaults(unittest.TestCase):
               and getattr(n.test.comparators[0], "value", None) == "/api/chars_learned"]
         self.assertEqual(len(br), 1, "/api/chars_learned is not one route any more")
         body = "\n".join(ast.get_source_segment(src, b) or "" for b in br[0].body)
+        # #203 (v3814) - the route returns the one builder the shadow upload also asks; the bars are read there
+        self.assertIn("self._json(200, chars_learned_answer())", body, "/api/chars_learned no longer returns the builder")
+        fn = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef) and n.name == "chars_learned_answer"]
+        self.assertEqual(len(fn), 1, "chars_learned_answer is not one function")
+        body = ast.get_source_segment(src, fn[0]) or ""
         self.assertIn('"tierBars": _cs.tier_bars()', body, "/api/chars_learned stopped carrying the bars")
 
 
