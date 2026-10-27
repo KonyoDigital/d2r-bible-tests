@@ -1020,8 +1020,11 @@ TARGETS = {
                    'Silver-Edged Axe','Astreon\\u2019s Iron Ward','Bloodtree Stump','Boneslayer Blade',
                    'Brainhew','Cranebeak','Death Cleaver','Demonlimb','Djinn Slayer','Doomslinger',
                    'Ethereal Edge','Executioner\\u2019s Justice','Fleshripper'];
+            /* REG-2673 (#148.4): a drag or a click only ever files a name he OWNS. This seed used to file 30 names
+               it never owned, and vaultAssign owned them as a side effect - the defect that fix closed. Each is
+               added through his hand door first (it answers the name it filed under), then filed. */
             W.forEach(function(n){
-              try{ window.tvVaultRegister(n); window.vaultAssign(n,'uni-weap'); }catch(e){} });
+              try{ var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
             return 1; })()""",
         # RAW on purpose: this block holds JS regexes (`/FULL|needs \d+ mules/` below). Unraw, `\d`
         # is an invalid Python escape — silent on 3.9 here, a VISIBLE SyntaxWarning on CI's 3.12.
