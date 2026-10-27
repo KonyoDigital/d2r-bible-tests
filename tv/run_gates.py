@@ -12049,6 +12049,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_spelling_variants_are_one_character.py")], 300,
          needs_app=False,
          why='#211 - a misspelled name read twice is not a second character: variants merge at read time, never across classes or one screen'),
+    Gate("test_a_slow_console_still_opens_the_shelf",
+         [sys.executable, os.path.join(HERE, "test_a_slow_console_still_opens_the_shelf.py")], 300,
+         needs_app=False,
+         why='REG-2698 - a 10-22 s /api/sessions under load opens the Shelf instead of closing the stage, and the stage says it is waiting'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

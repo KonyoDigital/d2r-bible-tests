@@ -28,6 +28,14 @@ header rebuilt from the persisted store - had no split, the persisted rows carri
 `|| 0` read a store that could not say as 0 in the dock. Where each loose name sat is decided once when the records are
 built and saved on its row (looseWhere, loose rows only), both headers count it, and a store saved before the split reads
 UNKNOWN. Law: test_v3758_records_persist_parity (3 new red-proofs, each seen RED).
+### REG-2698 - A SLOW CONSOLE CLOSED THE SHELF BEFORE IT COULD OPEN (#86, GrokBot's v3816 pass)
+Measured on his Mac under load (load ~20): /api/sessions answered in 10.8 s and 21.6 s for 266 KB. thOpen aborted it at
+8 s and closed the stage, four times in a row ("[theatre] /api/sessions did not answer - stage closed (AbortError)"), so
+the Shelf stayed on "opening the shelf..." and read as dead. v2228's bound stays - a fetch the relaunch orphaned must never
+leave a black stage up forever - but the wait is thSessionsWait now: bounded at 45 s with the body inside the bound, and
+from 4 s the caption and the shelf's own lead line say "the console is slow to answer (N s; it gives up at 45 s)". An
+overtaken open writes nothing. Law: test_a_slow_console_still_opens_the_shelf (5 red-proofs, each seen RED).
+
 ### REG-2696 - A SHADOW BUILT FROM THE ROSTER CALLED 400 NAMES THE WHOLE LIST (#200, the v3802 look)
 REG-2676 kept the newest 400 found names and sent <lane>Named beside the tally, but nothing read it: the roster shadow
 marked 400 of his 461 finds and the chronicle line called that the list. _shadowRosterStores now carries sent/named on a

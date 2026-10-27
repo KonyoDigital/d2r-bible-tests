@@ -17717,6 +17717,34 @@ window._lockMark = function(isOpen, px, label){
     }
     return pick;
   }
+  /* REG-2698 (GrokBot's v3816 pass, #86, 2026-10-28) - A SLOW CONSOLE IS NOT A DEAD ONE. Measured on his Mac under load
+     (load ~20): /api/sessions answered in 10.8 s and 21.6 s (266 KB), and thOpen aborted it at 8 s and closed the stage on
+     every try - so the Shelf never opened and read as dead. The bound stays (v2228: a fetch the relaunch orphaned must never
+     leave a black stage up forever), but it is TH_SESSIONS_BOUND_MS and covers the body too, and from TH_SLOW_SAY_MS the
+     stage says it is waiting and for how long instead of sitting silent. -> the /api/sessions JSON; throws on abort/failure */
+  var TH_SESSIONS_BOUND_MS = 45000, TH_SLOW_SAY_MS = 4000;
+  async function thSessionsWait(gen, shelfDoor){
+    var t0 = Date.now(), ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var to = setTimeout(function(){ try { if (ac) ac.abort(); } catch (e) {} }, TH_SESSIONS_BOUND_MS);
+    var tick = setInterval(function(){
+      if (gen !== TH.gen) return;
+      var ms = Date.now() - t0;
+      if (ms < TH_SLOW_SAY_MS) return;
+      var say = (shelfDoor ? 'opening the shelf' : 'loading the reel') + ' \u2014 the console is slow to answer ('
+        + Math.round(ms / 1000) + ' s; it gives up at ' + Math.round(TH_SESSIONS_BOUND_MS / 1000) + ' s)\u2026';
+      try { $('th-caption').textContent = say; } catch (e) {}
+      if (shelfDoor) {
+        try { var lead = document.querySelector('#th-shelfov .she-lead'); if (lead) lead.textContent = say; } catch (e) {}
+      }
+    }, 1000);
+    try {
+      var r = await fetch('/api/sessions', ac ? { signal: ac.signal } : undefined);
+      return await r.json();
+    } finally {
+      clearTimeout(to);
+      clearInterval(tick);
+    }
+  }
   async function thOpen(){
     /* v1612 — THE THEATRE BELONGS TO THE COCKPIT, SO GO THERE FIRST.
        Konyo: "i think i know what that blackscreen is.. its in sessions.. maybe when clicking on
@@ -17783,7 +17811,7 @@ window._lockMark = function(isOpen, px, label){
        in #th-shelfov, a near-opaque overlay ON TOP of the stage. Until now that overlay was unhidden
        only by the btn-shelf handler's thShelf(true), which runs AFTER `await thOpen()` resolves — so
        the bare black stage ("THEATRE · SESSION 1 · PAST REPLAY") sat visible for the whole
-       /api/sessions wait (up to the 8s cap), and on a fast reopen (GrokBot #6201414317: 8 tries,
+       /api/sessions wait (up to its cap, now TH_SESSIONS_BOUND_MS), and on a fast reopen (GrokBot #6201414317: 8 tries,
        1.5–6s apart) that empty Theatre is what he saw.
        So cover the stage with the shelf's OWN surface in the SAME synchronous tick the shell opens,
        before any await — the browser then never paints an empty-Theatre frame. A LIGHTWEIGHT cover
@@ -17823,13 +17851,9 @@ window._lockMark = function(isOpen, px, label){
 
        So: bound it, and on failure CLOSE the stage and say why, rather than leaving him with a
        black rectangle and no account of it. */
-    var r, j;
+    var j;
     try {
-      var _ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-      var _to = setTimeout(function(){ try { _ac && _ac.abort(); } catch(e){} }, 8000);
-      r = await fetch('/api/sessions', _ac ? { signal: _ac.signal } : undefined);
-      clearTimeout(_to);
-      j = await r.json();
+      j = await thSessionsWait(_thGen, _shelfDoor);     /* REG-2698 - bounded at 45 s, and it says it is waiting */
       /* ⚠ THE POINT OF NO RETURN. Anything below touches TH state and the DOM, so a request
          that has been overtaken stops HERE and leaves the winner's stage alone. */
       if (_thGen !== TH.gen) return;
