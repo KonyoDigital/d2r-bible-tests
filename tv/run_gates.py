@@ -12065,6 +12065,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_receipt_says_why_it_failed.py")], 300,
          needs_app=False,
          why='#158.3 - the receipt ledger carries the reason each intake record holds, and a guard hold is not an error'),
+    Gate("test_a_read_that_found_nothing_new_is_not_a_failed_read",
+         [sys.executable, os.path.join(HERE, "test_a_read_that_found_nothing_new_is_not_a_failed_read.py")], 300,
+         needs_app=False,
+         why="#158.2 - vaultIntake's ok is whether the read worked, never whether it found something new"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
