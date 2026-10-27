@@ -268,9 +268,14 @@ def _ps_exe():
     return _PS_EXE["path"]
 
 
+# proc_birth returns this, and nothing else, when ps says the pid is a zombie. It is not a birth
+# and it is not "ps did not answer": identity() treats it as ended. A failed read stays None.
+_PROC_EXITED = object()
+
+
 def proc_birth(pid):
     """When was process `pid` created? -> an opaque string that is equal only for the SAME process, or None when it
-    cannot be told (dead, a zombie, refused, no tool). Never raises.
+    cannot be told (dead, refused, no tool). A zombie returns _PROC_EXITED, never None and never its birth. Never raises.
 
     REG-1511 — a pid is a number the system hands out again; its creation time is not. Windows: OpenProcess +
     GetProcessTimes (100 ns ticks). POSIX: `ps -o stat=,lstart=` in UTC and the C locale, so a console restarted
@@ -309,8 +314,14 @@ def proc_birth(pid):
                            encoding="utf-8", errors="replace", close_fds=False,
                            timeout=3, env=dict(os.environ, LC_ALL="C", TZ="UTC"))
         parts = (r.stdout or "").split()
-        if r.returncode != 0 or len(parts) < 2 or parts[0].upper().startswith("Z"):
-            return None                         # gone, or a zombie: an exited prover is not a running one
+        if r.returncode != 0 or len(parts) < 2:
+            return None                         # gone, or ps did not answer: who it is cannot be read
+        # A zombie still has its birth. kill(0) says it is alive, and this string would MATCH the birth
+        # recorded at spawn, so identity() would keep the dead proof as running. Stat Z is an exit.
+        # Measured: a defunct prover held the lane on "could not be read", the census stayed stale,
+        # and the river locks stayed shut. [[the-unjoined-end]]
+        if str(parts[0]).upper().startswith("Z"):
+            return _PROC_EXITED
         return "ps:" + " ".join(parts[1:])
     except Exception:
         return None
@@ -401,11 +412,22 @@ def identity(pid, birth):
     nothing tracking it, which is the one thing this lane exists to prevent. The tick's own `unverified` branch kept
     a live pid only when NO birth had been stored, so a failed FRESH read fell through it. [[unknown-stays-unknown]]"""
     try:
+        # Our own child is judged by its handle. kill(0) is true for a zombie, and a failed ps read
+        # must stay UNKNOWN, so the handle is the reading that can reap an exited prover now.
+        try:
+            import child_guard as _cg
+            held = _cg.held_exit("prover", pid)
+        except Exception:
+            held = None
+        if held is True:
+            return False
         if not pid_alive(pid):
             return False
         if birth is None:
             return None
         now = proc_birth(pid)
+        if now is _PROC_EXITED:
+            return False                    # ps says zombie: the prover exited, it is not still running
         if now is None:
             return None                     # alive, and who it is cannot be read right now - never "ended"
         return now == birth

@@ -154,6 +154,79 @@ class TheKillAndTheRead(_Store):
         self.assertTrue(got and got.startswith("ps:"), got)
 
 
+class AZombieIsAnEndedProof(_Store):
+    """A defunct prover is not an unreadable one. kill(0) says a zombie is alive, and ps still prints its
+    birth, so folding stat Z into "could not be read" holds the lane on running-unverified and the river
+    locks stay shut. A ps that does not answer stays UNKNOWN. Nothing here starts or signals a process."""
+
+    def test_a_failed_ps_read_is_still_unreadable(self):
+        class _R(object):
+            returncode, stdout, stderr = 1, "", ""
+        with mock.patch.object(SP.subprocess, "run", lambda argv, **kw: _R()):
+            self.assertIsNone(SP.proc_birth(PID), "a ps that failed was given an answer")
+        with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", lambda pid: None):
+            self.assertIsNone(SP.identity(PID, BIRTH), "a failed read was booked as ended")
+
+    @unittest.skipIf(SP.IS_WIN, "Windows has no zombie stat; an exited pid is not STILL_ACTIVE")
+    def test_stat_Z_is_exited_even_though_its_birth_is_still_printed(self):
+        class _R(object):
+            returncode, stdout, stderr = 0, "ZN Tue Oct 27 01:50:28 2026\n", ""
+
+        def _run(argv, **kw):
+            return _R()
+        with mock.patch.object(SP.subprocess, "run", _run), mock.patch.object(SP, "pid_alive", lambda pid: True):
+            self.assertIs(SP.proc_birth(PID), SP._PROC_EXITED, "a zombie was read as a birth or as a failed ps")
+            self.assertIs(SP.identity(PID, "ps:Tue Oct 27 01:50:28 2026"), False,
+                          "a zombie whose birth still matches was kept as a running proof")
+
+    def test_our_own_exited_child_is_ended_and_collected(self):
+        import child_guard as cg
+        polled = []
+
+        class _Proc(object):
+            pid = PID
+
+            def poll(self):
+                polled.append(1)
+                return 0
+
+        saved = cg._LIVE.get("prover")
+        cg._LIVE["prover"] = {"role": "prover", "pid": PID, "proc": _Proc()}
+        try:
+            self.assertIs(cg.held_exit("prover", PID), True, "our own exited child was not collected")
+            self.assertEqual(polled, [1], "the handle was not asked, so the zombie stays")
+            with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", lambda pid: None):
+                self.assertIs(SP.identity(PID, BIRTH), False,
+                              "a zombie we still hold was kept unverified, which starts nothing beside it")
+        finally:
+            if saved is None:
+                cg._LIVE.pop("prover", None)
+            else:
+                cg._LIVE["prover"] = saved
+
+    def test_the_tick_moves_on_from_a_zombie(self):
+        with io.open(self.store, "w", encoding="utf-8") as fh:
+            json.dump({"pid": PID, "pidBirth": BIRTH, "startedFor": "old-gates"}, fh)
+        started = []
+
+        def _birth(pid):
+            return SP._PROC_EXITED if pid == PID else "ps:Tue Oct 27 02:40:00 2026"
+
+        def _spawn(*a, **k):
+            started.append(1)
+            return 5151
+
+        with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", _birth):
+            r = SP.tick(now_s=5000.0, path=self.store, census={"state": "stale", "why": "fixture",
+                                                               "fingerprint": "new-gates", "owed": 1},
+                        tree=("installed", "fixture"), busy=0.0, playing=False, free=3000, spawn_fn=_spawn)
+        mem = SP.load(self.store)
+        self.assertNotEqual(r.get("key"), "running-unverified", r)
+        self.assertNotEqual(mem.get("pid"), PID, "the dead proof is still the one the lane is waiting on: %r" % mem)
+        self.assertEqual(started, [1], "the lane did not move on to the proof the stale census still owes: %r" % r)
+        self.assertEqual(r.get("key"), "start", r)
+
+
 RED_PROOF = [
     {"why": "REG-1652 - a read that failed is answered 'not ours' again: a live prover is booked ended and forgotten",
      "file": "self_prove.py",
@@ -175,6 +248,16 @@ RED_PROOF = [
      "find": "                           encoding=\"utf-8\", errors=\"replace\", close_fds=False,\n                           timeout=3, env=dict(os.environ, LC_ALL=\"C\", TZ=\"UTC\"))\n",
      "replace": "                           encoding=\"utf-8\", errors=\"replace\",\n                           timeout=3, env=dict(os.environ, LC_ALL=\"C\", TZ=\"UTC\"))\n",
      "matches": 1, "needs": "posix"},
+    {"why": "a zombie is a failed ps read again, so a defunct prover stays running-unverified and the river locks stay shut",
+     "file": "self_prove.py",
+     "find": "            return _PROC_EXITED\n",
+     "replace": "            return None\n",
+     "matches": 1, "needs": "posix"},
+    {"why": "our own exited child is not collected, so a zombie we hold stays in the table for the life of the console",
+     "file": "child_guard.py",
+     "find": "        return proc.poll() is not None\n",
+     "replace": "        return None\n",
+     "matches": 1},
 ]
 
 

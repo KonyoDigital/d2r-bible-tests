@@ -712,6 +712,29 @@ def record_of(role):
     return _public(rec) if rec else None
 
 
+def held_exit(role, pid):
+    """Has this process's own child for `role` exited? -> True | False | None. Never raises.
+
+    None: we do not hold that child. False: poll() says it is still running. True: it has exited,
+    and poll() collected the exit so a zombie does not sit for the life of the console.
+    kill(0) answers alive for a zombie. This handle is why our own children are not asked that way."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return None
+    with _LOCK:
+        rec = _LIVE.get(role)
+        proc = rec.get("proc") if isinstance(rec, dict) else None
+        if proc is None or getattr(proc, "pid", None) != pid:
+            return None
+    try:
+        return proc.poll() is not None
+    except Exception:
+        return None
+
+
 # ── census, watchdog ─────────────────────────────────────────────────────────────────────────────────────────
 
 def _default_expect(family):
