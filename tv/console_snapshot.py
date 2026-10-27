@@ -52,7 +52,9 @@ DENY_PREFIX = ("d2r_quarantine", "d2r_d2jsp_", "d2r_api_")
 # the console adds them (a board post may not), and the shadow frame answers GET /api/<name> from them. Only the
 # fields the board reads are kept, so a ticking counter does not make every upload "changed".
 API_FIELDS = {
-    "chars_learned": ("ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel"),
+    # GrokBot bug 7 (2026-10-27): the shadow's character evidence section ("named on the lobby or the character panel,
+    # citing the frame") drew nothing because these two were trimmed. Frame NAMES only, as text - never a picture.
+    "chars_learned": ("ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel", "surfaceWitnesses", "lobbyBySize"),
     "main_locks": ("ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"),
     "world": ("machine", "profile", "ledger", "os", "cousin"),
 }
@@ -233,6 +235,20 @@ def digest(stores):
     return _rp.hash_of(_rp.packed(stores or {}))
 
 
+def gate(state, now_ms, boot):
+    """#203 - could an upload go now, whatever the stores say? -> (open, why). The time half of due(), asked BEFORE the
+    console's answers are built, so a tick inside the gap costs nothing. A refusal waits MIN_GAP_MS; outside a boot
+    post, the last upload must be MIN_GAP_MS old."""
+    state = state if isinstance(state, dict) else {}
+    refused = state.get("refuseAt")
+    if isinstance(refused, int) and not isinstance(refused, bool) and now_ms - refused < MIN_GAP_MS:
+        return False, state.get("why") or "the snapshot was refused"
+    last = state.get("at")
+    if (not boot and isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS):
+        return False, "within %d min of the last upload" % (MIN_GAP_MS // 60000)
+    return True, "open"
+
+
 def due(state, owner, stores, now_ms, boot):
     """-> (body or None, why). Change-only, MIN_GAP_MS apart, one boot post; a refusal waits MIN_GAP_MS."""
     state = state if isinstance(state, dict) else {}
@@ -246,9 +262,9 @@ def due(state, owner, stores, now_ms, boot):
         return None, state.get("why") or "the snapshot was refused"
     if state.get("hash") == d and not boot:
         return None, "unchanged"
-    last = state.get("at")
-    if (not boot and isinstance(last, int) and not isinstance(last, bool) and now_ms - last < MIN_GAP_MS):
-        return None, "within %d min of the last upload" % (MIN_GAP_MS // 60000)
+    _open, _why = gate(state, now_ms, boot)
+    if not _open:
+        return None, _why
     return {"kind": "profile", "owner": owner, "boot": bool(boot), "signedAt": now_ms, "hash": d, "stores": stores}, "post"
 
 

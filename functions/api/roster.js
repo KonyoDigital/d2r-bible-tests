@@ -458,7 +458,7 @@ export const DENY_PREFIX = ["d2r_quarantine", "d2r_d2jsp_", "d2r_api_"];
 export const API_NAMES = ["chars_learned", "main_locks", "world"];
 // the fields each console answer may carry (console_snapshot.API_FIELDS) and the world's closed values (world_of)
 export const API_FIELDS = {
-  chars_learned: ["ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel"],
+  chars_learned: ["ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel", "surfaceWitnesses", "lobbyBySize"],
   main_locks: ["ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"],
   world: ["machine", "profile", "ledger", "os", "cousin"],
 };

@@ -761,6 +761,8 @@ var same = d2jspPriceLine({reason:'read', fg:15, n:4, low:15, high:15, readAt:'2
 var none = d2jspPriceLine({reason:'no prices', fg:null, n:0, low:null, high:null, readAt:'2026-10-12T20:04:00.000Z'});
 var blank = d2jspPriceLine(null);
 var login = d2jspPriceLine({reason:'need-login', fg:null, n:0, low:null, high:null, readAt:'2026-10-12T20:05:00.000Z'});
+var unans = d2jspPriceLine({reason:'unanswered', fg:null, n:0, low:null, high:null, readAt:null});
+var badAt = d2jspPriceLine({reason:'no prices', fg:null, n:0, low:null, high:null, readAt:'not a time'});
 process.stdout.write(JSON.stringify({
   list: D2JSP_QUEST,
   cube: d2jspIsQuest('Horadric Cube'),
@@ -772,7 +774,7 @@ process.stdout.write(JSON.stringify({
   baal: d2jspIsQuest("Baal's Eye"),
   token: d2jspIsQuest('Token of Absolution'),
   keys: d2jspIsQuest('Keys'),
-  line: line, one: one, same: same, none: none, blank: blank, login: login
+  line: line, one: one, same: same, none: none, blank: blank, login: login, unans: unans, badAt: badAt
 }));
 """
         out = json.loads(_node(self.desk, body))
@@ -797,6 +799,13 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["blank"], "Public price unknown.")
         self.assertIn("Chrome login", out["login"])
         self.assertNotIn("fg,", out["login"])
+        # GrokBot bug 9 (2026-10-27) - a local 24-hour time, never the raw UTC stamp; no made-up reading
+        import re as _re
+        for k in ("line", "one", "same", "none"):
+            self.assertIsNone(_re.search(r"\d{4}-\d\d-\d\dT\d\d:\d\d", out[k]), "a raw ISO stamp in %s: %r" % (k, out[k]))
+            self.assertIsNotNone(_re.search(r"\b\d\d:\d\d\b", out[k]), "%s lost its time: %r" % (k, out[k]))
+        self.assertEqual(out["unans"], "Public price unknown. No price reader answered this page.")
+        self.assertEqual(out["badAt"], "Public price unknown.", "an unreadable stamp was printed: %r" % out["badAt"])
 
     def test_a_logged_in_search_prices_only_the_lines_that_name_the_item(self):
         import d2jsp_chrome as desk
@@ -1873,6 +1882,16 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
 
 RED_PROOF = [
+    {"why": "GrokBot bug 9 - the price line prints the raw UTC stamp again",
+     "file": "bible.html",
+     "find": "    var when = d2jspWhen(q.readAt) ? (', read ' + d2jspWhen(q.readAt)) : '';\n",
+     "replace": "    var when = q.readAt ? (', read ' + q.readAt) : '';\n",
+     "matches": 1, "needs": "node"},
+    {"why": "GrokBot bug 9 - a page no price reader answered says it read nothing at a made-up time again",
+     "file": "bible.html",
+     "find": "  if (q.reason === 'unanswered') return 'Public price unknown. No price reader answered this page.';\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
     {
         "why": "REG-2188 - a no-Origin request the browser marks cross-site or same-site is trusted on Host alone again, "
                "so any page he visits can make the console read his cookies and start a scratch Chrome",

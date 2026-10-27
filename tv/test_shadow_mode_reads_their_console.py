@@ -1801,6 +1801,11 @@ function run(parentSnap, search) {
                 ['/api/chars_learned', 'POST'], ['/fonts/a.woff2', 'GET']];
   res.answers = [];
   for (const [u, m] of asks) { const resp = await w.fetch(u, { method: m }); res.answers.push(await resp.text()); }
+  // GrokBot bug 5: the viewer's own capture agent (another origin) and the agent's paths here never answer a shadow
+  res.agent = [];
+  for (const u of ['http://127.0.0.1:17771/ping', 'http://127.0.0.1:17771/state', '/state', '/frame?id=f_1', '/hist/a.jpg']) {
+    const resp = await w.fetch(u); res.agent.push(resp.status);
+  }
   const x = new r.XHR(); x.open('POST', '/api/vault'); x.send();
   r.nav.sendBeacon('/api/x', '1');
   w.open('/x');
@@ -1917,12 +1922,17 @@ class TheShadowFrameBoot(unittest.TestCase):
     def test_no_request_but_a_plain_get_leaves_and_their_answers_are_served_from_the_snapshot(self):
         a = self.r["answers"]
         self.assertEqual(json.loads(a[0]), {"ok": True, "chars": [{"name": "Deansorc"}]})
-        self.assertEqual(json.loads(a[1])["why"], "shadow: read only", "main_locks absent from the snapshot leaked")
+        # #203 - an answer their console did not send says so, and still never reaches this console
+        self.assertEqual(json.loads(a[1]), {"ok": False, "chars": None, "locked": None,
+                                            "why": "their console did not send this with its last upload"},
+                         "main_locks absent from the snapshot leaked or was called read-only")
         for i in (2, 3, 4, 5, 6):
             self.assertEqual(json.loads(a[i])["why"], "shadow: read only", "request %d left the frame" % i)
         self.assertEqual(self.r["sent"], [["/fonts/a.woff2", "GET"]],
                          "something other than a plain GET of a file left the frame")
-        self.assertEqual(self.r["refused"], 9)
+        self.assertEqual(self.r["refused"], 13)  # #203 - the unsent main_locks answers with its reason; 5 agent asks refused
+        self.assertEqual(self.r["agent"], [403] * 5,
+                         "the viewer's own capture agent answered inside a shadow - TV·D could go LIVE on HIS reads (bug 5)")
         self.assertEqual(self.r["indexedDB"], "undefined")
 
     def test_write_controls_and_typing_are_stopped_view_controls_pass(self):
@@ -2052,6 +2062,14 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  if (PRIVATE.some((rx) => rx.test(raw))) return true;\n",
      "replace": "", "matches": 1, "needs": "node"},
+    {"why": "GrokBot bug 5 - the viewer's own capture agent on another origin answers inside a shadow again",
+     "file": "bible.html",
+     "find": "      if (foreign(url)) return true;\n",
+     "replace": "", "matches": 1, "needs": "node"},
+    {"why": "GrokBot bug 5 - a refused agent probe reads 200 again, so TV·D thinks an agent is there",
+     "file": "bible.html",
+     "find": "return refused(foreign(url) ? 403 : 200); }",
+     "replace": "return refused(); }", "matches": 1, "needs": "node"},
     {"why": "GrokBot bugs 2+3 - the Tools chips and the forge/uniques/sets filters are stopped in the shadow again",
      "file": "bible.html",
      "find": "                'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump'];\n",

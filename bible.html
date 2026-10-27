@@ -3893,13 +3893,24 @@ tr.owned-row{background:rgba(102,255,136,.03)}
         ' Nothing was read from or written to this PC.</p>');
       throw new Error('tvd-shadow: closed');
     }
-    function refused() {
+    function refused(status) {
       return Promise.resolve(new Response(JSON.stringify({ ok: false, why: 'shadow: read only' }),
-        { status: 200, headers: { 'content-type': 'application/json' } }));
+        { status: status || 200, headers: { 'content-type': 'application/json' } }));
+    }
+    // GrokBot bug 5 (2026-10-27): ANOTHER ORIGIN IS NEVER THEIRS. The board's TV·D probe asks http://127.0.0.1:17771/ping
+    // (the VIEWER's own capture agent) and polls /state - a GET with no /api/ in it, so it passed, and a shadow's TV·D could
+    // go LIVE on the viewer's own reads. Every other origin, and the agent's own paths on this one, are refused with a
+    // status that is not ok, so a probe reads "no agent here", never a 200.
+    function foreign(url) {
+      try {
+        var u = new URL(String(url), window.location.href);
+        return u.origin !== window.location.origin || /^\/(frame|hist|state|ping)(\/|$)/.test(u.pathname);
+      } catch (e) { return true; }
     }
     function blocked(url, method) {
       var m = String(method || 'GET').toUpperCase();
       if (m !== 'GET' && m !== 'HEAD') return true;
+      if (foreign(url)) return true;
       var path = '';
       try { path = new URL(String(url), window.location.href).pathname; } catch (e) { return true; }
       return path.indexOf('/api/') !== -1 || path.indexOf('/api') === 0;
@@ -3914,7 +3925,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var path = '';
       try { path = new URL(String(url), window.location.href).pathname; } catch (e) { return null; }
       var hit = /^\/api\/(chars_learned|main_locks)$/.exec(path);
-      if (!hit || typeof seed['d2r_api_' + hit[1]] !== 'string') return null;
+      if (!hit) return null;
+      // #203 - an answer their console did not send says so (UNKNOWN with its reason), not "shadow: read only"
+      if (typeof seed['d2r_api_' + hit[1]] !== 'string') {
+        return Promise.resolve(new Response(JSON.stringify({ ok: false, chars: null, locked: null,
+          why: 'their console did not send this with its last upload' }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }
       return Promise.resolve(new Response(seed['d2r_api_' + hit[1]],
         { status: 200, headers: { 'content-type': 'application/json' } }));
     }
@@ -3923,7 +3939,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       var method = (init && init.method) || (input && typeof input === 'object' && input.method) || 'GET';
       var theirs = answered(url, method);
       if (theirs) return theirs;
-      if (blocked(url, method)) { window._tvdShadowRefused++; return refused(); }
+      if (blocked(url, method)) { window._tvdShadowRefused++; return refused(foreign(url) ? 403 : 200); }
       return realFetch.apply(window, arguments);
     };
     try {
@@ -11580,7 +11596,9 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
     if (S.mules.length) cards += '<div class="chx-sec-sub" data-sub="mules">Level 1 — mules? ' + S.mules.length
       + ' seen on your reels. They are in-game characters too; the Vault\'s mule lockers are a separate thing.</div>'
       + S.mules.map(_one).join('');
-    if (!ing.length) cards = '<div class="chx-sec-empty" data-state="' + esc(S.state) + '">' + (S.state === 'unknown'
+    if (!ing.length) cards = '<div class="chx-sec-empty" data-state="' + esc(S.asking ? 'asking' : S.state) + '">' + (S.asking
+      ? 'Asking this console which characters you have in game\u2026'   /* GrokBot bug 6 - not UNKNOWN while it asks */
+      : S.state === 'unknown'
       ? 'Which characters you have in game is UNKNOWN here — ' + esc(S.why) + '.'
       : 'None yet. A character joins here once this console\'s reels have seen your character-select screen twice, then proves itself look by look.') + '</div>';
     var sim = S.sim.map(function(id){ return _card(id, all[id], id === mainId); }).join('');
@@ -11593,9 +11611,9 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
       +   '<div class="chx-sec-list">' + sim + '</div></section>';
   }
   window.renderCharsTab = function(){
-    var ok = _render();
     /* ask this console what its reels learned; the room repaints when it answers */
     try { if (typeof window._cbLearnedFetch === 'function') window._cbLearnedFetch(function(){ _render(); }); } catch (e) {}
+    var ok = _render();   /* GrokBot bug 6 - painted after the ask starts, so the first paint says it is asking */
     return ok;
   };
   /* #103 — a learned character with no build yet: the planner opens on a draft of it (class and level as the reels
@@ -12130,10 +12148,19 @@ function d2jspIsQuest(name) {
   } catch (eQ) {}
   return false;
 }
+/* GrokBot bug 9 (2026-10-27) - the price line printed the reading's raw ISO stamp ("2026-10-27T19:28:25.431Z") in UTC.
+   It now says the local date and a 24-hour time, like the console's clock; a stamp that will not parse says nothing. */
+function d2jspWhen(iso) {
+  var d = new Date(String(iso == null ? '' : iso));
+  if (!iso || isNaN(d.getTime())) return '';
+  var M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  return M[d.getMonth()] + ' ' + d.getDate() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
 function d2jspPriceLine(q) {
   q = q || {};
   if (q.reason === 'read' && Number(q.fg) > 0) {
-    var when = q.readAt ? (', read ' + q.readAt) : '';
+    var when = d2jspWhen(q.readAt) ? (', read ' + d2jspWhen(q.readAt)) : '';
     /* #113 - the line names the board the reading came from (243 is D2:R Switch Ladder Trading) */
     var on = Number(q.board) > 0 ? Number(q.board) : 0;
     var head = on ? ('Board ' + on + (on === 243 ? ' (D2:R Switch Ladder Trading)' : '')) : 'Public';
@@ -12146,7 +12173,8 @@ function d2jspPriceLine(q) {
     return head + ' price ' + q.fg + ' fg, from ' + n + ' ' + (n === 1 ? 'price' : 'prices') + when + '.';
   }
   if (q.reason === 'need-login') return 'Public price unknown. The forum search needs the Chrome login on this machine.';
-  if (q.readAt) return 'Public price unknown. The reading at ' + q.readAt + ' returned no fg number.';
+  if (q.reason === 'unanswered') return 'Public price unknown. No price reader answered this page.';
+  if (d2jspWhen(q.readAt)) return 'Public price unknown. The reading at ' + d2jspWhen(q.readAt) + ' returned no fg number.';
   return 'Public price unknown.';
 }
 /* ⟦D2JSP DESK END⟧ */
@@ -12570,7 +12598,7 @@ function d2jspPriceLine(q) {
     }
     function step(){
       if (i >= paths.length) {
-        finish({ fg: null, low: null, high: null, n: 0, readAt: new Date().toISOString(), reason: 'unread' });
+        finish({ fg: null, low: null, high: null, n: 0, readAt: null, reason: 'unanswered' });   /* bug 9 - no reading was made */
         return;
       }
       var path = paths[i++];
@@ -27263,7 +27291,7 @@ function renderGrailProgress() {
   const remaining = total - have;
   let msg = "";
   if (_pubRing && !_pubRing.show) msg = _pubRing.sentence;
-  else if (_pubRing && _pubRing.show) msg = `<strong>${have} / ${total}</strong> · ${_pubRing.sentence}`;
+  else if (_pubRing && _pubRing.show) msg = `<strong>${have} / ${total}</strong>${_pubRing.sentence ? ' · ' + _pubRing.sentence : ''}`;
   else if (have === 0) msg = `Mark chronicle items as ✓ owned to track your Chronicle collection. <strong>${total}</strong> grails tracked.`;
   /* v1560 — this fired at 83/83 while ~320 chronicle rows were still missing, because `total` was
      the elite sub-pool. On the real denominator 403 is unreachable by design (35 of those rows have
@@ -60758,7 +60786,7 @@ function renderJournal(){
         _rwMadeN = _pubForge.show.have;
         _rwTotal = _pubForge.show.total;
         _rwPct = _rwTotal ? Math.round(_rwMadeN / _rwTotal * 100) : 0;
-        _rwGap = ' · ' + _pubForge.sentence;
+        _rwGap = _pubForge.sentence ? ' · ' + _pubForge.sentence : '';   /* GrokBot bug 10 - an empty sentence adds no ' · ' */
       } else if (_pubForge) {
         _rwMadeN = null;
         _rwGap = _pubForge.sentence;
@@ -63169,7 +63197,7 @@ function renderJournal(){
     // the same 403 the game counts, so this meter and the grid below finally share one denominator.
     // The still-dark rows are unknowable until found (the game silhouettes them as bare base types).
     var _pubUni = (typeof window._publishedLane === 'function') ? window._publishedLane('uniques') : null;
-    if (_pubUni && _pubUni.show) H.push(_meter(_pubUni.show.have, _pubUni.show.total, '', { label: '🏆 <b>'+_pubUni.show.have+'</b> / '+_pubUni.show.total+' found · '+_pubUni.sentence }));
+    if (_pubUni && _pubUni.show) H.push(_meter(_pubUni.show.have, _pubUni.show.total, '', { label: '🏆 <b>'+_pubUni.show.have+'</b> / '+_pubUni.show.total+' found'+(_pubUni.sentence ? ' · '+_pubUni.sentence : '') }));
     else if (_pubUni) H.push('<div class="f-atomsub">'+_pubUni.sentence+'</div>');
     else H.push(_meter(s.found,window.d2rChronTotal(s),''));
     // v663 — the IN-GAME line: the mod chronicle counts 403 entries, the game's % is found/403.
@@ -65783,7 +65811,7 @@ function renderJournal(){
     var _pubSets = (typeof window._publishedLane === 'function') ? window._publishedLane('sets') : null;
     if (_pubSets && _pubSets.show) H.push(_meter(_pubSets.show.have, _pubSets.show.total, '', {
       title: _pubSets.show.have+' of '+_pubSets.show.total+' pieces',
-      label: '🧩 <b>'+_pubSets.show.have+'</b> / '+_pubSets.show.total+' pieces · '+_pubSets.sentence
+      label: '🧩 <b>'+_pubSets.show.have+'</b> / '+_pubSets.show.total+' pieces'+(_pubSets.sentence ? ' · '+_pubSets.sentence : '')
     }));
     else if (_pubSets) H.push('<div class="f-atomsub">'+_pubSets.sentence+'</div>');
     else H.push(_meter(s.havePieces, s.totalPieces, '', {
@@ -68507,16 +68535,22 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      builds stay his (#245). On the website there is no console: the list stays the typed one, and says so. */
   var _cbLearned = null;   // null = never answered (UNKNOWN); {ok, chars:[...]} once the console answers
   function _cbFold(n){ return String(n || '').toLowerCase().replace(/\u2295/g, 'o').replace(/[^a-z0-9]/g, ''); }
+  /* GrokBot bug 6 (2026-10-27) - the Characters room said "UNKNOWN - no console has answered this page yet" for the 4-14 s
+     the console takes to answer. While the ask is in flight it says it is asking; only a finished ask with no answer is
+     UNKNOWN. */
+  var _cbLearnedAsking = false;
   function _cbLearnedFetch(then){
     if (document.documentElement.classList.contains('tvd-shadow')) return;
     try {
       if (!/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
+      _cbLearnedAsking = true;
       fetch('/api/chars_learned', { cache: 'no-store' })
         .then(function(r){ return r.ok ? r.json() : null; })
-        .then(function(d){ if (d && typeof d === 'object') { _cbLearned = d; if (then) then(); } })
-        .catch(function(){ /* no console behind this page (the website): the typed list stands */ });
-    } catch (e) {}
+        .then(function(d){ _cbLearnedAsking = false; if (d && typeof d === 'object') _cbLearned = d; if (then) then(); })
+        .catch(function(){ _cbLearnedAsking = false; if (then) then(); /* no console behind this page (the website): the typed list stands */ });
+    } catch (e) { _cbLearnedAsking = false; }
   }
+  window._cbLearnedAskingNow = function(){ return _cbLearnedAsking; };
   window._cbLearnedFetch = _cbLearnedFetch;
   /* 2026-09-30 — HIS RULE: "thats a personal tool for each individual console". The page's hand-typed CHARS are HIS
      characters and ship to every PC, so offered as templates they made GrokBot's empty builder open straight onto
@@ -68584,11 +68618,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     all = (all && typeof all === 'object') ? all : {};
     ids = Array.isArray(ids) ? ids : Object.keys(all);
-    var tpls = _cbTemplates(), state, why = '';
+    var tpls = _cbTemplates(), state, why = '', asking = !_cbLearned && _cbLearnedAsking;
     if (_cbLearned && _cbLearned.ok && Array.isArray(_cbLearned.chars)) state = tpls.length ? 'ok' : 'none';
     else {
       state = 'unknown';
-      why = !_cbLearned ? 'no console has answered this page yet' : 'this console\'s character ledger could not be read';
+      why = !_cbLearned ? (_cbLearnedAsking ? 'asking this console for your characters\u2026' : 'no console has answered this page yet')
+        : (_cbLearned.why ? String(_cbLearned.why) : 'this console\'s character ledger could not be read');
     }
     var groups = tpls.map(function(t){ return { t: t, ids: [] }; }), sim = [];
     ids.forEach(function(id){
@@ -68600,7 +68635,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (!g && fk) groups.forEach(function(x){ if (!g && fk === _cbFold(x.t.name)) g = x; });
       if (g) g.ids.push(id); else sim.push(id);
     });
-    return { state: state, why: why,
+    return { state: state, why: why, asking: asking,
              ingame: groups.filter(function(g){ return !(g.t.key.indexOf('seen:') === 0 && g.t.level === 1); }),
              mules: groups.filter(function(g){ return g.t.key.indexOf('seen:') === 0 && g.t.level === 1; }),
              sim: sim };
@@ -71637,9 +71672,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     st.open = true; st.pick = st.stash = st.newb = null; st.say = ''; st.view = 'equip';
     box.hidden = false;
     document.documentElement.classList.add('cb-lock');
-    _cbRender();
     // #91 — ask this PC's console what its reels have learned; the list repaints when it answers (still open)
     _cbLearnedFetch(function(){ if (st.open) _cbRender(); });
+    _cbRender();   /* GrokBot bug 6 - after the ask starts, so the planner's list says it is asking */
     try { var c = document.getElementById('cb-close'); if (c) c.focus({ preventScroll: true }); } catch (e) {}
     return true;
   };
@@ -72887,13 +72922,13 @@ window.renderSessionCockpit = function(){
     try {
       var rwT = (typeof RUNEWORD_TIP!=='undefined') ? Object.keys(RUNEWORD_TIP).length : 0;
       var _pubKpiRw = (typeof window._publishedLane === 'function') ? window._publishedLane('runewords') : null;
-      if (rwT && _pubKpiRw && _pubKpiRw.show) kh.push('<div class="sc-kpi k-rw"><b>'+_pubKpiRw.show.have+'/'+_pubKpiRw.show.total+'</b><span>Runewords · '+_pubKpiRw.sentence+'</span></div>');
+      if (rwT && _pubKpiRw && _pubKpiRw.show) kh.push('<div class="sc-kpi k-rw"><b>'+_pubKpiRw.show.have+'/'+_pubKpiRw.show.total+'</b><span>Runewords'+(_pubKpiRw.sentence ? ' · '+_pubKpiRw.sentence : '')+'</span></div>');
       else if (rwT && _pubKpiRw) kh.push('<div class="sc-kpi k-rw"><b>'+_pubKpiRw.sentence+'</b><span>Runewords</span></div>');
       else if (rwT) kh.push('<div class="sc-kpi k-rw"><b>'+_scRwMade()+'/'+rwT+'</b><span>Runewords</span></div>');
     } catch(e){}
     var _scFuni = null; try { _scFuni = window.funiScan(); } catch(e){}
     var _pubKpiUni = (typeof window._publishedLane === 'function') ? window._publishedLane('uniques') : null;
-    if (_pubKpiUni && _pubKpiUni.show) kh.push('<div class="sc-kpi k-uni"><b>'+_pubKpiUni.show.have+'/'+_pubKpiUni.show.total+'</b><span>Uniques · '+_pubKpiUni.sentence+'</span></div>');
+    if (_pubKpiUni && _pubKpiUni.show) kh.push('<div class="sc-kpi k-uni"><b>'+_pubKpiUni.show.have+'/'+_pubKpiUni.show.total+'</b><span>Uniques'+(_pubKpiUni.sentence ? ' · '+_pubKpiUni.sentence : '')+'</span></div>');
     else if (_pubKpiUni) kh.push('<div class="sc-kpi k-uni"><b>'+_pubKpiUni.sentence+'</b><span>Uniques</span></div>');
     else if (_scFuni) kh.push('<div class="sc-kpi k-uni"><b>'+_scFuni.found+'/'+window.d2rChronTotal(_scFuni)+'</b><span>Uniques</span></div>');
     /* v1562 — THIS TILE HAS NEVER RENDERED, NOT ONCE.
@@ -72910,7 +72945,7 @@ window.renderSessionCockpit = function(){
     try {
       var _fsk = (typeof window.fsetsScan==='function') ? window.fsetsScan() : null;
       var _pubKpiSets = (typeof window._publishedLane === 'function') ? window._publishedLane('sets') : null;
-      if (_pubKpiSets && _pubKpiSets.show) kh.push('<div class="sc-kpi k-set"><b>'+_pubKpiSets.show.have+'/'+_pubKpiSets.show.total+'</b><span>Sets · '+_pubKpiSets.sentence+'</span></div>');
+      if (_pubKpiSets && _pubKpiSets.show) kh.push('<div class="sc-kpi k-set"><b>'+_pubKpiSets.show.have+'/'+_pubKpiSets.show.total+'</b><span>Sets'+(_pubKpiSets.sentence ? ' · '+_pubKpiSets.sentence : '')+'</span></div>');
       else if (_pubKpiSets) kh.push('<div class="sc-kpi k-set"><b>'+_pubKpiSets.sentence+'</b><span>Sets</span></div>');
       else if (_fsk && _fsk.totalPieces)
         kh.push('<div class="sc-kpi k-set"><b>'+_fsk.havePieces+'/'+_fsk.totalPieces+'</b><span>Sets</span></div>');

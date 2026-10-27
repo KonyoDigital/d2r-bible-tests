@@ -666,15 +666,20 @@ def _log_root():
 
 
 LOG_PATH = os.path.join(_log_root(), "control_agent.log")
-PID_PATH = os.path.join(HERE, "control_agent.pid")
-CAP_PID_PATH = os.path.join(HERE, "control_capture.pid")
+# #177 (his ruling 2026-10-22, "fix the demo") - A PRIVATE CONSOLE NEVER READS HIS PID FILES. A push's demo and
+# test_button_matrix start tv/control_app.py from HIS tv/ with TV_HIST set; the log and state moved into the fixture's
+# world, but these four stayed in HERE, so a private console's stop path read HIS tv/control_agent.pid, SIGTERMed then
+# SIGKILLed HIS ON AIR agent and deleted the file - REG-2123's harm, by a route safe_copy cannot close. They follow the
+# same rule as the log now: HERE on his console (no TV_HIST), the fixture's world on every private one.
+PID_PATH = os.path.join(_fixture_root_for_state(), "control_agent.pid")
+CAP_PID_PATH = os.path.join(_fixture_root_for_state(), "control_capture.pid")
 UI_PATH = os.path.join(HERE, "control_ui.html")
 BIBLE = os.path.join(REPO, "bible.html")
 ART_DIR = os.path.realpath(os.path.join(REPO, "art"))
 CAPTURE_PS1 = os.path.join(HERE, "capture_win.ps1")
 HIST_DIR = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")   # v765 · v885 — TV_HIST = harness isolation
-BOARD_PID_PATH = os.path.join(HERE, "board_window.pid")   # v773.1 — the ONE board window
-WINDOW_PID_PATH = os.path.join(HERE, ".tvd_window.pid")   # v1248 — pid of a live native window (takeover guard)
+BOARD_PID_PATH = os.path.join(_fixture_root_for_state(), "board_window.pid")   # v773.1 — the ONE board window (#177)
+WINDOW_PID_PATH = os.path.join(_fixture_root_for_state(), ".tvd_window.pid")   # v1248 — native window pid (#177)
 
 
 def _hist_frame_paths(fid):
@@ -5009,11 +5014,90 @@ def _roster_fetch_loop():
 _ROSTER_URL = "https://bull-4-u.com/api/roster"
 
 
+#: #203 (GrokBot bug 1, 2026-10-27) - THE ALT'S CHARACTERS NEVER REACHED ITS SHADOW. This read had an 8 s timeout and
+#: /api/chars_learned takes 4.7-14 s on the ALT, so it timed out on three uploads in a row and the publish dropped it
+#: without a word: the shadow's Characters said "UNKNOWN - ledger could not be read" and its picker lost four characters.
+#: Now the answer is built in this process with only the fields the upload keeps (no loopback, no frame glob), it is
+#: asked only when an upload is due (console_snapshot.gate), a miss sends the last good answer (younger than
+#: PROFILE_API_KEEP_S) and says so in .roster_profile_state.json (apiMiss), and a miss with nothing to send is named.
+PROFILE_API_KEEP_S = 24 * 3600
+
+
+def chars_learned_answer(full=True):
+    """#91 - the characters THIS PC's reels have witnessed enough (tv/char_select.py), for the builder's "From your
+    characters" list. chars=None when the ledger cannot be read: UNKNOWN, never an empty list. -> dict
+
+    The one place that builds the answer: /api/chars_learned returns it whole, and the shadow upload asks for it with
+    full=False. #203 - the upload keeps only console_snapshot.API_FIELDS["chars_learned"], and status() alone globs every
+    reel folder and frame on this PC (char_select.owed), which is most of the 4.7-14 s the ALT measured. full=False
+    skips status; every field the upload keeps is built the same way (the witnesses read the ledger already loaded)."""
+    try:
+        import char_select as _cs
+        _d = _cs.load()
+        # #234 step 2 - each in-game card is handed what the game showed its character wearing (gear None = the
+        # gear ledger is UNKNOWN, never an empty doll); keyed by the learner's own fold
+        try:
+            import equipped_ledger as _el
+            _gd, _gwhy = _el.load()
+            _gear = _el.gear_by_key(_gd, _cs._fold, _cs.tier_bars())
+        except Exception as _ge:
+            _gear, _gwhy = None, "the gear ledger raised %s" % type(_ge).__name__
+        out = {"ok": _d is not None, "chars": _cs.learned(_d),
+               "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars(),
+               "surfaceWitnesses": _cs.surface_witnesses(_d),
+               "lobbyBySize": _cs.lobby_by_size(_d),
+               "cPanel": _cs.CPANEL_SAY,
+               "gear": _gear, "gearWhy": _gwhy}
+        if full:
+            out["status"] = _cs.status()
+        return out
+    except Exception as e:
+        return {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__}
+
+
 def _profile_chars_learned():
-    """This console's own /api/chars_learned answer, asked over loopback so the route stays the one place that
-    builds it (its gear and bars are pinned there)."""
-    with urllib.request.urlopen("http://127.0.0.1:%d/api/chars_learned" % int(CONTROL_PORT), timeout=8) as resp:
-        return json.loads(resp.read().decode("utf-8", "replace"))
+    """#203 - the characters answer the shadow upload carries, built in this process with only the fields the upload
+    keeps. It used to go over loopback with an 8 s timeout, and the ALT's whole answer took 4.7-14 s."""
+    return chars_learned_answer(full=False)
+
+
+def _profile_api_path():
+    return os.path.join(_log_root(), ".roster_profile_api.json")
+
+
+def _profile_api_answers(now_ms=None, reads=None):
+    """#203 - the console answers that ride in the upload. -> (answers, misses)
+
+    answers = {name: answer} for every read that answered ok, or whose last good answer is younger than
+    PROFILE_API_KEEP_S. misses = {name: why} for every read that did not answer this time, saying whether the last good
+    answer went up instead or nothing did. A good answer is kept on disk (this PC's log root) for the next miss."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    kept = _profile_json_load(_profile_api_path()) or {}
+    answers, misses, changed = {}, {}, False
+    for name, read in (reads or (("chars_learned", _profile_chars_learned), ("main_locks", main_locks_view))):
+        why = None
+        try:
+            got = read()
+        except Exception as e:
+            got, why = None, "could not be read (%s)" % type(e).__name__
+        if isinstance(got, dict) and got.get("ok") is True:
+            answers[name] = got
+            kept[name] = {"at": now, "answer": got}
+            changed = True
+            continue
+        if why is None:
+            why = "answered without ok"
+        last = kept.get(name)
+        at = last.get("at") if isinstance(last, dict) else None
+        if isinstance(at, int) and not isinstance(at, bool) and isinstance(last.get("answer"), dict) \
+                and 0 <= now - at < PROFILE_API_KEEP_S * 1000:
+            answers[name] = last["answer"]
+            misses[name] = "%s - the last good answer, %d min old, went up instead" % (why, (now - at) // 60000)
+        else:
+            misses[name] = "%s - not uploaded (no good answer in the last %d h)" % (why, PROFILE_API_KEEP_S // 3600)
+    if changed:
+        _profile_json_save(_profile_api_path(), kept)
+    return answers, misses
 
 
 def _profile_book_path():
@@ -5080,15 +5164,19 @@ def _profile_publish_once(boot):
     book = _profile_json_load(_profile_book_path()) or {}
     stores = book.get("stores") if isinstance(book.get("stores"), dict) else None
     now_ms = int(time.time() * 1000)
+    # #203 - the lane ticks every 60 s and asked the console's answers on every tick, before due() said "within 75 min".
+    # Nothing is asked unless an upload could go now.
+    _open, _shut_why = _cs.gate(state, now_ms, bool(boot))
+    if not _open:
+        state["why"] = str(_shut_why)[:200]
+        _profile_json_save(_profile_state_path(), state)
+        return
     if stores:
-        answers = {}
-        for _name, _read in (("chars_learned", _profile_chars_learned), ("main_locks", main_locks_view)):
-            try:
-                _got = _read()
-            except Exception:
-                _got = None
-            if isinstance(_got, dict) and _got.get("ok") is True:
-                answers[_name] = _got
+        answers, _misses = _profile_api_answers(now_ms)       # #203 - a slow read waits; a miss is named
+        if _misses:
+            state["apiMiss"] = _misses
+        else:
+            state.pop("apiMiss", None)
         if isinstance(book.get("world"), dict):
             answers["world"] = book["world"]
         stores = _cs.with_api(stores, answers)
@@ -7185,7 +7273,7 @@ def window_mode_payload():
             pass
     say = {
         "background": ("minimized since %s (%s) - the service is running; the Dock / taskbar brings it back"
-                       if _BACKGROUND.get("by") == "minimized" else
+                       if _bg_minimized(_BACKGROUND) else
                        "hidden since %s (%s) - the service is running; the Desktop icon brings it back") % (
                           time.strftime("%H:%M", time.localtime((_BACKGROUND.get("since") or 0) / 1000.0))
                           if _BACKGROUND.get("since") else "?", _BACKGROUND.get("by") or "?"),
@@ -7411,6 +7499,17 @@ def ask_running_console_front(port, who, timeout=4.0, _urlopen=None):
         return {"ok": False, "why": "the running console could not be asked (%s)" % type(e).__name__}
 
 
+def _bg_minimized(bg):
+    """#179 - is this background a MINIMIZED window (in the Dock / taskbar), not a hidden one? -> bool
+
+    A quiet relaunch opens the window minimized and records its reason as "quiet relaunch: ...". Only "minimized" was
+    read as minimized, so the NEXT relaunch called that window hidden and set TV_START_HIDDEN: two automatic relaunches
+    in a row with nobody restoring the window left no window and no Dock tile (GrokBot's Linux seat WINDOW_GONE; Dean's
+    "came back hidden"). A window born minimized is minimized."""
+    by = str((bg or {}).get("by") or "")
+    return by == "minimized" or by.startswith("quiet relaunch:")
+
+
 def hidden_relaunch_env(background, env, argv):
     """Before an os.execv: a HIDDEN window relaunches hidden (TV_START_HIDDEN); a window he brought forward
     relaunches shown, even if this console was first started with --background - argv crosses os.execv, so the
@@ -7418,7 +7517,7 @@ def hidden_relaunch_env(background, env, argv):
     minimized is not hidden and relaunches as the quiet path decides. Mutates `env` / `argv`; -> the hidden reason
     or None."""
     bg = background or {}
-    if bg.get("on") and bg.get("by") != "minimized":
+    if bg.get("on") and not _bg_minimized(bg):
         env["TV_START_HIDDEN"] = "the console was hidden (%s)" % (bg.get("by") or "?")
         return env["TV_START_HIDDEN"]
     env.pop("TV_START_HIDDEN", None)
@@ -47319,27 +47418,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         # ══ GROK EYES (G5) — REMOVABLE (delete this stanza) ══
         if path == "/api/chars_learned":
-            # #91 — the characters THIS PC's reels have witnessed enough (tv/char_select.py), for the builder's
-            # "From your characters" list. chars=None when the ledger cannot be read: UNKNOWN, never an empty list.
-            try:
-                import char_select as _cs
-                _d = _cs.load()
-                # #234 step 2 - each in-game card is handed what the game showed its character wearing (gear None = the
-                # gear ledger is UNKNOWN, never an empty doll); keyed by the learner's own fold
-                try:
-                    import equipped_ledger as _el
-                    _gd, _gwhy = _el.load()
-                    _gear = _el.gear_by_key(_gd, _cs._fold, _cs.tier_bars())
-                except Exception as _ge:
-                    _gear, _gwhy = None, "the gear ledger raised %s" % type(_ge).__name__
-                self._json(200, {"ok": _d is not None, "chars": _cs.learned(_d), "status": _cs.status(),
-                                 "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars(),
-                                 "surfaceWitnesses": _cs.surface_witnesses(_d),
-                                 "lobbyBySize": _cs.lobby_by_size(_d),
-                                 "cPanel": _cs.CPANEL_SAY,
-                                 "gear": _gear, "gearWhy": _gwhy})
-            except Exception as e:
-                self._json(200, {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__})
+            self._json(200, chars_learned_answer())
             return
         if path == "/api/g5_status":
             self._json(200, _g5_status())
