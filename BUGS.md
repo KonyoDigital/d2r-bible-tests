@@ -28,6 +28,14 @@ the vault does not) sent any not-ok answer to vaultFailed, so a held row read as
 same pending bucket now (a second red-proof). And v712's vault-mirror spec is brought to his #202 ruling: one read (with
 its session, as a real read carries) holds Harlequin Crest, a socketed base and a RotW custom as seen-once, not owned; a
 second session's look registers each, and every stashed class then lands VISIBLE - the guarantee it was written for.
+### REG-2705 - A CLEAN READ THAT FOUND NOTHING NEW WAS POSTED AS A FAILURE (#158.2, GrokBot on his real frames)
+vaultIntake answered ok: (new items) > 0, so a frame read cleanly that showed only items he already owns was posted as
+ok:false - the receipt ledger counted every re-read as an error ("0 of 39 real reads"), beside the server's own sentence for
+that case ("read fine - nothing on this screen to count"). _vaultIntakeVerdict is the one answer now: ok is whether the
+READ worked (no screenshot failed, no AI-service error), total stays the new items, `read` is everything read, `why` says
+which kind of nothing it was, and the TV path posts the reason a failed read carries (REG-2704 shows it on the receipt).
+Law: test_a_read_that_found_nothing_new_is_not_a_failed_read (3 red-proofs, each seen RED).
+
 ### REG-2704 - THE RECEIPT LEDGER DROPPED THE REASON EVERY RECEIPT CARRIES (#158.3, GrokBot on his real frames)
 v1945 kept the reason on every intake record (`err`, `why`, `guardHeld`, `refused`) because 45 of 46 receipts read
 ok:false with nothing to tell a deliberate hold, a failed read and an honest empty apart. /api/intake_log then built its rows
