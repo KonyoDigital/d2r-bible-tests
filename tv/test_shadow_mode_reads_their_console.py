@@ -881,6 +881,76 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(got["rwN"]["sentence"], "the list wasn't sent")
         self.assertIsNone(got["namesWin"], "a lane that already has names was replaced by the published total")
 
+    def test_an_empty_arrived_list_is_zero_and_a_missing_list_keeps_the_sentence(self):
+        """A list that arrived empty is 0. A list that was not sent keeps the sentence.
+
+        The runeword tab and the hub both follow that. Have 98 with no list stays 98 plus
+        the sentence. Have 98 with an empty list is 0, because the list did arrive.
+        """
+        if not NODE:
+            raise AssertionError("node is absent - the empty-list frame cannot be run here, so it is UNMEASURED")
+        ui = _read(UI)
+        html = _read(BIBLE)
+        lane_at = html.index("window._publishedLane = function (lane) {")
+        lane = html[lane_at:html.index("\n};", lane_at) + 3]
+        self.assertNotIn("_tvdShadow", lane)
+        count = _js_fn(ui, "function _listCount(raw) {")
+        counts = _js_fn(ui, "function _chronicleCounts(summary, progress, lists) {")
+        doctor = html.index("(function _v42_sanitizeWishlistOwned()")
+        self.assertLess(html.index("if (window._tvdShadow) return;", doctor), html.index("GRAIL FOUND-SEED floor", doctor))
+        self.assertIn("mem.setItem = function () {}", html[html.index("/* SHADOW MODE BOOT"):html.index("</script>", html.index("/* SHADOW MODE BOOT"))])
+        js = "var window = globalThis;\n" + lane + "\n" + count + "\n" + counts + r"""
+function lsr(map) {
+  return { getItem: function (k) { return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; } };
+}
+function progress(have) {
+  return JSON.stringify({ runewords: { have: have, total: 99, listed: false } });
+}
+window.LSR = lsr({ d2r_rwMade: '{}', d2r_shadowProgress: progress(0) });
+var empty = window._publishedLane('runewords');
+window.LSR = lsr({ d2r_shadowProgress: progress(0) });
+var absent = window._publishedLane('runewords');
+window.LSR = lsr({ d2r_rwMade: '{}', d2r_shadowProgress: progress(98) });
+var emptyBeats = window._publishedLane('runewords');
+window.LSR = lsr({ d2r_shadowProgress: progress(98) });
+var unsentHave = window._publishedLane('runewords');
+var line = _chronicleCounts(
+  { chron: { made: 0, total: 99 }, sets: { found: 4, total: 135 }, grail: { found: 53, total: 403 } },
+  { runewords: { have: 0, total: 99, listed: false }, sets: { have: 4, total: 135, listed: false }, uniques: { have: 53, total: 403, listed: false } },
+  { runewords: _listCount('{}'), sets: _listCount(null), uniques: _listCount('{"Shako":""}') }
+);
+var unsent = _chronicleCounts(
+  { chron: { made: 0, total: 99 }, sets: { found: 0, total: 135 }, grail: { found: 0, total: 403 } },
+  { runewords: { have: 0, total: 99, listed: false }, sets: { have: 0, total: 135, listed: false }, uniques: { have: 0, total: 403, listed: false } },
+  { runewords: _listCount(null), sets: _listCount(null), uniques: _listCount(null) }
+);
+process.stdout.write(JSON.stringify({
+  empty: empty, absent: absent, emptyBeats: emptyBeats, unsentHave: unsentHave,
+  listEmpty: _listCount('{}'), listBlank: _listCount(''), listArr: _listCount('[]'),
+  listMissing: _listCount(null), listBad: _listCount('{'),
+  line: line, unsent: unsent
+}));
+"""
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-1200:])
+        got = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(got["empty"], {"show": {"have": 0, "total": 99}, "sentence": ""})
+        self.assertIsNone(got["absent"]["show"])
+        self.assertEqual(got["absent"]["sentence"], "the list wasn't sent")
+        self.assertEqual(got["emptyBeats"], {"show": {"have": 0, "total": 99}, "sentence": ""})
+        self.assertEqual(got["unsentHave"]["show"], {"have": 98, "total": 99})
+        self.assertEqual(got["unsentHave"]["sentence"], "the list wasn't sent")
+        self.assertEqual(got["listEmpty"], 0)
+        self.assertEqual(got["listBlank"], 0)
+        self.assertEqual(got["listArr"], 0)
+        self.assertIsNone(got["listMissing"])
+        self.assertIsNone(got["listBad"])
+        dot = " \u00b7 "
+        self.assertEqual(got["line"], "Runewords 0/99" + dot + "Sets 4/135" + dot + "Uniques 53/403")
+        self.assertNotIn("wasn", got["line"])
+        self.assertEqual(got["unsent"], "the list wasn\u2019t sent")
+        self.assertNotIn("0/", got["unsent"])
+
     def test_the_missing_snapshot_does_not_open_this_browser(self):
         ui = _read(UI)
         enter = ui[ui.index("  window._shadowEnter = function (owner) {"):ui.index("  window._shadowLeave = function () {")]
@@ -924,10 +994,25 @@ class TheSameConsoleDrawsIt(unittest.TestCase):
     def test_no_screen_of_the_board_branches_on_the_shadow(self):
         html = _read(BIBLE)
         (b0, b1), (u0, u1) = self._spans(html)
-        outside = [html.count("\n", 0, m.start()) + 1 for m in re.finditer(r"_tvdShadow|tvd-shadow-snap", html)
-                   if not (b0 <= m.start() < b1 or u0 <= m.start() < u1)]
+        # A startup writer may refuse while a shadow is open. A draw still may not branch:
+        # `if (window._tvdShadow) {}` inside a render stays a failure. The allowed lines only
+        # return, or they skip a floor (`if (!window._tvdShadow)` / `|| window._tvdShadow`).
+        guard = re.compile(r"if \(window\._tvdShadow\) return\b|if \(!window\._tvdShadow\b|\|\| window\._tvdShadow\)")
+        outside = []
+        allowed = []
+        for m in re.finditer(r"_tvdShadow|tvd-shadow-snap", html):
+            if b0 <= m.start() < b1 or u0 <= m.start() < u1:
+                continue
+            line_start = html.rfind("\n", 0, m.start()) + 1
+            line = html[line_start:html.find("\n", m.start())]
+            if guard.search(line):
+                allowed.append(line.strip())
+                continue
+            outside.append(html.count("\n", 0, m.start()) + 1)
         self.assertEqual(outside, [], "bible.html draws something differently in shadow at line(s) %r - the shadow "
                                       "must render through the same templates as the console" % outside)
+        self.assertGreaterEqual(len(allowed), 12, allowed)
+        self.assertLessEqual(len(allowed), 20, allowed)
 
     def test_the_shadow_frame_is_the_consoles_own_board_document(self):
         ui = _read(UI)
@@ -1668,7 +1753,7 @@ const listeners = {};
 const realLS = { setItem() { throw new Error('real localStorage touched'); }, getItem() { throw new Error('real localStorage read'); } };
 const sent = [];
 class Resp { constructor(b, o) { this.body = b; this.status = (o && o.status) || 200; } async json() { return JSON.parse(this.body); } async text() { return this.body; } }
-const doc = { documentElement: { classList: { list: [], add(c) { this.list.push(c); } } }, head: { appendChild() {} },
+const doc = { readyState: 'loading', documentElement: { classList: { list: [], add(c) { this.list.push(c); } } }, head: { appendChild() {} },
   createElement() { return { textContent: '' }; }, write(t) { out.wrote = t; },
   addEventListener(t, f, cap) { (listeners[t] = listeners[t] || []).push(f); } };
 const out = { wrote: null, leaves: [] };
@@ -1703,6 +1788,12 @@ function run(parentSnap, search) {
   res.seeded = {}; for (const k of Object.keys(CFG.snap.stores)) res.seeded[k] = w.localStorage.getItem(k);
   w.localStorage.setItem('d2r_written', '1');
   w.sessionStorage.setItem('x', '1');
+  res.written = w.localStorage.getItem('d2r_written');
+  res.sessWritten = w.sessionStorage.getItem('x');
+  const keepK = Object.keys(CFG.snap.stores)[0];
+  w.localStorage.removeItem(keepK);
+  res.keptKey = keepK;
+  res.kept = w.localStorage.getItem(keepK);
   res.claim = w.localStorage.getItem('d2r_ownerClaim');
   res.install = w.localStorage.getItem('d2r_installId');
   const asks = [['/api/chars_learned', 'GET'], ['/api/main_locks', 'GET'], ['/api/status', 'GET'],
@@ -1765,6 +1856,10 @@ function run(parentSnap, search) {
                 source: t.localStorage.getItem('d2r_machineSource'), ptr: t.localStorage.getItem('d2r_activeProfileWin'),
                 ladderCopy: t.localStorage.getItem('L·d2r_charBuilds') === CFG.snap.stores.d2r_charBuilds,
                 noWorld: before };
+  const reel = { nodeType: 3, nodeValue: "from this console's reels" };
+  doc.body = { nodeType: 1, childNodes: [reel] };
+  (listeners.DOMContentLoaded || []).forEach(function (f) { f(); });
+  res.reels = reel.nodeValue;
   process.stdout.write(JSON.stringify(res));
 })();
 """
@@ -1804,6 +1899,12 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertIsNone(self.r["threw"])
         self.assertTrue(self.r["memIsLocal"], "the page was handed this browser's real storage")
         self.assertEqual(self.r["seeded"], self.snap["stores"])
+        self.assertIsNone(self.r["written"], "a shadow accepted a storage write after it opened")
+        self.assertIsNone(self.r["sessWritten"], "a shadow accepted a session write after it opened")
+        self.assertEqual(self.r["kept"], self.snap["stores"][self.r["keptKey"]],
+                         "a shadow removed a store that arrived with the profile")
+        self.assertEqual(self.r["reels"], "from Dean's reels",
+                         "the characters line still says this console inside a shadow")
         self.assertEqual((self.r["claim"], self.r["install"]), ("*", "tvdshadow0000000"))
         self.assertEqual(self.r["cls"], ["tvd-shadow-snap"],
                          "the frame took the phase-1 tvd-shadow class, which hides their reels")

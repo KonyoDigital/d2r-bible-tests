@@ -24003,13 +24003,15 @@ window._lockMark = function(isOpen, px, label){
   /* A sent name list is the count. A published total is the count when no names
      were sent. A forge summary of 0 is not a count, on this PC or in a shadow. */
   function _listCount(raw) {
-    if (typeof raw !== 'string' || !raw || raw === '{}' || raw === '[]') return null;
+    if (raw == null || typeof raw !== 'string') return null;
+    if (raw === '' || raw === '{}' || raw === '[]') return 0;
     try {
       var v = JSON.parse(raw);
-      var n = 0;
+      var n = null;
       if (Array.isArray(v)) n = v.length;
       else if (v && typeof v === 'object') n = Object.keys(v).length;
-      return n > 0 ? n : null;
+      else return null;
+      return n > 0 ? n : 0;
     } catch (e) { return null; }
   }
   function _chronicleCounts(summary, progress, lists) {
@@ -24032,8 +24034,9 @@ window._lockMark = function(isOpen, px, label){
         parts.push(spec[1] + ' ' + block[spec[3]] + '/' + block[spec[4]]);
         return;
       }
-      var fromList = lists && whole(lists[spec[0]], 1) ? lists[spec[0]] : null;
-      if (fromList && total) {
+      var listN = (lists && typeof lists[spec[0]] === 'number') ? lists[spec[0]] : null;
+      var fromList = (listN != null && whole(listN, 0)) ? listN : null;
+      if (fromList != null && total) {
         parts.push(spec[1] + ' ' + fromList + '/' + total);
         return;
       }

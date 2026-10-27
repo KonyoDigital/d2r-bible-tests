@@ -4013,6 +4013,47 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       try { host.postMessage({ type: 'tvd-shadow-leave' }, window.location.origin); } catch (e) {}
     }, true);
     window._tvdShadow = { owner: String((snap && snap.owner) || ''), t: snap && snap.t, mem: mem };
+    // The snapshot is already in memory. From here a shadow stores nothing, so a later
+    // floor cannot rewrite the entered profile. The label names whose reels these are.
+    mem.setItem = function () {};
+    mem.removeItem = function () {};
+    mem.clear = function () {};
+    sess.setItem = function () {};
+    sess.removeItem = function () {};
+    sess.clear = function () {};
+    (function () {
+      var owner = window._tvdShadow.owner;
+      if (!owner) return;
+      var from = "this console's reels";
+      var to = owner + "'s reels";
+      function rewrite(node) {
+        if (!node) return;
+        if (node.nodeType === 3) {
+          if (node.nodeValue && node.nodeValue.indexOf(from) !== -1)
+            node.nodeValue = node.nodeValue.split(from).join(to);
+          return;
+        }
+        var kids = node.childNodes;
+        if (!kids) return;
+        for (var i = 0; i < kids.length; i++) rewrite(kids[i]);
+      }
+      function arm() {
+        rewrite(document.body || document.documentElement);
+        if (!window.MutationObserver || !document.documentElement) return;
+        var obs = new MutationObserver(function (recs) {
+          for (var r = 0; r < recs.length; r++) {
+            var rec = recs[r];
+            if (rec.type === 'characterData') rewrite(rec.target);
+            var added = rec.addedNodes;
+            if (!added) continue;
+            for (var i = 0; i < added.length; i++) rewrite(added[i]);
+          }
+        });
+        obs.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arm);
+      else arm();
+    })();
     // ...and they LOOK dead: every control a click cannot reach is dimmed in place (opacity only, so the layout
     // and the text stay one-to-one with their console).
     try {
@@ -4087,14 +4128,19 @@ window.d2rChronTotal = function(s){
 window._publishedLane = function (lane) {
   var key = lane === 'uniques' ? 'd2r_foundLog' : lane === 'sets' ? 'd2r_setPieces' : lane === 'runewords' ? 'd2r_rwMade' : '';
   if (!key) return null;
+  var sentEmpty = false;
   try {
     var rawStore = (window.LSR && window.LSR.getItem) ? window.LSR.getItem(key) : null;
-    if (typeof rawStore === 'string' && rawStore && rawStore !== '{}' && rawStore !== '[]') {
-      var parsed = JSON.parse(rawStore);
-      var n = Array.isArray(parsed) ? parsed.length : (parsed && typeof parsed === 'object' ? Object.keys(parsed).length : 0);
-      if (n > 0) return null;
+    if (typeof rawStore === 'string') {
+      if (!rawStore || rawStore === '{}' || rawStore === '[]') sentEmpty = true;
+      else {
+        var parsed = JSON.parse(rawStore);
+        var n = Array.isArray(parsed) ? parsed.length : (parsed && typeof parsed === 'object' ? Object.keys(parsed).length : 0);
+        if (n > 0) return null;
+        sentEmpty = true;
+      }
     }
-  } catch (e) {}
+  } catch (e) { sentEmpty = false; }
   var raw = null;
   try { raw = (window.LSR && window.LSR.getItem) ? window.LSR.getItem('d2r_shadowProgress') : null; } catch (e2) { raw = null; }
   if (typeof raw !== 'string' || !raw) return null;
@@ -4107,6 +4153,7 @@ window._publishedLane = function (lane) {
   var whole = function (v, min) {
     return typeof v === 'number' && isFinite(v) && v >= min && Math.floor(v) === v;
   };
+  if (sentEmpty && whole(total, 1)) return { show: { have: 0, total: total }, sentence: '' };
   var show = (whole(have, 1) && whole(total, 1)) ? { have: have, total: total } : null;
   return { show: show, sentence: "the list wasn't sent" };
 };
@@ -4867,11 +4914,12 @@ window.LSR = (function(){
   return {
     getItem:    function(k){ return RAW.getItem(key(k)); },
     setItem:    function(k,v){
+      if (window._tvdShadow) return;
       if (_QUAR[k]) return _qRefuse(String(k), 'write');
       if (k === 'd2r_setPieces'){ try { _spHistory(v); } catch(e){} }
       return RAW.setItem(key(k), v);
     },
-    removeItem: function(k){ if (_QUAR[k]) return _qRefuse(String(k), 'remove'); return RAW.removeItem(key(k)); },
+    removeItem: function(k){ if (window._tvdShadow) return; if (_QUAR[k]) return _qRefuse(String(k), 'remove'); return RAW.removeItem(key(k)); },
     read: read, shapeWhy: shapeWhy,
     quarantine: quarantine, hold: hold, release: release, quarantined: quarantined,
     spSide: _spSide,
@@ -23231,6 +23279,7 @@ try {
     try { if (typeof _EXTRA_ITEM_SET !== 'undefined' && typeof _norm === 'function') _EXTRA_ITEM_SET['delete'](_norm(nm)); } catch (e) {}
   }
   window._ownedProvBackfill = function(opts){
+    if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
     opts = opts || {};
     var done = _bfRead();
     if (done && done.ver >= _BF_VER && !opts.force) return { ran: false, already: true, receipt: done };
@@ -23403,6 +23452,7 @@ try {
          vaultRestoreLast(); the found ledger keeps it (there is no unfind). [[the-unjoined-end]] [[unknown-stays-unknown]] */
   var _SC_KEY = 'd2r_seedCleanse', _SC_VER = 1;
   window._seedCleanse = function(opts){
+    if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
     opts = opts || {};
     var done = _bfJson(_SC_KEY, null);
     if (done === undefined) return { ran: false, why: 'the cleanse stamp would not read — whether it already ran is UNKNOWN, so nothing was removed' };
@@ -23463,6 +23513,7 @@ try {
   };
   /* armed by the grail floor at parse, run at load — never in a harness without a page */
   window._seedCleanseArm = function(opts){
+    if (window._tvdShadow) return false;
     try {
       if (!(window.document && window.addEventListener)) return false;
       var go = function(){
@@ -23497,6 +23548,7 @@ try {
      [[the-unjoined-end]] [[unknown-stays-unknown]] */
   var _SPR_KEY = 'd2r_setPieceReconcile', _SPR_VER = 3;   /* #76 — 1->3: v3751 folded names only; v3752 folded pairs but left lone-slotted dead copies keys + an unconfirmed owned write; v3753 sweeps dead keys, confirms the owned write before stamping, and re-arms on undo */
   window._setPieceReconcile = function(opts){
+    if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
     opts = opts || {};
     var done = _bfJson(_SPR_KEY, null);
     if (done === undefined) return { ran: false, why: 'the reconcile stamp would not read — UNKNOWN, nothing folded' };
@@ -23715,7 +23767,7 @@ try {
   /* at load, once — never in a harness without a page */
   try {
     if (window.document && window.addEventListener){
-      var _bfRun = function(){ setTimeout(function(){ try { window._ownedProvBackfill(); } catch (e) {} }, 1500); };
+      var _bfRun = function(){ if (window._tvdShadow) return; setTimeout(function(){ try { window._ownedProvBackfill(); } catch (e) {} }, 1500); };
       if (window.document.readyState === 'complete') _bfRun();
       else window.addEventListener('load', _bfRun, { once: true });
     }
@@ -24086,7 +24138,7 @@ try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
 var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh'); } catch(e){}   // v638 — the chronicle is SHARED across accounts (one chronicle): the owner's floor applies on both; only an explicit fresh-profile reset skips it
 let rwMade = _storeRead('map?', null).getItem('d2r_rwMade');
-if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = (_rwFreshFlag || !window._seedsBelongHere) ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }   // v663 — the cousin shell NEVER inherits the owner's seed
+if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = (_rwFreshFlag || !window._seedsBelongHere || window._tvdShadow) ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }   // v663 — the cousin shell NEVER inherits the owner's seed
 // v424 — DURABLE 28-FLOOR. A one-time flag was too fragile (a cache hit / backup-restore left Konyo's
 // Chronicle stuck at the old 19). Instead the 28 created runewords are a permanent FLOOR re-applied on EVERY
 // load, EXCEPT ones the user has explicitly UN-marked (tracked in d2r_rwUnmade). So a reset/restore always
@@ -24112,7 +24164,7 @@ try { var _hch=false;
   if (rwUnmade['Hustle']){ delete rwUnmade['Hustle']; _hch=true; }
   if (_hch){ LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); LS.setItem('d2r_rwUnmade', JSON.stringify(rwUnmade)); }
 } catch(e){}
-if (!_rwFreshFlag) (function(){ try {
+if (!window._tvdShadow && !_rwFreshFlag) (function(){ try {
   var _ch = false;
   Object.keys(_RWC_SEED).forEach(function(k){
     // v615 (lockdown) — the floor HONORS an explicit un-mark again (the original v424 contract).
@@ -26592,6 +26644,7 @@ function renderHighValueFinds(){
 }
 window.renderHighValueFinds = renderHighValueFinds;
 (function _v42_sanitizeWishlistOwned() {
+  if (window._tvdShadow) return;
   const beforeWish = wishlist.size;
   const beforeOwned = owned.size;
   /* v2120 (#42) — AND KEEP THE NAMES, NOT JUST THE COUNT. The warning below promises "if a name
@@ -44772,7 +44825,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // dot on the mule") — and since they were never in `owned`, their runewords assignment got pruned so
     // they never appeared in the real RUNEWORDS locker. Migrate any runeword key to owned + its mule, once.
     try {
-      if (typeof magicFinds === 'object' && magicFinds && typeof window.findRuneword === 'function'){
+      if (!window._tvdShadow && typeof magicFinds === 'object' && magicFinds && typeof window.findRuneword === 'function'){
         var _mfMig=false;
         Object.keys(magicFinds).forEach(function(_mfk){
           if (window.findRuneword(_mfk)){
@@ -51607,6 +51660,7 @@ window.vaultAutoAssign = function(){
                            : 'AUTO INTAKE would not read — nothing from a frame was registered' };
   }
   function _vaultIntakeGate(){
+    if (window._tvdShadow) return { ok: false, refused: 'shadow', registered: false, why: 'a shadow does not take intake' };
     var _aiOff = (typeof window._vaultFrameRefuse === 'function') ? window._vaultFrameRefuse()
       : { ok: false, refused: 'auto-intake-off', registered: false, why: 'AUTO INTAKE is not on this page - a frame does not register' };
     if (_aiOff) return _aiOff; /* v3767 frame gate */
@@ -53912,6 +53966,7 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsRefresh = _vaultRecordsRefresh;
   function _vaultRecordsMigrate(opts){
+    if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
     /* STAMPED, UNKNOWN-safe, version-gated clone of _setPieceReconcile (bible.html:22248). Runs the persist ONCE per
        world, confirms the store read back intact BEFORE stamping (REG-2243 discipline), then stamps.
        Page load is the one call, from _seedCleanseArm, after the set-piece fold. */
@@ -53992,6 +54047,7 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsMayArm = _vaultRecordsMayArm;
   function _vaultRecordsArm(){
+    if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
     var r = _vaultRecordsMigrate();
     if (!r || typeof r !== 'object') r = { ran: false, why: 'the migration returned nothing' };
     r.seam = 'page-load';
@@ -73869,7 +73925,12 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
     return Array.isArray(log) ? log : [];
   }
   function _chLogSave(log){
-    _chLsSet(_CH_LOG_KEY, (log || []).slice(-400));
+    var next = (log || []).slice(-400);
+    try {
+      var prev = _chLogLoad();
+      if (JSON.stringify(prev) === JSON.stringify(next)) return;
+    } catch (eSame) {}
+    _chLsSet(_CH_LOG_KEY, next);
   }
   /** Upsert one visual-backend row (never deletes history — status updates only). */
   function _chLogUpsert(row){
@@ -73935,6 +73996,20 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
        admit "the oldest decisions drop"; this makes that honest again, because array position now
        tracks last-touch and .slice(-400) keeps the 400 the panel treats as newest. The cap itself
        is unchanged — 400 is his number. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+    /* An unchanged row is not a new sighting. Restamping lastTs and statusTs rewrote the
+       whole ledger on every sync and grew the browser log with no new fact. A real change,
+       or a bumped sighting, still moves to the tail. */
+    if (prev && !row._bump) {
+      var _chSame = true;
+      var _chSkip = { lastTs: 1, statusTs: 1 };
+      var _chKeys = {};
+      Object.keys(prev).forEach(function (k) { if (!_chSkip[k]) _chKeys[k] = 1; });
+      Object.keys(next).forEach(function (k) { if (!_chSkip[k]) _chKeys[k] = 1; });
+      Object.keys(_chKeys).forEach(function (k) {
+        if (JSON.stringify(prev[k]) !== JSON.stringify(next[k])) _chSame = false;
+      });
+      if (_chSame) return prev;
+    }
     if (ix >= 0) log.splice(ix, 1);
     log.push(next);
     _chLogSave(log);
