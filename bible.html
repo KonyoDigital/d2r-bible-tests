@@ -47683,7 +47683,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                                   return _o === true ? 'owned'
                                        : (_o === false ? 'missing-from-store' : null); })())
               : null,
-            ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: true,
+            /* A poll of a row already owned, or a throw-out seen again, is not a new sighting. Only mode new bumps. */
+            ledger: 'vault', target: 'vault', source: 'tv-vault', _bump: !!(r && r.ok && r.mode === 'new'),
             why: (r && r.ok)
               ? (r.mode === 'throwout'
                   ? ('the TV saw you pick this up and it went to the \ud83d\uddd1 throw-out review, NOT a mule '
@@ -47775,7 +47776,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               status: (r && r.ok) ? 'tv-routed' : 'route-failed',
               store: (r && r.kind === 'set') ? 'setPieces' : 'foundLog',
               ledger: (r && r.kind === 'set') ? 'sets' : 'uniques',
-              target: String(src || 'tv'), source: 'tv-route', _bump: true,
+              /* A later poll of a row already routed passes no bump. A new route still bumps. */
+              target: String(src || 'tv'), source: 'tv-route', _bump: !!(r && r.ok && !r.already),
               why: (r && r.ok && r.already)
                 ? 'the TV read this again \u2014 it was already in your ' + ((r.kind === 'set') ? 'set ledger' : 'grail')
                 : (r && r.ok)
@@ -74081,12 +74083,12 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
        admit "the oldest decisions drop"; this makes that honest again, because array position now
        tracks last-touch and .slice(-400) keeps the 400 the panel treats as newest. The cap itself
        is unchanged — 400 is his number. [[the-unjoined-end]] [[unknown-stays-unknown]] */
-    /* An unchanged row is not a new sighting. Restamping lastTs or statusTs, or bumping
-       seenCount on the same decision, rewrote the whole ledger on every poll and grew the
-       browser log with no new fact. A real change still moves to the tail. */
-    if (prev) {
+    /* An explicit bump is a real re-read. It still moves to the tail and stamps lastTs,
+       or the 400 cap drops the freshest row. A call that passes no bump, and changes only
+       lastTs or statusTs, is not a new fact and must not rewrite the ledger. */
+    if (prev && !row._bump) {
       var _chSame = true;
-      var _chSkip = { lastTs: 1, statusTs: 1, seenCount: 1 };
+      var _chSkip = { lastTs: 1, statusTs: 1 };
       var _chKeys = {};
       Object.keys(prev).forEach(function (k) { if (!_chSkip[k]) _chKeys[k] = 1; });
       Object.keys(next).forEach(function (k) { if (!_chSkip[k]) _chKeys[k] = 1; });

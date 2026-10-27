@@ -261,10 +261,15 @@ class AFoundRowCarriesItsEvidence(unittest.TestCase):
                          "durable evidence store is still the right answer before trusting this file.")
 
     def test_an_unchanged_chronicle_row_is_not_rewritten(self):
-        """A poll re-records the same decision with a bump. That is not a new sighting, and the
-        chronicle log must stay on disk as it was. A real status change still writes."""
+        """An explicit bump still writes and moves. A later call with the same decision and no
+        bump does not. A real status change still writes. The two poll doors pass a bump only
+        on a new vault registration or a new route."""
         from test_v3767_copy_witness import _fn
         src = _src()
+        self.assertEqual(src.count("if (prev && !row._bump) {"), 1, src[src.find("_chLogUpsert"):src.find("_chLogUpsert") + 80])
+        self.assertEqual(src.count("var _chSkip = { lastTs: 1, statusTs: 1 };"), 1)
+        self.assertEqual(src.count("source: 'tv-vault', _bump: !!(r && r.ok && r.mode === 'new')"), 1)
+        self.assertEqual(src.count("source: 'tv-route', _bump: !!(r && r.ok && !r.already)"), 1)
         js = "\n".join([
             "var window = globalThis;",
             "var writes = [];",
@@ -284,14 +289,18 @@ var first = _chLogUpsert({ name: 'Spirit', status: 'tv-routed', source: 'tv-rout
 var n1 = writes.length;
 var again = _chLogUpsert({ name: 'Spirit', status: 'tv-routed', source: 'tv-route', _bump: true, why: 'first' });
 var n2 = writes.length;
+var quiet = _chLogUpsert({ name: 'Spirit', status: 'tv-routed', source: 'tv-route', why: 'first' });
+var nq = writes.length;
 var row = JSON.parse(store.d2r_chronicleInboxLog)[0];
-var changed = _chLogUpsert({ name: 'Spirit', status: 'route-failed', source: 'tv-route', _bump: true, why: 'changed' });
+var changed = _chLogUpsert({ name: 'Spirit', status: 'route-failed', source: 'tv-route', why: 'changed' });
 var n3 = writes.length;
 var row2 = JSON.parse(store.d2r_chronicleInboxLog)[0];
 console.log(JSON.stringify({
-  n1: n1, n2: n2, n3: n3,
-  seen: row.seenCount, againSeen: again && again.seenCount, againStatus: again && again.status,
-  status: row2.status, changedSeen: changed && changed.seenCount
+  n1: n1, n2: n2, nq: nq, n3: n3,
+  seen: row.seenCount, againSeen: again && again.seenCount, quietSeen: quiet && quiet.seenCount,
+  againStatus: again && again.status,
+  status: row2.status, changedSeen: changed && changed.seenCount,
+  firstSeen: first && first.seenCount
 }));
 """,
         ])
@@ -299,13 +308,75 @@ console.log(JSON.stringify({
         self.assertEqual(raw.returncode, 0, (raw.stderr or "")[-1500:])
         got = json.loads([ln for ln in raw.stdout.splitlines() if ln.startswith("{")][-1])
         self.assertEqual(got["n1"], 1, got)
-        self.assertEqual(got["n2"], 1, got)
-        self.assertEqual(got["seen"], 1, got)
-        self.assertEqual(got["againSeen"], 1, got)
+        self.assertEqual(got["firstSeen"], 1, got)
+        self.assertEqual(got["n2"], 2, got)
+        self.assertEqual(got["againSeen"], 2, got)
         self.assertEqual(got["againStatus"], "tv-routed", got)
-        self.assertEqual(got["n3"], 2, got)
+        self.assertEqual(got["nq"], 2, got)
+        self.assertEqual(got["quietSeen"], 2, got)
+        self.assertEqual(got["seen"], 2, got)
+        self.assertEqual(got["n3"], 3, got)
         self.assertEqual(got["status"], "route-failed", got)
         self.assertEqual(got["changedSeen"], 2, got)
+
+    def test_a_buried_reread_survives_the_cap(self):
+        """REG-2232. Spirit sits at index 0 of a full 400. An explicit bump moves it to the tail.
+        The next new name drops filler_1, not Spirit."""
+        from test_v3767_copy_witness import _fn
+        src = _src()
+        js = "\n".join([
+            "var window = globalThis;",
+            "var writes = [];",
+            "var store = {};",
+            "window.LSR = {",
+            "  getItem: function(k){ return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },",
+            "  setItem: function(k, v){ writes.push(k); store[k] = String(v); }",
+            "};",
+            "var _CH_LOG_KEY = 'd2r_chronicleInboxLog';",
+            _fn(src, "_chLsGet"),
+            _fn(src, "_chLsSet"),
+            _fn(src, "_chLogLoad"),
+            _fn(src, "_chLogSave"),
+            _fn(src, "_chLogUpsert"),
+            r"""
+var OLD = 1000;
+var seed = [{ name: 'Spirit', status: 'pending', store: 'foundLog', firstTs: OLD, lastTs: OLD }];
+for (var i = 1; i <= 399; i++) {
+  seed.push({ name: 'filler_' + i, status: 'pending', store: 'foundLog', firstTs: OLD, lastTs: OLD });
+}
+store.d2r_chronicleInboxLog = JSON.stringify(seed);
+_chLogUpsert({ name: 'Spirit', status: 'pending', store: 'foundLog', _bump: true });
+var nBump = writes.length;
+_chLogUpsert({ name: 'Brand New Drop', status: 'pending', store: 'foundLog' });
+var log = JSON.parse(store.d2r_chronicleInboxLog);
+var names = log.map(function (r) { return String(r.name); });
+var spirit = null;
+for (var j = 0; j < log.length; j++) { if (log[j].name === 'Spirit') spirit = log[j]; }
+var quietWrites = writes.length;
+_chLogUpsert({ name: 'Spirit', status: 'pending', store: 'foundLog' });
+console.log(JSON.stringify({
+  len: log.length,
+  hasSpirit: names.indexOf('Spirit') >= 0,
+  hasStalest: names.indexOf('filler_1') >= 0,
+  hasNew: names.indexOf('Brand New Drop') >= 0,
+  spiritFresh: !!(spirit && Number(spirit.lastTs) > OLD),
+  spiritSeen: spirit ? Number(spirit.seenCount || 0) : -1,
+  nBump: nBump,
+  quietGrew: writes.length !== quietWrites
+}));
+""",
+        ])
+        raw = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(raw.returncode, 0, (raw.stderr or "")[-1500:])
+        got = json.loads([ln for ln in raw.stdout.splitlines() if ln.startswith("{")][-1])
+        self.assertEqual(got["nBump"], 1, got)
+        self.assertEqual(got["len"], 400, got)
+        self.assertTrue(got["hasSpirit"], got)
+        self.assertFalse(got["hasStalest"], got)
+        self.assertTrue(got["hasNew"], got)
+        self.assertTrue(got["spiritFresh"], got)
+        self.assertGreaterEqual(got["spiritSeen"], 1, got)
+        self.assertFalse(got["quietGrew"], got)
 
     def test_an_unchanged_vault_record_is_not_rewritten(self):
         """The register calls persist on every sighting. The same records with a new stamp are not a write."""
