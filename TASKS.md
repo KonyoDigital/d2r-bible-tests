@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3811** | `(this commit)` | v3811 — Space never flips your ON AIR from a shadow. An unknown census holds no proof back. |
+| **v3812** | `(this commit)` | v3812 — Each source file is parsed once, not every tick. No shadow of yourself. Unfiled items read no home. |
+| **v3811** | `f68fdaca` | v3811 — Space never flips your ON AIR from a shadow. An unknown census holds no proof back. |
 | **v3810** | `bc133c9c` | v3810 — A memory stand-aside names its gates. A ctime proof is judged only where ctime moves. |
 | **v3809** | `a27ec895` | v3809 — Farming loot in your inventory moves, kit stays. A cleared pick never brings back a removed item. |
 | **v3808** | `96ed9a09` | v3808 — A move needs a look, owned needs a record, intake review fixes |

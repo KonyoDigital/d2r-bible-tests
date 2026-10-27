@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3811",
+  "ver": "v3812",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3811: Space never flips your ON AIR from a shadow. An unknown census holds no proof back.",
+  "note": "v3812: Each source file is parsed once, not every tick. No shadow of yourself. Unfiled items read no home.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
