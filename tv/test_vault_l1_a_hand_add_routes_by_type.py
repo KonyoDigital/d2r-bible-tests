@@ -405,8 +405,9 @@ RED_PROOF = [
      "matches": 1},
     {"why": "An ethereal base is not recognised as its catalogue base.",
      "file": "bible.html",
-     "find": ".replace(/^(eth|ethereal)\\s+/i, '').toLowerCase();",
-     "replace": ".toLowerCase();",
+     # REG-2703 (#154.18) moved the quality peel into _VH_QUAL, beside Superior; the tamper drops the ethereal words from it
+     "find": "  var _VH_QUAL = /^(eth|ethereal|superior)\\s+/i;\n",
+     "replace": "  var _VH_QUAL = /^(superior)\\s+/i;\n",
      "matches": 1},
     {"why": "The packer leaves hand-typed bases out, so they get no target cell.",
      "file": "bible.html",
