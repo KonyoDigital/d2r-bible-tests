@@ -84,6 +84,7 @@
     "test_a_private_ledger_is_not_a_route": 0.277,
     "test_a_probe_licenses_only_what_it_tested": 1.567,
     "test_a_proof_history_survives_its_verdict": 6.828,
+    "test_a_pc_short_of_memory_still_proves_a_small_slice": 1.0,
     "test_a_proof_short_of_memory_frees_an_idle_view": 1.175,
     "test_a_prove_lane_keeps_its_own_port": 3.04,
     "test_a_proven_rare_comes_back_to_the_magic_and_rare_locker": 1.01,

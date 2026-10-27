@@ -9641,6 +9641,12 @@ GATES = [
          why=("REG-2003 - on the ALT the 1024 MB worker floor kept the canary's OCR worker from starting (403 MB free), and "
               "every held reel said only 'could not be proven live'; the probe now names memory and an idle PC frees its view.")
          ),
+    Gate("test_a_pc_short_of_memory_still_proves_a_small_slice", [sys.executable,
+         os.path.join(HERE, "test_a_pc_short_of_memory_still_proves_a_small_slice.py")], 30,
+         needs_app=False,
+         why=("GBL census-lowmem - his ALT sat at ~1,019 MB free under the 1,536 MB start for 69 ticks, census stale, "
+              "every river lock shut for good. A measured-idle PC with owed gates now proves a small one-lane slice "
+              "from 1,000 MB, never beside his game; Fleet names the wait.")),
     Gate("test_a_proof_short_of_memory_frees_an_idle_view", [sys.executable,
          os.path.join(HERE, "test_a_proof_short_of_memory_frees_an_idle_view.py")], 30,
          needs_app=False,

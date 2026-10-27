@@ -235,6 +235,7 @@
   "test_a_proof_shard_covers_every_proof_once": 0.3,
   "test_a_proof_shard_keeps_going_past_a_failure": 0.1,
   "test_a_proof_shard_plan_is_balanced": 8.1,
+  "test_a_pc_short_of_memory_still_proves_a_small_slice": 0.1,
   "test_a_proof_short_of_memory_frees_an_idle_view": 0.1,
   "test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere": 0.3,
   "test_a_proof_yields_the_moment_the_game_starts": 0.8,
