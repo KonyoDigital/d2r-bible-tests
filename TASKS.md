@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3809** | `(this commit)` | v3809 — Farming loot in your inventory moves, kit stays. A cleared pick never brings back a removed item. |
+| **v3810** | `(this commit)` | v3810 — A memory stand-aside names its gates. A ctime proof is judged only where ctime moves. |
+| **v3809** | `a27ec895` | v3809 — Farming loot in your inventory moves, kit stays. A cleared pick never brings back a removed item. |
 | **v3808** | `96ed9a09` | v3808 — A move needs a look, owned needs a record, intake review fixes |
 | **v3807** | `0f93d22a` | v3807 — A PC short of the full proof start proves a small slice when idle |
 | **v3806** | `b04be462` | v3806 — A shadow keeps its lists. Repeated sightings skip the store write. A dead proof reads as unknown. |

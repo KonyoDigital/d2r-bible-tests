@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3809",
+  "ver": "v3810",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3809: Farming loot in your inventory moves, kit stays. A cleared pick never brings back a removed item.",
+  "note": "v3810: A memory stand-aside names its gates. A ctime proof is judged only where ctime moves.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
