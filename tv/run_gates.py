@@ -12037,6 +12037,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_auto_intake_registers_on_two_sessions.py")], 300,
          needs_app=False,
          why="REG-2686 (#202, his ruling 2026-10-27) - auto intake owned an item on ONE read; a read of a name he does not own is held until its second session (the filing's own rule), then registers and files. Whole page in node."),
+    Gate("test_a_gone_row_reopens_when_the_item_is_back",
+         [sys.executable, os.path.join(HERE, "test_a_gone_row_reopens_when_the_item_is_back.py")], 300,
+         needs_app=False,
+         why='REG-2689 (#153.8, GrokBot) - a row closed as gone 5/5 sessions never reopened when the item was seen back in its cell; it does, and a ground close stays closed.'),
+    Gate("test_an_impossible_cell_is_never_a_move",
+         [sys.executable, os.path.join(HERE, "test_an_impossible_cell_is_never_a_move.py")], 300,
+         needs_app=False,
+         why='REG-2690 (#153.7, GrokBot) - a sighting at stash:c99r99 became a move; a grid cell must sit inside its grid (MULE_* constants).'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -52525,6 +52525,18 @@ window.vaultAutoAssign = function(){
     return { row: true, why: null };
   }
   try { window._vaultMoveAutoRow = _vaultMoveAutoRow; } catch (eAuto) {}
+  /* #153.7 (GrokBot) - AN IMPOSSIBLE CELL WAS APPLIED. A sighting at stash:c99r99 returned applied:true and became a move's
+     FROM. A grid cell must sit inside its grid - the stash and shared stash MULE_STASH_W x MULE_STASH_H, the inventory
+     MULE_INV_W x MULE_INV_H (one source, 0-based). A cell in another shape (equipped:head) is not a grid cell and passes. */
+  function _vaultCellOk(key){
+    var m = /^([^:]+):c(\d+)r(\d+)$/.exec(String(key == null ? '' : key));
+    if (!m) return true;
+    var cont = m[1].toLowerCase(), x = +m[2], y = +m[3];
+    var w = MULE_STASH_W, h = MULE_STASH_H;
+    if (/inv/.test(cont)) { w = MULE_INV_W; h = MULE_INV_H; }
+    return x >= 0 && y >= 0 && x < w && y < h;
+  }
+  try { window._vaultCellOk = _vaultCellOk; } catch (eCo) {}
   function _vaultMoveApplySight(name, sighting){
     var st = (typeof _vaultAutoIntakeRead === 'function') ? _vaultAutoIntakeRead() : { on: false, known: false };
     if (!(st.on === true && st.known === true)) return { applied: false, task: null, why: 'auto-off' }; /* v3769 auto off */
@@ -52532,6 +52544,7 @@ window.vaultAutoAssign = function(){
     var _auto = (typeof _vaultMoveAutoRow === 'function') ? _vaultMoveAutoRow(name, sighting) : null;
     var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc || sighting.lane, sighting.cell);
     if (place.cell == null) return { applied: false, task: null };
+    if (!_vaultCellOk(place.cell)) return { applied: false, task: null, why: 'impossible-cell' };   /* #153.7 */
     if (_auto && _auto.row === false) {
       /* A sighting on the character does not open a new move. A row already saved parks its from there and leaves the list. */
       if (_auto.why === 'main') {
@@ -53078,8 +53091,20 @@ window.vaultAutoAssign = function(){
     var groundLeft = {}; ground.forEach(function(g){ groundLeft[g] = (groundLeft[g] || 0) + 1; });
     Object.keys(bag.map || {}).sort(function(a, b){ return (+a.split('\u0000')[1] || 0) - (+b.split('\u0000')[1] || 0); }).forEach(function(k){
       var t = _vaultMoveTask(bag.map[k]);
-      if (t.status === 'closed' || t.status === 'verified') return;
       var name = k.split('\u0000')[0], copyIx = +k.split('\u0000')[1] || 0, next = null;
+      if (t.status === 'verified') return;
+      if (t.status === 'closed') {
+        /* #153.8 (GrokBot) - "GONE" NEVER REOPENED. A row closed because its item was missing from its first-witnessed cell
+           for VAULT_GONE_SESSIONS sessions stayed closed when a later frame showed the item right back in that cell. That
+           look is direct proof the row was wrong: it reopens, its count cleared. A row closed any other way (seen on the
+           ground, or by him) stays closed. */
+        if (/^gone \d/.test(String(t.closedBy || '')) && shows(t.from) && here(name, t.from.cell)) {
+          var re = _vaultMoveTask(t); re.status = 'to-move';
+          delete re.closedBy; delete re.gone; delete re.left;
+          out.push({ name: name, copyIx: copyIx, task: re });
+        }
+        return;
+      }
       if (t.kind !== 'throw' && shows(t.to) && here(name, t.to.cell)) {
         next = _vaultMoveTask(t); next.status = 'verified'; next.closedBy = 'seen at target';
       } else if (shows(t.from)) {

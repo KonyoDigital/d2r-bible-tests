@@ -18,6 +18,19 @@ Also found while checking the shipped v3814 against the whole law set: two regis
 (test_carried_loot_is_decided_by_owned_and_lands_in_order, test_the_vault_hold_refuses_at_the_one_door) never stubbed
 REG-2663's _vaultNotAnItem and went red on v3814 - outside the pre-push subset. Both stub it now.
 Law: test_a_slow_character_read_still_reaches_the_shadow (3 new red-proofs).
+### REG-2690 - A SIGHTING AT AN IMPOSSIBLE CELL BECAME A MOVE (#153.7, GrokBot's vault sweep)
+_vaultMoveApplySight applied stash:c99r99 as a move's FROM. A grid cell must sit inside its grid - the stash and the shared
+stash MULE_STASH_W x MULE_STASH_H, the inventory MULE_INV_W x MULE_INV_H, 0-based (_vaultCellOk, one source); a cell in
+another shape (equipped:head) is not a grid cell and passes. Whether a second item may be read in an OCCUPIED cell is his
+ruling, not decided here. Law: test_an_impossible_cell_is_never_a_move (node).
+
+### REG-2689 - A ROW CLOSED AS "GONE" NEVER REOPENED (#153.8, GrokBot's vault sweep)
+The drain closes a move row after VAULT_GONE_SESSIONS sessions show its first-witnessed container without the item. A
+later frame with the item right back in that cell changed nothing. That look is direct proof the close was wrong: the row
+reopens (to-move, its count cleared). A row closed another way (seen on the ground) stays closed. Also checked: #153.6
+("a fake MANUAL row to MAIN") did not reproduce in node - the keep charms route to the shared stash or UNI-SMALL - so no
+change shipped for it; it waits for a live repro. Law: test_a_gone_row_reopens_when_the_item_is_back (node).
+
 ### REG-2688 - v3814 MADE THE ALT'S CHARACTER LIST TOO BIG TO UPLOAD (measured on the ALT, 2026-10-27 23:5x)
 GrokBot's 23:37 pass: the ALT's first v3814 publish was "skipped: unchanged" - its snapshot still had no character list.
 Measured on the ALT: the kept chars_learned answer is 104,837 bytes - surfaceWitnesses alone 83 KB (REG-2670 added it for
