@@ -12545,6 +12545,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_vault_header_counts_copies_from_evidence.py")], 300,
          needs_app=False,
          why='REG-2886 (#137, his ruling 2026-10-28) - the vault population line says the copies the records count (distinct cells seen plus copies his hand typed): three Stormshields in three cells read 1 owned · 3 copies, one cell re-read three times reads 1 owned, and one copy of each name prints no copy figure'),
+    Gate("test_a_lane_clears_only_what_it_declares",
+         [sys.executable, os.path.join(HERE, "test_a_lane_clears_only_what_it_declares.py")], 300,
+         needs_app=False,
+         why='REG-2916 (#128) - a lane that forbids delete clears only what its clears clause names, checked against every delete call in its reach'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
