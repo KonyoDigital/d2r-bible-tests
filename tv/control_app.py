@@ -1224,8 +1224,15 @@ def _beat_dossier(maps, beat):
                 tally = _best
             read_status = {"kind": "read", "tab": _tab,
                            "counted": int(_best.get("total") or 0), "superseded": _near_tot <= 0}
-        else:
+        elif (maps.get("tab_receipts") or {}).get(_tab.lower()):
             read_status = {"kind": "miss", "tab": _tab, "counted": _near_tot}
+        else:
+            # REG-2960 (#55, GrokBot ticks 416-421) - "MISS - INTAKE FIRED BUT READ NOTHING" IS A CLAIM THAT INTAKE FIRED.
+            # It was made for every frame the router called a stash tab with no real read of that tab anywhere this
+            # session, receipt or none - a title-screen frame tagged STASH and a tab nobody ever sent to intake both read
+            # "intake fired". A miss now needs an intake receipt for that tab this session; with none, the frame is
+            # UNREAD: no count, and the board says no intake ran on it, never that one fired.
+            read_status = {"kind": "unread", "tab": _tab, "counted": None}
     elif (beat.get("names") or []):
         read_status = {"kind": "named", "counted": len(beat.get("names") or [])}
 

@@ -12449,6 +12449,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_theatre_frame_paints_its_own_picture.py")], 300,
          needs_app=False,
          why="REG-2959 (#51) - the Theatre film never paints a late probe's picture under the frame he stepped back to, and a frame still loading dims the old picture until its own lands"),
+    Gate("test_a_frame_no_intake_read_never_says_intake_fired",
+         [sys.executable, os.path.join(HERE, "test_a_frame_no_intake_read_never_says_intake_fired.py")], 300,
+         needs_app=False,
+         why="REG-2960 (#55) - a stash frame with no intake receipt for its tab is UNREAD (count UNKNOWN, 'no intake ran'), never 'MISS - intake fired but read nothing'"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
