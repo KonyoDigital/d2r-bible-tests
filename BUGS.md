@@ -312,6 +312,15 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2910 - THE DOCTOR'S ASK SENT HIM TO THE C PANEL, WHICH NO SCAN READS (#36, the lead on the REG-2909 report)
+REG-2909's MISSING line said "open the C panel once". No pixel band finds the C panel - no C-panel frame was ever filmed
+(char_select's own CPANEL_SAY) - so no scan ever shows a C panel to the reader, and following the ask could not name the
+session: a promise the board would break. The ask is now decided in one place, char_select.session_ask, by what a scan
+actually reads: "open character select, or the lobby, once" (both have measured bands and are read on every scan), with
+the reason the C panel is not asked for; it names the C panel only once char_select.CPANEL_BAND - None today - holds a
+measured band. Law: test_a_session_with_no_character_asks_for_the_c_panel (the ask, the band case, the live row), 3 new
+red-proofs and 1 re-aimed, RED.
+
 ### REG-2909 - A SESSION NO SCREEN NAMED WAS SILENT: THE DOCTOR NOW ASKS "session N: character UNKNOWN - open the C panel once" (#36, his rule)
 His rule: a doubt becomes a guided ask. A session none of character select, the lobby or the C panel named reads UNKNOWN
 (REG-2906), and every look in it reads holder UNKNOWN on the vault (REG-2908), and nothing said so - the doctor had no row.

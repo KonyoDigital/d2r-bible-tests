@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""#36 (REG-2909) - A SESSION THE BOARD CANNOT NAME ASKS HIM, IN HIS WORDS: "session N: character UNKNOWN - open the C panel once".
+"""#36 (REG-2909, REG-2910) - A SESSION THE BOARD CANNOT NAME ASKS HIM, AND THE ASK NAMES ONLY A SCREEN A SCAN READS.
 
 His rule: a doubt becomes a guided ask. REG-2906 gives each session the character its own screens named (character
 select, the lobby, the C panel); a session none of them named is UNKNOWN, and every look in it reads holder UNKNOWN on
@@ -8,7 +8,11 @@ session on this PC: OK naming its character, how it is known and how many of the
 the ask when the newest session names nobody - and the ask says what is true today: no pixel band finds the C panel yet
 (no C-panel frame was ever filmed), so picking the character at character select names the session too; UNKNOWN when the
 ledger or the reel folder cannot be read - never "0 sessions". The rule is pure (session_character_verdict) and the live
-row drives it over a fixture ledger and reel tree; the registries carry the row. RED_PROOF below.
+row drives it over a fixture ledger and reel tree; the registries carry the row.
+REG-2910 (the lead, on the REG-2909 report): the ask must not promise what cannot happen. No pixel band finds the C panel,
+so no scan ever reads one, and "open the C panel once" could not name a session. The ask now names a screen a scan reads -
+"open character select, or the lobby, once" - and says why the C panel is not asked for; it names the C panel only once
+char_select.CPANEL_BAND exists (char_select.session_ask, the one place that decides). RED_PROOF below.
 """
 import os
 import shutil
@@ -50,13 +54,25 @@ class TheVerdict(unittest.TestCase):
         self.assertEqual(st, CD.OK, say)
         self.assertIn("0 reels", say)
 
-    def test_the_newest_session_with_no_character_asks_in_his_words(self):
+    def test_the_newest_session_with_no_character_asks_for_a_screen_a_scan_reads(self):
         s = {_sid(R[0]): [{"from": T0, "character": "Konyolock", "via": "char-select"}]}
         st, say = CD.session_character_verdict(s, R)
         self.assertEqual(st, CD.MISSING, say)
-        self.assertTrue(say.startswith("session %s: character UNKNOWN - open the C panel once" % _sid(R[3])), say)
+        self.assertTrue(say.startswith("session %s: character UNKNOWN - open character select, or the lobby, once" % _sid(R[3])),
+                        say)
         self.assertIn("1 of the last 4 sessions name their character", say)
-        self.assertIn("character select", say, "the ask hides that no pixel band finds the C panel yet")
+        self.assertNotIn("open the C panel", say, "the ask sends him to a screen no scan reads")
+        self.assertIn("no pixel band finds it yet", say, "the ask does not say why the C panel is not asked for")
+
+    def test_the_c_panel_is_named_only_once_its_band_exists(self):
+        self.assertIsNone(CS.CPANEL_BAND, "PREMISE: a C-panel band exists - this case's other half is now the live one")
+        orig = CS.CPANEL_BAND
+        try:
+            CS.CPANEL_BAND = {"measured": "fixture"}
+            st, say = CD.session_character_verdict({}, R)
+            self.assertIn("open the C panel once", say)
+        finally:
+            CS.CPANEL_BAND = orig
 
     def test_a_span_two_screens_disagreed_on_is_unknown_too(self):
         s = {_sid(R[3]): [{"from": None, "why": "two screens in one span named different characters"}]}
@@ -94,7 +110,7 @@ class TheLiveRow(unittest.TestCase):
         CS.load, CS.hist_root = (lambda: self._led(False)), (lambda: self.root)
         st, say = CD._check_which_character_each_session_is_on()
         self.assertEqual(st, CD.MISSING, say)
-        self.assertIn("open the C panel once", say)
+        self.assertIn("open character select, or the lobby, once", say)
 
     def test_the_row_names_the_character_it_read(self):
         CS.load, CS.hist_root = (lambda: self._led(True)), (lambda: self.root)
@@ -127,13 +143,23 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2909 - a session nobody named is OK (no ask)",
      "file": "console_doctor.py",
-     "find": "        return MISSING, (\"session %s: character UNKNOWN - %s (%s; \"\n",
-     "replace": "        return OK, (\"session %s: character UNKNOWN - %s (%s; \"\n",
+     "find": "        return MISSING, (\"session %s: character UNKNOWN - %s (%s%s)\"\n",
+     "replace": "        return OK, (\"session %s: character UNKNOWN - %s (%s%s)\"\n",
      "matches": 1},
-    {"why": "REG-2909 - the ask hides that no pixel band finds the C panel",
+    {"why": "REG-2910 - the ask sends him to the C panel, which no scan reads",
+     "file": "char_select.py",
+     "find": "    if CPANEL_BAND:\n        return \"open the C panel once\", None\n",
+     "replace": "    if True:\n        return \"open the C panel once\", None\n",
+     "matches": 1},
+    {"why": "REG-2910 - the ask never names the C panel, even once its band exists",
+     "file": "char_select.py",
+     "find": "    if CPANEL_BAND:\n",
+     "replace": "    if False:\n",
+     "matches": 1},
+    {"why": "REG-2910 - the ask hides why the C panel is not asked for",
      "file": "console_doctor.py",
-     "find": "SESSION_ASK_TAIL = ",
-     "replace": "SESSION_ASK_TAIL_X = \"\"\nSESSION_ASK_TAIL = \"\" and ",
+     "find": "                         % (newest[5:], a_say, tail, (\"; \" + a_why) if a_why else \"\"))\n",
+     "replace": "                         % (newest[5:], a_say, tail, \"\"))\n",
      "matches": 1},
     {"why": "REG-2909 - the row names the first span, not the one he is on now",
      "file": "console_doctor.py",

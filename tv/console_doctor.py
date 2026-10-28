@@ -7021,16 +7021,21 @@ def characters_room_verdict(builds_raw, main_raw, vault_main_raw):
     return OK, "%d build%s · ★ MAIN %s · %s" % (n, "" if n == 1 else "s", main_name, vault_say)
 
 
-#: #36 (REG-2909) - his rule: a doubt becomes a guided ask. The words are his.
-SESSION_ASK = "open the C panel once"
+#: #36 (REG-2909) - his rule: a doubt becomes a guided ask. REG-2910 - and the ask names only a screen a scan reads
+#: (char_select.session_ask): character select or the lobby today, the C panel once its pixel band exists.
 SESSION_RECENT = 10
-#: what is true today about that ask: no pixel band finds the C panel (no C-panel frame was ever filmed - char_select's
-#: own note), so the panel is read only when a reader is shown one; the character-select screen at login names it now
-SESSION_ASK_TAIL = ("the C panel is read only when a reader is shown it - no pixel band finds it yet - so picking the "
-                    "character at character select names the session too")
 
 
-def session_character_verdict(sessions, reels, why=None):
+def _session_ask():
+    try:
+        import char_select as _cs
+        return _cs.session_ask()
+    except Exception as e:
+        return ("open character select, or the lobby, once",
+                "which screens a scan reads is UNKNOWN - the learner will not import (%s)" % type(e).__name__)
+
+
+def session_character_verdict(sessions, reels, why=None, ask=None):
     """#36 (REG-2909) - 'which character each session is on': IS THE NEWEST SESSION ON A CHARACTER THE BOARD CAN NAME?
 
     `sessions` is char_select.session_view's map (sessionId -> spans), `reels` this PC's reel folder names. The character
@@ -7062,8 +7067,9 @@ def session_character_verdict(sessions, reels, why=None):
     newest = recent[-1][1]
     who, via = now_on(newest)
     if not who:
-        return MISSING, ("session %s: character UNKNOWN - %s (%s; "
-                         "%s)" % (newest[5:], SESSION_ASK, tail, SESSION_ASK_TAIL))
+        a_say, a_why = ask if ask is not None else _session_ask()   # REG-2910 the ask names a screen a scan reads
+        return MISSING, ("session %s: character UNKNOWN - %s (%s%s)"
+                         % (newest[5:], a_say, tail, ("; " + a_why) if a_why else ""))
     return OK, "session %s: %s (%s) - %s" % (newest[5:], who, via or "named", tail)
 
 
