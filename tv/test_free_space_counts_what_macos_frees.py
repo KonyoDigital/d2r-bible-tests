@@ -134,8 +134,64 @@ class TheSignsPassPrunesHisGrokChats(unittest.TestCase):
             ca._GROK_PRUNE.clear()
             ca._GROK_PRUNE.update(before)
 
+    def test_a_pass_that_waits_says_why_on_the_prune_line(self):
+        """REG-2754 (GrokBot's v3823 pass: the ALT's prune line read say: null while he played)."""
+        ca = self.ca
+        before = dict(ca._GROK_PRUNE)
+        try:
+            ca._GROK_PRUNE.update(say=None, lastTs=None)
+            ca._disk_sign_once(now_ms=7, playing=True, busy_pct=0, candidates=[])
+            self.assertIn("he is playing", ca._GROK_PRUNE.get("say") or "", "a pass skipped for his game said nothing")
+            self.assertIsNone(ca._GROK_PRUNE.get("lastTs"), "a pass that did not run was stamped as one that did")
+            with mock.patch.object(ca, "_grok_prune_pass"):
+                ca._disk_sign_once(now_ms=8, playing=False, busy_pct=99, candidates=[])
+            self.assertIn("busy", ca._GROK_PRUNE.get("say") or "", "a pass skipped for a busy machine said nothing")
+        finally:
+            ca._GROK_PRUNE.clear()
+            ca._GROK_PRUNE.update(before)
+
+    def test_the_line_is_never_a_silent_null_from_the_start(self):
+        import ast
+        tree = ast.parse(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
+        lit = [ast.literal_eval(a.value) for a in tree.body if isinstance(a, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "_GROK_PRUNE" for t in a.targets)]
+        self.assertEqual(len(lit), 1, "PREMISE: _GROK_PRUNE is not one module-level literal")
+        self.assertTrue((lit[0].get("say") or "").startswith("not asked yet"),
+                        "the prune line starts as a silent null: %r" % lit[0].get("say"))
+
+    def test_the_prune_says_what_it_measured(self):
+        """REG-2754 - 0.74 GB on the prune's line beside "Grok sessions 0.82 GB" on the sign's list: the budget counts
+        the conversation folders, the list the whole folder, and each says which."""
+        import grok_chat_prune as G
+        d = tempfile.mkdtemp(prefix="grok_words_")
+        try:
+            rec = G.run(root=os.path.join(d, "sessions"), registry=os.path.join(d, "none.json"), free_bytes=99 * GB,
+                        floor_bytes=8 * GB, now_s=1.0, remove=lambda p: None)
+        finally:
+            import shutil as _sh
+            _sh.rmtree(d, True)
+        self.assertIn("conversation folders", rec.get("say") or "", "the prune does not say what it measured: %r" % rec)
+        rows = dict((r[0], r[2]) for r in self.ca._disk_sign_candidates())
+        self.assertIn("the chats in this folder pass 2 GB", rows.get("Grok sessions") or "",
+                      "the sign's list says the folder triggers the prune: %r" % rows.get("Grok sessions"))
+
 
 RED_PROOF = [
+    {"why": "REG-2754 - a pass skipped for his game leaves the prune line as it was",
+     "file": "control_app.py",
+     "find": "        _GROK_PRUNE.update(say=\"waiting - he is playing, and the Grok chat prune never runs beside the game\")\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2754 - the prune line starts as a silent null",
+     "file": "control_app.py",
+     "find": "               \"say\": \"not asked yet - the prune runs in the disk sign's pass, about 2 min after a start and then every \"\n                      \"30 min, never while he plays\"}",
+     "replace": "               \"say\": None}",
+     "matches": 1},
+    {"why": "REG-2754 - the prune's words no longer say it counts the conversation folders",
+     "file": "grok_chat_prune.py",
+     "find": "the Grok chats (their conversation folders) hold",
+     "replace": "the Grok chats hold",
+     "matches": 1},
     {"why": "REG-2742 - a law's pretend disk is topped up with the real disk's purgeable space",
      "file": "disk_room.py",
      "find": "    if not _disk_usage_is_real():\n        return plain, \"plain\"\n",
