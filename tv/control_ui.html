@@ -26731,6 +26731,21 @@ function escC(s) {
     var now = (typeof nowMs === 'number') ? nowMs : Date.now();
     return ageS + Math.max(0, (now - rec) / 1000);
   };
+  /* #193 (GrokBot's v3817 pass) - THE BOOT WINDOW HAS AN END. The first beacon after a start carries key 'starting'; a PC
+     that went offline right then keeps that beacon for ever, and GrokBot's row read "river · starting ... started moments
+     ago" 5.5 h after it was last heard. 'starting' holds only while the row's report is younger than FLEET_BOOT_WINDOW_S
+     (its first proof check lands about 5 minutes after a start); an undated report is not "moments ago" either. -> bool */
+  var FLEET_BOOT_WINDOW_S = 15 * 60;
+  var _fleetReportAgeS = function (m, nowMs) {
+    var at = Date.parse(String((m && m.t) || ''));
+    if (!isFinite(at)) return null;
+    return Math.max(0, (((typeof nowMs === 'number') ? nowMs : Date.now()) - at) / 1000);
+  };
+  var _fleetBooting = function (m, nowMs) {
+    var age = _fleetReportAgeS(m, nowMs);
+    return age !== null && age <= FLEET_BOOT_WINDOW_S;
+  };
+  window._fleetBooting = _fleetBooting;
   var _fleetAgeTxt = function (sec) {
     return ((sec === null || sec === undefined) ? 'age UNKNOWN' : _fleetAgo(sec)).replace(/ /g, ' ');
   };
@@ -26920,7 +26935,7 @@ function escC(s) {
     } else {
       var hw = { current: 'proved', stale: 'proof out of date', missing: 'never proved on this PC',
                  unreadable: 'proof unreadable', unknown: 'UNKNOWN' }[hs.census]
-               || (hs.key === 'starting' ? 'first check pending' : 'UNKNOWN');   /* #193 - the boot window, named */
+               || ((hs.key === 'starting' && _fleetBooting(m, nowMs)) ? 'first check pending' : 'UNKNOWN');   /* #193 - the boot window, named, and bounded */
       var hb = (typeof hs.blind === 'number') ? (hs.blind + ' blind') : null;
       out.push(_fleetPart('proved', hb ? [hw, hb] : [hw], {
                  warn: hs.census !== 'current' || (typeof hs.blind === 'number' && hs.blind > 0),
@@ -27041,7 +27056,7 @@ function escC(s) {
      empty return was also what a shut lock drew, and what a null stuck list drew. A proof that is missing, stale
      or unreadable is "locks shut": every river lock fails closed. A stuck list that is null, or a census that
      arrived null, is "river UNKNOWN". A measured empty list on a current proof stays quiet. [[unknown-stays-unknown]] */
-  var _fleetStuckChip = function (m) {
+  var _fleetStuckChip = function (m, nowMs) {
     var rv = (m && m.system && typeof m.system === 'object') ? m.system.river : null;
     var sk = (rv && typeof rv === 'object') ? rv.stuck : undefined;
     var hs = (rv && typeof rv === 'object') ? rv.heart : undefined;
@@ -27074,7 +27089,9 @@ function escC(s) {
        check runs about 5 minutes after a start, and its river is read about a minute after. Until then the beacon says
        key 'starting' with census null: still UNKNOWN, but the row names the wait instead of a bare word that reads as a
        fault after every self-update. */
-    if (census === null && hs && hs.key === 'starting') {
+    var _bootGone = false;
+    if (census === null && hs && hs.key === 'starting' && !_fleetBooting(m, nowMs)) _bootGone = true;
+    else if (census === null && hs && hs.key === 'starting') {
       bits.push('<span class="fleet-riverunk" title="' + escC('this console started moments ago - its own proof check runs '
         + 'about 5 minutes after a start and its river is read about a minute after, so whether its river drains is '
         + 'UNKNOWN until then (not a fault)') + '">river · starting</span>');
@@ -27084,6 +27101,8 @@ function escC(s) {
       var unk = [];
       if (sk === null) unk.push('whether a station is stuck did not come back as a list');
       if (census === null) unk.push('whether this PC has proved its own instruments arrived null');
+      if (_bootGone) unk.push('its last report was the first after a start, ' + _fleetAgeTxt(_fleetReportAgeS(m, nowMs))
+        + ', and it has not reported since - not a console starting up');
       bits.push('<span class="fleet-riverunk" title="' + escC(unk.join('; ')
         + ' \u2014 UNKNOWN, not a river that was measured draining') + '">river UNKNOWN</span>');
     }

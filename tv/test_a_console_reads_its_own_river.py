@@ -193,11 +193,11 @@ class TheBootWindowHasAName(unittest.TestCase):
 
 class TheRowSaysStartingNotUnknown(unittest.TestCase):
 
-    def _card(self, river):
-        row = F._row(t_ago_s=60, river=dict({"lanes": None, "ageS": None, "triage": F.TRI_OK,
+    def _card(self, river, t_ago_s=60):
+        row = F._row(t_ago_s=t_ago_s, river=dict({"lanes": None, "ageS": None, "triage": F.TRI_OK,
                                              "why": "this console has not computed its river since it started"},
                                             **river))
-        return F._run("OUT.chip = strip(_fleetStuckChip(%s)); OUT.html = _fleetStuckChip(%s);"
+        return F._run("OUT.chip = strip(_fleetStuckChip(%s, NOW)); OUT.html = _fleetStuckChip(%s, NOW);"
                       "var p = _fleetSysParts(%s, NOW); OUT.p = {}; p.forEach(function(x){ OUT.p[x.k] = "
                       "{ t: plain(x.t), unk: !!x.unk, warn: !!x.warn, why: x.why }; });"
                       % (json.dumps(row), json.dumps(row), json.dumps(row)))
@@ -211,6 +211,15 @@ class TheRowSaysStartingNotUnknown(unittest.TestCase):
         self.assertIn("about 5 minutes", out["html"], "the hover does not say what it waits for")
         self.assertEqual(out["p"]["proved"]["t"], "first check pending")
         self.assertTrue(out["p"]["proved"]["unk"], "the boot window read as a measured answer")
+
+    def test_a_pc_heard_only_at_its_start_hours_ago_is_not_starting(self):
+        """GrokBot's v3817 pass: an offline row whose last beacon was its first after a start read 'river · starting ...
+        started moments ago' 5.5 h later. Past the boot window it is UNKNOWN and says when it last reported."""
+        out = self._card({"stuck": None, "heart": {"census": None, "key": "starting", "blind": None}}, t_ago_s=int(5.5 * 3600))
+        self.assertNotIn("starting", out["chip"], "a PC last heard 5.5 h ago still reads as booting: %r" % out["chip"])
+        self.assertIn("river UNKNOWN", out["chip"])
+        self.assertIn("the first after a start", out["html"], "the hover does not say why it is UNKNOWN")
+        self.assertEqual(out["p"]["proved"]["t"], "UNKNOWN", "a long-gone boot window still says 'first check pending'")
 
     def test_a_stuck_river_still_shows_through_the_boot_window(self):
         """The Grok eye on v3813 said the starting chip hides a stuck station. Measured: the stuck chip is drawn first."""
@@ -272,13 +281,23 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#193 - the card draws the boot window as a bare river UNKNOWN again",
      "file": "tv/control_ui.html",
-     "find": "    if (census === null && hs && hs.key === 'starting') {\n",
-     "replace": "    if (false) {\n",
+     "find": "    else if (census === null && hs && hs.key === 'starting') {\n",
+     "replace": "    else if (false) {\n",
      "matches": 1},
     {"why": "#193 - the proved part says UNKNOWN through the boot window",
      "file": "tv/control_ui.html",
-     "find": "               || (hs.key === 'starting' ? 'first check pending' : 'UNKNOWN');",
+     "find": "               || ((hs.key === 'starting' && _fleetBooting(m, nowMs)) ? 'first check pending' : 'UNKNOWN');",
      "replace": "               || 'UNKNOWN';",
+     "matches": 1},
+    {"why": "GrokBot v3817 - an offline row heard only at its start reads 'river · starting' for ever",
+     "file": "tv/control_ui.html",
+     "find": "    return age !== null && age <= FLEET_BOOT_WINDOW_S;\n",
+     "replace": "    return true;\n",
+     "matches": 1},
+    {"why": "GrokBot v3817 - the system parts say 'first check pending' past the boot window",
+     "file": "tv/control_ui.html",
+     "find": "((hs.key === 'starting' && _fleetBooting(m, nowMs)) ? 'first check pending' : 'UNKNOWN')",
+     "replace": "((hs.key === 'starting') ? 'first check pending' : 'UNKNOWN')",
      "matches": 1},
 ]
 

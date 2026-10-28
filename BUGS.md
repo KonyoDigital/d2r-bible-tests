@@ -16,6 +16,14 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2723 - AN OFFLINE ROW READ "river · starting" FOR 5.5 HOURS (#193, GrokBot's v3817 pass)
+GrokBot's row, last heard at 00:24 IDT on v3815, still said "river · starting" with "this console started moments ago" at
+05:39 and 05:52: the first beacon after a start carries key 'starting', and a PC that goes offline right then keeps that
+beacon for ever. 'starting' now holds only while the row's report is younger than FLEET_BOOT_WINDOW_S (15 min; the first
+proof check lands ~5 min after a start). Past it the row reads "river UNKNOWN" and its hover says the last report was the
+first after a start and when; the system parts say UNKNOWN, not "first check pending". An undated report is not "moments
+ago" either. Law: test_a_console_reads_its_own_river (12 red-proofs, each seen RED; two re-pointed to the reshaped lines).
+
 ### REG-2720 - "1 LANE" WAS SAID WHERE NOBODY COULD SEE IT (#151)
 His 2026-10-21 ask: "heart2 says '1 lane' at the TOP of the push". At 4.0 GB free every push proved one law at a time, and
 heart2's one line saying so lived in the prove log - which hooks/pre-push deletes on success and cuts to its last 24 lines
