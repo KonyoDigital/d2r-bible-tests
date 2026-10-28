@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2763 - A SAVED PROFILE COULD NOT REBUILD ITS OWN VAULT ON ANOTHER PC (his ruling 2026-10-28, GrokBot's round trip)
+GrokBot (#230 6467035373) loaded a profile made from his real Mac data into a fresh browser: every store came back
+byte-exact, the chronicle read 0/99 · 6/403 · 0/135, and the VAULT changed shape (Grief 3x2 -> 2x1, Heart of the Oak 2x1 ->
+3x2, Bul-Kathos' Wedding Band gone from the shared stash) - the vault view also reads the chronicle ledgers (a runeword's
+base, the set pieces, the found log), and the profile left them out by design ("the chronicle has its own backup"). His
+ruling: "profiles should carry them". The chronicle ledgers ride in their own profile group now (found log + who found,
+set pieces, runewords made/unmade/profile, grail unfound, crafts); the load's question names the chronicle when it would
+replace this PC's, and a store of counts says its units ("runeStash: 2 -> 6", where it counted keys). The vault's Undo
+snapshot leaves the chronicle out (_vaultProfileBuild({chronicle: false})) - undoing a vault change never takes back a find
+made after it. One list rules both doors: every fleet_mask ledger store is in the profile, and the shadow upload admits
+every profile store but the intake history it keeps home on purpose (his order: a shadow is the owner's data one to one;
+measured on his Mac's last upload: the chronicle stores all rode, nothing unsent). Law:
+test_a_profile_carries_what_its_vault_reads (7 cases on the whole page in node, 4 red-proofs);
+test_vault_v3_layout_keeps_every_door now asserts the chronicle rides (its old "never the chronicle" case inverted).
+
 ### REG-2762 - A SHORT FOOTAGE DISK COULD DELETE GROK CHATS THAT DO NOT FREE IT (#151, the v3823 second eye)
 _grok_prune_pass read free space at the footage folder, and the plan counts each removed chat as room regained there
 until the ON AIR floor plus 1 GB is met. That holds only when the chats sit on the footage disk: on a PC whose footage
