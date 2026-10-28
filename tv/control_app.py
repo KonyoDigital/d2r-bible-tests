@@ -21123,9 +21123,108 @@ def _self_prove_tick():
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove tick raised %s" % type(e).__name__}
+    try:
+        r = dict(r, carrier=_proof_carrier_kick(r))      # #186 step 3 - after the tick, the proof carrier's turn
+    except Exception as e:
+        r = dict(r, carrier={"on": None, "say": "the proof carrier raised %s" % type(e).__name__})
     _SELF_PROVE.clear()
     _SELF_PROVE.update(r)
     return r
+
+
+#: #186 step 3 - the carrier asks its peers for proofs at one HEAD at most this often, and posts its own this often
+#: (the route also answers the same head inside 3 hours without a KV write)
+PROOF_CARRIER_TAKE_EVERY_S = 1800
+PROOF_CARRIER_PUBLISH_EVERY_S = 3 * 3600
+#: the platforms whose PCs carry proofs to each other - his ruling names the Windows ALT and Dean; the Mac has no peer
+PROOF_CARRIER_PLATFORMS = ("win32",)
+_PROOF_CARRIER = {"running": False, "take": {}, "publish": {}, "last": None, "lastTs": None, "worked": 0}
+
+
+def _proof_carrier_due(sp, state, head, now_s, platform):
+    """#186 step 3 (his ruling 2026-10-28: "identical bytes saved from the windows alt pc that has already been proved.
+    he doesnt need to reprove it all") - after a self-prove tick, what the proof carrier may do now. Pure.
+    -> (None | "take" | "publish", why)
+
+    Only on a platform with peers, at a known HEAD, one run at a time, and only where the prover itself could start:
+    he is measured NOT playing (an UNKNOWN play state is not permission) and free memory is at least the prover's small
+    start floor - an import parses the verdict cache, and the ALT has crashed its desktop under memory before. Take
+    first while laws are owed (what a peer proved is a law this PC need not run), then post this PC's own."""
+    if platform not in PROOF_CARRIER_PLATFORMS:
+        return None, "no peer shares this platform (%s)" % platform
+    if not head:
+        return None, "this checkout's HEAD is UNKNOWN"
+    if state.get("running"):
+        return None, "a carrier run is in flight"
+    sp = sp if isinstance(sp, dict) else {}
+    if sp.get("playing") is not False:
+        return None, "he is playing, or whether he is playing is UNKNOWN - it waits, as a proof does"
+    try:
+        import self_prove as _spm
+        floor = int(_spm.MIN_FREE_MB_TO_START_SMALL)
+    except Exception:
+        return None, "the prover's memory floor could not be read - it waits"
+    free = sp.get("freeMb")
+    if not isinstance(free, (int, float)) or isinstance(free, bool) or free < floor:
+        return None, "free memory %s MB is under the prover's start floor (%d MB)" % (free, floor)
+    owed = sp.get("owed")
+    last_take = (state.get("take") or {}).get(head)
+    if isinstance(owed, int) and not isinstance(owed, bool) and owed > 0 \
+            and (last_take is None or now_s - last_take >= PROOF_CARRIER_TAKE_EVERY_S):
+        return "take", "%d law(s) owed here - a peer may already have proved them at this HEAD" % owed
+    last_pub = (state.get("publish") or {}).get(head)
+    if last_pub is None or now_s - last_pub >= PROOF_CARRIER_PUBLISH_EVERY_S:
+        return "publish", "this PC's proofs at this HEAD have not been carried in %d h" % (PROOF_CARRIER_PUBLISH_EVERY_S // 3600)
+    return None, "taken and carried at this HEAD recently"
+
+
+def _proof_carrier_run(action, head, owner, peers):
+    """#186 step 3 - one carrier run on its own thread (an export or import can take minutes; the rescue loop never
+    waits on it). Never raises; what happened is kept for the status."""
+    out = None
+    try:
+        import proof_carrier as _pc
+        if action == "take":
+            out = _pc.take(peers, head)
+        else:
+            out = _pc.publish(owner, os.path.join(_log_root(), ".roster_key.json"))
+        ok = bool(out and (out.get("imported") if action == "take" else out.get("ok")))
+    except Exception as e:
+        out, ok = {"ok": False, "why": "the carrier raised %s" % type(e).__name__}, False
+    _PROOF_CARRIER["last"] = {"action": action, "head": head, "ok": ok, "at": int(time.time() * 1000), "said": out}
+    _PROOF_CARRIER["lastTs"] = int(time.time() * 1000)
+    if ok:
+        _PROOF_CARRIER["worked"] = int(_PROOF_CARRIER.get("worked") or 0) + 1
+    _PROOF_CARRIER["running"] = False
+
+
+def _proof_carrier_kick(sp, now_s=None):
+    """#186 step 3 - start the carrier when _proof_carrier_due says so. -> its status: on / worked / lastTs / say."""
+    now_s = time.time() if now_s is None else now_s
+    platform = _roster_platform()
+    head = None
+    try:
+        import proof_carrier as _pc
+        head = _pc.head_of()
+    except Exception:
+        head = None
+    action, why = _proof_carrier_due(sp, _PROOF_CARRIER, head, now_s, sys.platform)
+    status = {"on": sys.platform in PROOF_CARRIER_PLATFORMS, "worked": _PROOF_CARRIER.get("worked"),
+              "lastTs": _PROOF_CARRIER.get("lastTs"), "last": _PROOF_CARRIER.get("last"), "say": why}
+    if action is None:
+        return status
+    import roster_publish as _rpo
+    owner = _rpo.owner_of(_roster_claimed_name(), platform)
+    if not owner:
+        return dict(status, say="this PC has no roster label, so it has no key to carry proofs under")
+    peers = [o for o in _rpo.OWNERS if o != owner]
+    _PROOF_CARRIER[action][head] = now_s
+    _PROOF_CARRIER["running"] = True
+    threading.Thread(target=_proof_carrier_run, args=(action, head, owner, peers), daemon=True,
+                     name="tvd-proof-carrier").start()
+    return dict(status, say="%s started - %s" % (action, why))
+
+
 def _self_prove_step(n, sp):
     """REG-1624 — what the rescue loop asks the self-prove lane on tick `n`. -> "tick" | "guard" | None. Pure.
 

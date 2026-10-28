@@ -12137,6 +12137,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_session_is_dated_by_what_it_captured.py")], 300,
          needs_app=False,
          why='REG-2736 (#86) - a session is ordered and dated by what it captured, not by a later re-read'),
+    Gate("test_a_proof_rides_only_a_registered_key",
+         [sys.executable, os.path.join(HERE, "test_a_proof_rides_only_a_registered_key.py")], 300,
+         needs_app=False,
+         why='#186 step 3 - a proof one PC earned reaches a same-platform PC on the same commit, only under a registered key'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

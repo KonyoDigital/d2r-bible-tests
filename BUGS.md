@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2737 - A LAW THE ALT PROVED WAS PROVED AGAIN ON DEAN'S PC OVER THE SAME BYTES (#186 step 3, his ruling)
+His words, 2026-10-28: "identical bytes saved from the windows alt pc that has already been proved. he doesnt need to
+reprove it all". Steps 1+2 (REG-2715, v3819) made a PC's census serve what that PC banked; nothing carried one PC's bank
+to another, so Dean's PC re-proved every law the ALT had already proved at the same commit. The carrier, inside the $5
+plan (no new product): functions/api/proofs.js takes a PC's `heart2 --export-proved` file signed exactly as a roster
+publish (X-Roster-Key / X-Roster-Sig over the exact bytes) and ONLY under the key the roster already registered for that
+owner - never trust-on-first-use, never unsigned - storing one KV value per owner (one write, 7 days; the same head again
+inside 3 hours writes nothing). tv/proof_carrier.py: publish() posts this PC's export only when it could sign it; take()
+imports a peer's export only when it was carried on THIS platform at THIS HEAD, through `heart2 --import-proved`, which
+re-keys every entry on this PC's own bytes and banks only what matches (REG-2630). The console runs it as a one-shot
+thread after each self-prove tick, on win32 only (the ALT and Dean are the peers his ruling names; the Mac has none),
+and only where the prover itself could start: measured not playing, memory at the prover's start floor - the ALT's
+desktop has died of memory before. Its status rides the self-prove view (carrier: on / worked / lastTs / last / say).
+Law: test_a_proof_rides_only_a_registered_key (10 cases incl. the real proofs.js in node with real Ed25519, 9 red-proofs).
+
 ### REG-2736 - A RE-READ OF AN OLD REEL MOVED IT TO THE TOP OF THE SHELF WITH A 17-DAY SPAN (#86, his "Last session" 28 vs 48)
 MEASURED on his journal and /api/sessions 2026-10-28: the Shelf's first eight rows were September and October reels, and
 the LAST SESSION digest named an October 10 reel. The REG-2728 loop had re-closed them all morning, and every re-close
