@@ -16,6 +16,13 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2726 - A READER SWITCH REMOVED MID-READ READ AS "UNREADABLE" (the v3818 second eye, #97)
+switch_state() checked os.path.exists, then opened the file: a switch removed between the two raised and was called
+"unreadable" - which refuses a paid sweep - where its own contract says a file that is not there means the PC never chose.
+The exists-check is gone; the open itself answers, and FileNotFoundError (never written, or removed mid-read) is "absent".
+Law: test_an_unreadable_reader_switch_starts_no_paid_sweep (a mid-read removal case; its absent red-proof re-pointed to the
+one branch that now carries it - the old exists-check proof went blind the moment the catch existed).
+
 ### REG-2725 - OPENING THE SHELF ASKED FOR THE SESSIONS LIST TWICE AT ONCE (#86, GrokBot's v3817 pass)
 GrokBot, holding /api/sessions for 15 s through CDP: the page sent a second request at 3.0 s while the first was still
 pending, five in 30 s, ~270 KB each - the theatre's bounded wait (thSessionsWait) and the Shelf's own refresh (thShelf)

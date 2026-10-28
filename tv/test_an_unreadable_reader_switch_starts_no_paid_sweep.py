@@ -66,6 +66,19 @@ class AnUnreadableReaderSwitchStartsNoPaidSweep(unittest.TestCase):
         self.assertEqual(G5.switch_state(), "unreadable")
         self.assertEqual(G5.reader(), "claude", "PREMISE: reader() no longer maps an unreadable switch to claude")
 
+    def test_a_switch_removed_between_the_check_and_the_open_is_absent(self):
+        """The v3818 second eye: os.path.exists then open - a file removed in between raised, and read as 'unreadable'."""
+        with open(self.path, "w") as fh:
+            fh.write('{"on": true, "mode": "primary"}')
+        real_open = open
+
+        def gone(path, *a, **k):
+            if path == self.path:
+                raise FileNotFoundError(path)
+            return real_open(path, *a, **k)
+        with mock.patch("builtins.open", gone):
+            self.assertEqual(G5.switch_state(), "absent", "a switch removed mid-read was called unreadable")
+
     def test_an_env_override_is_a_choice_the_file_cannot_overrule(self):
         with mock.patch.dict(os.environ, {"TV_G5_GROK_EYES": "off"}):
             self.assertIsNone(self._ask('{"garbage'), "an env override was refused because the file is unreadable")
@@ -79,8 +92,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#97 - an absent switch file is read as unreadable, so a PC that never chose can never sweep",
      "file": "tv/g5_grok_eyes.py",
-     "find": "        if not os.path.exists(_STATE_FILE):\n            return \"absent\"\n",
-     "replace": "",
+     "find": "    except FileNotFoundError:\n        return \"absent\"",
+     "replace": "    except FileNotFoundError:\n        return \"unreadable\"",
      "matches": 1},
 ]
 

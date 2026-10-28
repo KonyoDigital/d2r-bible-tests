@@ -470,11 +470,11 @@ def switch_state():
     absent file is a PC that never chose (Claude, the default, is right); an unreadable one chose something nobody can
     read, which is UNKNOWN - and a paid sweep must not start on it."""
     try:
-        if not os.path.exists(_STATE_FILE):
-            return "absent"
         with open(_STATE_FILE, encoding="utf-8") as fh:
             d = json.load(fh)
         return "ok" if isinstance(d, dict) else "unreadable"
+    except FileNotFoundError:
+        return "absent"             # never written - or removed mid-read (the v3818 second eye): never chose, not unreadable
     except Exception:
         return "unreadable"
 
