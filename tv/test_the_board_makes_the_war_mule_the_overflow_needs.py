@@ -44,7 +44,10 @@ READ = r"""
 var W = window, SH = %(shako)s;
 function wars(){ return JSON.parse(W.LSR.getItem('d2r_muleRoster') || '[]').filter(function(m){ return /^war/i.test(String(m.name || '')); }); }
 function list(){ return (document.getElementById('vault-move-list') || {}).innerHTML || ''; }
-function makeRows(){ return (list().match(/<li class="vtk-line vtk-make"[\s\S]*?<\/li>/g) || []).map(function(x){ return x.replace(/<[^>]+>/g, ''); }); }
+/* REG-2888 - the WAR mule's make rows only: since REG-2895 the board also makes the dedicated CHARMS mule and asks him to make
+   it in the game, and this law is about the WAR mule's row (measured on int-7: 2 make rows, CHARMS and WAR1) */
+function makeRows(){ return (list().match(/<li class="vtk-line vtk-make"[\s\S]*?<\/li>/g) || []).map(function(x){ return x.replace(/<[^>]+>/g, ''); })
+  .filter(function(t){ return /Create mule WAR\d+ /.test(t); }); }
 function tasks(){ var o = []; for (var ci = 0; ci < copyCount(SH); ci++) { var t = (W._vaultMoveEnsure(SH, ci) || {}).task; o.push(t && t.to ? [t.to.holder || null, t.to.cell || null] : null); } return o; }
 """ % {"shako": json.dumps(SHAKO)}
 
@@ -54,13 +57,16 @@ OUT.add = [SH, SH, SH].map(function(n){ return !!(W.vaultHandAdd(n) || {}).ok; }
 W.renderVault(); H.flush(60, 3); W.renderVault(); W.renderVault();
 OUT.wars = wars(); OUT.tasks = tasks(); OUT.make = makeRows();
 OUT.makeFirst = list().indexOf('data-sec="make"') >= 0 && list().indexOf('data-sec="make"') < list().indexOf('data-sec="moves"');
-OUT.badge = ((document.getElementById('vault-shelf') || {}).innerHTML || '').indexOf('made by the board · not in the game yet') >= 0;
+/* REG-2888 - the WAR1 card's own badge: the CHARMS mule the board makes (REG-2895) wears the same badge on its own card */
+function warBadge(){ var h = (document.getElementById('vault-shelf') || {}).innerHTML || '', w = wars()[0], at = w ? h.indexOf('data-vault-mule="' + w.id + '"') : -1;
+  if (at < 0) return null; var nx = h.indexOf('data-vault-mule="', at + 10); return h.slice(at, nx < 0 ? h.length : nx).indexOf('made by the board · not in the game yet') >= 0; }
+OUT.badge = warBadge();
 /* the card's delete button is drawn only for a mule his delete door takes (_vmAddedMule) - ask the page, not a copy of its rule */
 OUT.deletable = OUT.wars.length ? (((document.getElementById('vault-shelf') || {}).innerHTML || '').indexOf("window.vaultDeleteMule('" + OUT.wars[0].id + "')") >= 0) : null;
 OUT.raw = {}; H.RAW.forEach(function(v, k){ OUT.raw[k] = v; });
 var id = OUT.wars.length ? OUT.wars[0].id : null;
 OUT.tick = id ? W._vaultWarMadeInGame(id) : null;
-OUT.afterTick = { wars: wars(), make: makeRows(), badge: ((document.getElementById('vault-shelf') || {}).innerHTML || '').indexOf('made by the board · not in the game yet') >= 0 };
+OUT.afterTick = { wars: wars(), make: makeRows(), badge: warBadge() };
 OUT.declineWar = id ? W._vaultWarDecline(wars()[0]) : null;   /* the stored WAR1: the role is what decides */
 """
 
