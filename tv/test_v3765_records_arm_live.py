@@ -282,8 +282,8 @@ class TestV3765RecordsArmLive(unittest.TestCase):
                          "arm sites drifted from the definition plus the one page-load call")
         self.assertEqual(code.count("_vaultRecordsMigrate("), 2,
                          "a second caller of the migrate function appeared")
-        self.assertEqual(code.count("_vaultRecordsPersist("), 6,
-                         "persist callers drifted from the definition, the migration, the write refresh, the two move-list writers, and the register wrapper")
+        self.assertEqual(code.count("_vaultRecordsPersist("), 7,
+                         "persist callers drifted from the definition, the migration, the write refresh, the two move-list writers, the register wrapper, and the per-copy entry writer (REG-2844)")
         body = _strip(_assigned_fn(self.src, "_seedCleanseArm"))
         self.assertEqual(body.count("_vaultRecordsArm("), 1,
                          "the page-load call is not the one inside _seedCleanseArm")

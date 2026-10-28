@@ -12349,6 +12349,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_move_closes_on_two_sessions_at_its_target.py")], 300,
          needs_app=False,
          why='REG-2843 (#230 his done table) - a MOVE task ticks itself on two sessions at its target, both read after it opened; one is half-way'),
+    Gate("test_each_copy_carries_its_own_entry",
+         [sys.executable, os.path.join(HERE, "test_each_copy_carries_its_own_entry.py")], 300,
+         needs_app=False,
+         why="REG-2844 (#154 P3a) - each copy's record carries its own entry (an Ist Shako and a Ber Shako are told apart), through rebuilds, moves and the profile"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -142,6 +142,20 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2844 - AN IST SHAKO AND A BER SHAKO WERE TWO COPIES NOTHING COULD TELL APART (#154 P3a, his front-run)
+What makes one copy what it is was kept by NAME. d2r_plannerMade holds one runeword record per name (REG-2185 kept a second
+Grief from writing over the first, so the second Grief's base was kept nowhere), and a unique's runes were kept nowhere at
+all. Measured on the whole page in node: an Ist Shako and a Ber Shako added through the planner were two copies with nothing
+to tell them apart, so a typed Ber Shako could only be asked "same item?" against an Ist Shako it plainly was not. Each
+copy's record (d2r_vaultRecords) now carries its own entry: base, quality, sockets, runes, eth, mods and rolls. The
+planner's filing of that copy writes it, and his "the same item" fills what it lacks. It rides every rebuild and every move
+written (the move writer no longer drops the record's entry or its loose place), and the profile carries it. Two census laws
+(v3758, v3765) count the per-copy writer as the seventh caller of _vaultRecordsPersist. The join
+question reads it. The stores by name stay for their readers; copy 0 of a
+runeword built before this reads its planner record. Magic and rare picks wait for their keeper record (P3b). Removing a copy
+still drops the LAST copy's record (the count model cannot name which copy left). Law: test_each_copy_carries_its_own_entry
+(node, the whole page: the planner, a rebuild, a move, a profile save and load), 7 red-proofs, RED.
+
 ### REG-2843 - A MOVE TASK CLOSED ON ONE SIGHTING AT ITS TARGET (#230 his done table, agent-guide's recon)
 _vaultMoveWitness marked a task verified on ONE sighting at its target cell, and a full look of the target closed it at once
 too. His rule, from the design he approved: a task ticks itself on reads at its target from 2 distinct sessions
