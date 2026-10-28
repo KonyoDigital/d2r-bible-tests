@@ -105,7 +105,9 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
 
     def test_the_finder_prints_the_cell(self):
         self.assertIn("SHARED STASH", self.find, self.find)
-        self.assertIn("Weapons tab · col", self.find, "the finder still prints only a mule name: %r" % self.find)
+        # REG-2789 - the shared stash is its 5 pages (his 2026-10-28 ruling, REG-2801), never the by-slot tabs
+        self.assertRegex(self.find, r"SHARED STASH · Page [1-5] · col \d+ · row \d+",
+                         "the finder still prints only a mule name, or the old by-slot tab: %r" % self.find)
 
 
 RED_PROOF = [

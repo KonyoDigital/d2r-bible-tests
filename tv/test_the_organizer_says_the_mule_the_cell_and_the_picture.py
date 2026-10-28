@@ -87,7 +87,8 @@ class TheOrganizerSaysTheMuleTheCellAndThePicture(unittest.TestCase):
         self.assertTrue(r["cell"] and "col" in r["cell"] and "row" in r["cell"], "no planned cell for a mule-bound item: %r" % r)
         self.assertTrue(r["ev"], "the row carries no evidence door (the picture it was read on)")
         g = self.by.get("Grief") or {}
-        self.assertTrue(g.get("cell") and "tab" in g["cell"], "war gear has no shared-tab cell: %r" % g)
+        # REG-2789 - war gear sits on one of the shared stash's 5 pages (REG-2801), never a by-slot tab
+        self.assertRegex(g.get("cell") or "", r"^Page [1-5] · col \d+ · row \d+$", "war gear has no shared-page cell: %r" % g)
 
     def test_inventory_loot_is_organized_and_kit_is_not(self):
         h = self.by.get("War Traveler")

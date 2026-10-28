@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2789 - THREE LAWS STILL PINNED THE SHARED STASH'S OLD BY-SLOT TABS AFTER HIS 5-PAGE RULING (CI on ci/claude-v3832)
+REG-2801/2802 drew the shared stash as the plan's 5 pages (his 2026-10-28 ruling) and re-aimed the two laws that named
+them; the sweep missed three, which went red only on CI (Chrome): the finder expected "Weapons tab · col" and got
+"SHARED STASH · Page 1 · col 1 · row 1"; the organizer expected a "tab" in Grief's cell and got "Page 1 · col 3 · row 1";
+the hand-add row pattern expected "MANUAL → <mule> (x,y)" with an optional "tab N" and got "SHARED STASH page 1 (1,1)".
+Each now pins the page wording (Page/page 1-5), checked against the exact strings CI printed. Swept: the remaining
+"tab" mentions in laws and specs are prose, comments or sabotage text, and v3832's Playwright suite passed.
+
 ### REG-2788 - A LAW READ v3805 OUT OF THE REAL HISTORY, AND CI'S 200-COMMIT CLONE OUTGREW IT (test_a_look_records_the_commit_it_read)
 test_the_shipped_version_resolves_when_its_row_still_says_this_commit asked commit_for("v3805") against the real repo.
 tv-tests.yml clones fetch-depth 200; measured: v3830 sits 196 commits past v3805's ship and passed, v3831 202 and v3832 210

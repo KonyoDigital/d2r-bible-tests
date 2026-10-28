@@ -30,7 +30,8 @@ SETS = ["Sigon's Guard", "Sigon's Visor", "Cathan's Mesh", "Isenhart's Case",
 BATCH = SETS + ["Immortal King's Stone Crusher", "Natalya's Mark", "Griswold's Heart", "M'avina's Embrace",
                 "Harlequin Crest", "Insight", "Gheed's Fortune", "Rainbow Facet", "Nokozan Relic",
                 "Arachnid Mesh", "Enigma", "Stone of Jordan"]
-LINE = re.compile(r"MANUAL → ([A-Z][A-Z0-9\- ]+?)(?: tab \d+)? \((\d+),(\d+)\)")
+# REG-2789 - a shared stash row names its page (REG-2802: "SHARED STASH page 2 (1,3)"), never the old "tab N"
+LINE = re.compile(r"MANUAL → ([A-Z][A-Z0-9\- ]+?)(?: page [1-5])? \((\d+),(\d+)\)")
 
 ROWS = (T.READ + "var host = document.getElementById('vault-move-list');"
         "OUT.rows = host ? Array.prototype.map.call(host.querySelectorAll('.vtk-list:not([data-sec=\"done\"]) .vmv-row'), function(r){"
