@@ -5241,8 +5241,12 @@ window._tickRedoRestore = function(name, r){
           ? { restored: 0, why: 'the vault removal journal would not read - its bytes are kept aside (see the notice at the top)' }
           : (last && last.ts === r.vaultTs)
           ? window.vaultRestoreLast()
-          : { restored: 0, why: 'another removal came after the un-tick - put it back from the vault removal list',
-              said: 'another removal came after the un-tick', todo: 'put it back from the vault removal list' };
+          /* REG-2834 (#154) - "the vault removal list" is a surface nothing draws: the journal is read by vaultRestoreLast()
+             alone, and that puts back the NEWEST batch - here the other removal, not this one. Measured on the whole page:
+             after an un-tick, another removal and the re-tick, the item is neither owned nor filed. The Vault's own add
+             card (✚ Add an item) owns it again, by his hand, and the router files it. */
+          : { restored: 0, why: 'another removal came after the un-tick - add it again from ✚ Add an item in the Vault',
+              said: 'another removal came after the un-tick', todo: 'add it again from ✚ Add an item in the Vault' };
       }
       /* the Grok eye on its pixels: the instruction was buried in the parenthesis - so the reason and the thing to
          DO travel apart, and the bar says the do as its own sentence */
@@ -49294,15 +49298,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if (typeof window.vaultRemove === 'function' && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
       var vr = null;
+      var _undoVp = (typeof window._vaultUndoSnap === 'function') ? window._vaultUndoSnap() : null;   /* REG-2834 - before anything moves */
       try { vr = window.vaultRemove([nm], { lane: 'planner-take-back', quiet: true, exact: true, why: 'its planner pick was cleared or re-rolled' }); } catch (eVr) { vr = null; }
       if (!vr || vr.refused || !(vr.removed && vr.removed.indexOf(nm) >= 0)){
         _vpDropSaid = nm + ' was not taken back - ' + ((vr && vr.why) || 'the removal door did not answer') + '; it stays as it was';
         try { status('⚠ ' + _vpDropSaid); } catch (eSd) {}
         return;
       }
-      _vpDropSaid = nm + ' is taken back (undo it from Recently removed)';
       if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
       _vpForget(nm);
+      /* REG-2834 (#154) - THE SENTENCE NAMES AN UNDO THAT IS THERE. It said "(undo it from Recently removed)", and no surface
+         draws a Recently removed list - the journal is read by vaultRestoreLast(), a console call. The take-back now arms
+         the toolbar's Undo with the board as it was just before, and the sentence names that chip only when it holds this
+         take-back; a store that would not read is said instead. */
+      var _undoVpOk = !!(_undoVp && typeof window._vaultUndoTake === 'function' && window._vaultUndoTake('the take-back of ' + nm, '', _undoVp));
+      _vpDropSaid = nm + ' is taken back' + (_undoVpOk ? ' (↶ Undo in the toolbar puts it back)' : ' (no undo could be offered - a store the undo saves would not read)');
       return;
     }
     if (typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){

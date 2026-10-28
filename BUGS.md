@@ -37,6 +37,19 @@ neither, so the gap could not explain itself. It now carries today's copy record
 (recordsByKind / recordsTotal - loose on the dock, kept, carried, orphan beside filed) and the migrate stamp's date
 (migrateAt). The console banks them shaped (at most 16 kinds, a count or nothing). Law:
 test_a_copy_readout_says_what_each_side_counts (2 cases, 3 red-proofs).
+### REG-2834 - TWO SENTENCES SENT HIM TO AN UNDO LIST NOTHING DRAWS (#154, the REG-2831 sweep)
+The planner's take-back said "<name> is taken back (undo it from Recently removed)" and the un-tick redo's bar said "Put
+it back from the vault removal list". Swept bible.html and tv/control_ui.html for every "recently removed" and "removal
+list" outside a comment: these two were all, and no surface draws either list - the removal journal is read by
+vaultRestoreLast(), a console call that puts back the NEWEST batch. Measured on the whole page in node: after an un-tick,
+another removal and the re-tick, the item is neither owned nor filed, and vaultRestoreLast would put back the other
+removal. Now the take-back arms the toolbar's Undo (the board's undo surface, #145) before anything moves, and its sentence
+names that chip only when it holds this take-back (a store the undo saves that would not read is said instead); the redo's
+bar says to add it again from the Vault's own add card (✚ Add an item), which owns it by his hand and lets the router file
+it. test_an_untick_then_a_retick_is_one_misclick pinned the old wording and now pins the new. Law:
+test_no_sentence_names_a_surface_nothing_draws (the sweep with comments stripped, both surfaces read from the markup, the
+take-back and the redo driven on the whole page). 3 red-proofs, RED.
+
 ### REG-2833 - THE SOCKETS SPINNER MOVED UNDER HIS CURSOR ON EVERY CHANGE (#154, GrokBot's #13 drive, #230 6462208498)
 GrokBot: "the editor header shifts about 17 px sideways on re-render, which moves the Sockets spinner under the cursor".
 Read in code: vaultPlannerPaint rewrote the whole planner host on every change, so the field he was in was destroyed

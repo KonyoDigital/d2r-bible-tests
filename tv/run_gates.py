@@ -12269,6 +12269,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_planner_spinner_stays_under_the_cursor.py")], 300,
          needs_app=False,
          why="#154 REG-2833 - the planner repaint keeps the focused field and the pane's scroll, and the edit pane reserves its scrollbar gutter (Chrome, CI)"),
+    Gate("test_no_sentence_names_a_surface_nothing_draws",
+         [sys.executable, os.path.join(HERE, "test_no_sentence_names_a_surface_nothing_draws.py")], 300,
+         needs_app=False,
+         why='#154 REG-2834 - no sentence sends him to an undo surface nothing draws; the take-back names the toolbar Undo it arms'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

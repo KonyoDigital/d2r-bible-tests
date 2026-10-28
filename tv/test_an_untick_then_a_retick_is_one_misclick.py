@@ -228,7 +228,7 @@ rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
 out({ case: "later-game", missed: rest.missed, game: JSON.parse(STORE.d2r_gameFound)[N] });
 seed();
 STORE.d2r_lastTick = JSON.stringify({ n: N, k: "uni", ms: 1 });
-const other = { missed: [{ what: "the vault entry", why: "another removal came after the un-tick - put it back from the vault removal list" }] };
+const other = { missed: [{ what: "the vault entry", why: "another removal came after the un-tick - add it again from ✚ Add an item in the Vault" }] };
 const n1 = window._tickRedoNote(N, other), m1 = JSON.parse(STORE.d2r_lastTick);
 const n2 = window._tickRedoNote("Shako", other), m2 = JSON.parse(STORE.d2r_lastTick);
 const n3 = window._tickRedoNote(N, { missed: [] }), m3 = JSON.parse(STORE.d2r_lastTick);
@@ -329,10 +329,10 @@ class AnUntickThenARetickIsOneMisclick(unittest.TestCase):
     def test_a_vault_part_that_could_not_come_back_is_said(self):
         o = self.rows["other-say"]
         self.assertEqual(o["missed"], [{"what": "the vault entry", "why": "another removal came after the un-tick",
-                                        "do": "put it back from the vault removal list"}], "the refusal was not carried out")
+                                        "do": "add it again from ✚ Add an item in the Vault"}], "the refusal was not carried out")
         # the Grok eye on its pixels: the thing to DO is its own sentence, never buried in the reason's parenthesis
         self.assertEqual(o["say"], "not put back: the vault entry (another removal came after the un-tick). "
-                                   "Put it back from the vault removal list.", o["say"])
+                                   "Add it again from ✚ Add an item in the Vault.", o["say"])
 
     def test_a_missing_door_is_said_as_a_missing_door(self):
         o = self.rows["no-door"]
@@ -354,7 +354,7 @@ class AnUntickThenARetickIsOneMisclick(unittest.TestCase):
         self.assertFalse(o["n3"])
         self.assertNotIn("redo", o["m3"], "a full redo left the old note standing")
         self.assertIn("gf-redo-miss", o["html"])
-        self.assertIn("vault removal list", o["html"])
+        self.assertIn("Add an item", o["html"])   # REG-2834 - the bar names a surface the Vault draws
         for k in ("htmlOther", "htmlSet", "htmlClean"):
             self.assertEqual(o[k], "", "the bar would say a note it does not own: %s" % k)
 
