@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3821",
+  "ver": "v3822",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3821: move rows and lockers take the keyboard, shared stash tabs are tab buttons, a session is dated by what it captured",
+  "note": "v3822: proofs carry from the ALT to Dean, lockers say their copies, FIND names every copy, a filled template is not a look",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
