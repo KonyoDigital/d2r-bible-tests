@@ -51235,6 +51235,10 @@ window.vaultAutoAssign = function(){
             'd2r_vaultRemoved','d2r_vaultRemovedAt','d2r_laneLock','d2r_vaultHand','d2r_multiKeep','d2r_magicFinds',
             /* REG-2831 (#154.17) - the throw-out review's reads, so the toolbar's Undo puts back a read he dismissed */
             'd2r_unknownReads',
+            /* REG-2836 (front-run) - the planner's record of each runeword he built: the base he chose and its rolls. Measured:
+               a profile saved after 9 runeword picks loaded into a fresh world with 0 of them, so Grief on his Giant Axe came
+               back as the catalogue's base. */
+            'd2r_plannerMade',
             'd2r_copies','d2r_vaultAutoIntake','d2r_vaultShareOverride','d2r_autoLanes','d2r_owned','d2r_intakeSeen','d2r_intakeLog'],
     stash: ['d2r_runeStash','d2r_gemStash','d2r_materialStash','d2r_craftStash','d2r_craftBaseStash','d2r_stashMeta'],
     characters: ['d2r_charBuilds','d2r_cbMain','d2r_cbSel','d2r_mainCharacter'],

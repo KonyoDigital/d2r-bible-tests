@@ -12325,6 +12325,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_planner_magic_item_keeps_its_mods.py")], 300,
          needs_app=False,
          why='front-run REG-2835 - a magic or rare item added from the planner keeps its mods and is kept'),
+    Gate("test_a_profile_keeps_the_runeword_he_built",
+         [sys.executable, os.path.join(HERE, "test_a_profile_keeps_the_runeword_he_built.py")], 300,
+         needs_app=False,
+         why='front-run REG-2836 - a saved profile carries d2r_plannerMade, so a runeword he built keeps its base after a load'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
