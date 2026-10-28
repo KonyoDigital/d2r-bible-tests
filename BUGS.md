@@ -14,6 +14,12 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2707 - "KEY OF DESTRUCTION" WAS FILED TO A WEAPON MULE (#158.4, GrokBot on his real frames)
+The vault's read door registered an uber key and suggestMule routed it as a weapon. Uber keys, organs, essences and the
+Token of Absolution are MATERIALS: the Materials stash counts them (SPECIAL_DROPS - the same groups the uber/Token planner
+reads) and the vault never files them. _vaultNotAnItem refuses them with that sentence (refused not-an-item), built once from
+SPECIAL_DROPS, never a copied list. Sunder charms are left out on purpose: they are real uniques the vault keeps, even though
+the Renewed recipe also counts them. Law: test_a_material_is_not_a_vault_item (2 red-proofs, each seen RED).
 
 ### REG-2706 - A ROW HELD FOR A SECOND SESSION FELL OUT OF THE APPLY'S RECEIPT WITHOUT A WORD (#202, v3817's CI)
 #202 (REG-2686) holds a reader row of a name he does not own until a second session, and refuses one with no look at all.

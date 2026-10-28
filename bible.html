@@ -47436,10 +47436,34 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     'malah': 'a town NPC', 'qual-kehk': 'a town NPC', 'anya': 'a town NPC',
     'stash': 'a panel title', 'shared stash': 'a panel title', 'personal': 'a panel title', 'shared': 'a panel title',
     'inventory': 'a panel title', 'equipment': 'a panel title', 'gold': 'a panel word' };
+  /* #158.4 (GrokBot, his real frames) - "Key of Destruction" was registered into the vault and routed to a WEAPON mule. Uber
+     keys, organs, essences and the Token are MATERIALS: the Materials stash counts them (SPECIAL_DROPS, the same groups the
+     uber/Token planner reads) and the vault never files them. Sunder charms are left out on purpose - they are real uniques
+     the vault keeps, even though the Renewed recipe also counts them. -> {folded name: group label}, built once */
+  var _VAULT_MATERIAL_NAMES = null;
+  function _vaultMaterialNames(){
+    if (_VAULT_MATERIAL_NAMES) return _VAULT_MATERIAL_NAMES;
+    var out = {};
+    try {
+      ['key', 'organ', 'essence', 'token'].forEach(function(c){
+        var g = (typeof SPECIAL_DROPS !== 'undefined' && SPECIAL_DROPS) ? SPECIAL_DROPS[c] : null;
+        ((g && g.items) || []).forEach(function(it){
+          if (it && it.n) out[String(it.n).replace(/[\u2018\u2019\u02bc`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim()] = String(g.label || c);
+        });
+      });
+    } catch (eM) { return {}; }      /* unread: nothing is refused as a material, and the next ask tries again */
+    _VAULT_MATERIAL_NAMES = out;
+    return out;
+  }
+  window.vaultMaterialNames = _vaultMaterialNames;
   window._vaultNotAnItem = function(name){
     var f = String(name == null ? '' : name).replace(/[\u2018\u2019\u02bc`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim();
     var what = Object.prototype.hasOwnProperty.call(_NOT_ITEMS, f) ? _NOT_ITEMS[f] : null;
-    return what ? ('"' + String(name).trim() + '" is ' + what + ', not an item - nothing was registered') : null;
+    if (what) return '"' + String(name).trim() + '" is ' + what + ', not an item - nothing was registered';
+    var mat = _vaultMaterialNames();
+    if (Object.prototype.hasOwnProperty.call(mat, f))
+      return '"' + String(name).trim() + '" is a material (' + mat[f] + ') - the Materials stash counts it; the vault does not file it';
+    return null;
   };
   window.tvVaultRegister = function(name, witness){
     try {
