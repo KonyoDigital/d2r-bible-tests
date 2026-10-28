@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2721 - A LAW I RE-POINTED LOST THE ONLY WITNESS OF ONE OF ITS PROOFS (the second v3817 push)
+The v3817 push was refused at the proving stage: test_a_roster_name_opens_its_row_with_the_eyes[2] ("the eyes route to
+the wrong profile": Konyo on a mac -> Dean) came back BLIND. REG-2699 had taught that law the v3809 ruling - THIS PC's own
+row offers no shadow of itself - and the fleet fixture's "me" is the only Konyo-on-a-mac machine, so after that change no
+case observed the mac route at all. CI could not see it: CI runs every law but never a red-proof; only the push proves.
+The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnessedWithoutAWindow cuts the shipped
+_fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
+Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
+way before the next push.
+
 ### REG-2717 - THE RENDER TARGETS SHARE ONE BROWSER PROFILE, AND ONE SEED MINTED COPIES IN THE NEXT (the v3817 push)
 The v3817 push was refused at the render gate: vault-full painted 32 copy badges ("1/2", "2/2") cut off in its collapsed
 locker. v3817 had moved the `vault` target's seed to the hand door (REG-2699, #202: a TV read now waits for two sessions),

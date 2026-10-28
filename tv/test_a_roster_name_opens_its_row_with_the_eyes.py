@@ -286,6 +286,35 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
         self.assertEqual(r.get("errors"), [], "the page threw: %s" % r.get("errors"))
 
 
+
+class TheRouteIsWitnessedWithoutAWindow(unittest.TestCase):
+    """REG-2721 - WHICH PROFILE A ROW'S EYES OPEN, asked of the shipped _fleetRosterOwner itself, in node.
+
+    The window cases above skip THIS PC's own row (v3809: no shadow of yourself), and the fixture's "me" is the only
+    Konyo-on-a-mac machine - so after REG-2699 nothing observed the mac route, and red-proof [2] (route Konyo's Mac to
+    Dean) came back BLIND at the v3817 push. The rule is a pure function; it is witnessed here directly."""
+
+    def owner(self, m):
+        from cb_node_harness import NODE
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this case does not skip")
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        a, b = "  var _FLEET_ROSTER_OWNERS = [", "  window._fleetRosterOwner = _fleetRosterOwner;\n"
+        self.assertEqual((ui.count(a), ui.count(b)), (1, 1), "the route is not where this case cuts it")
+        i = ui.index(a)
+        js = "var window = {};\n" + ui[i:ui.index(b, i) + len(b)] + "\nprocess.stdout.write(JSON.stringify(window._fleetRosterOwner(%s)));" % json.dumps(m)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise AssertionError("the shipped route would not run in node: %s" % r.stderr[-400:])
+        return json.loads(r.stdout)
+
+    def test_konyo_on_a_mac_is_konyo_mac_and_nowhere_else(self):
+        self.assertEqual(self.owner({"nickname": "Konyo", "platform": "mac"}), "Konyo \u00b7 Mac")
+        self.assertEqual(self.owner({"nickname": "Konyo", "platform": "win"}), "", "a guess named another PC's profile")
+        self.assertEqual(self.owner({"nickname": "Dean"}), "Dean")
+        self.assertEqual(self.owner({"nickname": "someone"}), "")
+
 RED_PROOF = [
     {"why": "Grok r1 - the eyes swallow every key again, so Escape no longer closes the cross-reference",
      "file": "tv/control_ui.html",
