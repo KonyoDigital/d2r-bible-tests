@@ -1266,13 +1266,24 @@ def session_character_at(sessions, sid, ts=None):
         if len(names) == 1 and None not in names:
             return spans[0]["character"], None
         return None, "the read has no time and the session names more than one span"
-    pick = None
-    for s in spans:
-        if s.get("from") is None or (isinstance(s.get("from"), (int, float)) and s["from"] <= ts):
-            pick = s
+    pick = session_span_at(sessions, sid, ts)
     if pick is None:
         return None, "the read came before the session's first login, and nothing before it names a character"
     return pick.get("character"), (None if pick.get("character") else pick.get("why"))
+
+
+def session_span_at(sessions, sid, ts):
+    """#36 (REG-2911) - the span of session `sid` the moment `ts` falls in: the one with the newest `from` at or before
+    it (a span with no `from` is the session's start). -> the span, or None (the session is absent, ts is None, or the
+    moment came before the session's first span). The one pick the gear ledger and session_character_at share."""
+    spans = (sessions or {}).get(str(sid or ""))
+    if not isinstance(spans, list) or not spans or ts is None:
+        return None
+    pick = None
+    for s in spans:
+        if isinstance(s, dict) and (s.get("from") is None or (isinstance(s.get("from"), (int, float)) and s["from"] <= ts)):
+            pick = s
+    return pick
 
 
 def scanned_reel(d, reel):
