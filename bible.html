@@ -13386,7 +13386,7 @@ function d2jspPriceLine(q) {
            profile pair, a compact row just above Add an item: ONE file of the vault, the stashes and the builder characters.
            It does NOT touch the chronicle (💾 Backup &amp; Share and the console's ledger backup carry that). -->
         <span class="vault-profile-h" aria-hidden="true">💾 Profile</span>
-        <button class="vault-btn" type="button" id="vault-profile-save" onclick="window.vaultProfileSave()" title="Download one file holding your vault (owned items, mule placement, locks, intake records), stashes and builder characters — not the chronicle (found log, set pieces)">💾 Save profile</button>
+        <button class="vault-btn" type="button" id="vault-profile-save" onclick="window.vaultProfileSave()" title="Download one file holding your vault (owned items, mule placement, locks, intake records), stashes, builder characters and the chronicle (found log, set pieces, runewords) the vault view reads">💾 Save profile</button>
         <label class="vault-btn" id="vault-profile-load" for="vault-profile-file" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('vault-profile-file').click();}" title="Load a saved profile file: it is checked, you see what changes, and nothing is written until you confirm">📂 Load profile<input type="file" id="vault-profile-file" accept="application/json,.json" hidden onchange="window.vaultProfileLoadFile(event)"></label>
       </div>
       <div class="vault-find-row vault-deck"><!-- Vault v3 — ADD AN ITEM and FIND ON A MULE are twin cards on one grid (same title/field/hint scale) -->
@@ -50969,7 +50969,12 @@ window.vaultAutoAssign = function(){
        • the console's automatic ledger backup (~/d2r_ledger_backups, every 600 s, allStores) with Rebuild / Restore
          plan / Restore apply — its restore door carries ONLY the chronicle (d2r_foundLog → uniques, d2r_setPieces → sets,
          tv/ledger_restore.py RESTORABLE); the vault, stashes and characters are backed up there but have no way back.
-     So this file carries what has no scoped way back — the vault, the stashes, the characters — and never the chronicle.
+     So this file carried what has no scoped way back — the vault, the stashes, the characters — and never the chronicle.
+     ⚠ REG-2763 (his ruling 2026-10-28: "profiles should carry them") — AND NOW THE CHRONICLE TOO. GrokBot's round trip
+     (#230 6467035373) loaded a real profile into a fresh browser: the stores came back byte-exact and the VAULT still
+     changed shape (Grief 3x2 -> 2x1, a ring gone from the shared stash), because the vault view also reads the chronicle
+     ledgers (a runeword's base, the set pieces, the found log). A profile that cannot rebuild its own vault is not a
+     profile. The chronicle ledgers ride in their own group, and the load's question names them when they change.
      Every value travels as the store's own text, so a save→load round trip is byte-identical. A file is refused whole
      (nothing written) unless every store in it is one this door names and parses as JSON. */
   var _PROFILE_KIND = 'd2r-vault-profile', _PROFILE_VERSION = 1;
@@ -50978,20 +50983,38 @@ window.vaultAutoAssign = function(){
             'd2r_vaultRemoved','d2r_vaultRemovedAt','d2r_laneLock','d2r_vaultHand','d2r_multiKeep','d2r_magicFinds',
             'd2r_copies','d2r_vaultAutoIntake','d2r_vaultShareOverride','d2r_autoLanes','d2r_owned','d2r_intakeSeen','d2r_intakeLog'],
     stash: ['d2r_runeStash','d2r_gemStash','d2r_materialStash','d2r_craftStash','d2r_craftBaseStash','d2r_stashMeta'],
-    characters: ['d2r_charBuilds','d2r_cbMain','d2r_cbSel','d2r_mainCharacter']
+    characters: ['d2r_charBuilds','d2r_cbMain','d2r_cbSel','d2r_mainCharacter'],
+    /* REG-2763 - the chronicle ledgers (uniques = found log ∪ owned, sets, runewords, crafts), which the vault view reads */
+    chronicle: ['d2r_foundLog','d2r_foundBy','d2r_setPieces','d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_craftMade']
   });
   window._PROFILE_STORES = _PROFILE_STORES;
   /* the stores that hold a plain setting (a flag, a name, a time) rather than a JSON record — every other store must parse to one */
-  var _PROFILE_TEXT = { d2r_vaultAutoIntake: 1, d2r_autoLanes: 1, d2r_cbMain: 1, d2r_cbSel: 1, d2r_mainCharacter: 1 };
+  var _PROFILE_TEXT = { d2r_vaultAutoIntake: 1, d2r_autoLanes: 1, d2r_cbMain: 1, d2r_cbSel: 1, d2r_mainCharacter: 1, d2r_rwProfile: 1 };
   function _own(o, k){ return Object.prototype.hasOwnProperty.call(o, k); }
   function _profileKeys(){ var o = []; Object.keys(_PROFILE_STORES).forEach(function(g){ o = o.concat(_PROFILE_STORES[g]); }); return o; }
-  function _profileCount(raw){ if (raw == null) return 0; try { var v = JSON.parse(raw); return Array.isArray(v) ? v.length : (v && typeof v === 'object' ? Object.keys(v).length : 1); } catch (e) { return 1; } }
-  window._vaultProfileBuild = function(){
-    var stores = {};
-    _profileKeys().forEach(function(k){ var r = null; try { r = window.LSR.getItem(k); } catch (e) { r = null; } stores[k] = (r == null ? null : String(r)); });
+  /* REG-2763 (GrokBot: "runeStash: 2 -> 2" while Ber went 5 -> 2) - a store of counts (the stashes) says its units, every
+     other store its entries */
+  function _profileCount(raw){
+    if (raw == null) return 0;
+    try {
+      var v = JSON.parse(raw);
+      if (Array.isArray(v)) return v.length;
+      if (!v || typeof v !== 'object') return 1;
+      var ks = Object.keys(v);
+      if (ks.length && ks.every(function(k){ return typeof v[k] === 'number' && isFinite(v[k]); })) return ks.reduce(function(a, k){ return a + v[k]; }, 0);
+      return ks.length;
+    } catch (e) { return 1; }
+  }
+  /* opts.chronicle === false (REG-2763) - leave the chronicle group out: the vault's ↶ Undo snapshot, whose load must never
+     take back a find recorded after the change it undoes */
+  window._vaultProfileBuild = function(opts){
+    var noChron = !!(opts && opts.chronicle === false), stores = {}, groups = {};
+    Object.keys(_PROFILE_STORES).forEach(function(g){ if (!(noChron && g === 'chronicle')) groups[g] = _PROFILE_STORES[g]; });
+    Object.keys(groups).forEach(function(g){ groups[g].forEach(function(k){
+      var r = null; try { r = window.LSR.getItem(k); } catch (e) { r = null; } stores[k] = (r == null ? null : String(r)); }); });
     return JSON.stringify({ app: 'd2r-bible', kind: _PROFILE_KIND, version: _PROFILE_VERSION,
       build: (window.D2R_BUILD && window.D2R_BUILD.id) || null, saved: new Date().toISOString(),
-      groups: _PROFILE_STORES, stores: stores }, null, 1);
+      groups: groups, stores: stores }, null, 1);
   };
   /* -> {ok:true, stores} | {ok:false, why} — reads only */
   window._vaultProfileParse = function(text){
@@ -51031,8 +51054,11 @@ window.vaultAutoAssign = function(){
     var diff = window._vaultProfileDiff(P.stores), ch = diff.filter(function(r){ return r.changed; });
     if (!ch.length){ status('Profile matches what is here — nothing to change.', 8000); return { ok: true, wrote: 0 }; }
     var lines = ch.map(function(r){ return '• ' + r.group + ' · ' + r.store.replace(/^d2r_/, '') + ': ' + r.now + ' → ' + r.file; }).join('\n');
+    var chronCh = ch.filter(function(r){ return r.group === 'chronicle'; }).length;   /* REG-2763 */
     var msg = (opts.lead ? String(opts.lead) : 'Load this profile' + (P.saved ? ' (saved ' + P.saved.slice(0, 16).replace('T', ' ') + ')' : ''))
-      + '? It replaces ' + ch.length + ' store(s) — the chronicle is not touched:\n' + lines;
+      + '? It replaces ' + ch.length + ' store(s)'
+      + (chronCh ? ' — ' + chronCh + ' of them your CHRONICLE (finds, set pieces, runewords), which this PC\'s own record is replaced by'
+                 : ' — the chronicle is not touched') + ':\n' + lines;
     var yes = (typeof opts.confirm === 'function') ? await opts.confirm(msg) : await uiConfirm(msg, { cancelFirst: true, title: '⚠ Danger — Load profile' });
     if (!yes){ status('Profile not loaded — cancelled. Nothing was changed.'); return { ok: false, why: 'cancelled' }; }
     var before = {}; ch.forEach(function(r){ try { before[r.store] = window.LSR.getItem(r.store); } catch (e) { before[r.store] = null; } });
@@ -51061,7 +51087,7 @@ window.vaultAutoAssign = function(){
       var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
       a.download = 'd2r-vault-profile-' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(a); a.click(); setTimeout(function(){ try { URL.revokeObjectURL(a.href); a.remove(); } catch (e) {} }, 0);
-      status('Profile saved — vault, stashes and characters in one file (the chronicle has its own backup).', 8000);
+      status('Profile saved — vault, stashes, characters and the chronicle in one file.', 8000);   /* REG-2763 */
     } catch (e) { status('⚠ The download is not available here.'); }
     return txt;
   };
@@ -51083,7 +51109,8 @@ window.vaultAutoAssign = function(){
   window._vaultUndo = null;
   /* -> the snapshot text, or null when a store could not be read (then there is no undo, and the caller says so) */
   window._vaultUndoSnap = function(){
-    try { var t = window._vaultProfileBuild(); return (typeof t === 'string' && t) ? t : null; } catch (e) { return null; }
+    /* REG-2763 - the chronicle rides a saved profile, never an undo: undoing a vault change must not take back a find */
+    try { var t = window._vaultProfileBuild({ chronicle: false }); return (typeof t === 'string' && t) ? t : null; } catch (e) { return null; }
   };
   /* -> true when this change can be undone; `text` from _vaultUndoSnap (taken before), or taken now */
   window._vaultUndoTake = function(what, note, text){

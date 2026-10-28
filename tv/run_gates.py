@@ -12189,6 +12189,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_war_item_on_a_war_mule_says_why_it_waits.py")], 300,
          needs_app=False,
          why='#148.1 REG-2761: a war item filed on a WAR mule says why its task goes to the shared stash'),
+    Gate("test_a_profile_carries_what_its_vault_reads",
+         [sys.executable, os.path.join(HERE, "test_a_profile_carries_what_its_vault_reads.py")], 300,
+         needs_app=False,
+         why='REG-2763: a profile carries the chronicle its own vault reads, and an undo never does'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

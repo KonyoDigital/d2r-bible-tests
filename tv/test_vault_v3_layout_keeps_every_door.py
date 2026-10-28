@@ -191,7 +191,9 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         self.assertTrue(o["r"]["ok"], o)
         self.assertEqual(o["diff"], [], "a save→load did not put the stores back byte-identical: %r" % o)
         self.assertEqual(json.loads(o["ring"]), {"Fixture Ring": "m1"})
-        self.assertFalse(o["hasChron"], "the profile file carries the chronicle, which has its own backups")
+        # REG-2763 (his ruling 2026-10-28: "profiles should carry them") - the vault view reads the chronicle ledgers, so
+        # a profile without them could not rebuild its own vault (GrokBot #230 6467035373)
+        self.assertTrue(o["hasChron"], "the profile file leaves out the chronicle the vault view reads")
 
     def test_a_corrupt_or_foreign_file_is_refused_and_writes_nothing(self):
         board().seed({"d2r_muleAssign": {"Fixture Ring": "m1"}, "d2r_runeStash": {"Ber": 2}})
@@ -202,7 +204,7 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
             "var good = JSON.parse(window._vaultProfileBuild());"
             "var bad = ['{not json', JSON.stringify({kind: 'grail-progress', version: 1, stores: {}}),"
             "  JSON.stringify(Object.assign({}, good, {version: 99})),"
-            "  JSON.stringify(Object.assign({}, good, {stores: Object.assign({}, good.stores, {d2r_foundLog: '{}'})})),"
+            "  JSON.stringify(Object.assign({}, good, {stores: Object.assign({}, good.stores, {d2r_ownerClaim: '{}'})})),"
             "  JSON.stringify(Object.assign({}, good, {stores: Object.assign({}, good.stores, {d2r_muleAssign: '{broken'})}))];"
             "OUT.res = [];"
             "for (var i = 0; i < bad.length; i++){ OUT.res.push(await window.vaultProfileLoad(bad[i], { confirm: function(){ asked++; return true; }, noReload: true })); }"
