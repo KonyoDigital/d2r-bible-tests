@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3826",
+  "ver": "v3827",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3826: one free figure per console, the live card spans its film, a second Fleet click compares, shadow rows open",
+  "note": "v3827: copy readout, war stash first, the prune asks its own disk, profiles carry the chronicle, filler is no look",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

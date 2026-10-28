@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3826** | `(this commit)` | v3826 — one free figure per console, the live card spans its film, a second Fleet click compares, shadow rows open |
+| **v3827** | `(this commit)` | v3827 — copy readout, war stash first, the prune asks its own disk, profiles carry the chronicle, filler is no look |
+| **v3826** | `f992d241` | v3826 — one free figure per console, the live card spans its film, a second Fleet click compares, shadow rows open |
 | **v3825** | `21f161f4` | v3825 — a lock goes stale only through its own guards, the carrier line shows from start, a capture-less reel is UNKNOWN |
 | **v3824** | `b31c35b6` | v3824 — the Fleet opens then compares, film spans its run, stash focus stays, chronicle names carry their age |
 | **v3823** | `fbd5e0e8` | v3823 — purgeable space counts on every disk floor, his old Grok chats prune when needed, a watchdog verdict is not a read |
