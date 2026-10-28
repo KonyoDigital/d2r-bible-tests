@@ -4750,7 +4750,7 @@ window._LP_FORKED = new Set([
      A guard that reads source fails on its own reach before it fails on the code, and the tell was
      there both times: the names were provably present in the parsed blob while absent from the
      parsed names. [[source-reading-guard]] [[d2r-curly-apostrophe-class]] */
-  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_setDupeMigrate_v2227","d2r_owned", "d2r_tvExtraItems", "d2r_copies", /* #76 INC-3b DORMANT - the persisted one-record-per-copy vault store, derived from and forked exactly like d2r_owned / d2r_copies / d2r_muleAssign */ "d2r_vaultRecords", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_setDupeMigrate_v2227","d2r_owned", "d2r_tvExtraItems", "d2r_copies", /* #76 INC-3b DORMANT - the persisted one-record-per-copy vault store, derived from and forked exactly like d2r_owned / d2r_copies / d2r_muleAssign */ "d2r_vaultRecords", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_vaultCharmRuling", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -61102,6 +61102,89 @@ function renderJournal(){
          re-examined on every load forever, and "nothing to do" is a completed migration too. */
       try { window.LSR.setItem(DONE, String(Date.now())); } catch(e){}
     } catch(e){}
+  })();
+  /* REG-2896 (his ruling 2026-10-28 ~20:00-20:10) - THE ONE RE-HOME HIS CHARM RULING ORDERS, AND ONLY ONCE. Charms already
+     filed on MAGIC & RARE (a TV-registered small charm, a skiller) or on UNI-SMALL (Gheed's, a curated charm card - the old
+     "charm/skiller" route) kept that filing and its saved move target after the router stopped sending charms there, so the
+     board drew a charm where his ruling says it does not live. Each one is
+     re-homed by the one charm rule (_charmHome): the SHARED STASH or the CHARMS mule through the vault's own move door
+     (window.vaultFile, move), a large charm the checker throws to the throw-out review, and a large charm it has not judged
+     unfiled into Unsorted, where the router asks the question. Every copy's saved target is planned again on its new home
+     and carries the reason. It is:
+       one-shot  - stamped in d2r_vaultCharmRuling, written LAST, so a pass cut short runs again and finds nothing left;
+       never in a shadow (read only), and never over a store that would not read (the vault hold refuses it, unstamped);
+       logged    - window._vaultCharmRuling and the stamp hold what moved, from where, to where and why; a filing the door
+                   refused (a MAIN lock) is kept where it is and listed as kept.
+     It is the one exception to "a saved target never moves unless he moves it" (REG-2787): his ruling moved it. Every
+     task it re-plans carries that reason, word for word, so a stability check can tell it from a drift. */
+  var CHARM_RULING_DONE = 'd2r_vaultCharmRuling', CHARM_RULING_REASON = 'his 2026-10-28 charm ruling re-homed it';
+  /* the saved targets of these names, planned again on their new home -> the number of copies re-planned */
+  function _vaultCharmReplan(names){
+    window._movePackCache = null; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
+    var bag = _vaultMoveBag();
+    if (bag.unread || !bag.prior || !Array.isArray(bag.prior.records)) return 0;
+    var want = {}, copies = [], list = [];
+    names.forEach(function(n){ want[n] = 1; });
+    bag.prior.records.forEach(function(r){ if (r && want[r.name]) copies.push({ name: r.name, copyIx: r.copyIx || 0, move: r.move || null }); });
+    copies.forEach(function(c){ delete bag.map[c.name + '\u0000' + c.copyIx]; });   /* their old targets are not kept for the new home */
+    copies.forEach(function(c){
+      var st = c.move ? _vaultMoveTask(c.move) : null;
+      /* a copy he already moved onto MAGIC & RARE sits there now: that cell is where this move starts */
+      var there = !!(st && (st.status === 'verified' || st.status === 'moved-manual' || st.status === 'closed') && st.to && st.to.cell);
+      list.push({ name: c.name, copyIx: c.copyIx, task: _vaultMoveTask({
+        name: c.name, from: there ? st.to : (st ? st.from : _vaultMoveFromSight(c.name, c.copyIx)),
+        to: _vaultMovePlanCell(c.name, c.copyIx, bag), status: 'to-move', evidence: st ? st.evidence : [],
+        manual: st ? st.manual : false, reason: CHARM_RULING_REASON }) });
+    });
+    var w = list.length ? _vaultMoveCommit(list) : { ok: true };
+    return (w && w.ok) ? list.length : 0;
+  }
+  /* -> {ran:false, why} | {ran:false, done:true} | {ran:true, moved:[{name, from, to, why}], kept:[{name, why}], tasks} */
+  function _vaultCharmRulingMigrate(){
+    if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
+    var stamp = null;
+    try { stamp = window.LSR.getItem(CHARM_RULING_DONE); } catch (eR) { return { ran: false, why: 'its stamp could not be read' }; }
+    if (stamp) return { ran: false, done: true, why: 'it ran already' };
+    var held = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (held) return { ran: false, why: held.why };
+    if (_muleUnread[AK] || _muleUnread[RK]) return { ran: false, why: 'the mule map or the roster would not read' };
+    var _cm = (typeof CHARM_MULE === 'string' && CHARM_MULE) ? CHARM_MULE : 'charms';
+    if (!muleById(_cm) || !muleById('shared')) return { ran: false, why: 'the CHARMS mule or the shared stash is not on this board' };
+    /* the rule reads the game's affix table: with it unread every rolled charm is UNKNOWN, and a pass then would unfile them all */
+    if (typeof _charmAffixes !== 'function' || !_charmAffixes()) return { ran: false, why: 'the game\u2019s affix table is not on this page yet' };
+    var moved = [], kept = [], unfiled = false;
+    Object.keys(assign).sort().forEach(function(n){
+      /* the two lockers that held charms before the ruling: MAGIC & RARE (rolled charms) and UNI-SMALL (Gheed's, curated cards) */
+      var from = assign[n];
+      if (from !== 'magic-rare' && from !== 'uni-small') return;
+      var ch = null;
+      try { ch = (typeof _charmHome === 'function') ? _charmHome(n) : null; } catch (eC) { ch = null; }
+      if (!ch) return;
+      if (ch.id === from) return;
+      if (ch.id == null){ delete assign[n]; unfiled = true; moved.push({ name: n, from: from, to: null, why: ch.why }); return; }
+      var r = null;
+      try { r = window.vaultFile(n, null, { move: true, mule: ch.id, by: 'his 2026-10-28 charm ruling', unlock: true }); } catch (eF) { r = null; }
+      if (r && r.ok) moved.push({ name: n, from: from, to: ch.id, why: ch.why });
+      else kept.push({ name: n, why: (r && r.why) || 'the vault door refused it' });
+    });
+    if (unfiled) saveA();
+    var tasks = moved.length ? _vaultCharmReplan(moved.map(function(m){ return m.name; })) : 0;
+    var log = { at: new Date().toISOString(), ruling: '2026-10-28 charms', moved: moved, kept: kept, tasks: tasks };
+    window._vaultCharmRuling = log;
+    try {
+      if (moved.length) console.info('[vault] his 2026-10-28 charm ruling re-homed ' + moved.length + ' charm(s): '
+        + moved.map(function(m){ return m.name + ' ' + m.from + ' -> ' + (m.to || 'Unsorted'); }).join(' · '));
+      if (kept.length) console.warn('[vault] ' + kept.length + ' charm(s) stayed where they are: '
+        + kept.map(function(k){ return k.name + ' (' + k.why + ')'; }).join(' · '));
+    } catch (eI) {}
+    try { window.LSR.setItem(CHARM_RULING_DONE, JSON.stringify(log)); } catch (eS) {}
+    return { ran: true, moved: moved, kept: kept, tasks: tasks };
+  }
+  window._vaultCharmRulingMigrate = _vaultCharmRulingMigrate;
+  /* asked once the page has loaded: the affix table (CB_DB) is a later script, and before it every charm is UNKNOWN */
+  (function(){
+    var go = function(){ try { _vaultCharmRulingMigrate(); } catch (eCM) {} };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
   })();
   /* ══ v2200 — THE VAULT HELD 5 ITEMS WHILE THE LEDGER HELD 512 ═══════════════════════════════
      Konyo, looking at an empty Vault Manager: "all the items within the stash and inventory needs

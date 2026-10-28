@@ -436,6 +436,19 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2896 - CHARMS ALREADY FILED ON MAGIC & RARE OR UNI-SMALL ARE RE-HOMED ONCE, BY HIS RULING, AND SAY SO (ACT-4, his ruling 2026-10-28)
+A charm filed before the ruling - on MAGIC & RARE (a TV-registered small charm, a skiller) or on UNI-SMALL (Gheed's, a
+curated charm card from the old "charm/skiller" route) - kept that filing and its saved move target, so the board drew it
+where his ruling says it does not live. window._vaultCharmRulingMigrate, asked once the page has loaded, re-homes each by
+the charm rule (REG-2895) through the vault's own move door: a resist small charm to the SHARED STASH, a skiller and Gheed's
+to CHARMS, an unjudged large charm unfiled into Unsorted where the router asks; a rare jewel and a ring stay. Every copy's
+saved target is planned again on the new home with the reason "his 2026-10-28 charm ruling re-homed it"; what moved is
+logged (window._vaultCharmRuling and the stamp d2r_vaultCharmRuling, forked with the account stores, written last); it never
+runs in a shadow or with the affix table unread. A first cut ran at script time, before CB_DB loaded, and unfiled every
+rolled charm (measured), so it is deferred and guarded. It is the one exception REG-2787's "a saved target never moves
+unless he moves it" must allow: its reason string is the key (agent-144 told; the lead wires the two at integration). Law
+tv/test_the_charm_ruling_rehomes_once.py, 6 red-proofs RED.
+
 ### REG-2895 - A CHARM HAD A DIFFERENT HOME AT EVERY DOOR; HIS 2026-10-28 RULING GIVES IT ONE, AND A NEW CHARMS MULE (ACT-4, his ruling ~20:00-20:40)
 His words, in order: charms live "in shared stash/war stash"; "no gheeds no... MF no... those go to charms mmule dedicated";
 "skillers also to the dedicated charm mule"; "grand charms attack rating and resistance charms and faster hit recovery
