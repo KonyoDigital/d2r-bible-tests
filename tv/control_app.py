@@ -17415,6 +17415,29 @@ def _is_a_live_read(r2):
             and r2.get("lane") not in ("kai", "verify", "intake", "watchdog", "deep-owed", "chronicle"))
 
 
+def _still_ms(name):
+    """A footage still's capture time from its name (f_<ms>.jpg). -> int | None"""
+    try:
+        v = int(str(name)[2:-4])
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def _live_session_start(sess):
+    """REG-2774 - when a recording session began: its id says (s_<start ms>_<n>), else its first captured moment. -> int | None"""
+    sid = next((r.get("sessionId") for r in (sess or []) if r.get("sessionId")), "") or ""
+    parts = str(sid).split("_")
+    if len(parts) >= 3 and parts[0] == "s" and parts[1].isdigit():
+        return int(parts[1])
+    try:
+        import replay as _rp
+        m = _rp.session_moments(sess)
+    except Exception:
+        m = []
+    return min(m) if m else None
+
+
 def _disk_free_bytes(path):
     """#151 (REG-2742) - free space at `path` as macOS counts it for a write that matters: purgeable space included
     (disk_room.free_bytes). Every floor in this file reads it, so the ON AIR floor, the picture size and the health
@@ -46199,6 +46222,12 @@ class Handler(BaseHTTPRequestHandler):
                         try:
                             _lf = sorted(f4 for f4 in os.listdir(HIST_DIR)
                                          if f4.startswith("f_") and f4.endswith(".jpg"))
+                            # REG-2774 (GrokBot's v3826 pass: n=1 read Oct 13 -> now, 1 read, 3440 frames) - the reel
+                            # root also holds ORPHAN stills no reel owns (3442 on his Mac); the live card counts and spans
+                            # only its own: captured on or after its session's start (s_<start ms>_<n>), a minute's grace
+                            _ls0 = _live_session_start(sess)
+                            if _ls0 is not None:
+                                _lf = [f5 for f5 in _lf if _still_ms(f5) is not None and _still_ms(f5) >= _ls0 - 60000]
                             if _lf:
                                 _reeln = len(_lf)
                                 _thumb = _lf[0]

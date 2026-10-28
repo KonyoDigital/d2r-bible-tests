@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2774 - THE LIVE SHELF CARD COUNTED ORPHAN STILLS AS ITS FILM AND DATED ITSELF FROM OCT 13 (GrokBot's v3826 pass)
+GrokBot read the Mac's live Shelf card as "Oct 13 -> now · 1 read · 3440 frames" for a session that began that day. The
+reel root holds loose stills no reel owns (3442 on his Mac, the oldest Oct 13); REG-2766 made the live card count and span
+its loose film, and every one of those orphans was counted and spanned with it. The live branch now keeps only stills
+captured on or after its own session's start (the id's s_<start ms>_<n>, else its first captured moment), with a minute's
+grace for the first frame. tv/test_a_session_is_dated_by_what_it_captured.py plants an orphan still ten days before the
+session; its red-proof (the filter removed) is RED.
+
 ### REG-2768 - A SECOND CLICK ON AN OPEN FLEET ROW COULD ENTER THE SHADOW INSTEAD OF THE COMPARE (#225, GrokBot's v3824 pass)
 REG-2749 made the first click open the row and a click on the open row open the compare. GrokBot SAW both on Dean's row
 and found the ALT's row DIFFERS: opening the row adds its "SEE ... CONSOLE" line, the row grows, and the button sat

@@ -176,6 +176,8 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
         os.makedirs(os.path.join(hist, "reel_" + OLD))          # the OLD reel sealed; NEW is still recording
         for ts in (T_NEW - 30000, T_NEW + 900000):
             open(os.path.join(hist, "f_%d.jpg" % ts), "wb").close()
+        # REG-2774 (GrokBot's v3826 pass) - an ORPHAN still at the root, days before this session began: not its film
+        open(os.path.join(hist, "f_%d.jpg" % (T_OLD - 10 * 86400000)), "wb").close()
         journal = os.path.join(d, "sessions.jsonl")
         with open(journal, "w", encoding="utf-8") as fh:
             for r in _rows():
@@ -192,7 +194,8 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
             if cached is not None:
                 ca._JRNL_CACHE = cached
         new = next(r for r in out if r.get("sessionId") == NEW)
-        self.assertEqual(new.get("footageN"), 2, "PREMISE: the live card did not count its loose stills: %r" % new.get("footageN"))
+        self.assertEqual(new.get("footageN"), 2, "the live card counted an orphan still as its film, or missed its own: %r"
+                         % new.get("footageN"))
         self.assertEqual((new.get("t0"), new.get("t1")), (T_NEW - 30000, T_NEW + 900000),
                          "the live card counts loose film it does not span: %r" % ({k: new.get(k) for k in ("t0", "t1")},))
 
@@ -248,6 +251,11 @@ class ACommitmentIsNotARead(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2774 - the live card counts and spans every loose still at the root, orphans included",
+     "file": "control_app.py",
+     "find": "                            if _ls0 is not None:\n",
+     "replace": "                            if False:\n",
+     "matches": 1},
     {"why": "REG-2766 - the live card counts its loose film and never dates it",
      "file": "control_app.py",
      "find": "                                for _lx in (_lf[0], _lf[-1]):\n",
