@@ -175,8 +175,67 @@ class TheSignsPassPrunesHisGrokChats(unittest.TestCase):
         self.assertIn("the chats in this folder pass 2 GB", rows.get("Grok sessions") or "",
                       "the sign's list says the folder triggers the prune: %r" % rows.get("Grok sessions"))
 
+    def _pass_with_devs(self, grok_dev, hist_dev):
+        """One prune pass with the two folders' volumes stated, capturing what the plan was handed."""
+        ca = self.ca
+        import grok_chat_prune as G
+        got = {}
+        real_stat = os.stat
+        groot, hist = os.path.realpath(G.sessions_root()), os.path.realpath(ca.HIST_DIR)
+
+        def fake_stat(p, *a, **k):
+            rp = os.path.realpath(p) if isinstance(p, str) else p
+            if rp == groot:
+                return type("S", (), {"st_dev": grok_dev})()
+            if rp == hist:
+                return type("S", (), {"st_dev": hist_dev})()
+            return real_stat(p, *a, **k)
+
+        def cap(**k):
+            got.update(k)
+            return {"need": None, "removed": [], "freed": 0, "failed": 0, "total": 0, "after": 0, "say": "x"}
+        before = dict(ca._GROK_PRUNE)
+        try:
+            with mock.patch.object(ca, "_disk_free_bytes", return_value=3 * GB), mock.patch.object(os, "stat", fake_stat):
+                ca._grok_prune_pass(now_ms=9, _run=cap)
+        finally:
+            ca._GROK_PRUNE.clear()
+            ca._GROK_PRUNE.update(before)
+        return got
+
+    def test_the_footage_disk_decides_only_when_the_chats_are_on_it(self):
+        """REG-2762 (the v3823 second eye) - the plan counts a removed chat as room regained on the footage disk."""
+        same = self._pass_with_devs(7, 7)
+        self.assertEqual((same.get("free_bytes"), same.get("disk_note")), (3 * GB, None),
+                         "chats on the footage disk lost the disk's say: %r" % same)
+        other = self._pass_with_devs(7, 8)
+        self.assertIsNone(other.get("free_bytes"), "a short footage disk can delete chats on another disk: %r" % other)
+        self.assertIn("another disk", other.get("disk_note") or "")
+
+    def test_a_disk_that_did_not_decide_is_never_said_to_be_over_its_floor(self):
+        import grok_chat_prune as G
+        d = tempfile.mkdtemp(prefix="grok_nodisk_")
+        try:
+            rec = G.run(root=os.path.join(d, "sessions"), registry=os.path.join(d, "none.json"), free_bytes=None,
+                        floor_bytes=8 * GB, now_s=1.0, remove=lambda p: None, disk_note="the chats are on another disk")
+        finally:
+            import shutil as _sh
+            _sh.rmtree(d, True)
+        self.assertNotIn("over its floor", rec.get("say") or "", "an unread disk was said to be over its floor: %r" % rec)
+        self.assertIn("the chats are on another disk", rec.get("say") or "")
+
 
 RED_PROOF = [
+    {"why": "REG-2762 - a short footage disk deletes chats on another disk",
+     "file": "control_app.py",
+     "find": "            if os.stat(_gcp.sessions_root()).st_dev != os.stat(HIST_DIR).st_dev:\n",
+     "replace": "            if False:\n",
+     "matches": 1},
+    {"why": "REG-2762 - an unread disk is said to be over its floor",
+     "file": "grok_chat_prune.py",
+     "find": "        _disk = (\"and the disk is over its floor\" if isinstance(free_bytes, (int, float)) and not isinstance(free_bytes, bool)\n",
+     "replace": "        _disk = (\"and the disk is over its floor\" if True\n",
+     "matches": 1},
     {"why": "REG-2754 - a pass skipped for his game leaves the prune line as it was",
      "file": "control_app.py",
      "find": "        _GROK_PRUNE.update(say=\"waiting - he is playing, and the Grok chat prune never runs beside the game\")\n",
