@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3833** | `(this commit)` | v3833 — a kept read is owned, X and dismiss undo from the toolbar, a planner edit files once, no sentence names a missing list |
+| **v3834** | `(this commit)` | v3834 — board makes WAR mules and tasks him, integrity never rescues a router throw, circlet needs a look, a cap is a refusal |
+| **v3833** | `625091d0` | v3833 — a kept read is owned, X and dismiss undo from the toolbar, a planner edit files once, no sentence names a missing list |
 | **v3832** | `5e4b41e3` | v3832 — shared stash pages, owner sessions in a shadow, theatre plays the last run, compare drops fixtures, readout coverage |
 | **v3831** | `8738db55` | v3831 — intent line is a finding, refused copy readout served, v1816 law waits, each unique wears its own picture |
 | **v3830** | `159390aa` | v3830 — move popup gone, war mule and card copies at task cells, planner record, one last session, raw OCR, throw row opens |
