@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2778 - A COPY READOUT THE CONSOLE REFUSED LEFT THE OLDER ONE SERVED ALONE (#144.9, the v3827 second eye)
+accept_handed_copy_audit banks a board's own refusal ("could not read its copies"), but a readout the CONSOLE would not
+keep (over 4,000 rows, or a row with no name or locker) only answered the board and was forgotten: GET
+/api/vault/copy_audit went on serving the older readout with its age and no word that a newer one had come and been
+refused. The refusal is now remembered with its time and served beside the readout it did not replace ("refused": why,
+ageS); a readout that is kept clears it, and with nothing banked the why says the only hand-over was refused. Law:
+test_a_copy_readout_says_what_each_side_counts (2 cases, 2 red-proofs). The eye's other two findings on v3827 were
+refuted by measurement: a count never arrives as a float (JSON.stringify(3.0) is "3", read back as an int), and the
+prune law's fake stat answers only the two folders it names, while its free_bytes assertion fails if the pass raises
+first.
+
 ### REG-2777 - A DEFECT PHRASED AFTER "I NEED THE" OR "READING THE" WAS DROPPED AS A PLAN TO READ (the v3827 second eye)
 REG-2770 made a line that only announces what the eye means to read not a finding, and the opener alone decided: "Reading
 the lock-heart shows the span is never closed, so the session stays pinned." matched "reading the " and was dropped, so a

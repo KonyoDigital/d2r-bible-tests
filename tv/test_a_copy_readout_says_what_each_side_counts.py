@@ -100,7 +100,7 @@ class TheConsoleBanksItAsHanded(unittest.TestCase):
 
     def setUp(self):
         self.keep = dict(self.ca._COPY_AUDIT)
-        self.ca._COPY_AUDIT.update(audit=None, receivedAt=None, who=None)
+        self.ca._COPY_AUDIT.update(audit=None, receivedAt=None, who=None, refused=None)
 
     def tearDown(self):
         self.ca._COPY_AUDIT.clear()
@@ -138,6 +138,27 @@ class TheConsoleBanksItAsHanded(unittest.TestCase):
         self.assertFalse(self.ca.accept_handed_copy_audit({"copyAudit": {"ok": True, "rows": [{}] * 4001}}, None)[0])
 
 
+    def test_a_refused_hand_over_is_served_beside_the_readout_it_did_not_replace(self):
+        """REG-2778 (the v3827 second eye) - a refused readout left the older one served alone, as if none came since."""
+        good = {"copyAudit": {"ok": True, "at": 5, "rows": [{"name": "Shako", "mule": "uni-armor", "card": 1, "records": 1,
+                                                               "find": 1, "mismatch": False}]}}
+        self.assertEqual(self.ca.accept_handed_copy_audit(good, None, now_ms=1000), (True, None))
+        saved, why = self.ca.accept_handed_copy_audit({"copyAudit": {"ok": True, "rows": [{}] * 4001}}, None, now_ms=31000)
+        self.assertFalse(saved)
+        p = self.ca.copy_audit_payload(now_ms=61000)
+        self.assertEqual((p["ok"], p["ageS"], p["audit"]["checked"]), (True, 60, 1), "the older readout was dropped: %r" % p)
+        self.assertEqual(((p.get("refused") or {}).get("ageS"), (p.get("refused") or {}).get("why")), (30, why),
+                         "a refused hand-over is not served beside the readout it did not replace: %r" % p)
+        self.assertEqual(self.ca.accept_handed_copy_audit(good, None, now_ms=62000), (True, None))
+        self.assertIsNone(self.ca.copy_audit_payload(now_ms=63000).get("refused"), "a kept readout still carries an old refusal")
+
+    def test_a_refusal_with_nothing_banked_says_it_was_refused(self):
+        self.ca.accept_handed_copy_audit({"copyAudit": {"ok": True, "rows": [{"mule": "x"}]}}, None, now_ms=1000)
+        p = self.ca.copy_audit_payload(now_ms=2000)
+        self.assertFalse(p["ok"])
+        self.assertIn("was refused: a copy readout row has no name", p["why"])
+
+
 class TheWiringIsWhole(unittest.TestCase):
 
     def test_the_board_hands_it_over_and_the_console_serves_it(self):
@@ -153,6 +174,16 @@ class TheWiringIsWhole(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2778 - a readout this console refuses is forgotten, and the older one is served alone",
+     "file": "control_app.py",
+     "find": "        _COPY_AUDIT[\"refused\"] = {\"at\": now, \"why\": why, \"who\": _p}\n",
+     "replace": "        pass\n",
+     "matches": 1},
+    {"why": "REG-2778 - a kept readout still carries the refusal it replaced",
+     "file": "control_app.py",
+     "find": "                       receivedAt=now, who=_p, refused=None)\n    return True, None\n\n\ndef copy_audit_payload(",
+     "replace": "                       receivedAt=now, who=_p)\n    return True, None\n\n\ndef copy_audit_payload(",
+     "matches": 1},
     {"why": "REG-2760 - the readout never flags a split",
      "file": "bible.html",
      "find": "                        mismatch: known.some(function(x){ return x !== known[0]; }) });\n",

@@ -3672,7 +3672,7 @@ PICKER_CENSUS_SLOT = "tors"
 #: #144.9 (REG-2760, his pick 2026-10-28) - the last copy readout a board handed this console, banked as handed. The
 #: vault records live in the board's own storage, so nothing here re-derives a count; it only checks the shape and keeps
 #: when it arrived. Memory only: a console restart forgets it until the board's next hand-over (about a minute).
-_COPY_AUDIT = {"audit": None, "receivedAt": None, "who": None}
+_COPY_AUDIT = {"audit": None, "receivedAt": None, "who": None, "refused": None}
 COPY_AUDIT_MAX_ROWS = 4000
 
 
@@ -3689,19 +3689,25 @@ def accept_handed_copy_audit(body, who=None, now_ms=None):
         return None, None
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)
     _p = who.get("p") if isinstance(who, dict) and isinstance(who.get("p"), str) else None
+
+    def _refuse(why):
+        # REG-2778 (the v3827 second eye) - a readout this console will not keep is remembered with its time, so the GET
+        # says a newer hand-over was refused beside the older readout it still serves, never the older one alone
+        _COPY_AUDIT["refused"] = {"at": now, "why": why, "who": _p}
+        return False, why
     if not isinstance(a, dict):
-        return False, "the copy readout is not an object"
+        return _refuse("the copy readout is not an object")
     rows = a.get("rows")
     if a.get("ok") is not True or not isinstance(rows, list):
         _COPY_AUDIT.update(audit={"ok": False, "why": str(a.get("why") or "the board could not read its copies")[:200]},
-                           receivedAt=now, who=_p)
+                           receivedAt=now, who=_p, refused=None)
         return True, None
     if len(rows) > COPY_AUDIT_MAX_ROWS:
-        return False, "the copy readout has %d rows, over the %d this console keeps" % (len(rows), COPY_AUDIT_MAX_ROWS)
+        return _refuse("the copy readout has %d rows, over the %d this console keeps" % (len(rows), COPY_AUDIT_MAX_ROWS))
     shaped = []
     for r in rows:
         if not isinstance(r, dict) or not isinstance(r.get("name"), str) or not isinstance(r.get("mule"), str):
-            return False, "a copy readout row has no name or no locker"
+            return _refuse("a copy readout row has no name or no locker")
         k = r.get("findKind")
         shaped.append({"name": r["name"][:120], "mule": r["mule"][:64], "card": _ca_count(r.get("card")),
                        "records": _ca_count(r.get("records")), "find": _ca_count(r.get("find")),
@@ -3711,7 +3717,7 @@ def accept_handed_copy_audit(body, who=None, now_ms=None):
                               "dirty": a.get("dirty") if isinstance(a.get("dirty"), bool) else None,
                               "migrateCount": _ca_count(a.get("migrateCount")), "checked": len(shaped),
                               "mismatched": sum(1 for r in shaped if r["mismatch"]), "rows": shaped},
-                       receivedAt=now, who=_p)
+                       receivedAt=now, who=_p, refused=None)
     return True, None
 
 
@@ -3719,12 +3725,15 @@ def copy_audit_payload(now_ms=None):
     """#144.9 (REG-2760) - GET /api/vault/copy_audit: the last readout with its own age, or why there is none. -> dict"""
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)
     a, at = _COPY_AUDIT.get("audit"), _COPY_AUDIT.get("receivedAt")
+    rf = _COPY_AUDIT.get("refused")   # REG-2778 - a newer hand-over this console would not keep, with its own age
+    rf = dict(rf, ageS=max(0, (now - int(rf["at"])) // 1000)) if isinstance(rf, dict) and rf.get("at") is not None else None
     if a is None or at is None:
-        return {"ok": False, "audit": None, "receivedAt": None, "ageS": None,
+        return {"ok": False, "audit": None, "receivedAt": None, "ageS": None, "refused": rf,
                 "why": "no board has handed this console a copy readout since it started - an open board sends one about "
-                       "a minute after it loads, then every 5 min"}
+                       "a minute after it loads, then every 5 min" if rf is None else
+                       "the only copy readout handed over was refused: " + rf["why"]}
     return {"ok": bool(a.get("ok")), "audit": a, "receivedAt": at, "ageS": max(0, (now - int(at)) // 1000),
-            "who": _COPY_AUDIT.get("who"), "why": None if a.get("ok") else a.get("why")}
+            "who": _COPY_AUDIT.get("who"), "refused": rf, "why": None if a.get("ok") else a.get("why")}
 
 
 def accept_handed_picker(body, who):
