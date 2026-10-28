@@ -22,6 +22,21 @@ its loose film, and every one of those orphans was counted and spanned with it. 
 captured on or after its own session's start (the id's s_<start ms>_<n>, else its first captured moment), with a minute's
 grace for the first frame. tv/test_a_session_is_dated_by_what_it_captured.py plants an orphan still ten days before the
 session; its red-proof (the filter removed) is RED.
+### REG-2780 - THE BEFORE | AFTER MOVE POPUP WAS DEAD CODE THAT LAWS KEPT PHOTOGRAPHING AS THE VAULT (#144.14, found landing v3783)
+Elad's 2026-10-20 22:35 ruling ("one grid per task") made a move row expand inline (_vaultTaskExpandHtml) and nothing on
+the page opened the BEFORE | AFTER popup again, but _vaultMoveCompareHtml / Open / Close, the model's whole-container
+before/after lists and one-line say, and the 12 .vault-move-compare / .vmc-* card rules stayed, three of them exported.
+Measured in this tree: no caller in bible.html or tv/control_ui.html; the only users were laws - red-proof [35] of
+test_v3769_vault_move_list sabotaged the popup's own grid, test_vault_l1_a_hand_add_routes_by_type's red-proof [0] drew
+the model's `after` list, and two Chrome laws (v3771 console face, v3769 move list visual) opened the popup to photograph
+"a duplicate beside its original". All removed; _vaultMoveCompareModel stays (the expand reads it), now without
+before/after/say. Re-aimed, same defect each: [35] onto the expand's own grid (node, RED) and its law now also asserts the
+TO grid holds this copy alone; red-proof [0] builds that merged grid inline (Chrome, CI proves it); the two Chrome laws
+expand both copies' rows and read their TO tiles (CI proves them); the hand-add law's "the popup did not open" check is
+retired, because the popup can no longer exist. The .vm-cell.vmc-* cell classes (approx, locked, spare, magicfind) are
+live and untouched. Law: tv/test_a_move_row_expands_inline_and_the_popup_is_gone.py (node, whole page): the doors are
+undefined at runtime and undeclared in the source, the model has no whole-container list, and each hand row expands to
+MANUAL -> its own cell alone, a sighted row to the cell it was seen in. 9 red-proofs, 9 RED.
 
 ### REG-2768 - A SECOND CLICK ON AN OPEN FLEET ROW COULD ENTER THE SHADOW INSTEAD OF THE COMPARE (#225, GrokBot's v3824 pass)
 REG-2749 made the first click open the row and a click on the open row open the compare. GrokBot SAW both on Dean's row

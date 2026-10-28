@@ -11082,19 +11082,6 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vtk-say{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;white-space:normal} /* L1 the full target, wrapped */
 .vtk-done .vtk-say{text-decoration:line-through;color:var(--text-dim)}
 .vtk-donebox summary{cursor:pointer}
-/* L1 before/after compare (Elad ruling 12) */
-.vault-move-compare{position:fixed;inset:0;z-index:99981;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
-.vault-move-compare[hidden]{display:none}
-.vmc-card{background:var(--panel,#15110c);border:1px solid rgba(240,192,96,.45);border-radius:10px;padding:14px 16px;max-width:96vw;max-height:94vh;overflow:auto;color:var(--text,#e8dcc0)}
-.vmc-say{margin:0 0 10px;font-weight:var(--fw-medium);color:var(--gold-bright,#f0c060)}
-.vmc-sides{display:flex;align-items:flex-start;gap:14px}
-.vmc-side{flex:0 0 auto}
-.vmc-h{font-size:var(--fs-micro,11px);letter-spacing:var(--ls-label,.08em);text-transform:uppercase;margin:0 0 6px;min-height:2.6em}
-.vmc-wrap{position:relative;display:inline-block}
-.vmc-ring{position:absolute;box-sizing:border-box;border:3px solid #ffd24a;border-radius:4px;box-shadow:0 0 10px #ffd24a;pointer-events:none}
-.vmc-arrow{align-self:center;font-size:var(--fs-display);color:#ffd24a;padding:0 4px}
-.vmc-manual{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px dashed rgba(240,192,96,.45);border-radius:6px;padding:18px;min-width:180px}
-.vmc-close{margin-top:10px}
 .vmv-grid-h{font-size:var(--fs-micro);letter-spacing:var(--ls-normal);color:var(--text-dim);margin:0 0 4px}
 .vmv-row{display:grid;grid-template-columns:auto minmax(120px,1.2fr) minmax(140px,1fr) minmax(140px,1fr) auto auto auto;gap:8px;align-items:center;padding:6px;margin:0 0 4px;border-radius:10px;background:var(--surface);border:1px solid transparent;cursor:pointer}
 .vmv-row:hover{border-color:rgba(240,192,96,.45);box-shadow:0 0 18px rgba(212,168,71,.12)}
@@ -53077,11 +53064,12 @@ window.vaultAutoAssign = function(){
       return '<div class="vmv-grid"><div class="vmv-grid-h">TO ' + esc(say) + '</div>' + grid + '</div>';
     }).join('');
   }
-  /* L1 (Elad ruling 12) — clicking a move row opens BEFORE | AFTER. Both sides are gridHtml (the mule window's own grid,
-     real item art in real cells) at the same cell size, the same ring colour on the from- and to-cell, one arrow and one
-     instruction line. BEFORE of a hand-typed row has no cell yet, so it shows the MANUAL badge; once a frame saw the item it
-     is that holder's container with the item where it sits. AFTER is the organized vault order: every saved target in that
-     container. Reads only saved state (_vaultMoveBag, _vaultRecords) and writes nothing. */
+  /* L1 (Elad ruling 12, then 2026-10-20 22:35 "one grid per task") — what a move row's inline expand
+     (_vaultTaskExpandHtml) draws: the task, its FROM cell (null on a hand-typed row: MANUAL) and its TO cell as
+     {loc, x, y}, the grid each sits in, the item's footprint and the words for each side. Reads only saved state
+     (_vaultMoveBag) and writes nothing. #144.14 (REG-2780) - the BEFORE | AFTER popup this first fed (the whole-container
+     before/after lists, its Html/Open/Close and its .vmc-* card rules) had no caller once the inline expand replaced it,
+     and three of its red-proofs had already been retired as false coverage; it is gone. */
   function _vaultMoveCompareModel(name, copyIx){
     copyIx = copyIx || 0;
     var bag = _vaultMoveBag();
@@ -53090,53 +53078,10 @@ window.vaultAutoAssign = function(){
     function dims(loc){ return [10, (loc === 'inventory' || loc === 'inv') ? 4 : 10]; }
     function sz(n){ var s0 = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1]; return [s0[0] || 1, s0[1] || 1]; }
     var to = xy(t.to && t.to.cell), from = xy(t.from && t.from.cell);
-    var after = [];
-    Object.keys(bag.map || {}).forEach(function(k){
-      var mv = bag.map[k], c = xy(mv && mv.to && mv.to.cell);
-      if (!c || !to || String(mv.to.holder || '') !== String(t.to.holder || '') || c.loc !== to.loc) return;
-      var n = k.split('\u0000')[0], s1 = sz(n);
-      after.push({ n: n, key: k.replace('\u0000', '#'), x: c.x, y: c.y, w: s1[0], h: s1[1] });
-    });
-    var before = [];
-    if (from) {
-      var recs = [];
-      try { recs = (_vaultRecords().records || []); } catch (eR) { recs = []; }
-      recs.forEach(function(r){
-        var sc = r && r.sight && xy(r.sight.cell);
-        if (!sc || sc.loc !== from.loc || String(r.sight.holder || '') !== String(t.from.holder || '')) return;
-        if (r.name === name && (r.copyIx || 0) === copyIx) return;
-        var s2 = sz(r.name); before.push({ n: r.name, key: r.name + '#' + (r.copyIx || 0), x: sc.x, y: sc.y, w: s2[0], h: s2[1] });
-      });
-      var s3 = sz(name); before.push({ n: name, key: name + '#' + copyIx, x: from.x, y: from.y, w: s3[0], h: s3[1] });
-    }
     var fromSay = from ? (String(t.from.holder || 'not seen yet') + ' ' + (_vaultMoveStashSay(t.from.location) || from.loc) + ' (' + (from.x + 1) + ',' + (from.y + 1) + ')') : 'MANUAL';
     var toSay = to ? (String(t.to.holder || 'not seen yet') + ' ' + (_vaultMoveStashSay(t.to.location) || to.loc) + ' (' + (to.x + 1) + ',' + (to.y + 1) + ')') : 'not placed yet';
-    return { name: name, copyIx: copyIx, task: t, manual: !from, from: from, to: to, before: before, after: after,
-             fromSay: fromSay, toSay: toSay, size: sz(name), dims: { from: from ? dims(from.loc) : null, to: to ? dims(to.loc) : null },
-             say: 'Move ' + name + ' from ' + fromSay + ' to ' + toSay };
-  }
-  function _vaultMoveCompareHtml(name, copyIx){
-    var m = _vaultMoveCompareModel(name, copyIx), cell = 36;
-    function ring(c){
-      return '<div class="vmc-ring" data-ring="' + c.x + ',' + c.y + '" style="left:' + (3 + c.x * (cell + 2)) + 'px;top:' + (3 + c.y * (cell + 2)) + 'px;width:'
-        + (m.size[0] * cell + (m.size[0] - 1) * 2) + 'px;height:' + (m.size[1] * cell + (m.size[1] - 1) * 2) + 'px"></div>';
-    }
-    function grid(placed, d, label, c){
-      var g = (typeof gridHtml === 'function') ? gridHtml(placed, d[0], d[1], cell, { area: 'move-' + label.toLowerCase(), page: 0, label: label }) : ''; /* L1 compare grid */
-      return '<div class="vmc-wrap">' + g + (c ? ring(c) : '') + '</div>';
-    }
-    var left = m.manual
-      ? '<div class="vmc-manual"><span class="vmv-art">' + (typeof art === 'function' ? art(m.name) : '') + '</span><b class="vmv-manual-badge">MANUAL</b><span>added by hand — no cell seen yet</span></div>'
-      : grid(m.before, m.dims.from, 'Before', m.from);
-    var right = m.to ? grid(m.after, m.dims.to, 'After', m.to) : '<div class="vmc-manual"><span>' + ((m.task && m.task.kind === 'throw') ? 'NOWHERE: throw it out' : 'no target cell yet') + '</span></div>';
-    return '<div class="vmc-card" role="dialog" aria-label="' + esc(m.say) + '" data-name="' + esc(m.name) + '" data-copy="' + m.copyIx + '">'
-      + '<p class="vmc-say">' + esc(m.say) + '</p>'
-      + '<div class="vmc-sides">'
-      + '<div class="vmc-side vmc-before" data-manual="' + (m.manual ? 1 : 0) + '"><div class="vmc-h">BEFORE · ' + esc(m.fromSay) + '</div>' + left + '</div>'
-      + '<div class="vmc-arrow" aria-hidden="true">→</div>'
-      + '<div class="vmc-side vmc-after"><div class="vmc-h">AFTER · ' + esc(m.toSay) + '</div>' + right + '</div>'
-      + '</div>'
-      + '<button type="button" class="vault-btn vmc-close" onclick="window._vaultMoveCompareClose()">close</button></div>';
+    return { name: name, copyIx: copyIx, task: t, manual: !from, from: from, to: to,
+             fromSay: fromSay, toSay: toSay, size: sz(name), dims: { from: from ? dims(from.loc) : null, to: to ? dims(to.loc) : null } };
   }
   /* L1 (Elad 2026-10-20 22:35) — EVERY MOVE TASK IS ITS OWN COLLAPSED ROW. A click opens that row only, under it:
      FROM = MANUAL (typed by hand), else the source cell the screenshot saw, else a DEMO grid that says it is simulated;
@@ -53168,24 +53113,10 @@ window.vaultAutoAssign = function(){
     return x;
   }
   try { window._vaultTaskExpand = _vaultTaskExpand; window._vaultTaskExpandHtml = _vaultTaskExpandHtml; } catch (eTx) {}
-  function _vaultMoveCompareOpen(name, copyIx){
-    var host = document.getElementById('vault-move-compare');
-    if (!host){
-      host = document.createElement('div'); host.id = 'vault-move-compare'; host.className = 'vault-move-compare';
-      document.body.appendChild(host);
-      host.addEventListener('click', function(e){ if (e.target === host) _vaultMoveCompareClose(); });
-    }
-    host.innerHTML = _vaultMoveCompareHtml(name, copyIx || 0);
-    host.hidden = false;
-    return host;
-  }
-  function _vaultMoveCompareClose(){
-    var host = document.getElementById('vault-move-compare');
-    if (host){ host.hidden = true; host.innerHTML = ''; }
-  }
   /* L1 (Elad 2026-10-20) — MOVE TASKS is a clean numbered checklist in the right-side panel: one line per task
      ("Arcanna's Sign · MANUAL → SETS-REST (3,1)"), Moves first, then Throw-outs, the done ones collapsed at the
-     bottom. Each line has a tick box (his hand, or the reels: gone k/5 shows the drain) and a click opens BEFORE | AFTER. */
+     bottom. Each line has a tick box (his hand, or the reels: gone k/5 shows the drain) and a click expands that line's own
+     FROM -> TO under it (_vaultTaskExpand). */
   function _vaultMoveHtml(built){
     built = built || { tasks: [], groups: [], locks: [] };
     function _vtkPlace(place, manual){
@@ -53570,9 +53501,6 @@ window.vaultAutoAssign = function(){
   try { window._vaultMoveShown = _vaultMoveShown; } catch (eS) {}
   try { window._vaultMoveWorn = _vaultMoveWorn; } catch (eWn) {}
   try { window._vaultMoveCompareModel = _vaultMoveCompareModel; } catch (eCm) {}
-  try { window._vaultMoveCompareHtml = _vaultMoveCompareHtml; } catch (eCh) {}
-  try { window._vaultMoveCompareOpen = _vaultMoveCompareOpen; } catch (eCo) {}
-  try { window._vaultMoveCompareClose = _vaultMoveCompareClose; } catch (eCc) {}
   try { window._vaultMoveGroup = _vaultMoveGroup; } catch (eG) {}
   try { window._vaultMoveHtml = _vaultMoveHtml; } catch (eHtml) {}
   try { window._vaultMovePaint = _vaultMovePaint; } catch (ePaint) {}

@@ -140,7 +140,7 @@ class TheTasksPanel(unittest.TestCase):
     def test_his_tick_moves_a_task_to_done_and_a_click_opens_before_after(self):
         world()
         # The tick re-renders the row into Done, so a click that bubbles on reaches a DETACHED row whose expand never
-        # paints - and #vault-move-compare is the retired popup. Count the row's expand handler instead: a tick that
+        # paints - and the old BEFORE | AFTER popup is removed (#144.14). Count the row's expand handler instead: a tick that
         # reaches it is the bug, whether or not anything shows.
         o = board().run(READ + "var __n = 0, __o = window._vaultTaskExpand;"
                         "window._vaultTaskExpand = function(){ __n++; return __o.apply(this, arguments); };"

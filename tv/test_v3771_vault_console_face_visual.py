@@ -397,17 +397,44 @@ def _png_beside(cdp, path):
     return path
 
 
-_STAMP_AND_CLIP = r"""(function(){
-  try {
-    var host = document.getElementById('vault-move-list');
-    if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Kira's Guardian", 0); /* L1: the target grid lives in BEFORE | AFTER */
-  [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
-      var n = grid.querySelectorAll('.vd-item').length;
-      if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
+# #144.14 (REG-2780) - the BEFORE | AFTER popup is gone (it had no caller once the row expanded inline). Each copy's move
+# row expands under itself with its own TO grid, so "a duplicate beside its original" reads the two copies' TO tiles. A
+# vault paint replaces the list's nodes, so every read opens the rows again in the same evaluation (an open row is left open).
+_KIRA_OPEN = r"""
+  function kiraOpen(){
+    var out = [];
+    [0, 1].forEach(function(ci){
+      var li = document.querySelector('#vault-move-list .vtk-line[data-name="Kira\'s Guardian"][data-copy="' + ci + '"]');
+      if (!li) return;
+      var x = li.nextElementSibling;
+      if (!(x && x.classList.contains('vtk-expand-li')) && typeof window._vaultTaskExpand === 'function') x = window._vaultTaskExpand("Kira's Guardian", ci, li);
+      if (x && x.classList && x.classList.contains('vtk-expand-li')) out.push(x);
     });
-    var el = document.getElementById('v3771-beside');
-    if (!el) return { missing: true, grids: host ? host.querySelectorAll('.vmv-grid').length : 0,
-                      items: host ? host.querySelectorAll('.vd-item').length : 0 };
+    return out;
+  }
+  function kiraTiles(){
+    var tiles = [];
+    kiraOpen().forEach(function(x){
+      [].forEach.call(x.querySelectorAll('.vtx-to .vd-item'), function(el){
+        var img = el.querySelector('img');
+        tiles.push({ n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
+                     y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
+                     src: img ? (img.getAttribute('src') || '') : '' });
+      });
+    });
+    return tiles;
+  }
+"""
+_KIRA_FOLD = "[].forEach.call(document.querySelectorAll('#vault-move-list .vtk-expand-li'), function(x){ var r = x.previousElementSibling; x.remove(); if (r && r.classList) r.classList.remove('vtk-open'); });"
+
+
+_STAMP_AND_CLIP = r"""(function(){
+  try {""" + _KIRA_OPEN + r"""
+    var host = document.getElementById('vault-move-list');
+    var tos = kiraOpen().map(function(x){ return x.querySelector('.vtx-to'); }).filter(Boolean);
+    if (tos.length < 2) return { missing: true, opened: tos.length, rows: host ? host.querySelectorAll('.vtk-line').length : 0,
+                                 items: host ? host.querySelectorAll('.vd-item').length : 0 };
+    var el = tos[0];
     try { el.scrollIntoView({block:'center', inline:'nearest'}); } catch (e) {}
     var node = el.parentElement;
     while (node && node !== document.body) {
@@ -417,12 +444,14 @@ _STAMP_AND_CLIP = r"""(function(){
       }
       node = node.parentElement;
     }
-    var r = el.getBoundingClientRect();
-    var x = r.left + (window.scrollX || window.pageXOffset || 0);
-    var y = r.top + (window.scrollY || window.pageYOffset || 0);
+    var r0 = tos[0].getBoundingClientRect(), r1 = tos[1].getBoundingClientRect();
+    var left = Math.min(r0.left, r1.left), top0 = Math.min(r0.top, r1.top);
+    var right = Math.max(r0.right, r1.right), bottom = Math.max(r0.bottom, r1.bottom);
+    var x = left + (window.scrollX || window.pageXOffset || 0);
+    var y = top0 + (window.scrollY || window.pageYOffset || 0);
     return { x: Math.max(0, x), y: Math.max(0, y),
-             width: Math.max(1, r.width), height: Math.max(1, Math.min(r.height, 1100)),
-             items: el.querySelectorAll('.vd-item').length };
+             width: Math.max(1, right - left), height: Math.max(1, Math.min(bottom - top0, 1100)),
+             items: tos.reduce(function(a, t){ return a + t.querySelectorAll('.vd-item').length; }, 0) };
   } catch (e) { return { error: String(e && e.stack || e) }; }
 })()"""
 
@@ -438,22 +467,13 @@ _BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c1r1', 's1', 'f-a');
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.renderVault();
-  if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Kira's Guardian", 0); /* L1: the target grid lives in BEFORE | AFTER */
-  [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
-    var n = grid.querySelectorAll('.vd-item').length;
-    if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
-  });
-  var tiles = [].map.call(document.querySelectorAll('#vault-move-compare .vmc-after .vd-item'), function(el){
-    var img = el.querySelector('img');
-    return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
-             y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
-             src: img ? (img.getAttribute('src') || '') : '' };
-  });
-  return { tiles: tiles, tagged: !!document.getElementById('v3771-beside') };
-""")
+  var tiles = kiraTiles(); /* #144.14: each copy's own row expand draws its TO grid */
+  return { tiles: tiles, tagged: kiraOpen().length >= 2 };
+""" + _KIRA_OPEN)
 
-_ART_READY = r"""(function(){
-  var imgs = document.querySelectorAll('#vault-move-compare .vmc-after .vd-item img');
+_ART_READY = r"""(function(){""" + _KIRA_OPEN + r"""
+  var imgs = [];
+  kiraOpen().forEach(function(x){ [].push.apply(imgs, [].slice.call(x.querySelectorAll('.vtx-to .vd-item img'))); });
   if (imgs.length < 2) return false;
   for (var i = 0; i < imgs.length; i++) if (!imgs[i].complete || imgs[i].naturalWidth < 1) return false;
   return true;
@@ -514,7 +534,7 @@ _INTAKE = _wrap(r"""
 
 _COVER_AT = _wrap(r"""
   var mode = %s;
-  if (window._vaultMoveCompareClose) window._vaultMoveCompareClose(); /* L1: the BEFORE | AFTER card an earlier step opened */
+  """ + _KIRA_FOLD + r""" /* #144.14: fold the rows an earlier step expanded */
   var list = document.getElementById('vault-move-list');
   if (!list) return { covered: true, why: 'no list', samples: 0, visible: 0, painted: ['missing'], hits: [] };
   if (mode === 'end') { try { list.scrollIntoView({block:'end', inline:'nearest'}); } catch (e1) {} }
@@ -536,16 +556,14 @@ _REOPEN = _wrap(r"""
   var name = %s;
   var g = document.querySelector('#vault-move-list .vmv-row[data-name="' + name + '"]'); /* L1 v3778 its own row survives reload */
   var tab = document.getElementById('tab-vault');
-  var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
-    return (el.getAttribute('title') || '').split(' (')[0];
-  }).filter(function(n){ return n.indexOf('Kira') >= 0; });
+  var griffon = kiraTiles().map(function(t){ return t.n; }).filter(function(n){ return n.indexOf('Kira') >= 0; }); /* #144.14 */
   var lr = (document.getElementById('vault-move-list') || { getBoundingClientRect: function(){ return {}; } }).getBoundingClientRect();
   return { tab: !!(tab && tab.classList.contains('active')),
            w: lr.width || 0, h: lr.height || 0,
            group: !!(g && g.textContent.indexOf(name) >= 0),
            text: g ? g.textContent : '',
            griffon: griffon };
-""")
+""" + _KIRA_OPEN)
 
 
 if __name__ == "__main__":

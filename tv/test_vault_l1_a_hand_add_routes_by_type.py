@@ -187,7 +187,6 @@ class AHandAddRoutesByType(unittest.TestCase):
                         "var a = document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Nokozan Relic\\\"]'); a.click();"
                         "document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Gheed\\'s Fortune\\\"]').click();"
                         "OUT.n = ex('Nokozan Relic'); OUT.g = ex(\"Gheed's Fortune\"); OUT.open = document.querySelectorAll('#vault-move-list .vtk-expand-li').length;"
-                        "OUT.popup = !!(document.getElementById('vault-move-compare') && !document.getElementById('vault-move-compare').hidden);"
                         "OUT.toN = moveOf('Nokozan Relic')[0].to.cell; OUT.toG = moveOf(\"Gheed's Fortune\")[0].to.cell;"
                         "a.click(); OUT.after = ex('Nokozan Relic'); OUT.gStill = !!ex(\"Gheed's Fortune\");"
                         "window._vaultAutoIntakeSet(true);"
@@ -195,7 +194,8 @@ class AHandAddRoutesByType(unittest.TestCase):
                         "document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Nokozan Relic\\\"]').click(); OUT.seen = ex('Nokozan Relic');"
                         "var d = document.createElement('div'); d.innerHTML = window._vaultTaskExpandHtml('Nokozan Relic', 0); OUT.demoFn = typeof window._vaultTaskExpandHtml;")
         self.assertEqual(o["collapsed"], 0, "a task row starts expanded")
-        self.assertFalse(o["popup"], "a row click opened the merged BEFORE | AFTER popup")
+        # #144.14 (REG-2780): the merged BEFORE | AFTER popup is removed from the page, so "a row click opened it" can no longer
+        # happen here; tv/test_a_move_row_expands_inline_and_the_popup_is_gone.py holds the popup gone and the expand drawn.
         self.assertEqual(o["open"], 2, "two clicked tasks are not two expansions: %r" % o["open"])
         for k, nm, to in (("n", "Nokozan Relic", o["toN"]), ("g", "Gheed", o["toG"])):
             e = o[k]
@@ -378,7 +378,7 @@ class TheEquippedLockIsOneRuleAskedWithoutAWindow(unittest.TestCase):
 RED_PROOF = [
     {"why": "The TO mini grid draws every task bound for that mule again (the merged 'TO SETS-REST' grid).",
      "file": "bible.html", "find": "      var it = [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }];",
-     "replace": "      var it = (label === 'To' ? m.after : [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }]);", "matches": 1},
+     "replace": "      var it = (label === 'To' ? (function(){ var bag = _vaultMoveBag(), all = []; Object.keys(bag.map || {}).forEach(function(k){ var mv = bag.map[k], cm = mv && mv.to && String(mv.to.cell || '').match(/^(\\w+):c(\\d+)r(\\d+)$/); if (cm && String(mv.to.holder || '') === String(m.task.to.holder || '')) all.push({ n: k.split(String.fromCharCode(0))[0], key: k, x: +cm[2], y: +cm[3], w: 1, h: 1 }); }); return all; })() : [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }]);", "matches": 1},
     {"why": "The task is drawn at the mule's first cell, not its exact cell.",
      "file": "bible.html", "find": "      : m.to ? '<div class=\"vtx-to\" data-to=\"' + esc(m.task.to.cell) + '\"><div class=\"vtx-h\">TO · ' + esc(m.toSay) + '</div>' + one(m.to, m.dims.to, 'To', 'task-to') + '</div>'",
      "replace": "      : m.to ? '<div class=\"vtx-to\" data-to=\"' + esc(m.task.to.cell) + '\"><div class=\"vtx-h\">TO · ' + esc(m.toSay) + '</div>' + one({ x: 0, y: 0 }, m.dims.to, 'To', 'task-to') + '</div>'", "matches": 1},

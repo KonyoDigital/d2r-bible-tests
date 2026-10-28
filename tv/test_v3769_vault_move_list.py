@@ -51,7 +51,7 @@ FNS = [
     "_vaultCellOk", "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
     "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveFarmLoot", "_vaultMoveMainLane", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
-    "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml", "_vaultMoveCompareModel", "_vaultMoveCompareHtml",
+    "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml", "_vaultMoveCompareModel", "_vaultTaskExpandHtml",
     "_vaultMoveCollect", "_vaultMovePaint", "_vaultMoveCellMarkHtml", "_vaultFrameMeta",
 ]
 
@@ -459,7 +459,7 @@ see("Griffon's Eye", [
 ], 1);
 var built = _vaultMoveCollect();
 var html = _vaultMoveHtml(built);
-var cmp = _vaultMoveCompareHtml("Griffon's Eye", 0); /* L1: the target grid is drawn in the row's BEFORE | AFTER view */
+var cmp = _vaultTaskExpandHtml("Griffon's Eye", 0); /* L1: the target grid is drawn in the row's own inline expand (#144.14) */
 var panel = window._vaultEvidenceHtml({
   has: true, name: "Griffon's Eye", who: 'hand', line: 'evidence',
   looks: [{ frame: 'a', cell: 'stash:c1r1' }, { frame: 'b', cell: 'stash:c1r1' }]
@@ -471,6 +471,7 @@ console.log(JSON.stringify({
   status: html.indexOf('data-status="to-move"') >= 0,
   grid: GRID_CALLS.length,
   gridKey: GRID_CALLS.length ? GRID_CALLS[0].keys : [],
+  toGrid: GRID_CALLS.filter(function(c){ return c.opt && c.opt.label === 'To'; }).map(function(c){ return c.keys; }),
   door: panel.indexOf('_vaultOpenEvidence') >= 0,
   lockedChip: html.indexOf('LOCKED')
 }));
@@ -480,6 +481,8 @@ console.log(JSON.stringify({
         self.assertTrue(o["art"], o)
         self.assertTrue(o["status"], o)
         self.assertGreaterEqual(o["grid"], 1)
+        # #144.14 (REG-2780) - the row's inline expand draws ONE target grid holding this copy alone
+        self.assertEqual(o["toGrid"], [["Griffon's Eye#0"]], "the row's expand did not draw this copy's own TO grid: %r" % o)
         self.assertTrue(o["door"], o)
 
     def test_a_move_row_opens_from_the_keyboard(self):
@@ -911,8 +914,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The list no longer draws the target grid, so the cell is words without the item's art.",
      "file": "bible.html",
-     "find": "var g = (typeof gridHtml === 'function') ? gridHtml(placed, d[0], d[1], cell, { area: 'move-' + label.toLowerCase(), page: 0, label: label }) : ''; /* L1 compare grid */",
-     "replace": "var g = ''; /* L1 compare grid */",
+     "find": "      return (typeof gridHtml === 'function') ? gridHtml(it, d[0], d[1], cell, { area: area, page: 0, label: label }) : '';",
+     "replace": "      return '';",
      "matches": 1},
     {"why": "The vault render no longer paints the move list.",
      "file": "bible.html",

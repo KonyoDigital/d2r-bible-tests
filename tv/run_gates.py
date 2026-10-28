@@ -12213,6 +12213,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_shadow_reads_the_owners_sessions.py")], 300,
          needs_app=False,
          why="#218 REG-2773: the console reads an owner's published sessions for a shadow, a copy only when the site went unread"),
+    Gate("test_a_move_row_expands_inline_and_the_popup_is_gone",
+         [sys.executable, os.path.join(HERE, "test_a_move_row_expands_inline_and_the_popup_is_gone.py")], 300,
+         needs_app=False,
+         why="#144.14 REG-2780: the dead BEFORE|AFTER popup stays gone and the move row's inline expand draws its own FROM -> TO"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

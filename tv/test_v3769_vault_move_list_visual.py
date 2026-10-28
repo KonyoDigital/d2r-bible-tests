@@ -406,8 +406,8 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         adjacent = (dx == tiles[0]["w"] and dy == 0) or (dy == tiles[0]["h"] and dx == 0)
         self.assertTrue(adjacent, beside)
         _wait_fn(cdp, _ART_READY, timeout=20)
-        self._shot(cdp, "#vault-move-compare .vmc-card", "01-duplicate-beside.png")
-        self._js(cdp, "(function(){ window._vaultMoveCompareClose(); return true; })()")
+        self._shot(cdp, "#vault-move-list", "01-duplicate-beside.png")  # #144.14: the two rows, expanded inline
+        self._js(cdp, "(function(){ " + _KIRA_FOLD + " return true; })()")
 
         wit = self._js(cdp, _STEP_WITNESS % json.dumps(g))
         # L1: the witness button is a small eye count; the full say rides in its title (hover).
@@ -575,8 +575,27 @@ _NAMES = _wrap(r"""
   return { griffon: canon("Kira's Guardian"), eschuta: canon("Eschuta's Temper"), harlequin: canon("Harlequin Crest") };
 """)
 
-_ART_READY = r"""(function(){
-  var imgs = document.querySelectorAll('#vault-move-compare .vmc-after .vd-item img');
+# #144.14 (REG-2780) - the BEFORE | AFTER popup is gone (it had no caller once the row expanded inline). Each copy's move
+# row expands under itself with its own TO grid, so "a duplicate beside its original" reads the two copies' TO tiles. A
+# vault paint replaces the list's nodes, so every read opens the rows again in the same evaluation (an open row is left open).
+_KIRA_OPEN = r"""
+  function kiraOpen(){
+    var out = [];
+    [0, 1].forEach(function(ci){
+      var li = document.querySelector('#vault-move-list .vtk-line[data-name="Kira\'s Guardian"][data-copy="' + ci + '"]');
+      if (!li) return;
+      var x = li.nextElementSibling;
+      if (!(x && x.classList.contains('vtk-expand-li')) && typeof window._vaultTaskExpand === 'function') x = window._vaultTaskExpand("Kira's Guardian", ci, li);
+      if (x && x.classList && x.classList.contains('vtk-expand-li')) out.push(x);
+    });
+    return out;
+  }
+"""
+_KIRA_FOLD = "[].forEach.call(document.querySelectorAll('#vault-move-list .vtk-expand-li'), function(x){ var r = x.previousElementSibling; x.remove(); if (r && r.classList) r.classList.remove('vtk-open'); });"
+
+_ART_READY = r"""(function(){""" + _KIRA_OPEN + r"""
+  var imgs = [];
+  kiraOpen().forEach(function(x){ [].push.apply(imgs, [].slice.call(x.querySelectorAll('.vtx-to .vd-item img'))); });
   if (imgs.length < 2) return false;
   for (var i = 0; i < imgs.length; i++) if (!imgs[i].complete || imgs[i].naturalWidth < 1) return false;
   return true;
@@ -598,14 +617,17 @@ _STEP_BESIDE = _wrap(r"""
   /* Vault v2 (Elad 2026-10-23): the move list lives in the MOVE TASKS overlay behind the 📦 FAB - open it as he does
      (a FAB press is remembered, so the reload step below lands with it open again) */
   if (typeof window.vaultTasksTog === 'function') window.vaultTasksTog(true);
-  var tiles = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
-    var img = el.querySelector('img');
-    return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
-             y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
-             src: img ? img.getAttribute('src') : '' };
+  var tiles = []; /* #144.14: each copy's own row expand draws its TO grid */
+  kiraOpen().forEach(function(x){
+    [].forEach.call(x.querySelectorAll('.vtx-to .vd-item'), function(el){
+      var img = el.querySelector('img');
+      tiles.push({ n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
+                   y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
+                   src: img ? img.getAttribute('src') : '' });
+    });
   });
   return { tiles: tiles, groups: (window._vaultSightGroups ? window._vaultSightGroups(g) : null) };
-""")
+""" + _KIRA_OPEN)
 
 _STEP_WITNESS = _wrap(r"""
   var g = %s;
