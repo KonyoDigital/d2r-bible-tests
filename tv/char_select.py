@@ -1105,8 +1105,22 @@ def logins(d):
 #: knows whose stash it filmed. The two halves existed apart: logins() named the row highlighted at character select
 #: (#103 step B), the lobby / C-panel reader banked a witness naming the character (#149), and neither said which reel it
 #: was read in for the vault - its sightings carried no holder. This joins them, read-only, over the learner's ledger.
-SESSION_ASK = "open the C panel once"
+#: REG-2910 - THE C PANEL'S PIXEL BAND: None until a filmed C panel measures one (CPANEL_SAY). While it is None no scan
+#: asks the reader about a C panel, so an ask to open it cannot name a session, and the guided ask never names it.
+CPANEL_BAND = None
 SESSION_SAY_NONE = "no character-select, lobby or C-panel read names a character in this session"
+
+
+def session_ask():
+    """#36 (REG-2910) - the screen a guided ask may send him to: one a scan actually reads. -> (ask, why)
+
+    His rule is that a doubt becomes a guided ask, and an ask he follows that cannot work is a promise the board breaks.
+    Character select and the lobby have measured pixel bands and are read on every scan; the C panel is named only once
+    CPANEL_BAND exists."""
+    if CPANEL_BAND:
+        return "open the C panel once", None
+    return ("open character select, or the lobby, once",
+            "the C panel is not asked for: no pixel band finds it yet, so a scan never reads one")
 
 
 def _reel_start(name):
