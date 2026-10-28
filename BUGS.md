@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2709 - "THE ROGUE ENCAMPMENT" RANKED BESIDE "ROGUE ENCAMPMENT" (GrokBot's 02:05 pass on v3816)
+The Shelf's "Where you farm" ranked "Rogue Encampment" (22 runs) and "The Rogue Encampment" (6) as two places - the reader
+writes the area both ways. _hmAggregate folds a leading "The" (a whole word) off the key and names the row without it; an
+area still counts once per run, and a name that merely begins with those letters ("Theater of Blood") is untouched.
+Law: test_an_area_written_with_the_is_one_area (2 red-proofs, each seen RED).
+
 ### REG-2708 - CLICKING "FILTERS" CLOSED THE SHELF (#86, GrokBot's 02:05 pass on v3816, 2 of 2)
 REG-2681 kept the chart, the head and the live strip from closing the Shelf by naming them before the click-outside dismiss,
 so every block NOT on that list - the filter fold's summary, a group header, a stat tile - still read as "outside a card".

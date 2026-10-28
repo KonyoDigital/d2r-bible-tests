@@ -12077,6 +12077,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_only_the_shelf_backdrop_dismisses_it.py")], 300,
          needs_app=False,
          why='REG-2708 - a click on any block inside the Shelf (FILTERS, a group header, a stat tile) keeps it open; only the backdrop dismisses'),
+    Gate("test_an_area_written_with_the_is_one_area",
+         [sys.executable, os.path.join(HERE, "test_an_area_written_with_the_is_one_area.py")], 300,
+         needs_app=False,
+         why="REG-2709 - 'The Rogue Encampment' and 'Rogue Encampment' are one place in Where you farm"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
