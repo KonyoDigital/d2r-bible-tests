@@ -12661,6 +12661,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_killed_push_keeps_what_it_proved.py")], 300,
          needs_app=False,
          why="#150 (REG-2942/2943) - a push killed mid-gate keeps every PROVEN a green CHECKPOINT clean run already bracketed (written to disk then, not at the gate's end), a red checkpoint banks nothing, and a fatal signal writes what was already banked before it exits - never a PROVEN still waiting"),
+    Gate("test_a_removed_item_stays_out_of_every_door",
+         [sys.executable, os.path.join(HERE, "test_a_removed_item_stays_out_of_every_door.py")], 300,
+         needs_app=False,
+         why="REG-2845/2846 (#154, his 'wont these keep coming back?') - after his X or a Wipe, an old or undated read stays out at every door; a newer dated read and his hand come back"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
