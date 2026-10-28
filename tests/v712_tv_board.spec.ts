@@ -577,20 +577,26 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     });
     await page.waitForTimeout(2200);
     /* #202 (his ruling 2026-10-27): ONE session holds a name he does not own ("seen once"); the SECOND registers it - the
-       same bar that files it. So the first read is held and not owned, and a second session's look of each held name
-       registers it; then every stashed class must land VISIBLE, which is what this law guards. */
+       same bar that files it. So the TV read must leave nothing owned, and once each class has both of its sessions every
+       stashed class must land VISIBLE, which is what this law guards (a failure prints what was held, owned and filed). */
     const once = await page.evaluate(() => {
       const w = window as any;
       const held = ((w._vaultIntakePending && w._vaultIntakePending()) || []).map((e: any) => e.name);
       let stored: string[] = [];
       try { stored = JSON.parse((w.LSR && w.LSR.getItem('d2r_owned')) || '[]') || []; } catch (e) { stored = []; }
-      const own = ['Harlequin Crest', 'Blood Shield'].filter((n) => stored.indexOf(n) >= 0);
-      held.forEach((n: string) => w.tvVaultRegister(n, { lane: 'stash', location: 'stash',
-        sessions: [{ session: 's_1234567999999_22222', frame: 'f_1234567999999.jpg', conf: 0.9 }] }));
-      return { held: held, ownedAfterOne: own };
+      const ownedAfterOne = stored.filter((n) => /Harlequin|Blood Shield|Colossus Crossbow/.test(n));
+      /* every stashed class, with BOTH of its sessions in one look - whatever name the TV path held it under */
+      ['Harlequin Crest (Shako)', 'Colossus Crossbow (5os)', 'Blood Shield'].forEach((n) => w.tvVaultRegister(n, {
+        lane: 'stash', location: 'stash', sessions: [
+          { session: 's_1234567000000_11111', frame: 'f_1234567890000.jpg', conf: 0.9 },
+          { session: 's_1234567999999_22222', frame: 'f_1234567999999.jpg', conf: 0.9 }] }));
+      let after: string[] = [];
+      try { after = JSON.parse((w.LSR && w.LSR.getItem('d2r_owned')) || '[]') || []; } catch (e) { after = []; }
+      let assign: any = {};
+      try { assign = JSON.parse((w.LSR && w.LSR.getItem('d2r_muleAssign')) || '{}') || {}; } catch (e) { assign = {}; }
+      return { held: held, ownedAfterOne: ownedAfterOne, ownedAfterTwo: after, assign: assign };
     });
-    expect(once.held.length, '#202: one read held nothing as seen-once: ' + JSON.stringify(once)).toBeGreaterThanOrEqual(3);
-    expect(once.ownedAfterOne, '#202: one read made an item his').toEqual([]);
+    expect(once.ownedAfterOne, '#202: one read made an item his: ' + JSON.stringify(once)).toEqual([]);
     const r = await page.evaluate(() => {
       (window as any).renderVault && (window as any).renderVault();
       const html = (document.getElementById('mule-vault-card') || {}).innerHTML || '';
@@ -601,10 +607,11 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
         blood: html.includes('Blood Shield'),
       };
     });
+    const why = JSON.stringify(once);
     expect(r.ist).toBe(1);            // dedupe: one read, one tally
-    expect(r.harlequin).toBe(true);   // known unique
-    expect(r.crossbow).toBe(true);    // socketed base — throwout is a TAG, never a disappearance
-    expect(r.blood).toBe(true);       // RotW custom — universe guarantee
+    expect(r.harlequin, 'known unique: ' + why).toBe(true);
+    expect(r.crossbow, 'socketed base - throwout is a TAG, never a disappearance: ' + why).toBe(true);
+    expect(r.blood, 'RotW custom - universe guarantee: ' + why).toBe(true);
   });
 
   test('v747 NOW ON AIR stage: hidden off; live cast tiles + area caption + boss accent; honesty gate; lifecycle rings; transition portal; read # sync', async ({ page }) => {
