@@ -27320,8 +27320,11 @@ function escC(s) {
     }
     return '<div class="fleet-open-eyes"><button type="button" class="fleet-hd-eyes" data-roster-owner="' + escC(owner) + '"'
       + ' title="' + escC('open ' + owner + '\u2019s console, read only') + '"'
+      + ' aria-label="' + escC('see ' + owner + '\u2019s console') + '"'
       + ' onclick="event.stopPropagation();window._shadowOpen(this.getAttribute(\'data-roster-owner\'))">'
-      + eyes + '<span>' + escC('see ' + owner + '\u2019s console') + '</span></button></div>';
+      /* REG-2768 (CI on v3826: the open row's centre still landed on it) - the visible word is short, so the button at the
+         line's end never reaches the row's middle on a narrow Fleet; whose console stays in its title and aria-label */
+      + eyes + '<span>see console</span></button></div>';
   };
   window._fleetOpenEyesHtml = _fleetOpenEyesHtml;
   /* the row stays open: remembered by machine, so a fleet refresh redraws it open; a second click does not shut it */

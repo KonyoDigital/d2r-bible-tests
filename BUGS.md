@@ -13,7 +13,8 @@ and found the ALT's row DIFFERS: opening the row adds its "SEE ... CONSOLE" line
 across the row's middle - a second click in the same spot entered the ALT's shadow. The eyes now sit at the line's END,
 so the row's middle stays the row's own click. Law: test_a_roster_name_opens_its_row_with_the_eyes (Chrome, CI and the
 hook): a second click where the first landed, and at the open row's centre, never lands on the eyes; its red-proof
-centres a wide button over the row.
+centres a wide button over the row. CI on v3826 then found the open row's CENTRE still on the right-aligned button (a narrow
+Fleet, a long label): the visible word is now "see console", the owner's name kept in its title and aria-label.
 
 ### REG-2767 - THE SHARED STASH'S PAGE TABS DID NOT ROVE WITH THE ARROW KEYS (#154.19, GrokBot's v3824 pass nit)
 REG-2747 kept the focus on the page tabs after Enter (GrokBot SAW). Its nit: a role=tablist roves with the arrow keys,
