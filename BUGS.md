@@ -55,6 +55,16 @@ The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries
 UI[i:i + 900] after the binding's first line, a guess about how far the block reaches that goes blind the day the block
 grows. It now reads the binding's own block (to its closing `})();`), and the ratchet is back at 44. Found by running
 the ratchet across the chain before the push: v3828-v3831 pass, v3832 introduced it.
+### REG-2813 - THE ROUTER THREW A READ OUT AND VAULT INTEGRITY RESCUED IT, FOR EVER (#158.5, GrokBot on his real frames)
+GrokBot: the auto door threw Blackbog's Sharp out (suggestMule: trade value TRASH, v2200) and VAULT INTEGRITY flagged the
+same read "wrongly thrown - a chronicle unique, Rescue it" with Fix all, so it was rescued and thrown again. Two rules about
+one item: integrity's WRONGLY-THROWN test asked _vaIsGrailUni, which holds every catalogue name, while the router throws
+v2200's trash and v394's low set pieces. MEASURED on the whole page in node: 254 of the 555 catalogue names route to
+throw-out, and with all 254 in the thrown store integrity called all 254 wrongly thrown; Blackbog's Sharp after Fix all was
+owned while the router still threw it. One rule now, _vaultRouterThrows: the auto door's throw-out asks it, and integrity
+never rescues a read it throws (0 of 254); a thrown read the router keeps - a grail unique it would mule, a runeword, a
+keeper - is still rescued. Law: test_the_router_and_integrity_agree_on_a_throw (6 cases on the whole page in node, 3
+red-proofs, each RED).
 
 ### REG-2779 - THE COPY READOUT COULD NOT SAY WHAT IT COVERS ("CHECKED 9" BESIDE "MIGRATECOUNT 26") (#144.9, GrokBot's v3827 pass)
 GrokBot read his Mac's readout: checked 9, mismatched 0, migrateCount 26, and asked why only 9. Read in the code, the two

@@ -44628,6 +44628,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vaStoreLabel(k){ return k==='keep' ? '✓ Kept / Muled' : k==='magic' ? 'Magic & Rare' : k==='throw' ? 'Throw-out' : k; }
   function _vaIsGrailUni(n){ try{ return !!((typeof ITEM_REGISTRY!=='undefined'&&ITEM_REGISTRY[n]) || (window._UNI_EXTRA&&window._UNI_EXTRA[n]) || (window._GRAIL_SEED&&window._GRAIL_SEED[n])); }catch(e){ return false; } }
   function _vaIsRW(n){ try{ return !!(window.findRuneword && window.findRuneword(n)); }catch(e){ return false; } }
+  /* #158.5 (REG-2813, GrokBot on his real frames) - ONE RULE FOR WHAT IS THROWN OUT: THE ROUTER'S. The auto door threw
+     Blackbog's Sharp out (suggestMule: trade value TRASH, v2200), and the WRONGLY-THROWN check below called the same read
+     "a chronicle unique - Rescue it", so Fix all rescued it and the router threw it again. MEASURED on the whole page in node:
+     254 of the 555 catalogue names (uniques, set pieces, keys) route to throw-out - v2200's trash, v394's low set pieces -
+     and every one of them read as wrongly thrown. The router is his ruling (v394, v2200); this check asks it now: a read the
+     router throws is never "wrongly thrown", and a thrown read it would keep (a grail unique, a runeword, a keeper) still
+     is. The auto door's throw-out asks the same function. -> bool */
+  function _vaultRouterThrows(n){ try { var sg = suggestMule(n); return !!(sg && sg.id === '__throwout'); } catch (e) { return false; } }
+  window._vaultRouterThrows = _vaultRouterThrows;
   // v1310 — PROVENANCE: where did this item come from? Uses the tags built since v1281:
   // 🤖 G3 (auto-route sweep, d2r_g3Filled) · 🔬 checked (AI Item Checker verdict, _mfChecker) · ✋ manual.
   function _vaG3Filled(){ try{ var g=JSON.parse(LS.getItem('d2r_g3Filled')||'{}'); return (g&&typeof g==='object')?g:{}; }catch(e){ return {}; } }
@@ -44718,6 +44727,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // 4) WRONGLY-THROWN — a thrown-out read that is actually worth keeping (grail-safety)
     try { unknownReads.forEach(function(n){
       if (inKeep[n]||inMagic[n]) return;   // the dupe finding already covers a thrown item also kept
+      if (_vaultRouterThrows(n)) return;   /* REG-2813 - the router threw it: one rule, never rescued against it */
       var why=null, to=null;
       if (_vaIsGrailUni(n)) { why='a chronicle unique'; }
       else if (_vaIsRW(n)) { why='a forged runeword'; to='runewords'; }
@@ -58368,8 +58378,7 @@ function renderJournal(){
           // v394 — LOW set pieces (Sigon's/Sander's/etc.): mark the SET's grail aggregate ✓ for the codex/
           // tracker, then THROW OUT the physical piece — don't keep or mule it. Konyo: reverse low-set muling.
           try {
-            var _lsm = suggestMule(n);
-            if (_lsm && _lsm.id === '__throwout'){
+            if (window._vaultRouterThrows(n)){   /* REG-2813 - the same rule VAULT INTEGRITY asks, so it never rescues this read */
               try { var _spX = window.findSetPiece && window.findSetPiece(n);
                 if (_spX && window.__setStemOf && typeof ITEMS!=='undefined'){ var _stX = window.__setStemOf((_spX.set && _spX.set.name) || '');
                   var _agX = ITEMS.find(function(i4){ return /\((any piece|set)\)\s*$/i.test(i4.n) && _stX.indexOf(window.__setStemOf(i4.n)) === 0; });

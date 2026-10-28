@@ -12277,6 +12277,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_board_makes_the_war_mule_the_overflow_needs.py")], 300,
          needs_app=False,
          why='REG-2803 his ruling 2026-10-28: the board makes WAR1/WAR2 for the war stash overflow and tasks him to make it in the game'),
+    Gate("test_the_router_and_integrity_agree_on_a_throw",
+         [sys.executable, os.path.join(HERE, "test_the_router_and_integrity_agree_on_a_throw.py")], 300,
+         needs_app=False,
+         why="#158.5 REG-2813: VAULT INTEGRITY never rescues a read the router throws (Blackbog's Sharp loop)"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
