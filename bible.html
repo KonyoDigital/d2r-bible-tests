@@ -3978,8 +3978,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
                 'vaultTasksTog', 'vaultAdvTab',
                 'funiSetFilter', 'fsetsSetFilter', 'forgeSetFilter', 'forgeCraftToggle', 'forgeLegendToggle', '_toolJump',
                 // GrokBot 22:07: TV·D's LIVE / LAST SESSION switch and a Tools card's fold header only move the view too
-                '_tvdHistTab', 'toggleCardCollapse'];
+                '_tvdHistTab', 'toggleCardCollapse',
+                // REG-2758 (GrokBot's v3821 pass: the shadow's move rows do not open) - a task row's from -> to picture
+                '_vaultTaskExpand'];
     window._tvdShadowView = VIEW;
+    // the controls a click or a key can reach: one list, read by the click veil and the key filter alike
+    var CTL = 'button, a, input, textarea, select, label, [onclick], [contenteditable], .vault-chip, [draggable="true"]';
     function viewOnly(el) {
       // the control itself must be a tab or a fold: a button that only sits INSIDE a summary is still a button
       if (el.matches && el.matches('.tab, summary, [data-shadow-view]')) return true;
@@ -3993,7 +3997,7 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       if (!t || !t.closest) return;
       // the control nearest the click decides; a mule plate (opens that mule's window) counts only when no
       // control inside it was hit
-      var ctl = t.closest('button, a, input, textarea, select, label, [onclick], [contenteditable], .vault-chip, [draggable="true"]');
+      var ctl = t.closest(CTL);
       if (!ctl || viewOnly(ctl)) return;
       window._tvdShadowStopped++;
       ev.preventDefault();
@@ -4017,6 +4021,12 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     var NAV = /^(Tab|Shift|Control|Alt|Meta|CapsLock|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|PageUp|PageDown|Home|End|Escape)$/;
     window._tvdShadowKeyOk = function (ev) {
       if (NAV.test(String(ev.key || ''))) return true;
+      // REG-2758 - Enter or Space on the focused control that only moves the view does what a click on it does; on
+      // anything else, or with a modifier, the key stays the board's and is stopped
+      if ((ev.key === 'Enter' || ev.key === ' ') && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        var kt = ev.target, kc = (kt && kt.closest) ? kt.closest(CTL) : null;
+        if (kc && kc === kt && viewOnly(kc)) return true;
+      }
       return !!((ev.ctrlKey || ev.metaKey) && !ev.altKey && /^[cfa]$/i.test(String(ev.key || '')));
     };
     ['keydown', 'keypress', 'keyup'].forEach(function (type) {

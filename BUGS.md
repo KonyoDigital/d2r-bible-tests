@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2758 - IN A SHADOW, A MOVE TASK ROW WOULD NOT OPEN (#218, GrokBot's v3821 pass)
+The shadow's click veil passes only the handlers named in VIEW, and _vaultTaskExpand (a task row's from -> to picture,
+read only) was not there, so the owner's rows opened on his screen and not in the shadow. And the key filter stopped
+Enter and Space everywhere, so a view control could be opened by mouse only. _vaultTaskExpand is in VIEW now, and Enter or
+Space on the focused control itself passes when that control only moves the view; on a write control, or with a
+modifier, the key is still stopped. The click veil and the key filter read one control list. Law:
+test_shadow_mode_reads_their_console (veil + key cases, 3 new red-proofs; one older proof re-aimed at the longer list).
+
 ### REG-2757 - THE LAST SESSION DIGEST SAID NO DATE (#86 nit, GrokBot's v3821 pass)
 The home page's 📼 LAST SESSION line read "session 74 · 1h 12m · 611 reads": which run, from when, it did not say, while
 the Shelf card beside it carries the date. It now leads with the run's own capture date (_lsWhenSay from t0 - the date
