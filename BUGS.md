@@ -207,6 +207,16 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2836 - A SAVED PROFILE DROPPED EVERY RUNEWORD HE BUILT IN THE PLANNER (front-run measure, his 10-28 plan)
+He will save and load the profile as he hand-adds. The planner keeps each runeword he built in d2r_plannerMade (the base he
+chose and its rolls - the cell's picture, footprint and hover read it), and the profile did not carry that store.
+Measured on the whole page in node: 55 hand adds with 9 runewords, saved with window._vaultProfileBuild and written into a
+fresh world the way vaultProfileLoad writes it, then the page reloaded: owned, every record and target cell, every copy and
+every Magic & Rare mod came back identical, and d2r_plannerMade came back with 0 of its 9 records (Grief on his Giant Axe
+came back on the catalogue's base). A plain reload kept all of it. The profile's vault group now carries the store (the
+console's shadow already admits it; it forks per world like d2r_owned). Law: test_a_profile_keeps_the_runeword_he_built
+(node, three worlds: build, load, reload). 1 red-proof, RED.
+
 ### REG-2835 - A MAGIC OR RARE ITEM ADDED FROM THE PLANNER LOST ITS MODS, AND A RARE CIRCLET VANISHED (front-run measure, his 10-28 plan)
 His plan: hand-add 300-500 real items with their exact mods through the Vault's Add an item (the planner). The planner turns
 each picked affix into its line (_vpMods) through window._cbAfText, as the d2jsp desk's gear lines do, and nothing
