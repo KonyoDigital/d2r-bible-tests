@@ -45,7 +45,7 @@ var W = window, ROSTER = %s, NAMES = %s;
 function rowSrc(n){ var m = /src="([^"]+)"/.exec(artOr(n, '', 'sm') || ''); return m ? m[1] : null; }
 function hoverSrc(n){ var r = _arttipResolve(n); return (r && r.artName) ? artUrl(r.artName) : null; }
 OUT.one = {};
-NAMES.concat(['Crescent Moon (amulet)', "Sander's Riprap"]).forEach(function(n){
+NAMES.concat(['Crescent Moon (amulet)', "Sander's Riprap", 'Crescent Moon (sword)']).forEach(function(n){
   OUT.one[n] = { k: W._keeperArt(n), artUrl: artUrl(n), row: rowSrc(n), hover: hoverSrc(n), table: D2IO_ART[n] || null };
 });
 /* the cards: the locker card's cell and the mule card's cell for a filed item */
@@ -80,6 +80,13 @@ ROSTER.forEach(function(n){
 OUT.pair = {};
 ROSTER.forEach(function(n){ OUT.pair[n] = [rowSrc(n), hoverSrc(n)]; });
 OUT.renewed = ['Renewed Cold Rupture', 'Renewed Black Cleft'].map(function(n){ return (_arttipResolve(n) || {}).artName || null; });
+OUT.kinds = {};
+Object.keys(D2IO_ART).forEach(function(k){
+  var t = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[k] : null, c = (typeof ITEM_CODEX !== 'undefined') ? ITEM_CODEX[k] : null;
+  var x = (typeof EXTRA_ITEMS !== 'undefined') ? EXTRA_ITEMS[k] : null;
+  var kind = (t && t.t) || (c && c.rarity) || (x && x.rarity) || null;
+  if (kind) OUT.kinds[k] = [artUrl(k), String(kind).toLowerCase()];
+});
 OUT.errors = H.errors.slice();
 })();
 """ % (json.dumps(ROSTER), json.dumps([NW, LS, GA, EE, BK, CM]), json.dumps(NW), json.dumps(LS), json.dumps(NW))
@@ -133,6 +140,28 @@ class AUniqueWearsItsOwnPictureEverywhere(unittest.TestCase):
         am = self.o["one"]["Crescent Moon (amulet)"]
         self.assertEqual(am["row"], am["hover"], "the unique's own label differs between row and hover: %r" % am)
         self.assertIn("mr_crescentmoon", am["row"] or "", am)
+
+    def test_a_runeword_label_wears_its_base_not_the_amulets_icon(self):
+        """REG-2806 - "Crescent Moon (sword)" is the runeword, and drew the unique amulet's icon (identical bytes)."""
+        self._same_everywhere("Crescent Moon (sword)", "art/hd_crystal_sword.png", "base-sprite")
+        self.assertNotEqual(self.o["one"]["Crescent Moon (amulet)"]["row"], "art/hd_crystal_sword.png")
+
+    def test_no_runeword_label_draws_an_icon_another_kind_of_item_owns(self):
+        """The REG-2806 sweep as a law: group every art key by the BYTES of the picture it draws. A group may hold many
+        uniques of one base family (the game draws them alike), never a runeword beside a unique or set item's icon."""
+        import hashlib
+        digest, groups = {}, {}
+        for k, (url, kind) in self.o["kinds"].items():
+            p = os.path.join(ROOT, (url or "").split("?")[0])
+            if not url or not os.path.exists(p):
+                continue
+            if p not in digest:
+                digest[p] = hashlib.md5(io.open(p, "rb").read()).hexdigest()
+            groups.setdefault(digest[p], []).append((k, kind, url))
+        self.assertGreater(len(groups), 300, "PREMISE: almost no art keys carry a kind: %d" % len(groups))
+        mixed = [g for g in groups.values()
+                 if any(kind == "runeword" for _, kind, _ in g) and any("/mr_" in u and kind != "runeword" for _, kind, u in g)]
+        self.assertEqual(mixed, [], "a runeword label draws the icon of a unique or set item: %r" % mixed[:3])
 
     def test_the_cards_draw_the_same_picture(self):
         self.assertEqual(self.o["card"], {"nw": "art/mr_nightwingsveil.png", "ls": "art/hd_lightsabre.png"},
@@ -221,6 +250,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "/\\/mr_/.test(String(artUrl(nm) || ''))) ? nm : t.base, desc: _sunTipHtml(t)",
      "replace": "artUrl(nm)) ? nm : t.base, desc: _sunTipHtml(t)",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2806 - a runeword label keeps the icon it was registered with (Crescent Moon (sword) draws the amulet)",
+     "file": "bible.html",
+     "find": "      if (!(_rt && _rt.t === 'Runeword') || !/\\([^)]*\\)\\s*$/.test(_rl) || _keeperArt(_rl)) return;\n",
+     "replace": "      if (true) return;\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2805 - D2IO_ART keeps the base, so the console's copy draws another picture than the board",
      "file": "bible.html",

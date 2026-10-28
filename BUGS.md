@@ -72,6 +72,19 @@ the same file slept 1200 ms and then reloaded the same way - it waits on the sig
 and then read d2r_muleAssign / d2r_owned; none has a measured race, and the signal is there for them. Law:
 tv/test_the_vault_repair_runs_once_whatever_the_load_order.py (node, two whole-page loads, store carried, both orders):
 5 red-proofs, 5 RED. The spec change is Chrome-only: CI proves it.
+### REG-2806 - "CRESCENT MOON (SWORD)", THE RUNEWORD, WORE THE UNIQUE AMULET'S ICON ON EVERY SURFACE (#111, the REG-2805 sweep)
+"Crescent Moon (sword)" is the runeword (Shael Um Tir; its tip says Runeword, v1725), and it was registered with
+mr_crescentmoonsword.png, byte-identical to the unique amulet's icon, so its row, hover and the console drew an amulet.
+Swept, measured: every art key grouped by the bytes of its picture gives 15 groups of names that share an icon; 14 are
+uniques of one item type and base family (the ring and amulet sprites, Gull and Wizardspike, Silkweave and Marrowwalk,
+Spellsteel and Ethereal Edge...), which the game draws alike, and the only group mixing kinds of item is this runeword in
+the amulets. It is also the only runeword label that is an art key. The game has no icon of its own for a runeword - it
+is its base item - so a suffixed runeword label now answers _keeperArt with its curated best base (RW_BEST_BASE: Phase
+Blade, hd_crystal_sword.png) as 'base-sprite', and D2IO_ART holds it for the console. Not the Forge's meta base, which
+arrives seconds after the table is built. Law: test_a_unique_wears_its_own_picture_everywhere gains the sword on every
+surface and the sweep as a law (no runeword label draws the bytes of a unique or set item's icon). 1 new red-proof,
+RED, and the sweep case alone goes RED under it; the law's 10 red-proofs are all RED.
+
 ### REG-2805 - A UNIQUE DREW ITS BASE'S PLAIN SPRITE, AND ITS ROW AND HOVER COULD DRAW TWO DIFFERENT ITEMS (#111, his ruling 2026-10-28 (b), reviewers C2/E/D)
 His ruling: each unique shows its own picture, the same on every surface. v406 put every unique and set piece onto its
 base's sprite from the game files, on the note that D2R has no picture of its own for a unique. Measured on the repo's own

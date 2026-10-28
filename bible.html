@@ -36746,6 +36746,22 @@ try {
     var _ka = _keeperArt(_hk);
     if (_ka) D2IO_ART[_hk] = _ka.url;                                                  /* REG-2805 one picture */
   }
+  /* #111 (REG-2806) - A RUNEWORD LABEL WEARS ITS BASE, NEVER ANOTHER ITEM'S ICON. "Crescent Moon (sword)" is the runeword
+     (Shael Um Tir - its tip says Runeword, v1725) and was registered with mr_crescentmoonsword.png, byte-identical to the
+     unique amulet's icon: an amulet on the sword on every surface. Measured, the only one of the 15 groups of names that
+     share an icon's bytes to mix kinds of item - the rest are uniques of one base family, which the game draws alike. The
+     game has no icon of its own for a runeword (it is its base item), so a suffixed runeword label answers this resolver
+     with its curated best base (RW_BEST_BASE, the table the runeword card falls back to) as 'base-sprite'. Not the Forge's
+     meta base: that arrives seconds after this table is built, and the console copies the table. */
+  if (typeof ITEM_TIP !== "undefined" && typeof RW_BEST_BASE !== "undefined")
+    Object.keys(D2IO_ART).forEach(function(_rl){
+      var _rt = ITEM_TIP[_rl];
+      if (!(_rt && _rt.t === 'Runeword') || !/\([^)]*\)\s*$/.test(_rl) || _keeperArt(_rl)) return;
+      var _rwn = (typeof findRuneword === 'function') ? findRuneword(_rl) : null;
+      var _rbu = (_rwn && RW_BEST_BASE[_rwn]) ? artUrl(RW_BEST_BASE[_rwn]) : null;
+      if (!_rbu) return;                    /* no curated base with a picture: UNKNOWN here, the table keeps what it had */
+      _KEEPER_ART.base[_rl] = _rbu; D2IO_ART[_rl] = _rbu;                             /* REG-2806 runeword wears its base */
+    });
 } catch(e){}
 // v408 — runeword tile art: every forged runeword (Enigma, Spirit, Insight…) gets a representative HD
 // sprite of its base type (from RUNEWORD_TIP base category) so the RUNEWORDS-locker chip shows real art
