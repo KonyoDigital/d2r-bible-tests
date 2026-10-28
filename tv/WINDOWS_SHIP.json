@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3829",
+  "ver": "v3830",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3829: owner sessions summarized for a shadow - digest, signed record, change-only publish, console read (REG-2765 2771-2773)",
+  "note": "v3830: move popup gone, war mule and card copies at task cells, planner record, one last session, raw OCR, throw row opens",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
