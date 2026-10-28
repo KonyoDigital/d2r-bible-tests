@@ -7,6 +7,73 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2969 - THREE LAWS STILL CARRIED THE WORLD FROM BEFORE THE CHARMS LOCKER AND THE CAPTURE-TIME MAP (integration, v3837)
+Measured on the v3837 tree (integration steps 1-4 on v3836), each red for a reason in the LAW, not the product:
+test_a_refused_map_write_never_drops_a_filing typed its 11 core lockers by hand, so after REG-2895 made CHARMS a core locker
+its "other tab's" roster lacked one and the board rightly refused it as a store of the wrong shape; the law now reads the
+core ids from the page's own DEFAULT_ROSTER (asserting it read at least 10), so the next core locker cannot do this again.
+test_a_reread_is_the_same_file's shared node harness (also driving test_a_renamed_item_comes_back_as_his_fix) predated
+REG-2890's per-file capture-time map (_capAt / _capOf / window._vaultShotTime) that the cut intake now uses ("_capAt is not
+defined"); it now stubs it the shipped way (no clock is no time). REG-2803's law was the third, re-aimed by agent-144 as
+REG-2888 and picked here. All pass (6, 6, 2, 10); sab bad 0 on each.
+
+
+### REG-2968 - THE WAR STASH LAW SEEDED NAME-ONLY WAR MULES INTO A ROSTER REG-2804 HAD ALREADY STAMPED (CI on ci/claude-v3836, 4 cases)
+test_vault_l1_war_stash_overflow failed 4 cases on CI: overflow landed on WAR2/WAR3 instead of WAR1. The product was right.
+The law's roster_with copied the board's saved roster (its shared entry carrying REG-2804's one-time legacy stamp,
+warRoleV, saved by an earlier case), stripped the WAR mules and appended new ones by NAME only. On reload the migration had
+already run, so those name-only mules were - correctly, by REG-2804's rule - ordinary mules, and the board made its own
+next WAR mule. The law now seeds its war mules as the board stores them (role war, warN in order); names are only labels.
+Chrome law: CI proves it.
+
+
+### REG-2967 - REG-2804'S ONE-TIME WAR-ROLE STAMP MADE ANOTHER TAB'S FIRST ROSTER SAVE A CONFLICT (found by agent-guide's sweep)
+test_another_tabs_write_is_merged_not_clobbered's "a roster first saved in the other tab is taken, not held" went red on the
+v3836 batch (it passed on v3834 and on CI). Bisected by reverting: REG-2804 alone. Its legacy migration set
+`sh.warRoleV = 1` on the in-memory roster on EVERY board, including one that had never saved a roster, and wrote it only when
+a name-made WAR mule changed - so memory differed from the store, and the cross-tab sync read that as an edit this tab made
+and held the other tab's save as "stale". Now a never-saved roster is skipped (the default lockers carry no name-made WAR
+mule), and on a saved roster the stamp is saved with it whether or not a mule changed, so memory equals the store. Law:
++1 case (a saved roster stamped at load still takes the other tab's save) and an assertion that a fresh board saves no
+roster at load; 2 red-proofs, both RED; REG-2804's own laws pass (8, 6, 4, 20 cases).
+
+
+### REG-2937 - THE SPINNER LAW'S SCROLL PROOF WAS BLIND: ITS CASE NEVER SCROLLED THE PANE (the v3832/v3833 push gate)
+The second push attempt was refused on test_the_planner_spinner_stays_under_the_cursor[2] ("the repaint sends the edit pane
+back to the top") staying GREEN with its sabotage in. The arrow-key case opened the planner at a 420 px modal; in the
+hook's Chrome the edit pane did not overflow there, so its scrollTop was 0 before any key and putting it back after a
+repaint changed nothing the case reads. It now opens at the 260 px its sibling case proves makes the pane scroll, leaves
+the pane scrolled (a 12 px nudge when centring the field did not scroll it), and asserts the pane IS scrolled as a premise
+before the first key - so this proof can only stay green if the restore line genuinely holds. Chrome law: proven by the
+push gate.
+
+### REG-2935 - THE WAR STASH LAW'S SET-PIECE PROOF WENT BLIND WHEN REG-2786 GAVE THE SAME RAISE A SECOND HOME (the v3832/v3833 push gate)
+The pre-push red-proof gate refused v3832+v3833: test_vault_l1_war_stash_overflow[3] ("a set piece typed twice stays one
+presence item") stayed GREEN with its sabotage in. The law changed in v3832 (the 5-page shared stash re-aims), so every
+one of its proofs was proven again, and this one had gone blind in v3830 without anyone asking. Read in code: the hand
+door raises the multi-keep target in two places - the set-piece line (L1) and REG-2786's line for any name counted from
+its cells - and for a set piece with no cell sighting _vaultPresenceSpan answers 1, so REG-2786's line raises it too.
+Breaking only the first changed nothing the law can see. The property the law names is that his typed spare is kept, so
+the proof now breaks both raises (one find over the two lines, 1 match). REG-2786's own proofs aim at its line on names
+that are not set pieces, where the L1 line never applies, so they stay honest. The code keeps both lines (each is right on
+its own; the set-piece line is a named special case of the general one). Proven by the push gate (Chrome law).
+### REG-2966 - REG-2796'S LAW HANDED NODE ITS PROGRAM ON ARGV (test_no_law_hands_node_its_program_on_argv, found by agent-86)
+test_the_task_force_repaints_only_when_it_changed.py ran `subprocess.run([NODE, "-e", js])`, the shape the argv law
+refuses everywhere because Linux caps one argv string at 128 KB and the failure reads as an OS error with no word about the
+law. Its program is small today; the rule is about the shape. It now feeds node on stdin (`[NODE, "-"], input=js`), and
+both laws pass (3/3 and 2/2).
+### REG-2888 - REG-2803'S LAW WENT RED ON INT-7: IT COUNTED EVERY MAKE ROW AND THE SHELF'S EVERY BADGE, AND REG-2895'S CHARMS MULE ADDED ONE OF EACH (the v3834 second-eye follow-up, measured on claude/int-7)
+The full-diff Grok second eye on v3834 claimed that deleting a WAR mule records the take-back "in memory" and never writes
+it. MEASURED on the whole page in node, executing the real doors (vaultDeleteMule, his confirm answered yes): the claim
+does not hold. The shared stash's entry is an element of the roster the delete saves in its one write (saveR). The stored
+roster held warDeclined ['WAR1'], and a reload made nothing. No return sits between the decline and the save, and his
+"no" returns before either, so the take-back is written exactly when the delete is. That case is now a guard that runs the
+door (tv/test_a_war_mule_he_took_back_stays_back_by_its_number.py). Running REG-2803's own law on claude/int-7 found it
+RED on int-7's own bible (2 of 10). Since REG-2895 the board also makes the dedicated CHARMS mule and asks him to make it
+in the game. The law counted every make row (2: CHARMS and WAR1) and read the made-by-the-board badge across the whole
+shelf, so WAR1's badge still looked present after his tick. It now counts the WAR mule's own make rows and reads the badge
+on the WAR1 card. 12 of 12 red-proofs still RED.
+
 ### REG-2965 - A MAGIC CHARM PICKED AND LEFT BARE WAS LOST (integration int-4: REG-2839 meets REG-2895)
 
 REG-2839 files a magic planner pick he leaves bare, once, at Done; REG-2895's one charm rule names no home for a charm whose affix it cannot read (a doubt is asked, never guessed). Meeting on one branch, measured on the whole page in node: the planner's route answered "stays unfiled" and its caller dropped the pick's register record and never owned it - a bare magic Small Charm was lost, and REG-2839's law (test_a_magic_pick_files_once_with_its_mods) went red. _vpRoute now owns such a pick and keeps its record when the router's unsorted answer is the charm rule's question, and says so ("is yours and stays unfiled until you say which charm it is"); the caller counts it as kept. No mule is guessed. Same step, a fixture re-aim: test_magic_and_rare_draws_every_item_it_counts (REG-2850/2853) used three charms as Magic & Rare keepers, which his ruling now homes off that locker; they are a magic jewel pair and an amulet, its 5 red-proofs re-proven RED. Law test_a_bare_charm_pick_is_his_and_asked (2 cases), 3 red-proofs RED.
