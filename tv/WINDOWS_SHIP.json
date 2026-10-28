@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3820",
+  "ver": "v3821",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3820: spellings merge into one character, evidence reels are not re-read, the audit child caches, Grok sessions are swept",
+  "note": "v3821: move rows and lockers take the keyboard, shared stash tabs are tab buttons, a session is dated by what it captured",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

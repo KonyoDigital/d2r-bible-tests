@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3820** | `(this commit)` | v3820 — spellings merge into one character, evidence reels are not re-read, the audit child caches, Grok sessions are swept |
+| **v3821** | `(this commit)` | v3821 — move rows and lockers take the keyboard, shared stash tabs are tab buttons, a session is dated by what it captured |
+| **v3820** | `ae883db8` | v3820 — spellings merge into one character, evidence reels are not re-read, the audit child caches, Grok sessions are swept |
 | **v3819** | `5ade9bc9` | v3819 — the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept |
 | **v3818** | `ddf5beaa` | v3818 — a held lock is amber with its catch-up, a refused sweep says why, materials stay out, a copy X says every copy goes |
 | **v3817** | `c5ff5261` | v3817 — two sessions register an item, spelling variants merge, a slow console still opens the shelf, parses move to a child |
