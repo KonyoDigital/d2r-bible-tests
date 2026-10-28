@@ -136,6 +136,39 @@ CAPTURE = r"""function (w, step) {
   }
 }"""
 
+# #218 phase 3b (REG-2810) - the owner's summarized sessions, as GET /api/roster-cache?frames= answers them: one session
+# with a key frame (a real 24 px JPEG, the theatre's thumbnails are 160 px), one with the record's why instead
+THUMB = ("/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQA"
+         "AAABAAAAF6ADAAQAAAABAAAAGAAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmA"
+         "CZjs+EJ+/8AAEQgAGAAXAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQE"
+         "AAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldY"
+         "WVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk"
+         "5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMR"
+         "BAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdo"
+         "aWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz"
+         "9PX29/j5+v/bAEMABAQEBAQEBgQEBgkGBgYJDAkJCQkMDwwMDAwMDxIPDw8PDw8SEhISEhISEhUVFRUVFRkZGRkZHBwcHBwcHBwc"
+         "HP/bAEMBBAUFBwcHDAcHDB0UEBQdHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHf/dAAQA"
+         "Av/aAAwDAQACEQMRAD8A+iPjd4jnstKj0SxlaOS5+aUoxVtgPAyMHk/yr4yg8d67BNbros10krzhCrzvHgZxuXnDDj8O4r0f45a1"
+         "JqOvtKjS+UtxGhMW7cEViPl28nJ/nXjNnL/Y9s41LTLkWSTGZZpjE0ke4/e2KQy8+2aks/SX4b+J28VeFba+nfzLqHMFwfWROCf+"
+         "Bdfxrva+R/gJ4iS01y70N5MwX0InjznG+Pg/mpH5V9Yfa7b/AJ6CqRB//9DsfiH4K8Vabqhe20q4vbRM+VLaI02VPTcFDMGHQ8Yr"
+         "x638A+JlkSUaPrkhVnk2tBMUJf8AhYFMEe2K/SS9/wCPZ/wrNt+lKxVz5L+GfgLxjd+I7bUrvSp9ItLRZMyTjyiS6FdqqcMeTnOM"
+         "V9If8InqH/P2fzNd7H9wU+nYk//Z")
+FRAMES = {"ok": True, "owner": OWNER, "published": True, "t": T0, "ageS": 7200, "ago": "2 hr ago", "source": "worker",
+          "why": None, "sessions": [
+              {"sessionId": "s_fx_1", "t0": T0 - 3600000, "t1": T0, "reads": 12, "names": ["Shako", "<b>x</b>"],
+               "namesMore": 0, "frames": [{"id": "1_%d" % T0, "jpg": THUMB}], "why": None},
+              {"sessionId": "s_fx_2", "t0": T0 - 90000000, "t1": T0 - 89000000, "reads": 3, "names": [], "namesMore": 0,
+               "frames": [], "why": "r_2: this PC has no thumbnail resizer, so no picture rides (a full frame never does)"}]}
+# what the list shows, read from the page: on top of their board, its rows, its pictures decoded, and nothing to write with
+SSV_READ = """(function(){ var o = document.getElementById('shadow-sess-ov'), p = o && o.querySelector('.ssv-panel');
+  if (!o || o.hidden || !p) return null;
+  var r = p.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + 20);
+  var imgs = [].slice.call(o.querySelectorAll('img'));
+  return { text: p.innerText, rows: o.querySelectorAll('.ssv-row').length, onTop: !!(top && o.contains(top)),
+           srcs: imgs.map(function(i){ return String(i.getAttribute('src')).slice(0, 23); }),
+           decoded: imgs.map(function(i){ return i.complete && i.naturalWidth > 0; }),
+           buttons: o.querySelectorAll('button').length, writes: o.querySelectorAll('form, input, textarea, select').length,
+           inBody: o.parentNode === document.body }; })()"""
 OWN = "document.getElementById('tvd-eng').contentWindow"
 SHADOW = "document.getElementById('shadow-eng').contentWindow"
 WORDS = OWNER + " · offline · last upload 2 h ago"
@@ -172,6 +205,8 @@ def _serve(stores, hits, mode):
             p = self.path.split("?")[0]
             if p.startswith("/api/"):
                 self._note("GET")
+                if p == "/api/roster-cache" and "frames=" in self.path:
+                    return self._send(json.dumps(FRAMES), "application/json")
                 if p == "/api/roster-cache" and "profile=" in self.path:
                     return self._send(json.dumps(view), "application/json")
                 if p == "/api/roster-cache":
@@ -389,6 +424,34 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
                    dimmed: del ? w.getComputedStyle(del).opacity : null }; })()""" % SHADOW)
         cls.flags = _ev(cdp, "(function(){var w=%s; return {snap: !!w._tvdShadow, refused: w._tvdShadowRefused, "
                              "cls: w.document.documentElement.className}})()" % SHADOW)
+        # #218 phase 3b (REG-2810) - from TV·D, the bar's 📚 Their sessions (pressed as he presses: pointerdown, then
+        # click), then THE SHELF: each opens the owner's summarized sessions over their board; the press on ✕ closes it.
+        # Inside the storage watch above, so a list that wrote anywhere fails test_the_viewers_own_storage_is_untouched.
+        n1 = len(cls.hits)
+        try:
+            cls.ssv = {}
+            tab("tvd")
+            cls.ssv["pointer"] = _ev(cdp, """(function(){ var b = document.getElementById('shadow-sessions'),
+              r = b.getBoundingClientRect(), at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+              return { w: r.width, h: r.height, hit: !!(at && (at === b || b.contains(at))), text: b.textContent }; })()""")
+            _ev(cdp, """(function(){ var b = document.getElementById('shadow-sessions');
+              b.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 0}));
+              b.dispatchEvent(new MouseEvent('click', {bubbles: true})); return 1; })()""")
+            _wait_fn(cdp, "document.querySelectorAll('#shadow-sess-ov .ssv-row').length === 2", timeout=30)
+            time.sleep(1)
+            cls.ssv["bar"] = _ev(cdp, SSV_READ)
+            _ev(cdp, """(function(){ var x = document.querySelector('#shadow-sess-ov .ssv-x');
+              x.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 0})); return 1; })()""")
+            cls.ssv["closed"] = _ev(cdp, "document.getElementById('shadow-sess-ov').hidden")
+            _ev(cdp, "document.getElementById('btn-shelf').click(); 1")
+            _wait_fn(cdp, "(function(){ var o = document.getElementById('shadow-sess-ov');"
+                          " return !!(o && !o.hidden && o.querySelectorAll('.ssv-row').length === 2); })()", timeout=30)
+            time.sleep(1)
+            cls.ssv["shelf"] = _ev(cdp, SSV_READ)
+            _ev(cdp, "window._shadowSessionsClose(); 1")
+        except Exception as e:
+            cls.ssv = {"error": repr(e)[:800]}
+        cls.ssv_hits = list(cls.hits[n1:])
         time.sleep(5)
         cls.after, cls.sess_after = dump("localStorage"), dump("sessionStorage")
         cls.writes = _ev(cdp, "window._realWrites")
@@ -502,6 +565,34 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         self.assertTrue(c["same"], "the build store changed under a dead Delete")
         self.assertLess(float(c["dimmed"]), 0.5, "a dead control is drawn as live")
         self.assertTrue(c["plate"] and c["opened"], "a mule plate no longer opens its window in shadow: %r" % c)
+
+    def test_their_sessions_open_over_their_board_read_only(self):
+        """#218 phase 3b (REG-2810, his ruling 2026-10-28) - in a shadow, the bar's 📚 Their sessions (reachable from
+        TV·D, where their frame covers THE SHELF) and THE SHELF open the OWNER's summarized sessions on top of their
+        board: whose, the record's age, the rows, the names as text, the one key frame decoded from its JPEG data URI,
+        the why of the session with none - one GET each, nothing to write with, and ✕ closes it."""
+        self.assertNotIn("error", self.ssv, "the sessions list could not be driven: %s" % self.ssv.get("error"))
+        p = self.ssv["pointer"]
+        self.assertTrue(p["w"] > 0 and p["h"] > 0 and p["hit"],
+                        "from TV·D the bar's Their sessions button is hidden or covered: %r" % p)
+        for door in ("bar", "shelf"):
+            got = self.ssv[door]
+            self.assertTrue(got, "%s: the list did not open" % door)
+            self.assertTrue(got["onTop"], "%s: the list is drawn under their board" % door)
+            self.assertTrue(got["inBody"])
+            self.assertEqual(got["rows"], 2, got["text"])
+            for words in (OWNER + "\u2019s sessions", "uploaded 2 hr ago", "Shako · <b>x</b>", "12 reads",
+                          "no pictures - r_2: this PC has no thumbnail resizer"):
+                self.assertIn(words, got["text"], "%s: %r is not on the list" % (door, words))
+            self.assertEqual(got["srcs"], ["data:image/jpeg;base64,"], got["srcs"])
+            self.assertEqual(got["decoded"], [True], "%s: the key frame did not decode as a picture" % door)
+            self.assertEqual((got["buttons"], got["writes"]), (1, 0), "%s: the list carries a control beyond its close"
+                             % door)
+        self.assertTrue(self.ssv["closed"], "the press on the list's close left it open")
+        frames = [h for h in self.ssv_hits if "frames=" in h[1]]
+        self.assertEqual([(h[0], h[1]) for h in frames], [("GET", "/api/roster-cache?frames=" + OWNER)] * 2,
+                         "each door should ask once, with a GET: %r" % frames)
+        self.assertEqual([h for h in self.ssv_hits if h[0] != "GET" and "roster" in h[1]], [])
 
 
 if __name__ == "__main__":

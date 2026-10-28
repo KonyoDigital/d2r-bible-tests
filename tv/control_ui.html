@@ -6068,6 +6068,24 @@
     font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); }
   #shadow-bar[hidden] { display: none !important; }
   #shadow-bar button { margin-left: auto; }
+  /* #218 phase 3b (REG-2810) - the owner's sessions, summarized, over their board: above their frame (945) and this bar (960).
+     A child of <body>, never of the rail, so the shell's pointer-events rule cannot swallow its close. */
+  #shadow-bar #shadow-leave { margin-left: 0; }
+  #shadow-sess-ov { position: fixed; inset: 0; z-index: 975; display: flex; align-items: flex-start; justify-content: center;
+    padding: 64px 16px 16px; box-sizing: border-box; background: rgba(0,0,0,.62); }
+  #shadow-sess-ov[hidden] { display: none !important; }
+  .ssv-panel { position: relative; width: min(760px, 100%); max-height: calc(100vh - 96px); overflow-y: auto; box-sizing: border-box;
+    padding: 14px 16px; border: 1px solid var(--edge); border-radius: 10px; background: #0a0908; color: var(--text, #e8dcc8);
+    font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); overscroll-behavior: contain; }
+  .ssv-x { position: absolute; top: 8px; right: 10px; }
+  .ssv-head { color: var(--gold); padding-right: 40px; }
+  .ssv-ro, .ssv-sub, .ssv-why { color: var(--text-dim, #9a9a9a); }
+  .ssv-sub { margin: 4px 0 10px; }
+  .ssv-unk { color: #e9b96e; margin-top: 8px; overflow-wrap: anywhere; }
+  .ssv-row { padding: 9px 0; border-top: 1px solid var(--edge); }
+  .ssv-names { margin-top: 3px; overflow-wrap: anywhere; }
+  .ssv-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .ssv-img { width: 160px; max-width: calc(33% - 4px); height: auto; border-radius: 4px; border: 1px solid var(--edge); }
   /* Shadow mode: their uploaded console, booted in its own frame on an in-memory store (bible.html SHADOW MODE BOOT). */
   #shadow-eng { position: fixed; left: 0; right: 0; bottom: 0; width: 100vw; border: 0; z-index: 945; background: #070605; }
   body:not(.shell-open) #shadow-eng, body:not(.shadow-snap) #shadow-eng { display: none !important; }
@@ -8891,7 +8909,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
               <div class="fleet-head">ROSTER <span class="roster-note">read only</span></div>
               <div id="roster-body"><div class="roster-none">this PC has not fetched a roster yet</div></div>
             </div>
-            <div id="shadow-bar" hidden><span id="shadow-who">read only</span><button type="button" id="shadow-leave" onclick="window._shadowLeave()">Leave</button></div>
+            <div id="shadow-bar" hidden><span id="shadow-who">read only</span><button type="button" id="shadow-sessions" title="their sessions, summarized: dates, reads, names and a few small key frames - read only">📚 Their sessions</button><button type="button" id="shadow-leave" onclick="window._shadowLeave()">Leave</button></div>
             <div id="fleet-list"><div class="fleet-none">checking who is online…</div></div>
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
@@ -22769,8 +22787,9 @@ window._lockMark = function(isOpen, px, label){
   };
   /* REG-2700 (#86/#218, GrokBot's v3816 pass) - THE SHELF IN A SHADOW SAID NOTHING. In a shadow the owner's board fills the
      shell, and this button opened THIS PC's theatre underneath it: nothing visible, no word, and the wrong PC's reels
-     besides. Their reels stay on their PC (his 2026-10-07 ruling; #218's sessions digest waits on his shadow-gate call), so
-     the door says so instead of failing silently. -> the sentence while any shadow is up, else null */
+     besides. Their reels stay on their PC (his 2026-10-07 ruling), so the door says so instead of failing silently.
+     REG-2810: in a shadow the door now opens their summarized sessions; this sentence speaks only when it cannot (whose
+     console it is not known yet). -> the sentence while any shadow is up, else null */
   function _shelfShadowRefusal(){
     try {
       if (typeof window._consoleShadowUp === 'function' && window._consoleShadowUp())
@@ -22780,9 +22799,117 @@ window._lockMark = function(isOpen, px, label){
     return null;
   }
   window._shelfShadowRefusal = _shelfShadowRefusal;
+  /* #218 phase 3b (REG-2810, his ruling 2026-10-28: "a shadow renders the owner's exact data one to one", with summarized
+     frames) - IN A SHADOW, THE SHELF IS THEIR SESSIONS. Their reels still stay on their PC (8-12 GB each); what travels is
+     the digest their console publishes - its newest 16 sessions, up to 3 of the theatre's own 160 px thumbnails each
+     (REG-2765/2771/2772) - read back by GET /api/roster-cache?frames=<owner> (REG-2773). This draws that answer, read only:
+     whose sessions, the record's age (the server's words, console_snapshot's one age rule), "this PC's last copy" when
+     the site went unread; per session its date and span (dated by what it captured, REG-2736), reads, the names read
+     (escaped), and its pictures - each <img> is built here as data:image/jpeg;base64 over a body the check below admits,
+     so no other scheme can reach src - or the record's own why when it has none. ok:false prints its why as UNKNOWN,
+     never an empty list. Nothing here writes or posts: one GET. -> html */
+  var _SSV_B64 = /^[A-Za-z0-9+\/]+={0,2}$/;
+  function _shadowSessionRow(s){
+    s = (s && typeof s === 'object') ? s : {};
+    var when = _lsWhenSay(s.t0) || 'date UNKNOWN';
+    var span = _runSpanSay(s.t0, s.t1) || 'span UNKNOWN';
+    var reads = (typeof s.reads === 'number' && s.reads >= 0) ? (s.reads + ' read' + (s.reads === 1 ? '' : 's')) : 'reads UNKNOWN';
+    var nm = Array.isArray(s.names) ? s.names.filter(function(x){ return typeof x === 'string' && x; }) : null;
+    var more = (typeof s.namesMore === 'number' && s.namesMore > 0) ? ' +' + s.namesMore + ' more' : '';
+    var names = nm === null ? 'names UNKNOWN' : (nm.length ? nm.map(function(x){ return esc(x); }).join(' · ') + more : 'no name read');
+    var imgs = [], bad = 0;
+    (Array.isArray(s.frames) ? s.frames : []).slice(0, 3).forEach(function(f){
+      var b = (f && typeof f.jpg === 'string') ? f.jpg : '';
+      if (!b || !_SSV_B64.test(b)) { bad++; return; }
+      imgs.push('<img class="ssv-img" alt="a key frame of this session" src="data:image/jpeg;base64,' + b + '">');
+    });
+    var note = '';
+    if (!imgs.length) note = '<div class="ssv-why">no pictures - ' + esc(String(s.why || (bad ? 'its pictures would not draw' : 'why UNKNOWN, the record names none'))) + '</div>';
+    else if (bad) note = '<div class="ssv-why">' + bad + ' of its pictures would not draw</div>';
+    return '<div class="ssv-row"><div class="ssv-t">' + esc(when + ' · ' + span + ' · ' + reads) + '</div>'
+      + '<div class="ssv-names">' + names + '</div>'
+      + (imgs.length ? '<div class="ssv-thumbs">' + imgs.join('') + '</div>' : '') + note + '</div>';
+  }
+  function _shadowSessionsHead(owner){
+    return '<div class="ssv-head"><b>📚 ' + esc(owner || 'this owner') + '\u2019s sessions</b> <span class="ssv-ro">summarized · read only</span></div>';
+  }
+  function _shadowSessionsHtml(d){
+    d = (d && typeof d === 'object') ? d : {};
+    var head = _shadowSessionsHead(typeof d.owner === 'string' ? d.owner : '');
+    if (d.ok !== true)
+      return head + '<div class="ssv-unk">sessions UNKNOWN - ' + esc(String(d.why || 'the console answered without a reason')) + '</div>';
+    var list = Array.isArray(d.sessions) ? d.sessions : null;
+    var sub = esc((typeof d.ago === 'string' && d.ago) ? 'uploaded ' + d.ago : 'upload age UNKNOWN')
+      + (d.source === 'cache' ? ' · this PC\u2019s last copy' + (d.why ? ' - the site could not be read (' + esc(String(d.why)) + ')' : '') : '')
+      + (list ? ' · ' + list.length + ' session' + (list.length === 1 ? '' : 's') : '')
+      + ' · a few small key frames each; their full reels stay on their PC';
+    head += '<div class="ssv-sub">' + sub + '</div>';
+    if (!list) return head + '<div class="ssv-unk">sessions UNKNOWN - the record carried no session list</div>';
+    if (!list.length) return head + '<div class="ssv-none">their record holds no session</div>';
+    return head + '<div class="ssv-list">' + list.map(_shadowSessionRow).join('') + '</div>';
+  }
+  var _ssvGen = 0;
+  function _shadowSessionsClose(){
+    _ssvGen++;
+    var ov = document.getElementById('shadow-sess-ov');
+    if (ov) ov.hidden = true;
+  }
+  /* -> true when the list opened (a shadow is up and its owner is known), else false and nothing is drawn */
+  function _shadowSessionsOpen(){
+    var owner = (typeof window._shadowWho === 'string') ? window._shadowWho : '';
+    if (!owner || !_consoleShadowUp()) return false;
+    var ov = document.getElementById('shadow-sess-ov');
+    if (!ov){
+      ov = document.createElement('div');
+      ov.id = 'shadow-sess-ov';
+      ov.setAttribute('role', 'dialog');
+      ov.setAttribute('aria-modal', 'true');
+      var panel = document.createElement('div');
+      panel.className = 'ssv-panel';
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'ssv-x';
+      x.title = 'close (Esc)';
+      x.textContent = '✕';
+      var body = document.createElement('div');
+      body.className = 'ssv-body';
+      panel.appendChild(x);
+      panel.appendChild(body);
+      ov.appendChild(panel);
+      ov._ssvBody = body;
+      /* the press itself closes: the board frame may hold focus, and this WebKit spends the first click blurring it (#142) */
+      var shut = function(e){
+        if (e.type === 'pointerdown' && (e.ctrlKey || e.button !== 0)) return;   /* a right press or ctrl-click is a menu */
+        if (e.target === ov || e.target === x) { e.preventDefault(); _shadowSessionsClose(); }
+      };
+      ov.addEventListener('pointerdown', shut);
+      ov.addEventListener('click', shut);
+      document.body.appendChild(ov);
+    }
+    try { var f = document.getElementById('shadow-eng'); if (f && f.blur) f.blur(); } catch (eB) {}
+    ov.setAttribute('aria-label', owner + ' sessions, read only');
+    var gen = ++_ssvGen;
+    ov._ssvBody.innerHTML = _shadowSessionsHead(owner) + '<div class="ssv-sub">reading their published sessions\u2026</div>';
+    ov.hidden = false;
+    fetch(API + '/api/roster-cache?frames=' + encodeURIComponent(owner), { cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (gen === _ssvGen) ov._ssvBody.innerHTML = _shadowSessionsHtml(d); })
+      .catch(function(e){
+        if (gen === _ssvGen) ov._ssvBody.innerHTML = _shadowSessionsHtml({ ok: false, owner: owner,
+          why: 'this console did not answer (' + String((e && e.message) || e).slice(0, 80) + ')' });
+      });
+    return true;
+  }
+  window._shadowSessionsOpen = _shadowSessionsOpen;
+  window._shadowSessionsClose = _shadowSessionsClose;
+  document.addEventListener('keydown', function(e){
+    var ov = document.getElementById('shadow-sess-ov');
+    if (e.key === 'Escape' && ov && !ov.hidden) { e.preventDefault(); _shadowSessionsClose(); }
+  });
   var _bshelf = $('btn-shelf');
   if (_bshelf) _bshelf.onclick = async function(){
     var _shR = _shelfShadowRefusal();
+    if (_shR && _shadowSessionsOpen()) return;   /* #218 phase 3b (REG-2810) - in a shadow THE SHELF is their sessions, summarized */
     if (_shR) { try { toast(_shR, 6000); } catch (eT) {} return; }   /* REG-2700 - never this PC's shelf under a shadow */
     /* ⚠⚠ v2446 — THE SWALLOWED SHELF. Konyo: "now the theatre mode/shelf mode is swallowed i
        cant see it rendering when i click on it... but its like swallowed."
@@ -28529,6 +28656,7 @@ function escC(s) {
     /* No upload. The published roster row and the fleet platform open in their own frame.
        This browser's board is never shown, and nothing is posted into it. */
     if (!owner) return;
+    window._shadowWho = owner;   /* REG-2810 */
     if (typeof window._shadowRemember === 'function') window._shadowRemember();
     var gen = ++_shadowGen;
     var was = document.body.classList.contains('shell-open');
@@ -28588,6 +28716,8 @@ function escC(s) {
 
   window._shadowLeave = function () {
     _shadowGen++;
+    window._shadowWho = null;   /* REG-2810 - and their sessions list goes with the shadow */
+    try { if (typeof window._shadowSessionsClose === 'function') window._shadowSessionsClose(); } catch (eSs) {}
     var paintedHub = document.body.getAttribute('data-shadow-hub') === '1';
     document.body.classList.remove('shadow-on', 'shadow-snap', 'shadow-hub');
     document.body.removeAttribute('data-shadow-hub');
@@ -28637,6 +28767,31 @@ function escC(s) {
   /* The board frame holds focus. In this WebKit the first click outside that frame is
      spent blurring it, so Leave's onclick never runs (the header tabs listen on
      pointerdown for the same reason). A right-click or a ctrl-click does not leave. */
+  /* #218 phase 3b (REG-2810) - the bar's pointer to their sessions, on every tab of a shadow (TV·D included: their frame
+     covers THE SHELF in the board rooms). Opens on the press, as Leave does; a click with no press ahead of it (the keyboard)
+     still opens; a press and its click open once. */
+  (function () {
+    var b = document.getElementById('shadow-sessions');
+    if (!b) return;
+    var downAt = 0;
+    function go() {
+      if (typeof window._shadowSessionsOpen === 'function' && window._shadowSessionsOpen()) return;
+      try { window.toast('whose console this is is not known yet - their sessions open once the shadow has opened', 5000); } catch (eT) {}
+    }
+    b.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || e.ctrlKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      downAt = e.timeStamp || 1;
+      go();
+    });
+    b.addEventListener('click', function (e) {
+      e.preventDefault();
+      var pressed = downAt && ((e.timeStamp || 0) - downAt) < 700;
+      downAt = 0;
+      if (!pressed) go();
+    });
+  })();
   (function () {
     var b = document.getElementById('shadow-leave');
     if (!b) return;
@@ -28766,6 +28921,7 @@ function escC(s) {
   };
   window._shadowOpen = function (owner) {
     if (!owner) return;
+    window._shadowWho = owner;   /* #218 phase 3b (REG-2810) - whose sessions the bar and THE SHELF open */
     if (typeof window._shadowRemember === 'function') window._shadowRemember();
     /* Hide this browser's board before the profile answer. A missing upload must not leave the claim bar up while that answer is in flight. */
     document.body.classList.add('shadow-on');

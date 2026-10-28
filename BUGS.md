@@ -156,6 +156,21 @@ icon (Astreon's Iron Ward, Bartuc's Cut-Throat, Death's Fathom, Wisp Projector) 
 an earlier decision). Found and left: "Crescent Moon (sword)" is registered with the amulet's bytes. Law:
 test_a_unique_wears_its_own_picture_everywhere (node, the whole page; every surface and the whole roster). 9 red-proofs,
 all RED. tests/v406_hd_uniques_sets.spec.ts rewritten to the ruling (Chrome, CI proves it).
+### REG-2810 - IN A SHADOW, THE SHELF SHOWED NOTHING OF THE OWNER'S SESSIONS (#218 phase 3b, his ruling 2026-10-28)
+His ruling: a shadow renders the owner's exact data one to one, with summarized frames - a few small key frames per
+session; full reels never leave their PC. REG-2765/2771/2772/2773 publish that digest and read it back on
+GET /api/roster-cache?frames=<owner>, and nothing drew it: in a shadow THE SHELF answered with REG-2700's refusal toast,
+and in the board rooms the owner's frame covered THE SHELF besides (GrokBot's v3817 pass). THE SHELF, and a new
+📚 Their sessions button on the shadow bar (every tab, TV·D included), now open one read-only list over their board:
+whose sessions, the record's age (shadow_sessions.view now carries `ago`, the profile view's one age rule), "this PC's
+last copy" when the site went unread; per session its date and span, reads, the names read (escaped) and up to 3 key
+frames, each an <img> built as data:image/jpeg;base64 over a body that is base64 and nothing else - or the record's own
+why when it has none. ok:false prints its why as UNKNOWN, never an empty list; its one request is a GET; Leave closes it.
+REG-2700's sentence now speaks only when whose console it is is not known yet. Law: test_a_shadow_shelf_shows_the_owners_sessions
+(13 cases: the list's helpers and its opener run in node over a mock DOM and a recording fetch, the age joined from the
+real view; 11 red-proofs, each RED). Chrome case added to test_shadow_mode_draws_their_console (CI proves it): from
+TV·D the bar's button is on top and pressable, both doors open the list above their board, its key frame decodes, the
+list carries no control but its close, each door asks one GET, and the press on ✕ closes it.
 
 ### REG-2782 - A MULE CARD DREW A COPY AWAY FROM THE CELL ITS MOVE TASK SENT IT TO (#144.10, GrokBot's eyes-pass A1)
 GrokBot (seeds 1012/1013/1021, "almost all batches"): "SOCKETED tasks are Monarch c0r0, Phase Blade c4r0, Thresher c5r0,

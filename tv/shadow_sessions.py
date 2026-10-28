@@ -248,6 +248,9 @@ def view(owner, rec, now_ms, source="worker", fetch_why=None):
         return {"ok": False, "owner": owner, "published": None, "sessions": None, "t": None, "ageS": None,
                 "source": None, "why": fetch_why or "no record of %s's sessions could be read" % owner}
     t = rec.get("t")
+    import console_snapshot as _cs
     return {"ok": True, "owner": owner, "published": True, "sessions": rec["digest"]["sessions"], "t": t,
             "ageS": max(0, (int(now_ms) - t) // 1000) if isinstance(t, int) else None, "source": source,
+            # REG-2810 - the record's age in words, by the profile view's one rule; the shadow's list prints it as given
+            "ago": _cs._ago_words(int(now_ms) - t) if isinstance(t, int) else None,
             "why": fetch_why if source == "cache" else None}
