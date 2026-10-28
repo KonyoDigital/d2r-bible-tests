@@ -12313,6 +12313,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_read_carries_when_it_was_captured.py")], 300,
          needs_app=False,
          why='a photo and a live read carry their capture time, never their arrival time (REG-2890, REG-2891)'),
+    Gate("test_a_full_look_outranks_an_older_read",
+         [sys.executable, os.path.join(HERE, "test_a_full_look_outranks_an_older_read.py")], 300,
+         needs_app=False,
+         why='a full look is a contract that stamps its container and drains, and an older read places nothing (REG-2892, REG-2893)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
