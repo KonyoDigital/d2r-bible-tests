@@ -457,7 +457,7 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         self.assertIn("kind: 'inv'", opened)
         self.assertIn("planner: true", opened)
         self.assertIn("fits: function(){ return true; }", opened)
-        self.assertIn("window.vaultPlannerFile(entry, token)", opened)
+        self.assertIn("window.vaultPlannerFile(entry, token, wopts)", opened)   # REG-2841 - the pick passes its ask
         self.assertLess(s.find("  /* ⟦VAULT HAND END⟧ */\n"), s.find("  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n"))
         where = "the Vault planner — your search filed it where a reel of it would go"
         self.assertEqual(s.count(where), 1, "the reel-route witness is missing or was copied into a second door")
