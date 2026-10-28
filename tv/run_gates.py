@@ -12397,6 +12397,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_his_register_answers_before_a_stub_or_the_grammar.py")], 300,
          needs_app=False,
          why="REG-2856: his Magic & Rare register answers before a TV stub and the name's grammar, so one item gets one router answer naming his record's base"),
+    Gate("test_a_rune_or_a_gem_is_named_never_unrecognised",
+         [sys.executable, os.path.join(HERE, "test_a_rune_or_a_gem_is_named_never_unrecognised.py")], 300,
+         needs_app=False,
+         why="REG-2857: a bare rune is the shared stash like '<rune> Rune', a gem says the Gem Stash counts it, and the hand and register doors say so - never 'nothing recognises'"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

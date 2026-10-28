@@ -42972,7 +42972,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // base-NAME prefix: "Rune Sword / Rune Bow / Rune Staff / Rune Scepter" (real socketable runeword bases) and
   // "Rune Master" were wrongly flagged shared-stash (never-muled) by the old bare \brune\b. The (?!\s+[a-z])
   // lookahead drops the match when another word follows, so those bases route to SOCKETED/uni-* as intended.
-  var SHARED_STASH_RE = /\brunes?\b(?!\s+[a-z])|\b(essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
+  /* REG-2857 (router probe, GrokBot's v3829 Vault pass) - A BARE RUNE NAME IS THE SAME ITEM AS "<rune> Rune". "Ber Rune"
+     answered the shared stash (never a mule) while a bare "Ber" reached the router's last line: "nothing on the board
+     recognises this name". The whole name, one of the 33 runes (RUNES - a law holds this list equal to it), now matches
+     here, so the router, the dock, the records and the console doctor (which reads this line) give both one answer. */
+  var SHARED_STASH_RE = /\brunes?\b(?!\s+[a-z])|\b(essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^\s*(?:el|eld|tir|nef|eth|ith|tal|ral|ort|thul|amn|sol|shael|dol|hel|io|lum|ko|fal|lem|pul|um|mal|ist|gul|vex|ohm|lo|sur|ber|jah|cham|zod)\s*$|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
   try { window.isSharedStash = isSharedStash; } catch(e){}   // v425 — expose for the vault audit (null route = shared, not a bug)
   // v409 / REG-2241 — the three iconic charms (Annihilus, Hellfire Torch, Gheed's Fortune; the 6 Sunder
@@ -43814,6 +43818,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        'never a blind default like the weapons mule'. So with no base, no lookup hit, no ITEM_TIP and no curated entry, the
        router answers Unsorted with the reason; every caller files only when muleById(id) resolves, so null leaves it loose
        in the dock. A known base still routes by its words below. */
+    /* REG-2857 (router probe) - A GEM IS RECOGNISED. "Perfect Amethyst" reached the line below and was told nothing on the board
+       recognises it, while GEM_TYPES names all 35 gems and the Gem Stash on the Tools tab counts them. It stays Unsorted -
+       whether a gem is also a vault item is his ruling (#209's note), not made here - and it says what it is. */
+    if (!base && !it && !itip && !_exIsCatalogue){
+      var _gemN = null;
+      try { _gemN = (typeof findGem === 'function') ? findGem(name) : null; } catch (eGem) { _gemN = null; }
+      if (_gemN) return {id:null, unsorted:true, why:'a gem (' + _gemN + ') \u2014 the Gem Stash on the Tools tab counts gems; whether a '
+        + 'gem is also a vault item is not ruled, so no mule is named for it'};
+    }
     if (!base && !it && !itip && !_exIsCatalogue)
       return {id:null, unsorted:true, why:'nothing on the board recognises this name — no catalogue, base table or rolled-name '
         + 'grammar knows it, so no mule is guessed from a word in it: it stays in Unsorted until a reel shows where it lives'};
@@ -46564,6 +46577,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      'm' misc), [1] its type, [20] spawnable (tv/char_builder_db.py). It excludes, so a stub row with only a name stays a
      base. */
   function _vaultHandGear(r){ return r[21] !== 'm' && r[1] !== 'tpot' && r[20] !== 0; }
+  /* REG-2857 (router probe) - A RUNE OR A GEM IS A COUNT ON ITS OWN STASH. "Ber" and "Perfect Amethyst" were refused with the
+     sentence for any name the vault does not draw ("a unique, a set piece, a runeword or a socketed base"), which never
+     says where the thing he holds IS counted. -> {kind:'rune'|'gem', why} | null, from the board's own tables */
+  function _vhStashCount(n){
+    var nm = String(n == null ? '' : n).trim();
+    var ru = (typeof findRune === 'function') ? findRune(nm) : null;
+    if (ru && ru.n) return { kind: 'rune', why: nm + ' is a rune (' + ru.n + ') \u2014 the Rune Stash on the Tools tab counts runes, and a rune lives in the shared stash, never on a mule' };
+    var ge = (typeof findGem === 'function') ? findGem(nm) : null;
+    if (ge) return { kind: 'gem', why: nm + ' is a gem \u2014 the Gem Stash on the Tools tab counts gems; + Add an item adds what the vault draws' };
+    return null;
+  }
   /* #148.2 - the catalogue's spelling of a typed base, its Eth / Ethereal prefix kept as he typed it */
   /* #154.18 (GrokBot's vault sweep) - 'Superior Archon Plate' was refused: only Eth/Ethereal were peeled off before the
      catalogue lookup. Superior is the same kind of word - a quality on a base, named 'Superior <base>' everywhere else on
@@ -46656,6 +46680,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!_vaultKeeps(r.name)) { var _hb = _vaultHandBase(r.name); if (_hb) r = { ok: true, name: _vaultHandBaseName(r.name, _hb) }; }
     try { var _rw = (typeof window.findRuneword === 'function') ? window.findRuneword(r.name) : null;
           if (_rw && String(_rw).toLowerCase() === String(r.name).toLowerCase()) r = { ok: true, name: String(_rw) }; } catch (eRw) {}
+    if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)){   /* REG-2857 a rune or a gem says which stash counts it */
+      var _cnt = null;
+      try { _cnt = _vhStashCount(r.name); } catch (eCnt) { _cnt = null; }
+      if (_cnt) return { ok: false, refused: 'not-drawn', stash: _cnt.kind, name: r.name, why: _cnt.why + ' \u2014 nothing was added' };
+    }
     if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */
       return { ok: false, refused: 'not-drawn', name: r.name,
                why: r.name + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
@@ -48187,7 +48216,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            back {filed:false, why:''} and the ledger row read "no witness ... waits for a second look" about an item
            that arrived with two qualifying looks and a passing gate. A second look can never file it: the reason
            is the route, and the door's own sentence says so. */
-        _vf = { ok: false, refused: 'no-home', why: _vNoHomeWhy(name, sg ? sg.id : null) };
+        /* REG-2857 - an Unsorted route carries the router's own reason (a gem says it is a gem), as vaultFile's refusal
+           does; "nothing in the routing universe named a drawer" was the door's sentence for every such name */
+        _vf = { ok: false, refused: 'no-home', why: (sg && sg.unsorted && typeof sg.why === 'string' && sg.why.trim())
+                ? sg.why.trim() : _vNoHomeWhy(name, sg ? sg.id : null) };
       }
       persistOwned(); saveA();
       try { if (typeof renderVault === 'function') renderVault(); } catch(e){}

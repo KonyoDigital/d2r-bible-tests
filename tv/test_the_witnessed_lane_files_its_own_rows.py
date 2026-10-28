@@ -185,7 +185,8 @@ RED_PROOF = [
     {
         "why": "#246 review - a witnessed register with no mule to go to comes back with no reason again (reads 'no witness')",
         "file": "bible.html",
-        "find": "        _vf = { ok: false, refused: 'no-home', why: _vNoHomeWhy(name, sg ? sg.id : null) };\n",
+        "find": ("        _vf = { ok: false, refused: 'no-home', why: (sg && sg.unsorted && typeof sg.why === 'string' && sg.why.trim())\n"
+                 "                ? sg.why.trim() : _vNoHomeWhy(name, sg ? sg.id : null) };\n"),   # REG-2857 re-aim: same sabotage
         "replace": "        _vf = null;\n",
         "matches": 1,
     },
