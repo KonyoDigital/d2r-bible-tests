@@ -36516,6 +36516,17 @@ def _sweep_skipped_because_reader_is_grok():
         who = _g5.reader()
     except Exception:
         return None
+    # #97 - reader() never raises: an UNREADABLE switch read as "claude", so the UNKNOWN this docstring promises never
+    # happened and a GROK ONLY PC with a half-written switch file started a PAID Claude sweep. Unreadable refuses now
+    # (an env override is a choice the file cannot overrule, so it is honoured as before).
+    try:
+        _sw = _g5.switch_state() if not (os.environ.get("TV_G5_GROK_EYES") or "").strip() else "ok"
+    except Exception:
+        _sw = "unreadable"
+    if _sw == "unreadable":
+        return {"ok": False, "laneMissing": True, "readerUnknown": True,
+                "why": ("the reader switch on this PC could not be read, so whether Claude or Grok reads here is "
+                        "UNKNOWN - this paid sweep does not start until it reads. Set the switch again (EYES).")}
     if who != "grok":
         return None
     return {"ok": False, "laneMissing": True, "grokOnly": True,
