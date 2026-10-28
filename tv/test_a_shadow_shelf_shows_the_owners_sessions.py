@@ -258,7 +258,8 @@ class TheDoorsAreJoined(unittest.TestCase):
     def test_the_bar_carries_the_pointer_and_binds_it(self):
         self.assertIn('<span id="shadow-who">read only</span><button type="button" id="shadow-sessions"', UI)
         i = UI.index("    var b = document.getElementById('shadow-sessions');\n")
-        self.assertIn("window._shadowSessionsOpen()", UI[i:i + 900], "the bar's button opens nothing")
+        j = UI.index("\n  })();", i)   # the binding's own block, never a guessed length (test_a_source_window_must_reach_its_subject)
+        self.assertIn("window._shadowSessionsOpen()", UI[i:j], "the bar's button opens nothing")
 
     def test_entering_names_the_owner_and_leave_closes_the_list(self):
         self.assertEqual(UI.count("    window._shadowWho = owner;"), 2, "a shadow door no longer says whose it is")

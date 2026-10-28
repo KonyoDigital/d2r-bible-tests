@@ -15,6 +15,12 @@ clone. Nothing was broken; the case was a clock. It now builds its own repo with
 a ship whose subject only says "Stamp" with its row still `(this commit)`, a later commit that mentions the version) and
 scrubs every GIT_* variable, so a hook's GIT_DIR can never point it at the real repo. Swept: no other law reads a pinned
 old version or sha out of real history. 1 new red-proof (the stamp binding dropped), 4 of 4 RED.
+### REG-2783 - REG-2810'S LAW READ THE SHADOW BAR'S BINDING THROUGH A GUESSED 900-CHARACTER WINDOW (test_a_source_window_must_reach_its_subject)
+The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries_the_pointer_and_binds_it read
+UI[i:i + 900] after the binding's first line, a guess about how far the block reaches that goes blind the day the block
+grows. It now reads the binding's own block (to its closing `})();`), and the ratchet is back at 44. Found by running
+the ratchet across the chain before the push: v3828-v3831 pass, v3832 introduced it.
+
 ### REG-2779 - THE COPY READOUT COULD NOT SAY WHAT IT COVERS ("CHECKED 9" BESIDE "MIGRATECOUNT 26") (#144.9, GrokBot's v3827 pass)
 GrokBot read his Mac's readout: checked 9, mismatched 0, migrateCount 26, and asked why only 9. Read in the code, the two
 count different things: checked is the names homed on a locker (records of kind filed or sharedStash), and migrateCount
