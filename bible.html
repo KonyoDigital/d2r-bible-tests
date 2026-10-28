@@ -52277,6 +52277,19 @@ window.vaultAutoAssign = function(){
       try { _spanOf = _vaultRecordsForMule(muleId); } catch (eSp) { _spanOf = null; }
       if (!_spanOf || typeof _spanOf !== 'object') _spanOf = null;
     }
+    /* REG-2850 (his report 2026-10-28 19:31, the ALT's shadow on v3829: "when i click the magic and rare mule it reads 23
+       items.. its not showing the 23 items at all") - A MAGIC & RARE KEEPER IS PACKED ON ITS LOCKER. The keepers
+       (d2r_magicFinds) are rolled names no catalogue holds, so ownedPool leaves them out and no record is ever homed on
+       magic-rare for one - owned or not: owning a keeper (REG-2830, the checker, the judge, the intake) does not make it a
+       record. The census and the card count and draw every keeper (_vaultLockerItems, the card's magicItems); this span
+       skipped every one, so the window drew only the records. Measured on the whole page in node with his report's shape (9
+       keepers, 3 of them owned, 2 records): Items 11, 2 packed, and FIND named no cell for any keeper. Each keeper the span
+       lacks is packed as its card cell is drawn - one copy - whichever door kept it. Read only: nothing is written, so a
+       shadow packs exactly what the owner's own screen packs. */
+    if (_spanOf && muleId === 'magic-rare' && typeof magicFinds === 'object' && magicFinds)
+      Object.keys(magicFinds).forEach(function(n){
+        if (n && !Object.prototype.hasOwnProperty.call(_spanOf, n)) _spanOf[n] = 1;   /* REG-2850 keeper span */
+      });
     /* #144.11 (REG-2781, GrokBot's eyes-pass A2: "the open WAR1 card says 0 items total while 8 tasks target WAR1") - the
        copies over the war stash's cap that the plan sends to this WAR mule. Their records are homed on the shared stash, so
        the span below skipped every one and the window drew an empty mule. Drawn here as many as the plan puts on this mule
