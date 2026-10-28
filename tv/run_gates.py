@@ -12169,6 +12169,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_lock_goes_stale_only_through_its_own_guards.py")], 300,
          needs_app=False,
          why='#156 REG-2750: a lock goes stale or BLIND only through its own guard laws'),
+    Gate("test_one_console_shows_one_free_figure",
+         [sys.executable, os.path.join(HERE, "test_one_console_shows_one_free_figure.py")], 300,
+         needs_app=False,
+         why='#151 REG-2753: one console shows one free-now figure for one disk'),
+    Gate("test_a_shelf_card_title_never_runs_under_its_pin",
+         [sys.executable, os.path.join(HERE, "test_a_shelf_card_title_never_runs_under_its_pin.py")], 300,
+         needs_app=False,
+         why="#86 REG-2755: a Shelf card's title never runs under its pin and seal"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
