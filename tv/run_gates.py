@@ -12321,6 +12321,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_every_record_says_when_it_was_last_seen.py")], 300,
          needs_app=False,
          why="every FIND row says when the item was last captured, through P1's one helper (REG-2894)"),
+    Gate("test_a_planner_magic_item_keeps_its_mods",
+         [sys.executable, os.path.join(HERE, "test_a_planner_magic_item_keeps_its_mods.py")], 300,
+         needs_app=False,
+         why='front-run REG-2835 - a magic or rare item added from the planner keeps its mods and is kept'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
