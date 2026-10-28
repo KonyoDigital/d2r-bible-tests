@@ -72,6 +72,27 @@ the same file slept 1200 ms and then reloaded the same way - it waits on the sig
 and then read d2r_muleAssign / d2r_owned; none has a measured race, and the signal is there for them. Law:
 tv/test_the_vault_repair_runs_once_whatever_the_load_order.py (node, two whole-page loads, store carried, both orders):
 5 red-proofs, 5 RED. The spec change is Chrome-only: CI proves it.
+### REG-2805 - A UNIQUE DREW ITS BASE'S PLAIN SPRITE, AND ITS ROW AND HOVER COULD DRAW TWO DIFFERENT ITEMS (#111, his ruling 2026-10-28 (b), reviewers C2/E/D)
+His ruling: each unique shows its own picture, the same on every surface. v406 put every unique and set piece onto its
+base's sprite from the game files, on the note that D2R has no picture of its own for a unique. Measured on the repo's own
+art (the whole page in node): of the 398 uniques tv/unique_roster.json names, 288 drew their base's plain sprite
+(Nightwing's Veil a Great Helm, Harlequin Crest a Cap) and 280 of those had their own icon registered (art/mr_*.png, the
+base sprite in that unique's own in-game colour); the game files carry a sprite of its own for 69 (v384's extraction:
+Lightsabre, The Minotaur), and those are the most exact picture there is. Now ONE resolver, window._keeperArt, answers for
+every name in the v406 table - its own game sprite, then its own icon, then its base sprite as the stated fallback - and
+D2IO_ART holds its answer, while artUrl asks it before its label rules. So the vault cells and rows (artOr), the hover, the
+locker and mule cards, the console's copy of D2IO_ART and the bridge's art fields draw one picture. Three things the old
+order hid were fixed with it: "Ethereal Edge" drew the runeword Edge's bow (the prefix rule), the v408 runeword table drew
+a poleaxe over "Crescent Moon", and Bul-Kathos' Wedding Band's icon was registered without the apostrophe. Swept: every
+roster unique's row against its hover - the six Latent Sunder charms drew their own icon in the row and the plain charm's
+carving in the hover; the hover now draws an own icon (the Renewed names, on a generic charm logo, keep the carving). Result:
+of the 356 uniques the resolver knows, 66 draw their own game sprite, 282 their own icon, and 8 fall back to the base
+because the repo holds no picture of their own (Darkforce Spawn, Goldstrike Arch, Peasant Crown, Pompeii's Wrath,
+Que-Hegan's Wisdom, The Atlantean, The Redeemer, Thundergod's Vigor). Outside the v406 table, 4 uniques draw a base
+icon (Astreon's Iron Ward, Bartuc's Cut-Throat, Death's Fathom, Wisp Projector) and 2 none (Polaris Spear, The Scourge, by
+an earlier decision). Found and left: "Crescent Moon (sword)" is registered with the amulet's bytes. Law:
+test_a_unique_wears_its_own_picture_everywhere (node, the whole page; every surface and the whole roster). 9 red-proofs,
+all RED. tests/v406_hd_uniques_sets.spec.ts rewritten to the ruling (Chrome, CI proves it).
 
 ### REG-2782 - A MULE CARD DREW A COPY AWAY FROM THE CELL ITS MOVE TASK SENT IT TO (#144.10, GrokBot's eyes-pass A1)
 GrokBot (seeds 1012/1013/1021, "almost all batches"): "SOCKETED tasks are Monarch c0r0, Phase Blade c4r0, Thresher c5r0,

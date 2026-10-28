@@ -12245,6 +12245,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_vault_repair_runs_once_whatever_the_load_order.py")], 300,
          needs_app=False,
          why='#160 REG-2800: the v1816 repair runs once and his hand wins in either load order, and the page says when its deferred vault work is done'),
+    Gate("test_a_unique_wears_its_own_picture_everywhere",
+         [sys.executable, os.path.join(HERE, "test_a_unique_wears_its_own_picture_everywhere.py")], 300,
+         needs_app=False,
+         why='#111 REG-2805 - one resolver gives each unique its own picture (game sprite, own icon, base only as fallback) on every surface'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
