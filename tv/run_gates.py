@@ -12445,6 +12445,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_find_lists_a_unique_by_the_base_in_its_name.py")], 300,
          needs_app=False,
          why="REG-2958 (#154.16) - FIND 'shako' lists Harlequin Crest (Shako) beside the Shako base, by its vault name too; a search match only, the bare-Shako ask stands"),
+    Gate("test_a_theatre_frame_paints_its_own_picture",
+         [sys.executable, os.path.join(HERE, "test_a_theatre_frame_paints_its_own_picture.py")], 300,
+         needs_app=False,
+         why="REG-2959 (#51) - the Theatre film never paints a late probe's picture under the frame he stepped back to, and a frame still loading dims the old picture until its own lands"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
