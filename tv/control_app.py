@@ -17357,10 +17357,21 @@ def _grok_prune_pass(now_ms=None, _run=None):
             free = _disk_free_bytes(HIST_DIR)
         except Exception:
             free = None                                     # UNKNOWN: the disk alone never triggers on a guess
+        # REG-2762 (the v3823 second eye) - the floor is the FOOTAGE disk's, and the plan counts each removed chat as
+        # room regained there. That holds only when the chats sit on that disk: on a PC whose footage lives on another
+        # volume, a short footage disk would delete chats that free nothing ON AIR needs. Then the disk does not decide
+        # and only the 2 GB budget can.
+        _note = None
+        try:
+            if os.stat(_gcp.sessions_root()).st_dev != os.stat(HIST_DIR).st_dev:
+                free, _note = None, "the Grok chats are on another disk than the footage, so pruning them frees nothing it needs"
+        except OSError:
+            free, _note = None, "the Grok folder or the footage folder could not be read, so their disks cannot be compared"
         crit = _disk_sign_floor_gb()
         crit_b = crit * 1e9 if isinstance(crit, (int, float)) and not isinstance(crit, bool) else None
         rec = (_run or _gcp.run)(free_bytes=free, floor_bytes=ON_AIR_FLOOR_GB * 1e9, critical_bytes=crit_b,
-                                 receipt_path=os.path.join(_log_root(), ".grok_prune.jsonl"), now_s=now / 1000.0)
+                                 receipt_path=os.path.join(_log_root(), ".grok_prune.jsonl"), now_s=now / 1000.0,
+                                 disk_note=_note)
     except Exception as e:
         rec = {"need": None, "removed": [], "freed": 0, "failed": 0, "total": None, "after": None,
                "say": "the Grok chat prune raised %s - nothing was pruned" % type(e).__name__}

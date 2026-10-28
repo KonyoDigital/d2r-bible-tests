@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2762 - A SHORT FOOTAGE DISK COULD DELETE GROK CHATS THAT DO NOT FREE IT (#151, the v3823 second eye)
+_grok_prune_pass read free space at the footage folder, and the plan counts each removed chat as room regained there
+until the ON AIR floor plus 1 GB is met. That holds only when the chats sit on the footage disk: on a PC whose footage
+lives on another volume (a Windows PC with reels on D:), a short footage disk would have removed chats older than a week
+for a disk they do not feed, and the plan would have believed it recovered. The console now compares the two folders'
+volumes; when they differ, or cannot be read, the disk does not decide and only the 2 GB budget can, and the prune's line
+says the disk did not decide and why, never "over its floor". Live chats and the age floor held either way. Law:
+test_free_space_counts_what_macos_frees (2 new cases, 2 new red-proofs).
+
 ### REG-2761 - A WAR ITEM HE FILED ON A WAR MULE MOVED TO THE SHARED STASH AND NEVER SAID WHY (#148.1, his ruling)
 GrokBot (#230 c6319274564): vaultAssign('Grief', WAR1) wrote the filing and both Grief tasks still targeted SHARED STASH
 through a reload, which read as his hand being ignored. His ruling 2026-10-28: war items go to the Shared stash (the war
