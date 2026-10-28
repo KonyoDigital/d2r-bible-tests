@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2788 - A LAW READ v3805 OUT OF THE REAL HISTORY, AND CI'S 200-COMMIT CLONE OUTGREW IT (test_a_look_records_the_commit_it_read)
+test_the_shipped_version_resolves_when_its_row_still_says_this_commit asked commit_for("v3805") against the real repo.
+tv-tests.yml clones fetch-depth 200; measured: v3830 sits 196 commits past v3805's ship and passed, v3831 202 and v3832 210
+failed on CI ("no TASKS.md row binds v3805 to a commit ... in the last 400") - the row binds c8855707, which is not in the
+clone. Nothing was broken; the case was a clock. It now builds its own repo with the same three shapes (an earlier stamp,
+a ship whose subject only says "Stamp" with its row still `(this commit)`, a later commit that mentions the version) and
+scrubs every GIT_* variable, so a hook's GIT_DIR can never point it at the real repo. Swept: no other law reads a pinned
+old version or sha out of real history. 1 new red-proof (the stamp binding dropped), 4 of 4 RED.
+
 ### REG-2778 - A COPY READOUT THE CONSOLE REFUSED LEFT THE OLDER ONE SERVED ALONE (#144.9, the v3827 second eye)
 accept_handed_copy_audit banks a board's own refusal ("could not read its copies"), but a readout the CONSOLE would not
 keep (over 4,000 rows, or a row with no name or locker) only answered the board and was forgotten: GET

@@ -172,18 +172,52 @@ class TestALookRecordsTheCommitItRead(unittest.TestCase):
             R._sh = real
 
     def test_the_shipped_version_resolves_when_its_row_still_says_this_commit(self):
-        """v3805's row is still `(this commit)` and its subject does not lead with the version.
-        The commit that added the VERSION line is the ship. Its parent does not carry that line."""
-        sha, why = R.commit_for("v3805")
-        self.assertTrue(sha, why)
-        parent, pwhy = R._sh(["git", "rev-parse", "%s^" % sha], timeout=30)
-        self.assertTrue(parent, pwhy)
-        here, hwhy = R._sh(["git", "grep", "-h", 'VERSION = "', sha, "--", "tv/tv_diablo.py"], timeout=30)
-        before, bwhy = R._sh(["git", "grep", "-h", 'VERSION = "', parent.strip(), "--", "tv/tv_diablo.py"], timeout=30)
-        self.assertTrue(here, hwhy)
-        self.assertTrue(before, bwhy)
-        self.assertIn('VERSION = "v3805"', here)
-        self.assertNotIn('VERSION = "v3805"', before)
+        """v3805's row was still `(this commit)` and its subject did not lead with the version: the commit that ADDED the
+        VERSION line is the ship, and its parent does not carry it.
+        REG-2788 - this read v3805 out of the REAL history, and CI clones 200 commits (tv-tests.yml): once the tree was 210
+        commits past v3805, its commit was not in the clone and the case went red with nothing broken. It is built here in
+        a repo of its own - the same three shapes (an earlier stamp, a ship whose subject only says "Stamp", a later commit
+        that MENTIONS the version) - with every GIT_* variable scrubbed, so a pre-push hook's GIT_DIR can never point it at
+        the real repo."""
+        import shutil
+        import subprocess
+        from unittest import mock
+        d = tempfile.mkdtemp(prefix="eye_stamp_repo_")
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+
+        def git(*a):
+            return subprocess.run(["git"] + list(a), cwd=d, env=env, check=True, capture_output=True, text=True).stdout
+
+        def commit(version, subject, rows):
+            os.makedirs(os.path.join(d, "tv"), exist_ok=True)
+            with open(os.path.join(d, "tv", "tv_diablo.py"), "w") as fh:
+                fh.write('VERSION = "%s"\n' % version)
+            with open(os.path.join(d, "TASKS.md"), "w") as fh:
+                fh.write("\n".join(rows) + "\n")
+            git("add", "-A")
+            git("commit", "-q", "-m", subject)
+            return git("rev-parse", "HEAD").strip()
+        try:
+            git("init", "-q")
+            first = commit("v9104", "v9104 - an earlier ship", ["| **v9104** | `(this commit)` | v9104 - note |"])
+            ship = commit("v9105", "Stamp the auto intake move",
+                          ["| **v9105** | `(this commit)` | v9105 - note |", "| **v9104** | `%s` | v9104 - note |" % first[:8]])
+            with open(os.path.join(d, "NOTE.md"), "w") as fh:
+                fh.write("after\n")
+            git("add", "-A")
+            git("commit", "-q", "-m", "ledger: the v9105 rows")
+            with mock.patch.dict(os.environ, env, clear=True), mock.patch.object(R, "REPO", d):
+                sha, why = R.commit_for("v9105")
+                self.assertEqual(sha, ship, "the ship of a `(this commit)` row with a stamp-only subject was not found: %r" % why)
+                parent, pwhy = R._sh(["git", "rev-parse", "%s^" % sha], timeout=30)
+                here, _ = R._sh(["git", "grep", "-h", 'VERSION = "', sha, "--", "tv/tv_diablo.py"], timeout=30)
+                before, _ = R._sh(["git", "grep", "-h", 'VERSION = "', parent.strip(), "--", "tv/tv_diablo.py"], timeout=30)
+                self.assertIn('VERSION = "v9105"', here)
+                self.assertNotIn('VERSION = "v9105"', before)
+                self.assertEqual(R.commit_for("v9104")[0][:8], first[:8], "a sha cell no longer binds its version")
+        finally:
+            shutil.rmtree(d, True)
 
     def test_a_hyphen_range_in_a_commit_subject_is_a_range(self):
         """v3304-v3307 ships FOUR versions; the parser saw one. [[v2862]] with a new separator."""
@@ -212,6 +246,11 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {"why": "REG-2788 - a `(this commit)` row no longer binds through its stamp, so a stamp-only ship is never found",
+     "file": "second_eye_run.py",
+     "find": "        return _sha_from_version_stamp(version)\n",
+     "replace": "        return None\n",
+     "matches": 1},
     {
         "why": "2026-09-26 - commit_for takes any subject that MENTIONS the version again: v3511 -> the ledger commit after it",
         "file": "second_eye_run.py",
