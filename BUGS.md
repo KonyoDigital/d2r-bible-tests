@@ -501,6 +501,20 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2857 - "BER" AND "PERFECT AMETHYST" WERE TOLD NOTHING ON THE BOARD RECOGNISES THEM (router probe, GrokBot's v3829 Vault pass)
+Measured on the whole page in node: suggestMule('Ber') and suggestMule('Perfect Amethyst') answered Unsorted with "nothing
+on the board recognises this name", while "Ber Rune" answered the shared stash (never a mule), RUNES names all 33 runes,
+GEM_TYPES all 35 gems, and the Rune Stash and Gem Stash on the Tools tab count them; the hand door refused both with the
+sentence for any name the vault does not draw. Now a bare rune name is the same item as "<rune> Rune": SHARED_STASH_RE
+matches the whole name (a law holds its list equal to RUNES), so the router, the dock, the records and the console doctor,
+which reads that one line, agree. A gem stays Unsorted - whether a gem is a vault item is his ruling (#209's note), not
+made here - and says it is a gem the Gem Stash counts. The hand door's refusal names the stash that counts it, and nothing
+is added. Swept: tvVaultRegister's no-home answer said "nothing in the routing universe named a drawer" for every Unsorted
+route; it now carries the router's own reason, as vaultFile's refusal does. Law
+tv/test_a_rune_or_a_gem_is_named_never_unrecognised.py, 4 red-proofs RED; the Chrome law
+test_the_witnessed_lane_files_its_own_rows' no-home red-proof re-aimed to the new line (same sabotage, replayed in node:
+refused goes from 'no-home' to none - CI proves the law itself).
+
 ### REG-2856 - A TV STUB AND A NAME'S GRAMMAR SPOKE BEFORE HIS MAGIC & RARE REGISTER: TWO ANSWERS FOR ONE ITEM (router probe, GrokBot's v3829 Vault pass)
 Measured on the whole page in node (suggestMule, which the proposal, the filing and the audit ask): Bone Eye, a magic Ring in
 his d2r_magicFinds, routed as "a rare's rolled name (Bone + Eye: jewel)"; Brimstone Clasp, a rare Plated Belt there, as
