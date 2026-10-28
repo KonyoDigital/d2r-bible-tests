@@ -12413,6 +12413,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_every_charm_has_one_home_by_his_ruling.py")], 300,
          needs_app=False,
          why='REG-2895: his 2026-10-28 charm ruling - one rule homes every charm (CHARMS mule / shared stash / throw out / a question), MAGIC & RARE holds none'),
+    Gate("test_the_charm_ruling_rehomes_once",
+         [sys.executable, os.path.join(HERE, "test_the_charm_ruling_rehomes_once.py")], 300,
+         needs_app=False,
+         why='REG-2896: charms filed on MAGIC & RARE or UNI-SMALL before his 2026-10-28 ruling are re-homed once, with re-planned move tasks, a stamp and a log'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
