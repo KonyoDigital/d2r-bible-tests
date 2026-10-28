@@ -48687,6 +48687,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      (REG-2401). [[the-unjoined-end]] */
   window.vaultThrowFind = function(name){
     var nm = String(name == null ? '' : name), rec = null, r = null;
+    /* REG-2831 (#154.17) - the board's own undo (the toolbar's Undo chip) is taken before anything is touched */
+    var _undoTF = (typeof window._vaultUndoSnap === 'function') ? window._vaultUndoSnap() : null;
     try { if (Object.prototype.hasOwnProperty.call(magicFinds, nm)) rec = magicFinds[nm]; delete magicFinds[nm]; } catch(e){}
     try {
       if (nm && typeof owned !== 'undefined' && owned && typeof owned.has === 'function' && owned.has(nm) && typeof window.vaultRemove === 'function'){
@@ -48712,11 +48714,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               window._vaultRemovalNote({ ts: Date.now(), names: [nm], lane: 'card-click', why: 'thrown out of Magic & Rare' }); } catch(e){}
     }
     persistOwned(); renderVault();
-    status('🗑 "'+name+'" removed from Magic & Rare' + ((r && r.batch) ? ' and from owned — undo: vaultRestoreLast()' : ''));
+    /* REG-2831 (#154.17) - HIS X CAN BE TAKEN BACK FROM THE BOARD. It deleted with no confirm and no undo a screen could
+       reach: the journal's undo is vaultRestoreLast(), a console call, and a read kept to Magic & Rare left no batch at all
+       (measured). The toolbar's Undo chip - the board's undo surface for a hand change (#145) - now holds this removal. */
+    var _undoTook = !!(_undoTF && typeof window._vaultUndoTake === 'function' && window._vaultUndoTake('the removal of ' + nm, '', _undoTF));
+    status('🗑 "'+name+'" removed from Magic & Rare' + ((r && r.batch) ? ' and from owned' : '') + (_undoTook ? ' · ↶ Undo is in the toolbar' : ''));
   };
   // v342.4 — promote an unmatched read into the Magic & Rare bucket (it WAS a keeper after all)
+  /* #154.17 (REG-2830, GrokBot's vault sweep) - A READ HE KEEPS IS OWNED, WITH HIS HAND AS ITS RECEIPT, the way the AI Item
+     Checker's keep (aicMule) and the planner own a Magic & Rare item beside its record. Measured on the whole page in node:
+     a read kept here had its Magic & Rare record and nothing else - not in owned, no receipt row - so the row's later X
+     took it through no door at all: no journal batch, nothing vaultRestoreLast or the toolbar could put back. Owned, the
+     X goes through the removal door like every other Magic & Rare item (journaled, and the record rides in the batch). */
   window.vaultKeepUnknown = function(name){
     try { magicFinds[name] = magicFinds[name] || { q: 'rare', base: '' }; unknownReads.delete(name); } catch(e){}
+    try {
+      if (typeof owned !== 'undefined' && owned && !owned.has(name) && typeof window._ownedAdd === 'function')
+        window._ownedAdd(name, { source: 'hand', by: 'the throw-out review', where: 'the throw-out review (kept to Magic & Rare)' });
+    } catch (eOwn) {}
     persistOwned(); renderVault();
     status('🔮 "'+name+'" kept → Magic & Rare');
   };
@@ -50166,10 +50181,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
 
   // v342.4 — dismiss an unmatched read (junk / bad transcription) so it stops showing
+  /* REG-2831 (#154.17) - a dismissed read could not come back: no confirm, no journal, nothing on the board to undo it
+     (measured: the read was gone from d2r_unknownReads at once). It is not owned, so the removal journal has nothing to
+     carry; the toolbar's Undo chip takes the board as it was just before, and puts the read back. */
   window.vaultDismissUnknown = function(name){
+    var _undoDU = (typeof window._vaultUndoSnap === 'function') ? window._vaultUndoSnap() : null;
     try { unknownReads.delete(name); } catch(e){}
     persistOwned(); renderVault();
-    status('🗑 "'+name+'" dismissed');
+    var _undoTookD = !!(_undoDU && typeof window._vaultUndoTake === 'function' && window._vaultUndoTake('the dismissal of ' + name, '', _undoDU));
+    status('🗑 "'+name+'" dismissed' + (_undoTookD ? ' · ↶ Undo is in the toolbar' : ''));
   };
   /* v1948 — AN AUTOMATIC PLACEMENT MUST LEAVE ITS REASON BEHIND.
      Konyo: "i want it to visually render the backend through the ledger visually so we can visually
@@ -51068,6 +51088,8 @@ window.vaultAutoAssign = function(){
   var _PROFILE_STORES = Object.freeze({
     vault: ['d2r_muleRoster','d2r_muleAssign','d2r_mulePos','d2r_muleEquip','d2r_vaultRecords','d2r_vaultProv',
             'd2r_vaultRemoved','d2r_vaultRemovedAt','d2r_laneLock','d2r_vaultHand','d2r_multiKeep','d2r_magicFinds',
+            /* REG-2831 (#154.17) - the throw-out review's reads, so the toolbar's Undo puts back a read he dismissed */
+            'd2r_unknownReads',
             'd2r_copies','d2r_vaultAutoIntake','d2r_vaultShareOverride','d2r_autoLanes','d2r_owned','d2r_intakeSeen','d2r_intakeLog'],
     stash: ['d2r_runeStash','d2r_gemStash','d2r_materialStash','d2r_craftStash','d2r_craftBaseStash','d2r_stashMeta'],
     characters: ['d2r_charBuilds','d2r_cbMain','d2r_cbSel','d2r_mainCharacter'],

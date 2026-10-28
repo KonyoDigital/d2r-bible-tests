@@ -12257,6 +12257,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_shadow_shelf_shows_the_owners_sessions.py")], 300,
          needs_app=False,
          why="#218 REG-2810: in a shadow THE SHELF and the bar open the owner's summarized sessions, read only"),
+    Gate("test_a_kept_or_dismissed_read_can_come_back",
+         [sys.executable, os.path.join(HERE, "test_a_kept_or_dismissed_read_can_come_back.py")], 300,
+         needs_app=False,
+         why='#154.17 REG-2830/2831 - a kept read is owned with a receipt, and its X and a dismissed read can be undone from the toolbar'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

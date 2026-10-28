@@ -37,6 +37,24 @@ neither, so the gap could not explain itself. It now carries today's copy record
 (recordsByKind / recordsTotal - loose on the dock, kept, carried, orphan beside filed) and the migrate stamp's date
 (migrateAt). The console banks them shaped (at most 16 kinds, a count or nothing). Law:
 test_a_copy_readout_says_what_each_side_counts (2 cases, 3 red-proofs).
+### REG-2831 - A MAGIC & RARE X AND A DISMISSED READ COULD NOT BE TAKEN BACK FROM THE BOARD (#154.17, GrokBot's vault sweep)
+vaultThrowFind and vaultDismissUnknown deleted with no confirm and no undo the board could reach. Measured on the whole page
+in node: a dismissed read left d2r_unknownReads at once, with no journal batch; the X of a read kept to Magic & Rare wrote no
+batch (REG-2830); and the journal's own undo is vaultRestoreLast(), a console call. There is no "Recently removed" list on
+the board or the console - the planner's sentence "(undo it from Recently removed)" names a surface nothing draws. The
+board's undo surface for a hand change is the toolbar's Undo chip (#145): the X and Dismiss now take it before they touch
+anything, and the profile it restores carries d2r_unknownReads, the review's reads (the console's shadow already admits
+that store). Like the other one-item removals here (vaultUnown), they take an undo, not a confirm. Law:
+test_a_kept_or_dismissed_read_can_come_back drives each door and reads, through the undo's own parse and diff, that it would
+write the item back. 3 red-proofs, RED.
+
+### REG-2830 - A READ KEPT TO MAGIC & RARE WAS NOT OWNED, SO ITS X WENT THROUGH NO DOOR (#154.17, GrokBot's vault sweep)
+vaultKeepUnknown wrote the Magic & Rare record and nothing else. Measured on the whole page in node: not in owned, no receipt
+row, while the AI Item Checker's keep (aicMule) owns the name beside its record with a hand receipt. "No record and no move
+task": neither door's item gets a vault record or a move task (Magic & Rare has its own locker, by design), so the gap was the
+receipt. Its later X then wrote 0 journal batches and nothing could put it back (the checker-kept control: 1 batch, restored
+whole). Now the keep owns the name with his hand as its receipt (by: the throw-out review), and its X is journaled like every
+Magic & Rare X, with the record riding in the batch. Law: test_a_kept_or_dismissed_read_can_come_back, 1 red-proof, RED.
 
 ### REG-2778 - A COPY READOUT THE CONSOLE REFUSED LEFT THE OLDER ONE SERVED ALONE (#144.9, the v3827 second eye)
 accept_handed_copy_audit banks a board's own refusal ("could not read its copies"), but a readout the CONSOLE would not
