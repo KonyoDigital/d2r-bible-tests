@@ -46616,6 +46616,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return db._handBaseByName[n] || null;
   }
   try { window._vaultHandBase = _vaultHandBase; } catch (eHb) {}
+  /* REG-2858 (router probe, GrokBot's v3829 Vault pass) - A BASE NAME THE BOARD ALSO FILES A UNIQUE UNDER IS A QUESTION. "Shako"
+     is a white base, and it is also the name the board files Harlequin Crest under ("Harlequin Crest (Shako)"); a bare
+     "Shako" through this door was owned as a white base on SOCKETED, never asked, when he may mean his Harlequin Crest.
+     Read from the catalogue, never typed: a unique drawn as "<name> (<base>)" whose bracket is exactly a hand-door base
+     ("Gull (dagger)" is a lowercase slot note, not the base Dagger). Measured on v3833: one pair, Shako. -> [drawn names] */
+  var _VH_TWINS = null;
+  function _vhBaseTwins(base){
+    if (!base) return [];
+    if (!_VH_TWINS){
+      var m = {};
+      try {
+        (typeof ITEMS !== 'undefined' ? ITEMS : []).forEach(function(i){
+          var p = /^(.+) \(([^()]+)\)$/.exec(String((i && i.n) || ''));
+          if (p && _vaultHandBase(p[2]) === p[2] && _vaultKeeps(i.n)) (m[p[2]] = m[p[2]] || []).push(String(i.n));
+        });
+      } catch (eTw) { return []; }   /* unread: nothing is asked, and the next add asks again */
+      _VH_TWINS = m;
+    }
+    return (_VH_TWINS[base] || []).slice();
+  }
   /* L1 — the bases HE typed through + Add an item and nothing else: owned, a catalogue base, not already in ownedPool, and
      its receipt is the hand door's. Empty when he typed none, so every other list reads exactly what it read before. */
   function _vaultHandBasePool(){
@@ -46678,6 +46698,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        kept exactly as typed. A runeword takes its own spelling, and a base the catalogue spelling (an Eth / Ethereal
        prefix kept as typed, capitalised), so one item is one owned name. */
     if (!_vaultKeeps(r.name)) { var _hb = _vaultHandBase(r.name); if (_hb) r = { ok: true, name: _vaultHandBaseName(r.name, _hb) }; }
+    /* REG-2858 - his rule: a doubt becomes a question, never a guess. A bare base the board also files a unique under is
+       asked; the planner row's kind answers it ('unique' or 'base'). An Eth / Superior word settles it as the base. */
+    if (!_vaultKeeps(r.name) && !_vaultHandQuals(r.name).pre.length){
+      var _tw = _vhBaseTwins(_vaultHandBase(r.name)), _kd = String((opts && opts.kind) || '').toLowerCase();
+      if (_tw.length === 1 && _kd === 'unique') r = { ok: true, name: _tw[0] };
+      else if (_tw.length && _kd !== 'base')
+        return { ok: false, refused: 'ambiguous', among: _tw.concat([r.name]), name: r.name,
+                 why: '"' + raw + '" is two things on this board: ' + _tw.join(' or ') + ' (the unique, filed under its base) or a white '
+                      + r.name + ' base. Which one? Nothing was added \u2014 for the unique, pick ' + _tw[0].replace(/ \([^()]+\)$/, '')
+                      + ' from the list' };
+    }
     try { var _rw = (typeof window.findRuneword === 'function') ? window.findRuneword(r.name) : null;
           if (_rw && String(_rw).toLowerCase() === String(r.name).toLowerCase()) r = { ok: true, name: String(_rw) }; } catch (eRw) {}
     if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)){   /* REG-2857 a rune or a gem says which stash counts it */
