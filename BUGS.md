@@ -14,6 +14,16 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2710 - A HELD LOCK READ GREEN AND "EARNED 85/85" (#180, his 2026-10-22 heart screenshots)
+"shouldn't it show me accurately progress wise how much has been proven? like the 85/85 97/97 - if not proven all the way why
+is it showing me as if it is". A held lock painted "held: the prover is behind · earned 85/85" - its MERIT, the attacks refused
+in its trial, complete - beside the census currency with no progress for it, and it was drawn in the same green line and
+end-dot as the open locks. His rules, now one function each that the fan and the lock list both paint through:
+_hrtLockColor - green only when the lock may act; held = amber (red when an instrument is blind); by design or paused
+(UNPROVEN, INCOMPLETE) = grey. _hrtHeldCaption - "held · <proved>/<declared> proved · <to go> to go" from the census itself
+(UNKNOWN when it is unread, never a typed number), with "trial: N/N refused (its merit, not the census)" in the hover.
+Law: test_a_held_lock_shows_its_catch_up (4 red-proofs, each seen RED). GrokBot looks after the push.
+
 ### REG-2709 - "THE ROGUE ENCAMPMENT" RANKED BESIDE "ROGUE ENCAMPMENT" (GrokBot's 02:05 pass on v3816)
 The Shelf's "Where you farm" ranked "Rogue Encampment" (22 runs) and "The Rogue Encampment" (6) as two places - the reader
 writes the area both ways. _hmAggregate folds a leading "The" (a whole word) off the key and names the row without it; an

@@ -12081,6 +12081,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_area_written_with_the_is_one_area.py")], 300,
          needs_app=False,
          why="REG-2709 - 'The Rogue Encampment' and 'Rogue Encampment' are one place in Where you farm"),
+    Gate("test_a_held_lock_shows_its_catch_up",
+         [sys.executable, os.path.join(HERE, "test_a_held_lock_shows_its_catch_up.py")], 300,
+         needs_app=False,
+         why='#180 - a held lock is amber with the census catch-up (N/M proved, K to go), blind red, by-design grey; the merit reads trial: N/N refused'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
