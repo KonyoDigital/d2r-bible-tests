@@ -15,7 +15,12 @@ Now the packer packs each keeper the span lacks the way its card cell is drawn -
 throw-out review, the AI checker's judge and its border hold, the photo intake, a legacy record: one rule, in the packer, for
 all of them). It writes nothing, so a shadow (#207: the owner's records store rides in the upload without its stamp, so the
 shadow rebuilds) packs exactly what the owner's own screen packs; both are driven here, and the window's open is read for
-writes. Where a keeper packs - its footprint - is the router's (ACT-3), not this law's. RED_PROOF below.
+writes. Where a keeper packs - its footprint - is the router's (ACT-3), not this law's.
+
+REG-2853 (the sweep): a keeper the owned pool does hold - a TV stub he also kept - was a record of kind orphan, so the
+vault header called it "with no home (owned, on no mule and not in the unsorted dock)" (#204 counted five on the ALT). Its
+record is homed on MAGIC & RARE now (a real mule filing still wins), a stored orphan row of one takes that home on load,
+and the card draws it once, as its keeper cell. RED_PROOF below.
 """
 import json
 import os
@@ -49,6 +54,7 @@ KEEPERS = {
 # rolled-name grammar and so are the locker's records; the third is a keeper too (the orphan shape his ALT holds five of).
 STUBS = ["Doom Eye", "Small Charm of Balance", "Sharp Grand Charm of Sustenance"]
 RECORDS = ["Doom Eye", "Small Charm of Balance"]
+KEPT_STUB = "Sharp Grand Charm of Sustenance"     # owned, a TV stub and a keeper: its record is homed on the locker (REG-2853)
 OWNED = ["Stone Knot", "Sharp Grand Charm of Sustenance", "Bone Clasp"] + RECORDS
 ALL = sorted(set(KEEPERS) | set(RECORDS))
 
@@ -112,9 +118,22 @@ OUT.wrote = STORES.filter(function(k){ return (H.ls.byKeySet[k] || 0) !== setsBe
 OUT.find = {};
 names.forEach(function(n){ var w = W._vaultWhereIs(n); OUT.find[n] = w ? [w.kind, w.cell] : null; });
 OUT.shadow = !!W._tvdShadow;
+/* REG-2853: the kept stub's record, the header's homeless count, and its cells on the card */
+var R = W._vaultRecordsSource(), KS = %s;
+OUT.ksRec = (R.records || []).filter(function(r){ return r && r.name === KS; }).map(function(r){ return [r.kind, r.mule]; });
+var hd = W._vaultRecordsHeader(); OUT.head = hd ? { orphans: hd.orphans, noHome: hd.orphansNoHome } : null;
+OUT.ksCells = [card.split('data-magic-find="' + KS + '"').length - 1, card.split('data-vault-item="' + KS + '"').length - 1];   /* [keeper cells, record cells] */
+/* a records store written before REG-2853 holds the kept stub as an orphan row: the load takes the locker's home */
+if (!W._tvdShadow && OUT.stored){
+  var obj = JSON.parse(H.RAW.get('d2r_vaultRecords'));
+  obj.records.forEach(function(r){ if (r && r.name === KS) { r.kind = 'orphan'; r.mule = null; r.loc = null; } });
+  W.LSR.setItem('d2r_vaultRecords', JSON.stringify(obj));
+  var ld = W._vaultRecordsLoad();
+  OUT.ksLoaded = (ld && ld.records || []).filter(function(r){ return r && r.name === KS; }).map(function(r){ return [r.kind, r.mule]; });
+}
 OUT.errors = H.errors.slice();
 })();
-"""
+""" % json.dumps(KEPT_STUB)
 
 
 class MagicAndRareDrawsEveryItemItCounts(unittest.TestCase):
@@ -139,8 +158,8 @@ class MagicAndRareDrawsEveryItemItCounts(unittest.TestCase):
 
     def test_the_premise_is_his_report(self):
         o = self.o
-        self.assertEqual(sorted(o["recordsSpan"] or {}), RECORDS,
-                         "PREMISE: the locker's records are not the two routed stubs: %r" % o["recordsSpan"])
+        self.assertEqual(sorted(o["recordsSpan"] or {}), sorted(RECORDS + [KEPT_STUB]),
+                         "PREMISE: the locker's records are not the two routed stubs and the kept stub: %r" % o["recordsSpan"])
         self.assertEqual(o["census"], len(ALL), "PREMISE: the census does not count every keeper and record: %r" % o["census"])
         self.assertEqual(o["cardCells"], len(ALL), "PREMISE: the card does not draw every keeper and record: %r" % o["cardCells"])
 
@@ -158,9 +177,19 @@ class MagicAndRareDrawsEveryItemItCounts(unittest.TestCase):
         # the routed records were found before the fix too ('would': the seam's home, assign not written) - the control
         self.assertTrue(all((self.o["find"].get(n) or [None, None])[1] for n in RECORDS), self.o["find"])
 
+    def test_a_kept_stub_is_homed_on_magic_and_rare_never_homeless(self):
+        for o in (self.o, self.s):
+            self.assertEqual(o["ksRec"], [["filed", "magic-rare"]], "the kept stub's record is %r (shadow %r)" % (o["ksRec"], o["shadow"]))
+            self.assertEqual(o["head"], {"orphans": 0, "noHome": 0}, "the header calls a Magic & Rare keeper homeless: %r" % o["head"])
+            self.assertEqual(o["ksCells"], [1, 0], "the card draws the kept stub as [keeper, record] cells %r" % o["ksCells"])
+
+    def test_a_stored_orphan_row_of_a_keeper_takes_the_lockers_home(self):
+        self.assertEqual(self.o.get("ksLoaded"), [["filed", "magic-rare"]],
+                         "a records store written before the fix keeps the kept stub homeless: %r" % self.o.get("ksLoaded"))
+
     def test_the_shadow_draws_what_the_owner_draws(self):
         o, s = self.o, self.s
-        for k in ("census", "drawn", "foot", "phys", "calc", "winTiles", "find"):
+        for k in ("census", "drawn", "foot", "phys", "calc", "winTiles", "find", "ksRec", "head"):
             self.assertEqual(s[k], o[k], "the shadow's %s is %r, the owner's %r" % (k, s[k], o[k]))
 
     def test_opening_the_window_writes_nothing(self):
@@ -169,6 +198,21 @@ class MagicAndRareDrawsEveryItemItCounts(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2853 - a kept stub falls through to orphan again (the header calls it homeless)",
+     "file": "bible.html",
+     "find": "        else if (typeof window._vaultInMagicRare === 'function' && window._vaultInMagicRare(name) && typeof muleById === 'function' && muleById('magic-rare')) { kind = 'filed'; mid = 'magic-rare'; }   /* REG-2853 keeper home */\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2853 - a stored orphan row of a keeper stays homeless on load",
+     "file": "bible.html",
+     "find": "&& typeof muleById === 'function' && muleById('magic-rare')) { r.kind = 'filed'; r.mule = 'magic-rare'; r.loc = 'magic-rare'; return; }   /* REG-2853 stored keeper */",
+     "replace": "&& false) { r.kind = 'filed'; r.mule = 'magic-rare'; r.loc = 'magic-rare'; return; }",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2853 - the card draws a homed keeper twice (a record cell beside its keeper cell)",
+     "file": "bible.html",
+     "find": "        items = items.filter(function(n){ return !Object.prototype.hasOwnProperty.call(magicFinds, n); });   /* REG-2853 one cell */\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2850 - the packer skips every keeper again (the window draws only the records: 2 of 11)",
      "file": "bible.html",
      "find": "        if (n && !Object.prototype.hasOwnProperty.call(_spanOf, n)) _spanOf[n] = 1;   /* REG-2850 keeper span */\n",
