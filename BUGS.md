@@ -299,6 +299,64 @@ new deleting function in the reach, or a table entry no lane declares is a break
 declaration was made to match the code - and the `never` lines stop saying nothing is removed. After: all four rows
 permitted. Law: test_a_lane_clears_only_what_it_declares (14 cases, a class per lane; 4 red-proofs, each widening one
 lane's reach, each RED); test_auto_scope's permission case re-aimed to 'a clause that covers it' and renamed.
+### REG-2941 - 28 LAWS LISTED ONLY THEIR OWN SCRATCH OR ONE FIXTURE FRAME, AND NONE OF THEIR PROOFS WAS EVER SAVED: 91 UNKEYABLE -> 63 (#173)
+heart2 banks a PROVEN only under a byte key, and a law file that calls os.listdir / glob.glob / os.walk is UNKEYABLE
+(what it reads is decided at run time), so every one of its proofs re-runs on every push it is in. tv/unkeyable_laws.json
+listed 91 such laws holding 470 proofs. In 28 of them the listing could never read anything a byte key misses: it listed
+a directory the law had just made in its own scratch, or took "the first .jpg" of one tracked fixture reel. Fixed by
+the REG-2362 rule: each such listing is fixture_tmp.list_own / match_own (refuses any path outside this process's own
+contained scratch, so it cannot be pointed at the tree, his footage or a shared temp dir), with contain() added where the
+law lacked it; two cleanup walks over read-only fixtures became the same own-scratch walk; three laws that counted what
+their subject left in the SHARED temp dir (second_eye_*, minigrid.*) now point tempfile and TMPDIR at a watch dir inside
+their own scratch, so they count only what this run made (and no longer race other runs); and
+test_equipped_items_are_pixel_exact_per_character names its two fixture frames, so heart2 keys their bytes.
+The 28: river_drains_every_pass, backup_lane_survives_a_loss, a_plan_is_computed_once, a_stub_agent_never_films_his_screen,
+a_suite_run_is_reused_only_on_identical_bytes, a_pc_proves_itself_a_slice_at_a_time, an_evidence_picture_is_never_reaped,
+the_backup_prune_never_orphans_a_loss, an_abandoned_seal_is_finished_not_waited_on, a_machine_establishes_its_own_tree,
+atomic_write_keeps_the_mode, version_stamps_are_written_atomically, an_unread_journal_is_not_a_night_with_no_rows,
+the_prune_never_frees_a_word, reel_index_durability, reel_retention, roundtrip_sim, the_cheap_end_route_row_asks_the_store_once,
+vault_retro, g5_grok_eyes, the_eye_sees_the_blocks_around_a_big_files_hunks, a_sandbox_is_removed_whatever_its_bits,
+a_fixture_pack_is_not_his_footage, equipped_items_are_pixel_exact_per_character, a_scratch_dir_is_not_made_by_reading_the_module,
+a_refused_frame_leaves_no_snapshot_behind, the_live_frame_cannot_be_pulled_mid_read, vault_lane (each tv/test_*.py).
+Each now reads KEYABLE under heart2.law_inputs (the census's own question), passes clean, and the laws that newly contain
+their scratch or pin a frame were re-sabotaged (sab bad 0); the watch-dir census in the_live_frame_cannot_be_pulled was
+seen to catch a planted snapshot leak (its own proof aims elsewhere). With REG-2938..2940, 280 of the 470 proofs can now
+be saved; from clean-run timings here (nice 19, one law per process) that is about 43 minutes of re-proving per push no
+longer paid - an estimate, not a push measurement. CEILING in test_the_unkeyable_laws_only_get_fewer: 91 -> 63.
+THE 63 THAT REMAIN, BY WHY: 35 censuses whose denominator IS a folder of the tree (every tv/*.py, every law, every spec,
+every workflow - including the three split out below); 12 that read his footage, history or data (frames/hist, .git,
+his ledger backups, /proc); 12 that carry a browser marker and are not run on this Mac (venue rule) -
+test_a_push_proof_runs_only_where_its_defect_shows (25 proofs) holds the same .github/workflows listing REG-2939 split
+out, and is the largest left; 4 kept on purpose (frame_index's os.walk is the verbatim reference its lister is checked
+against; a_test_run_leaves_no_scratch_dirs reads the shared temp base; the install-font law checks tv/ before and after;
+the shipped-packs law censuses fixtures/). The encoding law (every_cli_that_prints_non_ascii_is_encoding_safe) stays: the
+REG-2640 trace records files OPENED, never directories LISTED, so no key heart2 takes can name its tv/*.py population. The
+class fix for the 35 is heart2 keying a listing by what its traced run listed - REG-2296 already does exactly that for
+gate PASSes in gate_ledger, never for proofs; not built here.
+FOUND, NOT FIXED: test_vault_lane leaves a child process running under pytest (the conftest reaper names its pid); the
+unmodified law does the same, and the gate's own unittest run is clean.
+
+### REG-2940 - A GLOB OF EVERY LAW MADE THE UPDATE-BESIDE-THE-SHADOW LAW'S 19 PROOFS UNSAVEABLE (#173)
+NoLawOpensTheRealConsole (no law file CALLS open_control_window / start_background_watchers) globs tv/test_*.py, so
+test_an_update_lands_beside_a_shadow_reel could never be keyed - and the scan was most of its run: the law took 9.7 s
+with it and takes 1.7 s without. It moved verbatim, with the one red-proof that plants the call, to
+tv/test_no_law_opens_the_real_console.py (unkeyable on purpose, 1 proof). The update law is keyable (19 proofs) and was
+re-sabotaged: bad 0 of 19; the new law: bad 0 of 1.
+
+### REG-2939 - A LISTING OF .github/workflows MADE THE PROOF-CACHE LAW'S 27 PROOFS UNSAVEABLE (#173)
+test_a_proven_verdict_is_reused_only_on_identical_bytes read every workflow to pin that no CI job runs a push-time prove or
+names .heart2_cache (but a proof shard's own fresh cache). That half moved verbatim to
+tv/test_no_ci_workflow_reaches_the_push_cache.py with two new red-proofs on proof-keys-shards.yml (a --push line without
+--proof-shard; the cache named other than as HEART2_CACHE_PATH) - each RED for its own assertion. The cache law is keyable
+and re-sabotaged: bad 0 of 27.
+
+### REG-2938 - A CENSUS OF EVERY tv/*.py MADE THE OWNED-DOOR LAW'S 32 PROOFS UNSAVEABLE, AND THE CENSUS READ A DOCSTRING AS CODE (#173)
+test_every_owned_door_writes_provenance's case "no python door writes d2r_owned without the door" lists tv/, so none of the
+law's 32 proofs (~12 s a run) was ever saved. It moved to tv/test_no_python_door_writes_owned_without_the_door.py. Its new
+red-proof (owned_restore's JS no longer calls window._ownedAdd) first came back GREEN: the census joins every string
+constant of a function, and owned_restore's own DOCSTRING spells "window._ownedAdd(name, ...)", so the census could never
+see that door lose its receipt. Docstrings are now left out of what a door "sends"; the proof is RED. The owned-door law is
+keyable and re-sabotaged: bad 0 of 32.
 
 ### REG-2879 - REG-2803'S CHROME LAW DROVE A GUEST WORLD, WHERE THE BOARD RIGHTLY MAKES NO MULE (ci/claude-v3834, 4 cases)
 CI (agent-suite, ci/claude-v3834) failed four cases of tv/test_vault_l1_war_stash_overflow.py, which REG-2803 re-aimed without
