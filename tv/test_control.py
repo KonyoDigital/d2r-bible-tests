@@ -34185,16 +34185,20 @@ class TestTheConsoleCanSayItIsBroken(unittest.TestCase):
     def test_the_theatre_fetch_is_BOUNDED(self):
         """An unbounded await is what left the stage black. A timeout is the whole fix.
         REG-2698 (#86) moved the bounded /api/sessions wait into thSessionsWait (45 s, and it says it is waiting), so
-        thOpen must wait THROUGH it, and the bound must sit on that fetch."""
+        thOpen must wait THROUGH it. REG-2725 (#86, GrokBot v3817) made every caller share ONE request in flight
+        (_sessionsJson), so the bound sits where that request is sent: _sessionsFetchOnce."""
         window = self._thOpen()
         self.assertIn("j = await thSessionsWait(", window,
                       "thOpen no longer waits for sessions through thSessionsWait — retarget this")
         wait = self._fn_body("async function thSessionsWait(")
-        self.assertIn("await fetch('/api/sessions', ac ? { signal: ac.signal } : undefined)", wait,
-                      "the sessions wait no longer fetches /api/sessions on an abort signal")
-        self.assertIn("AbortController", wait,
+        self.assertIn("return await _sessionsJson();", wait, "the sessions wait no longer asks the shared request")
+        sent = self._fn_body("async function _sessionsFetchOnce(")
+        self.assertIn("await fetch(API + '/api/sessions', ac ? { signal: ac.signal } : undefined)", sent,
+                      "the shared request no longer fetches /api/sessions on an abort signal")
+        self.assertIn("AbortController", sent,
                       "the theatre still awaits /api/sessions with no bound, so a server replaced "
                       "mid-fetch leaves the black stage he reported")
+        self.assertIn("ac.abort(); } catch (e) {} }, TH_SESSIONS_BOUND_MS);", sent, "the abort is not on the bound")
 
     def test_a_FAILED_open_closes_the_stage_rather_than_leaving_it_black(self):
         """Bounding it is not enough — on failure the stage must come DOWN. Leaving theatre-open
