@@ -17203,7 +17203,8 @@ def _disk_sign_candidates():
     grok = os.path.join(os.environ.get("GROK_HOME") or os.path.join(os.path.expanduser("~"), ".grok"), "sessions")
     return [("his reels", HIST_DIR, "the reel prune frees them - on his yes (reel retention)"),
             ("Grok sessions", grok, "the console drops its own reads' sessions; his old Grok chats are pruned on their own "
-                                     "when this folder passes 2 GB or the disk is short - never his live chat, never a week's"),
+                                     "when the chats in this folder pass 2 GB (the folder's other files are not counted) or "
+                                     "the disk is short - never his live chat, never a week's"),
             ("test output", os.path.join(REPO, "test-results"), "the space warden reclaims it when the disk is short")]
 
 
@@ -17255,11 +17256,15 @@ def _disk_sign_once(now_ms=None, playing=None, busy_pct=None, candidates=None):
     except Exception:
         _play = False
     _busy = _cpu_busy_pct() if busy_pct is None else busy_pct
+    # REG-2754 (GrokBot's v3823 pass: the ALT's prune line read say: null while he played) - a pass that waits says why on
+    # the prune's line too; its lastTs stays the last pass that RAN
     if _play:
         _DISK_SIGN.update(lastTs=now, say="he is playing - what uses the disk is measured after the game closes")
+        _GROK_PRUNE.update(say="waiting - he is playing, and the Grok chat prune never runs beside the game")
         return dict(_DISK_SIGN)
     if isinstance(_busy, (int, float)) and not isinstance(_busy, bool) and _busy >= DISK_SIGN_BUSY_PCT:
         _DISK_SIGN.update(lastTs=now, say="the machine is busy (%.0f%% CPU) - the measurement waits" % _busy)
+        _GROK_PRUNE.update(say="waiting - the machine is busy (%.0f%% CPU), so the Grok chat prune waits too" % _busy)
         return dict(_DISK_SIGN)
     try:
         rows = _disk_sign_measure(candidates)
@@ -17275,7 +17280,9 @@ def _disk_sign_once(now_ms=None, playing=None, busy_pct=None, candidates=None):
 
 #: #151 (REG-2743, his ruling 2026-10-28) - the automatic prune of his own Grok chats, in the shared lane words.
 #: owed: 1 while the folder is still over its budget after a pass, 0 when it is not, None when it could not be read.
-_GROK_PRUNE = {"on": True, "worked": 0, "lastTs": None, "owed": None, "say": None, "freedBytes": 0, "last": None}
+_GROK_PRUNE = {"on": True, "worked": 0, "lastTs": None, "owed": None, "freedBytes": 0, "last": None,
+               "say": "not asked yet - the prune runs in the disk sign's pass, about 2 min after a start and then every "
+                      "30 min, never while he plays"}   # REG-2754 - never a silent null
 
 
 def _grok_prune_pass(now_ms=None, _run=None):
