@@ -61376,9 +61376,26 @@ function renderJournal(){
     window._movePackCache = null; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
     var bag = _vaultMoveBag();
     if (bag.unread || !bag.prior || !Array.isArray(bag.prior.records)) return 0;
-    var want = {}, copies = [], list = [];
-    names.forEach(function(n){ want[n] = 1; });
-    bag.prior.records.forEach(function(r){ if (r && want[r.name]) copies.push({ name: r.name, copyIx: r.copyIx || 0, move: r.move || null }); });
+    var want = {}, copies = [], list = [], at = new Date().toISOString();
+    /* REG-2964 (int-4: REG-2896 meets REG-2787) - THE RULING'S ONE ALLOWANCE TO "A SAVED TARGET NEVER MOVES UNLESS HE MOVES
+       IT". Only a name the one charm rule answers (_charmHome), and of it only a copy whose saved target is still on a
+       locker the ruling empties (MAGIC & RARE or UNI-SMALL, by id, or by name on a record older than ids), is planned
+       again; any other saved target stands (REG-2787). The new target says why in REG-2787's own words (retarget), so its
+       row reads "new target: his 2026-10-28 charm ruling re-homed it". A copy with no saved cell has no target to keep. */
+    var _oldLk = function(to){
+      if (!to) return false;
+      if (to.id === 'magic-rare' || to.id === 'uni-small') return true;
+      if (to.id != null) return false;
+      var a = muleById('magic-rare'), u = muleById('uni-small');
+      return !!(to.holder && ((a && to.holder === a.name) || (u && to.holder === u.name)));
+    };
+    names.forEach(function(n){ if (typeof _charmHome === 'function' && _charmHome(n)) want[n] = 1; });
+    bag.prior.records.forEach(function(r){
+      if (!(r && want[r.name])) return;
+      var sv = r.move ? _vaultMoveTask(r.move) : null;
+      if (sv && sv.to && sv.to.cell && !_oldLk(sv.to)) return;          /* REG-2787 - a target elsewhere stands */
+      copies.push({ name: r.name, copyIx: r.copyIx || 0, move: r.move || null });
+    });
     copies.forEach(function(c){ delete bag.map[c.name + '\u0000' + c.copyIx]; });   /* their old targets are not kept for the new home */
     copies.forEach(function(c){
       var st = c.move ? _vaultMoveTask(c.move) : null;
@@ -61387,7 +61404,8 @@ function renderJournal(){
       list.push({ name: c.name, copyIx: c.copyIx, task: _vaultMoveTask({
         name: c.name, from: there ? st.to : (st ? st.from : _vaultMoveFromSight(c.name, c.copyIx)),
         to: _vaultMovePlanCell(c.name, c.copyIx, bag), status: 'to-move', evidence: st ? st.evidence : [],
-        manual: st ? st.manual : false, reason: CHARM_RULING_REASON }) });
+        manual: st ? st.manual : false, reason: CHARM_RULING_REASON,
+        retarget: { why: CHARM_RULING_REASON, at: at } }) });   /* REG-2964 - the row says why its target moved */
     });
     var w = list.length ? _vaultMoveCommit(list) : { ok: true };
     return (w && w.ok) ? list.length : 0;
