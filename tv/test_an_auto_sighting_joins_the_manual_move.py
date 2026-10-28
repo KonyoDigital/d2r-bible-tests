@@ -121,6 +121,9 @@ class AutoSightingJoinsTheManualMove(unittest.TestCase):
             _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             _fn(self.src, "_vaultMovePlace"),
             _fn(self.src, "_vaultMoveSamePlace"),
+            _fn(self.src, "_vmMs"),
+            _fn(self.src, "_vaultMoveReads"),
+            _fn(self.src, "_vaultMoveSeenAtTo"),
             _fn(self.src, "_vaultMoveTask"),
             _fn(self.src, "_vaultMoveWitness"),
             r"""
@@ -146,16 +149,21 @@ var there = _vaultMoveWitness(_vaultMoveTask({
   from: { holder: null, location: null, cell: null },
   to: { holder: 'MAGIC', location: 'stash', cell: 'stash:c0r0' }
 }), { holder: 'MAGIC', lane: 'stash', cell: 'stash:c2r1', frame: 'f2' });
-var home = _vaultMoveWitness(_vaultMoveTask({
+/* REG-2843 - read already at its home: one session is half-way, a second session closes it */
+var T0 = Date.now();
+function sess(n, extra){ var ms = T0 + n * 60000, o = { lane: 'stash', cell: 'stash:c0r0', frame: 'f' + n, at: new Date(ms).toISOString(),
+  sessions: [{ id: 's_' + ms + '_' + n, frame: 'f' + n }] }; for (var k in extra) o[k] = extra[k]; return o; }
+var home1 = _vaultMoveWitness(_vaultMoveTask({
   name: 'Charm', manual: false, status: 'to-move',
   from: { holder: null, location: null, cell: null },
   to: { holder: 'MAGIC', location: 'stash', cell: 'stash:c0r0' }
-}), { holder: 'MAGIC', lane: 'stash', cell: 'stash:c0r0', frame: 'f3' });
-var renamed = _vaultMoveWitness(_vaultMoveTask({
+}), sess(3, { holder: 'MAGIC' }));
+var home = _vaultMoveWitness(home1, sess(4, { holder: 'MAGIC' }));
+var renamed = _vaultMoveWitness(_vaultMoveWitness(_vaultMoveTask({
   name: 'Charm', manual: false, status: 'to-move',
   from: { holder: null, location: null, cell: null },
   to: { id: 'magic', holder: 'OLD NAME', location: 'stash', cell: 'stash:c0r0' }
-}), { holder: 'NEW NAME', lane: 'stash', cell: 'stash:c0r0', frame: 'f4' });
+}), sess(5, { holder: 'NEW NAME' })), sess(6, { holder: 'NEW NAME' }));
 var queued = _vaultMoveWitness(_vaultMoveTask({
   name: 'Harlequin Crest', manual: true, status: 'to-move',
   from: { holder: 'MAIN', location: 'stash', cell: 'stash:c1r1' },
@@ -163,7 +171,7 @@ var queued = _vaultMoveWitness(_vaultMoveTask({
 }), { holder: 'Other', location: 'inventory', cell: 'inventory:c2r2', frame: 'else' });
 console.log(JSON.stringify({
   status: seen.status, fromCell: seen.from.cell, fromLoc: seen.from.location, toCell: seen.to.cell,
-  third: third.status, blank: blank.status, there: there.status, home: home.status, renamed: renamed.status, queued: queued.status
+  third: third.status, blank: blank.status, there: there.status, home1: home1.status, home: home.status, renamed: renamed.status, queued: queued.status
 }));
 """,
         ])
@@ -175,6 +183,7 @@ console.log(JSON.stringify({
         self.assertEqual(o["third"], "moved-elsewhere")
         self.assertEqual(o["blank"], "to-move")
         self.assertEqual(o["there"], "to-move")
+        self.assertEqual(o["home1"], "to-move", "one session already at its home closed the task (REG-2843 wants two)")
         self.assertEqual(o["home"], "verified")
         self.assertEqual(o["renamed"], "verified")
         self.assertEqual(o["queued"], "moved-elsewhere")
@@ -536,6 +545,7 @@ console.log(JSON.stringify({ conf: row.looks[0].conf, id: row.looks[0].id, frame
             "}",
             _fn(self.src, "_vaultMovePlace"),
             _fn(self.src, "_vaultMoveSamePlace"),
+            _fn(self.src, "_vmMs"),
             _fn(self.src, "_vaultMoveTask"),
             _fn(self.src, "_vaultMoveWorn"),
             _fn(self.src, "_vaultMoveOnKeep"),

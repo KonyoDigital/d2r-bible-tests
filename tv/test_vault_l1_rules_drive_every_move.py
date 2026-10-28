@@ -117,15 +117,22 @@ function st2(){ return (JSON.parse(LSR.getItem('d2r_vaultRecords')).records || [
   .map(function(r){ return [r.copyIx || 0, r.move.status]; }).sort(); }
 var A = mine[0], B = mine[1]; OUT.nm = A.name; OUT.cells = [A.move.to.cell, B.move.to.cell];
 OUT.s0 = st2();
-window._vaultGoneObserve({ session: 'p1', holder: A.move.to.holder, location: A.move.to.location, items: [{ name: A.name, cell: A.move.to.cell }], ground: [] });
+/* REG-2843 - his done rule: a full look of the target is one session; two sessions read after the task opened close it */
+var T0 = Date.now();
+function look(n, at, items){ var ms = T0 + n * 60000; return { session: 's_' + ms + '_' + n, at: new Date(ms).toISOString(), holder: at.holder, location: at.location, items: items, ground: [] }; }
+window._vaultGoneObserve(look(1, A.move.to, [{ name: A.name, cell: A.move.to.cell }]));
+OUT.h1 = st2();
+window._vaultGoneObserve(look(2, A.move.to, [{ name: A.name, cell: A.move.to.cell }]));
 OUT.s1 = st2(); OUT.a = A.copyIx || 0;
-window._vaultGoneObserve({ session: 'p2', holder: B.move.to.holder, location: B.move.to.location, items: [{ name: A.name, cell: A.move.to.cell }, { name: B.name, cell: B.move.to.cell }], ground: [] });
+window._vaultGoneObserve(look(3, B.move.to, [{ name: A.name, cell: A.move.to.cell }, { name: B.name, cell: B.move.to.cell }]));
+window._vaultGoneObserve(look(4, B.move.to, [{ name: A.name, cell: A.move.to.cell }, { name: B.name, cell: B.move.to.cell }]));
 OUT.s2 = st2();
 """
         o = T.board().run(js)
         self.assertEqual(len(o["s0"]), 2, "PREMISE: two copies, two rows: %r" % o["s0"])
         self.assertNotEqual(o["cells"][0], o["cells"][1], o["cells"])
         self.assertEqual([x[1] for x in o["s0"]], ["to-move", "to-move"])
+        self.assertEqual([x[1] for x in o["h1"]], ["to-move", "to-move"], "one full look closed a task (REG-2843 wants two sessions): %r" % o["h1"])
         st1 = dict((c, s) for c, s in o["s1"])
         self.assertEqual(st1[o["a"]], "verified", "copy A seen at its target did not close: %r" % o["s1"])
         self.assertEqual([s for c, s in o["s1"] if c != o["a"]], ["to-move"], "one sighting closed BOTH copies' rows: %r" % o["s1"])

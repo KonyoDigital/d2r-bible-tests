@@ -36,7 +36,8 @@ FNS = [
     "_vaultCellKey", "_vaultSightGroups", "_vaultPresenceSpan",
     "_vaultAutoIntakeRead", "_vaultAutoIntakePaint", "_vaultAutoIntakeSet",
     "_vaultAutoIntakeToggle", "_vaultFrameRefuse", "_vaultIntakeGate",
-    "_vaultMovePlace", "_vaultMoveSamePlace", "_vaultMoveTask", "_vaultMoveQueue",
+    "_vaultMovePlace", "_vaultMoveSamePlace", "_vmMs", "_vaultMoveReads", "_vaultMoveSeenAtTo", "_vaultMoveHalfSay",
+    "_vaultMoveTask", "_vaultMoveQueue",
     "_vaultMoveTally", "_vaultMoveWitness",
     "_vaultSeamHome", "_dockNames", "_vaultRecords",
     "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom",
@@ -185,6 +186,7 @@ window._vaultMoveShown = _vaultMoveShown;
 window._vaultMoveCellMarkHtml = _vaultMoveCellMarkHtml;
 window._vaultFrameMeta = _vaultFrameMeta;
 window._vaultMovePaint = _vaultMovePaint;
+window._vaultMoveHalfSay = _vaultMoveHalfSay;
 """
 
 
@@ -309,18 +311,25 @@ _vaultMoveCommit([{ name: "Griffon's Eye", copyIx: 0, task: ens.task }]);
 var from = ens.task.from, to = ens.task.to;
 var still = _vaultMoveApplySight("Griffon's Eye", { holder: from.holder, loc: from.location, cell: from.cell, frame: 'still-1' });
 var elsew = _vaultMoveApplySight("Griffon's Eye", { holder: 'SOMEONE', loc: 'stash', cell: 'stash:c9r9', frame: 'else-1' });
-var ok = _vaultMoveApplySight("Griffon's Eye", { holder: to.holder, loc: to.location, cell: to.cell, frame: 'live-1' });
+/* REG-2843 - his done rule: two sessions at the target, both read after the task opened */
+var T0 = Date.now();
+function atTo(n){ var ms = T0 + n * 60000; return { holder: to.holder, loc: to.location, cell: to.cell, frame: 'live-' + n, at: new Date(ms).toISOString(),
+                                                   sessions: [{ id: 's_' + ms + '_' + n, frame: 'live-' + n }] }; }
+var half = _vaultMoveApplySight("Griffon's Eye", atTo(1));
+var ok = _vaultMoveApplySight("Griffon's Eye", atTo(2));
 console.log(JSON.stringify({
   still: still.task.status,
   elsewhere: elsew.task.status,
+  half: half.task.status, halfSeen: (half.task.seen || []).length,
   verified: ok.task.status,
   evidence: ok.task.evidence
 }));
 """)
         self.assertEqual(o["still"], "to-move")
         self.assertEqual(o["elsewhere"], "moved-elsewhere")
+        self.assertEqual((o["half"], o["halfSeen"]), ("moved-elsewhere", 1), "one session at the target closed the task: %r" % o)
         self.assertEqual(o["verified"], "verified")
-        self.assertIn("live-1", o["evidence"])
+        self.assertIn("live-2", o["evidence"])
 
     def test_a_hand_tally_holds_until_the_target_is_witnessed(self):
         o = self._run(r"""
@@ -579,15 +588,25 @@ var ens = _vaultMoveEnsure("Griffon's Eye", 0);
 _vaultMoveCommit([{ name: "Griffon's Eye", copyIx: 0, task: ens.task }]);
 var to = ens.task.to;
 _vaultAutoIntakeSet(true);
-var res = window.tvVaultRegister("Griffon's Eye", { holder: to.holder, loc: to.location, cell: to.cell, frame: 'live-9' });
+/* REG-2843 - two sessions at the target, each read after the task opened */
+var T0 = Date.now();
+function wit(n){ var ms = T0 + n * 60000; return { holder: to.holder, loc: to.location, cell: to.cell, frame: 'live-' + n, at: new Date(ms).toISOString(),
+                                                  sessions: [{ id: 's_' + ms + '_' + n, frame: 'live-' + n }] }; }
+var res1 = window.tvVaultRegister("Griffon's Eye", wit(8));
+var half = _vaultMoveBag().map["Griffon's Eye\u00000"];
+var halfSay = window._vaultMoveHalfSay(half);
+var res = window.tvVaultRegister("Griffon's Eye", wit(9));
 var bag = _vaultMoveBag().map["Griffon's Eye\u00000"];
 console.log(JSON.stringify({
-  ok: !!(res && res.ok),
+  ok: !!(res1 && res1.ok && res && res.ok),
+  half: half && half.status, halfSay: halfSay,
   status: bag && bag.status,
   evidence: bag && bag.evidence
 }));
 """)
         self.assertTrue(o["ok"], o)
+        self.assertEqual(o["half"], "to-move", "one session at the target closed the task: %r" % o)
+        self.assertRegex(o["halfSay"], r"^seen at target once \(\d{4}-\d\d-\d\d\)$", o)
         self.assertEqual(o["status"], "verified")
         self.assertIn("live-9", o["evidence"])
 

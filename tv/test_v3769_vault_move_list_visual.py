@@ -769,8 +769,12 @@ _STEP_VERIFY = _wrap(r"""
     if (row && row.name === g && (row.copyIx || 0) === copy) task = row.task;
   });
   if (!task || !task.to) return { status: null, why: 'no task', model: (model.tasks || []).length };
-  var applied = window._vaultMoveApplySight(g, { holder: task.to.holder, location: task.to.location,
-    loc: task.to.location, cell: task.to.cell, frame: 'v3769-live' });
+  /* REG-2843 - his done rule: two sessions at the target, each read after the task opened */
+  var T0 = Date.now();
+  function sight(n){ var ms = T0 + n * 60000; return { holder: task.to.holder, location: task.to.location, loc: task.to.location,
+    cell: task.to.cell, frame: 'v3769-live', at: new Date(ms).toISOString(), sessions: [{ id: 's_' + ms + '_' + n, frame: 'v3769-live' }] }; }
+  window._vaultMoveApplySight(g, sight(1));
+  var applied = window._vaultMoveApplySight(g, sight(2));
   window.renderVault();
   var el = document.querySelector('#vault-move-list .vmv-row[data-from="stash:c1r1"]');
   return { status: el && el.getAttribute('data-status'),

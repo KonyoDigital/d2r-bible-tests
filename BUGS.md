@@ -207,6 +207,19 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2843 - A MOVE TASK CLOSED ON ONE SIGHTING AT ITS TARGET (#230 his done table, agent-guide's recon)
+_vaultMoveWitness marked a task verified on ONE sighting at its target cell, and a full look of the target closed it at once
+too. His rule, from the design he approved: a task ticks itself on reads at its target from 2 distinct sessions
+(VAULT_WITNESS_MIN; s_1 and its re-look s_1#2 are one, the rule _vaultLookSessions keeps), each captured after the task
+opened, with no newer read placing it elsewhere. A task now records when it opened and the sessions that have seen it at its
+target. One session leaves it open and the row says "seen at target once (date)"; a second closes it. A read older than the
+opening, or one whose time cannot be told, does not count; a reel id s_<start ms>_<n> dates its read. A newer read elsewhere
+reopens it, and an older one changes nothing. His own tick still closes it at once, and a full look of the target is one
+session, and an item first read already at its home closes on its second session there. A task saved before this rule
+opens at its first read. Law: test_a_move_closes_on_two_sessions_at_its_target (node, the whole page), 9 red-proofs, RED.
+Six laws that pinned one-sighting verification follow the rule: v3767, v3769 and the auto-sighting law (node), and three
+Chrome laws (v3769_visual, rules_drive_every_move, throw_out_rows_drain; CI proves them).
+
 ### REG-2842 - A CLEARED PLANNER PICK LEFT THE KEEPER TARGET IT HAD RAISED (v3830 second eye)
 A planner pick of a name he holds, seen in fewer cells than copies, raises copies[] and the keeper target with it
 (REG-2786). Its clear put the target back only on the branch that also took the copy off. With the count lowered elsewhere
