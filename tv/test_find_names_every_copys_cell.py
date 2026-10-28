@@ -27,8 +27,8 @@ import vault_page_node as VPN  # noqa: E402
 
 PRELUDE = r"""
 localStorage.setItem('d2r_ownerClaim', '*');
-localStorage.setItem('d2r_owned', JSON.stringify(["Griswold's Edge", "Lightsabre"]));
-localStorage.setItem('d2r_copies', JSON.stringify({"Griswold's Edge": 3}));
+localStorage.setItem('d2r_owned', JSON.stringify(["Griswold's Edge", "Lightsabre", "The Gnasher"]));
+localStorage.setItem('d2r_copies', JSON.stringify({"Griswold's Edge": 3, "The Gnasher": 3}));
 localStorage.setItem('d2r_muleAssign', JSON.stringify({"Griswold's Edge": 'uni-weap', "Lightsabre": 'uni-weap'}));
 """
 
@@ -46,7 +46,9 @@ function find(q){
   var r = document.getElementById('vault-find-results');
   return r ? String(r.innerHTML || '') : null;
 }
+OUT.would = where("The Gnasher");
 OUT.findMulti = find('griswold');
+OUT.findWould = find('gnasher');
 OUT.findSingle = find('lightsabre');
 })();
 """
@@ -87,8 +89,31 @@ class FindNamesEveryCopysCell(unittest.TestCase):
         self.assertNotIn(" copies: ", h, "an item held once is said as copies")
         self.assertRegex(h, r'<span class="vfr-cell"> · [^<]*col \d+ · row \d+</span>', "the single row lost its one cell: %s" % h[:600])
 
+    def test_a_would_answer_names_every_copys_cell_too(self):
+        """REG-2756 (the REG-2741 sweep) - an item he holds x3 and has not filed yet: the router's answer packs its
+        copies in the locker it would file to, and FIND named the first copy's cell and stopped."""
+        w = self.o.get("would") or {}
+        self.assertEqual(w.get("kind"), "would", "PREMISE: the unfiled x3 item is not a would answer: %r" % w)
+        cells = w.get("cells") or []
+        self.assertEqual((len(cells), len(set(cells))), (3, 3), "the would answer kept %r for an item held x3" % cells)
+        self.assertEqual(w.get("cell"), cells[0])
+        h = (self.o.get("findWould") or "").replace("&middot;", "·")
+        self.assertIn("3 copies: ", h, "FIND's would row does not say how many copies: %s" % h[:600])
+        for c in cells:
+            self.assertIn(c, h, "FIND's would row leaves out a copy's cell %r" % c)
+
 
 RED_PROOF = [
+    {"why": "REG-2756 - the would answer stops at the first copy again",
+     "file": "bible.html",
+     "find": "      var _putW = function(c){ outW.cells.push(c); if (!outW.cell) outW.cell = c; };\n",
+     "replace": "      var _putW = function(c){ if (!outW.cell) { outW.cell = c; outW.cells.push(c); } };\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2756 - FIND's would row names the first copy's cell alone",
+     "file": "bible.html",
+     "find": "+ ((w.cells && w.cells.length > 1) ? ' · ' + w.cells.length + ' copies: ' + esc(w.cells.join(' / ')) : (w.cell ? ' · '+esc(w.cell) : '')) + ' — it files there",
+     "replace": "+ (w.cell ? ' · '+esc(w.cell) : '') + ' — it files there",
+     "matches": 1, "needs": "node"},
     {"why": "#144.9 (REG-2741) - where-is stops at the first copy again",
      "file": "bible.html",
      "find": "      var _put = function(c){ out.cells.push(c); if (!out.cell) out.cell = c; };\n",
