@@ -29,6 +29,14 @@ card counts the loose f_<ms>.jpg stills at the reel root (v908) and never added 
 beside an hour of loose film could still read "0m00s" until the seal. The live branch now spans its first and last
 loose still, as the sealed path does. Found by the Grok CLI on v3824 (#231), reproduced by reading the branch. Law:
 test_a_session_is_dated_by_what_it_captured (1 new case: no reel folder, two loose stills; 1 red-proof).
+### REG-2769 - A PROFILE LOAD COULD PRINT "runeStash: 6 -> 6" FOR RUNES THAT MOVED (the second eye on v3825..v3828)
+REG-2763 made a store of counts say its units, not its keys. The Grok CLI's look at the unshipped chain (#231
+6468753415) found the other collision: a same-total change (Ber 5 -> 1, Jah 1 -> 5) is listed as changed and prints two
+equal figures. The question now names what moved for a store of counts ("runeStash: 6 -> 6 (Ber 1 -> 5, Jah 5 -> 1)",
+four names then "+N more"). Its second finding (a shadow page posting its own copy readout) is refuted: the shadow's
+network veil refuses every non-GET and every /api path. Law: test_a_profile_carries_what_its_vault_reads (the same-total
+case added, 1 red-proof).
+
 ### REG-2763 - A SAVED PROFILE COULD NOT REBUILD ITS OWN VAULT ON ANOTHER PC (his ruling 2026-10-28, GrokBot's round trip)
 GrokBot (#230 6467035373) loaded a profile made from his real Mac data into a fresh browser: every store came back
 byte-exact, the chronicle read 0/99 · 6/403 · 0/135, and the VAULT changed shape (Grief 3x2 -> 2x1, Heart of the Oak 2x1 ->

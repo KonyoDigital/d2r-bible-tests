@@ -51037,12 +51037,26 @@ window.vaultAutoAssign = function(){
     return { ok: true, stores: d.stores, saved: (typeof d.saved === 'string') ? d.saved : null };
   };
   /* -> [{store, group, now, file, changed}] — the preview, reads only */
+  /* REG-2769 (the second eye on v3825..v3828: "runeStash 6 -> 6" while Ber and Jah traded counts) - a store of counts
+     names WHICH names moved, so a same-total change can never print as two equal figures. -> 'Ber 5 -> 1, Jah 1 -> 5' | '' */
+  function _profileCountDetail(curRaw, fileRaw){
+    var a, b;
+    try { a = curRaw == null ? {} : JSON.parse(curRaw); b = fileRaw == null ? {} : JSON.parse(fileRaw); } catch (e) { return ''; }
+    var num = function(o){ return o && typeof o === 'object' && !Array.isArray(o)
+      && Object.keys(o).every(function(k){ return typeof o[k] === 'number' && isFinite(o[k]); }); };
+    if (!num(a) || !num(b)) return '';
+    var names = Object.keys(a).concat(Object.keys(b).filter(function(k){ return !_own(a, k); })).sort();
+    var moved = names.filter(function(k){ return (a[k] || 0) !== (b[k] || 0); });
+    var said = moved.slice(0, 4).map(function(k){ return k + ' ' + (a[k] || 0) + ' \u2192 ' + (b[k] || 0); });
+    return said.join(', ') + (moved.length > 4 ? ', +' + (moved.length - 4) + ' more' : '');
+  }
   window._vaultProfileDiff = function(stores){
     var out = [];
     Object.keys(_PROFILE_STORES).forEach(function(g){ _PROFILE_STORES[g].forEach(function(k){
       if (!Object.prototype.hasOwnProperty.call(stores, k)) return;
       var cur = null; try { cur = window.LSR.getItem(k); } catch (e) {}
-      out.push({ store: k, group: g, now: _profileCount(cur), file: _profileCount(stores[k]), changed: (cur == null ? null : String(cur)) !== stores[k] });
+      out.push({ store: k, group: g, now: _profileCount(cur), file: _profileCount(stores[k]), changed: (cur == null ? null : String(cur)) !== stores[k],
+                 detail: _profileCountDetail(cur, stores[k]) });
     }); });
     return out;
   };
@@ -51053,7 +51067,8 @@ window.vaultAutoAssign = function(){
     if (!P.ok){ status('⚠ Profile not loaded — ' + P.why + '. Nothing was changed.', 12000); return { ok: false, why: P.why }; }
     var diff = window._vaultProfileDiff(P.stores), ch = diff.filter(function(r){ return r.changed; });
     if (!ch.length){ status('Profile matches what is here — nothing to change.', 8000); return { ok: true, wrote: 0 }; }
-    var lines = ch.map(function(r){ return '• ' + r.group + ' · ' + r.store.replace(/^d2r_/, '') + ': ' + r.now + ' → ' + r.file; }).join('\n');
+    var lines = ch.map(function(r){ return '• ' + r.group + ' · ' + r.store.replace(/^d2r_/, '') + ': ' + r.now + ' → ' + r.file
+      + (r.detail ? ' (' + r.detail + ')' : ''); }).join('\n');   /* REG-2769 */
     var chronCh = ch.filter(function(r){ return r.group === 'chronicle'; }).length;   /* REG-2763 */
     var msg = (opts.lead ? String(opts.lead) : 'Load this profile' + (P.saved ? ' (saved ' + P.saved.slice(0, 16).replace('T', ' ') + ')' : ''))
       + '? It replaces ' + ch.length + ' store(s)'

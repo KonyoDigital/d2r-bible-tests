@@ -59,6 +59,7 @@ OUT.differ = keys.filter(function(k){ return before[k] !== after[k]; });
 OUT.askChron = asked[0] || '';
 // a profile whose chronicle matches this PC: the question says the chronicle is not touched
 W.LSR.setItem('d2r_muleAssign', JSON.stringify({}));
+W.LSR.setItem('d2r_runeStash', JSON.stringify({ Ber: 1, Jah: 5 }));   // the same 6 runes, moved between names
 asked = [];
 OUT.load2 = await W.vaultProfileLoad(file, { confirm: function(m){ asked.push(m); return true; }, noReload: true });
 OUT.askVault = asked[0] || '';
@@ -112,6 +113,9 @@ class AProfileCarriesWhatItsVaultReads(unittest.TestCase):
         self.assertIn("runeStash: 2 → 6", ask, "a stash line counts keys, not units: %r" % ask[:600])
         v = self.o.get("askVault") or ""
         self.assertIn("the chronicle is not touched", v, "a load that leaves the chronicle alone does not say so: %r" % v[:300])
+        # REG-2769 (the second eye on v3825..v3828) - a same-total change names what moved, never "6 -> 6" alone
+        self.assertIn("runeStash: 6 \u2192 6 (Ber 1 \u2192 5, Jah 5 \u2192 1)", v,
+                      "a stash whose runes moved between names read as unchanged figures: %r" % v[:600])
 
     def test_undo_never_carries_the_chronicle(self):
         self.assertNotIn("chronicle", self.o.get("undoGroups") or [])
@@ -144,6 +148,11 @@ class OneListRulesBothDoors(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2769 - a same-total stash change prints two equal figures and nothing else",
+     "file": "bible.html",
+     "find": "      + (r.detail ? ' (' + r.detail + ')' : ''); }).join('\\n');   /* REG-2769 */",
+     "replace": "      + ''; }).join('\\n');   /* REG-2769 */",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2763 - the profile leaves the chronicle out again",
      "file": "bible.html",
      "find": "    chronicle: ['d2r_foundLog','d2r_foundBy','d2r_setPieces','d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_craftMade']\n",
