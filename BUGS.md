@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2707 - "KEY OF DESTRUCTION" WAS FILED TO A WEAPON MULE (#158.4, GrokBot on his real frames)
+The vault's read door registered an uber key and suggestMule routed it as a weapon. Uber keys, organs, essences and the
+Token of Absolution are MATERIALS: the Materials stash counts them (SPECIAL_DROPS - the same groups the uber/Token planner
+reads) and the vault never files them. _vaultNotAnItem refuses them with that sentence (refused not-an-item), built once from
+SPECIAL_DROPS, never a copied list. Sunder charms are left out on purpose: they are real uniques the vault keeps, even though
+the Renewed recipe also counts them. Law: test_a_material_is_not_a_vault_item (2 red-proofs, each seen RED).
+
 ### REG-2706 - A ROW HELD FOR A SECOND SESSION FELL OUT OF THE APPLY'S RECEIPT WITHOUT A WORD (#202, v3817's CI)
 #202 (REG-2686) holds a reader row of a name he does not own until a second session, and refuses one with no look at all.
 chronicleApply's _vaultReport dropped every not-ok register result (`if (!vr || !vr.ok) return false`), so a held row

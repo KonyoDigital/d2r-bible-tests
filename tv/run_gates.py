@@ -12069,6 +12069,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_read_that_found_nothing_new_is_not_a_failed_read.py")], 300,
          needs_app=False,
          why="#158.2 - vaultIntake's ok is whether the read worked, never whether it found something new"),
+    Gate("test_a_material_is_not_a_vault_item",
+         [sys.executable, os.path.join(HERE, "test_a_material_is_not_a_vault_item.py")], 300,
+         needs_app=False,
+         why="#158.4 - uber keys, organs, essences and the Token are counted by the Materials stash and refused at the vault's read door; Sunder charms still register"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
