@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3816",
+  "ver": "v3817",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3816: upload fits the cap and waits the gap, Dean blind laws, a booting board is waited for, shelf and theatre",
+  "note": "v3817: two sessions register an item, spelling variants merge, a slow console still opens the shelf, parses move to a child",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
