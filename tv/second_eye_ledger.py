@@ -651,7 +651,24 @@ def a_template_not_a_look(row):
     if str(row.get("verdict") or "").strip().lower() != "findings":
         return False
     lines = [str(f or "").strip() for f in (row.get("findings") or []) if str(f or "").strip()]
-    return all(f.startswith(NOT_SHOWN_PREFIX) for f in lines)
+    return all(f.startswith(NOT_SHOWN_PREFIX) or not_a_finding(f) for f in lines)
+
+
+#: REG-2770 (v3825's row) - a word the schema's slot was filled with, not a defect
+_FILLER = re.compile(r"^(placeholder|pending|tbd|todo|n/?a|none|nothing|\.\.\.|-)[.!]?$", re.I)
+#: REG-2770 - an announcement of what the eye meant to read next, not a finding about what it read
+_INTENT = re.compile(r"^(i need (the|to read|to see|more)|i will (read|look|open|check)|i'll (read|look|open|check)|"
+                     r"let me (read|look|open|check)|reading the |i am going to (read|look|open))", re.I)
+
+
+def not_a_finding(line):
+    """REG-2770 - MEASURED on v3825's row: the eye answered verdict "findings" with three lines - "placeholder", "I need the
+    surrounding functions before naming a failure scenario. Reading the lock-heart and session-span code that the diff
+    cuts off." and its NOT SHOWN note "pending". REG-2740 refused a row of NOT SHOWN notes only, so this one counted as a
+    look with 3 findings while it named no defect. A line that is only a filler word, or only announces what the eye
+    means to read, is not a finding. -> bool"""
+    t = str(line or "").strip()
+    return bool(_FILLER.match(t) or _INTENT.match(t))
 
 
 def row_is_not_a_look(row):

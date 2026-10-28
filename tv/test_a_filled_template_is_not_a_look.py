@@ -91,6 +91,19 @@ class AFilledTemplateIsNotALook(unittest.TestCase):
     def test_findings_with_nothing_at_all_is_not_a_look(self):
         self.assertEqual(self._read(_row("v9205", findings=[])), (0, True, 0))
 
+    def test_v3825s_row_of_filler_and_intent_is_not_a_look(self):
+        """REG-2770 - v3825's row: "findings" with three lines, none naming a defect."""
+        rows = ["placeholder", "I need the surrounding functions before naming a failure scenario. Reading the "
+                "lock-heart and session-span code that the diff cuts off.", L.NOT_SHOWN_PREFIX + "pending"]
+        self.assertEqual(self._read(_row("v9206", findings=rows)), (0, True, 0),
+                         "a row of filler words and an announcement of what the eye means to read counted as a look")
+
+    def test_BASELINE_a_finding_that_names_a_defect_is_one_whatever_its_first_word(self):
+        rows = ["Medium: a live shelf card still dates itself from journal reads while counting loose film.",
+                "None of the callers check the return value of x(), so a failed read reaches the ledger.", NOTE]
+        self.assertEqual(self._read(_row("v9207", findings=rows)), (1, False, 1),
+                         "a real finding was read as filler - the rule is too wide")
+
     def test_the_runner_files_the_note_under_the_ledgers_one_prefix(self):
         src = open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
         self.assertEqual(src.count("findings = findings + [SEL.NOT_SHOWN_PREFIX + _unseen]"), 1,
@@ -98,6 +111,16 @@ class AFilledTemplateIsNotALook(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2770 - a row of filler and intent lines counts as a look again",
+     "file": "second_eye_ledger.py",
+     "find": "    return all(f.startswith(NOT_SHOWN_PREFIX) or not_a_finding(f) for f in lines)\n",
+     "replace": "    return all(f.startswith(NOT_SHOWN_PREFIX) for f in lines)\n",
+     "matches": 1},
+    {"why": "REG-2770 - an announcement of what the eye means to read is a finding again",
+     "file": "second_eye_ledger.py",
+     "find": "    return bool(_FILLER.match(t) or _INTENT.match(t))\n",
+     "replace": "    return bool(_FILLER.match(t))\n",
+     "matches": 1},
     {"why": "REG-2740 - a filled-in template counts as a look again",
      "file": "second_eye_ledger.py",
      "find": "    return is_not_a_look((row or {}).get(\"verdict\")) or a_template_not_a_look(row)\n",
@@ -105,7 +128,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2740 - every schema 'findings' row is refused, real findings or not",
      "file": "second_eye_ledger.py",
-     "find": "    return all(f.startswith(NOT_SHOWN_PREFIX) for f in lines)\n",
+     "find": "    return all(f.startswith(NOT_SHOWN_PREFIX) or not_a_finding(f) for f in lines)\n",
      "replace": "    return True\n",
      "matches": 1},
     {"why": "REG-2740 - drained #231 comment rows are refused too (92 real looks lost)",

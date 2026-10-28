@@ -29,6 +29,15 @@ card counts the loose f_<ms>.jpg stills at the reel root (v908) and never added 
 beside an hour of loose film could still read "0m00s" until the seal. The live branch now spans its first and last
 loose still, as the sealed path does. Found by the Grok CLI on v3824 (#231), reproduced by reading the branch. Law:
 test_a_session_is_dated_by_what_it_captured (1 new case: no reel folder, two loose stills; 1 red-proof).
+### REG-2770 - A SECOND-EYE ROW OF FILLER WORDS COUNTED AS A LOOK WITH 3 FINDINGS (v3825's first look)
+REG-2740 refused a schema row whose only lines were the eye's own NOT SHOWN note. v3825's first look answered verdict
+"findings" with "placeholder", "I need the surrounding functions before naming a failure scenario. Reading the lock-heart
+and session-span code that the diff cuts off." and the note "pending" - no defect named, and the ledger filed a look
+with 3 findings. A line that is only a filler word, or only announces what the eye means to read, is not a finding now
+(second_eye_ledger.not_a_finding), so such a row is not a look; the re-run looked for real (its memo finding was refuted
+by reproduction, #231 6469665976). Law: test_a_filled_template_is_not_a_look (v3825's row as a case, a baseline that a
+real finding still counts, 2 red-proofs).
+
 ### REG-2769 - A PROFILE LOAD COULD PRINT "runeStash: 6 -> 6" FOR RUNES THAT MOVED (the second eye on v3825..v3828)
 REG-2763 made a store of counts say its units, not its keys. The Grok CLI's look at the unshipped chain (#231
 6468753415) found the other collision: a same-total change (Ber 5 -> 1, Jah 1 -> 5) is listed as changed and prints two
