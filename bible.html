@@ -41651,6 +41651,7 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
    ever describe the mule it is filling; the count of mules is a different fact and it used
    to have nowhere to live, so 61 items and 200 items looked identical. */
 .vm-mules{margin-left:4px;font-size:var(--fs-micro,10px);color:var(--gold-bright,#f0c060);opacity:.9;letter-spacing:.2px;white-space:nowrap}
+.vm-copies{padding:3px 11px 0;font-family:var(--mono,monospace);font-size:var(--fs-micro,10px);color:var(--text-muted,#b5a48a);white-space:nowrap}   /* #111 REG-2738 */
 /* v2212 — a bar that could not be measured must not look like a measured zero. */
 .vg-unknown{background:repeating-linear-gradient(45deg,rgba(181,164,138,.35) 0 4px,transparent 4px 8px)!important;width:100%!important}
 .vm-tools{display:flex;gap:2px;opacity:0;transition:opacity .15s}
@@ -45257,6 +45258,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       }
       try { var _ci76 = _vaultLockerItems(m.id); if (typeof _ci76 === 'number') _itemN = _ci76; } catch (eCi) {}
+      /* #111 (REG-2738, GrokBot close-0915: "UNI-ARMOR 2" over 5 copy cells) - the grid draws a cell per COPY and the
+         count above it is ITEMS (REG-2224, kept). The copies the card draws are counted here so the plate can say them
+         beside the count when an item is held more than once - never folded into it. */
+      var _ovCopyN = (typeof _ovCells !== 'undefined' && _ovCells) ? _ovCells.length : 0;
+      var _copyN = total + _ovCopyN;
+      var _multiCopy = drawn.length > (new Set(drawn)).size || _ovCopyN > _ovNames.length;
       /* ══ v2211 — THE GAUGE MEASURES CELLS AND STOPS PRETENDING ONE MULE IS ENOUGH ══════════
          It was `cap = 40` with `Math.min(100, …)`: item COUNT against the INVENTORY alone, then
          clamped. A locker holding 61 and one holding 200 painted the same bar, and the drill-down
@@ -45435,6 +45442,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + (_vmAddedMule(m) ? '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete this mule you added">🗑</button>' : '')
         + '</span>'
         + '</div>'
+        /* #111 (REG-2738) - the copies line sits UNDER the plate, never in its row: in the row it squeezed the
+           locker's name onto two lines ("UNI-" / "WEAPONS" at 1440 and 375, measured on the vault-copies render). */
+        + (_copyN > _itemN && _multiCopy ? '<div class="vm-copies" title="an item you own more than once takes a cell per copy in this locker">'
+            + _itemN + ' item' + (_itemN === 1 ? '' : 's') + ' in ' + _copyN + ' copies</div>' : '')
         + '<div class="vm-gauge" title="'
              + (!_known ? 'UNKNOWN — the packer could not be asked, so this bar is not a reading'
                 : _spilled ? ('this locker needs '+muleN+' mules · the bar is mule '+muleN+', which holds '

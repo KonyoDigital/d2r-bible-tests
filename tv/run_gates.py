@@ -12141,6 +12141,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_proof_rides_only_a_registered_key.py")], 300,
          needs_app=False,
          why='#186 step 3 - a proof one PC earned reaches a same-platform PC on the same commit, only under a registered key'),
+    Gate("test_a_locker_says_its_copies",
+         [sys.executable, os.path.join(HERE, "test_a_locker_says_its_copies.py")], 300,
+         needs_app=False,
+         why='#111 - a locker that draws a cell per copy says how many copies beside its item count'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

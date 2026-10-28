@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2738 - A LOCKER PLATE SAID "2" OVER FIVE COPY CELLS AND NOTHING SAID WHY (#111, GrokBot close-0915)
+GrokBot, on his live board with a tagged 3-copy test set: the mule header read "UNI-ARMOR 2" while the grid below it drew 5
+cells (Nightwing's Veil x3, Alma Negra x2). The number was right - REG-2224 made the plate count ITEMS, because counting
+copies had it disagree with the Registered header and the proven chip ("329 vs 220") - and the locker drill-down already
+said "2 items total - 5 copies". The shelf card was the one surface that drew a cell per copy and never said so. The count
+stays items; when the card draws more cells than it has items, a line under the plate says "2 items in 5 copies"
+(div.vm-copies). A locker holding one copy of everything says nothing extra. Two cuts were refused on the pixels: "5
+copies" beside the bare count left a cross-family eye CANNOT TELL what the "2" counts, and any chip in the plate's row
+squeezed the locker name onto two lines ("UNI-" / "WEAPONS" at 1440 and 375) with every geometry check green. render_check
+gains a vault-copies target (ten items, one x3), because the vault seed held one copy of everything and this surface had
+never painted. Law: test_a_locker_says_its_copies (node, the whole page; 4 red-proofs).
+
 ### REG-2737 - A LAW THE ALT PROVED WAS PROVED AGAIN ON DEAN'S PC OVER THE SAME BYTES (#186 step 3, his ruling)
 His words, 2026-10-28: "identical bytes saved from the windows alt pc that has already been proved. he doesnt need to
 reprove it all". Steps 1+2 (REG-2715, v3819) made a PC's census serve what that PC banked; nothing carried one PC's bank

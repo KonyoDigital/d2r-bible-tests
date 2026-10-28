@@ -829,6 +829,34 @@ TARGETS = {
                             "in the title attribute",
         },
     },
+    # #111 (REG-2738) - the "vault" target seeds one copy of everything, so the plate's "N copies" chip never painted in
+    # any render: the surface REG-2738 changed was UNMEASURED. One locker here holds ten items, one of them x3.
+    "vault-copies": {
+        "why": "a locker plate whose item is held more than once - the count stays items, the copies sit beside it",
+        "seed": """(function(){
+            localStorage.setItem('d2r_ownerClaim','*');
+            /* ten items, one of them x3: two-digit counts, the widest plate this chip makes at 375 */
+            ['Lacerator','Windforce','Doombringer','The Grandfather','Stormlash','Bonehew','Steeldriver',
+             'Lightsabre','Eaglehorn','Widowmaker'].forEach(function(n){
+                try{ var h = window.vaultHandAdd(n, undefined, { by: 'the render seed' }); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
+            try{ copies['Lacerator'] = 3; }catch(e){}
+            return 1; })()""",
+        "activate": """(function(){
+            var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
+              return /vault/i.test((x.getAttribute&&x.getAttribute('data-tab'))||x.textContent||'');})[0];
+            if(el) el.click();
+            try{ window.renderVault && window.renderVault(); }catch(e){}
+            /* proved from the rect of the CHIP itself - a plate drawn without it is not this surface */
+            var s=document.querySelector('[data-vault-mule="uni-weap"] .vm-copies');
+            if(!s) return false;
+            var r=s.getBoundingClientRect();
+            return !!(r.width>0 && r.height>0 && getComputedStyle(s).display!=='none'); })()""",
+        "sel": '[data-vault-mule="uni-weap"]',
+        "truncation_ok": {
+            "vm-cell-name": "the name label inside a 10x10-grid tile - the cell is 28px by design, the item is read from "
+                            "its art and its tooltip, and the full name is in the title attribute (as the vault target)",
+        },
+    },
     # #264 (v3620, REG-2030) - the "vault" target above files every seeded item, so the dock's organizer (the rows
     # that say the mule, the stash cell and the picture for each unsorted item) never painted in any render: the
     # surface v3620 changed was UNMEASURED. These items are registered and left unsorted, so the organizer must paint.
