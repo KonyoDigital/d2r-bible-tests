@@ -326,6 +326,17 @@ can only be drawn somewhere else once that locker draws rolled names. Law: test_
 4 red-proofs, RED. Re-aimed: test_a_hardened_filing_is_locked_until_he_releases_it's #98 P4 red-proof (its line now
 returns the answer), RED.
 
+### REG-2853 - THE VAULT HEADER CALLED A MAGIC & RARE KEEPER "WITH NO HOME" (the REG-2850 sweep; #204's five on the ALT)
+A keeper the owned pool does hold - a TV stub he also kept to Magic & Rare - fell through every home in the records and
+landed as an orphan: the seam answers nothing for a Magic & Rare name (it is never in the dock), and nothing else named
+the locker. So the header said "with no home (owned, on no mule and not in the unsorted dock)" of items the MAGIC & RARE
+card draws - #204 split that line and counted five such on the ALT, and on his ALT's stores the five are exactly its kept
+stubs. Measured on the whole page in node: the kept stub's record was kind orphan and the header said 1 with no home. Now
+a Magic & Rare keeper with no real mule filing is homed on the locker in the records (a filing on a real mule still wins),
+a stored orphan row of one takes that home on load (_vaultReconcileHomes, as the live records give it), and the MAGIC &
+RARE card draws it once - as its keeper cell, whose X throws it out of Magic & Rare - never also as a record cell. Law:
+test_magic_and_rare_draws_every_item_it_counts (2 new cases, owner and shadow), 3 red-proofs, RED.
+
 ### REG-2852 - A RARE WHOSE BASE IS NO ART KEY STILL DREW THE DIAMOND, AND ONE CHARM SIZE WORE TWO SPRITES (the REG-2851 sweep, GrokBot's ACT-2)
 A rare kept with its base on record drew the mark when that base was no art key - his Brimstone Clasp, a rare Plated Belt.
 Measured on the whole page in node: 36 of BASE_DB's 508 bases answered no picture from artUrl (Plated Belt, War Belt,

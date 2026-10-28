@@ -45456,6 +45456,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var byMule = _vaultByMule();
     shelf.innerHTML = roster.map(function(m){
       var items=(byMule[m.id]||[]).slice();
+      /* REG-2853 - a keeper homed on MAGIC & RARE is drawn once, as its keeper cell below (its X throws it out of Magic &
+         Rare), never also as a record cell */
+      if (m.id === 'magic-rare' && typeof magicFinds === 'object' && magicFinds)
+        items = items.filter(function(n){ return !Object.prototype.hasOwnProperty.call(magicFinds, n); });   /* REG-2853 one cell */
       try { var _wOn = (window._vaultWarRole && window._vaultWarRole(m) && window._vaultWarOverOn) ? window._vaultWarOverOn(m.id) : null;
             if (_wOn) Object.keys(_wOn).forEach(function(n){ if (items.indexOf(n) < 0) items.push(n); }); } catch (eWo) {} /* L1 over-cap war copies show on their WAR mule */
       items.sort();
@@ -55153,6 +55157,11 @@ window.vaultAutoAssign = function(){
            the board can't find". It is loose and off the dock - the seam's own discard rule (_vaultSeamHome: a junk route is
            loose) - and REG-2697 counts it under looseThrow. */
         else if (mid === '__throwout') kind = 'loose';
+        /* REG-2853 (the REG-2850 sweep; #204's "5 with no home" on the ALT) - A MAGIC & RARE KEEPER IS HOMED ON ITS LOCKER. A
+           keeper the pool holds (a TV stub he also kept, owned) fell through to orphan: the seam answers nothing for a Magic &
+           Rare name (it is not in the dock), so the header said "with no home (owned, on no mule and not in the unsorted dock)"
+           of items the MAGIC & RARE card draws. A real mule filing above still wins; with none, its home is the locker. */
+        else if (typeof window._vaultInMagicRare === 'function' && window._vaultInMagicRare(name) && typeof muleById === 'function' && muleById('magic-rare')) { kind = 'filed'; mid = 'magic-rare'; }   /* REG-2853 keeper home */
         else if (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(name)))
           kind = 'keepInv';                                        // Anni/Torch/Gheed's drawn with MAIN — a kept charm with no mule is NOT an orphan
         else { kind = 'orphan'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }
@@ -55760,6 +55769,9 @@ window.vaultAutoAssign = function(){
       if (!r || r.name == null) return;
       if (r.kind !== 'loose' && r.kind !== 'orphan') return; /* v3767 reconcile kind */
       var seam = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(r.name) : null;
+      /* REG-2853 - a stored orphan row of a Magic & Rare keeper takes the locker's home, as the live records give it */
+      if (!seam && r.kind === 'orphan' && typeof window._vaultInMagicRare === 'function' && window._vaultInMagicRare(r.name)
+          && typeof muleById === 'function' && muleById('magic-rare')) { r.kind = 'filed'; r.mule = 'magic-rare'; r.loc = 'magic-rare'; return; }   /* REG-2853 stored keeper */
       if (!seam) return;
       if (seam.loc === 'shared') { r.kind = 'sharedStash'; r.mule = null; r.loc = 'shared'; }
       else if (seam.loc === 'filed' && seam.mule) { r.kind = 'filed'; r.mule = seam.mule; r.loc = seam.mule; }
