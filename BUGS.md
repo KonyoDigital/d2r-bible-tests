@@ -60,6 +60,9 @@ test_the_task_force_repaints_only_when_it_changed.py ran `subprocess.run([NODE, 
 refuses everywhere because Linux caps one argv string at 128 KB and the failure reads as an OS error with no word about the
 law. Its program is small today; the rule is about the shape. It now feeds node on stdin (`[NODE, "-"], input=js`), and
 both laws pass (3/3 and 2/2).
+### REG-2964 - THE CHARM RULING RE-PLANNED SAVED TARGETS IT NEVER EMPTIED, AND ITS ROW DID NOT SAY WHY (integration int-4: REG-2896 meets REG-2787)
+
+REG-2787 pins every saved move target unless his hand moves it or its mule is deleted; REG-2896's one-shot charm migration is the ruling's own exception. Meeting on one branch, measured on the whole page in node: the migration re-planned EVERY copy's target of a re-homed charm, including a copy already targeted on CHARMS, and its reason rode in a field the move row never draws. _vaultCharmReplan now re-plans only a name the one charm rule answers (_charmHome), and of it only a copy whose saved target is still on MAGIC & RARE or UNI-SMALL (by id, or by holder name on a record older than ids); every other saved target stands. The new target carries REG-2787's retarget with the ruling's reason, so its row reads "new target: his 2026-10-28 charm ruling re-homed it", and a rebuild keeps it. test_the_charm_ruling_rehomes_once and test_a_saved_target_never_moves_unless_he_moves_it stay green. Law test_the_charm_ruling_moves_only_the_targets_it_empties (4 cases), 3 red-proofs RED.
 
 ### REG-2913 - IN A FRAMED WINDOWS BOARD THE WORLD BAND PAINTED OVER THE SEARCH (#220, GrokBot #230 6462161184)
 GrokBot on the Mac's shadow of the ALT: #cousin-ribbon ("WINDOWS - its own world", position fixed, top 0, ~22 px, z 2000,
