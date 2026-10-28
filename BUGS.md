@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2747 - A KEYBOARD PAGE SWITCH ON THE SHARED STASH DROPPED THE FOCUS TO THE PAGE TOP (#154.19 nit, GrokBot v3821 pass)
+GrokBot (#230 6464730558): Enter on a shared-stash tab switched the page, then the card re-rendered and the focus fell to
+<body>, so the next Tab restarted at the top of the page instead of moving to the next tab. _sharedSetPage now hands the
+focus to the newly selected tab when the switch came from a focused tab; a mouse switch moves no focus. Law:
+test_a_locker_and_a_shared_tab_take_the_keyboard (+1 case driven in node with the page's own DOM stand-ins, 2 red-proofs).
+
 ### REG-2746 - test_vault_retro LEFT tv_diablo's OCR WORKER RUNNING ON HIS MAC (a pre-existing local error, found in a sweep)
 On his Mac (main v3821 too) `pytest test_vault_retro.py` read 69 passed, 1 error: the suite's child guard reported "A TEST
 LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker" at the file's last teardown. A read path in the file warms tv_diablo's

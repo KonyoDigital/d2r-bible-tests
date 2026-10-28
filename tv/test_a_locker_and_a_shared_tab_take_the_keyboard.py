@@ -60,6 +60,23 @@ OUT.sharedTabs = tabs.map(function(t){
     + (/ aria-selected="(true|false)"/.test(t) ? ':sel' : '');
 });
 OUT.tablist = / role="tablist" aria-label="shared stash pages"/.test(sh);
+/* REG-2747 - a page switch made from a focused tab hands the focus to the newly selected tab; one made with no tab
+   focused (a mouse) moves no focus. The DOM stand-ins record who asked for focus. */
+var focused = [];
+var realQS = document.querySelector, realAE = Object.getOwnPropertyDescriptor(document, 'activeElement');
+document.querySelector = function(sel){
+  if (String(sel).indexOf('.vd-tab[aria-selected="true"]') === 0) return { focus: function(){ focused.push('selected-tab'); } };
+  return realQS.call(document, sel);
+};
+Object.defineProperty(document, 'activeElement', { configurable: true, get: function(){ return { classList: { contains: function(c){ return c === 'vd-tab'; } } }; } });
+try { W._sharedSetPage(1); } catch (e) { OUT.setErr = String(e && e.message || e); }
+OUT.focusFromKey = focused.slice();
+focused.length = 0;
+Object.defineProperty(document, 'activeElement', { configurable: true, get: function(){ return null; } });
+try { W._sharedSetPage(2); } catch (e) { OUT.setErr2 = String(e && e.message || e); }
+OUT.focusFromMouse = focused.slice();
+document.querySelector = realQS;
+if (realAE) Object.defineProperty(document, 'activeElement', realAE); else delete document.activeElement;
 })();
 """
 
@@ -88,8 +105,25 @@ class ALockerAndASharedTabTakeTheKeyboard(unittest.TestCase):
                          "a shared stash tab is not a keyboard-reachable tab button: %r" % o["sharedTabs"])
         self.assertTrue(o.get("tablist"), "the shared stash tabs sit in no tablist")
 
+    def test_a_keyboard_page_switch_keeps_the_focus_on_the_tabs(self):
+        """REG-2747 (GrokBot's v3821 pass) - after Enter on a tab the card re-rendered and focus fell to <body>."""
+        o = self.o
+        self.assertFalse(o.get("setErr") or o.get("setErr2"), o)
+        self.assertEqual(o.get("focusFromKey"), ["selected-tab"], "a keyboard page switch dropped the focus: %r" % o)
+        self.assertEqual(o.get("focusFromMouse"), [], "a mouse page switch moved the focus: %r" % o)
+
 
 RED_PROOF = [
+    {"why": "REG-2747 - a keyboard page switch on the shared stash drops the focus to the page again",
+     "file": "bible.html",
+     "find": "    if (_fromKey) { try { var _sel = document.querySelector('.vd-tab[aria-selected=\"true\"]'); if (_sel) _sel.focus(); } catch (eF2) {} }\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2747 - every page switch steals the focus, a mouse click included",
+     "file": "bible.html",
+     "find": "    if (_fromKey) { try {",
+     "replace": "    if (true) { try {",
+     "matches": 1, "needs": "node"},
     {"why": "#154.19 (REG-2735) - a locker plate takes no keyboard focus again",
      "file": "bible.html",
      "find": "        + '<div class=\"vm-plate\" tabindex=\"0\" role=\"button\" onkeydown=",

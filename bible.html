@@ -51336,7 +51336,15 @@ window.vaultAutoAssign = function(){
     return pages;
   }
   try { window._sharedStashPages = _sharedStashPages; } catch(e){}
-  window._sharedSetPage = function(i){ _sharedPage = Math.max(0, Math.min(4, i | 0)); window.openMuleCard('shared'); };
+  window._sharedSetPage = function(i){
+    /* REG-2747 (GrokBot's v3821 pass, #154.19) - the card re-renders on a page switch and the focus fell to <body>, so a
+       keyboard user's next Tab restarted at the page top. A switch made from a focused tab hands the focus to the tab
+       now selected; a mouse switch moves no focus. */
+    var _fromKey = false;
+    try { var _ae = document.activeElement; _fromKey = !!(_ae && _ae.classList && _ae.classList.contains('vd-tab')); } catch (eF) {}
+    _sharedPage = Math.max(0, Math.min(4, i | 0)); window.openMuleCard('shared');
+    if (_fromKey) { try { var _sel = document.querySelector('.vd-tab[aria-selected="true"]'); if (_sel) _sel.focus(); } catch (eF2) {} }
+  };
   /* #264 — what the shared stash holds, and how ONE tab of it packs: the window draws it and the vault finder (_vaultWhereIs)
      names a cell from it, so the two can never disagree about where an item sits */
   function _sharedNames(){ try { return Object.keys(assign).filter(function(n){ return assign[n] === 'shared'; }).sort(); } catch(e){ return []; } }
