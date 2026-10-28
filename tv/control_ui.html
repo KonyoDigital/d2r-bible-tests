@@ -2310,7 +2310,14 @@
      can see. The pixels caught what the instrument could not. [[visual-regression-detector]]
      The reserve clears pin (26) + gap (6) + the seal + right inset; the ellipsis means a title
      that still cannot fit degrades to a readable stub instead of sliding under a button. */
-  .shc-sess { position: absolute; top: 9px; left: 12px; right: 104px; z-index: 2;
+  /* ⚠⚠ REG-2755 (GrokBot's v3821 + v3823 passes: the card's "AM" wrapped under the ☆) - A FIXED RESERVE IS A GUESS ABOUT
+     A WIDTH IT CANNOT SEE. right:104px reserved room for the pin and the seal, and "🛡 clean" + the pin + their gap + the
+     inset measure ~111px in Chrome's mono and more in his WebKit's, so the title's second line ran under the cluster. The
+     title and the cluster are one flex row now: the cluster takes what it needs (flex:none), the title takes the rest
+     (min-width:0) whatever the seal says or the font measures, and the time stays one unit (.shc-hm). */
+  .shc-top { position: absolute; top: 8px; left: 12px; right: 9px; z-index: 2; display: flex; align-items: flex-start; gap: 8px; }
+  .shc-hm { white-space: nowrap; }
+  .shc-sess { position: relative; flex: 1 1 auto; min-width: 0; margin-top: 1px; z-index: 2;
     font: var(--fw-bold) var(--fs-sm)/1 var(--serif);
     /* ⚠ TWO LINES, NOT AN ELLIPSIS. A single nowrap line ellipsised to "Sep 15 · 7:4…" at his
        1120x628, where the grid goes three-across and leaves the title ~116px against a ~104px
@@ -2323,7 +2330,7 @@
     letter-spacing: var(--ls-wide); color: #f2e4c0; text-shadow: 0 2px 7px rgba(0,0,0,.95); }
   .shc-ghost { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-snug); text-transform: uppercase; color: #b0a184; margin-left: 5px; }
   /* D26 — top-right cluster holds the ⭐ pin + the verdict seal */
-  .shc-tr { position: absolute; top: 8px; right: 9px; z-index: 2; display: flex; align-items: center; gap: 6px; }
+  .shc-tr { position: relative; flex: none; z-index: 2; display: flex; align-items: center; gap: 6px; }   /* REG-2755 - a flex item of .shc-top */
   .shc-pin { flex: none; font-size: var(--fs-sm); line-height: 1; color: #b9c9be; background: rgba(6,8,6,.55); backdrop-filter: blur(3px);
     border: 1px solid var(--edge); border-radius: 999px; width: 26px; height: 26px; cursor: pointer; padding: 0;
     display: inline-flex; align-items: center; justify-content: center; transition: color .15s, border-color .15s, transform .1s; }
@@ -10720,6 +10727,17 @@ window._lockMark = function(isOpen, px, label){
     if (d.action) t.push('to free room: ' + d.action);
     return { level: lvl, text: text, title: t.join('\n') };
   };
+  /* REG-2753 (GrokBot's v3823 pass: the sign read 11.9 GB, a chip beside it 12.3) - ONE "free now" per console. Three
+     readings reach this page from three moments: the disk sign's (read at THIS status call, through disk_room), the last
+     retention pass's (up to 15 min old) and the agent's health blob (only while the agent runs). Every surface that says
+     how much is free asks here, so one console never shows two numbers for one disk. -> {gb, src, at}; gb null = UNKNOWN */
+  window._diskFreeNow = function(st){
+    var d = st && st.diskSign, r = st && st.retention, h = st && st.health;
+    if (d && typeof d.freeGb === 'number') return { gb: d.freeGb, src: 'sign', at: null };
+    if (r && typeof r.freeGb === 'number') return { gb: r.freeGb, src: 'retention', at: (typeof r.checked === 'number' ? r.checked : null) };
+    if (h && typeof h.freeGB === 'number') return { gb: h.freeGB, src: 'agent', at: null };
+    return { gb: null, src: null, at: null };
+  };
   window._diskSignPaint = function(d){
     var el = document.getElementById('disk-sign'), tx = document.getElementById('disk-sign-txt');
     if (!el || !tx) return;
@@ -11511,10 +11529,11 @@ window._lockMark = function(isOpen, px, label){
     } catch (e) { /* a paint that throws must not take the rest of the status render with it */ }
 
     var _rt = st.retention || {};
+    var _fN = window._diskFreeNow(st);   /* REG-2753 - the one "free now" */
     if (_rt.freedMb) {
       _lbl += ' · \ud83d\uddc3 freed ' + Math.round(_rt.freedMb) + 'MB';
-    } else if (_rt.checked && typeof _rt.freeGb === 'number' && _rt.freeGb < (_rt.floorGb || 8)) {
-      _lbl += ' · \ud83d\uddc3 ' + _rt.freeGb + 'GB free'
+    } else if (_rt.checked && typeof _fN.gb === 'number' && _fN.gb < (_rt.floorGb || 8)) {
+      _lbl += ' · \ud83d\uddc3 ' + _fN.gb + 'GB free'
             /* v2122 (#136) — SAY HOW MUCH, not just how many. "11 reel(s) await a sweep" does not
                tell him whether clearing them would even reach the floor; 609 MB against a 2.4 GB
                shortfall is a different decision from 609 MB against 200 MB. The backend has
@@ -11547,7 +11566,7 @@ window._lockMark = function(isOpen, px, label){
     var _dt = _rt.diskTrend || {};
     if (typeof _dt.deltaGb === 'number' && _dt.then !== null) {
       var _mv = _dt.deltaGb;
-      _lbl += ' · \ud83d\udcbe ' + (_rt.freeGb != null ? _rt.freeGb + 'GB' : '?')
+      _lbl += ' · \ud83d\udcbe ' + (_fN.gb != null ? _fN.gb + 'GB' : '?')
             + (_mv === 0 ? ' flat' : (_mv > 0 ? ' up ' : ' down ') + Math.abs(_mv).toFixed(1) + 'GB')
             + '/' + (_dt.hours || 24) + 'h'
             /* ATTRIBUTED, always: this can never imply our pruning freed space it did not. The
@@ -11577,7 +11596,9 @@ window._lockMark = function(isOpen, px, label){
        Threshold is 5 min against a 900s poll, so "stale" means the watcher has genuinely not
        come round rather than a few seconds of drift. [[stale-reading]] */
     try {
-      if (_rt.checked && typeof _rt.freeGb === 'number') {
+      if (_fN.src === 'sign') {
+        /* REG-2753 - the sign's figure was read at this status call: no age to confess */
+      } else if (_rt.checked && typeof _rt.freeGb === 'number') {
         var _staleS = Math.round((Date.now() - _rt.checked) / 1000);
         if (_staleS > 300) {
           _lbl += ' (disk read ' + (_staleS < 5400 ? Math.round(_staleS / 60) + ' min'
@@ -14196,7 +14217,11 @@ window._lockMark = function(isOpen, px, label){
                : ('measured ' + Math.round(_s / 3600) + 'h ago');
       } else { _rtAge = 'age UNKNOWN — this reading carries no stamp'; }
     } catch (e) { _rtAge = 'age UNKNOWN'; }
-    if (rt.freeGb != null) dRows.push(_vxRow('free', rt.freeGb + 'GB',
+    /* REG-2753 - the one "free now"; the retention pass's age only when it is the source. Guarded: test_control lifts this
+       builder into a bare engine with no window, where it reads the retention pass exactly as it always did. */
+    var _fNd = (typeof window !== 'undefined' && typeof window._diskFreeNow === 'function') ? window._diskFreeNow(st) : { gb: null, src: null };
+    if (_fNd.src === 'sign') dRows.push(_vxRow('free', _fNd.gb + 'GB', 'on the volume holding the reels · read just now'));
+    else if (rt.freeGb != null) dRows.push(_vxRow('free', rt.freeGb + 'GB',
                                              'on the volume holding the reels · ' + _rtAge));
     else                   dRows.push(_vxRow('free', null, 'the retention pass has not reported'));
     if (rt.freedMb)        dRows.push(_vxRow('freed last pass', Math.round(rt.freedMb) + 'MB', 'reclaimed by the prune'));
@@ -18855,7 +18880,9 @@ window._lockMark = function(isOpen, px, label){
          carries neither, the ordinal stays, because a made-up title would be worse than a dull
          true one." Branch on `d0`, which is the fact, not on a string that always has a value.
          [[unknown-stays-unknown]] */
-      var _shcTitle = _cnm.name ? esc(_cnm.name) : (d0 ? whenTxt : ('Session ' + esc(String(n))));
+      /* REG-2755 - the title's time is one unit, so a narrow card breaks the line at the dot, never inside "7:40 AM" */
+      var _shcTitle = _cnm.name ? esc(_cnm.name) : (d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+            + ' · <span class="shc-hm">' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + '</span>') : ('Session ' + esc(String(n))));
       var _shcWhen  = (!_cnm.name && d0)
             ? (durTxt ? '<span class="shc-dur">' + durTxt + '</span>' : '')
             : (whenTxt + (durTxt ? ' <span class="shc-dur">· ' + durTxt + '</span>' : ''));
@@ -18864,8 +18891,8 @@ window._lockMark = function(isOpen, px, label){
         + '" data-t1="' + (sm.t1 || 0) + '" data-reads="' + (sm.reads || 0) + '" data-found="' + _foundN
         + '" data-search="' + esc(_sq.join(' ').toLowerCase()) + '">'
         + heroOpen
-          + '<div class="shc-sess">' + _shcTitle + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
-          + '<div class="shc-tr">' + pinBtn + seal + '</div>' + headFind
+          + '<div class="shc-top"><div class="shc-sess">' + _shcTitle + (sm.stub ? '<span class="shc-ghost">ghost</span>' : '') + '</div>'
+          + '<div class="shc-tr">' + pinBtn + seal + '</div></div>' + headFind
         + '</div>'
         + '<div class="shc-body">'
           + (_shcWhen ? '<div class="shc-when">' + _shcWhen + '</div>' : '')
@@ -22238,7 +22265,7 @@ window._lockMark = function(isOpen, px, label){
            `retention.floorGb` is also the number /api/on actually refuses on, so the sentence and
            the gate now quote one figure. [[the-unjoined-end]] [[label-outlived-referent]] */
         var h = (s2 && s2.retention) || {};
-        var free = h.freeGb, floor = (h.floorGb != null ? h.floorGb : null);
+        var free = window._diskFreeNow(s2).gb, floor = (h.floorGb != null ? h.floorGb : null);   /* REG-2753 */
         window._shadowFloorSay = (free != null && floor != null && free < floor)
           ? (free + 'GB free, needs ' + floor + 'GB') : '';
         /* v2119 (#118) — AND REPAINT WHEN IT LANDS. The read is deliberately non-blocking, but
@@ -24658,7 +24685,8 @@ window._lockMark = function(isOpen, px, label){
         })(),
         (function(){ var g = fs && fs.grail; return g && g.total ? '<span class="hd-chip nm nm-grail">' + artImg('uniques', 'hd-chip-art') + 'GRAIL · ' + g.found + ' / ' + g.total + '</span>' : ''; })(),
         (function(){ var sp = fs && fs.sets; return sp && sp.total ? '<span class="hd-chip nm nm-sets">' + artImg('sets', 'hd-chip-art') + 'SETS · ' + sp.found + ' / ' + sp.total + (sp.done ? ' · ' + sp.done + ' complete' : '') + '</span>' : ''; })(),   /* v922 (Konyo) — F·Sets is a chronicle too */
-        '<span class="hd-chip ' + (H.freeGB != null && H.freeGB < (H.minFreeGB || 8) ? 'warn' : '') + '">💾 ' + (H.freeGB != null ? H.freeGB + 'GB free' : 'disk —') + '</span>'
+        (function(){ var _f = window._diskFreeNow(st).gb, _lo = (st && st.diskSign && typeof st.diskSign.lowGb === 'number') ? st.diskSign.lowGb : (H.minFreeGB || 8);   /* REG-2753 */
+          return '<span class="hd-chip ' + (_f != null && _f < _lo ? 'warn' : '') + '">💾 ' + (_f != null ? _f + 'GB free' : 'disk —') + '</span>'; })()
       ];
       $('hd-engine-chips').innerHTML = chips.join('');
       // v1374 — render the TALLY ENGINE launcher into the VISIBLE record-zone bar (single instance; the
