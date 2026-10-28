@@ -11,6 +11,10 @@ earlier runs drifted the sandbox rather than because of its tamper - the reason 
 moves earlier instead: once CHECKPOINT_EVERY PROVENs wait and another proof is about to run, the shared clean run is
 asked again; green banks and FLUSHES every waiting PROVEN (each sits between two green clean runs), red banks nothing.
 And the fatal-signal handler writes what was already banked before it exits - never a PROVEN still waiting.
+The review added two rules, both pinned here: a LATER red clean run of the same gate (a checkpoint or the closing run)
+takes back every proof an earlier checkpoint of it banked, so no resume ever reuses one; and the push RECORD carries the
+checkpoints' cost (clean runs and seconds) beside what they saved (hits a killed run's checkpoint had banked), so a
+CHECKPOINT_EVERY that costs more than it saves shows up as a number.
 
 Driven through the REAL _prove_gate / _prove_gate_push / _VerdictCache against a real directory, exactly as the REG-1988
 law drives them; only the law RUN is a stand-in, answering from the subject file's actual bytes. A kill is a
@@ -40,7 +44,7 @@ except Exception:
 import heart2 as H  # noqa: E402
 
 GATE = "no-such-registered-gate"
-KEYS = ("A", "B", "C", "D", "E", "F")
+KEYS = ("A", "B", "C", "D", "E", "F", "G", "H", "I", "J")   # two checkpoints and a tail
 
 
 def _quiet(*a, **k):
@@ -90,7 +94,7 @@ class AKilledPushKeepsWhatItProved(unittest.TestCase):
         self.addCleanup(lambda: setattr(H, "_run_gate", self._real))
         self.addCleanup(lambda: setattr(H, "_PUSH", None))
         self.assertIsNone(H._PUSH, "PREMISE: no push-time run is in progress")
-        self.assertGreater(len(KEYS), H.CHECKPOINT_EVERY, "PREMISE: the gate has more proofs than one checkpoint holds")
+        self.assertGreater(len(KEYS), 2 * H.CHECKPOINT_EVERY, "PREMISE: the gate holds two checkpoints and a tail")
 
     def _write(self, text):
         with io.open(os.path.join(self.tv, "subject.py"), "w", encoding="utf-8") as fh:
@@ -100,12 +104,15 @@ class AKilledPushKeepsWhatItProved(unittest.TestCase):
         """One push-time gate over a cache opened FROM DISK, as each push opens it. -> (verdict, per, cache)"""
         cache = H._VerdictCache(path=self.path, say=_quiet)
         H._run_gate = runs
-        H._PUSH = H._PushRun(order={}, browser=(), cache=cache)
+        H._PUSH = self.run = H._PushRun(order={}, browser=(), cache=cache)
         try:
             verdict, per = H._prove_gate(self.tv, GATE, "fake_gate.py", self.proofs, _quiet)
         finally:
             H._PUSH = None
         return verdict, per, cache
+
+    def _record(self, cache):
+        return H._push_record(self.run, [(GATE, "fake_gate.py", self.proofs)], cache, len(self.proofs), {})
 
     def _killed(self, runs):
         with self.assertRaises(KeyboardInterrupt, msg="PREMISE: the stand-in kill did not land"):
@@ -141,13 +148,54 @@ class AKilledPushKeepsWhatItProved(unittest.TestCase):
         self._killed(_Runs(self.tv, red_clean_at=2, kill_at=H.CHECKPOINT_EVERY + 1))
         self.assertEqual(self._on_disk(), {}, "a PROVEN whose checkpoint clean run went RED was banked anyway")
 
-    def test_an_unkilled_gate_pays_one_checkpoint_and_banks_every_proof(self):
-        runs = _Runs(self.tv)
+    def test_a_resume_never_reuses_a_proof_a_later_red_checkpoint_took_back(self):
+        """The #150 review's addition: checkpoint 1 is green and banks four; checkpoint 2 goes RED - the gate drifted - so those four
+        are taken back too, and the push is killed before it closes. Nothing it proved may be served on resume."""
+        k = H.CHECKPOINT_EVERY
+        self._killed(_Runs(self.tv, red_clean_at=3, kill_at=2 * k + 2))
+        self.assertEqual(self._on_disk(), {}, "proofs a LATER red checkpoint of the same gate took back are on disk")
+        verdict, per, cache = self._gate(_Runs(self.tv))
+        self.assertEqual(cache.hits, 0, "the resumed push reused %d proof(s) banked before a red checkpoint of their "
+                                        "gate" % cache.hits)
+        self.assertEqual(verdict, H.PROVEN)
+
+    def test_a_red_closing_run_takes_back_what_the_checkpoints_banked(self):
+        k = H.CHECKPOINT_EVERY
+        runs = _Runs(self.tv, red_clean_at=4)             # 1 shared, 2 and 3 the green checkpoints, 4 the closing run
         verdict, per, _cache = self._gate(runs)
+        self.assertEqual(runs.clean, 4, "PREMISE: two checkpoints and the closing run were not the runs asked")
+        self.assertEqual(verdict, H.UNPROVABLE)
+        self.assertEqual(self._on_disk(), {}, "%d proof(s) two green checkpoints banked survived a RED closing run of "
+                                              "their gate" % len(self._on_disk()))
+        self.assertEqual(self._record(_cache)["checkpoint"]["revoked"], 2 * k)
+
+    def test_an_unkilled_gate_pays_two_checkpoints_and_banks_every_proof(self):
+        runs = _Runs(self.tv)
+        verdict, per, cache = self._gate(runs)
         self.assertEqual((verdict, per), (H.PROVEN, [H.PROVEN] * len(KEYS)))
         self.assertEqual(len(self._on_disk()), len(KEYS))
-        self.assertEqual(runs.clean, 3, "six proofs should pay the shared clean run, one checkpoint and the closing "
+        self.assertEqual(runs.clean, 4, "ten proofs should pay the shared clean run, two checkpoints and the closing "
                                         "run - %d clean runs were paid" % runs.clean)
+        self.assertFalse([k for k, e in self._on_disk().items() if e.get("ckpt")],
+                         "a gate that closed green left its checkpoint marks - a later push would count them as saved")
+
+    def test_the_push_record_says_what_the_checkpoints_cost_and_saved(self):
+        """The #150 review's addition: the RECORD carries the cost and the saving, so a K that costs more than it saves is a number."""
+        k = H.CHECKPOINT_EVERY
+        _v, _p, cache = self._gate(_Runs(self.tv))
+        rec = self._record(cache)
+        self.assertIn("checkpoint", rec, "the push record says nothing of what the checkpoints cost or saved")
+        c = rec["checkpoint"]
+        self.assertEqual((c["every"], c["forecast"], c["runs"], c["banked"], c["red"], c["savedHits"]),
+                         (k, (len(KEYS) - 1) // k, 2, 2 * k, 0, 0), "the record's checkpoint account: %r" % c)
+        self.assertIn("costS", c)
+        self.assertIn("bankedS", c)
+        os.remove(self.path)
+        self._killed(_Runs(self.tv, kill_at=k + 1))
+        _v, _p, cache = self._gate(_Runs(self.tv))
+        c = self._record(cache)["checkpoint"]
+        self.assertEqual(c["savedHits"], k, "the resumed push did not record the %d proof(s) a killed run's checkpoint "
+                                            "banked as SAVED: %r" % (k, c))
 
 
 @unittest.skipUnless(H._host_has_posix_signals(), "a signal sent to itself is a POSIX act - declared, never a pass")
@@ -192,8 +240,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#150 - a checkpoint banks without asking the clean run again, so a drift-red PROVEN is stored",
      "file": "heart2.py",
-     "find": "    for r in [r for r in (getattr(_CLEAN, \"runs\", None) or {}).values() if r.get(\"reused\")]:\n        try:\n            ok, tail = r[\"again\"]()",
-     "replace": "    for r in []:\n        try:\n            ok, tail = r[\"again\"]()",
+     "find": "    for r in [r for r in (getattr(_CLEAN, \"runs\", None) or {}).values() if r.get(\"reused\")]:\n        _t0 = time.time()\n",
+     "replace": "    for r in []:\n        _t0 = time.time()\n",
      "matches": 1},
     {"why": "#150 - the checkpoint banks in memory only, so the kill still loses it (nothing written until the gate ends)",
      "file": "heart2.py",
@@ -205,6 +253,32 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "    _CLEAN.pending = keep\n",
      "replace": "    pass\n",
+     "matches": 1},
+    {"why": "#150 (review) - a red checkpoint takes nothing back: proofs banked before it in the same gate are "
+            "reused by the resumed push",
+     "file": "heart2.py",
+     "find": "            _checkpoint_revoke(name, say, run)\n            return False\n",
+     "replace": "            return False\n",
+     "matches": 1},
+    {"why": "#150 - a red CLOSING run after green checkpoints takes nothing back",
+     "file": "heart2.py",
+     "find": "                _checkpoint_revoke(name, say, run)       # #150 - the closing run went RED after a green checkpoint\n",
+     "replace": "                pass\n",
+     "matches": 1},
+    {"why": "#150 - a gate that closed green keeps its checkpoint marks, so every later push counts them as SAVED",
+     "file": "heart2.py",
+     "find": "                _checkpoint_close(name, run)\n",
+     "replace": "                pass\n",
+     "matches": 1},
+    {"why": "#150 (review) - the push record says nothing of what the checkpoints cost or saved",
+     "file": "heart2.py",
+     "find": "        \"checkpoint\": _checkpoint_record(run, per),\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "#150 - a hit on a killed run's checkpoint bank is not counted as saved: the saving never shows as a number",
+     "file": "heart2.py",
+     "find": "                        _PUSH.ckpt[\"resumed\"] += 1\n",
+     "replace": "",
      "matches": 1},
     {"why": "REG-2943 - the fatal-signal handler exits without writing what the push had already banked",
      "file": "heart2.py",

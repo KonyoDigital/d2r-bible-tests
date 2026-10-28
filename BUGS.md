@@ -954,10 +954,18 @@ through _bankable and the REG-2640 key and writes the cache to disk at once; red
 asks no further checkpoint, and the closing run judges the gate exactly as before. COST: at most one extra clean run per 4
 freshly proved proofs in a gate (a gate re-proved from nothing pays up to 25% more runs; one with 4 or fewer fresh proofs
 pays nothing; a proof served from the cache never counts). GAIN: a kill loses at most 4 proofs' work. CHECKPOINT_EVERY is
-the one dial. Law: test_a_killed_push_keeps_what_it_proved - killed after a green checkpoint, the disk holds those 4; the
-resumed push serves all 4 and runs only the 2 still owed; a red checkpoint banks nothing; an unkilled gate of 6 pays
-exactly one checkpoint (3 clean runs). 5 red-proofs, each RED for its own assertion (sab bad 0 of 5). The 21 laws that
-drive the push path and the other 41 runnable laws that import heart2 pass with the change.
+the one dial. THE REVIEW ADDED TWO RULES: a LATER red clean run of the same gate - a checkpoint or the closing run - takes
+back every proof an earlier checkpoint of it banked (_checkpoint_revoke; the cache's new unstore() drops it from disk too,
+never another run's newer proof of the same bytes), so no resume ever reuses one; and the push RECORD carries a #150 line -
+checkpoints forecast and run, their cost in seconds, proofs banked early and the seconds of work a kill could no longer
+lose, reds and what they took back, and SAVED: hits a killed run's checkpoint had banked (an entry keeps a `ckpt` mark
+until its gate closes green, so only a gate that never closed counts as saved). A K that costs more than it saves is then
+a number. Law: test_a_killed_push_keeps_what_it_proved - killed after a green checkpoint, the disk holds those 4; the
+resumed push serves all 4 and runs only the 6 still owed; a red checkpoint banks nothing; a red second checkpoint takes
+back what the first banked and the resume reuses none of it; a red closing run takes back both checkpoints' banks; an
+unkilled gate of 10 pays exactly two checkpoints (4 clean runs) and leaves no mark; the record counts cost and saving.
+10 red-proofs, each RED for its own assertion. The 21 laws that drive the push path and the other 41 runnable laws that
+import heart2 pass with the change.
 
 ### REG-2941 - 28 LAWS LISTED ONLY THEIR OWN SCRATCH OR ONE FIXTURE FRAME, AND NONE OF THEIR PROOFS WAS EVER SAVED: 91 UNKEYABLE -> 63 (#173)
 heart2 banks a PROVEN only under a byte key, and a law file that calls os.listdir / glob.glob / os.walk is UNKEYABLE
