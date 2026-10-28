@@ -477,8 +477,12 @@ def _source_key():
         for extra in (BIBLE, os.path.join(HERE, "control_ui.html")):
             if os.path.isfile(extra):
                 stamps.append(os.path.getmtime(extra))
+        # REG-2733 (#172) - A HIDDEN ROSTER IS A PRIVATE LEDGER, NEVER A ROUTE (REG-1954), SO IT IS NOT AN INPUT EITHER.
+        # _routes_on_disk() skips it; this key did not, and the live console rewrites .char_roster.json and
+        # .tvd_roster.json all the time - so the key moved under every derivation, the audit child's cache was never
+        # written (3 of 3 failed on the Mac, 2 of 2 on the ALT) and the console parsed its source in its own heap.
         for p in sorted(os.listdir(HERE)):
-            if p.endswith("_roster.json"):
+            if p.endswith("_roster.json") and not p.startswith("."):
                 stamps.append(os.path.getmtime(os.path.join(HERE, p)))
         # ⚠⚠ BIBLE GETS ITS OWN SLOT, NOT JUST A SEAT IN max(). The counts come from bible.html
         # now, and `max` is a LOSSY digest: it cannot tell "bible changed" from "bible did not

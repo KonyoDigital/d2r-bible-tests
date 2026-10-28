@@ -13,6 +13,13 @@ Driven on the real modules in a fixture world (TV_HIST is a temp dir, so both ca
   - a child that fails leaves the console to derive itself, and the state says so;
   - a stale lane cache (another stat of control_app.py) is never served;
   - a law (no console mark) spawns nothing and derives exactly as before.
+
+REG-2733 (measured 2026-10-28): the routes child FAILED every time it ran - 3 of 3 on his Mac, 2 of 2 on the ALT, "the
+routes were derived but their cache was not written". The three route keys (chronicle, fleet, roster) stamped every
+*_roster.json in tv/, including the HIDDEN per-PC ledgers the live console rewrites all the time (.char_roster.json,
+.tvd_roster.json) - files _routes_on_disk() has skipped since REG-1954 - so the key moved under the child's derivation.
+Reproduced: touching .tvd_roster.json 4 s into a child made it exit 3. And on the ALT (Python 3.12) the reason was buried
+under a SyntaxWarning from stderr; the child's own sentence now leads.
 RED_PROOF below.
 """
 import ast
@@ -41,6 +48,8 @@ import chronicle_routes as CR  # noqa: E402
 import frame_ref as FR  # noqa: E402
 import health_engine as HE  # noqa: E402
 import control_app as CA  # noqa: E402
+import roster_routes as RTR  # noqa: E402
+import fleet_routes as FTR  # noqa: E402
 
 _REAL_PARSE = ast.parse
 _EXPECT = {}
@@ -153,7 +162,87 @@ class ASourceAuditRunsInAChild(unittest.TestCase):
             self.assertFalse(AC.wanted(), "a child would spawn a child")
 
 
+class AHiddenRosterIsNotAnInput(unittest.TestCase):
+    """REG-2733 - each route key, with a private ledger and a shipped roster planted in its listing (patched, never a
+    file in tv/): the private one moving leaves the key still; the shipped one moving moves it (so the key can tell)."""
+
+    def _key(self, mod, hidden_mtime, shown_mtime):
+        real_listdir, real_mtime = os.listdir, os.path.getmtime
+        here = os.path.realpath(mod.HERE)
+
+        def listdir(path):
+            names = list(real_listdir(path))
+            if os.path.realpath(path) == here:
+                names += [".char_roster.json", "zz_shipped_roster.json"]
+            return names
+
+        def getmtime(path):
+            b = os.path.basename(path)
+            if b == ".char_roster.json":
+                return hidden_mtime
+            if b == "zz_shipped_roster.json":
+                return shown_mtime
+            return real_mtime(path)
+        with mock.patch.object(os, "listdir", listdir), mock.patch.object(os.path, "getmtime", getmtime):
+            return mod._source_key()
+
+    def test_a_private_ledger_moving_leaves_every_route_key_still(self):
+        for mod in (CR, RTR, FTR):
+            a = self._key(mod, 4.0e9 + 5, 4.0e9)
+            b = self._key(mod, 4.0e9 + 10, 4.0e9)
+            self.assertIsNotNone(a, "PREMISE: %s could not key at all" % mod.__name__)
+            self.assertEqual(a, b, "%s's key moved when only a hidden per-PC ledger was rewritten" % mod.__name__)
+
+    def test_a_shipped_roster_moving_still_moves_every_route_key(self):
+        for mod in (CR, RTR, FTR):
+            self.assertNotEqual(self._key(mod, 1.0, 4.0e9), self._key(mod, 1.0, 4.0e9 + 1),
+                                "%s's key no longer sees a shipped roster change" % mod.__name__)
+
+
+class TheChildsOwnReasonLeads(unittest.TestCase):
+
+    def tearDown(self):
+        AC.STATE.clear()
+
+    def test_its_sentence_beats_a_warning_on_stderr(self):
+        class _P(object):
+            returncode = 3
+            stdout = "the routes were derived but their cache was not written (an unkeyable source?)\n"
+            stderr = "<unknown>:61: SyntaxWarning: invalid escape sequence '\\s'\n"
+        ok, why = AC.run("routes", _spawn=lambda *a, **k: _P())
+        self.assertFalse(ok)
+        self.assertIn("cache was not written", why, "the child's own reason was buried: %r" % why)
+        self.assertNotIn("SyntaxWarning", why)
+
+    def test_a_crash_with_nothing_on_stdout_still_names_its_error(self):
+        class _P(object):
+            returncode = 1
+            stdout = ""
+            stderr = "Traceback (most recent call last):\nMemoryError\n"
+        self.assertIn("MemoryError", AC.run("routes", _spawn=lambda *a, **k: _P())[1])
+
+
 RED_PROOF = [
+    {"why": "REG-2733 - the chronicle route key stamps the hidden per-PC ledgers again (the child never caches)",
+     "file": "tv/chronicle_routes.py",
+     "find": "            if p.endswith(\"_roster.json\") and not p.startswith(\".\"):\n",
+     "replace": "            if p.endswith(\"_roster.json\"):\n",
+     "matches": 1},
+    {"why": "REG-2733 - the fleet route key stamps the hidden per-PC ledgers again",
+     "file": "tv/fleet_routes.py",
+     "find": "            if p.endswith(\"_roster.json\") and not p.startswith(\".\"):\n",
+     "replace": "            if p.endswith(\"_roster.json\"):\n",
+     "matches": 1},
+    {"why": "REG-2733 - the roster route key stamps the hidden per-PC ledgers again",
+     "file": "tv/roster_routes.py",
+     "find": "            if p.endswith(\".py\") or (p.endswith(\"_roster.json\") and not p.startswith(\".\")):\n",
+     "replace": "            if p.endswith(\".py\") or p.endswith(\"_roster.json\"):\n",
+     "matches": 1},
+    {"why": "REG-2733 - a warning on stderr stands in for the child's own reason again",
+     "file": "tv/audit_child.py",
+     "find": "        _said = ((p.stdout or \"\").strip().splitlines() or (p.stderr or \"\").strip().splitlines() or [\"-\"])[-1][:160]\n",
+     "replace": "        _said = ((p.stderr or p.stdout or \"\").strip().splitlines() or [\"-\"])[-1][:160]\n",
+     "matches": 1},
     {"why": "#172 phase B - the console derives the cold route census in its own heap again",
      "file": "tv/control_app.py",
      "find": "                _ac.run(\"routes\")\n",

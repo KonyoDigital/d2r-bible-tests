@@ -120,8 +120,9 @@ def _source_key():
         for extra in (BIBLE, os.path.join(HERE, "control_ui.html")):
             if os.path.isfile(extra):
                 stamps.append(os.path.getmtime(extra))
+        # REG-2733 - a hidden roster is a private ledger, not an input (chronicle_routes._source_key says why)
         for p in sorted(os.listdir(HERE)):
-            if p.endswith("_roster.json"):
+            if p.endswith("_roster.json") and not p.startswith("."):
                 stamps.append(os.path.getmtime(os.path.join(HERE, p)))
         # ⚠ BIBLE GETS ITS OWN SLOT — see the note in chronicle_routes._source_key. `max` is a
         # lossy digest and cannot tell a bible.html change from no change whenever another source

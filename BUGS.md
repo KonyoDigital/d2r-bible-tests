@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2733 - THE ROUTES AUDIT CHILD NEVER ONCE CACHED, SO THE COLD PARSE STAYED IN THE CONSOLE'S HEAP (#172)
+REG-2701 (v3817) sends the console's cold route census to a short-lived child (tv/audit_child.py) so ~600 MB of parse
+memory leaves with it. Read from both consoles' /api/status on 2026-10-28: the routes child had FAILED on every run - 3 of
+3 on the Mac, 2 of 2 on the ALT - "the routes were derived but their cache was not written", and each time the console
+derived it in its own memory (the ALT console held 1,308 MB private 40 min after its v3819 start). The three route keys
+(chronicle_routes, fleet_routes, roster_routes _source_key) stamped every *_roster.json in tv/, including the HIDDEN per-PC
+ledgers the live console rewrites all the time (.char_roster.json, .tvd_roster.json) - files _routes_on_disk() has skipped
+since REG-1954 because a hidden file is a private ledger, never a route. So the key moved under the child's derivation and
+cached() saw a different key. Reproduced in a worktree: touching .tvd_roster.json 4 s into the child made it exit 3; left
+alone it cached. The keys now skip hidden files. And on the ALT (Python 3.12) the child's reason was buried: run() showed
+stderr's last line, a SyntaxWarning from a parsed law; the child's own sentence now leads.
+Law: test_a_source_audit_runs_in_a_child (4 new cases, 4 new red-proofs). Open beside it: 8 invalid escape sequences in 6
+law files (Python 3.12 warns; 4 are in test_control, whose re-prove costs ~90 min) - noted on #172.
+
 ### REG-2731 - THE SECOND EYE LEFT A GROK SESSION FOLDER PER LOOK, AND TWO LANES MATCHED SESSIONS BY SUBSTRING (#151)
 The #231 eye on v3819 (finding 1): dropSession (intake_grok_sub.mjs) and the G5 sweep (g5_grok_eyes) matched a session
 folder by a SUBSTRING of its whole name, so a longer folder, or one of his whose path merely carried the mark, matched

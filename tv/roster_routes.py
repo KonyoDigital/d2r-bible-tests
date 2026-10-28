@@ -278,8 +278,9 @@ _MEMO = {"key": None, "val": None}
 def _source_key():
     try:
         stamps = []
+        # REG-2733 - a hidden roster is a private ledger, not an input (chronicle_routes._source_key says why)
         for p in sorted(os.listdir(HERE)):
-            if p.endswith(".py") or p.endswith("_roster.json"):
+            if p.endswith(".py") or (p.endswith("_roster.json") and not p.startswith(".")):
                 stamps.append(os.path.getmtime(os.path.join(HERE, p)))
         for extra in (BIBLE, os.path.join(HERE, "control_ui.html"),
                       os.path.join(HERE, "control_app.py")):

@@ -77,8 +77,11 @@ def run(name, timeout=TIMEOUT_S, _spawn=None):
                                        capture_output=True, text=True, timeout=timeout,
                                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         ok = p.returncode == 0
+        # REG-2733 - the child's OWN sentence first: on the ALT (Python 3.12) stderr carried SyntaxWarnings from the files
+        # it parsed, and the last of them stood in for "the routes were derived but their cache was not written"
+        _said = ((p.stdout or "").strip().splitlines() or (p.stderr or "").strip().splitlines() or ["-"])[-1][:160]
         why = ("derived in a child process (%.1f s)" % (time.time() - t0) if ok else
-               "the child exited %s: %s" % (p.returncode, ((p.stderr or p.stdout or "").strip().splitlines() or ["-"])[-1][:160]))
+               "the child exited %s: %s" % (p.returncode, _said))
     except subprocess.TimeoutExpired:
         ok, why = False, "the child did not finish in %d s" % timeout
     except Exception as e:
