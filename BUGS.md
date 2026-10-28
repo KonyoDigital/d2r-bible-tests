@@ -312,6 +312,20 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2912 - A VAULT SIMULATION LEFT THE OCR WORKER ITS SWEEP WARMED RUNNING (#36, test_vault_lane's teardown)
+test_vault_lane's teardown reported "A TEST LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker". The lead read it as a
+worker leaking between the laws of a sweep. Measured class by class on this Mac, the file leaks it on its own:
+TestVaultDecisions alone gave 6 passed, 1 error, and the other four classes left nothing. Its cases call
+vault_simulate.run. One run of the seen-once scenario over the synthetic reels took exec_hygiene.warm_workers() from
+none to one (tv_diablo._OCR), because the sweep's own gate warms the OCR worker and nothing stopped it. Under plain
+unittest (heart2, run_gates) the worker outlived the law with no message. vault_simulate.run now records the warm
+workers before the sweep and, in a finally, stops any warm worker that was not there before (exec_hygiene, the one door
+that knows them). A worker already warm when the run began belongs to someone else and is left alone. A stopped
+OcrWorker respawns on its next read(), so a later reader loses nothing. No production path calls run(); its callers
+are laws. test_vault_lane: 23 passed, no error. Law: test_a_simulation_leaves_no_worker_behind. Two cases use a
+stand-in worker (a live child in `.p` plus `.stop()`) and run on every venue. Two warm the real ocr_mac and skip off
+macOS, saying why. 2 red-proofs, both RED on the stand-in cases alone and on the full file.
+
 ### REG-2911 - THE GEAR LEDGER NAMED A SESSION BY LOGINS ONLY, A SECOND ANSWER BESIDE THE VAULT'S (#36, the lead on the report)
 equipped_ledger bound worn gear to a character by character-select logins only, while the vault's looks read
 char_select.session_characters (REG-2906/2908): two answers to "whose session was this", where his ruling is one logic.

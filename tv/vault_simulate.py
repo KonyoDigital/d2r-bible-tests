@@ -66,12 +66,33 @@ def scripted_reader(script):
 
 
 def run(scenario, hist_dir=None):
-    """-> the raw proposal. Pure: classify/reader are injected, nothing is written."""
+    """-> the raw proposal. Pure: classify/reader are injected, nothing is written.
+
+    REG-2912 - AND IT LEAVES NO PROCESS BEHIND. The sweep's own gate warms tv_diablo's OCR worker (`ocr_mac --worker`,
+    _OCR) - measured: one run of the seen-once scenario, no worker before, one after - and nothing stopped it: under
+    pytest the suite's child guard reported test_vault_lane's TestVaultDecisions as "A TEST LEFT A CHILD PROCESS
+    RUNNING", and under plain unittest (heart2, run_gates) the worker outlived the law silently. A worker this run
+    started is stopped when the run ends (exec_hygiene, the one door that knows the warm workers); one that was already
+    warm when the run began is someone else's and is left as it was."""
     hist = hist_dir or os.path.join(HERE, "frames", "hist")
     dirs = [os.path.join(hist, d) for d in scenario["reels"]]
-    return vr.sweep(dirs, sig=cr.jpeg_sig,
-                    classify=lambda p: scenario.get("surface", "stash"),
-                    reader=scripted_reader(scenario["script"]))
+    try:
+        import exec_hygiene as _eh
+        _warm = {id(o) for _m, _n, o in _eh.warm_workers()}
+    except Exception:
+        _eh, _warm = None, None
+    try:
+        return vr.sweep(dirs, sig=cr.jpeg_sig,
+                        classify=lambda p: scenario.get("surface", "stash"),
+                        reader=scripted_reader(scenario["script"]))
+    finally:
+        if _eh is not None and _warm is not None:
+            for _m, _n, o in _eh.warm_workers():
+                if id(o) not in _warm:
+                    try:
+                        o.stop()                       # REG-2912 the run stops what it started
+                    except Exception:
+                        pass
 
 
 def explain(prop):
