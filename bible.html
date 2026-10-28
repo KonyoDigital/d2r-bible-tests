@@ -4537,6 +4537,19 @@ window._d2rIntakeEndpoint = function(){
   }
   return '/api/intake';
 };
+/* #158.8 (REG-2815) - WHEN AN INTAKE ANSWER IS NOT A READ. A reader at its cap answers HTTP 429 with
+   {error:'subscription-cap', message, window, retry_s} (REG-2383); the website path answers 200 with {error} when its own
+   call failed (v407). Either way the reader did not look, so nothing it "found" is a finding and nothing it "missed" is a
+   miss. Several doors parsed the body and read its empty lists as a page or a frame read clean. Every door asks this. -> a
+   sentence when the answer is a refusal, else null */
+window._intakeRefused = function(status, data){
+  var st = +status || 0;
+  if (data && typeof data === 'object' && data.error)
+    return (data.error === 'subscription-cap' ? 'the reader is at its cap' : 'the reader refused')
+      + ' (' + String(data.message || data.error).slice(0, 140) + ')' + ((st && st !== 200) ? ' - HTTP ' + st : '');
+  if (st && (st < 200 || st > 299)) return 'the reader answered HTTP ' + st;
+  return null;
+};
 /* ⚠⚠ v2692 — WHICH LEDGER IS THIS? Konyo: "this is outdated.. it should be registerd accordingly
    to ledger/profile and ledger name."
    THE DEFECT IT FIXES, reported by him from his cousin Dean's board: the Uniques tab read
@@ -30644,6 +30657,7 @@ window.setIntake = async function(files){
       var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab})});
       if(!resp.ok){ errors++; continue; }
       var data=await resp.json();
+      if (window._intakeRefused(resp.status, data)) { errors++; continue; }   /* REG-2815 - a refusal is not a page read clean */
       (data.items||[]).forEach(function(n){
         var piece = baseToPiece[String(n).toLowerCase().trim()];
         if(piece && !setPieces.has(piece)){ setPieces.add(piece); marked.push(piece); }
@@ -33069,8 +33083,9 @@ window.askBible = function(q){
   out.scrollTop=out.scrollHeight;
   var snap=(typeof buildAskSnapshot==='function')?window._previewWrap(buildAskSnapshot):{};
   fetch(askUrl,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q,snapshot:snap})})
-    .then(function(r){return r.json();})
-    .then(function(d){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a ask-bubble'; el.innerHTML=_askMd(d.answer||d.error||'(no answer)'); el.removeAttribute('id'); } out.scrollTop=out.scrollHeight; })
+    .then(function(r){ return r.json().then(function(d){ return { st: r.status, d: d || {} }; }); })
+    .then(function(x){ var d=x.d, el=document.getElementById('ask-pending'); var rf=window._intakeRefused(x.st, d);   /* REG-2815 */
+      if(el){ el.className='ask-a ask-bubble' + (rf ? ' ask-err' : ''); el.innerHTML = rf ? _askEsc('⚠️ ' + rf) : _askMd(d.answer||'(no answer)'); el.removeAttribute('id'); } out.scrollTop=out.scrollHeight; })
     .catch(function(e){ var el=document.getElementById('ask-pending'); if(el){ el.className='ask-a ask-bubble ask-err'; el.textContent='⚠️ '+(e&&e.message||'request failed')+' — is the site deployed (the AI needs the /api/ask endpoint)?'; el.removeAttribute('id'); } });
 };
 window.askBibleQuick = function(q){ var i=document.getElementById('ask-input'); if(i) i.value=q; window.askBible(q); };
@@ -34018,6 +34033,7 @@ async function _craftRead(b64, vocab){
     var resp = await fetch(endpoint, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ image: b64, media_type:'image/jpeg', names: vocab, kind:'craft' }) });
     if (!resp.ok) return null;
     var data = await resp.json();
+    if (window._intakeRefused(resp.status, data)) return null;   /* REG-2815 - a refusal is no tally, never an empty one */
     return data.tally || {};
   } catch(e){ return null; }
 }
@@ -49711,6 +49727,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         _aicMsg('🔬 read failed (server '+resp.status+')'+hint+' You can still enter the item by hand below.'); if(fi) fi.value=''; return;
       }
       var data; try { data=await resp.json(); } catch(e){ _aicMsg('🔬 the AI reply was unreadable — try again, or enter by hand.'); if(fi) fi.value=''; return; }
+      var _rfU=window._intakeRefused(resp.status, data);   /* REG-2815 - a refusal is said, never "no item read" */
+      if (_rfU){ _aicMsg('🔬 nothing was read — ' + esc(_rfU) + '. You can still enter the item by hand below.'); if(fi) fi.value=''; return; }
       try { console.log('[aic] intake response:', data); } catch(e){}
       var r=_aicApplyIntake(data);
       if(r.ok){ renderAIItemChecker(); _aicMsg('🔬 read <b>'+esc(r.name)+'</b>'+(r.nameOnly?' — set its base + affixes below.':((r.extra?' (+'+r.extra+' other magic/rare in the shot — showing the most detailed)':'')+'. Check/edit the affixes, then judge it.'))); if(fi) fi.value=''; return; }
@@ -49786,8 +49804,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var endpoint=_aicIntakeEndpoint();
       var vocab=[]; try { if(typeof __setPieceNames==='function') vocab=__setPieceNames(); } catch(e){}
       var resp=await fetch(endpoint,{ method:'POST', headers:{'content-type':'application/json'}, credentials:'same-origin', body:JSON.stringify({ image:b64, media_type:'image/jpeg', names:vocab, cropped:false }) });
-      if(!resp.ok) return { ok:false, why:'server '+resp.status };
+      if(!resp.ok){ var rf0=null; try { rf0=window._intakeRefused(resp.status, await resp.json()); } catch(eJ){}
+        return { ok:false, refused:true, why: rf0 || ('the reader answered HTTP ' + resp.status) }; }   /* REG-2815 - a cap is a refusal, never UNREADABLE */
       var data=await resp.json();
+      var rf1=window._intakeRefused(resp.status, data);
+      if (rf1) return { ok:false, refused:true, why:rf1 };
       var snap=null; try { snap=JSON.parse(JSON.stringify(_aicItem||{})); } catch(e){}
       var r=null, it=null;
       try { r=_aicApplyIntake(data); it=JSON.parse(JSON.stringify(_aicItem||{})); }
@@ -66280,6 +66301,8 @@ function renderJournal(){
         var resp = await fetch(endpoint, { method:'POST', headers:{'content-type':'application/json'},
           body: JSON.stringify({ image:b64, media_type:'image/jpeg', kind:kind, names:vocab }) });
         var d = await resp.json();
+        var _rfC = window._intakeRefused(resp.status, d);   /* REG-2815 - a refused page is not a page read with nothing on it */
+        if (_rfC) { pages.push({ n:i+1, note:_rfC, witness:'none', printed:{}, read:{} }); continue; }
         pages.push({ n:i+1, note:(d&&d.note)||null, witness:(d&&d.witness)||'none',
                      printed:(d&&d.printed)||{}, read:(d&&d.read)||{} });
         if (d && d.note) continue;      // a refusal contributes NOTHING — honoured, not argued with
@@ -66978,18 +67001,21 @@ function renderJournal(){
     var rep=document.getElementById('grail-intake-report');
     var show=function(html){ if(rep){ rep.style.display='block'; rep.innerHTML=html; } };
     var endpoint=window._d2rIntakeEndpoint();
-    var V=_grailVocab(); var found=new Set(); var unknown=new Set(); var errs=0;
+    var V=_grailVocab(); var found=new Set(); var unknown=new Set(); var errs=0, refusedWhy='';
     for(var i=0;i<files.length;i++){
       show('📸 reading chronicle screenshot <b>'+(i+1)+' / '+files.length+'</b>… ('+found.size+' found so far)');
       try {
         var b64=await _gDownscale(files[i]);
         var resp=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',kind:'grail',names:V.vocab})});
         var d=await resp.json();
+        var _rfG=window._intakeRefused(resp.status, d);   /* REG-2815 - a refused shot is an error with its reason */
+        if (_rfG) { errs++; refusedWhy = refusedWhy || _rfG; continue; }
         (d&&d.items||[]).forEach(function(n){ found.add(n); });
         (d&&d.unrecognized||[]).forEach(function(n){ unknown.add(n); });
       } catch(e){ errs++; }
     }
-    if(!found.size){ show('😕 no FOUND items could be read'+(errs?' ('+errs+' image error'+(errs>1?'s':'')+')':'')+' — make sure the names + found-marks are legible and try again.'); return; }
+    if(!found.size){ show(refusedWhy ? ('⚠ nothing was read — ' + esc(refusedWhy) + ' (' + errs + ' screenshot' + (errs > 1 ? 's' : '') + ')')   /* REG-2815 */
+      : ('😕 no FOUND items could be read'+(errs?' ('+errs+' image error'+(errs>1?'s':'')+')':'')+' — make sure the names + found-marks are legible and try again.')); return; }
     // batch-apply straight to the shared stores, then reload so every view (Calculator, Vault, Set Tracker,
     // both grail forges, AI snapshot) rebuilds from the same state — the one-time import path.
     var owned=[]; try{ owned=JSON.parse(window.LSR.getItem('d2r_owned')||'[]'); }catch(e){}

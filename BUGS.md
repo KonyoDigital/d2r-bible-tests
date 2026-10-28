@@ -55,6 +55,22 @@ The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries
 UI[i:i + 900] after the binding's first line, a guess about how far the block reaches that goes blind the day the block
 grows. It now reads the binding's own block (to its closing `})();`), and the ratchet is back at 44. Found by running
 the ratchet across the chain before the push: v3828-v3831 pass, v3832 introduced it.
+### REG-2815 - A CAPPED OR ERRORING READER WAS COUNTED AS A READ AT SIX DOORS AND IN THE ENGINE'S JUDGE LOOP (#158.8)
+The task: "a cap hit returns HTTP 200 + an error body, so callers can't tell it from a read." MEASURED at v3832:
+control_app's /api/intake already answers a cap with 429 (REG-2383/2388), so that half is closed. The callers were not.
+The Chronicle and grail screenshot readers parsed the cap's body and read its empty lists as a page or a shot read with
+nothing on it. The Ask box showed the error as the bible's answer. The set tracker, the craft reader and the item
+checker's upload read a 200 + {error} (the website path, v407) the same way. The item checker's judge answered a cap as
+"server 429" beside "no magic/rare item readable"; the engine's judge loop posted that to /kai_verdict as a "kai-judge"
+receipt ("judge a tooltip - UNREADABLE"), and _judge_already_near then read the hover as judged, so the cap stood in for
+a read and the hover was never judged. One rule now, window._intakeRefused(status, body), beside the one intake door,
+asked by every door. aicJudge answers a refusal {ok:false, refused:true, why}, and /kai_verdict journals it under its own
+mode (_kai_refused_row: "kai-judge-refused", no judge slot), which no judge reader takes for a judge. Swept: all 11
+callers of the intake endpoint - 7 fixed (the set tracker, askBible, _craftRead, aicUpload, aicJudge, chronicleShotIntake,
+grailIntake); _tallyRead, vaultIntake and vaultGridCount already told a refusal apart; dailyCreateAi writes only an answer.
+Law: test_a_refused_read_is_never_a_read (5 cases: the rule and aicJudge in node, the journal row and _judge_already_near
+on control_app, each door at its one-line site; 8 red-proofs, each RED).
+
 ### REG-2814 - A RARE CIRCLET WITH NO STATS READ WAS KEPT AS IF JUDGED (#158.6, GrokBot on his real frames; his circlet ruling, #144 item 3)
 GrokBot: a rare circlet read off a ground label (the name, mods []) went straight to MAGIC & RARE. His circlet ruling keeps a
 circlet for what it rolled (+2 class skills, FCR, FRW), so one nobody saw the lines of cannot have been judged. MEASURED on

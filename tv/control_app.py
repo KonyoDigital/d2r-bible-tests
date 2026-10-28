@@ -12122,6 +12122,26 @@ def _live_judge_should_queue(rd):
     return bool(_live_judge_interesting_names(rd))
 
 
+def _kai_refused_row(body, now_ms):
+    """#158.8 (REG-2815) - A JUDGE THE READER REFUSED (its cap answered 429, or an error body) LOOKED AT NO TOOLTIP. The
+    engine's judge loop posted that answer to /kai_verdict, which journaled it as a "kai-judge" receipt - "judge a tooltip
+    - UNREADABLE" - and _judge_already_near reads any kai-judge receipt within 6 s as "this hover was judged", so the cap
+    stood in for a read and the hover was never judged. A refusal is journaled as one, with its reason, under its own mode,
+    and neither of those readers takes it for a judge. -> the journal row"""
+    body = body if isinstance(body, dict) else {}
+    try:
+        ts = int(body.get("fts") or 0) or int(now_ms)
+    except (TypeError, ValueError):
+        ts = int(now_ms)
+    why = str(body.get("why") or "the reader did not answer")[:160]
+    return {"ts": ts, "captureTs": ts, "completedTs": int(now_ms), "n": 0, "scene": "kai", "lane": "kai",
+            "mode": "kai-judge-refused", "names": [], "area": "",
+            "sessionId": str(body.get("sid") or "")[:48], "frameId": str(body.get("frameId") or "")[:64],
+            "kai": {"judgeRefused": {"why": why, "live": bool(body.get("live")),
+                                     "tag": str(body.get("tag") or "")[:16] or None}},
+            "note": ("🔬 judge refused - " + why)[:100]}
+
+
 def _judge_already_near(rows, ts, window_ms=6000):
     """True if a kai-judge receipt already landed within ±window_ms of ts.
     Prevents live + post-seal double-vision on the same hover. Pure."""
@@ -48995,6 +49015,11 @@ class Handler(BaseHTTPRequestHandler):
             # v940 🔬 — KAI's judge receipts: the engine iframe POSTs aicJudge results here.
             # Ghost-proof journaling: ts == captureTs == the FRAME's moment (passed as fts).
             try:
+                if body.get("refused") is True:   # REG-2815 - the reader refused: journal a refusal, never a judge receipt
+                    with open(_journal_path(), "a", encoding="utf-8") as f:
+                        f.write(json.dumps(_kai_refused_row(body, int(time.time() * 1000)), ensure_ascii=False) + "\n")
+                    self._json(200, {"ok": True, "refused": True})
+                    return
                 _fts = int(body.get("fts") or 0) or int(time.time() * 1000)
                 _vname = str(body.get("name") or "")[:60]
                 _tier = str(((body.get("verdict") or {}).get("tier")) or "")[:12]

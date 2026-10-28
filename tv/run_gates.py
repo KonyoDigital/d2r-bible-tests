@@ -12285,6 +12285,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_circlet_with_no_stats_read_needs_a_look.py")], 300,
          needs_app=False,
          why='#158.6 REG-2814: a rare circlet with no stats read needs a tooltip look, never filed as judged'),
+    Gate("test_a_refused_read_is_never_a_read",
+         [sys.executable, os.path.join(HERE, "test_a_refused_read_is_never_a_read.py")], 300,
+         needs_app=False,
+         why='#158.8 REG-2815: a capped or erroring reader is a refusal at every intake door, never a read'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
