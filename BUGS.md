@@ -710,6 +710,21 @@ publish.yml's deploy needed [smoke, suites, review]; no proof ran on main, so th
 ### REG-2961 - CI PROVED EVERY LAW FROM AN EMPTY CACHE ON EVERY RUN (#161 stage 2)
 
 Each proof-keys shard proved into an empty $RUNNER_TEMP cache (REG-2585), so CI re-proved every law each run (~41 min a shard) while the Mac reused byte-identical proofs. Each shard now restores the proofs the last main run banked (actions/cache, prefix heart2-proofs-) as a READ-ONLY seed (HEART2_SHARD_SEED, read only in a proof shard); the main run's fan-in merges the shards' PROVENs into the next seed (`tv/proof_shard.py --merge-shards`, servable only, the newer of two) and saves it from main only (main's cache scope is the one every branch may restore). Safety checked in code before relying on it: _VerdictCache._key is a sha256 over the law, the proof, the gate spec and every input's path and bytes, and peek() looks an entry up only under the key key_for() takes from the checkout's bytes now - so a seed of any commit serves a proof only over byte-identical inputs (pinned on a fixture sandbox whose subject changes). The shard's own file still starts empty and holds only what the run served or proved for its own plan, so the fan-in and the Mac's all-or-nothing import never see a stray proof. test_a_proven_verdict_is_reused_only_on_identical_bytes re-aimed to admit the seed's two lines. Law test_ci_reuses_a_proof_only_for_identical_bytes (8 cases), 7 red-proofs RED.
+### REG-2915 - THE TOOLTIP CROP COULD NEVER BE CUT ON HIS REELS: DIFFERENCING FINDS THE WHOLE SCREEN (#158.7)
+The crop that NAMED an item (#45, v2239) was found by differencing a hover frame against the one before it. On his reels the
+D2R world animates behind the panel, so the change box covers 53-91% of the frame and the 60 KB cap rightly refuses it - the
+lane cut nothing. The vision read that names the item already saw the tooltip: VAULT_READ_PROMPT now asks for its box ("tip":
+[left, top, right, bottom] in the picture the reader saw), normalize_item keeps a valid one, and the sweep cuts the crop from
+it (vault_retro._crop_from_box): the box is placed on the frame through the read's own picture map (the one its item points
+use), padded 2% of the frame each side, kept inside the frame, and scaled to a 512 px longest side - MEASURED on the 31 crops
+his Mac kept: at their own size they run to 61 KB, against the 60 KB cap; at 512 px, at most 45 KB. The byte cap stays the
+backstop. A read with no box behaves as before (the frame-difference crop, or why there is none) and says "the read gave no
+tooltip box (UNKNOWN)"; a box with no picture map is UNKNOWN, and one covering more of the frame than a tooltip can is
+refused - never a full-frame crop. Each look says how its crop was cut (cropFrom). The crop stays evidence to look at, never a
+witness. VAULT_PROMPT_VER is vp-reg2915 and lists vp3554 as asking the same question, so no sealed reel reopens: crops come
+from reads made from now on. Law: test_the_tooltip_crop_comes_from_the_read_that_named_it (8 cases on a fixture reel whose
+frames all differ, through vault_retro.sweep with a stubbed reader; 7 red-proofs, each RED).
+
 ### REG-2914 - "1 IMAGE ERROR" STILL NEVER SAID WHICH: THE AGENT'S ROUTE DROPPED THE CAUSE (#158)
 REG-2730 named a failed tally pass's cause (errWhy) and the board posts it with every read - to the AGENT's /intake_result
 first (the bridge port) and to the console's own route only when the agent is not listening. The console's copy keeps the
