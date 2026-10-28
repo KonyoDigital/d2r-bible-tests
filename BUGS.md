@@ -312,6 +312,22 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2905 - THE REGISTERED LIST'S MAGIC & RARE ROWS DREW THEIR OWN KEYWORD PICTURE (the REG-2904 sweep)
+Every Magic & Rare row of the registered list drew the keyword sprite of its recorded base or of its name, or a coloured
+dot: measured on the whole page in node, Chaos Whorl and Havoc Eye Ring (kept with no base) drew ring1_graphic there and the
+mark on the card, in the window and in FIND, and Doom Eye a dot. The rows draw artOr's answer now (the vault's art()): the
+base's picture where it is known, the mark with its question where it is not. Law: test_a_base_in_doubt_is_unknown_everywhere,
+1 red-proof, RED.
+
+### REG-2904 - THE CARD'S RECORD CELL DREW RAVEN WHORL AS A RING WHILE EVERY OTHER SURFACE SHOWED THE MARK (the house rule on his MAGIC & RARE)
+The card's record cells fell back to the keyword sprite (_magicArtSrc) wherever artOr had no picture - the one surface that
+did: measured on the whole page in node, Raven Whorl (a ring or a jewel by its name) drew ring1_graphic on the card and the
+mark in the window, in FIND and in the hover. The cell draws artOr's answer now, like every other surface: the base's
+picture where the record, the catalogue or the grammar gives it, and the mark with its question where nothing does
+(REG-2903). On the ALT's stores the card and the window now agree item for item, Raven Whorl the mark on both. REG-2851's
+card red-proof is re-aimed at the new line (its artUrl-first fallback put back), RED. Law:
+test_a_base_in_doubt_is_unknown_everywhere, 1 red-proof, RED.
+
 ### REG-2903 - AN ITEM WHOSE BASE THE NAME DOES NOT GIVE WAS A RING ON ONE SURFACE AND A SILENT MARK ON ANOTHER (the house rule on his MAGIC & RARE, 2026-10-28)
 The rule: an item whose base cannot be established from its own name or record shows UNKNOWN everywhere - one logic,
 never a guess on one surface and the mark on another - and a doubt becomes a question. Measured on the whole page in node
