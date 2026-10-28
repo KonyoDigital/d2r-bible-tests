@@ -12125,6 +12125,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_sessions_list_is_asked_once.py")], 300,
          needs_app=False,
          why="GrokBot v3817 - the theatre's wait, the Shelf and the Sessions hub share one /api/sessions request in flight"),
+    Gate("test_an_image_error_says_which",
+         [sys.executable, os.path.join(HERE, "test_an_image_error_says_which.py")], 300,
+         needs_app=False,
+         why='REG-2730 (#158) - an image error says which: an HTTP error, an error field or a request that threw'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

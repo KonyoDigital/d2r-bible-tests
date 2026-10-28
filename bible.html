@@ -32407,19 +32407,24 @@ window._runeSheetPrep = _runeSheetPrep;
 // each rune/gem by MAJORITY VOTE (mode; median tie-break), recounting only while a stack is still
 // disputed and stopping as soon as every count wins a majority. The old Math.max amplified a single
 // over-read into the total; a majority needs agreement, killing phantom stacks and one-off miscounts.
-async function _tallyRead(b64, vocab, layout, kind){
+async function _tallyRead(b64, vocab, layout, kind, why){
   kind = kind || (window._tallyPrepForeign ? 'tally2' : 'tally');   // v661 — foreign captures use the compression-hardened prompt; the locked 'tally' path is unchanged for Konyo's own fullscreens
   var endpoint = window._d2rIntakeEndpoint();
+  /* #158 (GrokBot #230; REG-2730) - AN "IMAGE ERROR" NEVER SAID WHICH. This returning null is what every reader counts as
+     one, and three different failures did it without a word: the intake answered an HTTP error, it answered with an error
+     field, or the request itself threw. A caller that passes `why` ({}) gets the last failed pass's cause in why.text.
+     Nothing about the read changes - not the prompt, the model, the crop or the vote. */
+  function _fail(t){ try { if (why) why.text = String(t).slice(0, 160); } catch (_e) {} return null; }
   async function onePass(){
     try{
       var resp = await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:b64,media_type:'image/jpeg',names:vocab,kind:kind,layout:layout||undefined})});
-      if(!resp.ok) return null;
+      if(!resp.ok) return _fail('the intake answered HTTP ' + resp.status);
       var data = await resp.json();
-      if(data && data.error) return null;   // v341.52 — upstream/worker error (200 + error field) → failed pass, not an empty read
+      if(data && data.error) return _fail('the intake said: ' + (typeof data.error === 'string' ? data.error : JSON.stringify(data.error)));   // v341.52 — upstream/worker error (200 + error field) → failed pass, not an empty read
       var t = data.tally || {}, clean = {};
       Object.keys(t).forEach(function(k){ var c=parseInt(t[k],10); if(isFinite(c)&&c>0) clean[k]=c; });
       return clean;
-    }catch(e){ return null; }
+    }catch(e){ return _fail('the request failed: ' + ((e && e.message) || e)); }
   }
   function allKeys(reads){ var m={}; reads.forEach(function(r){ Object.keys(r).forEach(function(k){ m[k]=1; }); }); return Object.keys(m); }
   // Per-rune MODE vote across the reads so far. `decided` = every count has a strict majority
@@ -32541,16 +32546,17 @@ window.gemIntake = async function(files){
   var vocab = [];
   try { GEM_TYPES.forEach(function(t){ t.q.forEach(function(g){ vocab.push(g.name); }); }); } catch(e){}
   var added={}, total=0, errors=0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
+  var _why = {}, errWhy = '';   /* #158 (REG-2730) - the first image error's cause */
   for (var i=0;i<files.length;i++){
     try{
       var b64=await _tallyPrepImage(files[i], 'gems');   // v341.59 — gem-specific tight crop (7×5 block)
-      var t=await _tallyRead(b64, vocab, 'gems');   // v341.55 — gems tab has a FIXED 7x5 layout → identify by position (column=type, row=grade)
-      if(t===null){ errors++; continue; }
+      var t=await _tallyRead(b64, vocab, 'gems', undefined, _why);   // v341.55 — gems tab has a FIXED 7x5 layout → identify by position (column=type, row=grade)
+      if(t===null){ errors++; errWhy = errWhy || _why.text || ''; continue; }
       Object.keys(t).forEach(function(k){
         var key=findGem(k);
         if(key){ var _r=_stashRaise(gemStash,key,t[k]); if(_r.raised){ added[key]=(added[key]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(key+' ('+_r.why+')'); } }
       });
-    }catch(e){ errors++; }
+    }catch(e){ errors++; errWhy = errWhy || ('the image could not be prepared: ' + ((e && e.message) || e)); }
   }
   persist(); renderGemStash();
   window._aiIntakeStop('gem-stash-grid');
@@ -32567,9 +32573,9 @@ window.gemIntake = async function(files){
       report.innerHTML='No gems read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot — gems filling the frame, good lighting.';
     }
     /* v1944 — `ok` MEANS THE READ WORKED, NOT THAT A NUMBER WENT UP. v1940 made these intakes merge-MAX, so `total` became the sum of RAISES; a re-read of an unchanged shelf raises nothing and would have reported ok:false. That is not a failed read, and it matters downstream: the kai-funnel gates funnel_by_fid on `ok` (control_app.py ~5486), so an honest no-change read would leave the frame unrouted and Stage-3 free to select it again, forever. A read that HELD every count is a successful read. */
-    return { ok: (total > 0 || held.length > 0), total: total, added: added, held: held, errors: errors, kind: 'gems' };   // v908
+    return { ok: (total > 0 || held.length > 0), total: total, added: added, held: held, errors: errors, errWhy: errWhy || undefined, kind: 'gems' };   // v908
   }
-  return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'gems' };
+  return { ok: false, total: 0, added: {}, errors: errors || 0, errWhy: errWhy || undefined, kind: 'gems' };
 };
 
 // ── General Horadric Cube recipe browser (verified vanilla recipes) ──────────────
@@ -34091,6 +34097,7 @@ window.runeIntake = async function(files){
   }
   var vocab = (typeof RUNES!=='undefined') ? RUNES.map(function(r){return r.n;}) : [];
   var added={}, total=0, errors=0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
+  var _why = {}, errWhy = '';   /* #158 (REG-2730) - the first image error's cause */
   for (var i=0;i<files.length;i++){
     try{
       // v661 — foreign captures (cousin WhatsApp / windowed shots) go through the pixel-detected
@@ -34098,16 +34105,16 @@ window.runeIntake = async function(files){
       // fullscreens and any ambiguous detection fall back to the locked v341.59 crop pipeline.
       var sheet=await _runeSheetPrep(files[i]);
       var b64, t;
-      if (sheet){ b64=sheet; t=await _tallyRead(b64, vocab, 'runesheet', 'tally2'); }
+      if (sheet){ b64=sheet; t=await _tallyRead(b64, vocab, 'runesheet', 'tally2', _why); }
       else {
         b64=await _tallyPrepImage(files[i], 'runes');   // v341.59 — rune-specific crop (9-wide, cube-wrapped)
-        t=await _tallyRead(b64, vocab, 'runes', 'tally');   // v341.54 — runes tab has a FIXED layout → identify by position, not glyph (kills Jah/Cham swaps)
+        t=await _tallyRead(b64, vocab, 'runes', 'tally', _why);   // v341.54 — runes tab has a FIXED layout → identify by position, not glyph (kills Jah/Cham swaps)
       }
-      if(t===null){ errors++; continue; }
+      if(t===null){ errors++; errWhy = errWhy || _why.text || ''; continue; }
       Object.keys(t).forEach(function(k){
         if(k in RUNE_INDEX){ var _r=_stashRaise(runeStash,k,t[k]); if(_r.raised){ added[k]=(added[k]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(k+' ('+_r.why+')'); } }
       });
-    }catch(e){ errors++; }
+    }catch(e){ errors++; errWhy = errWhy || ('the image could not be prepared: ' + ((e && e.message) || e)); }
   }
   persist(); renderRuneStash();
   window._aiIntakeStop('rune-stash-grid');
@@ -34123,9 +34130,9 @@ window.runeIntake = async function(files){
     } else {
       report.innerHTML='No runes read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your rune stash — good lighting, runes filling the frame.';
     }
-    return { ok: (total > 0 || held.length > 0), total: total, added: added, held: held, errors: errors, kind: 'runes' };   // v908 — the connector carries real numbers
+    return { ok: (total > 0 || held.length > 0), total: total, added: added, held: held, errors: errors, errWhy: errWhy || undefined, kind: 'runes' };   // v908 — the connector carries real numbers
   }
-  return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'runes' };
+  return { ok: false, total: 0, added: {}, errors: errors || 0, errWhy: errWhy || undefined, kind: 'runes' };
 };
 
 // --- v69: Materials Stash & Uber Planner ---
@@ -35594,17 +35601,18 @@ window.materialIntake = async function(files){
   // the same photo: a detected statue gets marked collected.
   try { COLOSSAL_STATUES.forEach(function(s){ statueByLc[s.n.toLowerCase()] = s.n; vocab.push(s.n); }); } catch(e){}
   var added={}, statuesAdded=[], total=0, errors=0, held=[];   /* v1940 — reads that came in UNDER the stored count; never silently dropped */
+  var _why = {}, errWhy = '';   /* #158 (REG-2730) - the first image error's cause */
   for (var i=0;i<files.length;i++){
     try{
       var b64=await _tallyPrepImage(files[i]);
-      var t=await _tallyRead(b64, vocab);
-      if(t===null){ errors++; continue; }
+      var t=await _tallyRead(b64, vocab, undefined, undefined, _why);
+      if(t===null){ errors++; errWhy = errWhy || _why.text || ''; continue; }
       Object.keys(t).forEach(function(k){
         var lc = String(k).toLowerCase().trim();
         if (byLc[lc]){ var canon=byLc[lc]; var _r=_stashRaise(materialStash,canon,t[k]); if(_r.raised){ added[canon]=(added[canon]||0)+_r.delta; total+=_r.delta; } else if(_r.held){ held.push(canon+' ('+_r.why+')'); } }
         else if (statueByLc[lc]){ var sn=statueByLc[lc]; var _rs=_stashRaise(materialStash,sn,t[k]); if(_rs.raised){ added[sn]=(added[sn]||0)+_rs.delta; total+=_rs.delta; } else if(_rs.held){ held.push(sn+' ('+_rs.why+')'); } try { if(!statues.has(sn)){ statues.add(sn); statuesAdded.push(sn); } } catch(e){} }
       });
-    }catch(e){ errors++; }
+    }catch(e){ errors++; errWhy = errWhy || ('the image could not be prepared: ' + ((e && e.message) || e)); }
   }
   persist(); renderMaterialStash(); if (typeof renderStatueTracker==='function') renderStatueTracker();
   window._aiIntakeStop('material-stash-grid');
@@ -35621,9 +35629,9 @@ window.materialIntake = async function(files){
       report.innerHTML='No materials read'+(errors?' ('+errors+' image error'+(errors===1?'':'s')+')':'')+'. Try a clearer, closer screenshot of your keys / organs / essences / statues.';
     }
     return { ok: (total > 0 || held.length > 0 || statuesAdded.length > 0), total: total, added: added, held: held,
-             statues: statuesAdded.length, errors: errors, kind: 'materials' };   // v908
+             statues: statuesAdded.length, errors: errors, errWhy: errWhy || undefined, kind: 'materials' };   // v908
   }
-  return { ok: false, total: 0, added: {}, errors: errors || 0, kind: 'materials' };
+  return { ok: false, total: 0, added: {}, errors: errors || 0, errWhy: errWhy || undefined, kind: 'materials' };
 };
 
 function renderStatueTracker() {
@@ -77410,9 +77418,11 @@ window.tvStashAutoIntake = async function(tab, opts){
           body: JSON.stringify({ ts: Date.now(), tab: tab, kind: (_ir && _ir.kind) || 'tally',
                                  ok: !!(_ir && _ir.ok), counts: (_ir && _ir.added) || {},
                                  total: (_ir && _ir.total) || 0, errors: (_ir && _ir.errors) || 0,
+                                 errWhy: (_ir && _ir.errWhy) || undefined,   /* #158 (REG-2730) - which image error */
                                  frameId: (opts && opts.frameId) || '' }) }).catch(function(){ try{ fetch('/intake_result', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ts: Date.now(), tab: tab, kind: (_ir && _ir.kind) || 'tally',
                                  ok: !!(_ir && _ir.ok), counts: (_ir && _ir.added) || {},
                                  total: (_ir && _ir.total) || 0, errors: (_ir && _ir.errors) || 0,
+                                 errWhy: (_ir && _ir.errWhy) || undefined,
                                  frameId: (opts && opts.frameId) || '' }) }).catch(function(){}); }catch(e){} });
       } catch(e){}
       return { ok: !!(_ir && _ir.ok), tab: tab, bytes: blob.size,

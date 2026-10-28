@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2730 - AN "IMAGE ERROR" NEVER SAID WHICH (#158, GrokBot's v3817 pass)
+GrokBot found 335 kai-funnel intake rows with "no reason". Most carried one - "read failed - 1 image error" - and that was
+all of it. An image error is the board's _tallyRead returning null, which three different failures did silently: the
+intake answered an HTTP error, answered with an error field, or the request threw. _tallyRead names the failed pass's
+cause into a `why` object its caller passes; the gems, runes and materials readers keep the first as `errWhy`; the live
+tally post and the console's kai-funnel post carry it; the intake record keeps it and the reason reads "read failed -
+1 image error - the intake answered HTTP 503". The read itself is untouched (prompt, model, crop and vote are locked).
+Law: test_an_image_error_says_which (6 cases, 5 red-proofs; _tallyRead driven in node).
+
 ### REG-2729 - THE COW LEVEL RANKED UNDER TWO NAMES, AND "24 AREAS" SAT OVER 12 ROWS (GrokBot's v3818 pass)
 Where you farm: "Secret Cow Level" (2 runs) and "Moo Moo Farm" (1) were two places - one area, two names. _hmAggregate
 folds "secret cow level" and "cow level" onto the game's own name, Moo Moo Farm (TZ_INFO and the live rotation feed use

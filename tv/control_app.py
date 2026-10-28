@@ -15353,7 +15353,7 @@ def _kai_closer_loop():
                                    "return W[FN]([new W.File([b],'kai-funnel.jpg',{type:'image/jpeg'})])}).then(function(res){"
                                    "var newTotal=(res&&res.total)||0;var applied=false;"
                                    "try{if(res&&res.ok&&(PREV<=0||newTotal>=PREV)){Object.keys(res.added||{}).forEach(function(k){var was=prev[k]||0;if(was>0&&typeof W[ADJ]==='function')W[ADJ](k,-was)});applied=true}}catch(e){}"
-                                   "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok)&&applied,counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,frameId:%s,guardHeld:!applied})}).catch(function(){})}catch(e){}"
+                                   "try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:!!(res&&res.ok)&&applied,counts:(applied?((res&&res.added)||{}):{}),total:(applied?newTotal:PREV),errors:(res&&res.errors)||0,errWhy:(res&&res.errWhy)||undefined,frameId:%s,guardHeld:!applied})}).catch(function(){})}catch(e){}"
                                    "}).catch(function(_e3){try{fetch('/intake_result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ts:Date.now(),tab:%s,kind:'kai-funnel',ok:false,counts:{},total:0,errors:1,frameId:%s,err:String(_e3&&_e3.message||_e3||'funnel fetch/intake rejected')})}).catch(function(){})}catch(e4){}});"
                                    "return 1}catch(e){return 0}})()") % (
                                       json.dumps(t3), json.dumps(t3), json.dumps(t3), json.dumps(_prev_best_t3),
@@ -15795,7 +15795,10 @@ def _intake_why(body):
     if body.get("err"):
         return str(body.get("err"))[:200]
     if err:
-        return "read failed \u2014 %d image error%s" % (err, "" if err == 1 else "s")
+        # #158 (REG-2730) - which image error: the board's _tallyRead now names the failed pass's cause
+        _cause = str(body.get("errWhy") or "").strip()[:160]
+        return "read failed \u2014 %d image error%s%s" % (err, "" if err == 1 else "s",
+                                                       (" \u2014 " + _cause) if _cause else "")
     if body.get("guardHeld"):
         return "held \u2014 the read did not beat the stored count"
     if not ok and not tot:
@@ -48758,6 +48761,7 @@ class Handler(BaseHTTPRequestHandler):
                         # and was thrown away at the door. [[the-unjoined-end]]
                         **({"guardHeld": True} if body.get("guardHeld") else {}),
                         **({"err": str(body.get("err"))[:200]} if body.get("err") else {}),
+                        **({"errWhy": str(body.get("errWhy"))[:160]} if body.get("errWhy") else {}),
                         "why": _intake_why(body),
                     },
                     "frameId": _fid,
