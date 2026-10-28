@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2708 - CLICKING "FILTERS" CLOSED THE SHELF (#86, GrokBot's 02:05 pass on v3816, 2 of 2)
+REG-2681 kept the chart, the head and the live strip from closing the Shelf by naming them before the click-outside dismiss,
+so every block NOT on that list - the filter fold's summary, a group header, a stat tile - still read as "outside a card".
+The handler's own comment states the rule it meant: only the backdrop and the X dismiss. The backdrop is the overlay
+itself, or the bare gap of the card grid; a click anywhere inside a block is the shelf. A source law was not enough here,
+so this one drives the shipped handler in node. Law: test_only_the_shelf_backdrop_dismisses_it (2 red-proofs, each seen RED).
+
 ### REG-2707 - "KEY OF DESTRUCTION" WAS FILED TO A WEAPON MULE (#158.4, GrokBot on his real frames)
 The vault's read door registered an uber key and suggestMule routed it as a weapon. Uber keys, organs, essences and the
 Token of Absolution are MATERIALS: the Materials stash counts them (SPECIAL_DROPS - the same groups the uber/Token planner
