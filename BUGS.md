@@ -18,6 +18,13 @@ guest never makes a mule, so the board was right and the law's world was not his
 set for that install, the same four worlds give WAR1 made by the board, with the extras on it, the make task, an empty line,
 and "you took back the WAR1 the board made" when declined. The law now claims the world in roster_with before the seed and
 asserts _D2R_OWNER as a premise. No code changed.
+### REG-2794 - A REAL SESSION DIGEST PAST 200 KB COULD NEVER REACH ITS OWN DOOR (the v3829 second eye)
+roster.js's POST checked every body against the profile's 200 KB cap first, then branched to the frames door, whose own
+cap is 900 KB and whose digest is built up to 600 KB of thumbnails: any real multi-session digest past 200 KB was refused
+as "too large to be rows", the console banked the refusal and waited 3 h. The law drove framesPost with small digests, so
+it passed. The first cap is now the largest any kind may send (FRAMES_MAX_BODY), and each kind keeps its own (rows, profile,
+frames). Law: test_a_shadow_frames_record_is_signed_and_small (a 16-session digest past 200 KB stores; 1 red-proof).
+
 ### REG-2793 - THE PROFILE LOAD QUESTION SUMMED TIMESTAMPS AS COUNTS AND LISTED EMPTY-VS-NULL AS A CHANGE (GrokBot's ALT round trip, v3828)
 GrokBot loaded the ALT's profile into a throwaway browser (#230 6475742100): 19 stores, 0 differing - and the question
 read "stashMeta: 0 -> 7172604061655 (gems 0 -> 1793153131887, ...)" and "muleAssign: 0 -> 0", "copies: 0 -> 0". REG-2769
