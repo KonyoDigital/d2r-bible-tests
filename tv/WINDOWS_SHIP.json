@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3832",
+  "ver": "v3833",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3832: shared stash pages, owner sessions in a shadow, theatre plays the last run, compare drops fixtures, readout coverage",
+  "note": "v3833: a kept read is owned, X and dismiss undo from the toolbar, a planner edit files once, no sentence names a missing list",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
