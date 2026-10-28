@@ -282,6 +282,13 @@ class TheCarrierWaitsWhereTheProverWould(unittest.TestCase):
         self.assertIsNone(self.due(ok, head=None))
         self.assertIsNone(self.due(ok, state={"running": True, "take": {}, "publish": {}}))
 
+    def test_before_the_first_tick_the_carrier_says_it_was_not_asked(self):
+        """REG-2751 (GrokBot's v3822 pass) - for the first minutes after a start selfProve carried no carrier at all."""
+        c = self.CA._SELF_PROVE.get("carrier")
+        self.assertIsInstance(c, dict, "selfProve has no carrier before the first tick: %r" % sorted(self.CA._SELF_PROVE))
+        self.assertIsNone(c.get("on"), "the carrier claims on/off before anything asked")
+        self.assertIn("not asked yet", c.get("say") or "")
+
     def test_it_takes_first_and_does_not_repeat_itself_at_one_head(self):
         sp = {"playing": False, "freeMb": 4000, "owed": 3}
         self.assertEqual(self.due(sp, {"take": {HEAD: 10000 - 60}, "publish": {}}), "publish",
@@ -291,6 +298,11 @@ class TheCarrierWaitsWhereTheProverWould(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2751 - selfProve carries no carrier until the first tick again",
+     "file": "control_app.py",
+     "find": "               \"carrier\": {\"on\": None, \"worked\": 0, \"lastTs\": None,\n",
+     "replace": "               \"carrierX\": {\"on\": None, \"worked\": 0, \"lastTs\": None,\n",
+     "matches": 1},
     {"why": "#186 step 3 - proofs ride a key nobody registered (trust on first use)",
      "file": "functions/api/proofs.js",
      "find": "  if (registered === null) return refuse(owner + \" has no registered key - proofs ride only a key the roster already trusts\");\n",

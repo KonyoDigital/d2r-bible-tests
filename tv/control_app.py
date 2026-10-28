@@ -21059,7 +21059,10 @@ def _prewarm_shelf(port=None, _urlopen=None, _thread=None):
     threading.Thread(target=_run, daemon=True, name="tvd-shelf-prewarm").start()
 SELF_PROVE_FIRST_TICK = 30
 _SELF_PROVE = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": None,
-               "say": "the self-prove lane has not ticked yet since this console started"}
+               "say": "the self-prove lane has not ticked yet since this console started",
+               # REG-2751 (GrokBot's v3822 pass) - the carrier was ABSENT for the first minutes after a start; it says so
+               "carrier": {"on": None, "worked": 0, "lastTs": None,
+                           "say": "not asked yet - the proof carrier runs after the first self-prove tick"}}
 
 
 #: REG-1957 — how long this PC must have had NO keyboard or mouse input before the console frees its own view so an

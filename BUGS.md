@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2751 - THE PROOF CARRIER'S LINE WAS ABSENT FOR THE FIRST MINUTES AFTER A START (#186, GrokBot's v3822 pass)
+GrokBot SAW the carrier on his console and noted the key was missing before the first self-prove tick: _SELF_PROVE
+started without a "carrier" record, so the panel had nothing to say until the lane ran. It now starts with one -
+on None, worked 0, and "not asked yet - the proof carrier runs after the first self-prove tick" - so an absent line means
+a broken console, never a young one. Law: test_a_proof_rides_only_a_registered_key (1 new case, 1 new red-proof).
+
 ### REG-2750 - ONE BLIND OR CHANGED LAW ANYWHERE SHUT EVERY LOCK, THE RIVER'S INCLUDED (#156, his ruling)
 His words, 2026-10-28: "do whatever is needed.. if needs to be rep-proving and build-per lock then do it." may() asked
 one question of the whole tree - is the census current (no gate file changed since it ran) and is nothing BLIND - so a
