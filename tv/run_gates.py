@@ -12417,6 +12417,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_charm_ruling_rehomes_once.py")], 300,
          needs_app=False,
          why='REG-2896: charms filed on MAGIC & RARE or UNI-SMALL before his 2026-10-28 ruling are re-homed once, with re-planned move tasks, a stamp and a log'),
+    Gate("test_a_typed_name_finds_the_item_the_vault_holds",
+         [sys.executable, os.path.join(HERE, "test_a_typed_name_finds_the_item_the_vault_holds.py")], 300,
+         needs_app=False,
+         why="REG-2897: vaultAssign and FIND resolve the name he types (Harlequin Crest, Tal Rasha's Guardianship) to the item the vault holds"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

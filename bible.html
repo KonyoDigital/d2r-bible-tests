@@ -46024,6 +46024,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { _vaultLockSay(name, '\ud83d\udd12 ' + _nmWhy, true); } catch (eNm) {}
       return { ok: false, refused: 'no-mule', why: _nmWhy };   /* REG-2854 said, never silent */
     }
+    /* REG-2897 (GrokBot's v3829 fresh-add simulation, ACT-6) - THE NAME HE TYPES IS THE ITEM THE VAULT HOLDS. + Add an item owns
+       "Harlequin Crest" as "Harlequin Crest (Shako)" and "Tal Rasha's Guardianship" as "... (armor)" - the register's one name
+       (_vaultResolveName) - and this door then refused the bare name he typed: 'not-owned'. A name he does not own is asked
+       of the same resolver, and the item it names is the one filed; a name it cannot settle is refused as before. */
+    if (!(typeof owned !== 'undefined' && owned && owned.has(name))){
+      try { var _cn = (typeof window._vaultResolveName === 'function') ? String(window._vaultResolveName(name) || '') : '';
+            if (_cn && _cn !== name && owned.has(_cn)) name = _cn; } catch (eCn) {}
+    }
     var _mrCat = (typeof _vaIsGrailUni === 'function' && _vaIsGrailUni(name)) || !!(typeof findSetPiece === 'function' && findSetPiece(name))
       || !!(typeof window.findRuneword === 'function' && window.findRuneword(name));
     if (muleId !== 'magic-rare' && !_mrCat && typeof window._vaultInMagicRare === 'function' && window._vaultInMagicRare(name)){
@@ -52999,6 +53007,11 @@ window.vaultAutoAssign = function(){
     var nm = String(n == null ? '' : n).trim();
     if (!nm) return null;
     var mid = assign[nm];
+    /* REG-2897 - a bare name he types (Harlequin Crest) finds the item the vault holds under the register's one name */
+    if (mid == null && !(typeof owned !== 'undefined' && owned && owned.has(nm))){
+      try { var _cnW = (typeof window._vaultResolveName === 'function') ? String(window._vaultResolveName(nm) || '') : '';
+            if (_cnW && _cnW !== nm && (owned.has(_cnW) || assign[_cnW] != null)){ nm = _cnW; mid = assign[nm]; } } catch (eCnW) {}
+    }
     if (mid == null && window._vaultInMagicRare && window._vaultInMagicRare(nm)) mid = (typeof _mfKeeperHome === 'function' ? _mfKeeperHome(nm) : 'magic-rare');   /* REG-2895 - its one home; a question stays null */
     if (mid != null && mid !== '__throwout' && mid !== '__keep'){
       var m = muleById(mid), mName = m ? ((m.icon ? m.icon + ' ' : '') + m.name) : mid;
