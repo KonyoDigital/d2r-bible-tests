@@ -64,8 +64,11 @@ def roster_with(names, declined=None):
     assert isinstance(r, list) and r, "PREMISE: the page saved no roster to extend: %r" % (r,)
     r = [m for m in r if not re.match(r"^war\s*\d*$", str(m.get("name", "")), re.I)
          and not str(m.get("id", "")).startswith("war-law-") and m.get("role") != "war"]  # a renamed WAR box from another test
+    # REG-2968 - a WAR mule is one by its STORED role and number (REG-2804), never its name: seeding a name-only "WAR1" into a
+    # roster whose one-time legacy stamp (warRoleV) another case already saved made an ordinary mule, and the board minted
+    # WAR3 (CI on ci/claude-v3836). The law seeds them as the board stores them: role war, warN in order.
     for i, n in enumerate(names):
-        r.append({"id": "war-law-%d" % i, "name": n})
+        r.append({"id": "war-law-%d" % i, "name": n, "role": "war", "warN": i + 1})
     for m in r:
         if m.get("id") == "shared":
             m.pop("warDeclined", None)

@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2968 - THE WAR STASH LAW SEEDED NAME-ONLY WAR MULES INTO A ROSTER REG-2804 HAD ALREADY STAMPED (CI on ci/claude-v3836, 4 cases)
+test_vault_l1_war_stash_overflow failed 4 cases on CI: overflow landed on WAR2/WAR3 instead of WAR1. The product was right.
+The law's roster_with copied the board's saved roster (its shared entry carrying REG-2804's one-time legacy stamp,
+warRoleV, saved by an earlier case), stripped the WAR mules and appended new ones by NAME only. On reload the migration had
+already run, so those name-only mules were - correctly, by REG-2804's rule - ordinary mules, and the board made its own
+next WAR mule. The law now seeds its war mules as the board stores them (role war, warN in order); names are only labels.
+Chrome law: CI proves it.
+
+
 ### REG-2967 - REG-2804'S ONE-TIME WAR-ROLE STAMP MADE ANOTHER TAB'S FIRST ROSTER SAVE A CONFLICT (found by agent-guide's sweep)
 test_another_tabs_write_is_merged_not_clobbered's "a roster first saved in the other tab is taken, not held" went red on the
 v3836 batch (it passed on v3834 and on CI). Bisected by reverting: REG-2804 alone. Its legacy migration set
