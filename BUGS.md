@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2759 - A SHELF ROW COUNTED THE DEEP READER'S COMMITMENT NOTE AS A READ (GrokBot's v3823 question)
+GrokBot asked whether "3 reads in 310 ms" (session 71) and "2 reads in 574 ms" (session 81) could be a read cadence. Read
+from his journal: session 71 holds an ocr row and a deep row on frame 1, and a deep-owed row - the console's note that the
+frame was COMMITTED to the deep reader, whose answer is the lane=deep row - written 310 ms later; session 81 the same at
+574 ms. _is_a_live_read counted the note as a read and the read span stretched to its write time. MEASURED on his
+journals: 2,272 deep-owed rows, every one counted; one chronicle visit note too. Both are notes about frames now, not
+reads (REG-2744's class); a known-scene row (the classifier's look at a frame) stays a read. Law:
+test_a_session_is_dated_by_what_it_captured (1 new case from session 71's own rows, 1 new red-proof).
+
 ### REG-2758 - IN A SHADOW, A MOVE TASK ROW WOULD NOT OPEN (#218, GrokBot's v3821 pass)
 The shadow's click veil passes only the handlers named in VIEW, and _vaultTaskExpand (a task row's from -> to picture,
 read only) was not there, so the owner's rows opened on his screen and not in the shadow. And the key filter stopped
