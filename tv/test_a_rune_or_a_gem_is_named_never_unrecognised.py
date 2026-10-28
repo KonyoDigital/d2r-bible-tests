@@ -9,8 +9,8 @@ with the sentence for any name the vault does not draw.
 
   * a bare rune name is the same item as "<rune> Rune": SHARED_STASH_RE matches the whole name, so the router, the dock, the
     records and the console doctor (which reads that one line) give both one answer; its rune list is held equal to RUNES;
-  * a gem stays Unsorted - whether a gem is also a vault item is his ruling (#209's note), not made here - and says it is a
-    gem the Gem Stash counts, at the router, the proposal and the register door;
+  * a gem stayed Unsorted then (the gem ruling was open) and said it is a gem the Gem Stash counts; since his 2026-10-28
+    words (REG-2899) a gem is a count on the shared stash's line like a rune, and the register door refuses it;
   * the hand door's refusal names the stash that counts it, and nothing is added;
   * a base named Rune Sword / Rune Bow and the unique Rune Master are not runes.
 
@@ -46,6 +46,7 @@ OUT.notRunes = ['Rune Sword', 'Rune Bow', 'Rune Master', 'Hellfire Torch'].filte
 OUT.ber = { sg: W.suggestMule('Ber'), rune: W.suggestMule('Ber Rune'), prop: W.vaultPropose('Ber') };
 OUT.gemAnswers = OUT.gems.map(function(n){ var s = W.suggestMule(n); return [n, s && s.id, !!(s && s.unsorted), s && s.why]; });
 OUT.gemProp = W.vaultPropose('Perfect Amethyst');
+OUT.gemShared = OUT.gems.filter(function(n){ return !W.isSharedStash(n); });
 var before = Array.from(owned).length;
 OUT.hand = {};
 ['Ber', 'Jah', 'Perfect Amethyst'].forEach(function(n){ var a = W.vaultHandAdd(n, null, {}); OUT.hand[n] = a && { ok: a.ok, refused: a.refused, stash: a.stash, why: a.why }; });
@@ -53,6 +54,9 @@ OUT.handAdded = Array.from(owned).length - before;
 W._vaultAutoIntakeSet && W._vaultAutoIntakeSet(true);
 var g = W.tvVaultRegister('Perfect Amethyst', { by: 'hand', at: new Date().toISOString(), where: 'the law' });
 OUT.reg = g && { refused: g.refused, why: g.why };
+/* the register door's no-home answer carries the router's own Unsorted reason (REG-2857's sweep): a name nothing knows */
+var v = W.tvVaultRegister('Bone Visor', { by: 'hand', at: new Date().toISOString(), where: 'the law' });
+OUT.regUnsorted = v && { refused: v.refused, why: v.why };
 })();
 """
 
@@ -85,14 +89,21 @@ class ARuneOrAGemIsNamedNeverUnrecognised(unittest.TestCase):
                          "the regex's rune list drifted from RUNES")
 
     def test_a_gem_says_it_is_a_gem_everywhere(self):
+        # REG-2899 (his words 2026-10-28) - a gem is a count in the Gem Stash, never a vault item: no longer Unsorted, the
+        # shared stash's own area, at the router, the proposal and the register door (which now refuses it)
+        self.assertEqual(self.o["gemShared"], [], "gems the shared-stash line does not answer: %r" % self.o["gemShared"])
         for n, gid, uns, why in self.o["gemAnswers"]:
             self.assertIsNone(gid, "%s was given a mule: %r" % (n, gid))
-            self.assertTrue(uns, "%s is no longer Unsorted (the gem ruling is his): %r" % (n, why))
-            self.assertIn("a gem (%s)" % n, why or "", "%s was not named a gem: %r" % (n, why))
-            self.assertNotIn("nothing on the board recognises", why or "", n)
-        self.assertIn("Gem Stash", self.o["gemProp"]["why"], self.o["gemProp"])
-        self.assertIn("a gem (Perfect Amethyst)", (self.o["reg"] or {}).get("why") or "",
-                      "the register door does not carry the router's reason: %r" % self.o["reg"])
+            self.assertFalse(uns, "%s is Unsorted again: %r" % (n, why))
+        self.assertIn("counted in the Gem Stash", self.o["gemProp"]["why"], self.o["gemProp"])
+        self.assertEqual((self.o["reg"] or {}).get("refused"), "not-an-item", "the register door owned a gem: %r" % self.o["reg"])
+        self.assertIn("Gem Stash", (self.o["reg"] or {}).get("why") or "", self.o["reg"])
+
+    def test_the_register_door_carries_the_routers_reason(self):
+        r = self.o["regUnsorted"] or {}
+        self.assertEqual(r.get("refused"), "no-home", r)
+        self.assertIn("nothing on the board recognises this name", r.get("why") or "",
+                      "the register door does not carry the router's Unsorted reason: %r" % r)
 
     def test_the_hand_door_names_the_stash_that_counts_it(self):
         h = self.o["hand"]
@@ -117,10 +128,10 @@ RED_PROOF = [
      "find": "|^\\s*(?:el|eld|tir|nef|eth|ith|tal|ral|ort|thul|amn|sol|shael|dol|hel|io|lum|ko|fal|lem|pul|um|mal|ist|gul|vex|ohm|lo|sur|ber|jah|cham|zod)\\s*$",
      "replace": "",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2857 - a gem is told nothing on the board recognises it again",
+    {"why": "REG-2857 / REG-2899 - a gem is not the shared-stash line's again (a name nothing recognises)",
      "file": "bible.html",
-     "find": "      if (_gemN) return {id:null, unsorted:true, why:'a gem (' + _gemN + ')",
-     "replace": "      if (false) return {id:null, unsorted:true, why:'a gem (' + _gemN + ')",
+     "find": "|^\\s*(?:(?:chipped|flawed|flawless|perfect)\\s+)?(?:amethyst|diamond|emerald|ruby|sapphire|topaz|skull)\\s*$",
+     "replace": "",
      "matches": 1, "needs": "node"},
     {"why": "REG-2857 - the hand door refuses a rune or a gem without saying which stash counts it",
      "file": "bible.html",
