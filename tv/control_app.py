@@ -4983,8 +4983,7 @@ def _roster_profile_tick(boot):
     """Shadow mode's profile on the same lane: after the rows, this PC's profile (change-only, its own gap).
     -> True when the publish step ran without raising; the boot flag is cleared only then (Grok r1)."""
     try:
-        _profile_publish_once(boot)
-        return True
+        return _profile_publish_once(boot) is not False   # REG-2795 - a hold is not a decision
     except Exception as e:
         _st = _profile_json_load(_profile_state_path()) or {}
         _st["why"] = type(e).__name__
@@ -5030,25 +5029,27 @@ def _frames_publish_once(boot):
     if held:
         state["why"] = "suppressed: " + str(held)[:160]
         _profile_json_save(_frames_state_path(), state)
-        return
+        return False     # REG-2795 - held: a console start's exemption is kept for when the hold lifts
     now_ms = int(time.time() * 1000)
     if not _ss.may_build(state, now_ms, bool(boot)):
-        return
+        return True
     d = _ss.digest(_rpj.load_journal(), HIST_DIR, _is_a_live_read, now_ms)
     body, reason = _ss.due(state, _profile_owner(), d, now_ms, bool(boot))
     if body is None:
         state["why"], state["checkedAt"] = str(reason)[:200], now_ms
         _profile_json_save(_frames_state_path(), state)
-        return
+        return True
     reply = _roster_post(_ROSTER_URL, body, os.path.join(_log_root(), ".roster_key.json"))
     _profile_json_save(_frames_state_path(), _ss.apply_reply(state, body["hash"], reply, now_ms))
+    return True
 
 
 def _roster_frames_tick(boot):
-    """-> True when the frames step ran without raising (the boot flag clears only then, as the profile's does)."""
+    """-> True when the frames step reached its decision (the boot flag clears only then, as the profile's does).
+    REG-2795 (the v3829 second eye) - a start while the beacon was suppressed returned normally, so the boot exemption was
+    spent without a post and the restart waited out the 3 h gap once the hold lifted. A hold is not a decision: False."""
     try:
-        _frames_publish_once(boot)
-        return True
+        return _frames_publish_once(boot) is not False
     except Exception as e:
         _st = _profile_json_load(_frames_state_path()) or {}
         _st["why"] = type(e).__name__
@@ -5300,7 +5301,7 @@ def _profile_publish_once(boot):
     if held:
         state["why"] = "suppressed: " + str(held)[:160]
         _profile_json_save(_profile_state_path(), state)
-        return
+        return False     # REG-2795 - held: the boot exemption waits for the hold to lift (the frames lane's sibling)
     owner = _profile_owner()
     book = _profile_json_load(_profile_book_path()) or {}
     stores = book.get("stores") if isinstance(book.get("stores"), dict) else None
