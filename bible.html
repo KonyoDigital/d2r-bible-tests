@@ -4720,6 +4720,10 @@ window._LP_FORKED = new Set([
      d2r_vaultRecordsMigrate, so the marker forks exactly as they do (the v2224 rule). Bare, a failed
      persist in one world would send every other world on the machine back to live. No apostrophe in this note. */
   "d2r_vaultRecordsDirty",
+  /* REG-2892 - d2r_vaultFullLooks: the newest full look of each container. It judges the reads of one profile and its
+     stashes, so it forks exactly as the records it guards (the v2224 rule) - bare, a ladder look would make the main
+     reads stale. No apostrophe in this note: test_store_isolation pairs the quotes of this Set to read its names. */
+  "d2r_vaultFullLooks",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -48057,17 +48061,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _byHand = !!(_witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.by === 'hand' || _witIn.source === 'hand'));
       var _stopped = _byHand ? null : ((typeof window._vaultIntakeGate === 'function') ? window._vaultIntakeGate() : { ok:false, refused:'auto-intake-off', registered:false, why:'AUTO INTAKE is not on this page - a frame does not register' });
       if (_stopped) return _stopped; /* v3767 register stop */
+      /* REG-2893 - a read older than its container's newest full look places nothing. It still reaches the ledger row
+         below (refused, with its reason), which is the history it is kept as. */
+      var _staleR = null;
       if (!_byHand && _witIn && typeof window._vaultIntakeLook === 'function') _witIn = window._vaultIntakeLook(_witIn); /* auto intake look */
       var r;
       var _preMap = null; /* intake zero looks: a row saved BEFORE this read counts, not one this read itself just wrote */
       try { _preMap = (typeof _vaultMoveBag === 'function') ? JSON.parse(JSON.stringify(_vaultMoveBag().map || {})) : null; } catch (ePre) { _preMap = null; } /* a copy: the inner register may edit the stored rows in place */
       try {
+        _staleR = (!_byHand && typeof window._vaultStaleRead === 'function') ? window._vaultStaleRead(name, _witIn) : null;
         var _call = arguments;
         if (arguments.length > 1 && arguments[1] !== _witIn){
           _call = Array.prototype.slice.call(arguments);
           _call[1] = _witIn;
         }
-        r = _inner.apply(this, _call);
+        r = _staleR || _inner.apply(this, _call);   /* REG-2893 */
       }
       catch(e){ r = { ok:false, why:'threw: ' + (e && e.message || e) }; }
       try {
@@ -51896,6 +51904,8 @@ window.vaultAutoAssign = function(){
   // hardcoded fallback would have won every time — a second copy of the law, in the edit whose
   // whole purpose was deleting the copies. [[copy-drift]] [[the-unjoined-end]]
   try { window.MULE_GEOM_SAY = MULE_GEOM_SAY; window.MULE_CAP = MULE_CAP; } catch (e) {}
+  /* REG-2892 - the grids a full look must cover, from the same constants (a shared page is a stash-sized grid) */
+  try { window.MULE_GRID = { stash: [MULE_STASH_W, MULE_STASH_H], shared: [MULE_STASH_W, MULE_STASH_H], inventory: [MULE_INV_W, MULE_INV_H] }; } catch (eMg) {}
   // v405 — one mule character = personal stash + inventory
   // cells. A category that overflows 140 cells SPILLS onto the next mule of the same kind (Mule 2, 3…), so
   // "97 items in one mule" can never happen — they auto-distribute across as many mule toons as it takes.
@@ -53983,6 +53993,127 @@ window.vaultAutoAssign = function(){
     window._vaultThrowKeep = _vaultThrowKeep; window._vaultThrowJunk = _vaultThrowJunk; window._vaultKeptByHim = _vaultKeptByHim;
     window._vaultGoneObserve = _vaultGoneObserve; window._vaultThrowRoute = _vaultThrowRoute; window._vaultThrowReason = _vaultThrowReason; window.VAULT_GONE_SESSIONS = VAULT_GONE_SESSIONS;
   } catch (eTw) {}
+  /* ══ REG-2892 (intake design P2, his #230 design: "a full look is a frame that shows a whole container") ══════════════
+     THE FULL LOOK - ITS CONTRACT, AND WHERE IT LANDS. A full look is the container's truth at its capture time: a stash
+     tab, a mule's inventory, or one shared page, read WHOLE. It is the only frame that may count an item gone
+     (REG-2861's door) and the only one that makes an older read stale (REG-2893). What one must carry, or it is refused
+     in words and nothing is stamped:
+       { complete: true,
+         container: { holder: <the mule / character name the reads use>, location: 'stash' | 'inventory' | 'shared',
+                      page: <0-based shared page, shared only> },
+         capturedAt: <ms or ISO - the frame's own clock, never when it arrived>,
+         session: <reel session id>, frame: <frame id>,
+         cells: [ { cell: 'c<x>r<y>', name: <the item covering that cell> | null }, ... ]   <- EVERY cell of the grid, once }
+     It lands in two places: the drain (_vaultGoneObserve with complete:true, which counts what is ABSENT) and
+     d2r_vaultFullLooks, the "last full look" stamp per container (newest capture wins; an older full look is history and
+     changes nothing). No reader produces one yet: the console's vault reader names items from hover tooltips only
+     (tv_diablo VAULT_READ_PROMPT - "the grid itself prints none"), so a sweep frame lists the hovered item, never a tab.
+     The producers this waits for are the guided sweep (P4) and P2's full-look detection. */
+  var VAULT_FULL_LOOKS_KEY = 'd2r_vaultFullLooks';
+  function _flMs(v){
+    var n = (typeof v === 'number') ? v : ((typeof v === 'string' && v.trim()) ? Date.parse(v) : NaN);
+    return (isFinite(n) && n > 0) ? n : null;
+  }
+  function _flKey(holder, location, page){
+    var loc = String(location || '').trim().toLowerCase();
+    return loc + '|' + String(holder || '').trim() + (loc === 'shared' ? '|p' + page : '');
+  }
+  /* -> {} | the map | null (UNKNOWN: the bytes would not read - never treated as empty, never written over) */
+  function _flAll(){
+    var raw = null;
+    try { raw = window.LSR.getItem(VAULT_FULL_LOOKS_KEY); } catch (e) { return null; }
+    if (raw == null || raw === '') return {};
+    try { var fl = JSON.parse(raw); return (fl && typeof fl === 'object' && !Array.isArray(fl)) ? fl : null; } catch (eP) { return null; }
+  }
+  /* the newest full look of one container -> {holder, location, page, at, session, frame, ...} | null (never looked whole) */
+  function _vaultFullLookOf(holder, location, page){
+    var all = _flAll();
+    if (!all) return null;
+    var row = all[_flKey(holder, location, page)];
+    return (row && typeof row === 'object' && _flMs(row.at) != null) ? row : null;
+  }
+  window._vaultFullLookOf = _vaultFullLookOf;
+  window._vaultFullLook = function(look){
+    look = (look && typeof look === 'object' && !Array.isArray(look)) ? look : {};
+    function no(why){ return { ok: false, stamped: false, why: why }; }
+    if (look.complete !== true) return no('not a full look - it does not say complete:true, so what it lacks proves nothing');
+    var c = (look.container && typeof look.container === 'object') ? look.container : {};
+    var holder = String(c.holder == null ? '' : c.holder).trim(), loc = String(c.location == null ? '' : c.location).trim().toLowerCase();
+    if (!holder || !loc) return no('a full look must name its container - the holder and the location');
+    var G = window.MULE_GRID || null, dims = G ? G[loc] : null;
+    if (!dims) return no('"' + loc + '" is not a grid a full look can cover (stash, inventory or a shared page)');
+    var W = dims[0], H = dims[1], page = null;
+    if (loc === 'shared') {
+      page = (c.page == null || c.page === '') ? NaN : +c.page;
+      var pages = (typeof window.SHARED_PAGES === 'number') ? window.SHARED_PAGES : null;
+      if (!(page >= 0 && (page | 0) === page && (pages == null || page < pages)))
+        return no('a full look of the shared stash must name its page' + (pages != null ? ' (0 to ' + (pages - 1) + ')' : ''));
+    }
+    var at = _flMs(look.capturedAt);
+    if (at == null) return no('a full look must say when it was captured - an undated look cannot outrank any read');
+    var sid = String(look.session == null ? '' : look.session).trim(), fr = String(look.frame == null ? '' : look.frame).trim();
+    if (!sid || !fr) return no('a full look must name its session and its frame');
+    if (!Array.isArray(look.cells)) return no('a full look must list its cells');
+    var seen = {}, items = [], named = {}, empty = 0;
+    for (var i = 0; i < look.cells.length; i++){
+      var e = look.cells[i] || {};
+      var m = /^c(\d+)r(\d+)$/.exec(String(e.cell == null ? '' : e.cell));
+      if (!m || +m[1] >= W || +m[2] >= H) return no('"' + String(e.cell) + '" is not a cell of a ' + W + 'x' + H + ' ' + loc);
+      if (seen[e.cell]) return no('the cell ' + e.cell + ' is listed twice');
+      seen[e.cell] = 1;
+      var nm = (e.name == null) ? '' : String(e.name).trim();
+      if (!nm) { empty++; continue; }
+      /* the cell in the drain's own keys: slot_identity's "<container>:c<x>r<y>", a shared page's rows stacked (REG-2802) */
+      var y = +m[2] + (loc === 'shared' ? page * H : 0);
+      items.push({ name: nm, cell: loc + ':c' + m[1] + 'r' + y });
+      named[nm] = 1;
+    }
+    var nCells = Object.keys(seen).length;
+    if (nCells !== W * H) return no('it lists ' + nCells + ' of the ' + (W * H) + ' cells - a full look names every cell, its item or empty');
+    var all = _flAll();
+    if (all === null) return no('the full-look store (' + VAULT_FULL_LOOKS_KEY + ') would not read - UNKNOWN, so nothing was stamped over it');
+    var key = _flKey(holder, loc, page), cur = all[key];
+    var curAt = (cur && typeof cur === 'object') ? _flMs(cur.at) : null;
+    if (curAt != null && curAt > at)
+      return { ok: true, stamped: false, older: true, key: key, at: at,
+               why: 'older than the full look already held (' + new Date(curAt).toISOString() + ') - kept as history; it places and removes nothing' };
+    all[key] = { holder: holder, location: loc, page: page, at: at, session: sid, frame: fr,
+                 items: Object.keys(named).length, empty: empty };
+    var wrote = false;
+    try { wrote = window.LSR.setItem(VAULT_FULL_LOOKS_KEY, JSON.stringify(all)) !== false; } catch (eW) { wrote = false; }
+    var drain = null;
+    try {
+      drain = (typeof window._vaultGoneObserve === 'function')
+        ? window._vaultGoneObserve({ session: sid, frame: fr, holder: holder, location: loc, items: items, ground: [], complete: true })
+        : null;
+    } catch (eD) { drain = { ok: false, why: String(eD && eD.message || eD) }; }
+    return { ok: true, stamped: wrote, key: key, at: at, items: Object.keys(named).length, empty: empty, drain: drain,
+             why: wrote ? '' : 'the stamp could not be written (a shadow writes nothing, or the store refused it)' };
+  };
+  /* ══ REG-2893 (his Q2) — A READ OLDER THAN ITS CONTAINER'S NEWEST FULL LOOK PLACES NOTHING ══════════════════════════════
+     An Oct 6 screenshot must not file, add or move an item today when the same stash was seen whole on Oct 28. The read
+     is asked which container it saw (the holder and location its look names) and when (its capture time); against that
+     container's newest full look it is either newer (it places as before) or not (refused, and the register's ledger row
+     keeps it as history). A read with no capture time cannot be shown to be newer, so once its container has a full look
+     it places nothing either - UNKNOWN is never current. A read that does not name its container, or a container never
+     looked at whole, is untouched: there is nothing to compare. His hand is never stale. -> null | the refusal */
+  window._vaultStaleRead = function(name, w){
+    if (!w || typeof w !== 'object' || Array.isArray(w) || w.by === 'hand' || w.source === 'hand') return null;
+    var l0 = (Array.isArray(w.sessions) && w.sessions[0] && typeof w.sessions[0] === 'object') ? w.sessions[0] : {};
+    var holder = l0.holder || w.holder || null;
+    var loc = String(l0.loc || l0.location || w.location || w.loc || w.lane || '').trim().toLowerCase();
+    var page = (l0.page != null) ? l0.page : ((w.page != null) ? w.page : null);
+    if (!holder || !loc || (loc === 'shared' && page == null)) return null;
+    var fl = _vaultFullLookOf(holder, loc, page);
+    if (!fl) return null;
+    var flAt = _flMs(fl.at), t = _flMs(l0.at != null ? l0.at : w.at);
+    if (t != null && t >= flAt) return null;
+    return { ok: false, refused: 'stale', registered: false, label: String(name == null ? '' : name), history: true,
+             fullLook: { holder: fl.holder, location: fl.location, page: fl.page, at: flAt },
+             why: (t == null ? 'this read carries no capture time' : 'this read was captured ' + new Date(t).toISOString())
+                  + ', and ' + holder + ' ' + loc + (loc === 'shared' ? ' page ' + (page + 1) : '') + ' was seen whole on '
+                  + new Date(flAt).toISOString() + ' - an older read places, adds and moves nothing; it is kept as history' };
+  };
   function _vaultMoveCollect(){
     window._movePackCache = {}; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
     var _ph = (typeof _vaultSeamPhase === 'function') ? _vaultSeamPhase : function(f){ return f(); }; /* V1c read phases */

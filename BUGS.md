@@ -83,6 +83,29 @@ ITS rule), 2 more red-proofs, both RED. Cross-family look: the Grok MCP seat was
 and the Grok CLI timed out at 300 s, so the pixels are UNAUDITED by another family.
 3 red-proofs, each RED: too small, not !important, ladder stack). Real-pixel check of the framed Windows board owed before
 this ships.
+### REG-2893 - AN OLD READ COULD STILL PLACE AN ITEM AFTER ITS STASH WAS SEEN WHOLE (intake design P2, his Q2)
+His Q2: "A read older than the container's newest full look can't add, move or remove anything. It is kept as history."
+Nothing compared a read with any look of its container. `window._vaultStaleRead` now does, at the tvVaultRegister door as
+one separate call (agent-111's removal rule sits at the same door): a read whose container (the holder and location its look
+names) has a full look newer than the read - or a read with no capture time once that container has one, since an undated
+read cannot be shown to be newer - is refused (`refused: 'stale'`, its own reason) and files nothing; the register's ledger
+row still records it with the reason, which is the history it is kept as. A newer read, a read that names no container, a
+container never looked at whole, and his hand are untouched. Law: test_a_full_look_outranks_an_older_read (with REG-2892,
+8 red-proofs RED).
+
+### REG-2892 - THERE WAS NO SUCH THING AS A FULL LOOK, SO NOTHING COULD BE PROVEN GONE OR STALE (intake design P2)
+His design: "A full look is a frame that shows a whole container ... the container's truth at that capture time." REG-2861
+made the drain count absence only from a frame that says complete:true; nothing defined what such a frame must carry or
+recorded one. `window._vaultFullLook` is the contract and its receivers: complete:true, the container (holder, location
+stash / inventory / shared, a shared page's number), the capture time, the session and frame, and EVERY cell of the grid
+once - its item or empty (window.MULE_GRID, from the packer's own constants). Anything less is refused in words and stamps
+nothing. A full look feeds the drain (complete:true, slot_identity's cell keys, a shared page's rows stacked) and stamps
+d2r_vaultFullLooks - the newest look per container, forked per profile like the records; an older look is history and
+changes nothing. No producer was faked: the console's vault reader names items from hover tooltips only (tv_diablo
+VAULT_READ_PROMPT: "the grid itself prints none"; vault_doctor's 220 occupied cells and zero names), so no sweep frame is a
+whole container. The producers it waits for are the guided sweep (P4) and P2's full-look detection.
+Law: test_a_full_look_outranks_an_older_read.
+
 ### REG-2891 - A LIVE READ'S LOOK CARRIED NO TIME, AND THE GATE AND THE FILING ROW DROPPED ONE THAT DID (intake design P2)
 A read row carries two clocks: `ts`, when the read landed (the board orders reads by it), and `captureTs`, the frame's own
 capture time (tv_diablo: "captureTs must be the FRAME's capture ms, not the receipt-landing time"). Measured: bible.html
