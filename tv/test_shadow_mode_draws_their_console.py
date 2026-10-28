@@ -422,6 +422,30 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
           try { w.vaultCloseCard(true); } catch (e) {}
           return { found: !!del, stopped: stopped, same: same, plate: !!plate, opened: opened,
                    dimmed: del ? w.getComputedStyle(del).opacity : null }; })()""" % SHADOW)
+        # #148 (REG-2758, GrokBot's v3821 pass) - in the shadow a move task row opens its from -> to picture (a read, never a
+        # write) by a click and by Enter or Space on the focused row; Enter or a click on the row's tick box (a write) is
+        # stopped. Inside the storage watch above, so an open that wrote anywhere fails test_the_viewers_own_storage_is_untouched.
+        cls.taskrow = _ev(cdp, """(function(){ var w=%s, d=w.document; w.switchTab('vault'); w.renderVault(); w.vaultTasksTog(true, true);
+          var rows = d.querySelectorAll('#vault-move-list li.vtk-line'), row = rows[0], out = { rows: rows.length };
+          if (!row) return out;
+          function opened(){ var n = row.nextElementSibling; return !!(n && n.classList.contains('vtk-expand-li')); }
+          function key(el, k){ var s0 = w._tvdShadowStopped;
+            el.dispatchEvent(new w.KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+            return w._tvdShadowStopped - s0; }
+          row.focus(); out.focused = d.activeElement === row;
+          out.enter = [key(row, 'Enter'), opened()];
+          out.space = [key(row, ' '), opened()];
+          var s0 = w._tvdShadowStopped; row.click(); out.click = [w._tvdShadowStopped - s0, opened()];
+          if (opened()) row.click();
+          var tick = row.querySelector('.vtk-tick'), name = row.getAttribute('data-name'), st0 = row.getAttribute('data-status');
+          out.tickFound = !!tick;
+          if (tick){ tick.focus(); out.tickEnter = key(tick, 'Enter');
+                     var s1 = w._tvdShadowStopped; tick.click(); out.tickClick = w._tvdShadowStopped - s1; out.ticked = tick.checked; }
+          var again = Array.prototype.filter.call(d.querySelectorAll('#vault-move-list li.vtk-line'), function(r){
+            return r.getAttribute('data-name') === name; })[0];
+          out.statusSame = !!again && again.getAttribute('data-status') === st0;
+          w.vaultTasksTog(false, true);
+          return out; })()""" % SHADOW)
         cls.flags = _ev(cdp, "(function(){var w=%s; return {snap: !!w._tvdShadow, refused: w._tvdShadowRefused, "
                              "cls: w.document.documentElement.className}})()" % SHADOW)
         # #218 phase 3b (REG-2810) - from TV·D, the bar's 📚 Their sessions (pressed as he presses: pointerdown, then
@@ -565,6 +589,23 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         self.assertTrue(c["same"], "the build store changed under a dead Delete")
         self.assertLess(float(c["dimmed"]), 0.5, "a dead control is drawn as live")
         self.assertTrue(c["plate"] and c["opened"], "a mule plate no longer opens its window in shadow: %r" % c)
+
+    def test_a_move_row_opens_by_key_and_by_click_and_its_tick_stays_dead(self):
+        """#148 (REG-2758, GrokBot's v3821 pass: "inside a SHADOW a move row expands on neither Enter nor a mouse click") -
+        in a real browser, the shadow's own key filter and click veil let a move task row open its from -> to picture by
+        Enter, Space (which closes it again) and a click, because that picture only reads; the row's tick box, which writes,
+        stays stopped for a key and a click, and the task keeps its status. The guard's sabotage proofs are the node law's
+        (test_shadow_mode_reads_their_console, REG-2758); this is the same path through Chrome's own events. CI proves it."""
+        t = self.taskrow
+        self.assertGreaterEqual(t.get("rows", 0), 1, "the fixture drew no move task row in the shadow: %r" % t)
+        self.assertTrue(t["focused"], "a move row does not take the focus in the shadow: %r" % t)
+        self.assertEqual(t["enter"], [0, True], "Enter on the focused row was stopped or opened nothing: %r" % t)
+        self.assertEqual(t["space"], [0, False], "Space on the open row did not close it: %r" % t)
+        self.assertEqual(t["click"], [0, True], "a click on the row was stopped or opened nothing: %r" % t)
+        self.assertTrue(t["tickFound"], "the row carries no tick box - the fixture changed: %r" % t)
+        self.assertEqual((t["tickEnter"], t["tickClick"]), (1, 1), "the tick box (a write) took a key or a click: %r" % t)
+        self.assertFalse(t["ticked"], "the tick box was checked in the shadow")
+        self.assertTrue(t["statusSame"], "the task's status changed in the shadow: %r" % t)
 
     def test_their_sessions_open_over_their_board_read_only(self):
         """#218 phase 3b (REG-2810, his ruling 2026-10-28) - in a shadow, the bar's 📚 Their sessions (reachable from
