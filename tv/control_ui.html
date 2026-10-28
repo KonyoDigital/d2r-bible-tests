@@ -19204,7 +19204,11 @@ window._lockMark = function(isOpen, px, label){
          the shelf, not "outside a card". Only the backdrop and ✕ dismiss it. */
       if (e.target.closest && (e.target.closest('.sh-timeline') || e.target.closest('.sh-head') || e.target.closest('.sh-live'))) return;
       var c = e.target.closest('.sh-card');
-      if (!c){ _shDismiss(); return; }   // click-outside a card = dismiss, the SAME way ✕ does
+      /* REG-2708 (GrokBot's 02:05 pass) - a click on FILTERS (the fold's summary) still closed the Shelf: the line above names
+         the parts that are "inside", and every block not on it - the filter fold, a group header, a stat tile - dismissed.
+         The rule it meant is the one its comment states: only the BACKDROP dismisses - the overlay itself, or the bare gap
+         of the card grid - the SAME way ✕ does. Anything inside a block is the shelf. */
+      if (!c){ if (e.target === ov || (e.target.classList && e.target.classList.contains('sh-grid'))) _shDismiss(); return; }
       _sessionDossier(Number(c.dataset.n) || 1, c.dataset.sid || '');   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
     };
     };   // end _paintShelf

@@ -12073,6 +12073,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_material_is_not_a_vault_item.py")], 300,
          needs_app=False,
          why="#158.4 - uber keys, organs, essences and the Token are counted by the Materials stash and refused at the vault's read door; Sunder charms still register"),
+    Gate("test_only_the_shelf_backdrop_dismisses_it",
+         [sys.executable, os.path.join(HERE, "test_only_the_shelf_backdrop_dismisses_it.py")], 300,
+         needs_app=False,
+         why='REG-2708 - a click on any block inside the Shelf (FILTERS, a group header, a stat tile) keeps it open; only the backdrop dismisses'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

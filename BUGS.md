@@ -14,6 +14,13 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2708 - CLICKING "FILTERS" CLOSED THE SHELF (#86, GrokBot's 02:05 pass on v3816, 2 of 2)
+REG-2681 kept the chart, the head and the live strip from closing the Shelf by naming them before the click-outside dismiss,
+so every block NOT on that list - the filter fold's summary, a group header, a stat tile - still read as "outside a card".
+The handler's own comment states the rule it meant: only the backdrop and the X dismiss. The backdrop is the overlay
+itself, or the bare gap of the card grid; a click anywhere inside a block is the shelf. A source law was not enough here,
+so this one drives the shipped handler in node. Law: test_only_the_shelf_backdrop_dismisses_it (2 red-proofs, each seen RED).
+
 ### REG-2707 - "KEY OF DESTRUCTION" WAS FILED TO A WEAPON MULE (#158.4, GrokBot on his real frames)
 The vault's read door registered an uber key and suggestMule routed it as a weapon. Uber keys, organs, essences and the
 Token of Absolution are MATERIALS: the Materials stash counts them (SPECIAL_DROPS - the same groups the uber/Token planner

@@ -29,7 +29,9 @@ with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as _fh:
 
 KEEP = ("      if (e.target.closest && (e.target.closest('.sh-timeline') || e.target.closest('.sh-head') "
         "|| e.target.closest('.sh-live'))) return;\n")
-DISMISS = "      if (!c){ _shDismiss(); return; }   // click-outside a card = dismiss, the SAME way"
+# REG-2708 - only the backdrop dismisses now (test_only_the_shelf_backdrop_dismisses_it drives it); the named blocks are still
+# asked first
+DISMISS = "      if (!c){ if (e.target === ov || (e.target.classList && e.target.classList.contains('sh-grid'))) _shDismiss(); return; }"
 
 
 class TheShelfKeepsItsOwnClicks(unittest.TestCase):
