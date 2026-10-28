@@ -171,7 +171,7 @@ class TheConsoleServesIt(unittest.TestCase):
         i = src.index("def chars_learned_answer(")
         j = src.index("\ndef ", i + 10)
         body = "\n".join(l.split("#", 1)[0] for l in src[i:j].split("\n"))
-        self.assertIn("_cs.session_characters(_d, reel_of=_cs.reel_of_frame(), carried=_carried, report=_sr)", body)
+        self.assertIn("_sessions, _sr = _cs.session_view(_d, _gd)", body)
         self.assertIn('"sessions": _sessions,', body)
 
     def test_the_answer_is_built_and_says_unknown_when_the_ledger_will_not_read(self):

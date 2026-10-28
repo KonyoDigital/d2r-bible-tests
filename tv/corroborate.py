@@ -2572,6 +2572,12 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # #36 (REG-2909) - one reader names the character on every screen it reads.
+    'which character each session is on':
+        "the row reads char_select's ledger: character select, the lobby and the C panel are all read by the console's "
+        "one vision reader, so three screens agreeing are one witness, not a joint (two that disagree already make the "
+        "span UNKNOWN). A real second source would be the save file (.d2s) of the character he played that session, "
+        "which nothing reads per session yet.",
     # #151 (v3551) — his reader switch: one source today, said so rather than claimed covered.
     'reader switch':
         "the row reads the switch file and the Grok CLI's login through g5_grok_eyes - the same module that decides who "

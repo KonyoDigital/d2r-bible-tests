@@ -312,6 +312,21 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2909 - A SESSION NO SCREEN NAMED WAS SILENT: THE DOCTOR NOW ASKS "session N: character UNKNOWN - open the C panel once" (#36, his rule)
+His rule: a doubt becomes a guided ask. A session none of character select, the lobby or the C panel named reads UNKNOWN
+(REG-2906), and every look in it reads holder UNKNOWN on the vault (REG-2908), and nothing said so - the doctor had no row.
+Now 'which character each session is on' reads the newest session on this PC (the character it is on NOW is its last
+span's): OK names it, how it is known (char-select / lobby / c-panel / carried) and how many of the last 10 sessions are
+named; MISSING asks in his words, "session <id>: character UNKNOWN - open the C panel once", and says what is true today -
+no pixel band finds the C panel yet (no C-panel frame was ever filmed), so the panel is read only when a reader is shown
+one, and picking the character at character select names the session too; UNKNOWN when the learner will not load, its
+ledger will not read or the reel folder cannot be listed - never "0 sessions"; no reel at all is measured empty. One view
+feeds the row and the console's answer (char_select.session_view, the rollover chain included), so the two cannot differ.
+The row is in CHECKS, declared in WATCHES (no element of its own), and corroborate.NO_JOINT_YET says why it has no joint
+(one vision reader names every screen; a real second source would be the session's .d2s). It counts as his: the ask is
+his to act on. Law: test_a_session_with_no_character_asks_for_the_c_panel (the pure verdict, the live row over a fixture
+ledger and reel tree, the registries), 6 red-proofs, RED. test_a_session_knows_its_character re-aimed at the one view.
+
 ### REG-2908 - EVERY VAULT LOOK READ HOLDER UNKNOWN: NOTHING TOLD A STASH READ WHOSE STASH IT FILMED (#36)
 Measured on the whole page in node: every look of a filed item read holder null - the stash sweep's sighting has no holder
 field and the live route names a character only on a login row - so the copy keys (_vaultSightGroups), the records'

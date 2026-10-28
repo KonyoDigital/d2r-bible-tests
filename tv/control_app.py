@@ -5189,12 +5189,7 @@ def chars_learned_answer(full=True):
         # sessions) carries that login's character. sessions None = the ledger is UNKNOWN, never an empty map.
         _sr = {}
         try:
-            _carried = {}
-            for _gs in ((_gd or {}).get("gameSessions") or {}).values():
-                if isinstance(_gs, dict) and _gs.get("character"):
-                    for _rs in (_gs.get("reels") or [])[1:]:
-                        _carried[str(_rs)] = _gs["character"]
-            _sessions = _cs.session_characters(_d, reel_of=_cs.reel_of_frame(), carried=_carried, report=_sr)
+            _sessions, _sr = _cs.session_view(_d, _gd)   # REG-2909 the one view, asked by the doctor too
             if _sessions is not None:   # compact: what the page reads - the span's start, its character, and how it is known
                 _sessions = {_k: [{_f: _sp.get(_f) for _f in ("from", "character", "via", "why") if _sp.get(_f) is not None}
                                   for _sp in _v] for _k, _v in _sessions.items()}

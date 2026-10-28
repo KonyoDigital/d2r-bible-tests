@@ -1226,6 +1226,19 @@ def session_characters(d, reel_of=None, carried=None, report=None):
     return out
 
 
+def session_view(d, gd=None):
+    """#36 (REG-2909) - the ONE view of which character each session is on, asked by the console's answer and by the
+    doctor: the learner's ledger `d`, the reels' frames on this PC, and the gear ledger `gd`'s rollover chain as `carried`
+    (each game session's later reels carry its login's character). -> (sessions | None, report)"""
+    carried = {}
+    for gs in ((gd or {}).get("gameSessions") or {}).values() if isinstance(gd, dict) else []:
+        if isinstance(gs, dict) and gs.get("character"):
+            for rs in (gs.get("reels") or [])[1:]:
+                carried[str(rs)] = gs["character"]
+    report = {}
+    return session_characters(d, reel_of=reel_of_frame(), carried=carried, report=report), report
+
+
 def session_character_at(sessions, sid, ts=None):
     """The character a read at `ts` in session `sid` was taken on, from session_characters' map. -> (name, why)
 
