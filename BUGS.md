@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2746 - test_vault_retro LEFT tv_diablo's OCR WORKER RUNNING ON HIS MAC (a pre-existing local error, found in a sweep)
+On his Mac (main v3821 too) `pytest test_vault_retro.py` read 69 passed, 1 error: the suite's child guard reported "A TEST
+LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker" at the file's last teardown. A read path in the file warms tv_diablo's
+_OCR worker and nothing stopped it. A module teardown now calls exec_hygiene.quiesce_before_exec(), which stops only the
+warm workers this process holds. CI never saw it (no ocr_mac on a Linux runner), so its red-proof needs "macos".
+
 ### REG-2745 - THE CHRONICLE'S FRESH NAMES WERE DATED BY ITS OLD BANKED COUNTS (#200, the last item)
 A PC's chronicle section had one asOf: when its counts were banked (the board tally). Its name rows are read fresh from
 the found stores at publish, so a viewer dated fresh names by counts that could be hours older. The section now carries

@@ -891,6 +891,11 @@ class TestV2239WilsonReachesThePrune(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2746 - the OCR worker this file warms is left running, and the child guard reports the leak",
+     "file": "test_vault_retro.py",
+     "find": "        _eh.quiesce_before_exec()\n",
+     "replace": "        pass\n",
+     "matches": 1, "needs": "macos"},   # the worker is ocr_mac: on a PC without it there is no child to leak
     {
         'why': 'This single line IS law 1 (MERGE-MAX) — the body of _max_count() in vault_retro.py, the one comparison every count in the accumulated vault ledger passes through via _absorb()/merge_vault(). Flipping >= to <= turns merge-max into merge-min, so a later half-scrolled or obstructed stash frame that sees 3 where 9 was already recorded SUBTRACTS six runes from his ledger — the exact silent-destruction failure the gate exists to catch. It is not a comment, not a mention inside a message string, and not a constant both sides of an agreement law read: the shortfall reporting in merge_vault compares pc/nc directly, so only the stored count moves. Order-independence is deliberately left intact (min is commutative too), which is why the red lands on the merge-max law rather than on a symmetric collapse of both derived sides.  MEASURED: untampered python3 tv/test_vault_retro.py -> Ran 69 tests in 6.193s, OK (green before tampe; tampered (all 1) python3 tv/test_vault_retro.py -> Ran 69 tests in 6.004s, FAILED (failures=2): T; reddened law test_vault_retro.TestMergeMax.test_a_smaller_later_read_never_subtract; ALONE FAILS ALONE. Fresh process: python3 -m unittest test_vault_retro.TestMergeMax.test_a_smaller_later_r.',
         'file': 'vault_retro.py',
@@ -900,6 +905,18 @@ RED_PROOF = [
     },
 ]
 
+
+
+def tearDownModule():
+    """REG-2746 - the OCR worker a read path in this file warms (tv_diablo's _OCR, `ocr_mac --worker`) is THIS process's
+    child; it is stopped here (exec_hygiene.quiesce_before_exec, which stops only warm workers this process holds), or
+    the suite's child guard reports a leak at the last teardown. Measured 2026-10-28 on his Mac, on main as well:
+    69 passed, 1 error - "A TEST LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker". Mac-only (CI has no ocr_mac)."""
+    try:
+        import exec_hygiene as _eh
+        _eh.quiesce_before_exec()
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
