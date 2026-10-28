@@ -14306,16 +14306,24 @@ window._lockMark = function(isOpen, px, label){
   window._hrtLockColor = _hrtLockColor;
   /* #180 - "shouldn't it show me accurately progress wise how much has been proven? like the 85/85" - a held lock's caption joined
      its MERIT (attacks refused in its trial, complete) to the census's currency and showed no progress for the second. It paints
-     the catch-up now - proved of declared, and how many to go, from the census itself, never a typed number - and the merit
-     moves to the hover as "trial: N/N refused", so it cannot read as completion. -> {paint, hover} */
+     the catch-up now, from the census itself and never a typed number: held because the prover is behind -> the self-prove
+     lane's owed count of the declared laws (NOT proved/declared: those are the last full run's and read 1214/1214 while 31 are
+     owed); held because an instrument is blind -> how many are blind; any other hold -> its reason. The merit moves to the hover
+     as "trial: N/N refused", so it cannot read as completion. -> {paint, hover} */
   function _hrtHeldCaption(L, n_, d){
+    var by = L && L.heldBy;
     var held = { stale: 'the prover is behind', blind: 'an instrument is blind',
-                 heart: 'no census here', upstream: 'blocked upstream' }[L && L.heldBy] || 'held';
+                 heart: 'no census here', upstream: 'blocked upstream' }[by] || 'held';
     var ins = (d && d.instruments) || {};
-    var pv = (typeof ins.proved === 'number') ? ins.proved : null, dc = (typeof ins.declared === 'number') ? ins.declared : null;
-    var paint = (pv != null && dc != null && dc >= pv)
-      ? 'held · ' + pv + '/' + dc + ' proved · ' + (dc - pv) + ' to go'
-      : 'held: ' + held + ' · proof progress UNKNOWN';
+    var paint = 'held: ' + held;
+    if (by === 'stale') {
+      var ow = (typeof ins.laneOwed === 'number') ? ins.laneOwed : null, dc = (typeof ins.declared === 'number') ? ins.declared : null;
+      paint = (ow != null && dc != null && dc >= ow)
+        ? 'held · ' + ow + ' of ' + dc + ' still to prove'
+        : 'held: ' + held + ' · how many are owed UNKNOWN';
+    } else if (by === 'blind' && ins.blind && ins.blind.length) {
+      paint = 'held · ' + ins.blind.length + ' instrument' + (ins.blind.length === 1 ? '' : 's') + ' blind';
+    }
     return { paint: paint, hover: 'held: ' + held + ' · trial: ' + L.k + '/' + n_ + ' refused (its merit, not the census)' };
   }
   window._hrtHeldCaption = _hrtHeldCaption;
