@@ -71,7 +71,8 @@ def _du(path):
 def _free_gb():
     try:
         # #229 — shutil.disk_usage, not os.statvfs: statvfs does not exist on Windows, so this read UNKNOWN on every Windows console. disk_usage.free is f_bavail * f_frsize on POSIX.
-        return shutil.disk_usage(REPO).free / float(1 << 30)
+        import disk_room as _dr   # #151 (REG-2742) - the warden and the floors read one figure
+        return _dr.free_bytes(REPO)[0] / float(1 << 30)
     except Exception:
         return None
 

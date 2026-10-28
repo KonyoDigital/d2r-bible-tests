@@ -492,7 +492,8 @@ def j_disk():
     try:
         # #229 — shutil.disk_usage, not os.statvfs: statvfs does not exist on Windows, so this read UNKNOWN on every Windows console. disk_usage.free is f_bavail * f_frsize on POSIX.
         import shutil as _sh
-        free_gb = _sh.disk_usage(h).free / (1024.0 ** 3)
+        import disk_room as _dr   # #151 (REG-2742) - purgeable space counts, as on every other floor
+        free_gb = _dr.free_bytes(h)[0] / (1024.0 ** 3)
     except Exception as e:
         return _joint("disk", "GB free", None, None, str(e)[:70], "GB")
     pr = j_prune()

@@ -71,6 +71,15 @@ FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v75
 _FOOTAGE_RETRY_S = 30.0   # v3410 — a broken tree is re-attempted at most this often, never per frame
 
 
+
+def _disk_free_bytes(path):
+    """#151 (REG-2742) - free space at `path` as macOS counts it for a write that matters: purgeable space included
+    (disk_room.free_bytes). Every floor in this file reads it, so the ON AIR floor, the picture size and the health
+    figure beside the floor agree. Raises what shutil.disk_usage raises."""
+    import disk_room as _dr
+    return _dr.free_bytes(path)[0]
+
+
 def _establish_footage():
     """v3405 — the film/archive writers walk ONE door. Looking never provisions.
 
@@ -856,7 +865,7 @@ def _health(st):
         pass
     try:
         import shutil as _shf
-        _free_gb = round(_shf.disk_usage(FRAMES).free / 1e9, 1)
+        _free_gb = round(_disk_free_bytes(FRAMES) / 1e9, 1)
     except Exception:
         _free_gb = None
     h = {"eyeAgeMs": _eye_age_ms(), "captureMode": (_CAP_TARGET or {}).get("mode", ""),
@@ -2416,7 +2425,7 @@ def _archive_footage_copy(src_path, now_f, why="ok", _consume_due=True):
         hist_dir = HIST_DIR
         _establish_footage()
         import shutil as _sh
-        if _sh.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
+        if _disk_free_bytes(hist_dir) / 1e9 < MIN_FREE_GB:
             globals()["_FOOTAGE_WHY"] = "disk-full"
             return False
         dest = os.path.join(hist_dir, "f_%d.jpg" % int(now_f * 1000))
@@ -2678,7 +2687,7 @@ def _film_loop():
                         globals()["_REAP_DUE"] = now_f + 120.0
                         hist_dir = HIST_DIR
                         import shutil as _shu2
-                        if _shu2.disk_usage(hist_dir).free / 1e9 < MIN_FREE_GB:
+                        if _disk_free_bytes(hist_dir) / 1e9 < MIN_FREE_GB:
                             # 2026-09-28 — (b) it used to delete up to 600 loose frames here with NO evidence
                             # check; now it spares every read-bearing and every cited frame, refuses when the
                             # authority cannot answer, and records what it took. See _reap_loose_film.
@@ -3800,7 +3809,7 @@ def _read_picture_floor(hist_dir):
     try:
         import read_pictures as _rp
         import shutil as _shp
-        free = _shp.disk_usage(hist_dir).free / 1e9
+        free = _disk_free_bytes(hist_dir) / 1e9
     except Exception:
         return ("full", "", None)
     if free < _rp.HARD_FLOOR_GB:
@@ -3929,7 +3938,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
         # whole 30k-file listing + mtime sort + journal-shield load when the disk is healthy.
         try:
             import shutil as _shq
-            if _shq.disk_usage(HIST_DIR).free / 1e9 >= MIN_FREE_GB \
+            if _disk_free_bytes(HIST_DIR) / 1e9 >= MIN_FREE_GB \
                     and time.time() < globals().get("_ORPHAN_DUE", 0.0):
                 return _out   # healthy disk + orphans swept recently → skip the 30k-file walk
             globals()["_ORPHAN_DUE"] = time.time() + 600.0   # full sweep at most every 10min
@@ -3967,7 +3976,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
             unprotected = [f for f in read_files if os.path.basename(f) not in protected]
             try:
                 import shutil as _shu
-                free_gb = _shu.disk_usage(HIST_DIR).free / 1e9
+                free_gb = _disk_free_bytes(HIST_DIR) / 1e9
             except Exception:
                 free_gb = 999
             try:
@@ -9007,7 +9016,7 @@ def main():
                         import shutil as _shwz
                         _whd = HIST_DIR
                         _establish_footage()
-                        if _shwz.disk_usage(_whd).free / 1e9 >= MIN_FREE_GB:
+                        if _disk_free_bytes(_whd) / 1e9 >= MIN_FREE_GB:
                             _FOOT_TIMES.append(_wnow)
                             globals()["_FOOTAGE_WHY"] = "win-eye-copy"
                             _shwz.copyfile(_weye, os.path.join(_whd, "f_%d.jpg" % int(_wnow * 1000)))

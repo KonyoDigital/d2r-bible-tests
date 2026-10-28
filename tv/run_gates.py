@@ -12153,6 +12153,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_find_names_every_copys_cell.py")], 300,
          needs_app=False,
          why="#144.9 - FIND names the cell of every copy of an item, not the first one's"),
+    Gate("test_free_space_counts_what_macos_frees",
+         [sys.executable, os.path.join(HERE, "test_free_space_counts_what_macos_frees.py")], 300,
+         needs_app=False,
+         why='#151 - every free-space read that decides something counts what macOS frees on demand, and a pretend disk is never topped up'),
+    Gate("test_his_grok_chats_are_pruned_only_when_needed",
+         [sys.executable, os.path.join(HERE, "test_his_grok_chats_are_pruned_only_when_needed.py")], 300,
+         needs_app=False,
+         why='#151 - his Grok chats are pruned on their own, oldest first, only when the folder or the disk needs it'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

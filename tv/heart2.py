@@ -2939,7 +2939,8 @@ def prove_workers(n_gates=None, say=None):
     if n_gates:
         n = min(n, int(n_gates))
     try:
-        free_mb = shutil.disk_usage(tempfile.gettempdir()).free / (1024.0 * 1024.0)
+        import disk_room as _dr   # #151 (REG-2742) - purgeable space counts, as on every other floor
+        free_mb = _dr.free_bytes(tempfile.gettempdir())[0] / (1024.0 * 1024.0)
         room = int((free_mb - LANE_DISK_FLOOR_MB) // LANE_DISK_MB)
         if room < n:
             if say:
