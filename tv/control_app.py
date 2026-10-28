@@ -14851,8 +14851,19 @@ def _kai_closer_loop():
             # mid-closer left film playable with no per-frame filter chrome).
             _KAIVER_TARGET = 6
             reels = []
+            # REG-2728 (#158) - AN EVIDENCE REMNANT IS NOT A REEL TO CLOSE. The deleter released it and kept only the
+            # pictures a vault row stands on; closing it rebuilt its index, re-ran the paid gap funnel and deep re-reads
+            # on those pictures, and handed the next prune pass a folder to trim again - 82 rounds for 12 reels. One
+            # answer, the planner's own (remnant_reels); an unreadable tombstone skips nothing.
+            try:
+                import reel_retention as _rr_rem
+                _remnants = _rr_rem.remnant_reels(hist)
+            except Exception:
+                _remnants = set()
             for d in sorted(os.listdir(hist)):
                 if not (d.startswith("reel_") and os.path.isdir(os.path.join(hist, d))):
+                    continue
+                if d in _remnants:
                     continue
                 # This `continue` is literally what hid reel_s_1785708285647_38665 (98 frames,
                 # no index) from the theatre. Repair FIRST — skip only a reel that truly has

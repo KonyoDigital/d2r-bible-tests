@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2728 - 12 EVIDENCE REMNANTS WENT ROUND THE DELETER AND THE KAI CLOSER 82 TIMES, WITH PAID RE-READS (#158)
+GrokBot's v3817 pass: 335 kai-funnel intake rows on his Mac, most of them failed or held. Measured from his own
+/api/intake_log and control_app.log (read only, 2026-10-28): the 209 "read failed" rows were 45 frames of 5 old sessions
+re-read 4-5 times each. The cause was a loop between two halves that each did the right thing. apply_plan releases a
+reel and keeps the pictures a vault row stands on (his §26) - and for these 12 reels every frame is evidence, so the
+trim removed only index.json, kai_report.json and a thumbnail ("freed 1 MB by removing 12 reel(s)"). The KAI closer
+then met a reel with frames and no report, rebuilt its index, closed it again - firing the paid gap funnel (up to 3
+stills a tab) and SUPER-ANALYZE deep re-reads (up to 10) - and wrote the report back. plan() calls a reel an evidence
+remnant only when NOTHING but its kept pictures is left, so the next pass planned it and trimmed it again. Since v3633
+(Oct 9): 82 rounds in the log, 1,258 tombstone rows for 12 reels (up to 141 for one). It paused only because the
+river's locks are shut. remnant_reels() is now the one answer: the files the console derives from the frames
+(REMNANT_DERIVED: index.json, kai_report.json, index.json.corrupt, dot-named thumbnails) are not footage, and the KAI
+closer asks it and skips a remnant before it rebuilds an index. On his shelf (read only): the 12 reels plan() re-planned
+are the 12 remnant_reels() now names. The 1,258 tombstone rows are his record and are left as they are.
+Law: test_the_river_drains_every_pass (2 new cases, 2 new red-proofs, the half-trim proof re-pointed).
+
 ### REG-2727 - A SHARED VISIT KEPT A MISSPELLING APART FROM ITS CHARACTER (#211, GrokBot's v3817 pass)
 REG-2692 merged spelling variants only when NO VISIT read both names. A visit is several frames of one lobby, and the
 reader spells one row two ways across them: on the ALT's roster (copied read-only, byte-exact, 2026-10-28) every lobby

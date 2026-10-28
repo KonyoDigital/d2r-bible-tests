@@ -456,6 +456,25 @@ class AVaultPictureHoldsItsReel(_Base):
         self.assertNotIn(self.cited_reel, p.get("remnants") or [],
                          "a half-trimmed reel still reads as a finished remnant - its leftover frames stay forever")
 
+    def test_a_remnant_the_console_wrote_back_into_stays_a_remnant(self):
+        """REG-2728 (#158) - the KAI closer met the remnant with no index and no report, rebuilt the index from the kept
+        pictures, closed it (paid re-reads) and wrote a thumbnail; the next pass saw more than the kept pictures, planned
+        it and trimmed them away. On his Mac: 12 reels, 82 rounds, 1,258 tombstone rows. What the console derives from
+        the frames is not footage."""
+        self._cite({self.cited_frame})
+        self._pass(free_gb=500.0)
+        d = os.path.join(self.w.hist, self.cited_reel)
+        self.assertIn(self.cited_reel, RR.plan(self.w.hist, _fresh=True).get("remnants") or [], "PREMISE: no remnant")
+        for nm in ("index.json", "kai_report.json", ".stash_eye_tab.jpg"):
+            with open(os.path.join(d, nm), "w") as fh:
+                fh.write("{}")
+        p = RR.plan(self.w.hist, _fresh=True)
+        self.assertIn(self.cited_reel, p.get("remnants") or [],
+                      "the closer's own index and report turned a finished remnant back into a reel")
+        self.assertNotIn(self.cited_reel, [c.get("reel") for c in p.get("candidates") or []],
+                         "the remnant is planned for release again - the trim-and-reclose loop (REG-2728)")
+        self.assertEqual(RR.remnant_reels(self.w.hist), {self.cited_reel}, "the planner and remnant_reels disagree")
+
     def test_freed_is_what_left_the_disk(self):
         """A trimmed reel was credited with its whole planned size. Freed = its size minus the pictures it kept."""
         d = os.path.join(self.w.hist, self.cited_reel)
@@ -921,6 +940,22 @@ class TheDeleterTakesOnlyAReelName(AVaultPictureHoldsItsReel):
         self.assertEqual(sorted(set(before) - set(self.w.on_disk())), [self.old[0]])
 
 
+class TheKaiCloserLeavesARemnantAlone(unittest.TestCase):
+    """REG-2728 (#158) - the closer asks the planner's own remnant answer before it rebuilds an index or closes a reel.
+    The loop is a thread that never returns, so its source is read - code only, comments stripped."""
+
+    def test_the_closer_skips_a_remnant_before_it_touches_the_index(self):
+        import inspect
+        code = "\n".join(l.split("#", 1)[0].rstrip() for l in inspect.getsource(CA._kai_closer_loop).split("\n"))
+        ask = "                _remnants = _rr_rem.remnant_reels(hist)"
+        skip = "                if d in _remnants:\n                    continue"
+        ens = "                if not _reel_ensure_index(os.path.join(hist, d))[0]:"
+        for need in (ask, skip, ens):
+            self.assertEqual(code.count(need), 1, "the closer's remnant step is not where this law reads it: %r" % need)
+        self.assertLess(code.index(ask), code.index(skip))
+        self.assertLess(code.index(skip), code.index(ens), "the closer rebuilds a remnant's index before skipping it")
+
+
 RED_PROOF = [
     {
         "why": "REG-1926 - a negative beside-shadow cap is read from the end again, so a smaller cap deletes more reels",
@@ -974,8 +1009,22 @@ RED_PROOF = [
     {
         "why": "the second eye on v3521 - a half-trimmed reel with a `kept` row is a finished remnant forever",
         "file": "reel_retention.py",
-        "find": "                    if set(os.listdir(os.path.join(hist, _r))) <= _k:\n",
-        "replace": "                    if True:\n",
+        "find": "        if _left <= k:\n",
+        "replace": "        if True:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2728 - the console's own index and report make a finished remnant a reel again (the trim-reclose loop)",
+        "file": "reel_retention.py",
+        "find": "            _left = set(f for f in os.listdir(os.path.join(hist, r)) if not f.startswith(\".\") and f not in REMNANT_DERIVED)\n",
+        "replace": "            _left = set(os.listdir(os.path.join(hist, r)))\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2728 - the KAI closer closes an evidence remnant again (paid re-reads, then the next trim)",
+        "file": "tv/control_app.py",
+        "find": "                if d in _remnants:\n                    continue\n",
+        "replace": "",
         "matches": 1,
     },
     {

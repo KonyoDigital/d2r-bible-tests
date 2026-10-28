@@ -1088,6 +1088,59 @@ def _forget_plans():
             PLAN_STATS[k] = 0
 
 
+#: REG-2728 - what the console itself writes INTO a reel folder from the frames already there: the index rebuilt from
+#: the frame names, the KAI closer's report, a corrupt index kept aside, and the dot-named thumbnails (.stash_eye_tab.jpg,
+#: .tooltip_tile.jpg). None of it is footage, so none of it turns a finished evidence remnant back into a reel.
+REMNANT_DERIVED = frozenset(("index.json", "kai_report.json", "index.json.corrupt"))
+_REMNANT_MEMO = {}
+
+
+def remnant_reels(hist):
+    """The EVIDENCE REMNANTS on the shelf: reels apply_plan already released whose cited pictures stayed (his §26),
+    tombstoned WITH a `kept` list. -> set of reel names. An unreadable tombstone -> an empty set: every reel is then
+    planned, and closed, exactly as before.
+
+    The second eye on v3521: the tombstone is written BEFORE the delete, so a trim that failed halfway (a file in use, a
+    crash) left a `kept` row over a reel still holding its other frames. A remnant is DONE only when nothing but its kept
+    pictures is left; anything more and it is planned again like any reel.
+
+    REG-2728 (#158, measured on his Mac 2026-10-28): "anything more" counted what the console writes back. The KAI
+    closer met a remnant with no index and no report, rebuilt the index from the kept pictures and closed the reel again
+    (the paid gap funnel and SUPER-ANALYZE deep re-reads on it); the next pass saw index.json and kai_report.json beside
+    the kept pictures, planned it, and trimmed them away. 12 reels went round 82 times in the log, 1,258 tombstone rows,
+    up to 141 for one reel. REMNANT_DERIVED is not footage, and the closer asks this same function before it closes."""
+    path = _tombstone_path(hist)
+    try:
+        st = os.stat(path)
+        key = (path, st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    kept_of = _REMNANT_MEMO.get(key) if key is not None else None
+    if kept_of is None:
+        try:
+            rows = (_load(path) or {}).get("reels") or []
+            kept_of = {}
+            for t in rows:
+                if isinstance(t, dict) and t.get("kept"):
+                    kept_of.setdefault(t.get("reel"), set()).update(str(x) for x in t.get("kept") or ())
+        except Exception:
+            return set()
+        if key is not None:
+            _REMNANT_MEMO.clear()
+            _REMNANT_MEMO[key] = kept_of
+    out = set()
+    for r, k in kept_of.items():
+        if not _is_reel_dir_name(r):
+            continue
+        try:
+            _left = set(f for f in os.listdir(os.path.join(hist, r)) if not f.startswith(".") and f not in REMNANT_DERIVED)
+        except OSError:
+            continue
+        if _left <= k:
+            out.add(r)
+    return out
+
+
 def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
     """What may go, oldest first, and WHY every other reel stays. Writes nothing.
 
@@ -1152,25 +1205,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
         # 2026-09-28 — an EVIDENCE REMNANT is a reel already released whose cited pictures stayed (apply_plan, his
         # §26): tombstoned WITH a `kept` list. It is not a new candidate and not owed - replanning it would release
         # it again every pass and read as a stalled drain. It is listed in `remnants`, never silently dropped.
-        try:
-            _tomb_rows = (_load(_tombstone_path(hist)) or {}).get("reels") or []
-            _kept_of = {}
-            for _t in _tomb_rows:
-                if isinstance(_t, dict) and _t.get("kept"):
-                    _kept_of.setdefault(_t.get("reel"), set()).update(str(x) for x in _t.get("kept") or ())
-            # the second eye on v3521: the tombstone is written BEFORE the delete, so a trim that failed halfway (a
-            # file in use, a crash) left a `kept` row over a reel still holding its other frames - and this filter
-            # exempted it forever. A remnant is DONE only when nothing but its kept pictures is left; anything more
-            # and it is planned again like any reel.
-            _remnants = set()
-            for _r, _k in _kept_of.items():
-                try:
-                    if set(os.listdir(os.path.join(hist, _r))) <= _k:
-                        _remnants.add(_r)
-                except OSError:
-                    pass
-        except Exception:
-            _remnants = set()
+        _remnants = remnant_reels(hist)
         _remnant_list = sorted(r for r in reels if r in _remnants)
         reels = [r for r in reels if r not in _remnants]
     except OSError as e:
