@@ -65,6 +65,14 @@ OUT.modelKeys = Object.keys(mdl || {}).sort();
 W._vaultAutoIntakeSet(true);
 W._vaultMoveApplySight(%(seen)s, { holder: 'MULE-2', location: 'stash', cell: 'stash:c3r1', frame: 'f_1' });
 OUT.seen = look(%(seen)s);
+/* REG-2775 - a throw row: first one only PAINTED (a shadow saves nothing), then one only SAVED (nothing painted) */
+W._moveModel = { tasks: [{ name: 'Spineripper', copyIx: 0, task: W._vaultMoveTask({ name: 'Spineripper', kind: 'throw',
+  status: 'to-move', from: { holder: 'MULE-2', location: 'stash', cell: 'stash:c5r2' }, to: {} }) }], groups: [], done: [] };
+OUT.paintedThrow = look('Spineripper');
+W._moveModel = null;
+OUT.savedThrowCommit = W._vaultMoveCommit([{ name: 'The Grandfather', copyIx: 0, task: W._vaultMoveTask({ name: 'The Grandfather',
+  kind: 'throw', status: 'to-move', from: { holder: 'MULE-2', location: 'stash', cell: 'stash:c6r3' }, to: {} }) }]);
+OUT.savedThrow = look('The Grandfather');
 })();
 """ % {"hand": repr(HAND).replace("'", '"'), "seen": '"' + SEEN + '"'}
 
@@ -121,6 +129,33 @@ class AMoveRowExpandsInline(unittest.TestCase):
         self.assertEqual(e.get("to"), self.o["hand"][SEEN]["cell"], "the sighting moved the target: %r" % e)
 
 
+@unittest.skipUnless(VPN.NODE, "node is absent on this machine - UNMEASURED here, never a pass")
+class AThrowRowOpensAsAThrow(unittest.TestCase):
+    """REG-2775 (GrokBot's v3826 pass) - in a shadow a throw row said "-> NOWHERE" and its expand "FROM · DEMO -> no
+    target cell yet": the expand rebuilt the row from the store, where a throw (no target by design) is a move."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.o = AMoveRowExpandsInline.o if hasattr(AMoveRowExpandsInline, "o") else VPN.run(BODY, prelude=CLAIM, timeout=300)
+
+    def test_a_painted_throw_that_nobody_saved_opens_as_nowhere_from_its_cell(self):
+        e = self.o.get("paintedThrow") or {}
+        self.assertNotIn("err", e, e)
+        self.assertEqual((e.get("from"), e.get("to")), ("seen", "nowhere"),
+                         "a throw row the store never saved opened as a move: %r" % e)
+        self.assertEqual([(t["key"], t["x"], t["y"]) for t in e.get("fromTiles") or []], [("Spineripper#0", 5, 2)], e)
+
+    def test_a_saved_throw_opens_as_nowhere_with_nothing_painted(self):
+        self.assertEqual((self.o.get("savedThrowCommit") or {}).get("ok"), True,
+                         "PREMISE: the throw was not saved: %r" % self.o.get("savedThrowCommit"))
+        e = self.o.get("savedThrow") or {}
+        self.assertEqual((e.get("from"), e.get("to")), ("seen", "nowhere"), "a saved throw row opened as a move: %r" % e)
+
+    def test_the_list_is_painted_from_the_model_the_expand_reads(self):
+        src = io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8").read()
+        self.assertEqual(src.count("      window._moveModel = built;\n"), 1, "the list no longer publishes the model it paints")
+
+
 class ThePopupIsNotDeclared(unittest.TestCase):
     """The runtime case cannot see a door left DECLARED but no longer exported. The declaration shapes are counted (a
     sentence about the popup - this file's own, or bible.html's - never carries `function _vault...(` or `{`)."""
@@ -141,6 +176,16 @@ class ThePopupIsNotDeclared(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2775 - a throw row the store never saved (every one in a shadow) opens as a move",
+     "file": "bible.html",
+     "find": "        if (!thrT && r && r.task && r.task.kind === 'throw' && String(r.name) === String(name)",
+     "replace": "        if (false && r && r.task && r.task.kind === 'throw' && String(r.name) === String(name)",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2775 - a saved throw row opens as a move",
+     "file": "bible.html",
+     "find": "    if (!thrT && sRaw && sRaw.kind === 'throw' && !sRaw.kept) thrT = _vaultMoveTask(sRaw);\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
     {"why": "#144.14 (REG-2780) - a popup door is exported again",
      "file": "bible.html",
      "find": "  try { window._vaultMoveCompareModel = _vaultMoveCompareModel; } catch (eCm) {}\n",

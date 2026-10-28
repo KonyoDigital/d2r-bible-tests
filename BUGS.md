@@ -22,6 +22,16 @@ its loose film, and every one of those orphans was counted and spanned with it. 
 captured on or after its own session's start (the id's s_<start ms>_<n>, else its first captured moment), with a minute's
 grace for the first frame. tv/test_a_session_is_dated_by_what_it_captured.py plants an orphan still ten days before the
 session; its red-proof (the filter removed) is RED.
+### REG-2775 - IN A SHADOW, A THROW-OUT ROW OPENED AS A MOVE WITH NO TARGET (#218, GrokBot's v3826 pass)
+GrokBot opened the owner's MOVE TASKS in a shadow: a row reading "-> NOWHERE" expanded to "FROM · DEMO (simulated) -> no
+target cell yet". The expand does not read the row; it rebuilds the task from the store (_vaultMoveEnsure), and a task
+with no saved target is rebuilt as a MOVE - a throw has no target by design, so the throw kind was dropped. That is every
+throw row in a shadow (it saves nothing) and, read through, a saved throw on his own screen too. The expand now opens a
+throw as the throw its row was painted from (window._moveModel, the model _vaultMovePaint draws the list with), else as
+the saved throw; a row he kept stays a move (_vaultThrowTask's rule). Moves still read the store, which is the fresher
+of the two after a sighting. Law: test_a_move_row_expands_inline_and_the_popup_is_gone (a painted-only throw and a
+saved-only throw, both NOWHERE from their own cell; 2 red-proofs).
+
 ### REG-2782 - A MULE CARD DREW A COPY AWAY FROM THE CELL ITS MOVE TASK SENT IT TO (#144.10, GrokBot's eyes-pass A1)
 GrokBot (seeds 1012/1013/1021, "almost all batches"): "SOCKETED tasks are Monarch c0r0, Phase Blade c4r0, Thresher c5r0,
 but the open card draws Thresher (0,0) and Monarch (4,0)". Measured on this tree in node (whole page): Gull, The Grandfather

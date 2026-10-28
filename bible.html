@@ -53173,6 +53173,21 @@ window.vaultAutoAssign = function(){
     copyIx = copyIx || 0;
     var bag = _vaultMoveBag();
     var t = _vaultMoveEnsure(name, copyIx, bag).task;
+    /* REG-2775 (GrokBot's v3826 pass) - a THROW OUT row opened as a move. _vaultMoveEnsure rebuilds a row with no saved
+       target as a move, and a throw has no target by design, so under a row that said "-> NOWHERE" the expand drew
+       "FROM · DEMO -> no target cell yet": every throw row in a shadow (which saves nothing), and a saved one on his own
+       screen. A throw opens as the throw its row was painted from (window._moveModel, the model _vaultMovePaint draws the
+       list with), else as the saved throw; a row he kept is a move (_vaultThrowTask's rule). */
+    var thrT = null;
+    try {
+      var _pm = window._moveModel;
+      ((_pm && _pm.tasks) || []).concat((_pm && _pm.done) || []).forEach(function(r){
+        if (!thrT && r && r.task && r.task.kind === 'throw' && String(r.name) === String(name) && (r.copyIx || 0) === copyIx) thrT = r.task;
+      });
+    } catch (ePm) { thrT = null; }
+    var sRaw = bag.map ? bag.map[String(name) + '\u0000' + copyIx] : null;
+    if (!thrT && sRaw && sRaw.kind === 'throw' && !sRaw.kept) thrT = _vaultMoveTask(sRaw);
+    if (thrT) t = thrT;
     function xy(cell){ var m = cell && String(cell).match(/^(\w+):c(\d+)r(\d+)$/); return m ? { loc: m[1], x: +m[2], y: +m[3] } : null; }
     function dims(loc){ return [10, (loc === 'inventory' || loc === 'inv') ? 4 : 10]; }
     function sz(n){ var s0 = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1]; return [s0[0] || 1, s0[1] || 1]; }
