@@ -43,7 +43,10 @@ var W = window;
 function add(n){ var r = W.vaultHandAdd(n); return r ? { ok: !!r.ok, name: r.name || null, refused: r.refused || null } : null; }
 OUT.ghost = ['Minor Healing Potion', 'Jewel', 'Grand Charm', "Khalim's Eye", 'Ber Rune', "Diablo's Horn"].map(add);
 OUT.bases = ['Monarch', 'Ethereal Monarch', 'eth thresher', 'Superior Archon Plate', 'superior eth thresher'].map(add);
-OUT.cases = ['Grief', 'GRIEF', 'grief', 'SHAKO', 'Shako'].map(add);
+/* REG-2858 - a bare Shako is now a QUESTION (Harlequin Crest is filed under it), so the base case variants say which:
+   the planner row's kind 'base', the answer the question takes. The fold under test (#148.2) is the same. */
+function addBase(n){ var r = W.vaultHandAdd(n, null, { kind: 'base' }); return r ? { ok: !!r.ok, name: r.name || null, refused: r.refused || null } : null; }
+OUT.cases = ['Grief', 'GRIEF', 'grief'].map(add).concat(['SHAKO', 'Shako'].map(addBase));
 OUT.apos = ['Nightwings Veil', 'Halaberds Reign'].map(add);
 OUT.owned = Array.from(owned).sort();
 OUT.assign = W.vaultAssign('Never Owned Thing', 'runewords') || null;

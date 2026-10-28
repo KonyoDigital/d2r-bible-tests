@@ -12401,6 +12401,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_rune_or_a_gem_is_named_never_unrecognised.py")], 300,
          needs_app=False,
          why="REG-2857: a bare rune is the shared stash like '<rune> Rune', a gem says the Gem Stash counts it, and the hand and register doors say so - never 'nothing recognises'"),
+    Gate("test_a_bare_shako_is_asked_not_guessed",
+         [sys.executable, os.path.join(HERE, "test_a_bare_shako_is_asked_not_guessed.py")], 300,
+         needs_app=False,
+         why='REG-2858: a bare base the board also files a unique under (Shako / Harlequin Crest) is asked at the hand door, never filed as a white base by guess'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

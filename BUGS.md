@@ -501,6 +501,18 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2858 - A BARE "SHAKO" THROUGH THE HAND DOOR WAS OWNED AS A WHITE BASE, NEVER ASKED (router probe, GrokBot's v3829 Vault pass)
+"Shako" is a white base and also the name the board files Harlequin Crest under ("Harlequin Crest (Shako)"). Measured on
+the whole page in node: vaultHandAdd('Shako') owned a white Shako (the router then sends it to SOCKETED, "white base -
+still needed for Lore, Nadir") without a word, when he may mean his Harlequin Crest. The + Add an item box itself lists
+only Harlequin Crest for "Shako" (bases are not listed), so the guess came from every other caller of the door. His rule
+is that a doubt becomes a question: a bare base that the catalogue files a unique under (read from ITEMS - one pair on
+v3833, Shako; "Gull (dagger)" is a lowercase slot note, not the base Dagger) is now refused 'ambiguous', naming both, and
+nothing is added; the planner row's kind answers it ('unique' or 'base'), and an Eth / Superior word settles it as the
+base. Monarch, Archon Plate and Dagger add as before. test_the_vault_doors_take_only_what_is_his' case-variant law now
+adds SHAKO / Shako with kind 'base' (the answer the question takes; the #148.2 fold it guards is unchanged, 12 RED). Law
+tv/test_a_bare_shako_is_asked_not_guessed.py, 3 red-proofs RED.
+
 ### REG-2857 - "BER" AND "PERFECT AMETHYST" WERE TOLD NOTHING ON THE BOARD RECOGNISES THEM (router probe, GrokBot's v3829 Vault pass)
 Measured on the whole page in node: suggestMule('Ber') and suggestMule('Perfect Amethyst') answered Unsorted with "nothing
 on the board recognises this name", while "Ber Rune" answered the shared stash (never a mule), RUNES names all 33 runes,
