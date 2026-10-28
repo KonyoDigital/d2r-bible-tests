@@ -86,6 +86,22 @@ no known names kept every prose word, the opposite of its own rule; it now keeps
 journal: REC-03 still PASSES (newest long session, 51 worker reads, all warm). The eye's "older sessions' unanswered
 commitments are only reported" is the documented rule ("the newest decides; older ones are reported"), not a defect. Law:
 test_a_scenario_names_its_own_frames (3 cases, 5 red-proofs, 1 re-aimed).
+### REG-2804 - A MULE WAS A WAR MULE BY ITS NAME, AND A RENAMED WAR MULE LOST THE SHARED STASH'S LOOK (#154.14, his ruling 2026-10-28)
+His words: "is there not a way to have a shared CSS for that renamed mule? the shared stash will stay shared stash.. and the
+war1 and war2 will open and also should have that same shared css logic if we were to rename the mule it should be able to
+render within the move task as a shared css for that same mule name." Measured on the whole page in node before the fix:
+renaming UNI-ARMOR to WAR2 made it war mule 2 on the next read (`_vaultWarRole` fell back to a /^war\s*\d*$/ name match and
+stored the role), its card took the war colour, and renaming it back to UNI-ARMOR kept the role in the store; the board's WAR1
+renamed DEANSORC kept its role, but its move row's expand still said "WAR1 private stash (1,1)", the name the plan stored;
+SHARED STASH could be renamed BIG STASH, after which its rows said BIG STASH while its window and its tasks said SHARED STASH;
+and no move row, expand, window or FIND row drew a target in the shared stash's colours at all. Now a mule is a war mule only
+by its stored role: the board stores it when it makes WAR<n>, a mule he creates named WAR<n> stores it, and an old roster's
+hand-made WAR<n> is stamped once (marker `warRoleV`), while a core locker is never one and the old rule's stray role is taken
+off it. A rename never makes or unmakes one. The shared stash keeps its name (no rename button; the door refuses). The shared
+stash's family (the shared stash and every WAR mule, by id and role) is marked `data-family="shared"` on the move row, its
+expand, a WAR mule's window (with a "SHARED STASH · overflow" badge) and FIND's mule name; rows and the expand print the
+mule's name today. When a normal mule already carries the name WAR1, the board makes WAR2 instead. Law
+`tv/test_a_mule_is_a_war_mule_by_its_role_never_its_name.py` (whole page in node, 14 red-proofs, each seen RED).
 
 ### REG-2783 - REG-2810'S LAW READ THE SHADOW BAR'S BINDING THROUGH A GUESSED 900-CHARACTER WINDOW (test_a_source_window_must_reach_its_subject)
 The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries_the_pointer_and_binds_it read

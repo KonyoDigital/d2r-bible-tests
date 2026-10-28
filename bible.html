@@ -41888,6 +41888,13 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vault-mule.vm-war{order:-1;border:2px solid rgba(127,212,255,.55);background:linear-gradient(180deg,rgba(127,212,255,.07),rgba(10,14,20,.5))}
 .vault-mule.vm-war .vm-plate{background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.04));border-bottom:1px solid rgba(127,212,255,.34)}
 .vault-mule.vm-war .vm-name{color:#aee4ff}
+/* REG-2804 - the shared stash's family (the shared stash and every WAR mule, by id and role, never by name) wears its colours on
+   the move row's target, the row's expand, a WAR mule's window and FIND's mule name */
+.vault-tasks-panel li.vtk-line.vmv-row[data-family="shared"]{box-shadow:inset 3px 0 0 rgba(127,212,255,.55)}
+.vmv-row[data-family="shared"] .vtk-to,.vfr-mule[data-family="shared"]{color:#aee4ff}
+.vtk-expand[data-family="shared"] .vtx-to .vtx-h{color:#aee4ff}
+#vault-detail[data-family="shared"] .mp-id .vd-name{color:#aee4ff}
+#vault-detail .mp-id .vm-warbadge{margin-left:6px;font-size:var(--fs-micro);padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060}
 .vault-mule.vm-war.vm-empty{opacity:.85} /* L1 an empty WAR box still reads as part of the war stash */
 .vault-mule.vm-shared.vm-shared{order:-2} /* L1 the war stash, then its WAR overflow mules, then the rest */
 .vault-mule.vm-shared .vm-plate{background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.04));border-bottom:1px solid rgba(127,212,255,.34);padding:9px 12px}
@@ -42415,6 +42422,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
+  /* REG-2804 - the core lockers: none is ever a WAR mule, whatever it is called (UNI-ARMOR renamed WAR2, #154.14) */
+  var _WAR_CORE = {}; DEFAULT_ROSTER.forEach(function(m){ _WAR_CORE[m.id] = 1; });
   /* ⚠ 2026-09-29 (#41 heart audit, rank 7 - DATA LOSS): a store that will not PARSE is UNKNOWN, never empty, and NOTHING
      writes over bytes it could not read. load() answered {} for corrupt bytes and the next saveA() replaced them with {},
      erasing every mule assignment while the doctor, reading the same store, said UNKNOWN. [[unknown-stays-unknown]] */
@@ -42727,6 +42736,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _muleUnread[RK] = why;
     try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(RK, why); } catch (eQ) {}
     roster = _rosterRebuilt(roster);
+  })();
+  /* REG-2804 (his ruling 2026-10-28 ~18:45 IDT: "the war1 and war2 will open and also should have that same shared css logic if
+     we were to rename the mule") - ONE TIME, the WAR mules of a roster saved before a mule's role was stored on it: a mule he
+     made by hand as WAR1 (MOVE TASKS asked him to) was a war mule because of its NAME, on every read, and nothing saved
+     that. It is stamped from its name ONCE here; from then on a name never makes a war mule and a rename never takes the
+     role away. A core locker is never one - a role left on one by the old rule (UNI-ARMOR renamed WAR2 kept it even after
+     it was renamed back) is taken off. The marker rides the shared stash's own entry, saved with the roster. */
+  (function(){
+    if (_muleUnread[RK]) return;
+    var sh = roster.filter(function(m){ return m && m.id === 'shared'; })[0];
+    if (!sh || sh.warRoleV >= 1) return;
+    var changed = false;
+    roster.forEach(function(m){
+      if (!m) return;
+      if (_WAR_CORE[m.id]) { if (m.role === 'war') { delete m.role; delete m.warN; changed = true; } return; }
+      if (m.role) return;
+      var x = /^war\s*(\d*)$/i.exec(String(m.name || '').trim());
+      if (x) { m.role = 'war'; m.warN = x[1] ? +x[1] : 1; changed = true; }
+    });
+    sh.warRoleV = 1;
+    if (changed) { try { _guardedSet(RK, JSON.stringify(roster)); } catch (eWv) {} }
   })();
   // v404 migration — inject the RUNEWORDS mule into rosters saved before it existed (Konyo: "just a
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
@@ -43880,17 +43910,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (w && (!w.cell || _ht) && typeof window._vaultMoveEnsure === 'function'){
           var _mt = window._vaultMoveEnsure(n, 0).task, _mc = _mt && _mt.to && _mt.to.cell;
           var _mm = _mc && String(_mc).match(/c(\d+)r(\d+)/);
-          if (_mm) w = Object.assign({}, w, { kind: _ht ? 'target' : w.kind, muleName: (_ht && _mt.to.holder) ? _mt.to.holder : w.muleName,
+          if (_mm) w = Object.assign({}, w, { kind: _ht ? 'target' : w.kind, muleName: (_ht && _mt.to.holder) ? ((((typeof _vaultMuleOfPlace === 'function') ? _vaultMuleOfPlace(_mt.to) : null) || {}).name || _mt.to.holder) : w.muleName,   /* REG-2804 its name today */
                                              cell: String(_mc) + ' (' + ((+_mm[1]) + 1) + ',' + ((+_mm[2]) + 1) + ') target' + (_ht ? ' · MANUAL move' : '') }); /* L1 find cell */
         }
       } catch (eFc) {}
       var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
-        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span>' + ((w.cells && w.cells.length > 1) ? ' · ' + w.cells.length + ' copies: ' + esc(w.cells.join(' / ')) : (w.cell ? ' · '+esc(w.cell) : '')) + ' — it files there on its own, nothing to press</span>'   /* REG-2756 */
+        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule"'+((typeof _vaultSharedFamily === 'function' && w.mule != null && _vaultSharedFamily(muleById(w.mule))) ? ' data-family="shared"' : '')+'>'+esc(w.muleName)+'</span>' + ((w.cells && w.cells.length > 1) ? ' · ' + w.cells.length + ' copies: ' + esc(w.cells.join(' / ')) : (w.cell ? ' · '+esc(w.cell) : '')) + ' — it files there on its own, nothing to press</span>'   /* REG-2756 */
         : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
         : (w.kind === 'dock' && typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)) ? '<span class="vfr-arrow">→</span><span class="vfr-throw" title="'+esc(w.why)+'">THROW OUT task in MOVE TASKS — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>' /* L1 find names the throw-out task */
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
-        : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
+        : '<span class="vfr-arrow">→</span><span class="vfr-mule"'+((typeof _vaultSharedFamily === 'function' && w.mule != null && _vaultSharedFamily(muleById(w.mule))) ? ' data-family="shared"' : '')+'>'+esc(w.muleName)+'</span>'   /* REG-2804 */
           + ((w.cells && w.cells.length > 1)   /* #144.9 - every copy's cell, never the first one's alone */
               ? '<span class="vfr-cell vfr-cells"> · ' + w.cells.length + ' copies: ' + esc(w.cells.join(' / ')) + '</span>'
               : w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');
@@ -45564,7 +45594,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               + 'is not the same claim. Nothing is hidden by this chip.">⚖ ' + seen + '</span>';
           })()
         + (m.id==='shared' ? '<span class="vm-lock" role="img" aria-label="locked" title="SHARED STASH stays. It cannot be deleted, and its items do not return to the dock.">🔒</span>' : '')
-        + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button>'
+        + '<span class="vm-tools">' + (m.id === 'shared' ? '' : '<button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button>')   /* REG-2804 the shared stash keeps its name */
         + (_vmAddedMule(m) ? '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete this mule you added">🗑</button>' : '')
         + '</span>'
         + '</div>'
@@ -51057,14 +51087,20 @@ window.vaultAutoAssign = function(){
     if (name == null) return;
     var v = _vmNameOk(name, null); if (!v.ok){ try { status('\u26a0 ' + v.why); } catch (eS) {} return; }
     var id='m'+Date.now().toString(36);
-    roster.push({id:id, name:v.name, icon:'📦', note:'', added:true}); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
+    var _nm = {id:id, name:v.name, icon:'📦', note:'', added:true};
+    /* REG-2804 - a mule he CREATES as WAR<n> is a war mule (MOVE TASKS asks him to make one so); its role is stored now,
+       so a later rename keeps it - and a rename to WAR<n> never makes one */
+    var _wx = /^war\s*(\d*)$/i.exec(v.name); if (_wx) { _nm.role = 'war'; _nm.warN = _wx[1] ? +_wx[1] : 1; }
+    roster.push(_nm); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
   };
   window.vaultRenameMule = function(id){
     var m=muleById(id); if(!m) return;
+    /* REG-2804 (his words 2026-10-28: "the shared stash will stay shared stash") - the game's shared stash is not a character
+       and keeps its name: renamed, its move rows said the new name while its window and its plan said SHARED STASH */
+    if (id === 'shared'){ try { status('\u26a0 the shared stash keeps its name - it is the game\'s own stash, not a character'); } catch (eS0) {} return; }
     var name=prompt('Rename mule:', m.name); if(name == null) return;
     var v = _vmNameOk(name, id); if (!v.ok){ try { status('\u26a0 ' + v.why); } catch (eS) {} return; }
-    try { if (window._vaultWarRole) window._vaultWarRole(m); } catch (eWr) {} /* L1 the role rides the id, not the name */
-    m.name=v.name; saveR(); renderVault();
+    m.name=v.name; saveR(); renderVault();   /* L1 the role rides the id, not the name - REG-2804 a rename neither adds it nor takes it */
   };
   // REG-2195 (GrokBot batch K) — only a mule HE added can be deleted. A core locker (uni-weap, magic-rare, …)
   // has no delete button and this door refuses it, so a mis-click can never drop his taxonomy. Added mules
@@ -52620,19 +52656,37 @@ window.vaultAutoAssign = function(){
 
   /* v3769 — the list the v3767 record was waiting for. Target cell from the same packer
      the mule window uses. Saved on the record. A later witness verifies only while AUTO INTAKE is on. */
+  /* REG-2804 - a WAR mule is one by its STORED role (made by the board, made by hand as WAR<n>, or stamped once from a legacy
+     roster), never by its name: renaming UNI-ARMOR to WAR2 made it war mule 2 on the next read and stamped it so, renaming
+     it back kept it (measured); a core locker is never one. */
   function _vaultWarRole(m){
-    if (!m) return 0;
+    if (!m || (typeof _WAR_CORE === 'object' && _WAR_CORE[m.id])) return 0;   /* typeof: the move-list law slices this alone */
     if (m.role === 'war') return +m.warN || 1;
-    var x = /^war\s*(\d*)$/i.exec(String(m.name || '').trim());
-    if (!x) return 0;
-    m.role = 'war'; m.warN = x[1] ? +x[1] : 1; /* L1 stamp the role on the id (saved with the roster's next write) */
-    return m.warN;
+    return 0;
   }
   window._vaultWarRole = _vaultWarRole;
+  /* a place's mule: by its id, else by its holder's name TODAY (a sighting carries only the character's name) -> mule | null */
+  function _vaultMuleOfPlace(place){
+    if (!place) return null;
+    if (place.id != null) return (typeof muleById === 'function') ? (muleById(place.id) || null) : null;
+    var h = String(place.holder == null ? '' : place.holder).trim().toUpperCase();
+    if (!h) return null;
+    var list = [];
+    try { list = roster || []; } catch (eR) { list = []; }   /* the move-list law slices this with no roster (measured: ReferenceError) */
+    return list.filter(function(m){ return m && String(m.name || '').trim().toUpperCase() === h; })[0] || null;
+  }
+  /* REG-2804 - the shared stash's family: the shared stash and every WAR mule, by id and stored role - the one test the
+     card, the move rows, the expand, the window and FIND draw the shared stash's colours from */
+  function _vaultSharedFamily(m){ return !!(m && (m.id === 'shared' || _vaultWarRole(m))); }
+  function _vaultFamilyOfPlace(place){
+    return !!(place && (place.id === 'shared' || place.location === 'shared' || _vaultSharedFamily(_vaultMuleOfPlace(place))));
+  }
+  try { window._vaultMuleOfPlace = _vaultMuleOfPlace; window._vaultSharedFamily = _vaultSharedFamily; window._vaultFamilyOfPlace = _vaultFamilyOfPlace; } catch (eSf) {}
   function _vaultWarMules(){
-    /* L1 — the overflow mules: WAR1, WAR2, ... (WAR alone counts as 1), case-insensitive, in number order */
-    /* L1 (Elad 2026-10-20) — a WAR mule is bound by its ROLE on the stable id, never its display name: a mule first named
-       WAR1 is stamped role 'war' + warN 1, so renaming it to a character name keeps its routing, tasks, colour and place. */
+    /* L1 — the overflow mules, in war-number order (warN; a role with no number counts as 1) */
+    /* L1 (Elad 2026-10-20) — a WAR mule is bound by its ROLE on the stable id, never its display name: the role is stored
+       when the board makes WAR<n>, when he creates a mule named WAR<n>, or once from a legacy roster (REG-2804), so renaming
+       it to a character name keeps its routing, tasks, colour and place, and renaming another mule WAR<n> makes nothing. */
     var r = [];
     try { (roster || []).forEach(function(m){ var w = _vaultWarRole(m); if (w) r.push({ id: m.id, name: m.name, n: w }); }); } catch (e) {}
     return r.sort(function(a, b){ return a.n - b.n || (a.name < b.name ? -1 : 1); });
@@ -52665,6 +52719,8 @@ window.vaultAutoAssign = function(){
       var n = 1;
       _vaultWarMules().forEach(function(w){ if (w.n >= n) n = w.n + 1; });
       var name = 'WAR' + n;
+      /* REG-2804 - a name is free text now: another mule may be called WAR<n> without being one; the next free number */
+      for (var _wn = 0; _wn < 20 && !_vmNameOk(name, null).ok; _wn++) { n++; name = 'WAR' + n; }
       if ((sh.warDeclined || []).indexOf(name) >= 0) { fresh(); return { made: made, why: 'you took back the ' + name + ' the board made' }; }
       var v = _vmNameOk(name, null);
       if (!v.ok) { fresh(); return { made: made, why: v.why }; }
@@ -52918,7 +52974,7 @@ window.vaultAutoAssign = function(){
     Object.keys(saved).forEach(function(k){
       var mv = saved[k], to = mv && mv.to;
       var _toM = to && to.id != null && typeof muleById === 'function' ? muleById(to.id) : null;
-      var _warH = (home.id === 'shared' || home.location === 'shared') && to && (_toM ? !!_vaultWarRole(_toM) : /^war\s*\d*$/i.test(String(to.holder || '').trim())); /* L1 war kept, by id */
+      var _warH = (home.id === 'shared' || home.location === 'shared') && to && (_toM ? !!_vaultWarRole(_toM) : !!_vaultWarRole(_vaultMuleOfPlace(to))); /* L1 war kept, by id; REG-2804 by role, never name */
       var _same = to && (to.id != null ? String(to.id) === String(home.id) : String(to.holder || '') === String(home.holder || ''));
       if (!to || to.cell == null || (!_same && !_warH)) return;
       var m = String(to.cell).match(/^(\w+):c(\d+)r(\d+)$/);
@@ -53466,8 +53522,11 @@ window.vaultAutoAssign = function(){
        page-2 task said "(1,13)" and drew its tile on row 12 of a 10x10 grid - off the grid; the row and FIND said page 2. */
     function xy(cell){ var m = cell && String(cell).match(/^(\w+):c(\d+)r(\d+)$/); if (!m) return null;
       return m[1] === 'shared' ? { loc: m[1], x: +m[2], y: +m[3] % 10, page: Math.floor(+m[3] / 10) } : { loc: m[1], x: +m[2], y: +m[3] }; }
-    function where(place, c){ return String(place.holder || 'not seen yet') + ' '
-      + (c.page != null ? 'page ' + (c.page + 1) : (_vaultMoveStashSay(place.location) || c.loc)) + ' (' + (c.x + 1) + ',' + (c.y + 1) + ')'; }
+    /* REG-2804 - the name of the mule today (the plan stored the name it had then - a renamed WAR1 read "WAR1 private stash"),
+       and a WAR mule reads as the war stash's overflow, as its move row does */
+    function where(place, c){ var pm = _vaultMuleOfPlace(place), nm = (pm && pm.name) ? String(pm.name) : String(place.holder || 'not seen yet');
+      if (pm && _vaultWarRole(pm) && c.page == null) return nm + ' (SHARED STASH · overflow) (' + (c.x + 1) + ',' + (c.y + 1) + ')';
+      return nm + ' ' + (c.page != null ? 'page ' + (c.page + 1) : (_vaultMoveStashSay(place.location) || c.loc)) + ' (' + (c.x + 1) + ',' + (c.y + 1) + ')'; }
     function dims(loc){ return [10, (loc === 'inventory' || loc === 'inv') ? 4 : 10]; }
     function sz(n){ var s0 = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1]; return [s0[0] || 1, s0[1] || 1]; }
     var to = xy(t.to && t.to.cell), from = xy(t.from && t.from.cell);
@@ -53494,7 +53553,7 @@ window.vaultAutoAssign = function(){
     var to = thr ? '<div class="vtx-to" data-to="nowhere"><b class="vmv-nowhere">NOWHERE</b> throw it out</div>'
       : m.to ? '<div class="vtx-to" data-to="' + esc(m.task.to.cell) + '"><div class="vtx-h">TO · ' + esc(m.toSay) + '</div>' + one(m.to, m.dims.to, 'To', 'task-to') + '</div>'
       : '<div class="vtx-to" data-to="none">no target cell yet</div>';
-    return '<div class="vtk-expand" data-name="' + esc(m.name) + '" data-copy="' + m.copyIx + '">' + from + '<span class="vtx-arrow" aria-hidden="true">→</span>' + to + '</div>';
+    return '<div class="vtk-expand" data-name="' + esc(m.name) + '" data-copy="' + m.copyIx + '"' + ((!thr && m.task && _vaultFamilyOfPlace(m.task.to)) ? ' data-family="shared"' : '') + '>' + from + '<span class="vtx-arrow" aria-hidden="true">→</span>' + to + '</div>';   /* REG-2804 */
   }
   function _vaultTaskExpand(name, copyIx, li){
     li = li || document.querySelector('#vault-move-list .vtk-line[data-name="' + String(name).replace(/"/g, '\\"') + '"][data-copy="' + (copyIx || 0) + '"]');
@@ -53516,14 +53575,14 @@ window.vaultAutoAssign = function(){
       place = place || {};
       if (manual) return 'MANUAL';
       if (_vaultMoveUnseen(place.holder, place.location)) return 'not seen yet';
-      var _pm = (place.id != null && typeof muleById === 'function') ? muleById(place.id) : null;
+      var _pm = _vaultMuleOfPlace(place);   /* REG-2804 by id, else by the holder's name today */
       var h = _pm && _pm.name ? String(_pm.name) : (place.holder == null || place.holder === '') ? 'not seen yet' : String(place.holder); /* L1 the name of the id today */
       var m = place.cell != null && String(place.cell).match(/c(\d+)r(\d+)/);
       /* L1 the war stash page reads as its page and in-page cell. REG-2802 - "page", the word of his ruling ("those 5 pages")
          and of the shared stash window and FIND (REG-2801); the row said "tab" while they said "Page" for the same cell */
       if (m && /^shared:/.test(String(place.cell)))
         return h + ' page ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';
-      if (_pm ? _vaultWarRole(_pm) : /^war\s*\d*$/i.test(h.trim())) h = h + ' (SHARED STASH · overflow)'; /* L1 a WAR mule reads as the war stash */
+      if (_pm && _vaultWarRole(_pm)) h = h + ' (SHARED STASH · overflow)'; /* L1 a WAR mule reads as the war stash; REG-2804 by its role, never its name */
       return h + (m ? ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) + 1) + ')' : '');
     }
     function _vtkDone(t){ return t && (t.status === 'moved-manual' || t.status === 'verified' || t.status === 'closed'); }
@@ -53547,9 +53606,10 @@ window.vaultAutoAssign = function(){
       var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */
       var uns = !manual && _vaultMoveUnseen(t.from && t.from.holder, t.from && t.from.location);
       var l1 = (!thr && typeof window._vaultMoveL1Why === 'function') ? window._vaultMoveL1Why(row.name, t) : '';   /* #148.1 */
+      var fam = !thr && _vaultFamilyOfPlace(t.to);   /* REG-2804 a target in the shared stash's family wears its colours */
       return '<li class="vmv-row vtk-line' + (fin ? ' vtk-done' : '') + (thr ? ' vmv-throw-row' : '') + (uns ? ' vmv-unseen' : '') + '"' + (uns ? ' data-unseen="1"' : '') + ' data-name="' + esc(row.name) + '" data-copy="' + ci + '"'
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
-        + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"'
+        + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"' + (fam ? ' data-family="shared"' : '')
         /* #148.5 (REG-2734, GrokBot's vault sweep) - the row opened on a click only: no tabindex, no role, so only its tick
            box took the keyboard. Enter or Space on the ROW itself opens it; inside it, the tick and the buttons keep their own keys. */
         + ' tabindex="0" role="button" aria-label="' + esc(say) + '"'
@@ -53562,7 +53622,7 @@ window.vaultAutoAssign = function(){
               + ' onclick="event.stopPropagation();window._vaultTaskTick(\'' + nm + '\',' + ci + ')">')
         + '<span class="vmv-art vtk-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
         + '<span class="vtk-say" title="' + esc(say + (thr && t.reason ? ' — ' + t.reason : '')) + '"' + ((thr && t.reason) ? ' data-reason="' + esc(t.reason) + '"' : '') + '>' + esc(row.name) + ' · '
-        + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : esc(_vtkPlace(t.to, false))) + '</span>'
+        + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : '<span class="vtk-to">' + esc(_vtkPlace(t.to, false)) + '</span>') + '</span>'
 
         + (gs ? '<b class="vmv-gone">' + esc(gs) + '</b>' : '')
         + (l1 ? '<b class="vmv-l1" title="' + esc(l1) + '">war stash first</b>' : '')   /* #148.1 REG-2761 - why his WAR-mule filing waits */
@@ -56607,6 +56667,7 @@ window.vaultAutoAssign = function(){
     // v363 — SHARED STASH gets its own 5-page auto-assorted view (not the mule stash+inventory layout).
     if (muleId === 'shared'){ box.classList.remove('mp-on'); _renderSharedStash(box); return; }
     box.classList.add('mp-on');
+    if (_vaultSharedFamily(m)) box.setAttribute('data-family', 'shared'); else box.removeAttribute('data-family');   /* REG-2804 */
     var names = _muleNamesFor(muleId);   // #174 v-B2 fix round — the shelf card's list, magicFinds keepers included
     // #174 v-B — what this locker's doll wears (the active weapon set's hands + the shared eight), and the copies
     // it takes off the grid
@@ -56677,7 +56738,7 @@ window.vaultAutoAssign = function(){
     var head = '<div class="mp-top">'
       + '<div class="mp-top-l">'
       +   '<div class="mp-row">'
-      +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+esc(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span></div>'
+      +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+esc(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span>'+(_vaultWarRole(m) ? '<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages">SHARED STASH · overflow</span>' : '')+'</div>'
       +     '<div class="mp-box mp-lvl"><span class="mp-box-k">Items</span><span class="mp-box-v" title="'+_namesN+' distinct items · '+_physN+' physical copies">'+_namesN+'</span></div>'
       +   '</div>'
       +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_namesN+' item'+(_namesN===1?'':'s')+' total'+(_physN>_namesN?(' · '+_physN+' copies'):'')+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_onMuleN+' copies on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
