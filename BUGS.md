@@ -501,6 +501,18 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2856 - A TV STUB AND A NAME'S GRAMMAR SPOKE BEFORE HIS MAGIC & RARE REGISTER: TWO ANSWERS FOR ONE ITEM (router probe, GrokBot's v3829 Vault pass)
+Measured on the whole page in node (suggestMule, which the proposal, the filing and the audit ask): Bone Eye, a magic Ring in
+his d2r_magicFinds, routed as "a rare's rolled name (Bone + Eye: jewel)"; Brimstone Clasp, a rare Plated Belt there, as
+"(Brimstone + Clasp: amulet)"; and Lion Branded Grand Charm (magic, registered, with a TV stub; its two-word prefix is
+outside the grammar) went to UNI-SMALL as "charm/skiller" while MAGIC & RARE counted it from the same register. The
+register's answer (REG-2093) stood below the grammar and after the stub's curated branch. It is one function now, asked
+first by the stub path and by the no-base path, and it names his record's base ("registered in Magic & Rare (magic
+Ring)"). A rolled name the register does not hold keeps the grammar's answer; where charms belong is his ACT-4 ruling and
+is untouched. Law tv/test_his_register_answers_before_a_stub_or_the_grammar.py, 2 red-proofs RED; REG-2080's law (its
+REG-2093 anchor kept) 5 RED; the Chrome law test_a_rolled_rare_name_goes_to_magic_and_rare's cases replayed in node, same
+answers (CI proves the law itself).
+
 ### REG-2855 - A ROLLED NAME, A RUNE, A GEM AND A BARE BASE WERE SIZED BY A GUESS WHILE THEIR OWN BASE WAS KNOWN (ACT-3, GrokBot's v3829 Vault pass)
 Measured on the whole page in node (window._itemCells, which vaultSize, the packer and every locker tile read): Doom Eye,
 Raven Whorl, Wraith Scarab, Bone Eye and Brimstone Clasp were each a guessed 1x2; Ber, Perfect Amethyst, Jah and Chipped

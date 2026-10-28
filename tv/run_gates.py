@@ -12393,6 +12393,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_item_is_sized_by_its_own_base.py")], 300,
          needs_app=False,
          why="REG-2855: his register's base, a rolled rare's agreeing slots and a bare base's own game footprint size an item; runes and gems are 1x1"),
+    Gate("test_his_register_answers_before_a_stub_or_the_grammar",
+         [sys.executable, os.path.join(HERE, "test_his_register_answers_before_a_stub_or_the_grammar.py")], 300,
+         needs_app=False,
+         why="REG-2856: his Magic & Rare register answers before a TV stub and the name's grammar, so one item gets one router answer naming his record's base"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

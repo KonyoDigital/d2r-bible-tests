@@ -43581,6 +43581,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        vault row must not. The classifier reads the same answer whether or not the item has been
        filed. [[the-unjoined-end]] [[feedback-contradiction-is-the-finding]] */
     var _exIsCatalogue = !!(ex && String(ex.rarity || '').toLowerCase() !== 'basic');
+    /* REG-2856 (GrokBot's v3829 Vault pass, the router probe) - HIS MAGIC & RARE REGISTER IS ASKED BEFORE A TV STUB AND
+       BEFORE THE NAME'S GRAMMAR. Measured: Bone Eye (a magic Ring in his register) routed as "Bone + Eye: jewel",
+       Brimstone Clasp (a rare Plated Belt) as "Brimstone + Clasp: amulet", and Lion Branded Grand Charm (magic, registered;
+       its two-word prefix is outside the grammar) went to UNI-SMALL as "charm/skiller" because its TV stub reached the
+       curated branch first - while MAGIC & RARE counted the same name from the same register. The register's answer
+       (REG-2093) is one function now, asked first by the stub path and by the no-base path: one rule, two readers, one
+       answer, and the slot it names is his record's base. Where charms belong is his ACT-4 ruling, not this: a registered
+       charm keeps the drawer a registered magic find has today. -> the register's answer, or null */
+    var _mfRoute = function(){
+      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){
+        var _mfq = _mfQual(name), _mfb = _mfBase(name);
+        if (_mfq === 'magic' || _mfq === 'rare' || _mfq === 'crafted')
+          return {id:'magic-rare', why:'registered in Magic & Rare (' + _mfq + (_mfb ? ' ' + _mfb : '') + ') \u2014 a find he named keeps in MAGIC & RARE'};
+      }
+      return null;
+    };
     /* #269 (REG-2054, GrokBot tick 419 K10) - A TV STUB IS NOT A CURATED ENTRY. Every name TV registers gets an EXTRA_ITEMS
        stub (base: its own name, val: 'tv'), and the curated-EXTRA branch below then answered for it: 'grand charm' in the
        name -> UNI-SMALL ('charm/skiller'). A stub whose name wears the rolled grammar - and no codex / ITEM_TIP base - is
@@ -43589,6 +43605,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        Curated entries keep their own routing. */
     try {
       var _itip0 = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[name] : null;
+      if (ex && ex.val === 'tv' && !((_itip0 && _itip0.b) || (tip && tip.base))){ var _mfS = _mfRoute(); if (_mfS) return _mfS; }   /* REG-2856 his register before a stub */
       if (ex && ex.val === 'tv' && !((_itip0 && _itip0.b) || (tip && tip.base)) && typeof _rolledQuality === 'function'){
         var _rqx = _rolledQuality(name);
         if (_rqx && muleById('magic-rare')
@@ -43771,6 +43788,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          correctly by the word, and nothing here touches them. */
       if (_bRec && (_bRec.oneH || _bRec.twoH)) return {id:'uni-weap', why:'weapon — '+base+' (BASE_DB damage '+(_bRec.oneH||_bRec.twoH)+')'};
     } catch(e){}
+    /* REG-2093 (CI Routine I on v3624, v466:55) - A NAME HE REGISTERED IN MAGIC & RARE IS KNOWN TO THE BOARD. The AI Item
+       Checker's 'Mule it' writes magicFinds[name] = {q, base, mods} and then asks this router; the name is his own ('Caster
+       Wonder'), so no catalogue knows it, and the REG-2080 line below called it 'nothing on the board recognises this name'
+       while the board's own Magic & Rare register held it, base and all. A registered magic / rare / crafted find keeps in
+       MAGIC & RARE - the drawer a rolled name goes to (#269), never a slot drawer by one word. */
+    /* REG-2856 - asked BEFORE the grammar below (it stood after it, so a registered Bone Eye was routed by its name as a
+       jewel), through the one function _mfRoute */
+    try {
+      var _mfA = _mfRoute(); if (_mfA) return _mfA;
+    } catch(eMf){}
     /* ══ #269 (GrokBot ticks 411/412) — A RARE'S ROLLED NAME GOES TO MAGIC & RARE, NOT TO A SLOT DRAWER BY ONE WORD ══════
        MEASURED: Dread Grasp -> UNI-ARMOR ("armor slot — base: name match"), and Storm Scarab, Death Loop, Viper Eye,
        Bitter Spiral, Doom Spiral -> UNI-WEAPONS ("nothing on the board recognises this name"), each tipped as a TV-vaulted
@@ -43784,18 +43811,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_rq && _rq.q === 'magic' && muleById('magic-rare'))
         return _rolledRoute(_rq);
     } catch(eRn){}
-    /* REG-2093 (CI Routine I on v3624, v466:55) - A NAME HE REGISTERED IN MAGIC & RARE IS KNOWN TO THE BOARD. The AI Item
-       Checker's 'Mule it' writes magicFinds[name] = {q, base, mods} and then asks this router; the name is his own ('Caster
-       Wonder'), so no catalogue knows it, and the REG-2080 line below called it 'nothing on the board recognises this name'
-       while the board's own Magic & Rare register held it, base and all. A registered magic / rare / crafted find keeps in
-       MAGIC & RARE - the drawer a rolled name goes to (#269), never a slot drawer by one word. */
-    try {
-      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){
-        var _mfq = _mfQual(name), _mfb = _mfBase(name);
-        if (_mfq === 'magic' || _mfq === 'rare' || _mfq === 'crafted')
-          return {id:'magic-rare', why:'registered in Magic & Rare (' + _mfq + (_mfb ? ' ' + _mfb : '') + ') \u2014 a find he named keeps in MAGIC & RARE'};
-      }
-    } catch(eMf){}
     /* #294 (REG-2080, GrokBot ticks 420 + 424, his ruling 2026-10-07) - A NAME NOTHING KNOWS IS NEVER GIVEN A MULE BY A WORD
        IN IT. 'Bone Visor' (a misread: Bone Helm -> Grim Helm -> Bone VISAGE) reached the keyword guess with no base from any
        catalogue, matched 'visor', and was filed in UNI-ARMOR as a 'Base item'; a name with no keyword at all was parked in
