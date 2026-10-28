@@ -839,7 +839,9 @@ TARGETS = {
             ['Lacerator','Windforce','Doombringer','The Grandfather','Stormlash','Bonehew','Steeldriver',
              'Lightsabre','Eaglehorn','Widowmaker'].forEach(function(n){
                 try{ var h = window.vaultHandAdd(n, undefined, { by: 'the render seed' }); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
-            try{ copies['Lacerator'] = 3; }catch(e){}
+            /* Bonehew sorts first, so its copies sit among the 8 cells the card shows even when an earlier target's 18 weapons
+               share this world (the pre-push gate runs every target in one page; Lacerator's badges fell into '+ 12 more') */
+            try{ copies['Bonehew'] = 3; }catch(e){}
             return 1; })()""",
         "activate": """(function(){
             var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
