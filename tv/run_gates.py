@@ -12425,6 +12425,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_hand_door_takes_a_socketed_base.py")], 300,
          needs_app=False,
          why='REG-2898: + Add an item takes a socketed base (Monarch (4os)) and it lands on SOCKETED; a base that holds no runeword is still refused'),
+    Gate("test_a_rune_gem_material_or_rejuv_is_a_count_never_a_vault_item",
+         [sys.executable, os.path.join(HERE, "test_a_rune_gem_material_or_rejuv_is_a_count_never_a_vault_item.py")], 300,
+         needs_app=False,
+         why='REG-2899: a rune, a gem, a Materials-tab entry or a rejuvenation potion is a count in its own tally - never a mule cell, never Unsorted, at every door'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

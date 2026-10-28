@@ -501,6 +501,21 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2899 - A GEM WAS UNSORTED, A KEY WAS OWNED BY HAND, AND A REJUVENATION POTION NAMED NOTHING: COUNTS ARE NEVER VAULT ITEMS (his words 2026-10-28 ~20:40)
+His words: "gems will eventually move to the shared stash so they are not relevant when seen in inventory/stash they have
+their own designated area runes/gems/materials/rejuvination potions they are automatically going to go to the ingame
+designated area we also have those same templates already designed in the console with their tallies". Measured on the
+whole page in node: a gem stayed Unsorted (REG-2857 named the Gem Stash but kept no home - the gem ruling was open then),
+a rejuvenation potion and a key named nothing at the router, "Key of Terror" was OWNED through + Add an item (a catalogue
+lists it), and the register door owned the runes and gems it read. Now one rule (_stashTallyOf, from the board's own
+tables: RUNES, GEM_TYPES, MAT_TAB_LAYOUT - where the rejuvenation potions sit; the game names the partial one plain
+"Rejuvenation Potion") says which tally counts it, and every door reads it: the router answers the shared stash, never a
+mule and never Unsorted, and the proposal says which tally; the hand door asks it first and owns nothing; the register
+door refuses it (a material keeps its #158.4 words). Every gem and Materials-tab name joins the runes on SHARED_STASH_RE,
+held equal to the tables, so the dock, the records and the console doctor (which reads that line) agree. REG-2857's gem
+line in the router is retired and its law re-aimed (4 RED). Law
+tv/test_a_rune_gem_material_or_rejuv_is_a_count_never_a_vault_item.py, 5 red-proofs RED.
+
 ### REG-2898 - + ADD AN ITEM REFUSED "MONARCH (4OS)" WITH A SENTENCE THAT NAMES SOCKETED BASES (ACT-7, GrokBot's v3829 fresh-add simulation)
 Measured on the whole page in node: vaultHandAdd('Monarch (4os)') answered "not an item the vault draws (a unique, a set
 piece, a runeword or a socketed base it carries)" while the router sends a 4os Monarch to SOCKETED - the door contradicted

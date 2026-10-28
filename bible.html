@@ -43140,9 +43140,47 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      answered the shared stash (never a mule) while a bare "Ber" reached the router's last line: "nothing on the board
      recognises this name". The whole name, one of the 33 runes (RUNES - a law holds this list equal to it), now matches
      here, so the router, the dock, the records and the console doctor (which reads this line) give both one answer. */
-  var SHARED_STASH_RE = /\brunes?\b(?!\s+[a-z])|\b(essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^\s*(?:el|eld|tir|nef|eth|ith|tal|ral|ort|thul|amn|sol|shael|dol|hel|io|lum|ko|fal|lem|pul|um|mal|ist|gul|vex|ohm|lo|sur|ber|jah|cham|zod)\s*$|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
+  /* REG-2899 (his words 2026-10-28 ~20:40) - RUNES, GEMS, MATERIALS AND REJUVENATION POTIONS ARE COUNTS, NEVER VAULT ITEMS:
+     "gems will eventually move to the shared stash ... they have their own designated area runes/gems/materials/rejuvination
+     potions they are automatically going to go to the ingame designated area we also have those same templates already
+     designed in the console with their tallies". So the whole name of a gem (GEM_TYPES) and of every Materials-tab entry
+     (MAT_TAB_LAYOUT: keys, organs, the Token, rejuvenation potions - essences, shards and sunders were here already) joins the
+     runes on this line: the router answers the shared stash and never a mule, the dock and the records leave them out, and the
+     console doctor, which reads this one line, agrees. A law holds the lists equal to those tables. Which tally counts it is
+     _stashTallyOf's answer, below. */
+  var SHARED_STASH_RE = /\brunes?\b(?!\s+[a-z])|\b(essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^\s*(?:el|eld|tir|nef|eth|ith|tal|ral|ort|thul|amn|sol|shael|dol|hel|io|lum|ko|fal|lem|pul|um|mal|ist|gul|vex|ohm|lo|sur|ber|jah|cham|zod)\s*$|^\s*(?:(?:chipped|flawed|flawless|perfect)\s+)?(?:amethyst|diamond|emerald|ruby|sapphire|topaz|skull)\s*$|^\s*(?:key of (?:terror|hate|destruction)|diablo['’]s horn|baal['’]s eye|mephisto['’]s brain|token of absolution|(?:full |partial )?rejuvenation potion)\s*$|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
   try { window.isSharedStash = isSharedStash; } catch(e){}   // v425 — expose for the vault audit (null route = shared, not a bug)
+  /* REG-2899 - WHICH TALLY COUNTS IT: the ONE rule the router's words, the hand door and the register door ask, from the board's
+     own tables (findRune: RUNES; findGem: GEM_TYPES; MAT_TAB_LAYOUT: the Materials tab, where the rejuvenation potions sit;
+     the game names the partial one plain "Rejuvenation Potion"). -> null | {kind:'rune'|'gem'|'material'|'rejuv', name, where} */
+  var _TALLY_MAT = null;
+  function _stashTallyOf(n){
+    var nm = String(n == null ? '' : n).trim();
+    if (!nm) return null;
+    try { var ru = (typeof findRune === 'function') ? findRune(nm) : null; if (ru && ru.n) return { kind: 'rune', name: ru.n + ' Rune', where: 'the Rune Stash' }; } catch (eRu) {}
+    try { var ge = (typeof findGem === 'function') ? findGem(nm) : null; if (ge) return { kind: 'gem', name: ge, where: 'the Gem Stash' }; } catch (eGe) {}
+    var fold = function(x){ return String(x).replace(/[\u2018\u2019\u02bc`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim(); };
+    if (!_TALLY_MAT){
+      var m = {};
+      try { [].concat.apply([], [].concat(MAT_TAB_LAYOUT.left, MAT_TAB_LAYOUT.right)).forEach(function(x){ m[fold(x)] = String(x); }); }
+      catch (eM) { return null; }   /* the layout is not on this page: no tally is named, and the next ask tries again */
+      m['rejuvenation potion'] = 'Partial Rejuvenation Potion';
+      _TALLY_MAT = m;
+    }
+    var hit = _TALLY_MAT[fold(nm)];
+    if (!hit) return null;
+    return { kind: /rejuvenation/i.test(hit) ? 'rejuv' : 'material', name: hit, where: 'the Materials stash' };
+  }
+  try { window._stashTallyOf = _stashTallyOf; } catch (eTo) {}
+  /* the words for it: "<name> is a gem - counted in the Gem Stash ..." -> sentence | '' */
+  function _stashTallySay(n){
+    var t = _stashTallyOf(n);
+    if (!t) return '';
+    var what = { rune: 'a rune', gem: 'a gem', material: 'a material', rejuv: 'a rejuvenation potion' }[t.kind];
+    return String(n).trim() + ' is ' + what + ' \u2014 counted in ' + t.where + ', its own area of the shared stash; the vault gives it no mule cell';
+  }
+  try { window._stashTallySay = _stashTallySay; } catch (eTs) {}
   // v409 / REG-2241 — the three iconic charms (Annihilus, Hellfire Torch, Gheed's Fortune; the 6 Sunder
   // charms are caught by isSharedStash). His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets
   // muled." — so routing NO LONGER sends them to __keep (see suggestMule: Anni & Torch → the shared stash,
@@ -44005,15 +44043,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        'never a blind default like the weapons mule'. So with no base, no lookup hit, no ITEM_TIP and no curated entry, the
        router answers Unsorted with the reason; every caller files only when muleById(id) resolves, so null leaves it loose
        in the dock. A known base still routes by its words below. */
-    /* REG-2857 (router probe) - A GEM IS RECOGNISED. "Perfect Amethyst" reached the line below and was told nothing on the board
-       recognises it, while GEM_TYPES names all 35 gems and the Gem Stash on the Tools tab counts them. It stays Unsorted -
-       whether a gem is also a vault item is his ruling (#209's note), not made here - and it says what it is. */
-    if (!base && !it && !itip && !_exIsCatalogue){
-      var _gemN = null;
-      try { _gemN = (typeof findGem === 'function') ? findGem(name) : null; } catch (eGem) { _gemN = null; }
-      if (_gemN) return {id:null, unsorted:true, why:'a gem (' + _gemN + ') \u2014 the Gem Stash on the Tools tab counts gems; whether a '
-        + 'gem is also a vault item is not ruled, so no mule is named for it'};
-    }
+    /* REG-2857's gem line stood here: since REG-2899 a gem is answered on the first line (isSharedStash) - the Gem Stash's count */
     if (!base && !it && !itip && !_exIsCatalogue)
       return {id:null, unsorted:true, why:'nothing on the board recognises this name — no catalogue, base table or rolled-name '
         + 'grammar knows it, so no mule is guessed from a word in it: it stays in Unsorted until a reel shows where it lives'};
@@ -46713,6 +46743,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      can never disagree about it. `home` is the router's answer; null is suggestMule's one null, the shared stash. */
   function _vNoHomeWhy(nm, home){
     if (home) return 'routed to "' + home + '" but no mule with that id exists on this board';
+    var _tally = (typeof _stashTallySay === 'function') ? _stashTallySay(nm) : '';   /* REG-2899 - say which tally counts it */
+    if (_tally) return _tally;
     return isSharedStash(nm) ? 'belongs in the shared stash — there is no mule for it'
                              : 'nothing in the routing universe named a drawer for ' + nm;
   }
@@ -46780,12 +46812,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      sentence for any name the vault does not draw ("a unique, a set piece, a runeword or a socketed base"), which never
      says where the thing he holds IS counted. -> {kind:'rune'|'gem', why} | null, from the board's own tables */
   function _vhStashCount(n){
-    var nm = String(n == null ? '' : n).trim();
-    var ru = (typeof findRune === 'function') ? findRune(nm) : null;
-    if (ru && ru.n) return { kind: 'rune', why: nm + ' is a rune (' + ru.n + ') \u2014 the Rune Stash on the Tools tab counts runes, and a rune lives in the shared stash, never on a mule' };
-    var ge = (typeof findGem === 'function') ? findGem(nm) : null;
-    if (ge) return { kind: 'gem', why: nm + ' is a gem \u2014 the Gem Stash on the Tools tab counts gems; + Add an item adds what the vault draws' };
-    return null;
+    /* REG-2899 - the one tally rule (_stashTallyOf), so a material and a rejuvenation potion answer the same way */
+    var t = (typeof _stashTallyOf === 'function') ? _stashTallyOf(n) : null;
+    return t ? { kind: t.kind, why: _stashTallySay(n) } : null;
   }
   /* #148.2 - the catalogue's spelling of a typed base, its Eth / Ethereal prefix kept as he typed it */
   /* #154.18 (GrokBot's vault sweep) - 'Superior Archon Plate' was refused: only Eth/Ethereal were peeled off before the
@@ -46918,7 +46947,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!_vaultKeeps(r.name) && /\(\s*(?:\d+\s*os(?:\s+low base)?|larzuk base)\s*\)\s*$/i.test(r.name)){
       try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(r.name); } catch (eSb) {}
     }
-    if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)){   /* REG-2857 a rune or a gem says which stash counts it */
+    {   /* REG-2857 a rune or a gem says which stash counts it; REG-2899 - asked FIRST: a count is never a vault item, even one a
+           catalogue lists (Key of Terror was owned through this door, measured) */
       var _cnt = null;
       try { _cnt = _vhStashCount(r.name); } catch (eCnt) { _cnt = null; }
       if (_cnt) return { ok: false, refused: 'not-drawn', stash: _cnt.kind, name: r.name, why: _cnt.why + ' \u2014 nothing was added' };
@@ -48280,6 +48310,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var mat = _vaultMaterialNames();
     if (Object.prototype.hasOwnProperty.call(mat, f))
       return '"' + String(name).trim() + '" is a material (' + mat[f] + ') - the Materials stash counts it; the vault does not file it';
+    /* REG-2899 (his words 2026-10-28) - a rune, a gem or a rejuvenation potion read off a frame is a count in its own tally, never an
+       owned vault item; the same one rule the router and the hand door ask */
+    var _tl = (typeof _stashTallySay === 'function') ? _stashTallySay(name) : '';
+    if (_tl) return _tl + ' - nothing was registered';
     return null;
   };
   window.tvVaultRegister = function(name, witness){
