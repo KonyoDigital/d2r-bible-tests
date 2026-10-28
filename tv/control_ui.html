@@ -14292,6 +14292,33 @@ window._lockMark = function(isOpen, px, label){
   var _HRT_LOCKCOL = { OPEN: '#8fd0a0', HARDENED: '#b6f0c4', LOCKED: '#e0857c',
                        INCOMPLETE: '#e8b563',
                        UNPROVEN: '#9aa6b2', UNKNOWN: '#9aa6b2' };
+  /* #180 (his 2026-10-22 screenshots) - THE COLOUR SAYS WHAT HOLDS A LOCK, NOT ONLY WHAT IT EARNED. Three HELD locks were drawn
+     with the same green line and end-dot as the open ones, so at a glance they read as open. His rule: green = open (and
+     permitted); held = amber, waiting on the prover (red when an instrument is blind); by design or paused (vault.forget's
+     UNPROVEN, miniauto.run's INCOMPLETE) = grey. -> a colour */
+  function _hrtLockColor(L){
+    var st = String((L && L.state) || 'UNKNOWN').toUpperCase();
+    if (L && L.permitted === false && (st === 'OPEN' || st === 'HARDENED'))
+      return L.heldBy === 'blind' ? _HRT_LOCKCOL.LOCKED : _HRT_LOCKCOL.INCOMPLETE;
+    if (st === 'INCOMPLETE' || st === 'UNPROVEN') return _HRT_LOCKCOL.UNPROVEN;
+    return _HRT_LOCKCOL[st] || '#9aa6b2';
+  }
+  window._hrtLockColor = _hrtLockColor;
+  /* #180 - "shouldn't it show me accurately progress wise how much has been proven? like the 85/85" - a held lock's caption joined
+     its MERIT (attacks refused in its trial, complete) to the census's currency and showed no progress for the second. It paints
+     the catch-up now - proved of declared, and how many to go, from the census itself, never a typed number - and the merit
+     moves to the hover as "trial: N/N refused", so it cannot read as completion. -> {paint, hover} */
+  function _hrtHeldCaption(L, n_, d){
+    var held = { stale: 'the prover is behind', blind: 'an instrument is blind',
+                 heart: 'no census here', upstream: 'blocked upstream' }[L && L.heldBy] || 'held';
+    var ins = (d && d.instruments) || {};
+    var pv = (typeof ins.proved === 'number') ? ins.proved : null, dc = (typeof ins.declared === 'number') ? ins.declared : null;
+    var paint = (pv != null && dc != null && dc >= pv)
+      ? 'held · ' + pv + '/' + dc + ' proved · ' + (dc - pv) + ' to go'
+      : 'held: ' + held + ' · proof progress UNKNOWN';
+    return { paint: paint, hover: 'held: ' + held + ' · trial: ' + L.k + '/' + n_ + ' refused (its merit, not the census)' };
+  }
+  window._hrtHeldCaption = _hrtHeldCaption;
   var _hrtBusy = false;
 
   function _hrtEsc(s){
@@ -14430,7 +14457,7 @@ window._lockMark = function(isOpen, px, label){
          two alike); testing only for 'OPEN' drew a CLOSED padlock on the river map for the one
          state that most deserves an open one. */
       var open = window._lockOpen(L);
-      var lc = _HRT_LOCKCOL[lst] || '#9aa6b2';
+      var lc = _hrtLockColor(L);   /* #180 - held is amber, blind red, by-design grey; green only when it may act */
       /* fan across the reserved wedge: 50°..130°, straight down being 90° */
       var la = (GN === 1 ? 90 : (48 + j * (84 / (GN - 1)))) * Math.PI / 180;
       /* staggered radii AND centred labels — with five routes in one wedge, either alone still
@@ -14547,11 +14574,14 @@ window._lockMark = function(isOpen, px, label){
          the full reason is in the title. [[label-outlived-referent]] */
       var _HELD = { stale: 'the prover is behind', blind: 'an instrument is blind',
                     heart: 'no census here', upstream: 'blocked upstream' };
+      var _heldHover = null;   /* #180 - per lock: a held lock's hover must never ride onto the next lock in the fan */
       if (L.permitted === false && _HELD[L.heldBy]
           && (lst === 'OPEN' || lst === 'HARDENED') && n_ && n_ > 0) {
         /* the REASON leads: a cold cross-family read of 'earned 85/85 · held: ...' beside a shut
            padlock called it a contradiction - the word a glance catches first must be the state */
-        arith = 'held: ' + _HELD[L.heldBy] + ' · earned ' + L.k + '/' + n_;
+        var _hc = _hrtHeldCaption(L, n_, d);   /* #180 - the catch-up, not the trial record */
+        arith = _hc.paint;
+        _heldHover = _hc.hover;
       }
       /* ⚠⚠ v2650 — A RETIRED AXIS VANISHED FROM THIS ROW WITH NOTHING IN ITS PLACE, AND THAT WAS
          A REGRESSION I SHIPPED. Before v2647 `prune.reports` carried three axes that could not
@@ -14585,6 +14615,7 @@ window._lockMark = function(isOpen, px, label){
          list, its labels are not centred on a node, and it does not collide.
          `arithFull` feeds the <title>; `arith` is what the diagram paints. */
       var arithFull = arith;   /* arith2 is appended below when the fan is too dense to paint it */
+      if (_heldHover) arithFull += ' — ' + _heldHover;   /* #180 */
       if (_wd) {
         arithFull += ' · ' + _wd.length + ' retired as proving nothing (' + _wd.join(', ') + ')';
         /* ⚠ THE TRIM WAS TRIED AND REVERTED — it cost readability and bought almost nothing.
@@ -15480,7 +15511,7 @@ window._lockMark = function(isOpen, px, label){
          [[sweep-dont-ask]] [[grok-second-eye]] */
       var _lname = L.lock ? (L.lock + (L.surface ? ' · ' + L.surface : '')) : (L.surface || '?');
       lrows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(_lname) + '</span>'
-        + '<span class="hrt-s" style="color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '">'
+        + '<span class="hrt-s" style="color:' + _hrtLockColor(L) + '">'   /* #180 - the list and the fan, one colour rule */
         + window._lockMark(window._lockOpen(L), 11) + ' ' + _hrtEsc(lst)
         + (L.permitted === false && (lst === 'OPEN' || lst === 'HARDENED') ? ' · MAY NOT ACT' : '') + '</span>'
         + '<span class="hrt-w">' + _hrtEsc(ar) + ' — ' + _hrtEsc(L.why || '') + '</span></div>';

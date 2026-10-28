@@ -1,0 +1,119 @@
+# -*- coding: utf-8 -*-
+"""#180 (his 2026-10-22 heart screenshots) - A HELD LOCK SHOWS ITS CATCH-UP, IN ITS OWN COLOUR.
+
+"shouldn't it show me accurately progress wise how much has been proven? like the 85/85 97/97 - if not proven all the way why
+is it showing me as if it is". A held lock painted "held: the prover is behind · earned 85/85" - its MERIT (attacks refused in
+its trial, complete) beside the census currency, with no progress for the census - and was drawn in the SAME green line and
+end-dot as the open locks. His rules: green = open; held = amber (red when an instrument is blind); by design or paused
+(UNPROVEN, INCOMPLETE) = grey; the number is the catch-up (proved of declared, N to go) from the census, never a typed figure,
+and the merit reads "trial: N/N refused" in the hover.
+
+Drives the SHIPPED _hrtLockColor and _hrtHeldCaption (cut from control_ui.html with the colour map) in node, and reads that
+the fan and the lock list both paint through them. RED_PROOF below.
+"""
+import json
+import os
+import subprocess
+import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+from cb_node_harness import NODE  # noqa: E402
+
+UI = os.path.join(HERE, "control_ui.html")
+
+
+def _src():
+    with open(UI, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _cut(s, start, end):
+    if s.count(start) != 1:
+        raise AssertionError("anchor %r matched %d times - re-point this law" % (start.strip()[:50], s.count(start)))
+    i = s.index(start)
+    return s[i:s.index(end, i) + len(end)]
+
+
+def _run():
+    if NODE is None:
+        raise AssertionError("node is not on this machine - this gate does not skip")
+    s = _src()
+    js = ("var window = {};\n" + _cut(s, "  var _HRT_LOCKCOL = {", "};\n")
+          + _cut(s, "  function _hrtLockColor(L){", "\n  }\n") + _cut(s, "  function _hrtHeldCaption(L, n_, d){", "\n  }\n") + r"""
+var C = _HRT_LOCKCOL, D = { instruments: { proved: 1007, declared: 1114 } };
+console.log(JSON.stringify({
+  col: { open: _hrtLockColor({ state: 'OPEN', permitted: true }), hard: _hrtLockColor({ state: 'HARDENED' }),
+         held: _hrtLockColor({ state: 'OPEN', permitted: false, heldBy: 'stale' }),
+         blind: _hrtLockColor({ state: 'OPEN', permitted: false, heldBy: 'blind' }),
+         forget: _hrtLockColor({ state: 'UNPROVEN' }), mini: _hrtLockColor({ state: 'INCOMPLETE' }),
+         locked: _hrtLockColor({ state: 'LOCKED' }) },
+  map: C,
+  cap: _hrtHeldCaption({ heldBy: 'stale', k: 85 }, 85, D),
+  capUnknown: _hrtHeldCaption({ heldBy: 'heart', k: 97 }, 97, { instruments: { proved: null, declared: 1114 } })
+}));
+""")
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        raise AssertionError("the cut functions did not run in node: %s" % r.stderr[-800:])
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+class AHeldLockShowsItsCatchUp(unittest.TestCase):
+
+    def test_green_only_when_it_may_act(self):
+        o = _run()
+        c, m = o["col"], o["map"]
+        self.assertEqual(c["open"], m["OPEN"])
+        self.assertEqual(c["hard"], m["HARDENED"])
+        self.assertEqual(c["held"], m["INCOMPLETE"], "a held lock was drawn in an open lock's green (#180): %r" % c)
+        self.assertEqual(c["blind"], m["LOCKED"], "a lock held by a blind instrument is not red")
+        self.assertEqual((c["forget"], c["mini"]), (m["UNPROVEN"], m["UNPROVEN"]), "by design / paused is not grey")
+        self.assertNotIn(c["held"], (m["OPEN"], m["HARDENED"]))
+
+    def test_the_caption_is_the_catch_up_and_the_merit_is_a_trial(self):
+        o = _run()
+        self.assertEqual(o["cap"]["paint"], "held · 1007/1114 proved · 107 to go",
+                         "a held lock does not show how much has been proven (#180): %r" % o["cap"])
+        self.assertNotIn("earned", o["cap"]["paint"])
+        self.assertIn("trial: 85/85 refused", o["cap"]["hover"], "the merit still reads as completion")
+        self.assertIn("proof progress UNKNOWN", o["capUnknown"]["paint"], "an unread census was given a number")
+
+    def test_the_fan_and_the_list_paint_through_the_rules(self):
+        s = _src()
+        self.assertEqual(s.count("      var lc = _hrtLockColor(L);"), 1, "the fan no longer colours through the rule")
+        self.assertEqual(s.count("        + '<span class=\"hrt-s\" style=\"color:' + _hrtLockColor(L) + '\">'"), 1,
+                         "the lock list no longer colours through the same rule")
+        self.assertEqual(s.count("        var _hc = _hrtHeldCaption(L, n_, d);"), 1, "the fan no longer paints the catch-up")
+        self.assertNotIn("' · earned ' + L.k", s, "the merit still paints as 'earned'")
+
+
+RED_PROOF = [
+    {"why": "#180 - a held lock is drawn in an open lock's green again",
+     "file": "tv/control_ui.html",
+     "find": "      return L.heldBy === 'blind' ? _HRT_LOCKCOL.LOCKED : _HRT_LOCKCOL.INCOMPLETE;\n",
+     "replace": "      return _HRT_LOCKCOL[st];\n",
+     "matches": 1, "needs": "node"},
+    {"why": "#180 - the held caption shows the trial record, not the catch-up",
+     "file": "tv/control_ui.html",
+     "find": "      ? 'held · ' + pv + '/' + dc + ' proved · ' + (dc - pv) + ' to go'\n",
+     "replace": "      ? 'held · earned ' + L.k + '/' + n_\n",
+     "matches": 1, "needs": "node"},
+    {"why": "#180 - by design / paused locks are amber again",
+     "file": "tv/control_ui.html",
+     "find": "    if (st === 'INCOMPLETE' || st === 'UNPROVEN') return _HRT_LOCKCOL.UNPROVEN;\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "#180 - the lock list keeps its own colour rule",
+     "file": "tv/control_ui.html",
+     "find": "        + '<span class=\"hrt-s\" style=\"color:' + _hrtLockColor(L) + '\">'   /* #180 - the list and the fan, one colour rule */\n",
+     "replace": "        + '<span class=\"hrt-s\" style=\"color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '\">'\n",
+     "matches": 1},
+]
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
