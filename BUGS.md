@@ -86,6 +86,29 @@ no known names kept every prose word, the opposite of its own rule; it now keeps
 journal: REC-03 still PASSES (newest long session, 51 worker reads, all warm). The eye's "older sessions' unanswered
 commitments are only reported" is the documented rule ("the newest decides; older ones are reported"), not a defect. Law:
 test_a_scenario_names_its_own_frames (3 cases, 5 red-proofs, 1 re-aimed).
+### REG-2787 - A SAVED MOVE TARGET IGNORED HIS HAND AND OUTLIVED ITS DELETED MULE (#154, his words 2026-10-28 ~19:05)
+His words: "also obivously needs to remember and always organize the items the same. meaning if i restart my console those
+same items need to know where they were told to go and be so they dont mix up between restarts and stuff... needs some
+safegaurds maybe here." Measured first on the whole page in node. 21 copies were planned, then put through eight steps: a
+reload; a new big item, a new item and a second copy; another task ticked; 495 rings and two more Shakos (the war stash's 5
+pages filled and the board made WAR1); a reload; a deleted item; WAR1 and UNI-WEAPONS renamed; and a reload. 0 of the 21 saved
+targets moved, 0 of the 521 there by the end moved, and no two targets overlapped. FIND and the cards drew every earlier copy
+where it was. A second run followed the lead's recipe: 44 mixed hand adds (41 targets); a reload; 18 more items, 2 Shakos
+and 490 rings (5 pages full, WAR1 made, 549 targets); 3 tasks ticked; one item removed; WAR1 and UNI-WEAPONS renamed; and a
+reload. 0 targets moved at any step. The board already keeps a saved target in three places: the stored move is returned as saved, the packer takes
+its cell first, and a rebuild of the records carries every saved move. What did not move, and had to, was a change he made or a
+cell that became impossible. An item the rules do not place (Carrion Wind) that he filed by hand on UNI-ARMOR kept its task to
+SHARED STASH (1,1), while its card and FIND drew it on UNI-ARMOR. Lightsabre, placed by his hand at col 7 · row 6 on its card,
+kept its task at stash:c0r0. After WAR1 was taken back (deleted and declined), two Shako rows still said "-> WAR1 (1,1)" and
+"(3,1)" about a mule that no longer exists, and gave no reason. Now every filing by his hand (window.vaultFile with
+witness.by 'hand', one wrapper on the door) plans again the copies whose home it changed. A spot he places on page 1 of a card
+becomes that copy's target. A target on a deleted mule (rare; his words: "mules just dont get deleted suddenly") is the one target the board plans again by itself, as a quiet guard; a mule store that
+will not read is UNKNOWN, so nothing is re-planned. Each such task goes back to to-move and its row says why ("new target:
+WAR1 was deleted", "you filed it on UNI-ARMOR", "you placed it at col 7 · row 6 by hand"). A re-file the L1 rules overrule,
+and war gear filed on a WAR mule, keep their target. NOT DONE: a spot on Mule 2+ or a gems/runes tab has no task cell that can
+name it, so the task keeps its saved cell there. Law `tv/test_a_saved_target_never_moves_unless_he_moves_it.py` (whole page
+in node, the 9-step chain plus four worlds, 12 red-proofs, each seen RED).
+
 ### REG-2804 - A MULE WAS A WAR MULE BY ITS NAME, AND A RENAMED WAR MULE LOST THE SHARED STASH'S LOOK (#154.14, his ruling 2026-10-28)
 His words: "is there not a way to have a shared CSS for that renamed mule? the shared stash will stay shared stash.. and the
 war1 and war2 will open and also should have that same shared css logic if we were to rename the mule it should be able to
