@@ -335,19 +335,31 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
             self.skipTest(NO_BROWSER)
         http = browser = cdp = None
         udd = None
+        stage = "start"
         try:
+            stage = "the http server"
             http = _http()
             udd = tempfile.mkdtemp(prefix="v3769-chrome-")
+            stage = "chrome"
             browser = _browser(chrome, udd)
+            stage = "the cdp tab"
             tab = _tab()
             cdp = _CDP(tab["webSocketDebuggerUrl"])
             cdp.call("Page.enable")
             cdp.call("Runtime.enable")
+            stage = "the page load"
             if "bible.html" not in (tab.get("url") or ""):
                 cdp.call("Page.navigate", {"url": PAGE})
             _wait_fn(cdp, "typeof window.renderVault==='function' && typeof window.switchTab==='function'"
                      " && typeof window._vaultMovePaint==='function'", timeout=120)
+            stage = "the demo"
             self._demo(cdp)
+        except AssertionError:
+            raise
+        except Exception as e:
+            # REG-2699 (v3816 and v3817 CI): this law ERRORED in ~5 s twice with no message - the gate summary prints a FAIL's
+            # text and only the name of an ERROR. A harness error says WHERE and WHAT now, so the next one is diagnosable.
+            self.fail("the harness raised %s at %s: %s" % (type(e).__name__, stage, str(e)[:600]))
         finally:
             if cdp:
                 cdp.close()
