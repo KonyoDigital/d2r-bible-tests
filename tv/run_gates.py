@@ -12565,6 +12565,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_every_tray_orb_yields_on_a_short_screen.py")], 300,
          needs_app=False,
          why='every tray-column orb is hidden at 480px tall and MOVE TASKS keeps a toolbar door there (REG-2862)'),
+    Gate("test_a_hover_read_never_counts_an_item_gone",
+         [sys.executable, os.path.join(HERE, "test_a_hover_read_never_counts_an_item_gone.py")], 300,
+         needs_app=False,
+         why='the gone-drain counts absence only from a frame that read its container whole (REG-2861)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
