@@ -16,6 +16,13 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2720 - "1 LANE" WAS SAID WHERE NOBODY COULD SEE IT (#151)
+His 2026-10-21 ask: "heart2 says '1 lane' at the TOP of the push". At 4.0 GB free every push proved one law at a time, and
+heart2's one line saying so lived in the prove log - which hooks/pre-push deletes on success and cuts to its last 24 lines
+on failure. The hook now asks heart2.prove_workers (the function the push takes its lanes from) and prints "proving N
+changed law(s) in K lane(s) - <its reason>" where the proving stage starts, UNKNOWN when heart2 cannot say.
+Law: test_the_push_says_its_lanes_where_proving_starts (2 red-proofs, each seen RED); 19 hook-reading laws re-run green.
+
 ### REG-2719 - A LOW DISK HAD NO SIGN; HE FOUND IT HIMSELF AT 4.0 GB (#151)
 His words 2026-10-21: "this cant happen in general... it was a mistake that it was this low" and "a more cool and designed
 style for the memory/gigabytes running low, like a warning sign under the online area". That day his Mac sat at 4.0 GB

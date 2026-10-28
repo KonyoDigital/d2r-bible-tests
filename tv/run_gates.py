@@ -12117,6 +12117,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_low_disk_is_a_sign_not_a_search.py")], 300,
          needs_app=False,
          why='#151 free disk is a sign under the ONLINE light - amber under the ON AIR floor, red under the proof-lane room, UNKNOWN never a number'),
+    Gate("test_the_push_says_its_lanes_where_proving_starts",
+         [sys.executable, os.path.join(HERE, "test_the_push_says_its_lanes_where_proving_starts.py")], 300,
+         needs_app=False,
+         why='#151 the push says how many lanes it proves in, and why, where proving starts'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

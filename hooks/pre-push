@@ -1125,6 +1125,15 @@ PYGATE
     # and the run STOPS at the first BLIND / INVALID / clean-run red; a gate that starts a browser is proved one at a
     # time. A declared width that stays green is BLIND and refuses exactly as before. The full sweep stays run_gates'
     # and CI's - neither ever sets TV_LAW_WIDTHS (test_a_push_proof_runs_only_where_its_defect_shows).
+    # #151 (his 2026-10-21: "heart2 says '1 lane' at the TOP of the push") - the lane count and its reason, said where
+    # the proving stage starts. It was one line inside the prove log, which this hook deletes on success and cuts to its
+    # last 24 lines on failure: on 10-21 every push proved one law at a time at 4.0 GB free and nothing on screen said so.
+    _lanes_say=$(cd "$REPO/tv" && python3 -c 'import sys
+import heart2 as h
+said = []
+n = h.prove_workers(int(sys.argv[1]), say=said.append)
+print("%d lane(s)%s" % (n, (" - " + said[-1].strip()) if said else ""))' "$(echo $_gates | wc -w | tr -d ' ')" 2>/dev/null | tail -1)
+    echo "pre-push: [$(_pp_el)] proving $(echo $_gates | wc -w | tr -d ' ') changed law(s) in ${_lanes_say:-UNKNOWN lane(s) - heart2 could not say}"
     if python3 "$REPO/tv/heart2.py" --prove $_gates --push > "$_prove_log" 2>&1; then
       echo "pre-push: [$(_pp_el)] ✅ every changed law demonstrated it can still go red."
       rm -f "$_prove_log"
