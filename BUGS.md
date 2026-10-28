@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2935 - THE WAR STASH LAW'S SET-PIECE PROOF WENT BLIND WHEN REG-2786 GAVE THE SAME RAISE A SECOND HOME (the v3832/v3833 push gate)
+The pre-push red-proof gate refused v3832+v3833: test_vault_l1_war_stash_overflow[3] ("a set piece typed twice stays one
+presence item") stayed GREEN with its sabotage in. The law changed in v3832 (the 5-page shared stash re-aims), so every
+one of its proofs was proven again, and this one had gone blind in v3830 without anyone asking. Read in code: the hand
+door raises the multi-keep target in two places - the set-piece line (L1) and REG-2786's line for any name counted from
+its cells - and for a set piece with no cell sighting _vaultPresenceSpan answers 1, so REG-2786's line raises it too.
+Breaking only the first changed nothing the law can see. The property the law names is that his typed spare is kept, so
+the proof now breaks both raises (one find over the two lines, 1 match). REG-2786's own proofs aim at its line on names
+that are not set pieces, where the L1 line never applies, so they stay honest. The code keeps both lines (each is right on
+its own; the set-piece line is a named special case of the general one). Proven by the push gate (Chrome law).
+
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to
 17": the page's own scrollbar style wins over the law's injected 17 px one there. The law's real claim held on CI - the
