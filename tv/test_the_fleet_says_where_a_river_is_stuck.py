@@ -977,7 +977,7 @@ class AnUnplacedReelIsNotTheWholeRiver(unittest.TestCase):
 
 #: REG-1828 — the comment that opens the block after _fleetRefresh; F._cut counts it once
 _REFRESH_END = "  /* ⚠⚠ v3086 — NOBODY EVER ASKED."
-_CLICK = "click: how this PC films and drains, and their set pieces against yours"
+_CLICK = "click: open the row · click it again: how this PC films and drains, and their set pieces against yours"   # #225 (his ruling 2026-10-28): the row first, the compare on a second click
 _SHOW = ".fleet-row.has-ftt:hover .ftt, .fleet-row.has-ftt:focus-visible .ftt {"
 _STEP_ASIDE = (".fleet-row.has-ftt:has(:is([title], [data-tip-held]):hover) .ftt "
                "{ opacity: 0; visibility: hidden; }")
@@ -1034,7 +1034,7 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
             with self.subTest(tag[:60]):
                 self.assertNotIn(" title=", tag,
                                  "the row carries a native title beside its card, so two boxes open: " + tag)
-                self.assertIn("window._fleetCompare(this.getAttribute", tag, "the row stopped opening its box")
+                self.assertIn("window._fleetRowClick(this)", tag, "the row stopped opening its box")
 
     def test_the_card_carries_the_click_sentence(self):
         # REG-1893 - a rail the parse could not find gives no rows, and "every card says it" holds of none.

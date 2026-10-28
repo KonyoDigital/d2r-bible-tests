@@ -27287,6 +27287,16 @@ function escC(s) {
   window._fleetOpenEyesHtml = _fleetOpenEyesHtml;
   /* the row stays open: remembered by machine, so a fleet refresh redraws it open; a second click does not shut it */
   window._fleetOpenRows = window._fleetOpenRows || {};
+  /* #225 (his ruling 2026-10-28, "do B that way its more organized that buttons") - replaces GBL 2026-10-24's one click, two
+     things: the compare window opened on the same click as the row and covered the row's own see-console eyes (GrokBot's
+     v3821 pass). The first click opens the row inline; a click on a row already open opens the compare window. */
+  window._fleetRowClick = function (row) {
+    if (!row || !row.getAttribute) return;
+    var mach = row.getAttribute('data-fleet-machine') || '';
+    var wasOpen = !!(mach && window._fleetOpenRows && window._fleetOpenRows[mach]);
+    window._fleetRowOpen(row);
+    if (wasOpen) window._fleetCompare(mach);
+  };
   window._fleetRowOpen = function (row) {
     if (!row || !row.getAttribute) return;
     var mach = row.getAttribute('data-fleet-machine') || '';
@@ -27693,7 +27703,7 @@ function escC(s) {
       };
       /* REG-1828 — what a click opens, said by the card. It was the row's title, and that opened a native box
          beside this card, and over the hint of any word on the row whose title the hint lane had taken. */
-      var _fttClick = '<div class="ftt-click">click: how this PC films and drains, and their set pieces against yours</div>';
+      var _fttClick = '<div class="ftt-click">click: open the row \u00b7 click it again: how this PC films and drains, and their set pieces against yours</div>';   /* #225 - two clicks, two things */
       var _tip = function (m) {
         var t = m.tally;
         if (!t || !t.ok) {
@@ -28032,15 +28042,16 @@ function escC(s) {
            me visually and show me which items it has cross referenced to mine that i dont have
            already only. so its not messy." The hover tooltip stays exactly as it was — it answers
            "how far along is he", and this answers "what should I chase". */
-        /* GBL 2026-10-24 - ONE CLICK, TWO THINGS. Elad: the row opens inline with the HD eyes (and stays open) AND the
-           cross-reference opens exactly as before. The eyes live on the row, never inside the modal. */
+        /* GBL 2026-10-24 - the row opens inline with the HD eyes (and stays open); the eyes live on the row, never inside
+           the modal. #225 (his ruling 2026-10-28): the cross-reference now opens on a click on the OPEN row, not on the same
+           click - it covered the eyes it had just shown (_fleetRowClick). */
         var _open = !!(window._fleetOpenRows && m.machine && window._fleetOpenRows[m.machine]);
         return '<div class="fleet-row' + (heard ? ' on' : '') + ' has-ftt fleet-clickable' + (_open ? ' fleet-open' : '') + '"'
           + ' tabindex="0" role="button" aria-expanded="' + (_open ? 'true' : 'false') + '"'
           + ' data-fleet-machine="' + escC(m.machine || '') + '"'
-          + ' onclick="window._fleetRowOpen(this);window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
+          + ' onclick="window._fleetRowClick(this)"'
           + ' onkeydown="if(event.target!==this)return;if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
-          + 'window._fleetRowOpen(this);window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
+          + 'window._fleetRowClick(this)}">'
           + '<span class="fleet-dot' + (heard ? '' : (online ? ' silent' : ' off')) + '"></span>'
           + '<b>' + _fleetShadowEye(m, heard, undefined, pres) + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)

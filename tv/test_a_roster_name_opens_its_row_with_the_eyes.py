@@ -17,6 +17,7 @@ fetches that one commit by its full sha (REG-2739); only when the fetch fails to
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -239,7 +240,12 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
             self.assertEqual(sorted(b), sorted(s), k)
             for m in s:
                 self.assertTrue(s[m]["ftt"], "%s %s: no hover card at all" % (k, m))
-                self.assertEqual(s[m]["ftt"], b[m]["ftt"], "%s %s: the hover card changed" % (k, m))
+                # #225 (his ruling 2026-10-28) changed ONE line of the card - what a click opens. Everything else in it
+                # is still byte for byte; that line is pinned to its new words on its own.
+                cut = re.compile(r'<div class="ftt-click">[^<]*</div>')
+                self.assertEqual(cut.sub("", s[m]["ftt"]), cut.sub("", b[m]["ftt"]), "%s %s: the hover card changed" % (k, m))
+                self.assertIn('<div class="ftt-click">click: open the row \u00b7 click it again:', s[m]["ftt"],
+                              "%s %s: the card does not say what each click opens" % (k, m))
                 self.assertEqual(s[m]["row"], b[m]["row"], "%s %s: the row changed beyond its eyes" % (k, m))
 
     def test_the_cross_reference_is_unchanged_but_for_the_folded_diagnostics(self):
@@ -275,7 +281,9 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
                     self.assertTrue(got["disabled"], "%s %s: a PC with no roster profile got live eyes" % (k, m))
                     self.assertNotIn("routed", got)
 
-    def test_one_click_opens_the_row_and_the_modal_and_the_row_stays_open(self):
+    def test_the_first_click_opens_the_row_and_a_second_opens_the_compare(self):
+        """#225 (his ruling 2026-10-28, "do B") - the first click opens the row and its eyes and opens NO compare window
+        (it covered the eyes it had just shown); a click on the open row opens the compare; the row stays open."""
         r = _render()
         for k in r["ship"]:
             for m, got in r["ship"][k]["click"].items():
@@ -283,8 +291,10 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
                 if m != ME:                       # this PC's own row has no eyes at all (v3809), the rest show on click
                     self.assertEqual(got["vis0"], 0, "%s %s: the eyes showed before the click" % (k, m))
                     self.assertGreater(got["vis1"], 0, "%s %s: the click did not show the eyes on the row" % (k, m))
-                self.assertEqual(got["calls"], 1, "%s %s: the click did not open the cross-reference" % (k, m))
-                self.assertTrue(got["modal"], "%s %s: the modal is not open after the click" % (k, m))
+                self.assertEqual(got["calls"], 0, "%s %s: the first click also opened the compare window, over the eyes it "
+                                                  "had just shown (#225)" % (k, m))
+                self.assertEqual(got["calls2"], 1, "%s %s: a click on the open row did not open the compare" % (k, m))
+                self.assertTrue(got["modal"], "%s %s: the modal is not open after the second click" % (k, m))
                 self.assertTrue(got["open"] and got["aria"] == "true", "%s %s: a second click shut the row" % (k, m))
             self.assertEqual(r["ship"][k]["afterRefresh"], [True] * 4, "%s: a fleet refresh shut the open rows" % k)
 
@@ -336,10 +346,15 @@ RED_PROOF = [
      "find": "window._shadowOpen(this.getAttribute(\\'data-roster-owner\\'))\">'",
      "replace": "window._shadowOpen(this.getAttribute(\\'data-roster-owner\\'))\" onkeydown=\"event.stopPropagation()\">'",
      "matches": 1},
-    {"why": "GBL 2026-10-24 - the click opens the modal but no longer opens the row with its eyes",
+    {"why": "GBL 2026-10-24 - the click opens the compare but no longer opens the row with its eyes",
      "file": "tv/control_ui.html",
-     "find": "' onclick=\"window._fleetRowOpen(this);window._fleetCompare(",
-     "replace": "' onclick=\"window._fleetCompare(",
+     "find": "    window._fleetRowOpen(row);\n    if (wasOpen) window._fleetCompare(mach);\n",
+     "replace": "    window._fleetCompare(mach);\n",
+     "matches": 1},
+    {"why": "#225 - the first click opens the compare window over the eyes again (one click, two things)",
+     "file": "tv/control_ui.html",
+     "find": "    if (wasOpen) window._fleetCompare(mach);\n",
+     "replace": "    window._fleetCompare(mach);\n",
      "matches": 1},
     {"why": "GBL 2026-10-24 - the eyes route to the wrong profile",
      "file": "tv/control_ui.html",
@@ -363,8 +378,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "GBL 2026-10-24 - the hover card's words change with the eyes",
      "file": "tv/control_ui.html",
-     "find": "click: how this PC films and drains, and their set pieces against yours</div>';",
-     "replace": "click: how this PC films and drains, their set pieces against yours, and the eyes</div>';",
+     "find": "click it again: how this PC films and drains, and their set pieces against yours</div>';",
+     "replace": "click it again: how this PC films and drains, their set pieces against yours, and the eyes</div>';",
      "matches": 1},
     {"why": "GrokBot 21:09 (v3809) - this PC's own row offers a shadow of itself again",
      "file": "tv/control_ui.html",

@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2749 - THE FLEET'S COMPARE WINDOW OPENED OVER THE ROW'S OWN SEE-CONSOLE BUTTON (#225, his ruling)
+GrokBot's v3821 pass (#230 6464730558): one click on a Fleet row opened the row inline with its see-console eyes AND the
+full-screen compare window on top of them, so he had to close the window before he could enter the shadow. That was his
+2026-10-24 ruling working as written; his 2026-10-28 ruling replaces it ("do B that way its more organized that buttons"):
+the first click opens the row; a click on a row already open opens the compare (_fleetRowClick, Enter/Space alike). The
+hover card says so ("click: open the row - click it again: how this PC films and drains, and their set pieces against
+yours"). Laws: test_a_roster_name_opens_its_row_with_the_eyes (Chrome, CI: first click 0 compares, second click 1; the
+card byte for byte but for its click line; +1 red-proof, 2 re-pointed), test_the_fleet_says_where_a_river_is_stuck.
+
 ### REG-2748 - A SHELF CARD SAID "0m00s" BESIDE "3127 frames · full video" (#86 nit, GrokBot v3821 pass)
 REG-2736 dated a session by its captured moments, and a footage run with a single read has one moment, so its "ran" span
 (t0 to t1) was 0m00s beside an hour of film. The footage stills are captures of the same session - each is named
