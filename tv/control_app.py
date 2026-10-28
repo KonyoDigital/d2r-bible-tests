@@ -46382,8 +46382,10 @@ class Handler(BaseHTTPRequestHandler):
                             # is not the session ending today
                             # REG-2748 (GrokBot's v3821 pass: "0m00s" beside 3127 frames) - the footage stills are
                             # captures of this session too, so a run with one read and an hour of film spans the film
-                            "n": i, "t0": min((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[0].get("ts"),
-                            "t1": max((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[-1].get("ts"),
+                            # REG-2752 (the v3823 second eye) - no moment is no date: the row's own ts would bring a
+                            # capture-less re-read back in by the side door, so the card says UNKNOWN instead
+                            "n": i, "t0": min((_rp.session_moments(sess) or []) + _foot_span or [0]) or None,
+                            "t1": max((_rp.session_moments(sess) or []) + _foot_span or [0]) or None,
                             # v1563 — READ SPAN, not wall-clock. t0..t1 is the session's first row to
                             # its last, which includes idle and any trailing heartbeat. One of his
                             # sessions spans 1798.9 MINUTES around 3.5 minutes of actual reading, and

@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2752 - A REEL OF CAPTURE-LESS RE-READS COULD STILL BE DATED BY WHEN THEY WROTE (the v3823 second eye)
+REG-2744 counted a verify or intake row only through its frame's capture time. The fallback for a session with no
+moments of its own (replay.session_moments: "every row's when nothing else is there") still took every row's row_moment,
+and the Shelf row then fell back again to its first and last row's ts, so a session made only of capture-less re-reads
+was dated by the day they were written - REG-2736 by the side door. The fallback now counts a re-read only through its
+capture time too, and the Shelf row's t0/t1 are None when no moment is left; the console already says UNKNOWN for that.
+No instance today: on his journal every intake and verify row carries captureTs. Law:
+test_a_session_is_dated_by_what_it_captured (2 new cases, 2 new red-proofs; the t1 red-proof follows the new line).
+
 ### REG-2751 - THE PROOF CARRIER'S LINE WAS ABSENT FOR THE FIRST MINUTES AFTER A START (#186, GrokBot's v3822 pass)
 GrokBot SAW the carrier on his console and noted the key was missing before the first self-prove tick: _SELF_PROVE
 started without a "carrier" record, so the panel had nothing to say until the lane ran. It now starts with one -
