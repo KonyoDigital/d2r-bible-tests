@@ -12281,6 +12281,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_router_and_integrity_agree_on_a_throw.py")], 300,
          needs_app=False,
          why="#158.5 REG-2813: VAULT INTEGRITY never rescues a read the router throws (Blackbog's Sharp loop)"),
+    Gate("test_a_circlet_with_no_stats_read_needs_a_look",
+         [sys.executable, os.path.join(HERE, "test_a_circlet_with_no_stats_read_needs_a_look.py")], 300,
+         needs_app=False,
+         why='#158.6 REG-2814: a rare circlet with no stats read needs a tooltip look, never filed as judged'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

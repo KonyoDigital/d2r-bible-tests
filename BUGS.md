@@ -35,6 +35,16 @@ The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries
 UI[i:i + 900] after the binding's first line, a guess about how far the block reaches that goes blind the day the block
 grows. It now reads the binding's own block (to its closing `})();`), and the ratchet is back at 44. Found by running
 the ratchet across the chain before the push: v3828-v3831 pass, v3832 introduced it.
+### REG-2814 - A RARE CIRCLET WITH NO STATS READ WAS KEPT AS IF JUDGED (#158.6, GrokBot on his real frames; his circlet ruling, #144 item 3)
+GrokBot: a rare circlet read off a ground label (the name, mods []) went straight to MAGIC & RARE. His circlet ruling keeps a
+circlet for what it rolled (+2 class skills, FCR, FRW), so one nobody saw the lines of cannot have been judged. MEASURED on
+the whole page in node: suggestMule answered "RARE circlet - keep (+skills/FCR/res + facet sockets)" for mods [] exactly as
+for a circlet whose lines were read, and the filing door (vaultFile, no mule named) filed it with that sentence. Now a rare
+circlet with no stat line read (blank lines are none) is Unsorted with "it needs a tooltip look" - the router's REG-2080
+shape, which every filing door refuses to file - and one whose lines were read is judged as before; white and magic circlets
+stay vendor advice. Still open under #144 item 3: the checker's elite circlet profiles (SHARED STASH). Law:
+test_a_circlet_with_no_stats_read_needs_a_look (4 cases on the whole page in node, 2 red-proofs, each RED).
+
 ### REG-2813 - THE ROUTER THREW A READ OUT AND VAULT INTEGRITY RESCUED IT, FOR EVER (#158.5, GrokBot on his real frames)
 GrokBot: the auto door threw Blackbog's Sharp out (suggestMule: trade value TRASH, v2200) and VAULT INTEGRITY flagged the
 same read "wrongly thrown - a chronicle unique, Rescue it" with Fix all, so it was rescued and thrown again. Two rules about

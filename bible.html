@@ -43318,7 +43318,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _cbase = (typeof _mfBase === 'function' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]) ? _mfBase(name) : '';
       if (_CIRC.test(_ccl) || _CIRC.test(_cbase)){
         var _cq = (typeof _mfQual === 'function' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name]) ? _mfQual(name) : 'white';
-        if (_cq === 'rare') return {id:'magic-rare', why:'RARE circlet — keep (+skills/FCR/res + facet sockets)'};
+        /* #158.6 (REG-2814, GrokBot on his real frames; his circlet ruling, #144 item 3) - A RARE CIRCLET IS JUDGED ON ITS
+           STATS, AND UNREAD STATS ARE NOT A JUDGEMENT. A ground label carries the name and no lines (mods []), and this branch
+           kept it in MAGIC & RARE - "keep (+skills/FCR/res ...)" - exactly as one whose +2 skills / FCR / FRW were seen.
+           With no stat read it stays in Unsorted and says it needs a tooltip look; the router answers that shape
+           (REG-2080), and every filing door files only a mule it resolves. A read line, any line, is judged as before. */
+        if (_cq === 'rare'){
+          var _cmods = (magicFinds[name] && Array.isArray(magicFinds[name].mods) ? magicFinds[name].mods : [])
+            .filter(function(x){ return typeof x === 'string' && x.trim(); });
+          if (!_cmods.length)
+            return {id:null, unsorted:true, why:'RARE circlet with no stats read (a ground label) — it needs a tooltip look: '
+              + 'a circlet is kept for its +2 skills, FCR or FRW, and none of its lines were seen'};
+          return {id:'magic-rare', why:'RARE circlet — keep (+skills/FCR/res + facet sockets)'};
+        }
         return {id:'__throwout', why:'circlet — can’t hold runewords; only RARE circlets are keepers (this is '+_cq+') → vendor it'};
       }
     } catch(e){}
