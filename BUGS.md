@@ -37,6 +37,13 @@ guest never makes a mule, so the board was right and the law's world was not his
 set for that install, the same four worlds give WAR1 made by the board, with the extras on it, the make task, an empty line,
 and "you took back the WAR1 the board made" when declined. The law now claims the world in roster_with before the seed and
 asserts _D2R_OWNER as a premise. No code changed.
+### REG-2795 - A CONSOLE START WHILE THE BEACON WAS HELD SPENT ITS BOOT EXEMPTION WITHOUT POSTING (the v3829 second eye, both lanes)
+_roster_frames_tick returned True whenever _frames_publish_once did not raise, and the suppressed path returned normally,
+so a start under a held beacon cleared the boot flag with nothing posted; once the hold lifted the restart waited out the
+3 h gap the boot exemption exists to bypass. Swept: the profile lane (_roster_profile_tick / _profile_publish_once) had
+the same shape. A hold now answers False in both, so the exemption survives it; every other path is a decision and clears
+it as before. Law: test_the_owner_publishes_its_session_digest (1 case over both lanes, 2 red-proofs, 8 of 8 RED).
+
 ### REG-2794 - A REAL SESSION DIGEST PAST 200 KB COULD NEVER REACH ITS OWN DOOR (the v3829 second eye)
 roster.js's POST checked every body against the profile's 200 KB cap first, then branched to the frames door, whose own
 cap is 900 KB and whose digest is built up to 600 KB of thumbnails: any real multi-session digest past 200 KB was refused

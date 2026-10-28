@@ -117,6 +117,17 @@ class TheConsolePublishesIt(unittest.TestCase):
         self.assertEqual(self.posts, [])
         self.assertIn("suppressed", st.get("why", ""))
 
+    def test_a_suppressed_start_keeps_its_boot_exemption(self):
+        """REG-2795 (the v3829 second eye) - a held start returned normally, so the tick said done and the boot exemption
+        was spent with nothing posted; the restart then waited out the 3 h gap once the hold lifted. Both lanes."""
+        ca = self.ca
+        with mock.patch.object(ca, "_log_root", return_value=self.d), \
+                mock.patch.object(ca, "_beacon_suppressed_by", return_value="a fixture"):
+            self.assertIs(ca._roster_frames_tick(True), False, "a held start spent the frames lane's boot exemption")
+            self.assertIs(ca._roster_profile_tick(True), False, "a held start spent the profile lane's boot exemption")
+        st = self._once(True, T0)
+        self.assertEqual((len(self.posts), st.get("postedAt")), (1, T0), "the start did not post once the hold lifted")
+
     def test_the_lane_runs_it_after_the_profile(self):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         loop = src[src.index("def _roster_publish_loop():"):src.index("def _frames_state_path():")]
@@ -125,6 +136,16 @@ class TheConsolePublishesIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2795 - a held start spends the frames lane's boot exemption again",
+     "file": "control_app.py",
+     "find": "        return False     # REG-2795 - held: a console start's exemption is kept for when the hold lifts\n",
+     "replace": "        return\n",
+     "matches": 1},
+    {"why": "REG-2795 - a held start spends the profile lane's boot exemption again",
+     "file": "control_app.py",
+     "find": "        return False     # REG-2795 - held: the boot exemption waits for the hold to lift (the frames lane's sibling)\n",
+     "replace": "        return\n",
+     "matches": 1},
     {"why": "REG-2772 - the digest carries its build time again, so its hash moves every build and nothing is change-only",
      "file": "shadow_sessions.py",
      "find": "    out = {\"v\": 1, \"sessions\": [], \"bytes\": 0, \"dropped\": 0, \"left\": []}\n",
