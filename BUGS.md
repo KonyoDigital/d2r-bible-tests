@@ -207,6 +207,15 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2835 - A MAGIC OR RARE ITEM ADDED FROM THE PLANNER LOST ITS MODS, AND A RARE CIRCLET VANISHED (front-run measure, his 10-28 plan)
+His plan: hand-add 300-500 real items with their exact mods through the Vault's Add an item (the planner). The planner turns
+each picked affix into its line (_vpMods) through window._cbAfText, as the d2jsp desk's gear lines do, and nothing
+published window._cbAfText - every law driving them stubs its own. Measured on the whole page in node through the planner's
+UI path: a magic Grand Charm with a prefix and a suffix was kept with mods []; a rare Diadem with three picked mods reached
+the router with no lines ("RARE circlet with no stats read ... needs a tooltip look") and the planner deleted it, so his
+hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
+window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
+test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
 
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to

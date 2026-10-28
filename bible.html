@@ -69599,6 +69599,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return d.afById[id] || null;
   }
   window._cbAf = _cbAf;
+  /* #154 front-run (REG-2835) - THE MOD TEXT IS PUBLISHED BESIDE THE MOD. The vault planner (_vpMods) and the d2jsp desk
+     (gearLines) both turn a picked affix into its line through window._cbAfText, and nothing published it - every law
+     that drives them stubs its own. Measured on the whole page in node: a magic or rare item added from the planner
+     was kept with mods [] ("Stout Grand Charm of Dexterity" lost +3-5 Defense and +3-4 to Dexterity), and a rare
+     circlet with three picked mods was judged "no stats read - needs a tooltip look" and dropped, so his hand-added
+     rare vanished. [[the-unjoined-end]] */
+  window._cbAfText = _cbAfText;
   /* an affix's level requirement for a class (its index, -1 = not known): its classlevelreq when the affix names that
      class (a[13] = [class, level]), else its levelreq */
   function _cbAfReq(a, ci){ return (a && a[13] && ci >= 0 && a[13][0] === ci) ? (a[13][1] | 0) : ((a && a[5]) | 0); }
