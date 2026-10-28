@@ -312,6 +312,19 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2903 - AN ITEM WHOSE BASE THE NAME DOES NOT GIVE WAS A RING ON ONE SURFACE AND A SILENT MARK ON ANOTHER (the house rule on his MAGIC & RARE, 2026-10-28)
+The rule: an item whose base cannot be established from its own name or record shows UNKNOWN everywhere - one logic,
+never a guess on one surface and the mark on another - and a doubt becomes a question. Measured on the whole page in node
+with the ALT's Raven Whorl shape (a TV-read rare whose suffix is a ring's or a jewel's): it drew the mark in the mule window
+and in FIND with no word of why, ring1_graphic on the card; a kept rare with no base (Chaos Whorl, Havoc Eye Ring) drew the
+mark on its tiles and the keyword ring in the hover; a throw-out read in doubt (Bone Gyre) hovered as a ring. Now one answer
+decides it (_artRolledBase, asked by artOr and by the hover): a base from the keeper record, the catalogue row or the
+rolled-name grammar (REG-2851) draws its picture; with none - two slots by the grammar, or a kept or TV-read item no rule
+reads - there is no base, the mark carries the question as its tooltip ("ring or jewel? the name does not say; a tooltip
+look settles it"; "which base? ..." where no rule reads it), the hover card says it, and the hover draws no keyword sprite
+in its place. A unique or a set piece never takes a base's picture. The REG-2851 lines moved into the one answer; its law's
+three grammar red-proofs are re-aimed, RED. Law: test_a_base_in_doubt_is_unknown_everywhere, 6 red-proofs, RED.
+
 ### REG-2854 - A MAGIC & RARE KEEPER "MOVED" TO THE SHARED STASH WHERE NOTHING DREW IT, AND THE MOVE DOOR ANSWERED NOTHING (GrokBot's ACT-8 on his MAGIC & RARE)
 GrokBot: vaultAssign('Fine Small Charm of Vita','shared') "returned nothing and moved nothing". Measured on the whole page
 in node: an owned keeper filed on the shared stash said "-> SHARED STASH" and returned undefined, while it stayed drawn in

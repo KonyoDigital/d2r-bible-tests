@@ -21458,39 +21458,12 @@ function artOr(name, fallbackHtml, size){
      recorded, or the catalogue row, or - when neither names one - the base the board's one grammar for a
      rolled name reads off it (REG-2851): never a loose word guessed out of the name. A unique or a set is
      not given a base picture: when its own picture is missing, the mark stays. */
+  var _ask = null;
   if (!u){
-    var _rolledBase = '';
-    var _keeper = (typeof magicFinds !== 'undefined' && magicFinds) ? magicFinds[name] : null;
-    var _keeperBlocks = false;
-    if (_keeper && typeof _keeper === 'object'){
-      var _kq = String(_keeper.q || 'magic').toLowerCase();
-      if (_kq === 'unique' || _kq === 'set') _keeperBlocks = true;
-      else if (_keeper.base && (_kq === 'magic' || _kq === 'rare' || _kq === 'crafted' || _kq === 'basic')) _rolledBase = String(_keeper.base);
-    }
-    if (!_rolledBase && !_keeperBlocks && typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS && EXTRA_ITEMS[name]){
-      var _ex = EXTRA_ITEMS[name];
-      var _er = String((_ex && _ex.rarity) || '').toLowerCase();
-      var _eb = (_ex && _ex.base) ? String(_ex.base) : '';
-      if (_eb && _eb !== String(name) && (_er === 'magic' || _er === 'rare' || _er === 'crafted' || _er === 'basic')) _rolledBase = _eb;
-    }
-    /* REG-2851 (his report 2026-10-28 19:31: MAGIC & RARE drew white diamonds, "the images are not rendering proeprly") - a
-       keeper kept with no base (the throw-out review's keep writes base '', a legacy record has none) and a TV stub (its
-       base is its own name) drew the missing-art mark on the card, in the mule window and in FIND. _rolledQuality is the
-       board's ONE grammar for a rolled name (REG-2054), the one the router files these by: a magic charm, jewel, ring or
-       amulet carries its base in its name by the game's naming rule, and a rare's suffix word belongs to one slot or to
-       several (RARE_NAME_POOLS, from the game's RareSuffix rows). One slot is the base; two (Whorl: ring or jewel) leave
-       it UNKNOWN, and the mark stays. The picture is still artUrl's, of the base - one resolver. */
-    if (!_rolledBase && !_keeperBlocks && typeof _rolledQuality === 'function'){
-      var _exR = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS && EXTRA_ITEMS[name]) ? String(EXTRA_ITEMS[name].rarity || '').toLowerCase() : '';
-      if (_exR !== 'unique' && _exR !== 'set'){
-        var _rqA = null;
-        try { _rqA = _rolledQuality(_clean); } catch (eRq) { _rqA = null; }
-        if (_rqA && _rqA.q === 'magic' && _rqA.base) _rolledBase = String(_rqA.base);
-        else if (_rqA && _rqA.q === 'rare' && _rqA.slots && _rqA.slots.length === 1) _rolledBase = String(_rqA.slots[0]);   /* REG-2851 one grammar */
-      }
-    }
-    if (_rolledBase && _rolledBase !== String(name) && _rolledBase !== _clean && _rolledBase !== _cleanP){
-      var _bu = artUrl(_rolledBase);
+    var _rb = _artRolledBase(name);   /* REG-2903 one answer for a rolled item's base */
+    _ask = _rb.ask;
+    if (_rb.base && _rb.base !== String(name) && _rb.base !== _clean && _rb.base !== _cleanP){
+      var _bu = artUrl(_rb.base);
       if (_bu) u = _bu;
     }
   }
@@ -21504,13 +21477,50 @@ function artOr(name, fallbackHtml, size){
     if (_builtUrl) u = _builtUrl;
   }
   var _rc = _artRarity(name); var _rcls = _rc ? ' d2art-r-' + _rc : '';
-  if (!u) return `<span class="d2art-wrap ${size||'lg'}${_rcls} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
+  /* REG-2903 - a mark whose base is in doubt says the doubt as a question (his rule: a doubt becomes a question) */
+  if (!u) return `<span class="d2art-wrap ${size||'lg'}${_rcls} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"${_ask ? ` title="${_d2artEsc(_ask)}" data-art-ask="1"` : ''}><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
   // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
   // the name from being duplicated into copied text / shown as broken-image alt on platforms
   // where the diablo2.io hotlink is blocked. Accessible name lives on the wrapper aria-label.
   return `<span class="d2art-wrap ${size||'lg'}${_rcls}" role="img" aria-label="${_d2artEsc(name)}"><img class="d2art-img" src="${u}" alt="" loading="lazy" decoding="async" onload="this.parentNode.classList.remove('d2art-failed')" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
 }
+/* REG-2903 (the house rule on his MAGIC & RARE, 2026-10-28: an item whose base cannot be established from its own name or
+   record shows UNKNOWN everywhere - one logic, never a guess on one surface and the mark on another) - ONE ANSWER FOR A
+   ROLLED ITEM'S BASE, asked by artOr (the card, the mule window, FIND, the registered list) and by the hover. Its base is
+   the one its keeper record names, else its catalogue row's, else the one the board's grammar for a rolled name reads off
+   it (REG-2851). When the grammar names two slots (Whorl: a ring or a jewel), or a kept or TV-read item matches no rule,
+   there is no base: the answer carries the question its mark says, and no surface draws a picture for it. Measured before
+   (the whole page in node): "Raven Whorl" drew the mark in the window and FIND, ring1_graphic on the card and in the hover.
+   A unique or a set piece never takes a base's picture. -> { base: '' | the base, ask: null | the question } */
+function _artRolledBase(name){
+  var nm = String(name == null ? '' : name), out = { base: '', ask: null }, rolled = false;
+  var clean = (typeof _artSlotClean === 'function') ? _artSlotClean(nm) : nm;
+  var keeper = (typeof magicFinds !== 'undefined' && magicFinds) ? magicFinds[nm] : null;
+  if (keeper && typeof keeper === 'object'){
+    var kq = String(keeper.q || 'magic').toLowerCase();
+    if (kq === 'unique' || kq === 'set') return out;
+    rolled = true;
+    if (keeper.base && (kq === 'magic' || kq === 'rare' || kq === 'crafted' || kq === 'basic')) { out.base = String(keeper.base); return out; }
+  }
+  var ex = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS) ? EXTRA_ITEMS[nm] : null;
+  var er = ex ? String(ex.rarity || '').toLowerCase() : '';
+  if (er === 'unique' || er === 'set') return out;
+  if (ex && (er === 'magic' || er === 'rare' || er === 'crafted' || er === 'basic')){
+    rolled = true;
+    var eb = ex.base ? String(ex.base) : '';
+    if (eb && eb !== nm) { out.base = eb; return out; }   /* a TV stub's base is its own name: no base */
+  }
+  var rq = null;
+  try { rq = (typeof _rolledQuality === 'function') ? _rolledQuality(clean) : null; } catch (eRq) { rq = null; }
+  if (rq && rq.q === 'magic' && rq.base) { out.base = String(rq.base); return out; }
+  if (rq && rq.q === 'rare' && rq.slots && rq.slots.length === 1) { out.base = String(rq.slots[0]); return out; }   /* REG-2851 one grammar */
+  if (rq && rq.q === 'rare' && rq.slots && rq.slots.length > 1)
+    out.ask = rq.slots.join(' or ').toLowerCase() + '? the name does not say; a tooltip look settles it';   /* REG-2903 the doubt asked */
+  else if (rolled) out.ask = 'which base? the name does not say; a tooltip look settles it';
+  return out;
+}
 window.artOr = artOr;
+window._artRolledBase = _artRolledBase;   /* after artOr's line: a law runs artOr's own lines alone, with no window */
 // Unified drop-row logo: render the registered in-game art thumbnail (lazy, graceful)
 // ONLY when one exists for this name — no empty placeholder box for art-less items.
 // Used by every drop-table / top-drops surface so a named item shows its in-game logo.
@@ -34695,19 +34705,24 @@ function _arttipResolve(nm){
   // v341.29 — runeword-base browser items (Archon Plate, Monarch, …): grey base card w/ sockets + runewords.
   if (typeof RW_BASE_INDEX !== 'undefined' && RW_BASE_INDEX[nm]){ return { artName: _rwBaseArtName(nm), desc: _rwBaseTipHtml(nm), rich: true }; }
   // High-Value Finds reference profiles (non-unique; uniques already resolved via ITEM_TIP above)
-  if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm]) return { artName: nm, desc: _extraTipHtml(nm), rich: true };
+  /* REG-2903 - the item's own question rides its card; no guessed picture stands in for a base the name does not give */
+  var _abq = (typeof _artRolledBase === 'function') ? _artRolledBase(nm).ask : null;
+  var _askH = _abq ? '<div class="att-info att-ask">\u2753 ' + String(_abq).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>' : '';
+  if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[nm]) return { artName: nm, desc: _extraTipHtml(nm) + _askH, rich: true };
   // v345 — Magic & Rare keeper (rolled-name): rich card + base-type art (artSrc, since artUrl can't
   // resolve a rolled name). Last resort before the empty fallback so a real grail never lands here.
   if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]) {
     var _mfb = (typeof _mfBase === 'function') ? _mfBase(nm) : '';
-    return { artName: '', artSrc: (typeof _magicArtSrc === 'function') ? _magicArtSrc(_mfb || nm) : null, desc: _mfTipHtml(nm), rich: true };
+    return { artName: '', artSrc: (!_abq && typeof _magicArtSrc === 'function') ? _magicArtSrc(_mfb || nm) : null, desc: _mfTipHtml(nm) + _askH, rich: true };   /* REG-2903 */
   }
   // v349 — throw-out (unmatched read) item: rich review card + base-type art (so text-hover shows a
   // description, not just the image — matches every other section).
   if (typeof unknownReads !== 'undefined' && unknownReads && unknownReads.has && unknownReads.has(nm)) {
     var _tc = (typeof _throwClean === 'function') ? _throwClean(nm) : nm;
-    var _ts = (typeof artUrl === 'function' ? artUrl(_tc) : '') || (typeof _magicArtSrc === 'function' ? _magicArtSrc(_tc) : '') || null;
-    return { artName: '', artSrc: _ts, desc: (typeof _throwTipHtml === 'function') ? _throwTipHtml(nm) : '', rich: true };
+    var _abT = (typeof _artRolledBase === 'function') ? _artRolledBase(_tc).ask : null;   /* REG-2903 a read in doubt too */
+    var _ts = (typeof artUrl === 'function' ? artUrl(_tc) : '') || (!_abT && typeof _magicArtSrc === 'function' ? _magicArtSrc(_tc) : '') || null;
+    return { artName: '', artSrc: _ts, desc: ((typeof _throwTipHtml === 'function') ? _throwTipHtml(nm) : '')
+      + (_abT ? '<div class="att-info att-ask">\u2753 ' + String(_abT).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>' : ''), rich: true };
   }
   // v633 — ANY known base gets the full data-driven card (tier · sockets · reqs · its runewords)
   // instead of a naked picture; keeps the platform's hover depth uniform across all 523 bases.
