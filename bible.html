@@ -11091,6 +11091,7 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vault-tasks-panel .vtk-line .vault-btn{flex:0 0 auto;padding:0 6px;min-height:0;line-height:1.6;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-gone{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-l1{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro);color:var(--text-muted);font-weight:var(--fw-medium);cursor:help}   /* #148.1 REG-2761 */
+.vault-tasks-panel .vtk-line .vmv-retarget{flex:0 1 150px;min-width:0;overflow:hidden;text-overflow:ellipsis}   /* REG-2787 the why shrinks like a reason; the title carries it whole */
 .vault-tasks-panel .vtk-line + .vtk-line{border-top:1px solid rgba(212,168,71,.12)!important}
 .vault-tasks-panel section.vmv-unseen{border:1px dashed rgba(240,192,96,.4);border-radius:8px;padding:4px 6px;margin:4px 0}
 .vtk-line::before{content:counter(vtk) ".";flex:0 0 auto;min-width:1.6em;text-align:right;color:var(--text-dim)}
@@ -52611,6 +52612,9 @@ window.vaultAutoAssign = function(){
     var g = [];
     (Array.isArray(spec.gone) ? spec.gone : []).forEach(function(x){ if (x != null && x !== '' && g.indexOf(String(x)) < 0) g.push(String(x)); });
     if (g.length) out.gone = g;
+    /* REG-2787 - a target that changed (his hand, or the mule it named was deleted) carries why, and the row says it */
+    if (spec.retarget && typeof spec.retarget === 'object' && typeof spec.retarget.why === 'string' && spec.retarget.why)
+      out.retarget = { why: spec.retarget.why, at: (typeof spec.retarget.at === 'string') ? spec.retarget.at : null };
     return out;
   }
   function _vaultMoveQueue(name, from, to){
@@ -53152,6 +53156,20 @@ window.vaultAutoAssign = function(){
     bag = bag || _vaultMoveBag();
     var storedRaw = bag.map ? bag.map[String(name) + '\u0000' + copyIx] : null;
     var stored = storedRaw ? _vaultMoveTask(storedRaw) : null;
+    var _rt = stored ? (stored.retarget || null) : null;
+    /* REG-2787 (his words 2026-10-28 ~19:05: "needs to remember and always organize the items the same ... if i restart my
+       console those same items need to know where they were told to go") - A SAVED TARGET NEVER MOVES UNLESS HE MOVES IT.
+       Measured on the whole page: across a reload, new items and copies, a closed task, 500 war items filling the 5 pages and
+       the board making WAR1, a deleted item and renamed mules, 0 of 521 saved targets moved. The one cell the board re-plans
+       itself is an impossible one: the mule it names was deleted (measured: two Shako rows still said "-> WAR1 (1,1)" after
+       WAR1 was taken back). Then the copy plans again and its row says why. A mule store that will not read is UNKNOWN,
+       never "deleted": the saved target stays. His own hand re-targets through _vaultMoveRetargetByHand / _vaultMoveRetargetCell. */
+    if (stored && stored.to && stored.to.cell && stored.to.id != null && stored.to.id !== 'main' && stored.to.id !== 'shared'
+        && typeof muleById === 'function' && !muleById(stored.to.id)
+        && !(typeof window._vaultHeldFor === 'function' && window._vaultHeldFor(['d2r_muleRoster']))) {
+      _rt = { why: (stored.to.holder || 'the mule it named') + ' was deleted', at: new Date().toISOString() };
+      stored = _vaultMoveTask({ name: name, from: stored.from, to: null, status: 'to-move', evidence: [], manual: stored.manual });
+    }
     if (stored && stored.to && stored.to.cell) return { task: stored, copyIx: copyIx, name: name, fresh: false }; /* v3769 saved target */
     var from = (stored && stored.from && stored.from.cell) ? stored.from : _vaultMoveFromSight(name, copyIx);
     var to = _vaultMovePlanCell(name, copyIx, bag);
@@ -53160,6 +53178,7 @@ window.vaultAutoAssign = function(){
       status: stored ? stored.status : 'to-move',
       evidence: stored ? stored.evidence : [],
       manual: stored ? stored.manual : false,
+      retarget: _rt,   /* REG-2787 why this copy planned again */
       undo: stored ? stored.undo : null   /* Vault v2 — a no-cell rebuild keeps his tick's undo snapshot (the sanitizer drops it off a non-hand row) */
     });
     return { task: task, copyIx: copyIx, name: name, fresh: true };
@@ -53307,6 +53326,63 @@ window.vaultAutoAssign = function(){
     try { _vaultMovePaint(); } catch (e) {}
     return t;
   }
+  /* REG-2787 - HIS HAND MOVES A TARGET, NOTHING ELSE DOES. Measured before: Carrion Wind (an item the rules do not place),
+     filed by his hand on UNI-ARMOR, kept its task to SHARED STASH (1,1) while its card and FIND drew it on UNI-ARMOR; placing
+     Lightsabre at col 7 · row 6 on its card left its task on stash:c0r0. A re-file: every copy whose saved target is not on
+     the locker it now lives on plans again, to-move, and its row says why. A re-file the L1 rules overrule (Gull onto
+     UNI-ARMOR: its home stays UNI-WEAPONS) changes no home, so no target; an over-cap copy on a WAR mule stays too: that is
+     the war stash's own. -> count */
+  function _vaultMoveRetargetByHand(name, why){
+    var bag = _vaultMoveBag();
+    if (!bag || bag.unread || !bag.map) return 0;
+    var list = [], cc = _vaultMoveCopies(name), at = new Date().toISOString();
+    for (var ix = 0; ix < cc; ix++) {
+      var raw = bag.map[String(name) + '\u0000' + ix];
+      if (!raw || !raw.to || raw.to.cell == null || raw.kind === 'throw') continue;
+      var st = _vaultMoveTask(raw), h = _vaultMoveHome(name, ix);
+      if (!h || h.id == null) continue;
+      if (st.to.id != null ? String(st.to.id) === String(h.id) : String(st.to.holder || '') === String(h.holder || '')) continue;
+      var tm = (st.to.id != null && typeof muleById === 'function') ? muleById(st.to.id) : null;
+      if (h.id === 'shared' && tm && _vaultWarRole(tm)) continue;
+      list.push({ name: name, copyIx: ix, task: { name: name, from: st.from, to: { holder: h.holder, location: h.location, cell: null, id: h.id },
+        status: 'to-move', evidence: [], manual: st.manual, retarget: { why: why, at: at } } });
+    }
+    if (list.length) _vaultMoveCommit(list);
+    return list.length;
+  }
+  /* a spot he placed on a mule card: that copy's task targets his cell (only a cell a task can name - page 1's stash or
+     inventory). No task for the copy, nothing to re-target. -> the task | null */
+  function _vaultMoveRetargetCell(name, copyIx, muleId, cell, why){
+    var bag = _vaultMoveBag();
+    if (!bag || bag.unread || !bag.map) return null;
+    var raw = bag.map[String(name) + '\u0000' + (copyIx || 0)];
+    if (!raw || raw.kind === 'throw') return null;
+    var st = _vaultMoveTask(raw), m = (typeof muleById === 'function') ? muleById(muleId) : null;
+    if (st.to && st.to.id != null && String(st.to.id) === String(muleId) && st.to.cell === cell) return st;
+    var t = { name: name, from: st.from, to: { holder: (m && m.name) || st.to.holder, location: String(cell).split(':')[0], cell: cell, id: muleId },
+      status: 'to-move', evidence: [], manual: st.manual, retarget: { why: why, at: new Date().toISOString() } };
+    _vaultMoveCommit([{ name: name, copyIx: copyIx || 0, task: t }]);
+    return t;
+  }
+  try { window._vaultMoveRetargetByHand = _vaultMoveRetargetByHand; window._vaultMoveRetargetCell = _vaultMoveRetargetCell; } catch (eRtg) {}
+  /* REG-2787 - ONE DOOR FOR HIS HAND. Every filing his hand makes reaches window.vaultFile with witness.by 'hand' (a drag or a
+     click onto a locker, a planner pick, an audit or throw-out fix, an Auto-Sort click); the board's own filings carry another
+     witness and never re-target. After a filing that took, the copies whose home it changed plan again. */
+  (function(){
+    var _vfDoor = window.vaultFile;
+    if (typeof _vfDoor !== 'function' || _vfDoor._retargets) return;
+    var wrapped = function(name, witness, opts){
+      var r = _vfDoor.apply(this, arguments);
+      if (r && r.ok && witness && witness.by === 'hand') {
+        var mm = (r.mule != null && typeof muleById === 'function') ? muleById(r.mule) : null;
+        try { r.retargeted = _vaultMoveRetargetByHand(String(name == null ? '' : name).trim(), 'you filed it on ' + ((mm && mm.name) || (r.mule === '__keep' ? 'MAIN' : String(r.mule)))); }
+        catch (eRh) { r.retargetFailed = String((eRh && eRh.message) || eRh).slice(0, 160); }   /* the filing took; the answer says the re-target did not */
+      }
+      return r;
+    };
+    wrapped._retargets = true;
+    window.vaultFile = wrapped;
+  })();
   function _vaultMoveNoteAdded(name, copyIx){
     copyIx = (typeof copyIx === 'number' && copyIx >= 0) ? copyIx : 0; /* L1 each hand copy its own row */
     /* v3773 — a hand add is placed by the same rules. A row appears only when the
@@ -53626,6 +53702,7 @@ window.vaultAutoAssign = function(){
 
         + (gs ? '<b class="vmv-gone">' + esc(gs) + '</b>' : '')
         + (l1 ? '<b class="vmv-l1" title="' + esc(l1) + '">war stash first</b>' : '')   /* #148.1 REG-2761 - why his WAR-mule filing waits */
+        + ((!thr && t.retarget) ? '<b class="vmv-l1 vmv-retarget" data-retarget="1" title="' + esc(t.retarget.why) + '">new target: ' + esc(t.retarget.why) + '</b>' : '')   /* REG-2787 why the target changed */
         + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="' + esc(wSay) + ' · the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + (row.witnesses == null ? '👁 0' : '👁 ' + row.witnesses) + '</button>')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-keep" title="keep it instead" onclick="event.stopPropagation();window._vaultThrowKeep(\'' + nm + '\',' + ci + ')">Keep</button>' : '')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-junk" title="yes, it is junk" onclick="event.stopPropagation();window._vaultThrowJunk(\'' + nm + '\',' + ci + ')">Junk</button>' : '')
@@ -57189,7 +57266,15 @@ window.vaultAutoAssign = function(){
     (ld.conflicts || []).forEach(function(c){ if (c.key === key) bad = c; });
     if (bad) return { ok: false, why: 'a ' + it.w + '×' + it.h + ' does not fit there — ' + bad.why };
     try { _mulePosWrite(next); } catch (e){ return { ok: false, why: 'the spot could not be saved (' + (e && e.message || e) + ')' }; }
-    return { ok: true, n: it.n, w: it.w, h: it.h, spot: { tab: spot.tab, page: pg, x: x, y: y } };
+    /* REG-2787 - his hand placed it: the copy's move task targets this cell. A task cell names no Mule page, so a spot on
+       Mule 2+ (or a gems/runes/shared tab) is drawn there and the task keeps its saved cell. */
+    var _rtT = null;
+    if (pg === 0 && (spot.tab === 'personal' || spot.tab === 'inv') && typeof window._vaultMoveRetargetCell === 'function') {
+      var _rtCi = (String(key) === String(it.n)) ? 0 : ((+(String(key).match(/ #(\d+)$/) || [0, 1])[1]) - 1);
+      _rtT = window._vaultMoveRetargetCell(it.n, _rtCi, muleId, (spot.tab === 'inv' ? 'inventory' : 'stash') + ':c' + x + 'r' + y,
+        'you placed it at col ' + (x + 1) + ' · row ' + (y + 1) + ' by hand');
+    }
+    return { ok: true, n: it.n, w: it.w, h: it.h, spot: { tab: spot.tab, page: pg, x: x, y: y }, task: _rtT };
   };
   /* back to auto-pack: his spot is removed, and the packer places the item wherever first-fit puts it */
   window._mpUnlock = function(muleId, key){
