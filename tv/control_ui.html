@@ -12980,9 +12980,12 @@ window._lockMark = function(isOpen, px, label){
       var seen = {};
       (s.areas || []).forEach(function(a){
         a = String(a || '').trim(); if (!a) return;
-        var key = a.toLowerCase();
+        /* REG-2709 (GrokBot's 02:05 pass) - "Rogue Encampment" (22 runs) and "The Rogue Encampment" (6) ranked as two places:
+           the reader writes the area both ways. A leading "The" is folded off the key, and the row is named without it. */
+        var bare = a.replace(/^the\s+/i, '');
+        var key = bare.toLowerCase();
         if (seen[key]) return; seen[key] = 1;   // an area counts once per run
-        if (!map[key]) map[key] = { name: a, runs: 0, reads: 0, grails: 0 };
+        if (!map[key]) map[key] = { name: bare, runs: 0, reads: 0, grails: 0 };
         map[key].runs++; map[key].reads += (s.reads || 0); map[key].grails += grails;
       });
     });
