@@ -147,7 +147,7 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2832 - Done closes without filing the edit",
      "file": "bible.html",
-     "find": "    try { if (_cx && typeof _cx.flush === 'function') _cx.flush(); } catch (eF) {}\n",
+     "find": "    try { if (_cx && typeof _cx.flush === 'function') _fx = _cx.flush(); } catch (eF) {}\n",
      "replace": "",
      "matches": 1, "needs": "node"},
     {"why": "REG-2832 - the next pick throws the draft away",

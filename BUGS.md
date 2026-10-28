@@ -207,6 +207,30 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2841 - THE PLANNER'S PICK OF AN ITEM ALREADY IN THE VAULT FILED ANOTHER COPY (#154 front-run, his 10-28 19:25 words)
+The planner was the second hand door that counted a name he holds, typed again, as another copy. Its pick and the end of its
+edit now ask the same question as + Add an item, on the plate ("Same item?"), with one button per copy and "Another copy".
+At the pick nothing is typed yet, so the pick always asks. The question follows the name the edit makes (sockets rename a
+base): a name he does not hold drops the question and files at Done; typed mods that plainly differ from the recorded mods
+of every copy file another copy carrying them, with no question; a bare pick (nothing typed) is still asked. Done over an
+unanswered question files nothing and keeps the planner open, and a new pick over one says that nothing was filed for the
+first. "The same item" joins that copy and fills what its record lacked (a magic item's mods, a runeword's base).
+vaultPlannerFile asks only when its caller passes {ask: true}; every other caller is unchanged. Law:
+test_a_hand_entry_of_an_item_already_here_asks (node, the whole page), 5 red-proofs for this REG, RED. Two laws follow the
+new door: test_a_hand_copy_gets_its_move_and_its_sighting answers the second Stone's question "Another copy", and
+test_a_hand_added_item_stays_his reads the pick's call with its ask.
+
+### REG-2840 - TYPING THE NAME OF AN ITEM THE REELS ALREADY READ MADE A SECOND COPY OF IT (#154 front-run, his 10-28 19:25 words)
+He said: "to do my frontrun.. i have to wipe the items and then do them one by one ... wont these keep coming back? ... we
+need to have some joineded logic here". Measured on the whole page in node: a Shako the reels had read (tvVaultRegister, 2
+sessions) and then typed by name in + Add an item became copy 2. Every hand entry of a name he holds counted another copy
+(L1), so a Vault done by hand doubled every item the reels had already filed. That door now asks first: "Same item as the
+one read on <date> (<mule> <cell>)", one choice per copy (named by how it came, read or added by hand, and where it is),
+or "Another copy". The same item adds no copy: its looks, history and MOVE row stay, and his hand (with any mods he typed)
+is recorded on that copy's witness row (window.vaultHandJoin). There is no question when he holds none, or when his typed
+mods plainly differ from the recorded mods of every copy. A store that will not read is asked, never guessed. Law:
+test_a_hand_entry_of_an_item_already_here_asks (node, the whole page), 3 red-proofs for this REG, RED.
+
 ### REG-2839 - EVERY MAGIC ITEM ADDED FROM THE PLANNER TOOK ITS BARE BASE BACK INTO THE REMOVAL JOURNAL (front-run measure, his 10-28 plan)
 A magic item's name is its mods. The planner filed the pick as soon as the quality was chosen - the bare base, "Grand
 Charm" - and the first mod renamed it, so every magic add took the bare base back through the removal door. Measured on the

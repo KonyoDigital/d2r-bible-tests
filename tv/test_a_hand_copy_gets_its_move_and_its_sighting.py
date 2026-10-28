@@ -51,9 +51,10 @@ function see(n, x, s1, s2){
 /* a perfect base, through the planner */
 W.vaultPlannerOpen(''); W._cbChoose('b:' + code('Monarch')); W._cbQuality('b'); W._cbEdit('sockets', '4'); W.vaultPlannerClose(); H.flush(60, 3);
 OUT.base = rows('Monarch (4os)');
-/* two Stones of Jordan, two opens */
+/* two Stones of Jordan, two opens - the second is a name he now holds, so the plate asks (REG-2841) and he answers "Another copy" */
 var soj = DB.it.find(function(x){ return x[1] === 'The Stone of Jordan' && x[2] === 'u'; });
-[0, 1].forEach(function(){ W.vaultPlannerOpen(''); W._cbChoose(soj[0]); W.vaultPlannerClose(); H.flush(60, 3); });
+OUT.asked = [0, 1].map(function(){ W.vaultPlannerOpen(''); W._cbChoose(soj[0]); var asked = W.vaultPlannerClose() === false;
+  if (asked){ W.vaultPlannerAnswer('copy'); W.vaultPlannerClose(); } H.flush(60, 3); return asked; });
 var J = 'The Stone of Jordan';
 OUT.copies = copyCount(J);
 OUT.j0 = rows(J);
@@ -76,6 +77,7 @@ class AHandCopyGetsItsMoveAndItsSighting(unittest.TestCase):
     def test_the_page_booted(self):
         self.assertEqual(self.o["__boot"]["errors"], [], self.o["__boot"])
         self.assertEqual(self.o["errors"], [])
+        self.assertEqual(self.o["asked"], [False, True], "PREMISE: the second Stone was not asked 'same item or another copy'")
 
     def test_a_perfect_base_from_the_planner_gets_its_move(self):
         b = self.o["base"]

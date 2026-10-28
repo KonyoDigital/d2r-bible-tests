@@ -41083,6 +41083,8 @@ body{
 #vault-planner-host .vp-plate-say{flex:1;min-width:0;font-family:var(--serif-text,Georgia,serif);font-size:var(--fs-title);line-height:1.35;color:#f6e7c2}
 #vault-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:var(--fs-title);font-weight:var(--fw-semibold);padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
 #vault-planner-host .vp-plate-done:hover{filter:brightness(1.06)}
+#vault-planner-host .vp-plate-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#vault-planner-host .vp-plate-choice{text-transform:none;letter-spacing:.02em;font-size:var(--fs-body);text-align:left}
 #vault-planner-host .vp-plate-wait{border-top-color:rgba(168,186,204,.4);background:linear-gradient(180deg,rgba(24,30,38,.98),rgba(8,10,14,.99))}
 #vault-planner-host .vp-plate-wait .vp-plate-k{color:#d5e2ee}
 .vault-find-x{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:var(--fs-body);padding:2px 6px;border-radius:6px;transition:color .12s,background .12s}
@@ -45979,6 +45981,93 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._vaultProvAll = _provAll;
   window._vaultProvDrop = _provDrop;
+  /* ⟦VAULT HAND JOIN BEGIN⟧ #154 front-run (REG-2840) - HIS HAND ON AN ITEM THE VAULT ALREADY HOLDS: A DOUBT BECOMES A QUESTION.
+     His words (2026-10-28 19:25), his Vault holding what the reels read: "to do my frontrun.. i have to wipe the items and
+     then do them one by one ... we need to have some joineded logic here". The hand doors counted a name he already owns,
+     typed again, as ANOTHER copy (L1), so typing the Shako the reels had read made two Shakos. The two hand surfaces (+ Add
+     an item's pick, and the planner's) now ask this first: owns 0 -> a plain add; his typed mods plainly differ from the
+     recorded mods of every copy -> another copy; anything else -> the question, with each copy named by how it came and
+     where it is, and "Another copy". Never a guess; a store that will not read is asked, not answered. The doors themselves
+     (vaultHandAdd, vaultPlannerFile) still count what they are told - every programmatic caller is unchanged. */
+  function _vaultHandsOf(row){
+    var out = [];
+    [row, row && row.ownedBy].forEach(function(r){ if (r && Array.isArray(r.hands)) out = out.concat(r.hands); });
+    return out;
+  }
+  /* the fields that make one physical copy what it is - a recorded entry and a typed one are the same item only if these agree */
+  function _vaultEntrySig(e){
+    if (!e || typeof e !== 'object') return '';
+    var af = (Array.isArray(e.affixes) ? e.affixes : []).map(function(a){ return String(a && a.id) + ':' + JSON.stringify((a && a.rolls) || {}); }).sort();
+    return JSON.stringify({ b: e.base || null, q: e.q || null, eth: !!e.eth, s: e.sockets | 0,
+                            so: (Array.isArray(e.socketed) ? e.socketed : []).filter(Boolean).slice().sort(), a: af,
+                            r: e.rolls || {}, rn: Array.isArray(e.rn) ? e.rn.filter(Boolean) : [] });
+  }
+  window._vaultEntrySig = _vaultEntrySig;
+  /* did he type anything that sets one copy apart? A bare pick (no sockets, runes, mods, rolls, eth) tells two copies
+     apart by nothing, so it never "plainly differs" - it is asked */
+  function _vaultEntryTyped(e){
+    if (!e || typeof e !== 'object') return false;
+    var nr = (e.rolls && typeof e.rolls === 'object') ? Object.keys(e.rolls).length : 0;
+    return !!((e.sockets | 0) > 0 || nr || e.eth || (Array.isArray(e.socketed) && e.socketed.filter(Boolean).length)
+              || (Array.isArray(e.affixes) && e.affixes.length) || (Array.isArray(e.rn) && e.rn.filter(Boolean).length));
+  }
+  /* -> [{copyIx, how: 'read' | 'hand', at, place, entry}] | null when the copies cannot be read (UNKNOWN) | [] when he owns none */
+  window._vaultCopyChoices = function(name){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm || !(typeof owned !== 'undefined' && owned && owned.has && owned.has(nm))) return [];
+    var all = _provAll(); if (!all) return null;
+    var recs = null;
+    try { recs = (typeof _vaultRecords === 'function') ? (_vaultRecords().records || []).filter(function(r){ return r && r.name === nm; }) : null; } catch (eR) { recs = null; }
+    if (!recs) return null;
+    var row = all[nm] || null, hands = _vaultHandsOf(row);
+    var base = row ? (row.kind === 'owned' ? row : (row.ownedBy || row)) : null;
+    var src = base ? String(base.source || base.by || '') : '';
+    var how = /hand|manual|planner|\+ add/i.test(src + ' ' + String((base && base.by) || '')) ? 'hand' : 'read';
+    return recs.map(function(r){
+      var k = r.copyIx | 0, s = r.sight || null, look = null;
+      if (s && row && Array.isArray(row.looks) && typeof _vaultCellKey === 'function')
+        row.looks.forEach(function(l){ if (!look && l && _vaultCellKey(l.cell, l.loc || l.location || null) === s.cell) look = l; });   /* the sight's own look, by the cell key the sight groups use */
+      var at = (look && look.at) || (base && (base.at || base.recordedAt)) || null;
+      var home = '';
+      try { var mm = r.mule ? muleById(r.mule) : null; home = mm && mm.name ? mm.name : (r.kind === 'sharedStash' ? 'SHARED STASH' : (r.mule || '')); } catch (eM) { home = r.mule || ''; }
+      var place = s ? [s.holder, s.location, s.cell].filter(Boolean).join(' ') : (home || 'not placed yet');
+      var mine = hands.filter(function(h){ return h && (h.copyIx | 0) === k && h.entry; }).pop() || null;
+      return { copyIx: k, how: how, at: at, place: place, entry: mine ? mine.entry : null };
+    });
+  };
+  /* -> {ask: false, decision: 'add' | 'copy', why} | {ask: true, choices, why} (choices null = UNKNOWN) */
+  window._vaultJoinAsk = function(name, entry){
+    var ch = window._vaultCopyChoices(name);
+    if (ch === null) return { ask: true, choices: null, why: 'the copies of ' + name + ' already here could not be read - UNKNOWN, so nothing is guessed' };
+    if (!ch.length) return { ask: false, decision: 'add', why: 'you hold none yet' };
+    var sig = _vaultEntryTyped(entry) ? _vaultEntrySig(entry) : '';
+    if (sig && ch.every(function(c){ var cs = c.entry ? _vaultEntrySig(c.entry) : ''; return cs && cs !== sig; }))
+      return { ask: false, decision: 'copy', why: 'its mods differ from the recorded mods of every copy here' };
+    return { ask: true, choices: ch, why: name + ' is already here - is this the same item, or another copy?' };
+  };
+  /* the words for one choice: "the one read on 2026-10-27 (MULE1 stash stash:c3r2)" */
+  window._vaultChoiceSay = function(c){
+    var d = '';
+    try { var t = c && c.at ? new Date(c.at) : null; d = (t && isFinite(t.getTime())) ? t.toISOString().slice(0, 10) : ''; } catch (eD) { d = ''; }
+    return 'the one ' + (c && c.how === 'hand' ? 'you added' : 'read') + (d ? ' on ' + d : '') + ' (' + ((c && c.place) || 'not placed yet') + ')';
+  };
+  /* HIS ANSWER "THE SAME ITEM": no copy is added; that copy's witnesses, history and move stay as they are, and his hand (with
+     the mods he typed) is recorded on it - one more witness, kept on the witness row the vault already keeps for the name */
+  window.vaultHandJoin = function(name, copyIx, opts){
+    opts = opts || {};
+    var nm = String(name == null ? '' : name).trim(), k = copyIx | 0;
+    if (!nm || !(typeof owned !== 'undefined' && owned && owned.has && owned.has(nm))) return { ok: false, refused: 'not-owned', why: nm + ' is not here - nothing to join' };
+    if (_provHeldNow()) return { ok: false, refused: 'held', why: _provUnknownWhy() };
+    var all = _provAll(); if (!all) return { ok: false, refused: 'held', why: _provUnknownWhy() };
+    var row = all[nm];
+    if (!row){ row = { kind: 'owned', source: 'hand', by: String(opts.by || '+ Add an item'), at: null, looks: [] }; all[nm] = row; }
+    var at = opts.at || new Date().toISOString();
+    var mark = { copyIx: k, at: at, by: String(opts.by || '+ Add an item'), entry: (opts.entry && typeof opts.entry === 'object') ? opts.entry : null };
+    row.hands = (Array.isArray(row.hands) ? row.hands : []).concat([mark]);
+    if (!_provWrite(all)) return { ok: false, refused: 'not-written', why: 'the witness row of ' + nm + ' could not be written - nothing changed' };
+    return { ok: true, mode: 'joined', name: nm, copyIx: k, why: nm + ' - the same item: no new copy; your hand' + (mark.entry ? ' and these mods are' : ' is') + ' now on that copy' };
+  };
+  /* ⟦VAULT HAND JOIN END⟧ */
   /* REG-2415 — asked once as this module loads, so a witness store that will not read is named on the board and holds the
      vault BEFORE the first paint's prune or any door files against it */
   try { _provAll(); } catch (eP0) {}
@@ -45993,6 +46082,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       conf: (typeof r.conf === 'number') ? r.conf : null, where: r.where || null, tier: r.tier || null,
       successes: (typeof r.successes === 'number') ? r.successes : null, trials: (typeof r.trials === 'number') ? r.trials : null };
     keep.kind = 'owned'; keep.demotedFrom = { mule: r.mule || null, at: new Date().toISOString() };
+    if (Array.isArray(r.hands)) keep.hands = (Array.isArray(keep.hands) ? keep.hands : []).concat(r.hands);   /* REG-2840 - his hand on a copy rides the demote */
     if (r.unlockedAt) keep.unlocked = { at: r.unlockedAt, why: r.unlockedWhy || null };   /* #41 rank 17 — a released lock rides on the receipt */
     all[k] = keep; return _provWrite(all);
   }
@@ -46646,6 +46736,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, refused: 'no-list', why: 'the planner list was not read' };
     var row = null;
     cat.rows.forEach(function(r){ if (!row && r && r.id === id) row = r; });
+    /* REG-2840 (#154 front-run, his 19:25 ask) - A NAME HE ALREADY HOLDS IS A QUESTION, NEVER A SILENT SECOND COPY. Typed by
+       name there are no mods to tell copies apart, so it always asks: the same item as one already here (named by how it
+       came and where it is - his hand joins it, no copy is added), or another copy. The answer arrives as the 2nd argument. */
+    var _ans = arguments.length > 1 ? arguments[1] : undefined;
+    if (row && row.name && _ans !== 'copy' && typeof window._vaultJoinAsk === 'function' && typeof _vhPrepare === 'function'){
+      var _pre = _vhPrepare(row.name, null, { kind: _VH_KIND[row.q] || null });
+      if (_pre && _pre.ok && typeof owned !== 'undefined' && owned && owned.has(_pre.name)){
+        var _sayQ = document.getElementById('vault-hand-say');
+        if (_ans != null){
+          var _jr = window.vaultHandJoin(_pre.name, _ans | 0, { by: '+ Add an item' });
+          if (_sayQ){ _sayQ.textContent = _jr.why || ''; _sayQ.setAttribute('data-state', _jr.ok ? 'joined' : 'refused'); }
+          try { if (_jr.ok) renderVault(); } catch (eRj) {}
+          return _jr;
+        }
+        var _jq = window._vaultJoinAsk(_pre.name, null);
+        if (_jq && _jq.ask){
+          var _btn = function(arg, label){ return '<button type="button" class="vault-btn vh-choice" onclick="window.vaultHandTake(\'' + jsArg(id) + '\', ' + arg + ')">' + esc(label) + '</button>'; };
+          if (_sayQ){
+            _sayQ.innerHTML = esc(_jq.why) + ' ' + (_jq.choices || []).map(function(c){
+              return _btn(String(c.copyIx | 0), 'Same item as ' + (typeof window._vaultChoiceSay === 'function' ? window._vaultChoiceSay(c) : ('copy ' + ((c.copyIx | 0) + 1))));
+            }).join(' ') + ' ' + _btn('\'copy\'', 'Another copy');
+            _sayQ.setAttribute('data-state', 'ask');
+          }
+          return { ok: true, mode: 'ask', name: _pre.name, choices: _jq.choices, why: _jq.why };
+        }
+      }
+    }
     var _undoText = (row && row.name && typeof window._vaultUndoSnap === 'function') ? window._vaultUndoSnap() : null;   /* #145 */
     var res = (!row || !row.name) ? { ok: false, refused: 'not-listed', why: 'that item is not in the planner list — nothing was added' }
             : window.vaultHandAdd(row.name, new Date().toISOString(), { kind: _VH_KIND[row.q] || null });
@@ -49345,6 +49462,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     delete map[nm];
     _vpMadeWrite(map);
   }
+  /* REG-2841 - HIS ANSWER "THE SAME ITEM" COMPLETES THE RECORDS THE VAULT KEEPS BY NAME: a Magic & Rare record gains the
+     quality, base or mods it lacks, and a runeword he built is remembered when none was - never written over what a read or
+     an earlier hand left. The copy itself carries the typed entry on its witness row (window.vaultHandJoin). */
+  window._vpCompleteSame = function(entry, nm){
+    if (!entry || !nm) return false;
+    var it = null, shown = null, did = false;
+    try { it = (typeof window._cbItem === 'function') ? window._cbItem(entry.id) : null; shown = (typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (e) { shown = null; }
+    var q = shown && shown.q, magicQ = (q === 'm') ? 'magic' : (q === 'rare') ? 'rare' : (q === 'c') ? 'crafted' : '';
+    if (magicQ && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm] && typeof magicFinds[nm] === 'object'){
+      var rec = magicFinds[nm], mods = _vpMods(entry), base = _vpBase(entry, shown);
+      if (!rec.q){ rec.q = magicQ; did = true; }
+      if (!rec.base && base){ rec.base = base; did = true; }
+      if ((!rec.mods || !rec.mods.length) && mods.length){ rec.mods = mods; did = true; }
+      if (did){ try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e2) {} }
+    }
+    if (q === 'r'){
+      var had = !!window._vpMadeOf(nm);
+      _vpRemember(nm, entry, shown, _vpBase(entry, shown), false);
+      if (!had && window._vpMadeOf(nm)) did = true;
+    }
+    return did;
+  };
   window._vpMadeOf = function(nm){
     var map = _vpMadeRead();
     if (!map) return null;
@@ -49584,7 +49723,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      refuses in those words (_vpRoute: "no mule on this board has id bases"). */
   var VP_PERFECT_HOME = 'bases';
   window._cbPerfectBaseMule = _cbPerfectBaseMule;
-  window.vaultPlannerFile = function(entry, token){
+  window.vaultPlannerFile = function(entry, token, opts){
     if (!entry){
       /* REG-2530 — a clear takes back only what the HELD pick made; _vpCopyUndo writes it to d2r_copies itself */
       _vpCopyUndone = null;
@@ -49648,6 +49787,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(nm); } catch (eEn) {}
       } else _pb = null;
     }
+    /* REG-2841 (#154 front-run) - ASKED BY HIS HAND (the planner's pick and the end of its edit pass {ask: true}): a name he
+       already holds, that this open has not filed, is answered with the question - the same item, or another copy - before
+       anything is written. A caller that does not ask (a law, a migration) gets the door as it always was. */
+    if (opts && opts.ask === true && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)
+        && _vpCopySeen[nm] !== token && !(_vpMade && _vpMade.token === token && _vpMade.name === nm)
+        && typeof window._vaultJoinAsk === 'function'){
+      var _jq = window._vaultJoinAsk(nm, entry);
+      /* at the PICK nothing is typed yet, so "his mods plainly differ" cannot be read off it: the pick always asks, and the
+         end of the edit (flush) settles it by the mods he typed */
+      if (_jq && !_jq.ask && opts.atPick && _jq.decision === 'copy')
+        _jq = { ask: true, choices: window._vaultCopyChoices(nm), why: nm + ' is already here - is this the same item, or another copy? (type its mods and Done decides, or answer now)' };
+      if (_jq && _jq.ask) return { ok: true, filed: false, mode: 'ask', name: nm, choices: _jq.choices, why: _jq.why };
+    }
+    /* REG-2841 - a DRY ask (the planner's edit, before anything is filed): the name this entry makes now and how the join
+       reads it - an edit can turn a pick into another name (sockets name a base), so the question follows the name */
+    if (opts && opts.ask === true && opts.dry === true) return { ok: true, filed: false, mode: 'dry', name: nm, decision: (_jq && _jq.decision) || null };
     _vpCopyUndone = null;
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #183 (REG-2530) — ONLY A RE-ROLL OF THE SAME PICK TAKES ITS COPY BACK. REG-2267 (v3753) dropped this id check to undo a "swap", and the REG-2240 name check could not hold, because the name it compares IS the first pick's: Grief (copy 2) then Spirit in the same open left d2r_copies with no Grief (GrokBot V0, v3740:63 / v3742r:72), and "copy 2 filed" stayed on screen. A different item in the same open is a SECOND ADD, exactly as _vpDrop below has always ruled for a fresh pick. Guard: tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py. */
     _vpDropSaid = '';
@@ -70075,7 +70230,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var _hEnt = (st.pick.kind === 'inv' ? (mb.sets[0].inv || [])[0] : mb.sets[0].slots[st.pick.slot]) || null;   // #174 v-B5: or its inventory tile
       /* REG-2832 - in the vault planner a change made in the EDIT tab is held as a draft and filed once when the edit ends */
       var wr = (st.host.planner && typeof st.host.hold === 'function' && st.pick.tab === 'edit' && _hEnt) ? st.host.hold(_hEnt)
-        : (st.host.write(_hEnt) || { ok: false, why: 'the mule window did not answer' });
+        : (st.host.write(_hEnt, st.host.planner ? { ask: true, atPick: true } : undefined) || { ok: false, why: 'the mule window did not answer' });   /* REG-2841 his pick asks */
       st.hostErr = wr.ok ? '' : (wr.why || 'not saved');
       return !!wr.ok;
     }
@@ -72742,7 +72897,19 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      the mule window listed for this slot: {html, n (it offers), total (the locker holds)} - the tab in front is chosen
      here, once: the locker's list when it offers anything, the whole database when it offers nothing */
   function _vpPlateHtml(say, saved, edit){
-    var s = String(say || '');
+    var s = String(say || ''), question = (st.host && st.host.question) || null;
+    /* REG-2841 - the question: each copy already here, named by how it came and where it is, and "Another copy" */
+    if (question){
+      var qb = (question.choices || []).map(function(c){
+        return '<button type="button" class="vp-plate-done vp-plate-choice" onclick="window.vaultPlannerAnswer&&window.vaultPlannerAnswer(' + (c.copyIx | 0) + ')">Same item as '
+          + esc(typeof window._vaultChoiceSay === 'function' ? window._vaultChoiceSay(c) : ('copy ' + ((c.copyIx | 0) + 1))) + '</button>';
+      }).join('');
+      return '<div class="vp-plate vp-plate-ask" role="status">'
+        + '<div class="vp-plate-k">Same item?</div>'
+        + '<div class="vp-plate-say">' + esc(String(question.why || '')) + '<div class="vp-plate-choices">' + qb
+        + '<button type="button" class="vp-plate-done vp-plate-choice" onclick="window.vaultPlannerAnswer&&window.vaultPlannerAnswer(\'copy\')">Another copy</button></div></div>'
+        + '</div>';
+    }
     /* REG-2832 - while an edit is held, the plate says so - never SAVED or NOT IN A LOCKER for a draft nothing has filed */
     if (edit) return '<div class="vp-plate vp-plate-edit" role="status">'
       + '<div class="vp-plate-k">Editing</div>'
@@ -72818,11 +72985,26 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return true;
   };
   var _vpOpenCtx = null;
+  /* REG-2841 - the plate's answer buttons */
+  window.vaultPlannerAnswer = function(choice){
+    var cx = _vpOpenCtx; if (!cx || typeof cx.answer !== 'function') return { ok: false, why: 'the planner is not open' };
+    var r = cx.answer(choice);
+    try { window.vaultPlannerPaint(); } catch (eP) {}
+    return r;
+  };
   window.vaultPlannerClose = function(){
     /* REG-2832 - Done, Esc and the close end the edit: a held draft is filed now, once, while the planner is still on
        (so its draw waits for the close, as every planner filing does) */
     var _cx = _vpOpenCtx; _vpOpenCtx = null;
-    try { if (_cx && typeof _cx.flush === 'function') _cx.flush(); } catch (eF) {}
+    var _fx = null;
+    try { if (_cx && typeof _cx.flush === 'function') _fx = _cx.flush(); } catch (eF) {}
+    /* REG-2841 - a question he has not answered keeps the planner open: closing over it would guess (or drop his item) */
+    if (_fx && _fx.mode === 'ask'){
+      _vpOpenCtx = _cx;
+      try { window.vaultPlannerPaint(); } catch (ePq) {}
+      try { _vpStatus('⚠ ' + _fx.why + ' - answer on the plate first'); } catch (eSq) {}
+      return false;
+    }
     window._vaultPlannerOn = false;
     try { if (window._cbHostClose) window._cbHostClose(); } catch (e) {}
     var host = document.getElementById('vault-planner-host');
@@ -72883,8 +73065,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       kind: 'inv', cell: [0, 0], mule: 'the Vault', where: 'a manual add', planner: true,
       fits: function(){ return true; },
       cur: function(){ return held; },
-      write: function(entry){
+      write: function(entry, wopts){
         if (pending && entry) ctx.flush();           /* REG-2832 - the next pick ends the edit: its draft is filed first */
+        var _unans = (entry && ctx.question) ? String(ctx.question.name || '') : '';   /* REG-2841 - a pick over an unanswered question files nothing for it, and says so */
         pending = false; ctx.pending = false;        /* REG-2832 - a clear drops the draft, then takes back what was filed */
         /* #154 front-run (REG-2839) - A MAGIC PICK WITH NO MOD YET IS THE START OF ONE EDIT, NOT AN ITEM. A magic item's name
            is its mods, so the pick filed the bare base ("Grand Charm") and the first mod renamed it - a take-back of the bare
@@ -72894,13 +73077,46 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
            mods. A rare keeps its rolled name as mods are added, so it files at the pick as before. */
         if (entry && entry.q === 'm' && !(entry.affixes && entry.affixes.length)) return ctx.hold(entry);
         held = entry;
-        var r = window.vaultPlannerFile(entry, token);
+        ctx.question = null;
+        var r = window.vaultPlannerFile(entry, token, wopts);
+        if (r && r.mode === 'ask'){ ctx.ask(r); if (_unans) ctx.say = 'nothing was filed for ' + _unans + ' (its question was not answered) - ' + ctx.say; return { ok: true, held: true, why: ctx.say }; }   /* REG-2841 - the question, not a copy */
         _vpSayOf(r);
+        if (_unans) ctx.say = 'nothing was filed for ' + _unans + ' (its question was not answered) - ' + ctx.say;
         return { ok: !r || r.ok !== false, why: ctx.say || 'not saved' };
+      },
+      /* REG-2841 - the pick waits with its question: held as a draft (his mods may still come), drawn on the plate */
+      ask: function(r){
+        pending = true; ctx.pending = true;
+        ctx.question = { name: r.name, choices: r.choices, why: r.why };
+        ctx.say = r.why; ctx.saved = false;
+      },
+      /* REG-2841 - his answer: 'copy' files another copy; a copy index joins that copy (no new copy) */
+      answer: function(choice){
+        var q = ctx.question; if (!q || !held) return { ok: false, why: 'there is no question to answer' };
+        ctx.question = null; pending = false; ctx.pending = false;
+        if (choice === 'copy'){
+          var rc = window.vaultPlannerFile(held, token); _vpSayOf(rc);
+          /* the new copy carries what he typed, so the next hand entry can be told apart from it */
+          try { if (rc && rc.ok !== false && (rc.filed || rc.mode === 'copy') && typeof window.vaultHandJoin === 'function' && typeof copyCount === 'function')
+                  window.vaultHandJoin(q.name, Math.max(0, (copyCount(q.name) | 0) - 1), { by: 'the Vault planner', entry: held }); } catch (eNc) {}
+          return rc;
+        }
+        var k = choice | 0, jr = (typeof window.vaultHandJoin === 'function') ? window.vaultHandJoin(q.name, k, { by: 'the Vault planner', entry: held }) : null;
+        try { if (jr && jr.ok && typeof window._vpCompleteSame === 'function') window._vpCompleteSame(held, q.name); } catch (eC) {}
+        ctx.say = (jr && jr.why) || 'the same item could not be joined - nothing changed'; ctx.saved = !!(jr && jr.ok);
+        if (jr && jr.ok) window._vaultPlannerDirty = true;
+        return jr;
       },
       hold: function(entry){
         if (!entry) return ctx.write(entry);
         held = entry; pending = true; ctx.pending = true;
+        /* REG-2841 - an edit under a question is asked again by the name it makes now: still a doubt -> still asked (by that
+           name); a name he does not hold, or mods that plainly differ from every copy -> the question is gone, Done files it */
+        if (ctx.question){
+          var dq = window.vaultPlannerFile(entry, token, { ask: true, dry: true });
+          if (dq && dq.mode === 'ask'){ ctx.question = { name: dq.name, choices: dq.choices, why: dq.why }; ctx.say = dq.why; return { ok: true, held: true, why: dq.why }; }
+          ctx.question = null;
+        }
         var nm = '';
         try { var sh = window._cbShown(entry, window._cbItem(entry.id)); nm = (sh && sh.name) ? String(sh.name) : ''; } catch (eS) { nm = ''; }
         ctx.editSay = (nm || 'This item') + ((entry.sockets | 0) > 0 ? ' · ' + (entry.sockets | 0) + ' socket' + ((entry.sockets | 0) === 1 ? '' : 's') : '')
@@ -72909,8 +73125,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       },
       flush: function(){
         if (!pending) return null;
-        pending = false; ctx.pending = false;
-        var r = window.vaultPlannerFile(held, token);
+        /* REG-2841 - the end of an edit asks as the pick does, by the name the edit made: a doubt -> nothing is filed until he
+           answers; his typed mods plainly differ from every copy on record -> another copy, carrying them */
+        var d = window.vaultPlannerFile(held, token, { ask: true, dry: true });
+        if (d && d.mode === 'ask'){ ctx.ask(d); return d; }
+        if (d && d.mode === 'dry' && d.decision === 'copy'){ ctx.question = { name: d.name, choices: null, why: '' }; return ctx.answer('copy'); }
+        ctx.question = null; pending = false; ctx.pending = false;
+        var r = window.vaultPlannerFile(held, token, { ask: true });
+        if (r && r.mode === 'ask'){ ctx.ask(r); return r; }
         _vpSayOf(r);
         return r;
       },

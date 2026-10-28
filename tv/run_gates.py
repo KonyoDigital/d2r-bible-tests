@@ -12337,6 +12337,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_magic_pick_files_once_with_its_mods.py")], 300,
          needs_app=False,
          why='front-run REG-2839 - a magic planner pick is held until its mods, filed once, with no take-back in the removal journal'),
+    Gate("test_a_hand_entry_of_an_item_already_here_asks",
+         [sys.executable, os.path.join(HERE, "test_a_hand_entry_of_an_item_already_here_asks.py")], 300,
+         needs_app=False,
+         why='REG-2840/2841 (#154 front-run) - a hand entry of an item already in the Vault asks same item or another copy, never a second copy by itself'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
