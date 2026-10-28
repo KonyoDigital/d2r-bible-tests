@@ -268,8 +268,12 @@ export async function onRequestPost(context) {
 
   let bytes = new Uint8Array(0);
   try { bytes = new Uint8Array(await request.arrayBuffer()); } catch (e) { bytes = new Uint8Array(0); }
-  if (bytes.byteLength > PROFILE_MAX_BODY) {
-    return refuse("roster would not take this publish: the body is too large to be rows");
+  // REG-2794 (the v3829 second eye) - the door's first cap is the LARGEST any kind may send. It was the profile's 200 KB, so
+  // a frames digest (its own cap 900 KB, built up to 600 KB of thumbnails) past 200 KB was refused as "too large to be
+  // rows" before it reached its own door. Each kind still enforces its own cap: rows MAX_BODY, profile PROFILE_MAX_BODY,
+  // frames FRAMES_MAX_BODY.
+  if (bytes.byteLength > FRAMES_MAX_BODY) {
+    return refuse("roster would not take this publish: the body is larger than any record it keeps");
   }
   // #95 - the signature is checked over the bytes as they arrived, before JSON.parse and before any write.
   const sig = await signatureOf(request, bytes);

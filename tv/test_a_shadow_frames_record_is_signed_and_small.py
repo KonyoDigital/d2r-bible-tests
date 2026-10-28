@@ -125,6 +125,17 @@ class TheFramesRecord(unittest.TestCase):
         self.assertTrue(got["get"].get("published") and not got["get"].get("corrupt"), got["get"])
         self.assertEqual(got["get"]["digest"], d, "the digest did not read back byte for byte")
 
+    def test_a_digest_past_the_profile_cap_reaches_its_own_door(self):
+        """REG-2794 (the v3829 second eye) - the door's first check was the profile's 200 KB, so any real digest past it
+        (16 sessions with one small thumbnail each is ~290 KB) was refused as "too large to be rows"."""
+        d = _digest(n=16, frames=1, jpg="/9j/" + "A" * 18000)
+        post = self._post(d, self.key_a)
+        self.assertGreater(len(base64.b64decode(post["raw"])), 200000, "PREMISE: the digest is not past the profile cap")
+        out = _node({"seed": self.seed, "steps": [post]})
+        st = out["steps"][0]
+        self.assertTrue(st["reply"].get("ok"), "a digest within its own 900 KB cap was refused: %r" % st["reply"])
+        self.assertEqual(st["puts"], ["roster:%s:frames" % OWNER])
+
     def test_an_unsigned_or_foreign_upload_stores_nothing(self):
         out = _node({"seed": self.seed, "steps": [self._post(_digest(), None), self._post(_digest(), self.key_b)]})
         for st in out["steps"]:
@@ -172,6 +183,11 @@ class TheFramesRecord(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2794 - the door's first cap is the profile's 200 KB again, so a real digest never reaches its own door",
+     "file": "functions/api/roster.js",
+     "find": "  if (bytes.byteLength > FRAMES_MAX_BODY) {\n    return refuse(\"roster would not take this publish: the body is larger than any record it keeps\");\n",
+     "replace": "  if (bytes.byteLength > PROFILE_MAX_BODY) {\n    return refuse(\"roster would not take this publish: the body is larger than any record it keeps\");\n",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2771 - the frames door does not exist (a digest is refused or lost)",
      "file": "functions/api/roster.js",
      "find": "  if (body.kind === \"frames\") return framesPost(env, bytes, sig, body);\n",
