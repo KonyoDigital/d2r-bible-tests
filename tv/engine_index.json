@@ -612,6 +612,16 @@
     "purpose": "Attack harness proving the disk row REFUSES bogus freed-MB figures (NaN, negative, bigger than the corpus), and banks a Wilson score.",
     "territory": "gates-proofs"
   },
+  "disk_room.py": {
+    "entryPoints": [
+      "free_bytes",
+      "free_gb",
+      "important_bytes"
+    ],
+    "gotcha": "On macOS it returns the larger of what CoreFoundation says an IMPORTANT write may use (purgeable space included) and the plain free; anywhere else, or when the key will not answer, the plain free. A law that replaced shutil.disk_usage gets the plain value of ITS pretend disk - judged from the function itself (module 'shutil', name 'disk_usage'), never from a copy taken at import, because this module is imported late. It raises exactly what shutil.disk_usage raises, so each caller keeps its own UNKNOWN handling.",
+    "purpose": "#151 (REG-2742) - the one free-space reading every deciding floor uses (ON AIR, picture size, disk sign, doctor, retention, warden, river, heart2 lanes), counting what macOS frees on demand, as Finder does.",
+    "territory": "routines-infra"
+  },
   "dom_probe.py": {
     "entryPoints": [
       "prelude"
@@ -844,6 +854,18 @@
     ],
     "gotcha": "Git for Windows' PATH git (Git\\cmd\\git.exe) is a 46 KB CUI WRAPPER and pythonw owns no console, so a CUI child ALLOCATES one — a real terminal on top of D2R. MEASURED 2026-09-21: windows stealing focus 2-3 in a row every couple of minutes. CREATE_NO_WINDOW on the wrapper is NOT enough because it respawns the real git without the flag, and headless-git.exe still starts a CUI git.exe child — so this calls mingw64\\bin\\git.exe DIRECTLY. It is a module rather than a helper inside control_app because console_doctor spawns git too and a second copy would drift; test_windows_git_spawns_hide_the_console pins that there may only ever be ONE body of the mingw redirect.",
     "purpose": "The ONE door every git spawn in this codebase walks through, so no git child ever owns a console.",
+    "territory": "routines-infra"
+  },
+  "grok_chat_prune.py": {
+    "entryPoints": [
+      "run",
+      "plan",
+      "inventory",
+      "live_ids",
+      "sessions_root"
+    ],
+    "gotcha": "It prunes only when NEEDED (the Grok sessions folder over 2 GB, or the disk under the ON AIR floor) and never a session active_sessions.json lists as open - an unreadable registry prunes nothing. Whole conversation folders, oldest first, never one written in the last hour or younger than 7 days (1 under the critical floor), never anything outside the root or behind a link. The console calls it from the disk sign's pass, which already waits out his game and a busy machine.",
+    "purpose": "#151 (REG-2743, his ruling) - prunes his own Grok CLI chats automatically when they need to be, so ~/.grok/sessions cannot take the disk to ENOSPC again (11.25 GB on 2026-09-01), with a receipt per pass.",
     "territory": "routines-infra"
   },
   "guest_fixture_pack.py": {
