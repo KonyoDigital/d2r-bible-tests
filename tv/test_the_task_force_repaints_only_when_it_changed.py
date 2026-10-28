@@ -46,7 +46,7 @@ class TheTaskForceRepaintsOnlyWhenItChanged(unittest.TestCase):
         js = fn + ("var a = '<div aria-label=\"finish Cow King&#39;s Leathers\">x</div>';"
                    "console.log(JSON.stringify([_hdTfHash(a) === _hdTfHash(a), _hdTfHash(a) === _hdTfHash(a + ' '),"
                    " _hdTfHash('') === _hdTfHash(null)]));")
-        out = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=60).stdout.strip()
+        out = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=60).stdout.strip()
         self.assertEqual(out, "[true,false,true]", out)
 
 

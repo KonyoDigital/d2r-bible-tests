@@ -26,6 +26,12 @@ Breaking only the first changed nothing the law can see. The property the law na
 the proof now breaks both raises (one find over the two lines, 1 match). REG-2786's own proofs aim at its line on names
 that are not set pieces, where the L1 line never applies, so they stay honest. The code keeps both lines (each is right on
 its own; the set-piece line is a named special case of the general one). Proven by the push gate (Chrome law).
+### REG-2966 - REG-2796'S LAW HANDED NODE ITS PROGRAM ON ARGV (test_no_law_hands_node_its_program_on_argv, found by agent-86)
+test_the_task_force_repaints_only_when_it_changed.py ran `subprocess.run([NODE, "-e", js])`, the shape the argv law
+refuses everywhere because Linux caps one argv string at 128 KB and the failure reads as an OS error with no word about the
+law. Its program is small today; the rule is about the shape. It now feeds node on stdin (`[NODE, "-"], input=js`), and
+both laws pass (3/3 and 2/2).
+
 ### REG-2913 - IN A FRAMED WINDOWS BOARD THE WORLD BAND PAINTED OVER THE SEARCH (#220, GrokBot #230 6462161184)
 GrokBot on the Mac's shadow of the ALT: #cousin-ribbon ("WINDOWS - its own world", position fixed, top 0, ~22 px, z 2000,
 pointer-events none) painted over the top ~10 px of #gsearch-input. Inside the console frame (body.engine-driven) the tab
