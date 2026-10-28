@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3836",
+  "ver": "v3837",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3836: framed Windows search clears the band and badge, a war mule by its role, saved targets stay, the task force paints once",
+  "note": "v3837: capture time and full looks, copies join by cell and mods, removed stays out, charms mule, keeper destination",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
