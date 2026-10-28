@@ -12461,6 +12461,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_bare_charm_pick_is_his_and_asked.py")], 300,
          needs_app=False,
          why="REG-2965 (int-4) - a magic charm picked and left bare is owned, its record kept, unfiled with the charm rule's question - never lost, never a guessed home"),
+    Gate("test_the_vault_guide_walks_the_real_controls",
+         [sys.executable, os.path.join(HERE, "test_the_vault_guide_walks_the_real_controls.py")], 300,
+         needs_app=False,
+         why='the Vault guide lights real controls, tutorial first, closed folds, and writes nothing (REG-2860)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
