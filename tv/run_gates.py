@@ -12109,6 +12109,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_vault_change_can_be_undone.py")], 300,
          needs_app=False,
          why='#145 a wipe, a reset, a records clear and a hand add can be undone once from the toolbar'),
+    Gate("test_a_grok_session_never_outlives_its_call",
+         [sys.executable, os.path.join(HERE, "test_a_grok_session_never_outlives_its_call.py")], 300,
+         needs_app=False,
+         why='#151 the intake lane drops its own Grok session dir and the read lane sweep knows both lanes names'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

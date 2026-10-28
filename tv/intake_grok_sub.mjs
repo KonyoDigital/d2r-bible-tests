@@ -8,9 +8,9 @@
 //
 // Same real functions/api/intake.js pipeline — only the Anthropic fetch shim differs.
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -151,6 +151,7 @@ function grokCall(apiBody) {
     if (imgPath) unlinkSync(imgPath);
     if (work) rmdirSync(work, { recursive: true });
   } catch (e) {}
+  dropSession(work);
 
   const out = (r.stdout || '').trim();
   const a = out.indexOf('{'), b = out.lastIndexOf('}');
@@ -169,6 +170,25 @@ function grokCall(apiBody) {
     }),
     text: async () => jsonText,
   };
+}
+
+/* #151 - THE GROK CLI KEEPS ONE SESSION DIRECTORY PER --cwd under the Grok home's sessions/, named for this call's own
+   throwaway work dir. Nothing reuses it: REG-1687 removed the G5 read lane's (g5_grok_eyes._cleanup), and this lane's
+   piled up - 55 on his Mac between 10-21 and 10-28. Matched by this call's unique tvd-intake-g5- basename only, so none of
+   his own sessions can match; a failure is left to the read lane's sweep (G5_SESSION_MARKS), never thrown. -> count */
+export function dropSession(work, home) {
+  let n = 0;
+  try {
+    const mine = basename(String(work || '').replace(/[\\/]+$/, ''));
+    const sd = join(home || process.env.GROK_HOME || join(homedir(), '.grok'), 'sessions');
+    if (!mine.startsWith('tvd-intake-g5-') || mine.length <= 'tvd-intake-g5-'.length || !existsSync(sd)) return 0;
+    for (const name of readdirSync(sd)) {
+      if (!name.includes(mine)) continue;
+      rmSync(join(sd, name), { recursive: true, force: true });
+      n += 1;
+    }
+  } catch (e) {}
+  return n;
 }
 
 const realFetch = globalThis.fetch;
