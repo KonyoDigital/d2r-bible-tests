@@ -12181,6 +12181,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_last_session_digest_says_when.py")], 300,
          needs_app=False,
          why='#86 REG-2757: the LAST SESSION digest says when its run was captured'),
+    Gate("test_a_copy_readout_says_what_each_side_counts",
+         [sys.executable, os.path.join(HERE, "test_a_copy_readout_says_what_each_side_counts.py")], 300,
+         needs_app=False,
+         why='#144.9 REG-2760: a read-only copy readout says what the card, the records and FIND count'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

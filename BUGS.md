@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2760 - NO SEAT COULD MEASURE WHETHER HIS LOCKERS' COPIES AGREE (#144.9, his pick 2026-10-28 12:41 IDT)
+GrokBot proved on a guest that the locker card draws copies from the copies store (copyCount, through _shelfCopyCount)
+while the mule window and FIND pack the vault records (_vaultRecordsForMule): a plate said "2 items in 5 copies" over one
+cell each. His own records live only in his browser, so neither seat could say whether his real vault splits the same
+way (GrokBot 6466846769: BLOCKED). He chose a read-only readout. window._vaultCopyAudit(): per name filed to a locker,
+what the card draws, what the records hold for it, how many cells FIND names, the copies store's count, the war cap where
+one applies, and a mismatch flag, mismatched rows first; it writes and migrates nothing (the dirty marker and the
+migrate stamp are read raw). It rides the board's existing tally hand-over at most every 5 min, the console banks it as
+handed (accept_handed_copy_audit - shape-checked, never re-derived) and serves it with its age on GET
+/api/vault/copy_audit. Which side is right is decided after his numbers are read. Law:
+test_a_copy_readout_says_what_each_side_counts (9 cases; the board's half driven on the whole page in node, 6 red-proofs).
+
 ### REG-2759 - A SHELF ROW COUNTED THE DEEP READER'S COMMITMENT NOTE AS A READ (GrokBot's v3823 question)
 GrokBot asked whether "3 reads in 310 ms" (session 71) and "2 reads in 574 ms" (session 81) could be a read cadence. Read
 from his journal: session 71 holds an ocr row and a deep row on frame 1, and a deep-owed row - the console's note that the
