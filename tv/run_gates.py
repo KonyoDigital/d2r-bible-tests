@@ -12085,6 +12085,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_held_lock_shows_its_catch_up.py")], 300,
          needs_app=False,
          why='#180 - a held lock is amber with the census catch-up (N/M proved, K to go), blind red, by-design grey; the merit reads trial: N/N refused'),
+    Gate("test_a_spelling_never_poisons_the_runeword_cache",
+         [sys.executable, os.path.join(HERE, "test_a_spelling_never_poisons_the_runeword_cache.py")], 300,
+         needs_app=False,
+         why='REG-2711 (#111) - flail, Flail and FLAIL host the same runewords; a lowercase spelling never caches an empty answer'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

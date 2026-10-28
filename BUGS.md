@@ -24,6 +24,13 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2711 - "flail" CACHED NO RUNEWORDS, AND EVERY LATER "Flail" READ IT (#111, reviewers C2/E/D)
+_baseRunewords memoises on the LOWERCASED name; _baseCats looked BASE_CLASS up case-sensitively, so 'flail' found no class
+(flails are a known gap in the regex fallback), cached [] under 'flail', and every later 'Flail' read the cached nothing -
+the order he typed or read a name decided whether a base could host a runeword. The exact-name lookup goes through one
+lowercased index of BASE_CLASS's own keys (_baseClassOf), the quality-prefix retry too, so every spelling resolves to the
+same base before any memo. Law: test_a_spelling_never_poisons_the_runeword_cache (a red-proof, seen RED).
+
 ### REG-2710 - A HELD LOCK READ GREEN AND "EARNED 85/85" (#180, his 2026-10-22 heart screenshots)
 "shouldn't it show me accurately progress wise how much has been proven? like the 85/85 97/97 - if not proven all the way why
 is it showing me as if it is". A held lock painted "held: the prover is behind · earned 85/85" - its MERIT, the attacks refused
