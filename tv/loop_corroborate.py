@@ -57,7 +57,9 @@ SURFACES = ("_ledger_backup_loop", "_vault_autoread_loop",
             # REG-2463 (#168) — it leaves a real trace every pass: what it folded, owes and left loose
             "_orphan_fold_loop",
             # #193 — it leaves a real trace every pass: whether it read the river, and why not
-            "_river_warm_loop")
+            "_river_warm_loop",
+            # #151 — it leaves a real trace every pass: whether it measured the disk, and why not
+            "_disk_sign_loop")
 
 #: vessel -> (lane the tick is stamped under, glob for its trace, declared period in seconds)
 #: ⚠ THE LANE NAME IS NOT THE VESSEL NAME. `_ledger_backup_loop` stamps under
@@ -102,6 +104,10 @@ LOOPS = {
     # (RIVER_WARM_EVERY_S / RIVER_WARM_FIRST_S).
     "_river_warm_loop": ("tvd-river-warm",
                          _lt.path_of("tvd-river-warm"), 300.0),
+    # #151 — the disk sign's lane writes its trace on every pass (no throttle): 1800 s, a first look 120 s after boot
+    # (DISK_SIGN_EVERY_S / DISK_SIGN_FIRST_S).
+    "_disk_sign_loop": ("tvd-disk-sign",
+                        _lt.path_of("tvd-disk-sign"), 1800.0),
 }
 
 #: how many declared periods a trace may fall behind before the pair is a contradiction. Generous

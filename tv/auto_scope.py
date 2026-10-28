@@ -205,6 +205,17 @@ LANES = {
         "brakes": "never while he plays or the machine is over 80% busy; a read that fails stays a failed read, "
                   "retried on the same cadence, never in a tight loop",
     },
+    # #151 - his "a warning sign under the online area", 2026-10-21
+    "tvd-disk-sign": {
+        "does": "measures how much of the disk his reels, the Grok sessions and the test output hold, for the disk sign "
+                "under the ONLINE light (free space itself is read on every status call, not here)",
+        "touches": "nothing on disk - it walks three folders and keeps the sizes in memory",
+        "forbids": ["delete"],
+        "never": "a reel, a frame, a session folder or a ledger - it reads sizes and never moves, writes or removes",
+        "when": "two minutes after a start, then every half hour",
+        "brakes": "never while he plays or the machine is over 80% busy; each folder walk stops at 20 s and says "
+                  "'at least' rather than calling a partial count the total",
+    },
 }
 
 
@@ -416,6 +427,7 @@ LANE_FN = {
     "tvd-tooltip-oracle": "_tooltip_oracle_loop",
     "tvd-orphan-fold": "_orphan_fold_loop",
     "tvd-river-warm": "_river_warm_loop",
+    "tvd-disk-sign": "_disk_sign_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed
