@@ -143,6 +143,7 @@ card draws it. When nothing shows a second copy, the line stays "N owned", with 
 tv/test_the_vault_header_counts_copies_from_evidence.py, 3 red-proofs. The CI spec v3747_one_record_header_parity still
 reads its owned, filed and loose numbers by their own words; its comment quoting the old line is now out of date.
 ### REG-2917 - TWELVE VAULT, INTAKE AND MOVE LAWS COULD NOT BE SEEN TO REFUSE: NO EXECUTABLE RED_PROOF (#128)
+### REG-2917 - LAWS WITH NO EXECUTABLE RED-PROOF GAIN ONE: 12 OF 54 (#128)
 heart2's own census (heart2.report) read 1,238 gates, 1,184 declaring a proof, 54 with none - UNKNOWN, not clean. The
 twelve guarding vault, intake and move code that run without a browser now each carry an executable RED_PROOF that breaks
 the PROPERTY the law names (anchor matched exactly once; each seen RED for that property, not for an import, a crash or an
@@ -158,9 +159,29 @@ stayed green were dropped or re-aimed rather than kept: the reload law's UNKNOWN
 itself (it refuses a held vault), and removing the records store's removeItem is undone by the run's own refresh. Two law
 instruments were fixed where a sabotage exposed them: the relaunch-lock law now seats _tree_is_mid_edit (a red-proof that
 edits control_app.py made the tree "mid-edit", and that refusal answered for the lock it removed), and its cold-lock case
-now reads both of the decider's lock refusals ("lock was touched"), where it saw only the in-process lane's. After: 42
-unproven, named in the report; the browser laws among them (intake move, copy witness, add/find doors, v3 layout, v3771
-face, shadow draw) need CI to be seen red.
+now reads both of the decider's lock refusals ("lock was touched"), where it saw only the in-process lane's.
+Census after (heart2.report): 1,238 gates, 1,196 declaring a proof, 42 still unproven. By name - the six marked
+(browser) need CI to be seen red:
+test_missing_companion, test_a_window_change_reaches_the_fleet, test_world_ribbon, test_no_footage_tracked,
+test_dock_says_why, test_population_why, test_proof_chip, test_live_store_skip, test_countless_proof,
+test_blind_organ, test_both_terms, test_no_pinned_footage, test_read_not_waiting,
+test_the_fleet_names_what_each_side_lacks, test_a_written_answer_has_a_reader, test_a_hop_shadows_the_window,
+test_a_fixture_pack_is_not_his_footage, test_the_guest_seat_is_grok_not_konyo,
+test_the_chronicle_counts_a_sunder_once, test_the_sweep_says_how_long_it_has_been_reading,
+test_a_manual_declaration_can_be_found, test_the_card_says_why_the_list_is_missing,
+test_reported_counts_is_not_no_report, test_a_missing_row_never_claims_it_does_not_know,
+test_a_decoded_empty_is_not_unknown, test_the_edit_tab_states_the_odds_of_the_mods_he_picked,
+test_a_measured_find_date_stays_on_the_live_sighting, test_a_1440_tooltip_joins_the_panel,
+test_tooltip_read_failures, test_a_shadow_log_nobody_read_is_not_agreement,
+test_an_unread_test_is_not_a_clean_verdict, test_a_reach_difference_is_not_an_unsteady_eye,
+test_an_in_game_draft_wears_the_gear_the_reels_showed, test_the_head_stamp_matches_the_build,
+test_intake_a_move_needs_a_look_and_owned_has_a_record, test_v3767_copy_witness_visual,
+test_an_odd_item_name_never_leaks_out_of_its_attribute, test_an_off_grid_builder_item_is_flagged_not_drawn,
+test_vault_add_and_find_doors_work, test_vault_v3_layout_keeps_every_door, test_v3771_vault_console_face_visual,
+test_shadow_mode_draws_their_console.
+Browser: test_intake_a_move_needs_a_look_and_owned_has_a_record, test_v3767_copy_witness_visual,
+test_vault_add_and_find_doors_work, test_vault_v3_layout_keeps_every_door, test_v3771_vault_console_face_visual,
+test_shadow_mode_draws_their_console.
 
 ### REG-2916 - THREE LANES PROMISED NEVER TO DELETE AND THEIR REACH DELETES, WITH NOTHING DECLARING IT (#128)
 auto_scope.undeclared_reach_abilities reported tvd-shadow-watch (reach 74), tvd-stash-watch (40) and tvd-version-drift (124)
