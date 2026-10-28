@@ -843,6 +843,19 @@ with a keeper target (Stormshield's is 2) counts a re-read under that target as 
 card draws it. When nothing shows a second copy, the line stays "N owned", with no guessed number. Law:
 tv/test_the_vault_header_counts_copies_from_evidence.py, 3 red-proofs. The CI spec v3747_one_record_header_parity still
 reads its owned, filed and loose numbers by their own words; its comment quoting the old line is now out of date.
+### REG-2916 - THREE LANES PROMISED NEVER TO DELETE AND THEIR REACH DELETES, WITH NOTHING DECLARING IT (#128)
+auto_scope.undeclared_reach_abilities reported tvd-shadow-watch (reach 74), tvd-stash-watch (40) and tvd-version-drift (124)
+as forbidding delete while their depth-3 reach can delete, with no clause permitting it - only tvd-ledger-backup had one
+(`rotates`). Read in the code, every delete call in those reaches is the console's own bookkeeping: stop_agent (PID_PATH, the
+live eye frame), _stop_capture and _capture_health (CAP_PID_PATH), _force_kill_all_agents (PID_PATH), _launcher_picture (the
+temporary picture it took itself) and _clear_exit_on_purpose (its own marker) - never a reel, his footage, a ledger or the
+vault. Each lane now declares those functions in a `clears` clause and auto_scope.CLEARS names the exact target each one
+removes. clears_report reads every delete call in the lane's reach from the syntax tree (a comment is not a call), and the
+reporter permits the row only when each is a declared function removing a declared target: a new delete, a new target, a
+new deleting function in the reach, or a table entry no lane declares is a break again. The checker was not loosened - the
+declaration was made to match the code - and the `never` lines stop saying nothing is removed. After: all four rows
+permitted. Law: test_a_lane_clears_only_what_it_declares (14 cases, a class per lane; 4 red-proofs, each widening one
+lane's reach, each RED); test_auto_scope's permission case re-aimed to 'a clause that covers it' and renamed.
 
 ### REG-2879 - REG-2803'S CHROME LAW DROVE A GUEST WORLD, WHERE THE BOARD RIGHTLY MAKES NO MULE (ci/claude-v3834, 4 cases)
 CI (agent-suite, ci/claude-v3834) failed four cases of tv/test_vault_l1_war_stash_overflow.py, which REG-2803 re-aimed without
