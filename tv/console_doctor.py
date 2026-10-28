@@ -7021,6 +7021,77 @@ def characters_room_verdict(builds_raw, main_raw, vault_main_raw):
     return OK, "%d build%s · ★ MAIN %s · %s" % (n, "" if n == 1 else "s", main_name, vault_say)
 
 
+#: #36 (REG-2909) - his rule: a doubt becomes a guided ask. The words are his.
+SESSION_ASK = "open the C panel once"
+SESSION_RECENT = 10
+#: what is true today about that ask: no pixel band finds the C panel (no C-panel frame was ever filmed - char_select's
+#: own note), so the panel is read only when a reader is shown one; the character-select screen at login names it now
+SESSION_ASK_TAIL = ("the C panel is read only when a reader is shown it - no pixel band finds it yet - so picking the "
+                    "character at character select names the session too")
+
+
+def session_character_verdict(sessions, reels, why=None):
+    """#36 (REG-2909) - 'which character each session is on': IS THE NEWEST SESSION ON A CHARACTER THE BOARD CAN NAME?
+
+    `sessions` is char_select.session_view's map (sessionId -> spans), `reels` this PC's reel folder names. The character
+    a session is on NOW is its last span's. OK names it, how it is known (char-select / lobby / c-panel / carried) and how
+    many of the last SESSION_RECENT sessions are named; MISSING asks him, in his words, when the newest session names
+    nobody - every look in it reads holder UNKNOWN on the vault (REG-2908); UNKNOWN when the ledger would not read, never
+    "no session". No reel at all is measured empty. -> (state, say)"""
+    if sessions is None:
+        return UNKNOWN, ("which character each session is on is UNKNOWN - %s"
+                         % (why or "the character-select ledger could not be read"))
+    starts = []
+    for n in reels or []:
+        m = re.match(r"^reel_s_(\d{10,})$", str(n))
+        if m:
+            starts.append((int(m.group(1)), str(n)))
+    starts.sort()
+    if not starts:
+        return OK, "no session is recorded on this PC yet (0 reels) - nothing to name"
+    recent = starts[-SESSION_RECENT:]
+
+    def now_on(n):
+        sp = sessions.get(n[5:])
+        if not isinstance(sp, list) or not sp or not isinstance(sp[-1], dict):
+            return None, None
+        return sp[-1].get("character"), sp[-1].get("via")
+
+    named = sum(1 for _s, n in recent if now_on(n)[0])
+    tail = "%d of the last %d sessions name their character" % (named, len(recent))
+    newest = recent[-1][1]
+    who, via = now_on(newest)
+    if not who:
+        return MISSING, ("session %s: character UNKNOWN - %s (%s; "
+                         "%s)" % (newest[5:], SESSION_ASK, tail, SESSION_ASK_TAIL))
+    return OK, "session %s: %s (%s) - %s" % (newest[5:], who, via or "named", tail)
+
+
+def _check_which_character_each_session_is_on():
+    """#36 (REG-2909) - the live row: the learner's ledger and the gear ledger's chain through char_select.session_view
+    (the one view the console's /api/chars_learned answer serves), and this PC's reel folders. UNKNOWN when the learner
+    will not load, its ledger will not read, or the reel folder cannot be listed - never "0 sessions"."""
+    try:
+        import char_select as _cs
+    except Exception as e:
+        return UNKNOWN, "the character-select learner will not import: %s" % str(e)[:90]
+    try:
+        d = _cs.load()
+        try:
+            import equipped_ledger as _el
+            gd, _gw = _el.load()
+        except Exception:
+            gd = None
+        sessions, _rep = _cs.session_view(d, gd)
+        root = _cs.hist_root()
+        reels = sorted(n for n in os.listdir(root) if n.startswith("reel_")) if os.path.isdir(root) else None
+    except Exception as e:
+        return UNKNOWN, "the session characters raised %s" % type(e).__name__
+    if reels is None:
+        return UNKNOWN, "this PC's reel folder could not be listed - which sessions exist is UNKNOWN, not 0"
+    return session_character_verdict(sessions, reels)
+
+
 def _check_the_characters_room():
     """#41 rank 12 (2026-09-29) — 'characters room': DOES THE 👤 CHARACTERS TAB STILL READ HIS BUILDS, AND DO ITS TWO
     MAINS AGREE?
@@ -10852,6 +10923,8 @@ CHECKS = [
     # #41 rank 12 + 13 (2026-09-29) — the 👤 Characters room had no row: an unparseable d2r_charBuilds, a dangling
     # d2r_cbMain, and two MAINs naming different characters were all silent. Off the shared board read, every tick.
     ("characters room", _check_the_characters_room),
+    # #36 (REG-2909) - a session no screen named asks him, in his words: "open the C panel once"
+    ("which character each session is on", _check_which_character_each_session_is_on),
 
     # #41 rank 16 (REG-1560) — the composition against THEIR planner's measured tooltip, off the lane's per-row
     # receipt. Cheap: a small file and a hash of bible.html; the node run belongs to the lane.
@@ -11732,6 +11805,9 @@ WATCHES = {
     # #chars-list) live on the BOARD, which this registry (organ_matrix surfaces, console-side) does not list; it
     # reaches him through the eagle line. Empty tuple as a DECLARATION, not an omission.
     "characters room":             (),
+    # #36 (REG-2909) - reads the learner's ledger and the reel folders; its ask reaches him through the eagle line, and
+    # the holders it explains are drawn on the vault's looks (REG-2908). No element of its own: DECLARED, not omitted.
+    "which character each session is on": (),
 
     # #41 rank 16 (REG-1560) — reads the receipt the tvd-tooltip-oracle lane writes; that loop is the vessel it watches.
     "their tooltip rows":          ("_tooltip_oracle_loop",),

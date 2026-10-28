@@ -12377,6 +12377,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_look_carries_its_sessions_character.py")], 300,
          needs_app=False,
          why='#36 REG-2908: every vault look carries the character its session was on unless the read named one; the page twin agrees with the console'),
+    Gate("test_a_session_with_no_character_asks_for_the_c_panel",
+         [sys.executable, os.path.join(HERE, "test_a_session_with_no_character_asks_for_the_c_panel.py")], 300,
+         needs_app=False,
+         why='#36 REG-2909: a session no screen named asks him in his words (open the C panel once), and says the C panel has no pixel band yet'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
