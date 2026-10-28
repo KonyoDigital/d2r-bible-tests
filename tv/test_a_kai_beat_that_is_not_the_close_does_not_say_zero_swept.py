@@ -29,12 +29,12 @@ def _src():
         return f.read()
 
 
-def _fn(src):
-    start = src.find("function _thKaiCaption(b){")
+def _fn(src, sig="function _thKaiCaption(b){"):
+    start = src.find(sig)
     if start < 0:
-        raise AssertionError("_thKaiCaption is gone - the close line has no owner")
-    if src.find("function _thKaiCaption(b){", start + 1) != -1:
-        raise AssertionError("_thKaiCaption is declared more than once")
+        raise AssertionError("%s is gone - the close line has no owner" % sig)
+    if src.find(sig, start + 1) != -1:
+        raise AssertionError("%s is declared more than once" % sig)
     i = src.find("{", start)
     depth = 0
     for j in range(i, len(src)):
@@ -45,13 +45,14 @@ def _fn(src):
             depth -= 1
             if depth == 0:
                 return src[start:j + 1]
-    raise AssertionError("_thKaiCaption never closed")
+    raise AssertionError("%s never closed" % sig)
 
 
 def _say(cases):
     if NODE is None:
         raise AssertionError("node is not on this machine - this gate does not skip")
-    fn = _fn(_src())
+    # REG-2791 - the unread texts are printed by _ocrRawSay (quoted, verbatim), so it rides along
+    fn = _fn(_src(), "function _ocrRawSay(texts, max){") + "\n" + _fn(_src())
     js = (
         "function esc(s){ return String(s == null ? '' : s); }\n%s\n"
         "console.log(JSON.stringify(%s.map(_thKaiCaption)));\n"

@@ -12237,6 +12237,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_last_session_is_one_run.py")], 300,
          needs_app=False,
          why="#86 REG-2790: the home digest and the Shelf's Last session name one run"),
+    Gate("test_unread_text_is_shown_as_the_ocr_read_it",
+         [sys.executable, os.path.join(HERE, "test_unread_text_is_shown_as_the_ocr_read_it.py")], 300,
+         needs_app=False,
+         why="#86 REG-2791: KAI's unread text is printed verbatim, quoted, as raw OCR"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

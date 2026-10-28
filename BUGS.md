@@ -104,6 +104,18 @@ receipt, the filing's where, and the receipt a cell X demotes the filing back to
 name already owned through a found-ever tick, later sent back by its cell X, demotes to that tick and now waits for a
 picture or a drag instead of re-filing on the click. Law: test_a_planner_record_is_not_his_hand (node, the whole page; the
 shipped gate cut and run with a record for every name). 2 red-proofs, both RED.
+### REG-2791 - THE CAUGHT-TEXT CHIP PRINTED OCR GARBLE BARE, SO IT READ AS LEAKED MARKUP (#86, GrokBot's `CHAKm •<li•`)
+GrokBot, Shelf > Theatre Sess 48: "missed → KAI caught (retro): CHAKm •<li•" - "an HTML fragment is leaking into the
+chip". MEASURED: it is not markup, and it was already escaped. kaiMissTexts and a kai beat's kai.texts are the KAI
+closer's missed[].texts - OCR off a film still no eye read. Read-only on his tree 2026-10-28: 1,029 such texts on 38
+sealed reels (10 with a '<' or '>'), 8,637 on the journal's kai rows (45 with one, 4 distinct: 'FAsT ArrA<K SpfE',
+'kf>uiRfD STRENGT', '*NVS T• A TTA<X RATIN', '>-Diablos') - each a letter the OCR misread, none a tag. Stripping the
+marks would alter a read, so nothing is stripped, at display or in the ledger: one helper (_ocrRawSay) prints each text
+escaped and quoted, verbatim, and the footage chip, the kai chip and the kai caption say it is raw OCR ("KAI caught unread
+text · raw OCR: “CHAKm •<li•”"). Swept: those three are every surface printing these texts; the dossier's stamp already
+says "unread:". Law: test_unread_text_is_shown_as_the_ocr_read_it (3 cases in node, each quoted text unescaped and
+compared to the read character for character; 6 red-proofs, each RED). The REG-2154 law's harness carries the helper.
+
 ### REG-2790 - "LAST SESSION" NAMED ONE RUN ON THE HOME PAGE AND OPENED ANOTHER ON THE SHELF (#86, GrokBot's 28 vs 48)
 GrokBot (v3642, carried to v3686): the home's 📼 LAST SESSION card read "session 28 · 526 reads · 239 missed" while the
 Shelf's ▶ Last session opened "SESSION 48". Two rules: the digest named the newest reel KAI had sealed (kaiMissed set, else

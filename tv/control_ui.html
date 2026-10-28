@@ -16690,14 +16690,27 @@ window._lockMark = function(isOpen, px, label){
       ? '<span class="th-seal-tell th-seal-yes" title="from the SEALED reel — the authoritative post-close read">🛡 sealed</span>'
       : '<span class="th-seal-tell th-seal-no" title="NOT sealed-attributed — this frame\'s read is provisional (a live guess); the sealed reel wins in retro">◌ provisional</span>';
   }
+  /* #86 (REG-2791, GrokBot's v3642 pass: "the caught-text chip shows raw markup", `CHAKm •<li•`) - KAI'S UNREAD TEXT IS
+     SHOWN AS THE OCR READ IT, AND SAYS SO. It is not markup. kaiMissTexts and a kai beat's kai.texts are the KAI closer's
+     `missed[].texts`: OCR off a film still that no eye read (control_app's forensics calls them "the raw"). MEASURED
+     read-only 2026-10-28: 1,029 such texts on his 38 sealed reels, 10 with a '<' or '>'; 8,637 on the journal's kai rows,
+     45 with one, 4 distinct ('FAsT ArrA<K SpfE', 'kf>uiRfD STRENGT', '*NVS T• A TTA<X RATIN', '>-Diablos') - each a letter
+     the OCR misread, none a tag. The chips printed them bare beside "KAI caught", so garble read as leaked HTML. A read is
+     testimony and is never cleaned, here or in the ledger: each text is escaped and quoted, verbatim, and the chip says it
+     is raw OCR. -> html, '' for none */
+  function _ocrRawSay(texts, max){
+    var t = texts || [];
+    return t.slice(0, max).map(function(x){ return '“' + esc(String(x)) + '”'; }).join(', ')
+      + (t.length > max ? ' +' + (t.length - max) : '');
+  }
   // the hand-off: did THIS net catch/correct what an earlier one missed? (the self-correction, shown)
   function thHandoffNote(b){
     if (!b) return '';
-    // v949 (Grok P2#8 + Master Brain) — a FRAME the live eye missed at speed but 🧠 KAI recovered from
-    // the film (kaiMissTexts rides the footage beat). This IS the layered net proving itself on a fast run.
+    // v949 (Grok P2#8 + Master Brain) — a FRAME the live eye missed at speed that 🧠 KAI's sweep found text on
+    // (kaiMissTexts rides the footage beat). REG-2791: that text is still UNREAD - the raw OCR, never a recovered name.
     if (b.kaiMissTexts && b.kaiMissTexts.length){
-      return '<span class="rd-handoff rd-hf-caught" title="the live eye missed this at speed — KAI re-read it from the film after the reel sealed">🔴 missed → 🧠 KAI caught (retro): '
-        + esc(b.kaiMissTexts.slice(0, 3).join(', ')) + (b.kaiMissTexts.length > 3 ? ' +' + (b.kaiMissTexts.length - 3) : '') + '</span>';
+      return '<span class="rd-handoff rd-hf-caught" title="the live eye missed this at speed - KAI swept the film after the reel sealed and found text no eye has read. Shown exactly as the OCR saw it, stray marks and all; it is not a name yet">🔴 missed → 🧠 KAI caught unread text · raw OCR: '
+        + _ocrRawSay(b.kaiMissTexts, 3) + '</span>';
     }
     if (b.lane === 'verify' || b.eye === 'second'){
       var vf = b.verify || {};
@@ -16710,7 +16723,7 @@ window._lockMark = function(isOpen, px, label){
     if (b.lane === 'kai' || b.eye === 'kai'){
       var kk = b.kai || {};
       var mf = kk.missedFrames || 0;
-      if ((kk.texts || []).length) return '<span class="rd-handoff rd-hf-caught" title="KAI re-read the film and found text no live eye caught">🔴 missed → 🧠 KAI caught (retro): ' + esc(kk.texts.slice(0, 3).join(', ')) + '</span>';
+      if ((kk.texts || []).length) return '<span class="rd-handoff rd-hf-caught" title="KAI swept the film and found text no eye has read. Shown exactly as the OCR saw it, stray marks and all">🔴 missed → 🧠 KAI caught unread text · raw OCR: ' + _ocrRawSay(kk.texts, 3) + '</span>';   /* REG-2791 */
       if (mf) return '<span class="rd-handoff rd-hf-caught" title="frames that held text no live eye read, caught by KAI\'s retro sweep">🔴 missed → 🧠 KAI caught (retro) · ' + mf + ' frame' + (mf > 1 ? 's' : '') + '</span>';
       return '<span class="rd-handoff rd-hf-ok" title="KAI swept the reel and found nothing the live eyes missed">🧠 swept clean — no live miss</span>';
     }
@@ -16922,7 +16935,7 @@ window._lockMark = function(isOpen, px, label){
       var when = '';
       try { when = ' <span style="opacity:.55">· ' + new Date(b.captureTs || b.ts).toLocaleTimeString() + '</span>'; }
       catch (e) { when = ''; }
-      return '<span style="color:#f0c060">🧠 <b>KAI</b> · unread text on this frame: ' + esc((kk.texts || []).slice(0, 4).join(', ')) + when + '</span>';
+      return '<span style="color:#f0c060">🧠 <b>KAI</b> · unread text on this frame · raw OCR: ' + _ocrRawSay(kk.texts, 4) + when + '</span>';   /* REG-2791 */
     }
     if (kk.judge && (kk.judge.name || kk.judge.tier))
       return '<span style="color:#f0c060">🔬 <b>KAI JUDGE</b> · ' + esc(kk.judge.name || kk.judge.tier) + '</span>';
