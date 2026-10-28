@@ -2140,6 +2140,19 @@
     "purpose": "Copies the repo to scratch OUTSIDE it, minus frames/.git/.render_shots, and REFUSES past a size ceiling rather than filling his disk.",
     "territory": "routines-infra"
   },
+  "scenario_frames.py": {
+    "entryPoints": [
+      "report",
+      "load_frames",
+      "scenario_ids",
+      "scenario_items",
+      "check_rec03",
+      "main"
+    ],
+    "gotcha": "A read's picture is <frameId>.jpg at the reel root; the reel folder's f_<ms>.jpg are FOOTAGE stills whose ms need not match a read's capture time (the first cut joined to them and found 0 of every sample on disk). A base read beside a runeword is that runeword's base, never a white-base control. A KAI/watchdog note is not a read. Character panels are labelled nowhere until #36 builds that reader.",
+    "purpose": "#22 (his rulings 2026-10-28): each TESTING_PHASE hand-test scenario joined to its items (roster or read names only), each item to the frames of his whose reads named it, each frame to its own picture, and REC-03 to its recorded check. A report: reads the journals, retro_triage.json and TESTING_PHASE.md; writes nothing.",
+    "territory": "testing"
+  },
   "second_eye_drain.py": {
     "entryPoints": [
       "main"
