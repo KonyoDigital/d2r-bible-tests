@@ -22,22 +22,6 @@ started without a "carrier" record, so the panel had nothing to say until the la
 on None, worked 0, and "not asked yet - the proof carrier runs after the first self-prove tick" - so an absent line means
 a broken console, never a young one. Law: test_a_proof_rides_only_a_registered_key (1 new case, 1 new red-proof).
 
-### REG-2750 - ONE BLIND OR CHANGED LAW ANYWHERE SHUT EVERY LOCK, THE RIVER'S INCLUDED (#156, his ruling)
-### REG-2752 - A REEL OF CAPTURE-LESS RE-READS COULD STILL BE DATED BY WHEN THEY WROTE (the v3823 second eye)
-REG-2744 counted a verify or intake row only through its frame's capture time. The fallback for a session with no
-moments of its own (replay.session_moments: "every row's when nothing else is there") still took every row's row_moment,
-and the Shelf row then fell back again to its first and last row's ts, so a session made only of capture-less re-reads
-was dated by the day they were written - REG-2736 by the side door. The fallback now counts a re-read only through its
-capture time too, and the Shelf row's t0/t1 are None when no moment is left; the console already says UNKNOWN for that.
-No instance today: on his journal every intake and verify row carries captureTs. Law:
-test_a_session_is_dated_by_what_it_captured (2 new cases, 2 new red-proofs; the t1 red-proof follows the new line).
-
-### REG-2751 - THE PROOF CARRIER'S LINE WAS ABSENT FOR THE FIRST MINUTES AFTER A START (#186, GrokBot's v3822 pass)
-GrokBot SAW the carrier on his console and noted the key was missing before the first self-prove tick: _SELF_PROVE
-started without a "carrier" record, so the panel had nothing to say until the lane ran. It now starts with one -
-on None, worked 0, and "not asked yet - the proof carrier runs after the first self-prove tick" - so an absent line means
-a broken console, never a young one. Law: test_a_proof_rides_only_a_registered_key (1 new case, 1 new red-proof).
-
 ### REG-2750 - ANY LAW EDITED ANYWHERE SHUT EVERY LOCK, THE RIVER'S INCLUDED, UNTIL A FULL RE-PROVE (#156, his ruling)
 His words, 2026-10-28: "do whatever is needed.. if needs to be rep-proving and build-per lock then do it." may() asked
 one question of the whole tree - has any gate file changed since the census ran - so one edited law nowhere near the
