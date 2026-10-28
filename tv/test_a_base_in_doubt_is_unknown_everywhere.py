@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""REG-2903 - AN ITEM WHOSE BASE THE NAME DOES NOT GIVE IS UNKNOWN EVERYWHERE, AND ITS MARK ASKS WHY.
+"""REG-2903, REG-2904, REG-2905 - AN ITEM WHOSE BASE THE NAME DOES NOT GIVE IS UNKNOWN EVERYWHERE, AND ITS MARK ASKS WHY.
 
 The house rule (his MAGIC & RARE, 2026-10-28): an item whose base cannot be established from its own name or record shows
 UNKNOWN everywhere - the card, the mule window, FIND and the hover alike, one logic, never a guess on one surface and the
@@ -12,7 +12,8 @@ whose suffix is a ring's or a jewel's):
     keyword sprite in the hover and in the registered list's Magic & Rare rows; a throw-out read (Bone Gyre) hovered as a ring.
 Now one answer decides every surface (_artRolledBase, asked by artOr and by the hover): a base from the record, the
 catalogue row or the rolled-name grammar draws its picture everywhere; with none, every surface shows the mark, the mark
-carries the question as its tooltip, the hover card says it, and no keyword sprite stands in (REG-2903).
+carries the question as its tooltip, the hover card says it, and no keyword sprite stands in (REG-2903). The card's record
+cells (REG-2904) and the registered list's Magic & Rare rows (REG-2905) draw artOr's answer, not their own fallback.
 RED_PROOF below.
 """
 import json
@@ -115,9 +116,9 @@ class ABaseInDoubtIsUnknownEverywhere(unittest.TestCase):
         bad = {}
         for n, ask in DOUBT.items():
             s = self.o["s"][n]
-            tiles = {k: s[k] for k in ("win", "find")}
+            tiles = {k: s[k] for k in ("card", "win", "find")}
             if n != "Raven Whorl":
-                tiles["card"] = s["card"]               # a keeper's cell on the card draws through artOr
+                tiles["reg"] = s["reg"]                 # a record, not a keeper: the registered list's other columns draw no picture
             wrong = {k: v for k, v in tiles.items() if v != "MARK:" + ask}
             if wrong:
                 bad[n] = wrong
@@ -169,6 +170,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "return { artName: nm, desc: _extraTipHtml(nm) + _askH, rich: true };",
      "replace": "return { artName: nm, desc: _extraTipHtml(nm), rich: true };",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2904 - the card's record cell falls back to the keyword sprite again (Raven Whorl a ring on the card only)",
+     "file": "bible.html",
+     "find": "          + '<span class=\"vm-cell-art\">' + _cellArt + '</span>' + osTag + _cntTag   /* REG-2904 one answer */\n",
+     "replace": "          + '<span class=\"vm-cell-art\">' + ((/ src=\"/.test(_cellArt) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? _cellArt : '<span class=\"d2art-wrap lg\" role=\"img\" aria-label=\"'+esc(n)+'\"><img class=\"d2art-img\" src=\"'+_magicArtSrc(n)+'\" alt=\"\" loading=\"lazy\"></span>') + '</span>' + osTag + _cntTag\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2905 - the registered list's Magic & Rare rows draw the keyword sprite again",
+     "file": "bible.html",
+     "find": "        var _icon=art(n, '\\u25c6', 'sm');   /* REG-2905 one answer */\n",
+     "replace": "        var _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null, _icon=_src?'<span class=\"d2art-wrap sm\" role=\"img\" aria-label=\"'+esc(n)+'\"><img class=\"d2art-img\" src=\"'+_src+'\" alt=\"\" loading=\"lazy\"></span>':'<span class=\"vrg-mdot\" style=\"background:'+col+'\"></span>';\n",
      "matches": 1, "needs": "node"},
 ]
 

@@ -44345,8 +44345,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(orphan.length) cols.push(_col('vrg-gh-orphan','❓ Not recognised',orphan.length, orphan.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-orphan">no match</span>'); }).join('')));
     if(notMuled.length) cols.push(_col('vrg-gh-shared','📦 Not muled',notMuled.length, notMuled.map(function(n){ return row(n,'<span class="vrg-tag vrg-tag-shared">shared</span>'); }).join('')));
     if(findNames.length) cols.push(_col('vrg-gh-magic','🔮 Magic &amp; Rare',findNames.length, findNames.map(function(n){
-        var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
-        var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
+        /* REG-2905 (the REG-2904 sweep) - the registered list's Magic & Rare rows drew the keyword sprite of the recorded base
+           or of the name (ring1_graphic for "Raven Whorl", a coloured dot for "Doom Eye") while the card and the window drew
+           artOr's answer: one picture per item, and the mark with its question where the base is in doubt */
+        var q=_mfQual(n), col=_qcol[q]||_qcol.magic;
+        var _icon=art(n, '\u25c6', 'sm');   /* REG-2905 one answer */
         return '<div class="vrg-row" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer">'+_icon
           +'<span class="vrg-name" style="color:'+col+'" data-arttip="'+esc(n)+'">'+esc(n)+'</span>'
           +'<span class="vrg-tag" style="color:'+col+'">'+q+'</span>'
@@ -45607,8 +45610,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _xTitle = _vaultCellXTitle(n, _cc, _hlk);   /* #111 - a multi-copy cell's ✕ says every copy goes */
         /* #98 (his ruling 2026-09-30, "make it visually known") — the lock is ON the cell, not only in a tooltip */
         var _lockCls = !_hlk ? '' : (_hlk.unknown ? ' vmc-lock-unk' : ' vmc-locked');
-        /* REG-2851 - the picture the mule window, FIND and the hover draw (artOr) comes first; the keyword sprite only where
-           artOr has none. Asking artUrl alone, a rolled name drew ring1_graphic here and the base's own sprite everywhere else. */
+        /* REG-2851 / REG-2904 - the card draws artOr's answer, the one the mule window, FIND and the hover draw. Asking artUrl
+           alone, a rolled name drew ring1_graphic here and the base's sprite everywhere else (REG-2851); and the keyword sprite
+           this cell fell back to where artOr has none was a guess on this one surface beside the mark on every other (REG-2904:
+           "Raven Whorl", a ring or a jewel, drew a ring here). Where artOr has no picture, the card shows the mark too. */
         var _cellArt = art(n, '◆', 'lg');
         var _lockTag = !_hlk ? '' : '<span class="vm-cell-lock" role="img" aria-label="' + (_hlk.unknown ? 'lock unknown' : 'locked') + '" title="'
           + esc(_hlk.unknown ? _hlk.why : ('🔒 ' + _hlk.tier + ((_hlk.successes != null && _hlk.trials != null) ? ' ' + _hlk.successes + '/' + _hlk.trials : '')
@@ -45621,7 +45626,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + (cl.approx ? ' vmc-approx' : '') + _lockCls + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
           + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_mark.title ? ' · ' + _mark.title : '')
           + (cl.approx ? ' — size not established: no footprint rule matches this base, so it is drawn at the default 1x2. Set names (\'Tal Rasha set (any piece)\') are not items and have no single size.' : ' — ' + cl.w + '×' + cl.h + ' = ' + (cl.w*cl.h) + ' cell' + (cl.w*cl.h===1?'':'s')) + '">'
-          + '<span class="vm-cell-art">' + ((/ src="/.test(_cellArt) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? _cellArt : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
+          + '<span class="vm-cell-art">' + _cellArt + '</span>' + osTag + _cntTag   /* REG-2904 one answer */
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
           + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')
           + _lockTag
