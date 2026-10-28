@@ -1908,7 +1908,8 @@ function run(parentSnap, search) {
   res.veil = { del: fire(mk("_cbDelete('bx1')")), set: fire(mk('_cbMainSet(1)')), open: fire(mk("openCharBuilder('bx1')")),
                mule: fire(mk("window.openMuleCard('fx-a')")), tab: fire(mk(null, 'tab')),
                tasks: fire(mk("window.vaultTasksTog()")), adv: fire(mk("window.vaultAdvTab('ledger')")),
-               inSummary: fire(mk("_cbDelete('bx1')", null, true)) };
+               inSummary: fire(mk("_cbDelete('bx1')", null, true)),
+               task: fire(mk("window._vaultTaskExpand('Shako',0,this)")) };
   // GrokBot bugs 2+3 (2026-10-27): the in-page view links and the Tools chips, in the shapes the page writes them
   res.links = { runs: fire(mk("window.funiSetFilter('runs')")), sets: fire(mk("window.fsetsSetFilter('runs')")),
                 recipe: fire(mk("window.forgeSetFilter&&window.forgeSetFilter('crafts');try{window.forgeCraftToggle&&window.forgeCraftToggle('blood')}catch(e){}")),
@@ -1925,7 +1926,13 @@ function run(parentSnap, search) {
   res.typing = key('a', { target: { tagName: 'INPUT' } });
   out.leaves = [];
   res.keys = { Delete: key('Delete'), z: key('z', { ctrlKey: true }), Enter: key('Enter'), ArrowDown: key('ArrowDown'),
-               PageDown: key('PageDown'), Escape: key('Escape'), copy: key('c', { metaKey: true }), Tab: key('Tab') };
+               PageDown: key('PageDown'), Escape: key('Escape'), copy: key('c', { metaKey: true }), Tab: key('Tab'),
+               // REG-2758 - Enter/Space on the focused view control opens what a click opens; on a write control, or
+               // with a modifier, it is still stopped
+               taskEnter: key('Enter', { target: mk("window._vaultTaskExpand('Shako',0,this)") }),
+               taskSpace: key(' ', { target: mk("window._vaultTaskExpand('Shako',0,this)") }),
+               taskCtrl: key('Enter', { ctrlKey: true, target: mk("window._vaultTaskExpand('Shako',0,this)") }),
+               delEnter: key('Enter', { target: mk("_cbDelete('bx1')") }) };
   res.leaveOnEscape = out.leaves.slice();
   res.blocks = ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu', 'pointerdown', 'keypress', 'keyup'].filter((t) => (listeners[t] || []).length);
   // the viewer's console is out of reach by name, and the real storage cannot be put back
@@ -2026,6 +2033,7 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertFalse(v["open"] or v["mule"] or v["tab"], "a view control was stopped: %r" % v)
         # the vault's MOVE TASKS overlay and its ADVANCED panes open, as on his own console
         self.assertFalse(v["tasks"] or v["adv"], "a vault view toggle was stopped: %r" % v)
+        self.assertFalse(v["task"], "REG-2758 - a move task row's from -> to picture was stopped in the shadow: %r" % v)
         self.assertTrue(v["inSummary"], "a write button inside a fold passed the veil as if it were the fold")
         # GrokBot bugs 2+3 - "Best runs ->", "open recipe" and the Tools chips move the view in the shadow too
         lk = self.r["links"]
@@ -2043,6 +2051,10 @@ class TheShadowFrameBoot(unittest.TestCase):
         self.assertTrue(k["Delete"] and k["z"] and k["Enter"], "a board shortcut saw a key in shadow: %r" % k)
         self.assertFalse(k["ArrowDown"] or k["PageDown"] or k["Escape"] or k["copy"] or k["Tab"],
                          "a key that only moves the view was stopped: %r" % k)
+        self.assertFalse(k["taskEnter"] or k["taskSpace"],
+                         "REG-2758 - Enter/Space on a view control was stopped, so the shadow's rows open by mouse only: %r" % k)
+        self.assertTrue(k["taskCtrl"] and k["delEnter"],
+                        "REG-2758 - Enter reached a write control, or a modified Enter passed, in the shadow: %r" % k)
         self.assertEqual(self.r["leaveOnEscape"], ["tvd-shadow-leave"],
                          "Escape inside the shadow did not ask the console to leave: %r" % self.r.get("leaveOnEscape"))
 
@@ -2166,8 +2178,8 @@ RED_PROOF = [
      "replace": "", "matches": 1, "needs": "node"},
     {"why": "GrokBot 22:07 - TV·D's LIVE / LAST SESSION and the Tools card folds are stopped in the shadow again",
      "file": "bible.html",
-     "find": "                '_tvdHistTab', 'toggleCardCollapse'];\n",
-     "replace": "                ];\n", "matches": 1, "needs": "node"},
+     "find": "                '_tvdHistTab', 'toggleCardCollapse',\n",
+     "replace": "\n", "matches": 1, "needs": "node"},
     {"why": "Shadow: MOVE TASKS and the ADVANCED panes stay shut in the vault",
      "file": "bible.html",
      "find": "                'vaultTasksTog', 'vaultAdvTab',\n",
@@ -2437,6 +2449,21 @@ RED_PROOF = [
      "file": "functions/api/roster.js",
      "find": "  for (const k of v) if (typeof k !== \"string\" || !/^d2r_[A-Za-z0-9_]{1,60}$/.test(k)) return null;\n",
      "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2758 - a move task row's picture is stopped in the shadow again",
+     "file": "bible.html",
+     "find": "                '_vaultTaskExpand'];\n",
+     "replace": "                ];\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2758 - Enter/Space on a view control is stopped again (the shadow's rows open by mouse only)",
+     "file": "bible.html",
+     "find": "        if (kc && kc === kt && viewOnly(kc)) return true;\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2758 - Enter reaches any focused control in the shadow, a write one included",
+     "file": "bible.html",
+     "find": "        if (kc && kc === kt && viewOnly(kc)) return true;\n",
+     "replace": "        if (kc && kc === kt) return true;\n",
      "matches": 1, "needs": "node"},
 ]
 
