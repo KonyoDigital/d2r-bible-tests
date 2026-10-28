@@ -7,6 +7,27 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2731 - THE SECOND EYE LEFT A GROK SESSION FOLDER PER LOOK, AND TWO LANES MATCHED SESSIONS BY SUBSTRING (#151)
+The #231 eye on v3819 (finding 1): dropSession (intake_grok_sub.mjs) and the G5 sweep (g5_grok_eyes) matched a session
+folder by a SUBSTRING of its whole name, so a longer folder, or one of his whose path merely carried the mark, matched
+too. Reproducing it led to a measured leak in a third lane: his ~/.grok/sessions held 335 folders, 250 of them the
+second-eye runner's own second_eye_<pid> cwd (52 MB since 10-21, one more per look) - tv/second_eye_run.py removed its
+cwd and never the session folder the Grok CLI minted for it. On 09-01 that folder reached 11 GB and ENOSPC. Now a session
+folder is matched by the LAST folder of the cwd it was minted for (g5_grok_eyes.session_tail, %2F and %5C); the second
+eye drops its own in eye_cwd_cleanup (the finally + atexit rope every look runs) and sweeps leftovers by its own rule -
+a tail of exactly second_eye_<pid>, owner dead or a day old - never the G5 sweep's 600 s, because a look outlives 600 s.
+The 250 folders already there go on the next look's sweep. Law: test_a_grok_session_never_outlives_its_call
+(7 new cases, 6 new red-proofs).
+
+### REG-2732 - A PROVER RUN WITH NO KNOWN START COULD ADOPT AN EARLIER RUN'S REUSE LINE (#186)
+The #231 eye on v3819 (finding 2, half of it): _log_reuse reads only the bytes this run wrote (logFrom), but when that
+start was unknown it read the last 256 KB of the whole log and could report an EARLIER run's "#186 CENSUS CACHE" counts
+as this run's. An unknown start is now UNKNOWN (None), and mem keeps the older figure with its own time. The other half -
+a long run pushing its own line out of the tail - does not happen: heart2 prints that summary at the end of the run.
+Findings 3 and 4 were refuted against the code: the census cache serves per proof only for the gates the run proves
+(_census_one), and _vaultUndoTake is the snapshot a door takes before it changes anything, not the undo.
+Law: test_the_census_reuses_byte_identical_proofs (1 new case, 1 new red-proof).
+
 ### REG-2730 - AN "IMAGE ERROR" NEVER SAID WHICH (#158, GrokBot's v3817 pass)
 GrokBot found 335 kai-funnel intake rows with "no reason". Most carried one - "read failed - 1 image error" - and that was
 all of it. An image error is the board's _tallyRead returning null, which three different failures did silently: the

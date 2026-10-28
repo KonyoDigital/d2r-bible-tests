@@ -1372,7 +1372,7 @@ def _cleanup(work):
         sd = os.path.join(_real_grok_home(), "sessions")
         if base.startswith("tvd-g5-") and len(base) > len("tvd-g5-") and os.path.isdir(sd):
             for name in os.listdir(sd):
-                if base in name:
+                if session_tail(name) == base:
                     _drop_session_dir(os.path.join(sd, name))
             _sweep_stale_sessions(sd)
     except Exception:
@@ -1381,6 +1381,14 @@ def _cleanup(work):
 
 #: REG-1687 — a read's own Grok session directory older than this is a leftover nobody will come back for
 G5_SESSION_STALE_S = 600
+
+
+def session_tail(name):
+    """REG-2731 (the #231 eye on v3819) - THE LAST FOLDER OF THE CWD A GROK SESSION DIRECTORY WAS MINTED FOR. Grok names
+    the directory after its --cwd, every separator encoded (%2F on a Mac, %5C on Windows). -> the last segment ('' for a
+    name that is not an encoded path). The drop and the sweeps match on this, never on a substring of the whole name: a
+    substring also matches a longer folder, or one of his own whose path merely contains the mark."""
+    return _re.split(r"%2F|%5C", str(name or ""), flags=_re.I)[-1]
 #: #151 — the throwaway --cwd names a Grok session directory can carry: a G5 read's (tvd-g5-) and the intake lane's
 #: (intake_grok_sub.mjs, tvd-intake-g5-). Matching only the first left every intake session behind (55 on his Mac).
 G5_SESSION_MARKS = ("tvd-g5-", "tvd-intake-g5-")
@@ -1415,7 +1423,8 @@ def _sweep_stale_sessions(sd, now=None):
         _STATS["session_sweep_unread"] = "%s: %s" % (type(e).__name__, str(e)[:80])
         return None
     for name in names:
-        if not any(m in name for m in G5_SESSION_MARKS) or "tvd-g5-home" in name:
+        _tail = session_tail(name)
+        if not any(_tail.startswith(m) for m in G5_SESSION_MARKS) or _tail == "tvd-g5-home":
             continue
         p = os.path.join(sd, name)
         try:

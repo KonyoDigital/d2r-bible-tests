@@ -159,7 +159,70 @@ def eye_cwd_cleanup():
         return False
     _rm_snapshot(EYE_CWD)
     _EYE_CWD_MADE = False
+    drop_eye_session(EYE_CWD)              # REG-2731 - and the Grok session folder this look's cwd minted
     return True
+
+
+def _grok_sessions_dir():
+    """His Grok sessions folder - the G5 lane's own answer, never a second copy of where Grok lives. -> path"""
+    import g5_grok_eyes as _g5
+    return os.path.join(_g5._real_grok_home(), "sessions")
+
+
+def drop_eye_session(cwd, sd=None):
+    """REG-2731 (#151, measured 2026-10-28) - A LOOK LEAVES NO GROK SESSION BEHIND. The Grok CLI mints a session folder
+    named for its --cwd, and every look has its own second_eye_<pid> cwd: 250 of those folders (52 MB) sat in his
+    sessions folder since 10-21, one more per look, while this lane removed only the cwd itself. On 09-01 that folder
+    reached 11 GB and ENOSPC. Matched by the cwd's LAST folder exactly (g5_grok_eyes.session_tail). -> how many it
+    removed, or None when the folder could not be read (UNKNOWN, never "0")."""
+    base = os.path.basename(str(cwd or "").rstrip("/\\"))
+    if not base.startswith("second_eye_") or len(base) <= len("second_eye_"):
+        return 0
+    try:
+        import g5_grok_eyes as _g5
+        sd = sd or _grok_sessions_dir()
+        names = os.listdir(sd)
+    except Exception:
+        return None
+    n = 0
+    for name in names:
+        if _g5.session_tail(name) == base and _g5._drop_session_dir(os.path.join(sd, name), attempts=2, pause_s=0.1):
+            n += 1
+    return n
+
+
+def sweep_stale_eye_sessions(sd=None, now=None):
+    """REG-2731 - the Grok session folders earlier looks left (a look killed before its cleanup): a cwd tail of exactly
+    second_eye_<pid> - this lane's own name, so a folder of his that merely starts with the words is never matched -
+    whose owner is dead, or a day old. Never this process's, never a live owner's younger one: a look runs for up to
+    EYE_TIMEOUT_S, which is why this lane does not join the G5 sweep's 600 s rule.
+    -> [(path, why)] removed; None when the folder could not be read."""
+    now = time.time() if now is None else now
+    try:
+        import g5_grok_eyes as _g5
+        sd = sd or _grok_sessions_dir()
+        names = os.listdir(sd)
+    except Exception:
+        return None
+    gone = []
+    for n in sorted(names):
+        tail = _g5.session_tail(n)
+        if not tail.startswith("second_eye_"):
+            continue
+        pid = tail[len("second_eye_"):]
+        if not pid.isdigit() or pid == str(os.getpid()):
+            continue
+        p = os.path.join(sd, n)
+        try:
+            age = now - os.path.getmtime(p)
+        except OSError:
+            continue
+        if age < EYE_CWD_STALE_S and _pid_alive(pid):
+            continue
+        why = ("%.0f h old - no look lives that long" % (age / 3600.0)) if age >= EYE_CWD_STALE_S else ("its owner (pid %s) is dead" % pid)
+        if _g5._drop_session_dir(p, attempts=2, pause_s=0.1):
+            gone.append((p, why))
+    return gone
 
 
 def _rm_snapshot(path):
@@ -2235,6 +2298,7 @@ def run_one(version, dry=False, prompt_out=None, answer_in=None, answer_model=""
 def main(argv):
     install_cleanup_on_signals()
     sweep_stale_eye_cwds()
+    sweep_stale_eye_sessions()          # REG-2731
     ap = argparse.ArgumentParser()
     ap.add_argument("version", nargs="?")
     ap.add_argument("--backlog", action="store_true",

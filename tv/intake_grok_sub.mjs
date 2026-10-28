@@ -183,7 +183,7 @@ export function dropSession(work, home) {
     const sd = join(home || process.env.GROK_HOME || join(homedir(), '.grok'), 'sessions');
     if (!mine.startsWith('tvd-intake-g5-') || mine.length <= 'tvd-intake-g5-'.length || !existsSync(sd)) return 0;
     for (const name of readdirSync(sd)) {
-      if (!name.includes(mine)) continue;
+      if (name.split(/%2F|%5C/i).pop() !== mine) continue;   // REG-2731 - the cwd's last folder, never a substring
       rmSync(join(sd, name), { recursive: true, force: true });
       n += 1;
     }

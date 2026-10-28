@@ -132,7 +132,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1687 - the sweep reaches beyond the reads' own tvd-g5- names",
      "file": "g5_grok_eyes.py",
-     "find": "        if not any(m in name for m in G5_SESSION_MARKS) or \"tvd-g5-home\" in name:\n",
+     "find": "        if not any(_tail.startswith(m) for m in G5_SESSION_MARKS) or _tail == \"tvd-g5-home\":\n",
      "replace": "        if False:\n",
      "matches": 1},
 ]

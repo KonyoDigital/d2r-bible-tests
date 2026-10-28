@@ -409,7 +409,9 @@ def _log_reuse(log_path, start=None):
             fh.seek(0, 2)
             end = fh.tell()
             begin = start if isinstance(start, int) and not isinstance(start, bool) and 0 <= start <= end else None
-            fh.seek(max(0 if begin is None else begin, end - 262144))
+            if begin is None:
+                return None          # REG-2732 (the #231 eye on v3819) - the tail could be an EARLIER run's line
+            fh.seek(max(begin, end - 262144))
             text = fh.read().decode("utf-8", "replace")
     except Exception:
         return None

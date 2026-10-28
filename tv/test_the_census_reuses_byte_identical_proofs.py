@@ -227,9 +227,16 @@ class TheLaneReadsItsCensusCountBack(_Case):
             start = fh.tell()
             fh.write("a prover that died before it said anything\n")
         self.assertIsNone(SP._log_reuse(log, start), "a run that said nothing was given a count")
+        # REG-2732 (the #231 eye on v3819) - a run whose start is UNKNOWN cannot tell this run's line from an older one
+        self.assertIsNone(SP._log_reuse(log, None), "a run with no known start adopted an EARLIER run's reuse line")
 
 
 RED_PROOF = [
+    {"why": "REG-2732 - a run whose start is unknown adopts an earlier run's reuse line as its own",
+     "file": "tv/self_prove.py",
+     "find": "            if begin is None:\n                return None          # REG-2732 (the #231 eye on v3819) - the tail could be an EARLIER run's line\n",
+     "replace": "            begin = 0 if begin is None else begin\n",
+     "matches": 1},
     {"why": "#186 - the census never serves a banked proof: every push's work is re-proved",
      "file": "tv/heart2.py",
      "find": "    if served is not None:\n        return served\n    v = _prove_one(sandbox, name, filename, pr, idx, say)\n",
