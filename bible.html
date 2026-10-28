@@ -52747,7 +52747,8 @@ window.vaultAutoAssign = function(){
       }
       return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
     }
-    if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
+    /* L1 equipped is locked, no move row: the main-lane line above returns first for a worn place (REG-2722 - a second
+       _vaultMoveWorn check here could never be reached, so its red-proof proved nothing) */
     if (t.manual && t.status === 'to-move' && t.to && t.to.holder != null && t.to.cell == null) return true; /* L1 a hand add always has its row, even with no room */
     if (t.status === 'moved-manual' && t.undo && t.to && t.to.holder != null && t.to.cell == null) return true; /* Vault v2 — his tick on a no-room row stays in Done, so it can be unticked */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */

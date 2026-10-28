@@ -24,6 +24,15 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2722 - AN UNREACHABLE CHECK KEPT A RED-PROOF BLIND (the first v3818 push)
+The v3818 push was refused: test_vault_l1_a_hand_add_routes_by_type[26] ("an equipped item gets a move row") came back
+BLIND. Since 10-27 _vaultMoveShown has asked _vaultMoveMainLane first - worn gear, the belt, the Cube and inventory kit
+stay locked - so the _vaultMoveWorn check under it could never be reached for a worn place (the lane lock also trims, so it
+covers strictly more). The proof removed that unreachable line, so nothing changed and the law stayed green; it was only
+re-proved now because v3818 moved the board under it. The dead line is gone (the comment says where the lock lives) and
+proof [26] now exempts worn gear from the main-lane lock itself, so an equipped item would get a row. Before the re-push,
+every red-proof of the 16 Chrome-free laws this push proves was swept by hand: none blind.
+
 ### REG-2714 - A REFUSED CHRONICLE SWEEP WROTE ITS REASON AND NOTHING READ IT (#97, reviewers)
 The sweep's run thread wrote _CHRON_JOB.lastRefusal (GROK ONLY is the reader, or since REG-2713 the switch could not be read)
 and zero readers existed in control_ui.html, so "run it again" pressed into the same wall in silence. The refusal carries its
