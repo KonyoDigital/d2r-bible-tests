@@ -97,8 +97,16 @@ class ThePlannerSpinnerStaysUnderTheCursor(unittest.TestCase):
                     "document.getElementById('vault-planner-host').style.setProperty('--law-h', '420px');"
                     "var i = document.getElementById('cb-sockets'); i.scrollIntoView({ block: 'center' }); i.focus();"
                     "OUT.ok = 1;")
-        o0 = board().run(MEASURE + "OUT.m = m();")["m"]
+        # REG-2936 (CI on ci/claude-v3835: one 22 px "moved sideways" at step 1 on bytes a re-run passed) - the BASELINE is
+        # read once the field has stopped moving before any key is pressed (two readings 150 ms apart agree), and how
+        # long that took rides in the reading. The steps are NOT settled: a jump on repaint that later returns is the
+        # defect he reported, so each step is still read 250 ms after its key.
+        o0 = board().run(MEASURE + "var a = m(), b = a, k = 0;"
+                         "for (k = 0; k < 20; k++){ await new Promise(function(r){ setTimeout(r, 150); }); b = m();"
+                         "  if (b.x === a.x && b.y === a.y && b.top === a.top) break; a = b; }"
+                         "b.settledAfterMs = (k + 1) * 150; OUT.m = b;")["m"]
         self.assertEqual(o0["focus"], "cb-sockets", "PREMISE: the Sockets field did not take focus: %r" % o0)
+        self.assertLess(o0["settledAfterMs"], 3000, "PREMISE: the planner never stopped moving before a key was pressed: %r" % o0)
         steps = []
         for _ in range(3):
             key_up()
