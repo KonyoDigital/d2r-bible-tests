@@ -12365,6 +12365,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_move_that_does_not_happen_says_why.py")], 300,
          needs_app=False,
          why="REG-2854: the vault's move door answers every move, and a refused one (a Magic & Rare keeper, a locker the board lacks) is said"),
+    Gate("test_a_base_in_doubt_is_unknown_everywhere",
+         [sys.executable, os.path.join(HERE, "test_a_base_in_doubt_is_unknown_everywhere.py")], 300,
+         needs_app=False,
+         why='REG-2903/2904/2905: an item whose base its name or record does not give is the mark on every surface, and the mark asks why'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
