@@ -207,6 +207,23 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2838 - A SIGHTING OF HIS SECOND HAND COPY WAS READ AS THE FIRST COPY MOVING ELSEWHERE (front-run measure, his 10-28 plan)
+Later, with AUTO on, a sighting must join the records he typed. Measured on the whole page in node: two Stones of Jordan
+added by hand; the first sighting (stash c0r0) gave copy 0 its FROM cell and frame, and the second (a new cell, c2r0) went to
+copy 0 too and marked it "moved-elsewhere" - copy 1 never got its sighting, so one copy lost its witness and the other its
+move. With no row at the sighting's place, _vaultMoveApplySight fell back to copy 0. It now takes the first copy whose
+MANUAL row has no FROM cell yet, and copy 0 only when every hand copy has been seen (v3767: a second cell is a second copy).
+A re-read of a seen cell adds no copy. Law: test_a_hand_copy_gets_its_move_and_its_sighting, 1 red-proof, RED.
+
+### REG-2837 - A PERFECT BASE AND A LATER COPY ADDED FROM THE PLANNER GOT NO MOVE TASK (front-run measure, his 10-28 plan)
+He will organise his hand-added items in game by the MOVE tasks. The + Add an item door gives every copy its MOVE row
+(vaultHandAdd -> _vaultMoveNoteAdded), and two of the planner's roads did not. Measured on the whole page in node, 505 hand
+adds: all 60 perfect bases (filed by vaultFile directly) and all 9 later copies of a filed name (the planner's copy count) had
+a record and no MOVE task - nothing said where to put them, and a sighting of a second copy had no row to fill (REG-2838).
+The planner now writes each such copy's row through window._vaultMoveNoteAdded, once the filing is saved. Law:
+test_a_hand_copy_gets_its_move_and_its_sighting (node, the whole page: the planner, then reel sightings through
+tvVaultRegister), 2 red-proofs, RED.
+
 ### REG-2836 - A SAVED PROFILE DROPPED EVERY RUNEWORD HE BUILT IN THE PLANNER (front-run measure, his 10-28 plan)
 He will save and load the profile as he hand-adds. The planner keeps each runeword he built in d2r_plannerMade (the base he
 chose and its rolls - the cell's picture, footprint and hover read it), and the profile did not carry that store.

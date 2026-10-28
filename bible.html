@@ -49611,6 +49611,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, filed: false, refused: 'held', held: _hdP.keys, why: whyHd };
     }
     var q = shown.q;
+    var _vpMoveAt = null;   /* REG-2837 - {name, copyIx} of a copy this pick filed that still needs its MOVE row */
     var magicQ = (q === 'm') ? 'magic' : (q === 'rare') ? 'rare' : (q === 'c') ? 'crafted' : '';
     var kind = (q === 'u') ? 'unique' : (q === 's') ? 'set' : (q === 'r') ? 'runeword' : null;
     /* One add is one name. The hand door files a set piece under its slot key
@@ -49725,6 +49726,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           _vpCopyBump = { name: nm, token: token, prev: prevN, prevSeen: _vpCopySeen[nm], keepHad: _mkHad, keepWas: _mkWas, keepSet: _mkSet };
           routed = { ok: true, filed: true, mode: 'copy', mule: assign[nm],
             why: _copyFileSay(nm, copies[nm], assign[nm]) };
+          _vpMoveAt = { name: nm, copyIx: copies[nm] - 1 };   /* REG-2837 - this copy's own MOVE row, written once saved */
         }
       }
       _vpCopySeen[nm] = token;
@@ -49735,6 +49737,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e7) {}
     }
     var introduced = keepFresh || (!beforeOwned && !beforeMagic && beforeAssign == null);
+    /* REG-2837 - a perfect base is filed by the router's own door (vaultFile), never through vaultHandAdd, so it got no MOVE row */
+    if (_pb && !beforeOwned && routed && (routed.mode === 'filed' || routed.mode === 'confirmed')) _vpMoveAt = { name: nm, copyIx: 0 };
     _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept),
                 cnt0: (typeof copies !== 'undefined' && copies && copies[nm] > 0) ? (copies[nm] | 0) : 1 }; /* the count this pick left */
     if (routed && (routed.mode === 'filed' || routed.mode === 'confirmed') && assign[nm] != null && typeof window.kaiChronicleRecord === 'function'){
@@ -49746,6 +49750,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     try { persistOwned(); } catch (e8) {}
     try { saveA(); } catch (e9) {}
+    /* #154 front-run (REG-2837) - EVERY COPY HE ADDS FROM THE PLANNER GETS ITS MOVE ROW, the way the + Add an item door gives
+       one (vaultHandAdd -> _vaultMoveNoteAdded; L1 "each hand copy its own row"). Two of the planner's roads skipped it.
+       Measured on the whole page in node, 505 hand adds: all 60 perfect bases (filed by vaultFile) and all 9 later copies of a
+       filed name (the planner's copy count) had a record and no MOVE task - nothing told him where to put them, and a
+       sighting of a second copy had no row to fill (it was read as the first copy moving elsewhere). The row is written on
+       the next turn, the way the lockers paint: planning its target cell packs the whole home locker and asks the router about
+       every name in it, and this door never asks the router about a name already filed (REG-2533). */
+    if (_vpMoveAt && typeof window._vaultMoveNoteAdded === 'function'){
+      var _mvAt = _vpMoveAt, _mvW = function(){ try { window._vaultMoveNoteAdded(_mvAt.name, _mvAt.copyIx); } catch (eMvA) {} };
+      if (typeof setTimeout === 'function') setTimeout(_mvW, 0); else _mvW();
+    }
     /* The planner covers the vault. Drawing every locker on each roll is the stall he feels.
        The filing is already saved. One draw happens when the planner closes. */
     if (window._vaultPlannerOn){
@@ -53413,6 +53428,17 @@ window.vaultAutoAssign = function(){
     recs.forEach(function(r){
       var ens = _vaultMoveEnsure(name, r.copyIx || 0, bag);
       if (_vaultMoveSamePlace(place, ens.task.to) || _vaultMoveSamePlace(place, ens.task.from)) hit = ens;
+    });
+    /* #154 front-run (REG-2838) - A SIGHTING AT A NEW CELL JOINS THE HAND COPY STILL WAITING FOR ITS FIRST SIGHTING. With no
+       row at that place it went to copy 0 whatever copy 0 had seen: measured on the whole page in node, two hand-added Stones
+       of Jordan, the first sighted at stash c0r0, the second sighting at c2r0 was read as copy 0 "moved-elsewhere" while copy
+       1's MANUAL row stayed unseen - one copy lost its witness, the other its move. v3767: a second cell is a second copy. So
+       the first copy whose MANUAL row has no FROM cell yet takes it; with none, copy 0 as before. Which of two hand copies a
+       sighting is, when its mods would tell them apart, is the per-copy identity still owed (no copy carries its mods). */
+    if (!hit) recs.forEach(function(r){
+      if (hit) return;
+      var ensW = _vaultMoveEnsure(name, r.copyIx || 0, bag), tW = ensW.task;
+      if (tW && tW.manual && (!tW.from || tW.from.cell == null)) hit = ensW;   /* REG-2838 the unseen hand copy */
     });
     if (!hit && recs.length) hit = _vaultMoveEnsure(name, recs[0].copyIx || 0, bag);
     if (!hit) return { applied: false, task: null };
