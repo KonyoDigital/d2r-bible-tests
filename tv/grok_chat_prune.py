@@ -158,7 +158,9 @@ def run(root=None, registry=None, free_bytes=None, floor_bytes=None, critical_by
     rec = {"ts": int(now_s * 1000), "need": p["need"], "removed": removed, "freed": freed, "failed": failed,
            "total": p["total"], "after": p["total"] - freed}
     if p["need"] is None:
-        rec["say"] = "not needed - the Grok chats hold %.2f GB, under the %.0f GB budget, and the disk is over its floor" % (
+        # REG-2754 (GrokBot's v3823 pass: 0.74 GB here, "Grok sessions 0.82 GB" on the sign's list) - the budget counts the
+        # conversation folders, and the sign's list measures the whole sessions folder; the words say which
+        rec["say"] = "not needed - the Grok chats (their conversation folders) hold %.2f GB, under the %.0f GB budget, and the disk is over its floor" % (
             p["total"] / 1e9, BUDGET_BYTES / 1e9)
     elif live is None:
         rec["say"] = "needed (%s) but %s - nothing pruned" % (p["need"], p["keep_why"])

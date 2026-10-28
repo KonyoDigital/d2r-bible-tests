@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2754 - THE GROK CHAT PRUNE AND THE DISK SIGN NAMED TWO SIZES FOR ONE FOLDER, AND THE ALT'S LINE SAID NOTHING (#151)
+GrokBot's v3823 pass: the prune's line said the chats hold 0.74 GB while the sign's list said "Grok sessions 0.82 GB",
+and the ALT's prune line read say: null while he played. The budget counts the conversation folders and the list
+measures the whole sessions folder (its other files too); each now says which, and the list's action no longer says the
+folder triggers the prune. The line starts "not asked yet - ..." and a pass that waits for his game or a busy machine
+says so on the prune's line too, its lastTs staying the last pass that ran. Law: test_free_space_counts_what_macos_frees
+(3 new cases, 3 new red-proofs).
+
 ### REG-2752 - A REEL OF CAPTURE-LESS RE-READS COULD STILL BE DATED BY WHEN THEY WROTE (the v3823 second eye)
 REG-2744 counted a verify or intake row only through its frame's capture time. The fallback for a session with no
 moments of its own (replay.session_moments: "every row's when nothing else is there") still took every row's row_moment,
