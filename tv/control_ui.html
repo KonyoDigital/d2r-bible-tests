@@ -1788,6 +1788,8 @@
   #th-film { cursor: zoom-in; }
   #th-film.cut { animation: thAperture 110ms ease-out; }
   #th-film.vaultglow { box-shadow: 0 0 0 1px rgba(120,220,160,.6), 0 0 34px rgba(90,210,150,.35); }
+  /* REG-2959 - the frame the label names is still loading: the picture on the film is the one before it, dimmed */
+  #th-film.th-pending { filter: grayscale(1) brightness(.45); }
   #th-thumb { position: fixed; bottom: clamp(96px,14vh,130px); transform: translateX(-50%); z-index: 60;
     pointer-events: none; background: rgba(6,8,7,.95); border: 1px solid var(--edge); border-radius: 6px;
     padding: 4px; box-shadow: 0 8px 26px rgba(0,0,0,.6); text-align: center; }
@@ -17100,21 +17102,35 @@ window._lockMark = function(isOpen, px, label){
     return line;
   }
   var _thPool = [new Image(), new Image(), new Image(), new Image(), new Image()];   // v893 — deeper prefetch
+  /* REG-2959 (#51, GrokBot tick 403: Session 175 reopened painted a different picture under the same label "8/67 ·
+     7:54:44 PM.859") - TWO WAYS A PICTURE SAT UNDER ANOTHER FRAME'S LABEL. thPaint writes the label at once and the film
+     follows when the frame's picture has loaded. (1) A step back to the frame already on the film returned before it
+     re-aimed __want, so the probe still loading the frame stepped past landed later and painted ITS picture under this
+     frame's label (measured on the shipped function in node). (2) While a frame not yet decoded loads, the film kept the
+     previous picture under the new label and said nothing; a first open asks the server to make each frame's 1280 copy, so
+     that wait is the long one. The return now re-aims __want, and a frame still loading after a beat is marked pending
+     (th-pending: the old picture dimmed) until its own picture lands. */
+  function _thPend(film, on){ try { if (film && film.classList) film.classList.toggle('th-pending', !!on); } catch (e) {} }
   function thShowFrame(url){
     // v829 — RACE FIX: film remembers __want; stale probe callbacks ignored.
     var film = $('th-film'); if (!film) return;
-    if (film.__url === url) return;
+    if (film.__url === url){ film.__want = url; _thPend(film, false); return; }
     film.__want = url;
     for (var pi = 0; pi < _thPool.length; pi++){
       if (_thPool[pi].complete && _thPool[pi].src && _thPool[pi].src.indexOf(url) >= 0){
-        film.src = url; film.__url = url; return;
+        film.src = url; film.__url = url; _thPend(film, false); return;
       }
     }
     var probe = _thPool[0];
-    probe.onload = function(){ if (film.__want === url){ film.src = url; film.__url = url; } };
-    probe.onerror = function(){ if (film.__want === url){ film.src = url; film.__url = url; } };
-    if (probe.src && probe.src.indexOf(url) >= 0) { film.src = url; film.__url = url; }
-    else probe.src = url;
+    var land = function(){ if (film.__want === url){ film.src = url; film.__url = url; _thPend(film, false); } };
+    probe.onload = land;
+    probe.onerror = land;
+    if (probe.src && probe.src.indexOf(url) >= 0) { film.src = url; film.__url = url; _thPend(film, false); }
+    else {
+      probe.src = url;
+      /* a load that lands within a beat dims nothing, so playback does not flicker */
+      setTimeout(function(){ if (film.__want === url && film.__url !== url) _thPend(film, true); }, 160);
+    }
   }
   function thPreload(){
     // v893 — look further ahead at speed; keep decode budget bounded
