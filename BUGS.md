@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2739 - A LAW THAT READS AN OLD COMMIT FELL OFF CI'S 200-DEEP CLONE (v3820 CI red, green on the Mac)
+v3820's agent tests went red on main and on every later ci/ branch: test_a_roster_name_opens_its_row_with_the_eyes reads
+control_ui.html at BASE 694e4378 and refused with "BASE is not in this clone's history". tv-tests.yml clones 200 commits
+deep; BASE had just become 216 commits back. The Mac holds the full history, so it passed there - the #227 cliff that
+test_a_stamp_is_not_a_blind_spot already met, one law over, and a fixed depth only moves it. BASE is now the full sha and
+a clone that lacks it fetches that one commit by name (proved in a 1-deep no-checkout clone: absent, fetched, 2,286,519
+bytes read); only a failed fetch is UNKNOWN, still never a skip. Swept: the other pinned shas read by git show sit in
+measure_main() helpers no law case runs.
+
 ### REG-2738 - A LOCKER PLATE SAID "2" OVER FIVE COPY CELLS AND NOTHING SAID WHY (#111, GrokBot close-0915)
 GrokBot, on his live board with a tagged 3-copy test set: the mule header read "UNI-ARMOR 2" while the grid below it drew 5
 cells (Nightwing's Veil x3, Alma Negra x2). The number was right - REG-2224 made the plate count ITEMS, because counting

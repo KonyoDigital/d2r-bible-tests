@@ -12,7 +12,7 @@ Elad's rulings, in order (mock: two frames, row then modal):
 HOW: the SHIPPED control_ui.html and the same file at BASE (the commit before this change) are rendered in one
 headless Chrome over the same stubbed /api/fleet with the clock frozen, and their DOM is compared - the hover card
 byte for byte, the modal byte for byte once the ADVANCED fold is unwrapped. A clone without BASE in its history
-fails loudly; it never skips. Nothing real is touched: file:// pages, fetch stubbed, its own Chrome port.
+fetches that one commit by its full sha (REG-2739); only when the fetch fails too does it fail loudly - it never skips. Nothing real is touched: file:// pages, fetch stubbed, its own Chrome port.
 [[unknown-stays-unknown]] [[visual-regression-detector]]
 """
 import json
@@ -36,7 +36,9 @@ except Exception:
 import test_the_fleet_card_says_how_each_pc_films_and_drains as F  # noqa: E402  (sets the law's own Chrome port)
 
 RC = F.RC
-BASE = "694e4378"          # gbl/shadow before the row eyes (control_ui.html as Elad knows it; also what the v3796 stamp sat on)
+# gbl/shadow before the row eyes (control_ui.html as Elad knows it; also what the v3796 stamp sat on). The FULL sha, because a
+# shallow clone can only fetch a commit by its full name (REG-2739).
+BASE = "694e4378a2eeb6c31fd9a3f07e32bdcb57c657c1"
 NOW_MS = 1790000000000
 OWNERS = {"box-a": "Konyo \u00b7 Mac", "box-b": "Konyo \u00b7 ALT", "box-c": "Wife PC", "box-d": ""}
 # GrokBot's 21:09 pass (v3809): a console never offers a shadow of ITSELF - this PC's own row carries no eyes. The fleet
@@ -83,12 +85,25 @@ CLIP = r"""(function(){ var x = document.getElementById('fleet-xref'), adv = x &
   return JSON.stringify({ bad: bad, n: n, walk: walk }); })()"""
 
 
+def _show_base():
+    return subprocess.check_output(["git", "-C", ROOT, "show", BASE + ":tv/control_ui.html"], stderr=subprocess.STDOUT)
+
+
 def _base_ui():
+    """BASE's control_ui.html, written beside the law. REG-2739: tv-tests.yml clones 200 commits deep and BASE fell to 216
+    back when v3820 landed, so every CI run failed UNKNOWN on a law that passed on the Mac, which holds the full history -
+    the #227 cliff (test_a_stamp_is_not_a_blind_spot) one law over. A clone that lacks BASE fetches that one commit by its
+    full sha and reads it; only when the fetch fails as well is the answer UNKNOWN."""
     try:
-        src = subprocess.check_output(["git", "-C", ROOT, "show", BASE + ":tv/control_ui.html"], stderr=subprocess.STDOUT)
-    except Exception as e:
-        raise AssertionError("BASE %s is not in this clone's history, so 'unchanged' cannot be proved - UNKNOWN, not "
-                             "passing (%s)" % (BASE, e))
+        src = _show_base()
+    except Exception as first:
+        try:
+            subprocess.run(["git", "-C", ROOT, "fetch", "--no-tags", "--depth=1", "origin", BASE],
+                           capture_output=True, timeout=180, check=True)
+            src = _show_base()
+        except Exception as e:
+            raise AssertionError("BASE %s is not in this clone's history and could not be fetched, so 'unchanged' cannot "
+                                 "be proved - UNKNOWN, not passing (%s / %s)" % (BASE, first, e))
     fd, p = tempfile.mkstemp(suffix=".html", dir=HERE, prefix=".law_base_ui_")
     with os.fdopen(fd, "wb") as fh:
         fh.write(src)
