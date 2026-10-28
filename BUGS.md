@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2729 - THE COW LEVEL RANKED UNDER TWO NAMES, AND "24 AREAS" SAT OVER 12 ROWS (GrokBot's v3818 pass)
+Where you farm: "Secret Cow Level" (2 runs) and "Moo Moo Farm" (1) were two places - one area, two names. _hmAggregate
+folds "secret cow level" and "cow level" onto the game's own name, Moo Moo Farm (TZ_INFO and the live rotation feed use
+it too), after the REG-2709 "The" fold. The line over the list counted every area while the list shows 12; a cut list now
+reads "the top 12 of N areas". Law: test_an_area_written_with_the_is_one_area (3 new cases, 2 new red-proofs, node).
+
 ### REG-2728 - 12 EVIDENCE REMNANTS WENT ROUND THE DELETER AND THE KAI CLOSER 82 TIMES, WITH PAID RE-READS (#158)
 GrokBot's v3817 pass: 335 kai-funnel intake rows on his Mac, most of them failed or held. Measured from his own
 /api/intake_log and control_app.log (read only, 2026-10-28): the 209 "read failed" rows were 45 frames of 5 old sessions

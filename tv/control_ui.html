@@ -13032,6 +13032,9 @@ window._lockMark = function(isOpen, px, label){
   function _hmAggregate(){
     var runs = _cmpList();   // real runs (non-stub), newest first
     var map = {};
+    /* GrokBot's v3818 pass - "Secret Cow Level" (2 runs) and "Moo Moo Farm" (1) ranked as two places: one area, two
+       names. The game calls it Moo Moo Farm, and so do TZ_INFO and the live rotation feed. */
+    var _HM_SAME = { 'secret cow level': 'Moo Moo Farm', 'cow level': 'Moo Moo Farm' };
     runs.forEach(function(s){
       var grails = (s.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
       var seen = {};
@@ -13040,6 +13043,7 @@ window._lockMark = function(isOpen, px, label){
         /* REG-2709 (GrokBot's 02:05 pass) - "Rogue Encampment" (22 runs) and "The Rogue Encampment" (6) ranked as two places:
            the reader writes the area both ways. A leading "The" is folded off the key, and the row is named without it. */
         var bare = a.replace(/^the\s+/i, '');
+        bare = _HM_SAME[bare.toLowerCase()] || bare;
         var key = bare.toLowerCase();
         if (seen[key]) return; seen[key] = 1;   // an area counts once per run
         if (!map[key]) map[key] = { name: bare, runs: 0, reads: 0, grails: 0 };
@@ -13060,7 +13064,8 @@ window._lockMark = function(isOpen, px, label){
       ov.hidden = false; ov.scrollTop = 0; return;
     }
     var max = agg.areas[0].runs || 1;
-    var rows = agg.areas.slice(0, 12).map(function(a, i){
+    var HM_SHOWN = 12;
+    var rows = agg.areas.slice(0, HM_SHOWN).map(function(a, i){
       var pctRuns = Math.round(a.runs / agg.totalRuns * 100);
       var heat = (0.32 + 0.68 * (a.runs / max)).toFixed(2);   // hotter = more frequent
       var w = Math.max(6, Math.round(a.runs / max * 100));
@@ -13074,7 +13079,9 @@ window._lockMark = function(isOpen, px, label){
     }).join('');
     ov.innerHTML = '<div class="hm-wrap">' + back
       + '<div class="hm-head">🗺 Where you farm</div>'
-      + '<div class="hm-sub">across ' + agg.totalRuns + ' run' + (agg.totalRuns === 1 ? '' : 's') + ' · ' + agg.areas.length + ' area' + (agg.areas.length === 1 ? '' : 's') + ' · ranked by how often you run each</div>'
+      /* GrokBot's v3818 pass - the line said "24 areas" over a list of 12. A cut list says it is cut. */
+      + '<div class="hm-sub">across ' + agg.totalRuns + ' run' + (agg.totalRuns === 1 ? '' : 's') + ' · '
+      + (agg.areas.length > HM_SHOWN ? 'the top ' + HM_SHOWN + ' of ' : '') + agg.areas.length + ' area' + (agg.areas.length === 1 ? '' : 's') + ' · ranked by how often you run each</div>'
       + '<div class="hm-list">' + rows + '</div>'
       + '<div class="hm-note">Bars rank by run frequency — the honest signal in the data. 🏆 counts are grails found in the runs that visited an area, not pinned to the zone itself (finds don’t carry a location).</div></div>';
     ov.hidden = false; ov.scrollTop = 0;

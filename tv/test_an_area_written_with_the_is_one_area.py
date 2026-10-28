@@ -3,7 +3,8 @@
 
 The Shelf's "Where you farm" ranked "Rogue Encampment" (22 runs) and "The Rogue Encampment" (6 runs) as two places - the
 reader writes an area both ways. _hmAggregate folds a leading "The" off the key and names the row without it; an area
-still counts once per run.
+still counts once per run. GrokBot's v3818 pass: "Secret Cow Level" and "Moo Moo Farm" are one place too (the game's name
+is Moo Moo Farm), and the line over the list said "24 areas" above 12 rows - a cut list now says it is the top 12.
 
 Drives the SHIPPED _hmAggregate (cut from control_ui.html) in node over a stub run list. RED_PROOF below.
 """
@@ -29,7 +30,10 @@ var RUNS = [
   { areas: ['Rogue Encampment', 'The Pit'], reads: 10, finds: [] },
   { areas: ['The Rogue Encampment', 'Rogue Encampment'], reads: 5, finds: [{ tier: 'grail' }] },
   { areas: ['the rogue encampment'], reads: 2, finds: [] },
-  { areas: ['Theater of Blood'], reads: 1, finds: [] }
+  { areas: ['Theater of Blood'], reads: 1, finds: [] },
+  { areas: ['Secret Cow Level'], reads: 3, finds: [] },
+  { areas: ['The Secret Cow Level', 'Moo Moo Farm'], reads: 4, finds: [] },
+  { areas: ['Moo Moo Farm'], reads: 1, finds: [] }
 ];
 function _cmpList(){ return RUNS; }
 %s
@@ -67,6 +71,46 @@ class AnAreaWrittenWithTheIsOneArea(unittest.TestCase):
         self.assertIn("Theater of Blood", [a["name"] for a in o["areas"]], "'Theater' lost its 'The'")
 
 
+class TheCowLevelIsOnePlaceAndACutListSaysSo(unittest.TestCase):
+
+    def test_secret_cow_level_and_moo_moo_farm_are_one_row(self):
+        rows = {a["name"]: a for a in _run()["areas"]}
+        self.assertNotIn("Secret Cow Level", rows, "the cow level ranks under two names: %r" % sorted(rows))
+        self.assertEqual(rows["Moo Moo Farm"]["runs"], 3, "a run that wrote both names counted twice: %r" % rows)
+
+    def _sub(self, n_areas):
+        with open(UI, encoding="utf-8") as fh:
+            s = fh.read()
+        a, b = "  window._hmOpen = function(){\n", "\n  };\n  window._hmClose = "
+        self.assertEqual((s.count(a), s.count(b)), (1, 1), "PREMISE: _hmOpen moved")
+        i = s.index(a)
+        fn = s[i:s.index(b, i) + 5]
+        js = ("var window = {}, OV = { hidden: true, innerHTML: '', scrollTop: 0 };\n"
+              "var document = { getElementById: function(){ return OV; } };\n"
+              "function esc(x){ return String(x); } function _kpiFmt(x){ return String(x); }\n"
+              "function _hmAggregate(){ var a = []; for (var i = 0; i < %d; i++) a.push({ name: 'Area ' + i, runs: 9 - (i %% 9), "
+              "reads: 1, grails: 0 }); return { areas: a, totalRuns: 9 }; }\n" % n_areas + fn + "\nwindow._hmOpen();\n"
+              "var m = OV.innerHTML.match(/<div class=\"hm-sub\">([^<]*)</); var rows = OV.innerHTML.split('class=\"hm-row\"').length - 1;\n"
+              "console.log(JSON.stringify({ sub: m && m[1], rows: rows }));")
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise AssertionError("_hmOpen did not run in node: %s" % r.stderr[-800:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_cut_list_says_it_is_the_top_twelve(self):
+        o = self._sub(24)
+        self.assertEqual(o["rows"], 12, "PREMISE: the list is not cut at 12: %r" % o)
+        self.assertIn(" · the top 12 of 24 areas · ", o["sub"], "the line counts 24 areas over 12 rows: %r" % o)
+
+    def test_a_whole_list_counts_plainly(self):
+        o = self._sub(5)
+        self.assertEqual(o["rows"], 5)
+        self.assertIn(" · 5 areas · ", o["sub"])
+        self.assertNotIn("top", o["sub"])
+
+
 RED_PROOF = [
     {"why": "REG-2709 - 'The Rogue Encampment' ranks as its own place again",
      "file": "tv/control_ui.html",
@@ -77,6 +121,16 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "        var bare = a.replace(/^the\\s+/i, '');\n",
      "replace": "        var bare = a.replace(/^the\\s*/i, '');\n",
+     "matches": 1, "needs": "node"},
+    {"why": "GrokBot v3818 - 'Secret Cow Level' and 'Moo Moo Farm' rank as two places again",
+     "file": "tv/control_ui.html",
+     "find": "        bare = _HM_SAME[bare.toLowerCase()] || bare;\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "GrokBot v3818 - the line counts every area over a list cut to 12",
+     "file": "tv/control_ui.html",
+     "find": "      + (agg.areas.length > HM_SHOWN ? 'the top ' + HM_SHOWN + ' of ' : '') + agg.areas.length",
+     "replace": "      + agg.areas.length",
      "matches": 1, "needs": "node"},
 ]
 
