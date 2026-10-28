@@ -26,6 +26,17 @@ Breaking only the first changed nothing the law can see. The property the law na
 the proof now breaks both raises (one find over the two lines, 1 match). REG-2786's own proofs aim at its line on names
 that are not set pieces, where the L1 line never applies, so they stay honest. The code keeps both lines (each is right on
 its own; the set-piece line is a named special case of the general one). Proven by the push gate (Chrome law).
+### REG-2879 - REG-2803'S CHROME LAW DROVE A GUEST WORLD, WHERE THE BOARD RIGHTLY MAKES NO MULE (ci/claude-v3834, 4 cases)
+CI (agent-suite, ci/claude-v3834) failed four cases of tv/test_vault_l1_war_stash_overflow.py, which REG-2803 re-aimed without
+a local run. They were the board making WAR1 (501 rings, nine belts, the big-gear keeper) and the took-back line. The errors
+read "an extra copy is not on the board's WAR1: {0: ('SHARED STASH', 'shared:c0r0'), 1: ('SHARED STASH', None), ...}" and
+"'you took back the WAR1' not found". I replicated the law's exact world in node: its Board opens file:// on a fresh scratch
+profile with no d2r_ownerClaim and empty bare stores. That is a GUEST world (_D2R_OWNER false), and
+window._vaultWarAuto.why read "a guest world makes no mule" in all four, with CI's exact copy map. REG-2803's own rule says a
+guest never makes a mule, so the board was right and the law's world was not his. His board is owner-claimed. With the claim
+set for that install, the same four worlds give WAR1 made by the board, with the extras on it, the make task, an empty line,
+and "you took back the WAR1 the board made" when declined. The law now claims the world in roster_with before the seed and
+asserts _D2R_OWNER as a premise. No code changed.
 
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to

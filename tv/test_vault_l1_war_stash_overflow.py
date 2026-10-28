@@ -51,7 +51,14 @@ def tearDownModule():
 
 def roster_with(names, declined=None):
     """the saved roster, plus mules named `names` (seeded like his saved store - never the Add mule button); `declined` = the
-    WAR mules he took back (REG-2803: kept on the shared stash's entry, so the board does not make them again)"""
+    WAR mules he took back (REG-2803: kept on the shared stash's entry, so the board does not make them again).
+
+    HIS board is owner-claimed. The scratch Chrome opens file:// on an empty profile with no claim, which is a GUEST world,
+    and a guest never makes a mule (REG-2803's own rule). Measured in node on that world (v3834): _vaultWarAuto.why was
+    "a guest world makes no mule", WAR1 was never made, and four cases failed on CI. So the world is claimed for this
+    install before the seed, and the claim is a premise the case asserts."""
+    T.board().run("localStorage.setItem('d2r_ownerClaim', window._D2R_INSTALL || '*');")
+    T.board().navigate()
     T.fresh()
     r = T.board().run("OUT.r = JSON.parse(window.LSR.getItem('d2r_muleRoster') || 'null') || (window._vaultRosterNow && window._vaultRosterNow());")["r"]
     assert isinstance(r, list) and r, "PREMISE: the page saved no roster to extend: %r" % (r,)
@@ -66,6 +73,8 @@ def roster_with(names, declined=None):
                 m["warDeclined"] = list(declined)
     T.board().seed({"d2r_muleRoster": r, "d2r_owned": [], "d2r_vaultProv": {}, "d2r_muleAssign": {},
                     "d2r_vaultRecords": None, "d2r_copies": {}, "d2r_multiKeep": {}})
+    owner = T.board().run("OUT.o = window._D2R_OWNER === true;")["o"]
+    assert owner, "PREMISE: the board is a guest world, where no mule is ever made - not his board"
 
 
 def add_many(names, step=20):
