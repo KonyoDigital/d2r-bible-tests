@@ -12569,6 +12569,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_hover_read_never_counts_an_item_gone.py")], 300,
          needs_app=False,
          why='the gone-drain counts absence only from a frame that read its container whole (REG-2861)'),
+    Gate("test_a_broad_door_guards_a_lock_only_through_its_own_code",
+         [sys.executable, os.path.join(HERE, "test_a_broad_door_guards_a_lock_only_through_its_own_code.py")], 300,
+         needs_app=False,
+         why='REG-2865 (#212) - a lock whose door lives in control_app is guarded by the laws that exercise its own code, not by every law that imports the console'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
