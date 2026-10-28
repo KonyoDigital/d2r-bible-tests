@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2717 - THE RENDER TARGETS SHARE ONE BROWSER PROFILE, AND ONE SEED MINTED COPIES IN THE NEXT (the v3817 push)
+The v3817 push was refused at the render gate: vault-full painted 32 copy badges ("1/2", "2/2") cut off in its collapsed
+locker. v3817 had moved the `vault` target's seed to the hand door (REG-2699, #202: a TV read now waits for two sessions),
+and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `vault-full` then hand-added the same names
+and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
+had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
+Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+
 ### REG-2706 - A ROW HELD FOR A SECOND SESSION FELL OUT OF THE APPLY'S RECEIPT WITHOUT A WORD (#202, v3817's CI)
 #202 (REG-2686) holds a reader row of a name he does not own until a second session, and refuses one with no look at all.
 chronicleApply's _vaultReport dropped every not-ok register result (`if (!vr || !vr.ok) return false`), so a held row

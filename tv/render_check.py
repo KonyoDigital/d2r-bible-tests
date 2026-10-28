@@ -799,9 +799,9 @@ TARGETS = {
              'Bonehew','Steeldriver','Earth Shifter','Lightsabre','Tomb Reaver','Eaglehorn',
              'Widowmaker','Buriza-Do Kyanon','Gimmershred','Lacerator','Warshrike','Hellrack',
              'Silver-Edged Axe'].forEach(function(n){
-                try{ var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
+                try{ var h = window.vaultHandAdd(n, undefined, { by: 'the render seed' }); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
             ['Nagelring','Raven Frost','Manald Heal'].forEach(function(n){
-                try{ var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n,'uni-small'); }catch(e){} });
+                try{ var h = window.vaultHandAdd(n, undefined, { by: 'the render seed' }); window.vaultAssign((h && h.name) || n,'uni-small'); }catch(e){} });
             return 1; })()""",
         "activate": """(function(){
             var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
@@ -1022,9 +1022,12 @@ TARGETS = {
                    'Ethereal Edge','Executioner\\u2019s Justice','Fleshripper'];
             /* REG-2673 (#148.4): a drag or a click only ever files a name he OWNS. This seed used to file 30 names
                it never owned, and vaultAssign owned them as a side effect - the defect that fix closed. Each is
-               added through his hand door first (it answers the name it filed under), then filed. */
+               added through his hand door first (it answers the name it filed under), then filed.
+               v3817 - `by` names this door, so a name an EARLIER target already owns (the targets share one browser
+               profile, and `vault` now adds its weapons by hand too) answers 'already' instead of becoming a second
+               COPY: the v3817 push was refused on 32 copy badges this fixture had minted by accident. */
             W.forEach(function(n){
-              try{ var h = window.vaultHandAdd(n); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
+              try{ var h = window.vaultHandAdd(n, undefined, { by: 'the render seed' }); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
             return 1; })()""",
         # RAW on purpose: this block holds JS regexes (`/FULL|needs \d+ mules/` below). Unraw, `\d`
         # is an invalid Python escape — silent on 3.9 here, a VISIBLE SyntaxWarning on CI's 3.12.
