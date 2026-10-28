@@ -26,6 +26,8 @@ try:
     _enable()
 except Exception:
     pass
+import fixture_tmp as _fx  # noqa: E402
+_fx.contain()                 # every temp tree below lives in this run's own scratch, listed only through list_own
 import grok_chat_prune as G  # noqa: E402
 
 GB = 1000 ** 3
@@ -65,8 +67,17 @@ class HisGrokChatsArePrunedOnlyWhenNeeded(unittest.TestCase):
                      receipt_path=self.receipt, now_s=self.now)
 
     def left(self):
-        return sorted(os.path.basename(e.path) for c in os.scandir(self.root) if c.is_dir()
-                      for e in os.scandir(c.path) if e.is_dir(follow_symlinks=False))
+        """The conversation folders still on the fixture tree; a link is never one. -> [id]"""
+        out = []
+        for c in _fx.list_own(self.root):
+            cp = os.path.join(self.root, c)
+            if not os.path.isdir(cp) or os.path.islink(cp):
+                continue
+            for e in _fx.list_own(cp):
+                ep = os.path.join(cp, e)
+                if os.path.isdir(ep) and not os.path.islink(ep):
+                    out.append(e)
+        return sorted(out)
 
     # ---- the baseline: nothing is needed, nothing goes -----------------------------------------------------------
 
