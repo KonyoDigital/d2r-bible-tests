@@ -12293,6 +12293,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_task_force_repaints_only_when_it_changed.py")], 300,
          needs_app=False,
          why="REG-2796: the task-force rows repaint only when they changed (the paint's own mark, never re-serialized innerHTML)"),
+    Gate("test_a_mule_is_a_war_mule_by_its_role_never_its_name",
+         [sys.executable, os.path.join(HERE, "test_a_mule_is_a_war_mule_by_its_role_never_its_name.py")], 300,
+         needs_app=False,
+         why='REG-2804 a mule is a war mule by its stored role, never its name; the shared stash keeps its name; the shared family is drawn on rows, expand, window and FIND'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -416,7 +416,7 @@ RED_PROOF = [
      "file": "bible.html", "find": "    return best == null ? 0 : best; /* L1 else the first-witnessed copy */",
      "replace": "    return best == null ? 99 : best; /* L1 else the first-witnessed copy */", "matches": 1},
     {"why": "A WAR mule row does not say it is the Shared Stash overflow.",
-     "file": "bible.html", "find": "      if (_pm ? _vaultWarRole(_pm) : /^war\\s*\\d*$/i.test(h.trim())) h = h + ' (SHARED STASH · overflow)'; /* L1 a WAR mule reads as the war stash */",
+     "file": "bible.html", "find": "      if (_pm && _vaultWarRole(_pm)) h = h + ' (SHARED STASH · overflow)'; /* L1 a WAR mule reads as the war stash; REG-2804 by its role, never its name */",
      "replace": "", "matches": 1},
 ]
 
