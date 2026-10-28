@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3827",
+  "ver": "v3828",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3827: copy readout, war stash first, the prune asks its own disk, profiles carry the chronicle, filler is no look",
+  "note": "v3828: live Shelf card counts its own stills (REG-2774), drawer prints agent free GB (REG-2776), scenarios name frames",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
