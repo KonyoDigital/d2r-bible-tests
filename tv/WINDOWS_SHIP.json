@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3830",
+  "ver": "v3831",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3830: move popup gone, war mule and card copies at task cells, planner record, one last session, raw OCR, throw row opens",
+  "note": "v3831: intent line is a finding, refused copy readout served, v1816 law waits, each unique wears its own picture",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
