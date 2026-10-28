@@ -12221,6 +12221,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_war_mule_draws_the_copies_planned_on_it.py")], 300,
          needs_app=False,
          why="#144.11 REG-2781: a WAR mule's window, census and tile draw the over-cap copies its tasks send it, and a name filed there is counted once"),
+    Gate("test_a_mule_card_draws_a_copy_where_its_task_sends_it",
+         [sys.executable, os.path.join(HERE, "test_a_mule_card_draws_a_copy_where_its_task_sends_it.py")], 300,
+         needs_app=False,
+         why='#144.10 REG-2782: a mule card (and FIND) draws each copy at the cell its move task sends it, his hand spot first'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

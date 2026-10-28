@@ -51756,6 +51756,34 @@ window.vaultAutoAssign = function(){
     return { mules: mules, left: left, capStash: MULE_STASH_W * MULE_STASH_H, capInv: MULE_INV_W * MULE_INV_H };
   }
   try { window._vaultSpread = _vaultSpread; } catch (e) {}
+  /* #144.10 (REG-2782) - WHERE THE MOVE TASKS SEND EACH COPY ON ONE LOCKER: {name: [{ci, tab, x, y}, ...]} in copy order,
+     read off the saved move targets (each record's `move`). null = nothing saved here, or the store will not read - the
+     packer then lays every copy itself, exactly as before. Memoised on the store's exact text, so the lockers of one paint
+     parse it once and a write (another text) is read fresh; window._vaultMemoOff = true reads it every time. */
+  var _vaultPlanMemo = null;
+  function _vaultPlanOn(muleId){
+    if (muleId == null || muleId === 'shared' || typeof _vaultMoveBag !== 'function') return null;
+    var raw = null;
+    try { raw = window.LSR.getItem(_VR_STORE_KEY); } catch (e) { return null; }
+    if (raw == null || raw === '') return null;
+    var bag = (_vaultPlanMemo && _vaultPlanMemo.raw === raw && window._vaultMemoOff !== true) ? _vaultPlanMemo.bag : null;
+    if (!bag) { try { bag = _vaultMoveBag(); } catch (eB) { return null; } _vaultPlanMemo = { raw: raw, bag: bag }; }
+    if (!bag || bag.unread || !bag.map) return null;
+    var mm = (typeof muleById === 'function') ? muleById(muleId) : null, mName = mm ? String(mm.name || '') : null, by = null;
+    Object.keys(bag.map).forEach(function(k){
+      var mv = bag.map[k], to = mv && mv.to;
+      if (!to || to.cell == null || mv.kind === 'throw') return;
+      if (to.id != null ? String(to.id) !== String(muleId) : (mName == null || String(to.holder || '') !== mName)) return;
+      var c = String(to.cell).match(/^(stash|inventory):c(\d+)r(\d+)$/);
+      if (!c) return;
+      var p = k.split('\u0000');
+      by = by || {};
+      (by[p[0]] || (by[p[0]] = [])).push({ ci: +(p[1] || 0), tab: c[1] === 'inventory' ? 'inv' : 'personal', x: +c[2], y: +c[3] });
+    });
+    if (by) Object.keys(by).forEach(function(n){ by[n].sort(function(a, b){ return a.ci - b.ci; }); });
+    return by;
+  }
+  try { window._vaultPlanOn = _vaultPlanOn; } catch (ePo) {}
   function _muleLoad(names, worn, muleId, posAll){
     /* v403 — a QUANTITY base owned xN takes N SEPARATE grid slots: each physical copy packs on its
        own, assorted alongside the other units (Konyo's 3 Threshers = 3 cells). */
@@ -51856,6 +51884,31 @@ window.vaultAutoAssign = function(){
                      bad: 'your spot (' + _sp + ') no longer fits: ' + why });
       }
     });
+    /* #144.10 (REG-2782, GrokBot's eyes-pass A1, seeds 1012/1013/1021: "SOCKETED tasks are Monarch c0r0, Phase Blade c4r0,
+       Thresher c5r0, but the open card draws Thresher (0,0) and Monarch (4,0)") - A COPY WITH A MOVE TASK IS DRAWN WHERE ITS
+       TASK SENDS IT. A task's cell is append-only (Elad ruling 1: a saved target never moves) and this packer re-laid every
+       copy largest-first, so a later, bigger arrival slid the card's copies off the cells their tasks named: he follows the
+       task, and the card - and FIND, which asks this packer - show another layout. Measured: Gull, The Grandfather and
+       Lightsabre added by hand get tasks c0r0 / c1r0 / c3r0 on UNI-WEAPONS and the card drew them at (4,0) / (0,0) / (2,0).
+       The k-th copy of a name takes the k-th task cell on this locker. His own hand spot still wins (laid above); a task
+       cell that is taken or off the grid is packed as before; a copy with no task packs exactly as it did. */
+    var _plan = (muleId != null && typeof _vaultPlanOn === 'function') ? _vaultPlanOn(muleId) : null;
+    if (_plan) {
+      var _planAt = {}, _planK = {}, _planLeft = [];
+      sized.forEach(function(it){ var k = (_planK[it.n] = (_planK[it.n] || 0) + 1) - 1; if (_plan[it.n] && _plan[it.n][k]) _planAt[it.key] = _plan[it.n][k]; });
+      _auto.forEach(function(it){
+        var pl = it.bad ? null : _planAt[it.key], A = pl ? MULE_AREAS[pl.tab] : null;
+        var ok = !!(A && pl.x + it.w <= A[0] && pl.y + it.h <= A[1]);
+        var here = ok ? ((_handAt[0] = _handAt[0] || {})[pl.tab] = _handAt[0][pl.tab] || []) : [];
+        for (var i = 0; ok && i < here.length; i++){
+          var o = here[i];
+          if (pl.x < o.x + o.w && o.x < pl.x + it.w && pl.y < o.y + o.h && o.y < pl.y + it.h) ok = false;
+        }
+        if (ok) here.push({ n: it.n, key: it.key, x: pl.x, y: pl.y, w: it.w, h: it.h, planned: true });
+        else _planLeft.push(it);
+      });
+      _auto = _planLeft;
+    }
     _auto.sort(_order);
     /* v405 — pack across as many mule characters as needed: stash(10x10) then inventory(10x4).
        Greedily fill mule 1, spill the rest onto mule 2, and so on. #174 v-B2 — each mule's hand-placed rectangles
@@ -51932,7 +51985,7 @@ window.vaultAutoAssign = function(){
       /* #174 v-B2 — the same question with his hand-placed rectangles where he put them: they are seeded as
          occupied (never re-packed), and only what the packer placed is packed again with the probe. */
       var _lo = _handAt[mules.length - 1] || {};
-      var _held = (last.stash || []).concat(last.inv || []).filter(function(x){ return !x.manual; });
+      var _held = (last.stash || []).concat(last.inv || []).filter(function(x){ return !x.manual && !x.planned; }); /* #144.10 seeded, not re-packed */
       var _probe = [{n: '__probe', w: _big.w, h: _big.h, area: _big.w * _big.h, set: '', ct: 1}];
       var _s2 = packGrid(_held.concat(_probe), MULE_STASH_W, MULE_STASH_H, _lo.personal);
       var _i2 = packGrid(_s2.left, MULE_INV_W, MULE_INV_H, _lo.inv);

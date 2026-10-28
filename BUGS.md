@@ -22,6 +22,24 @@ its loose film, and every one of those orphans was counted and spanned with it. 
 captured on or after its own session's start (the id's s_<start ms>_<n>, else its first captured moment), with a minute's
 grace for the first frame. tv/test_a_session_is_dated_by_what_it_captured.py plants an orphan still ten days before the
 session; its red-proof (the filter removed) is RED.
+### REG-2782 - A MULE CARD DREW A COPY AWAY FROM THE CELL ITS MOVE TASK SENT IT TO (#144.10, GrokBot's eyes-pass A1)
+GrokBot (seeds 1012/1013/1021, "almost all batches"): "SOCKETED tasks are Monarch c0r0, Phase Blade c4r0, Thresher c5r0,
+but the open card draws Thresher (0,0) and Monarch (4,0)". Measured on this tree in node (whole page): Gull, The Grandfather
+and Lightsabre added by hand get tasks stash:c0r0 / c1r0 / c3r0 on UNI-WEAPONS; the card drew them at (4,0) / (0,0) / (2,0),
+and FIND, which asks the card's packer, named the card's cells, not the tasks'. A task's cell is append-only (Elad ruling 1:
+a saved target never moves) while _muleLoad re-laid every copy largest-first, so a later, bigger arrival slid the card off
+the cells he was told to use. Now _muleLoad lays the k-th copy of a name at the k-th task cell saved on that locker
+(_vaultPlanOn, read off each record's `move`, memoised on the store's exact text), after his own hand spots; a task cell
+that is taken packs as before, a copy with no task packs exactly as it did (a plainly filed item has no task, so set
+neighbours etc. are unchanged), and the room probe no longer re-packs the task-placed copies on top of themselves. WAR
+mules follow the same rule (REG-2781 draws their over-cap copies at all). NOT DONE (needs his ruling): the SHARED STASH
+window lays war gear by typed tabs (Armor · Helms · Shields, Gloves · Belts · Boots ...) while its tasks name fill-order
+pages ("shared:c0r0" = page 1); which one is the war stash's layout is his call. Law:
+tv/test_a_mule_card_draws_a_copy_where_its_task_sends_it.py (node, whole page, six worlds: three uniques in two paints, a
+second copy beside its sibling after a paint, WAR1, his hand spot on a task cell, nine copies, a re-filed copy whose task is
+on another locker): 6 red-proofs, 6 RED (two were GREEN in the first worlds - the packer reproduced the plan there - and the
+sibling world was added to tell them apart); the pre-fix page fails the card, FIND and WAR1 cases.
+
 ### REG-2781 - AN OPEN WAR MULE SAID 0 ITEMS WHILE ITS MOVE TASKS SENT IT FOUR COPIES (#144.11, GrokBot's eyes-pass A2)
 GrokBot (seeds 1012/1017/1021): "the open WAR1 card says 0 items total while its preview tile shows 8 items and 8 tasks
 target WAR1". Measured on this tree in node (whole page, a WAR1 mule, Shako x3 and Arachnid Mesh x6 hand-added): four
