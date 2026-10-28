@@ -74922,6 +74922,16 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
   body.app-ctx.engine-driven .gsearch-wrap{margin-left:196px}
 }
 body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
+/* REG-2913 (#220) - IN A FRAMED WINDOWS BOARD THE WORLD BAND SAT ON THE SEARCH. GrokBot measured it on
+   the Mac's shadow of the ALT (#230 6462161184): #cousin-ribbon (fixed, top 0, 22px tall) painted over the
+   top ~10px of #gsearch-input. Inside the console frame the tab row is hidden (engine-driven), so the
+   search is the first row, and none of the clamps above reserved the band's height over it (they cover
+   the badge, the ladder ribbon and the console return). Clicks passed (the band is pointer-events:none);
+   the overlap was visual. A ladder profile stacks its ribbon 24px under the band, so it reserves both.
+   ⚠ !important because v640's `.gsearch-wrap{margin:5px auto 0 0!important}` beats any plain margin.
+   Law: test_the_world_band_leaves_room_for_the_ladder_ribbon (the framed-search cases). */
+body.engine-driven.cousin-shell .gsearch-wrap{margin-top:26px!important}
+body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap{margin-top:49px!important}
 </style>
 <script id="v687-p0-boot">
 (function(){
