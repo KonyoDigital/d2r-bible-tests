@@ -10,7 +10,8 @@ took t0/t1 from the first and last ts, so one reel read a 17-day span (readMs 1,
 
 A row's moment is its frame's capture time when it carries one (replay.row_moment); the KAI ledger and the watchdog
 annotate a session after it and are left out of its moments (POST_HOC_LANES), every row counting only when nothing else
-is there. Driven on replay.split_sessions and the real Handler._theatre_sessions over a fixture journal and reel tree.
+is there - and a re-read row with no capture time is never one, even then (REG-2752: such a reel reads UNKNOWN).
+Driven on replay.split_sessions and the real Handler._theatre_sessions over a fixture journal and reel tree.
 RED_PROOF below.
 """
 import json
@@ -92,6 +93,14 @@ class ASessionIsOrderedByWhatItCaptured(unittest.TestCase):
         self.assertEqual(sorted(RP.session_moments([live, {"lane": "intake", "ts": 999, "captureTs": 7}])), [5, 7],
                          "an intake row's own capture time stopped counting")
 
+    def test_the_fallback_never_lets_a_capture_less_re_read_back_in(self):
+        """REG-2752 (the v3823 second eye) - when nothing but notes and re-reads is there, the fallback still counts a
+        re-read only through its capture time: a session of capture-less re-reads has no moment, not today's."""
+        self.assertEqual(RP.session_moments([{"lane": "intake", "ts": 999}, {"lane": "verify", "ts": 998}]), [],
+                         "a session of capture-less re-reads was dated by when they wrote")
+        self.assertEqual(RP.session_moments([{"lane": "kai", "ts": 7}, {"lane": "verify", "ts": 999}]), [7],
+                         "the fallback dropped the note or kept the re-read's write time")
+
 
 class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
 
@@ -158,8 +167,51 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
                          "the run is dated by its reads alone, not its film: %r" % ({k: by[NEW].get(k) for k in ("t0", "t1")},))
         self.assertEqual((by[OLD].get("t0"), by[OLD].get("t1")), (T_OLD, T_OLD + 60000), "a reel with no film moved")
 
+    def test_a_reel_of_capture_less_re_reads_is_UNKNOWN_not_today(self):
+        """REG-2752 (the v3823 second eye) - the Shelf row's own fallback (the first and last row's ts) let the write time
+        back in after the moments had kept it out."""
+        RR = "s_1791000000000_33"
+        d = tempfile.mkdtemp(prefix="session-reread-")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        for sid in (OLD, NEW, RR):
+            os.makedirs(os.path.join(hist, "reel_" + sid))
+        journal = os.path.join(d, "sessions.jsonl")
+        rows = _rows() + [{"ts": T_LATE + 10 + k, "lane": "intake", "sessionId": RR, "frameId": "%d_x" % k,
+                           "intake": {"kind": "kai-funnel", "ok": True, "total": 0}} for k in range(4)]
+        with open(journal, "w", encoding="utf-8") as fh:
+            for r in sorted(rows, key=lambda r: r["ts"]):
+                fh.write(json.dumps(r) + "\n")
+        import control_app as ca
+        keep = (ca.HIST_DIR, RP.JOURNAL)
+        ca.HIST_DIR, RP.JOURNAL = hist, journal
+        cached = ca.__dict__.pop("_JRNL_CACHE", None)
+        try:
+            out = ca.Handler._theatre_sessions(ca.Handler.__new__(ca.Handler))
+        finally:
+            ca.HIST_DIR, RP.JOURNAL = keep
+            ca.__dict__.pop("_JRNL_CACHE", None)
+            if cached is not None:
+                ca._JRNL_CACHE = cached
+        by = dict((r.get("sessionId"), r) for r in out)
+        self.assertIn(RR, by, "PREMISE: the Shelf dropped the re-read reel, so this case measures nothing: %r" % sorted(by))
+        self.assertEqual((by[RR].get("t0"), by[RR].get("t1")), (None, None),
+                         "a reel of capture-less re-reads was dated by when they wrote: %r"
+                         % ({k: by[RR].get(k) for k in ("t0", "t1")},))
+        self.assertEqual((by[OLD].get("t0"), by[NEW].get("t0")), (T_OLD, T_NEW), "a dated reel moved")
+
 
 RED_PROOF = [
+    {"why": "REG-2752 - the moments' fallback counts a capture-less re-read by when it wrote",
+     "file": "replay.py",
+     "find": "    return m or [x for x in (_session_moment(r) for r in (g or [])) if x > 0]\n",
+     "replace": "    return m or [x for x in (row_moment(r) for r in (g or [])) if x > 0]\n",
+     "matches": 1},
+    {"why": "REG-2752 - the Shelf row's t0 falls back to its first written row",
+     "file": "control_app.py",
+     "find": "                            \"n\": i, \"t0\": min((_rp.session_moments(sess) or []) + _foot_span or [0]) or None,\n",
+     "replace": "                            \"n\": i, \"t0\": min((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[0].get(\"ts\"),\n",
+     "matches": 1},
     {"why": "REG-2748 - a run with film is dated by its reads alone again (0m00s beside an hour of footage)",
      "file": "control_app.py",
      "find": "                                    _foot_span.append(_fts)\n",
@@ -192,7 +244,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2736 - the Shelf row's t1 is its last written row again",
      "file": "tv/control_app.py",
-     "find": "                            \"t1\": max((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[-1].get(\"ts\"),\n",
+     "find": "                            \"t1\": max((_rp.session_moments(sess) or []) + _foot_span or [0]) or None,\n",
      "replace": "                            \"t1\": sess[-1].get(\"ts\"),\n",
      "matches": 1},
     {"why": "REG-2736 - the watchdog's verdict counts as a read and stretches the read span",
