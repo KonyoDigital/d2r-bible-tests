@@ -15,6 +15,14 @@ clone. Nothing was broken; the case was a clock. It now builds its own repo with
 a ship whose subject only says "Stamp" with its row still `(this commit)`, a later commit that mentions the version) and
 scrubs every GIT_* variable, so a hook's GIT_DIR can never point it at the real repo. Swept: no other law reads a pinned
 old version or sha out of real history. 1 new red-proof (the stamp binding dropped), 4 of 4 RED.
+### REG-2779 - THE COPY READOUT COULD NOT SAY WHAT IT COVERS ("CHECKED 9" BESIDE "MIGRATECOUNT 26") (#144.9, GrokBot's v3827 pass)
+GrokBot read his Mac's readout: checked 9, mismatched 0, migrateCount 26, and asked why only 9. Read in the code, the two
+count different things: checked is the names homed on a locker (records of kind filed or sharedStash), and migrateCount
+is the number of copy records the store held at its one-time migration, a receipt with its own date. The readout said
+neither, so the gap could not explain itself. It now carries today's copy records by kind and their total
+(recordsByKind / recordsTotal - loose on the dock, kept, carried, orphan beside filed) and the migrate stamp's date
+(migrateAt). The console banks them shaped (at most 16 kinds, a count or nothing). Law:
+test_a_copy_readout_says_what_each_side_counts (2 cases, 3 red-proofs).
 
 ### REG-2778 - A COPY READOUT THE CONSOLE REFUSED LEFT THE OLDER ONE SERVED ALONE (#144.9, the v3827 second eye)
 accept_handed_copy_audit banks a board's own refusal ("could not read its copies"), but a readout the CONSOLE would not

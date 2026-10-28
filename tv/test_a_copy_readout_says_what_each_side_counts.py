@@ -33,6 +33,7 @@ localStorage.setItem('d2r_ownerClaim', '*');
 localStorage.setItem('d2r_owned', JSON.stringify(["Griswold's Edge", "Lightsabre"]));
 localStorage.setItem('d2r_copies', JSON.stringify({"Griswold's Edge": 3}));
 localStorage.setItem('d2r_muleAssign', JSON.stringify({"Griswold's Edge": 'uni-weap', "Lightsabre": 'uni-weap'}));
+localStorage.setItem('d2r_vaultRecordsMigrate', JSON.stringify({ver: 0, ts: 1793000000000, count: 26}));
 """
 
 BODY = r"""
@@ -87,6 +88,17 @@ class TheBoardSaysWhatEachSideCounts(unittest.TestCase):
         self.assertEqual(s.get("mismatched"), 1, s)
         self.assertEqual(s["rows"][0]["name"], "Griswold's Edge", "a mismatched row is not listed first")
 
+    def test_the_readout_says_what_it_covers_and_dates_the_migrate_receipt(self):
+        """REG-2779 (GrokBot's v3827 pass) - "checked 9 against migrateCount 26" could not explain itself. An older stamp (ver
+        0) is not a source, so the records stay the live derivation and the receipt is read raw."""
+        c = self.o.get("clean") or {}
+        bk = c.get("recordsByKind") or {}
+        self.assertEqual(c.get("recordsTotal"), sum(v for v in bk.values() if isinstance(v, int)),
+                         "the records by kind do not add up to the total: %r" % {k: c.get(k) for k in ("recordsTotal", "recordsByKind")})
+        self.assertEqual(bk.get("filed"), 4, "today's copy records by kind are not said: %r" % bk)
+        self.assertGreaterEqual(c.get("recordsTotal") or 0, sum((r.get("records") or 0) for r in c.get("rows") or []))
+        self.assertEqual((c.get("migrateCount"), c.get("migrateAt")), (26, 1793000000000), "the migrate receipt is not dated")
+
     def test_the_readout_writes_nothing(self):
         self.assertIs(self.o.get("wrote"), False, "reading the copies changed a store")
 
@@ -122,6 +134,13 @@ class TheConsoleBanksItAsHanded(unittest.TestCase):
         p = self.ca.copy_audit_payload(now_ms=61000)
         self.assertTrue(p["ok"], p)
         self.assertEqual((p["ageS"], p["who"], p["audit"]["checked"], p["audit"]["mismatched"]), (60, "Konyo", 2, 1))
+        self.assertEqual((p["audit"]["recordsTotal"], p["audit"]["recordsByKind"], p["audit"]["migrateAt"]), (None, None, None),
+                         "REG-2779 - a readout that did not say its coverage was banked as if it had")
+        body["copyAudit"].update(recordsTotal=7, recordsByKind={"filed": 4, "loose": 3, "x" * 30: 1, "keep": -1}, migrateAt=9)
+        self.ca.accept_handed_copy_audit(body, who, now_ms=2000)
+        a2 = self.ca.copy_audit_payload(now_ms=3000)["audit"]
+        self.assertEqual((a2["recordsTotal"], a2["recordsByKind"], a2["migrateAt"]), (7, {"filed": 4, "loose": 3, "keep": None}, 9),
+                         "REG-2779 - the coverage the board said was not banked, or banked unshaped: %r" % a2)
         bad = p["audit"]["rows"][1]
         self.assertEqual((bad["card"], bad["records"], bad["mismatch"]), (None, None, False),
                          "a count that is not a non-negative int, or a flag that is not true, was banked as one: %r" % bad)
@@ -174,6 +193,21 @@ class TheWiringIsWhole(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2779 - the readout does not say what it covers (no records by kind)",
+     "file": "bible.html",
+     "find": "        out.recordsTotal = _rs.records.length; out.recordsByKind = _bk;\n",
+     "replace": "        out.recordsTotal = null;\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2779 - the migrate receipt is not dated",
+     "file": "bible.html",
+     "find": "      out.migrateAt = (_mg && typeof _mg.ts === 'number') ? _mg.ts : null;   /* REG-2779 - the stamp's own date */\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2779 - the console drops the coverage the board said",
+     "file": "control_app.py",
+     "find": "                              \"recordsByKind\": _ca_kinds(a.get(\"recordsByKind\")),\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-2778 - a readout this console refuses is forgotten, and the older one is served alone",
      "file": "control_app.py",
      "find": "        _COPY_AUDIT[\"refused\"] = {\"at\": now, \"why\": why, \"who\": _p}\n",

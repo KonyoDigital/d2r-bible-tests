@@ -3680,6 +3680,17 @@ def _ca_count(v):
     return v if (isinstance(v, int) and not isinstance(v, bool) and v >= 0) else None
 
 
+def _ca_kinds(v):
+    """REG-2779 - the board's copy records by kind ({kind: count}), shaped: at most 16 kinds, a count or nothing. -> dict | None"""
+    if not isinstance(v, dict) or len(v) > 16:
+        return None
+    out = {}
+    for k, n in v.items():
+        if isinstance(k, str) and k and len(k) <= 24:
+            out[k] = _ca_count(n)
+    return out
+
+
 def accept_handed_copy_audit(body, who=None, now_ms=None):
     """#144.9 (REG-2760) - shape-check and bank the copy readout a board just handed over.
     -> (saved: True | False | None, why | None); None when this hand-over carried none (the board sends one at most
@@ -3716,6 +3727,9 @@ def accept_handed_copy_audit(body, who=None, now_ms=None):
     _COPY_AUDIT.update(audit={"ok": True, "at": _ca_count(a.get("at")), "recordsRead": a.get("recordsRead") is True,
                               "dirty": a.get("dirty") if isinstance(a.get("dirty"), bool) else None,
                               "migrateCount": _ca_count(a.get("migrateCount")), "checked": len(shaped),
+                              # REG-2779 - what the readout covers beside what it checks, and the migrate receipt's date
+                              "migrateAt": _ca_count(a.get("migrateAt")), "recordsTotal": _ca_count(a.get("recordsTotal")),
+                              "recordsByKind": _ca_kinds(a.get("recordsByKind")),
                               "mismatched": sum(1 for r in shaped if r["mismatch"]), "rows": shaped},
                        receivedAt=now, who=_p, refused=None)
     return True, None

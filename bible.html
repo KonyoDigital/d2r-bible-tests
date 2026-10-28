@@ -52233,12 +52233,26 @@ window.vaultAutoAssign = function(){
      -> {ok, at, recordsRead, checked, mismatched, dirty, migrateCount,
          rows: [{name, mule, card, records, find, findKind, copies, warCap, mismatch}]}, mismatched rows first */
   function _vaultCopyAudit(){
-    var out = { ok: true, at: Date.now(), recordsRead: false, checked: 0, mismatched: 0, dirty: null, migrateCount: null, rows: [] };
+    var out = { ok: true, at: Date.now(), recordsRead: false, checked: 0, mismatched: 0, dirty: null, migrateCount: null,
+                migrateAt: null, recordsTotal: null, recordsByKind: null, rows: [] };
     try { out.dirty = (window.LSR.getItem('d2r_vaultRecordsDirty') != null); } catch (eD) { out.dirty = null; }
     try {
       var _mg = JSON.parse(window.LSR.getItem('d2r_vaultRecordsMigrate') || 'null');
       out.migrateCount = (_mg && typeof _mg.count === 'number') ? _mg.count : null;
-    } catch (eM) { out.migrateCount = null; }
+      out.migrateAt = (_mg && typeof _mg.ts === 'number') ? _mg.ts : null;   /* REG-2779 - the stamp's own date */
+    } catch (eM) { out.migrateCount = null; out.migrateAt = null; }
+    /* REG-2779 (GrokBot's v3827 pass: "checked 9 against migrateCount 26 - why?") - the readout says what it covers. It
+       checks the names homed on a locker; beside them, every copy record by kind today (loose on the dock, kept, carried,
+       orphan...) and the total, so a reader sees where the rest sit and never takes the migrate receipt for today's count */
+    out.recordsTotal = null; out.recordsByKind = null;
+    try {
+      var _rs = (typeof _vaultRecordsSource === 'function') ? _vaultRecordsSource() : null;
+      if (_rs && _rs.ok && Array.isArray(_rs.records)) {
+        var _bk = {};
+        _rs.records.forEach(function(rr){ if (rr) { var k = String(rr.kind || 'unknown'); _bk[k] = (_bk[k] || 0) + 1; } });
+        out.recordsTotal = _rs.records.length; out.recordsByKind = _bk;
+      }
+    } catch (eRk) { out.recordsTotal = null; out.recordsByKind = null; }
     var by = null;
     try { by = (typeof _vaultNamesByMule === 'function') ? _vaultNamesByMule() : null; } catch (eB) { by = null; }
     out.recordsRead = !!(by && typeof by === 'object');
