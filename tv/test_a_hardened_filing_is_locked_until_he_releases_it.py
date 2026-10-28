@@ -617,8 +617,8 @@ RED_PROOF = [
     {
         "why": "#98 P4 - his drop records 'you filed it here yourself' over a locked evidence row again",
         "file": "bible.html",
-        "find": "    if (_vf.mode === 'already' && _vf.locked){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return; }",
-        "replace": "    if (false){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return; }",
+        "find": "    if (_vf.mode === 'already' && _vf.locked){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return { ok: true, mode: 'already', locked: true,",
+        "replace": "    if (false){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return { ok: true, mode: 'already', locked: true,",
         "matches": 1,
     },
     {

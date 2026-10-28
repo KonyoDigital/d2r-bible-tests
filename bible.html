@@ -45712,7 +45712,28 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   // ── actions ──
   function assignItem(name, muleId, opts){
-    if (!muleById(muleId)) return;
+    /* REG-2854 (GrokBot's ACT-8 on his MAGIC & RARE: "vaultAssign('Fine Small Charm of Vita','shared') returned nothing and
+       moved nothing") - A MOVE THAT DOES NOT HAPPEN SAYS WHY, AND EVERY ANSWER IS RETURNED. Measured on the whole page in
+       node: a locker id the board does not have returned nothing and said nothing (the status kept the last move's words);
+       an owned Magic & Rare keeper filed on the shared stash said "-> SHARED STASH" while it stayed drawn in MAGIC & RARE
+       and nowhere else (a rolled name is no record, so no other locker draws it, and the filing beside its keeper record is
+       the double filing the integrity check takes back, REG-2184); an unowned keeper was told it "is not on your owned
+       list"; and every answer, a filing included, came back undefined. A unique, a set piece or a runeword that sits in
+       Magic & Rare is filed as before: the audit keeps a catalogue item's mule filing (REG-2184, its own test). */
+    if (!muleById(muleId)){
+      var _nmWhy = name + ' was not filed \u2014 no locker on this board has the id \u201c' + muleId + '\u201d';
+      try { _vaultLockSay(name, '\ud83d\udd12 ' + _nmWhy, true); } catch (eNm) {}
+      return { ok: false, refused: 'no-mule', why: _nmWhy };   /* REG-2854 said, never silent */
+    }
+    var _mrCat = (typeof _vaIsGrailUni === 'function' && _vaIsGrailUni(name)) || !!(typeof findSetPiece === 'function' && findSetPiece(name))
+      || !!(typeof window.findRuneword === 'function' && window.findRuneword(name));
+    if (muleId !== 'magic-rare' && !_mrCat && typeof window._vaultInMagicRare === 'function' && window._vaultInMagicRare(name)){
+      var _mrWhy = name + ' was not filed \u2014 it is a Magic & Rare keeper, and MAGIC & RARE is its one home: the other lockers'
+        + ' draw catalogue items, not a rolled name, so on ' + muleById(muleId).name + ' nothing would draw it, and a filing beside'
+        + ' its keeper record is a double filing the integrity check takes back';
+      try { _vaultLockSay(name, '\ud83d\udd12 ' + _mrWhy, true); } catch (eMr) {}
+      return { ok: false, refused: 'magic-rare-keeper', why: _mrWhy };   /* REG-2854 keeper said */
+    }
     /* #148.4 (GrokBot) - ASSIGNING A NAME HE DOES NOT OWN filed it AND made it owned (vaultFile adds to owned). A drag or a
        click only ever carries an owned name; anything else is refused and said, and nothing is written. */
     if (!(typeof owned !== 'undefined' && owned && owned.has(name))){
@@ -45727,11 +45748,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!_vf || !_vf.ok){
       var _lkRef = !!(_vf && (_vf.refused === 'hardened' || _vf.refused === 'prov-unreadable' || _vf.refused === 'release-failed'));
       _vaultLockSay(name, '🔒 ' + name + ' was not filed — ' + ((_vf && _vf.why) || 'the door refused it'), _lkRef);
-      return;
+      return { ok: false, refused: (_vf && _vf.refused) || 'refused', why: (_vf && _vf.why) || 'the door refused it' };   /* REG-2854 */
     }
     /* #98 (P4) — the door's 'already, locked' is an answer, not a filing: nothing moved and the evidence row stands, so
        no "you filed it here yourself" goes on the record (the build wrote exactly that over a 21/21 evidence row). */
-    if (_vf.mode === 'already' && _vf.locked){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return; }
+    if (_vf.mode === 'already' && _vf.locked){ _vaultLockSay(name, '🔒 ' + _vf.why, false); return { ok: true, mode: 'already', locked: true, mule: muleId, why: _vf.why }; }
     selectedChip=null; renderVault(); refreshOpenCard();
     /* v1952 — HIS OWN HAND IS ALSO AN ANSWER. The board's placements have carried a reason since
        v1948; a manual one carried nothing, so a row he filed himself and a row from before the
@@ -45746,6 +45767,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var card=document.querySelector('[data-vault-mule="'+(window.CSS&&CSS.escape?CSS.escape(muleId):muleId)+'"]');
     if (card){ card.classList.remove('vm-flash'); void card.offsetWidth; card.classList.add('vm-flash'); }
     status('🏦 '+name+' → '+muleById(muleId).name);
+    return { ok: true, mode: _vf.mode, mule: muleId };   /* REG-2854 a filing is an answer too */
   }
   window.vaultAssign = assignItem;
   /* v2343b — the suggestion panel repaints with the vault. Without this it was painted exactly
