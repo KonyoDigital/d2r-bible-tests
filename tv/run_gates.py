@@ -12129,6 +12129,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_image_error_says_which.py")], 300,
          needs_app=False,
          why='REG-2730 (#158) - an image error says which: an HTTP error, an error field or a request that threw'),
+    Gate("test_a_locker_and_a_shared_tab_take_the_keyboard",
+         [sys.executable, os.path.join(HERE, "test_a_locker_and_a_shared_tab_take_the_keyboard.py")], 300,
+         needs_app=False,
+         why='REG-2735 (#154.19) - a locker plate and a shared-stash tab take the keyboard'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

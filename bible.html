@@ -45391,7 +45391,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v365 — SHARED STASH is its OWN emphasized section ABOVE the mules (full-width, bigger), so it's
       // clearly distinguished as the cross-account storage — not just another mule.
       return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+((window._vaultWarRole&&window._vaultWarRole(m))?' vm-war':'')+((total===0 && !_ovHtml)?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
-        + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
+        /* #154.19 (REG-2735, GrokBot's vault sweep) - the plate opened a locker on a click only; it takes the keyboard now:
+           focusable, a button to a reader, and Enter or Space on the PLATE itself clicks it (the click handler does the rest). */
+        + '<div class="vm-plate" tabindex="0" role="button" onkeydown="if((event.key===\'Enter\'||event.key===\' \')&&event.target===this){event.preventDefault();this.click();}" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
         + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'+((window._vaultWarRole&&window._vaultWarRole(m))?'<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages" style="margin-left:4px;font-size:var(--fs-micro);padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060">SHARED STASH · overflow</span>':'')/* L1 WAR mule is the war stash */
         + '<span class="vm-count"'
           + ' title="'+_itemN+' item'+(_itemN===1?'':'s')
@@ -51512,7 +51514,8 @@ window.vaultAutoAssign = function(){
     var cell = Math.max(28, Math.min(64, Math.floor(Math.min((vw * 0.46) / 10, (vh - 300) / 10))));
     var packed = _sharedPack(pg.items);
     var slotName = function(p){ return 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
-    var tabs = pages.map(function(p, i){ return '<div class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" onclick="window._sharedSetPage(' + i + ')">' + p.icon + ' ' + p.label + '</div>'; }).join('');
+    /* #154.19 (REG-2735) - the shared stash's page tabs were divs with an onclick: a real tab button now (the mule tabs' own shape), so the keyboard reaches them */
+    var tabs = pages.map(function(p, i){ return '<button type="button" class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" role="tab" aria-selected="' + (i === _sharedPage) + '" onclick="window._sharedSetPage(' + i + ')">' + p.icon + ' ' + p.label + '</button>'; }).join('');
     var list = packed.placed.map(function(p){ return '<div>' + esc(p.n) + ' → <span class="vl-slot">' + esc(pg.label.toUpperCase()) + ' ' + slotName(p) + '</span></div>'; }).join('');
     var pageN = _sharedCopyTotal(pg.items);
     var totalAll = _sharedCopyTotal(names);
@@ -51522,7 +51525,7 @@ window.vaultAutoAssign = function(){
       + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
       + '<div class="vd-game-row">'
       +   '<div class="vd-panel" style="margin:0 auto"><div class="vd-panel-title">Shared Stash</div>'
-      +     '<div class="vd-tabs">' + tabs + '</div>'
+      +     '<div class="vd-tabs" role="tablist" aria-label="shared stash pages">' + tabs + '</div>'
       +     gridHtml(packed.placed, 10, 10, cell).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar"><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 4) % 5) + ')">◄</span><span>' + pg.icon + ' ' + pg.label + ' · Page ' + (_sharedPage + 1) + ' / 5</span><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 1) % 5) + ')">►</span></div>'
       +     '<div class="vd-goldbox">' + pg.icon + ' ' + pageN + ' on this page · ' + totalAll + ' total</div>'

@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2735 - A LOCKER AND A SHARED-STASH TAB COULD NOT BE REACHED FROM THE KEYBOARD (#154.19, GrokBot's vault sweep)
+The same defect as REG-2734, swept: a locker's plate (div.vm-plate) opened its ID card on a click only, and the shared
+stash's five page tabs were divs with an onclick - while the mule tabs beside them were already real tab buttons. The
+plate is focusable (tabindex 0, role button) and Enter or Space on the PLATE itself clicks it, so the page's own click
+handler opens the card as a mouse does; a key inside it is left alone. The shared tabs are button type=button role=tab
+with aria-selected in a tablist, the mule tabs' own shape and CSS. Law: test_a_locker_and_a_shared_tab_take_the_keyboard
+(the whole page in node: the vault rendered, the plate's own keydown run, the shared card opened; 4 red-proofs, each RED).
+
 ### REG-2734 - A VAULT MOVE ROW COULD NOT BE OPENED FROM THE KEYBOARD (#148.5, GrokBot's vault sweep)
 li.vtk-line opened its move on a click only - no tabindex, no role - so only its tick box took the keyboard focus. The row
 is now focusable (tabindex 0, role button, an aria-label that says the move), and Enter or Space on the ROW opens it. A key
