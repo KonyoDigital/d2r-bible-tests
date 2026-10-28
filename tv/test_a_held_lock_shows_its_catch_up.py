@@ -45,7 +45,7 @@ def _run():
     s = _src()
     js = ("var window = {};\n" + _cut(s, "  var _HRT_LOCKCOL = {", "};\n")
           + _cut(s, "  function _hrtLockColor(L){", "\n  }\n") + _cut(s, "  function _hrtHeldCaption(L, n_, d){", "\n  }\n") + r"""
-var C = _HRT_LOCKCOL, D = { instruments: { proved: 1007, declared: 1114 } };
+var C = _HRT_LOCKCOL, D = { instruments: { proved: 1214, declared: 1214, laneOwed: 31, blind: [] } };
 console.log(JSON.stringify({
   col: { open: _hrtLockColor({ state: 'OPEN', permitted: true }), hard: _hrtLockColor({ state: 'HARDENED' }),
          held: _hrtLockColor({ state: 'OPEN', permitted: false, heldBy: 'stale' }),
@@ -54,7 +54,9 @@ console.log(JSON.stringify({
          locked: _hrtLockColor({ state: 'LOCKED' }) },
   map: C,
   cap: _hrtHeldCaption({ heldBy: 'stale', k: 85 }, 85, D),
-  capUnknown: _hrtHeldCaption({ heldBy: 'heart', k: 97 }, 97, { instruments: { proved: null, declared: 1114 } })
+  capUnknown: _hrtHeldCaption({ heldBy: 'stale', k: 97 }, 97, { instruments: { proved: 1214, declared: 1214, laneOwed: null } }),
+  capBlind: _hrtHeldCaption({ heldBy: 'blind', k: 40 }, 40, { instruments: { declared: 1214, laneOwed: 3, blind: ['a', 'b'] } }),
+  capHeart: _hrtHeldCaption({ heldBy: 'heart', k: 12 }, 12, D)
 }));
 """)
     r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
@@ -77,11 +79,15 @@ class AHeldLockShowsItsCatchUp(unittest.TestCase):
 
     def test_the_caption_is_the_catch_up_and_the_merit_is_a_trial(self):
         o = _run()
-        self.assertEqual(o["cap"]["paint"], "held · 1007/1114 proved · 107 to go",
-                         "a held lock does not show how much has been proven (#180): %r" % o["cap"])
+        self.assertEqual(o["cap"]["paint"], "held · 31 of 1214 still to prove",
+                         "a held lock does not show its catch-up from the lane's owed count (#180): %r" % o["cap"])
+        self.assertNotIn("1214/1214", o["cap"]["paint"], "a stale census painted the last full run as if it were current")
         self.assertNotIn("earned", o["cap"]["paint"])
         self.assertIn("trial: 85/85 refused", o["cap"]["hover"], "the merit still reads as completion")
-        self.assertIn("proof progress UNKNOWN", o["capUnknown"]["paint"], "an unread census was given a number")
+        self.assertIn("how many are owed UNKNOWN", o["capUnknown"]["paint"], "an unread owed count was given a number")
+        self.assertNotIn("1214", o["capUnknown"]["paint"])
+        self.assertEqual(o["capBlind"]["paint"], "held · 2 instruments blind", "a blind hold painted a catch-up: %r" % o["capBlind"])
+        self.assertEqual(o["capHeart"]["paint"], "held: no census here", "a hold with no census painted a number")
 
     def test_the_fan_and_the_list_paint_through_the_rules(self):
         s = _src()
@@ -92,6 +98,38 @@ class AHeldLockShowsItsCatchUp(unittest.TestCase):
         self.assertNotIn("' · earned ' + L.k", s, "the merit still paints as 'earned'")
 
 
+class TheCensusCarriesTheLanesOwedCount(unittest.TestCase):
+    """#180 - the caption's catch-up is the self-prove lane's owed count, passed through _heart2_census (fixture file)."""
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        from unittest import mock
+        import control_app as ca
+        import heart2 as h2
+        self.ca = ca
+        d = tempfile.mkdtemp(prefix="h2_owed_")
+        self.addCleanup(shutil.rmtree, d, True)
+        p = os.path.join(d, ".heart2.json")
+        with open(p, "w") as fh:
+            json.dump({"proved": 1214, "unproven": 0, "blind": [], "declared": 1214, "verdictAt": {}}, fh)
+        patch = mock.patch.object(h2, "STATE", p)
+        patch.start()
+        self.addCleanup(patch.stop)
+        saved = dict(ca._SELF_PROVE)
+        self.addCleanup(lambda: (ca._SELF_PROVE.clear(), ca._SELF_PROVE.update(saved)))
+
+    def test_a_stale_lane_passes_its_owed_count(self):
+        self.ca._SELF_PROVE.update(key="slice", census="stale", owed=31)
+        self.assertEqual(self.ca._heart2_census().get("laneOwed"), 31, "the census dropped the lane's owed count")
+
+    def test_a_current_or_unknown_lane_passes_none(self):
+        self.ca._SELF_PROVE.update(key="idle", census="current", owed=0)
+        self.assertIsNone(self.ca._heart2_census().get("laneOwed"))
+        self.ca._SELF_PROVE.update(key="raised", census="stale", owed=None)
+        self.assertIsNone(self.ca._heart2_census().get("laneOwed"), "an unknown owed count became a number")
+
+
 RED_PROOF = [
     {"why": "#180 - a held lock is drawn in an open lock's green again",
      "file": "tv/control_ui.html",
@@ -100,8 +138,8 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "#180 - the held caption shows the trial record, not the catch-up",
      "file": "tv/control_ui.html",
-     "find": "      ? 'held · ' + pv + '/' + dc + ' proved · ' + (dc - pv) + ' to go'\n",
-     "replace": "      ? 'held · earned ' + L.k + '/' + n_\n",
+     "find": "        ? 'held · ' + ow + ' of ' + dc + ' still to prove'\n",
+     "replace": "        ? 'held · earned ' + L.k + '/' + n_\n",
      "matches": 1, "needs": "node"},
     {"why": "#180 - by design / paused locks are amber again",
      "file": "tv/control_ui.html",
@@ -112,6 +150,11 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "        + '<span class=\"hrt-s\" style=\"color:' + _hrtLockColor(L) + '\">'   /* #180 - the list and the fan, one colour rule */\n",
      "replace": "        + '<span class=\"hrt-s\" style=\"color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '\">'\n",
+     "matches": 1},
+    {"why": "#180 - the census drops the lane's owed count, so a held lock can never show its catch-up",
+     "file": "tv/control_app.py",
+     "find": "            \"laneOwed\": ((_SELF_PROVE or {}).get(\"owed\")\n",
+     "replace": "            \"laneOwed\": (None\n",
      "matches": 1},
 ]
 

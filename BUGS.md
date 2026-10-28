@@ -51,9 +51,13 @@ is it showing me as if it is". A held lock painted "held: the prover is behind �
 in its trial, complete - beside the census currency with no progress for it, and it was drawn in the same green line and
 end-dot as the open locks. His rules, now one function each that the fan and the lock list both paint through:
 _hrtLockColor - green only when the lock may act; held = amber (red when an instrument is blind); by design or paused
-(UNPROVEN, INCOMPLETE) = grey. _hrtHeldCaption - "held · <proved>/<declared> proved · <to go> to go" from the census itself
-(UNKNOWN when it is unread, never a typed number), with "trial: N/N refused (its merit, not the census)" in the hover.
-Law: test_a_held_lock_shows_its_catch_up (4 red-proofs, each seen RED). GrokBot looks after the push.
+(UNPROVEN, INCOMPLETE) = grey. _hrtHeldCaption - held because the prover is behind: "held · <owed> of <declared> still to
+prove", the self-prove lane's own owed count passed through _heart2_census as laneOwed (UNKNOWN when unread, never a typed
+number); held because an instrument is blind: "held · N instruments blind"; any other hold: its reason. The hover carries
+"trial: N/N refused (its merit, not the census)". REVIEW FIX before the ship: the first cut painted the census's proved/declared,
+which are the LAST FULL RUN's - a census gone stale after a ship would have read "1214/1214 proved · 0 to go" on the very lock
+held for being stale, the contradiction he reported. Law: test_a_held_lock_shows_its_catch_up (5 red-proofs, each seen RED).
+GrokBot looks after the push.
 
 ### REG-2709 - "THE ROGUE ENCAMPMENT" RANKED BESIDE "ROGUE ENCAMPMENT" (GrokBot's 02:05 pass on v3816)
 The Shelf's "Where you farm" ranked "Rogue Encampment" (22 runs) and "The Rogue Encampment" (6) as two places - the reader

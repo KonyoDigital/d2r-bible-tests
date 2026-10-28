@@ -27475,6 +27475,12 @@ def _heart2_census():
         return {
             "state": _h2_state,
             "laneCensus": _h2_lane or None,
+            # #180 - THE CATCH-UP A HELD LOCK PAINTS. proved/declared below are the LAST FULL RUN's, so a census gone stale
+            # after a ship still reads 1214/1214 while 31 laws owe a proof. The self-prove lane's own owed count is the
+            # catch-up; None unless that lane says stale or missing and the count is a number. [[stale-reading]]
+            "laneOwed": ((_SELF_PROVE or {}).get("owed")
+                         if _h2_lane in ("stale", "missing") and isinstance((_SELF_PROVE or {}).get("owed"), int)
+                         and not isinstance((_SELF_PROVE or {}).get("owed"), bool) else None),
             "proved": _proved,
             "unproven": _unproven,
             "blind": _blind,
