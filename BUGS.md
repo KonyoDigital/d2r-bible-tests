@@ -436,6 +436,19 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2859 - GHEED'S FORTUNE REACHED UNI-SMALL BY A KEYWORD WHILE THE CODE SAID "ITS CHARM MULE" (router probe, GrokBot's v3829 Vault pass)
+His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets muled." Measured on the whole page in node:
+suggestMule("Gheed's Fortune") answered UNI-SMALL as "jewelry/charm - base: Grand Charm" - it fell through to the jewelry
+word table - while four comments called its home "its charm mule", which GrokBot read as a mule of its own beside the
+UNI-SMALL the router gave. The destination already matched the ruling; nothing said so. The ruling now answers it on the
+line after Anni / Torch ("Gheed's Fortune is muled - UNI-SMALL, the charm mule (his 2026-10-15 ruling)"), for the curly,
+straight and bare spellings; his per-item switch still wins. Swept: the four comments now name UNI-SMALL, and two stale
+ones that still said Anni / Torch / Gheed's "stay with MAIN" / "stay in his inventory" (REG-2241 ended that) were
+corrected. Not changed, and reported for ACT-4: the Vault's "Don't mule to your alt account" panel (renderVaultKeep)
+still lists Annihilus, Hellfire Torch and Gheed's Fortune under "Charms - keep in your inventory", which disagrees with
+the ruling for all three - where charms live is the ruling ACT-4 waits on. Law
+tv/test_gheeds_fortune_is_muled_by_his_ruling.py, 2 red-proofs RED.
+
 ### REG-2858 - A BARE "SHAKO" THROUGH THE HAND DOOR WAS OWNED AS A WHITE BASE, NEVER ASKED (router probe, GrokBot's v3829 Vault pass)
 "Shako" is a white base and also the name the board files Harlequin Crest under ("Harlequin Crest (Shako)"). Measured on
 the whole page in node: vaultHandAdd('Shako') owned a white Shako (the router then sends it to SOCKETED, "white base -

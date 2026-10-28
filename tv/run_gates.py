@@ -12405,6 +12405,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_bare_shako_is_asked_not_guessed.py")], 300,
          needs_app=False,
          why='REG-2858: a bare base the board also files a unique under (Shako / Harlequin Crest) is asked at the hand door, never filed as a white base by guess'),
+    Gate("test_gheeds_fortune_is_muled_by_his_ruling",
+         [sys.executable, os.path.join(HERE, "test_gheeds_fortune_is_muled_by_his_ruling.py")], 300,
+         needs_app=False,
+         why="REG-2859: his 2026-10-15 ruling itself mules Gheed's Fortune on UNI-SMALL (the charm mule) and says so - one answer, not a keyword fall-through"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
