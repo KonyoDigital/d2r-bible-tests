@@ -38186,8 +38186,17 @@ class TestV2336TheDailyTaskPanelCannotBeMemoisedIntoInvisibility(unittest.TestCa
         self.assertIn("box.hidden", expr,
                       "the landed test no longer asks whether the panel is HIDDEN — that is the "
                       "half REG-415 turned on")
-        self.assertIn("innerHTML", expr,
-                      "the landed test no longer asks whether the rows were actually PAINTED")
+        # REG-2796 (GrokBot, his DAILY PICK flicker) - "were the rows PAINTED" is asked of the mark the paint left on the
+        # element, never of innerHTML: the browser re-serializes (&#39; comes back as ', a self-removing art <img> changes
+        # the DOM), so an innerHTML comparison was false on every poll and the roster repainted every 1.5 s.
+        self.assertIn("rowsEl.getAttribute('data-tf-sig') === _tfMark", expr,
+                      "the landed test no longer asks whether THIS paint landed on the rows element")
+        self.assertNotIn("innerHTML", expr,
+                         "the landed test compares the browser's re-serialized innerHTML again - an apostrophe or a "
+                         "self-removing image makes it false on every poll, and the roster flickers (REG-2796)")
+        self.assertIn("rowsEl.setAttribute('data-tf-sig', _tfMark);", blk, "the paint leaves no mark for the skip to read")
+        self.assertLess(blk.index("rowsEl.innerHTML = html;"), blk.index("rowsEl.setAttribute('data-tf-sig', _tfMark);"),
+                        "the mark is set before the paint, so it can claim a paint that never happened")
         self.assertIn("_hdTfSig && landed", blk,
                       "the skip does not consult `landed`, so it can return before the un-hide "
                       "again — which is REG-415 exactly")
