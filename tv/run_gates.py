@@ -12429,6 +12429,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_rune_gem_material_or_rejuv_is_a_count_never_a_vault_item.py")], 300,
          needs_app=False,
          why='REG-2899: a rune, a gem, a Materials-tab entry or a rejuvenation potion is a count in its own tally - never a mule cell, never Unsorted, at every door'),
+    Gate("test_a_keeper_is_a_want_and_a_destination",
+         [sys.executable, os.path.join(HERE, "test_a_keeper_is_a_want_and_a_destination.py")], 300,
+         needs_app=False,
+         why='REG-2900 (#149.2) - a keeper is {want, dest}: a store of numbers migrates once at load (never in a shadow, never over unreadable bytes), every reader reads both shapes, a want step keeps the dest'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

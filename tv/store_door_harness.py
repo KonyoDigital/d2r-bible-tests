@@ -197,7 +197,9 @@ def boot(s):
     mk = re.search(r"^const MULTI_KEEP_DEFAULT = .*$", s, re.M)
     if not mk:
         raise AssertionError("MULTI_KEEP_DEFAULT moved")
-    return ("const LS = window.LSR;\n" + store_read(s) + "\n" + store_notice(s) + "\n" + mk.group(0) + "\n"
+    # REG-2900 - the default keepers are built by _mkShaped ({want, dest}), so the cut carries it ahead of the default
+    return ("const LS = window.LSR;\n" + store_read(s) + "\n" + store_notice(s) + "\n" + fn(s, "_mkShaped") + "\n"
+            + mk.group(0) + "\n"
             + "\n".join(line for _n, _k, line in loaders(s)) + "\n"
             + "var mf = 699, players = 1, pinnedBoss = null; function _writeGrailFarm(){}\n"
             + between(s, "const persist = () => {", "\n};") + "\n")

@@ -55,7 +55,9 @@ test('recount: a BARE set-piece name typed in the Add box keys the SLOTTED ledge
     let mk: any = {}; try { mk = JSON.parse(localStorage.getItem('d2r_multiKeep') || '{}'); } catch (e) {}
     w.vaultCopyAdjust(K.bare, -1);      // bare input -> slotted key, walk 3 -> 2
     let cp: any = {}; try { cp = JSON.parse(localStorage.getItem('d2r_copies') || '{}'); } catch (e) {}
-    return { mkHelm: mk[K.helm], mkBare: mk[K.bare], cpHelm: cp[K.helm], cpBare: cp[K.bare] };
+    // REG-2900 - a keeper is stored {want, dest}: the target is its want
+    const wantOf = (v: any) => (v && typeof v === 'object') ? v.want : v;
+    return { mkHelm: wantOf(mk[K.helm]), mkBare: mk[K.bare], cpHelm: cp[K.helm], cpBare: cp[K.bare] };
   }, { bare: BARE, helm: HELM });
   expect(r.mkHelm).toBe(2);            // multiKeep keyed on the SLOTTED ledger form
   expect(r.mkBare).toBeUndefined();    // NOT the dead bare grail key

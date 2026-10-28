@@ -38,7 +38,7 @@ FNS = [
     "_vaultAutoIntakeRead", "_vaultAutoIntakePaint", "_vaultAutoIntakeSet",
     "_vaultAutoIntakeToggle", "_vaultFrameRefuse", "_vaultIntakeGate",
     "_vaultMovePlace", "_vaultMoveSamePlace", "_vmMs", "_vaultMoveReads", "_vaultMoveSeenAtTo", "_vaultMoveTask", "_vaultMoveQueue",
-    "_vaultMoveTally", "_vaultMoveWitness", "_vaultPresenceSpan",
+    "_vaultMoveTally", "_vaultMoveWitness", "_vaultPresenceSpan", "_mkWant",
     "_vaultSeamHome", "_dockNames", "_vaultRecords",
 ]
 
@@ -533,8 +533,8 @@ RED_PROOF = [
      "replace": "if (opts.qtyBase && cur < cap) return 'witness'; /* v3767 reread base */", "matches": 1},
     {"why": "A multi-keep above the witnessed cells is ignored.",
      "file": "bible.html",
-     "find": "if (typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > _nSg)\n          return Math.max(_nSg,",
-     "replace": "if (typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > 999)\n          return Math.max(_nSg,",
+     "find": "if (typeof multiKeep !== 'undefined' && multiKeep && _mkWant(name) > _nSg)\n          return Math.max(_nSg,",
+     "replace": "if (typeof multiKeep !== 'undefined' && multiKeep && _mkWant(name) > 999)\n          return Math.max(_nSg,",
      "matches": 1},
     {"why": "A hand-typed item is not marked manual.",
      "file": "bible.html", "find": "if (_ps === 'hand') rec.source = 'manual'; /* v3767 manual source */",

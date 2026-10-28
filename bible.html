@@ -24259,13 +24259,65 @@ function _magicArtSrc(base){
 let unknownReads = new Set(_storeRead('list', []).getItem('d2r_unknownReads'));
 // v342.28 — MULTI-COPY KEEPERS: items you legitimately want SEVERAL of (merc/build staples — every
 // merc wants an Andariel's Visage, every char 2 Raven Frosts…). `copies[name]` = how many you own
-// (>=1, only stored once it exceeds 1); `multiKeep[name]` = the TARGET you're collecting toward. A
+// (>=1, only stored once it exceeds 1); `multiKeep[name].want` = the TARGET you're collecting toward (REG-2900). A
 // re-read of a multi-keep item that's still UNDER target logs a wanted EXTRA copy instead of being
 // discarded as an already-owned dupe. The default list is curated; targets are editable in the UI.
-const MULTI_KEEP_DEFAULT = {"Andariel's Visage":5,"Raven Frost":4,"Nagelring":4,"Harlequin Crest (Shako)":3,"Mara's Kaleidoscope":3,"The Stone of Jordan":3,"War Traveler":2,"Gore Rider":2,"Stormshield":2};
+const MULTI_KEEP_DEFAULT = _mkShaped({"Andariel's Visage":5,"Raven Frost":4,"Nagelring":4,"Harlequin Crest (Shako)":3,"Mara's Kaleidoscope":3,"The Stone of Jordan":3,"War Traveler":2,"Gore Rider":2,"Stormshield":2});
 let copies = _storeRead('map', {}).getItem('d2r_copies');
-let multiKeep = _storeRead('map?', null).getItem('d2r_multiKeep') || Object.assign({}, MULTI_KEEP_DEFAULT);
-function multiTarget(n){ return (multiKeep && multiKeep[n] > 1) ? multiKeep[n] : 1; }
+let multiKeep = _storeRead('map?', null).getItem('d2r_multiKeep') || _mkShaped(MULTI_KEEP_DEFAULT);
+/* #149.2 (REG-2900, GrokBot's GB-L Advanced-drawer pass) - A KEEPER IS {want, dest}, NOT A BARE NUMBER. d2r_multiKeep held
+   {name: wantCount}: a keeper could say how many and never where, and the router never read it. Each keeper is now
+   {want, dest}: dest 'auto' (today's rules), 'shared' (the shared stash), 'war' (the WAR mules) or 'mule:<id>' (one mule,
+   by its stable id, so a rename keeps it). Every reader asks _mkWant / _mkDest, which read BOTH shapes: a plain number
+   still arrives from another tab on an older build, a restored backup or a law's seed, and it reads as {want, 'auto'}.
+   A writer always puts a NEW object (_mkSetWant / _mkSetDest), never edits one in place - the defaults are shared objects.
+   _multiKeepShape migrates a store of plain numbers once, at load: each number becomes {want, dest:'auto'} and the store is
+   written back in the new shape. Idempotent (a keeper already {want, dest} is left as it is, so a second load writes
+   nothing); never in a shadow (read only); never over a store that would not read (it is kept aside, the page runs on the
+   default keepers, and nothing is written over the bytes). */
+function _mkShaped(m){
+  var o = {};
+  Object.keys(m || {}).forEach(function(n){
+    var v = m[n];
+    if (typeof v === 'number') o[n] = { want: v, dest: 'auto' };
+    else if (v && typeof v === 'object') o[n] = { want: v.want, dest: (typeof v.dest === 'string' && v.dest) ? v.dest : 'auto' };
+    else o[n] = v;
+  });
+  return o;
+}
+function _mkWant(n){
+  var v = (typeof multiKeep !== 'undefined' && multiKeep) ? multiKeep[n] : null;
+  if (typeof v === 'number') return v;
+  return (v && typeof v === 'object' && typeof v.want === 'number') ? v.want : 0;
+}
+function _mkDest(n){
+  var v = (typeof multiKeep !== 'undefined' && multiKeep) ? multiKeep[n] : null;
+  return (v && typeof v === 'object' && typeof v.dest === 'string' && v.dest) ? v.dest : 'auto';
+}
+function _mkSetWant(n, w){ multiKeep[n] = { want: w, dest: _mkDest(n) }; }
+function _mkSetDest(n, d){ multiKeep[n] = { want: _mkWant(n), dest: d }; }
+function multiTarget(n){ var w = _mkWant(n); return (w > 1) ? w : 1; }
+/* -> {ran:false, why} | {ran:false, done:true, why} | {ran:true, turned:[names]} */
+function _multiKeepShape(){
+  if (window._tvdShadow) return { ran: false, why: 'a shadow is read only' };
+  var held = null;
+  try { held = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined('d2r_multiKeep') : null; } catch (eQ) { held = null; }
+  if (held) return { ran: false, why: 'the keeper store would not read - its bytes are kept aside and nothing is written over them' };
+  var raw = null;
+  try { raw = window.LSR.getItem('d2r_multiKeep'); } catch (eR) { return { ran: false, why: 'the keeper store could not be read' }; }
+  if (raw == null || raw === '' || raw === 'null') return { ran: false, done: true, why: 'nothing is saved yet - the default keepers are {want, dest} already' };
+  var turned = [];
+  Object.keys(multiKeep || {}).forEach(function(n){
+    if (typeof multiKeep[n] === 'number'){ multiKeep[n] = { want: multiKeep[n], dest: 'auto' }; turned.push(n); }
+  });
+  if (!turned.length) return { ran: false, done: true, why: 'every keeper is {want, dest} already' };
+  var w = null;
+  try { w = window.LSR.setItem('d2r_multiKeep', JSON.stringify(multiKeep)); } catch (eW) { w = false; }
+  if (w === false) return { ran: false, turned: turned, why: 'the keeper store refused the write - the keepers read as {want, dest} here and the saved bytes are unchanged' };
+  return { ran: true, turned: turned };
+}
+try { window._mkWant = _mkWant; window._mkDest = _mkDest; window._multiKeepShape = _multiKeepShape; } catch (eMkW) {}
+try { window._multiKeepShaped = _multiKeepShape(); } catch (eMkS) { window._multiKeepShaped = { ran: false, why: String((eMkS && eMkS.message) || eMkS).slice(0, 120) }; }
 function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
 // v677 (Konyo: 'items from chronicle I pick up I don't save — mostly thrown out; this shouldn't
 // auto-sync them and tally them HERE [the vault]') — the FOUND ledger and the VAULT are now two
@@ -24796,7 +24848,7 @@ window._storeKeepAllThisTab = function(skipAsk){
   }
   /* REG-2414 — a store whose boot loader has a default reads THAT when nothing is saved, and a removal by another
      document is merged as it (the 4th field); every other store's absent value is its empty container */
-  function multiKeepAbsent(){ return Object.assign({}, MULTI_KEEP_DEFAULT); }
+  function multiKeepAbsent(){ return _mkShaped(MULTI_KEEP_DEFAULT); }
   function rwMadeAbsent(){
     /* the boot loader's own rule, asked now: the fresh-profile flag as it stands, the owner's seed only on his ledger */
     var fresh = false;
@@ -44419,7 +44471,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   try { window._resolveGrailName = _resolveGrailName; } catch (eRg) {}
   function renderMultiKeep(){
     var el=document.getElementById('vault-multikeep'); if(!el) return;
-    var names=Object.keys(multiKeep||{}).filter(function(n){ return multiKeep[n]>1; });
+    var names=Object.keys(multiKeep||{}).filter(function(n){ return _mkWant(n)>1; });
     /* #76 v3753 — also surface an owned SET PIECE whose copy count is inflated (copyCount>1) even with NO
        keep-target, so he can walk a phantom-inflated count DOWN to his true number without typing a name the
        grail resolver would reject. Canonicalize to the slotted ledger key (what owned/copies use) and dedupe. */
@@ -44427,7 +44479,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     names=names.filter(function(n,i){ return names.indexOf(n)===i; }).sort();
     el.hidden=false;
     var rows=names.map(function(n){
-      var tgt=(multiKeep[n]>1), want=tgt?multiKeep[n]:multiTarget(n), have=copyCount(n), s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
+      var tgt=(_mkWant(n)>1), want=multiTarget(n), have=copyCount(n), s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
       return '<div class="vmk-row" data-mk="'+esc(n)+'">'+art(n)
         +'<span class="vmk-name" data-arttip="'+esc(n)+'"'+s+'>'+esc(n)+'</span>'
         +'<span class="vmk-grp"><span class="vmk-grp-lbl">have</span><button class="vmk-step" aria-label="one fewer copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',-1)"'+(have<=0?' disabled':'')+'>−</button><span class="vmk-num'+(have>=want?' vmk-have-full':'')+'">'+have+'</span><button class="vmk-step" aria-label="one more copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',1)"'+(have>=want?' disabled':'')+'>+</button></span>'
@@ -44447,9 +44499,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      word. The target is what he WANTS; the count is what intake, the planner and his HAVE stepper counted. A target now
      moves or goes and the count stays. The one control that lowers a count is HAVE, in his hands: the ✕ on a row with NO
      target resets an inflated count to one (#76 v3753), and it asks first, in words. */
-  window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2) delete multiKeep[n]; else multiKeep[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2) delete multiKeep[n]; else _mkSetWant(n,nt); try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   window.vaultMultiKeepRemove=function(n){ n=(window._vfCanon?window._vfCanon(n):n)||n;
-    if (multiKeep[n] > 1) delete multiKeep[n];
+    if (_mkWant(n) > 1) delete multiKeep[n];
     else {
       var have = copyCount(n);
       if (have > 1){
@@ -44462,7 +44514,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered();
     return { ok: true };
   };
-  window.vaultMultiKeepAdd=function(){ var inp=document.getElementById('vmk-add-input'); if(!inp) return; var raw=(inp.value||'').trim(); if(!raw) return; var n=_resolveGrailName(raw); if(!n){ try{ if(window._vfCanon && window._vfIsSetPiece){ var _crMk=window._vfCanon(raw); if(_crMk && window._vfIsSetPiece(_crMk)) n=_crMk; } }catch(eRm){} }   /* #76 v3753 — a SET PIECE ("Natalya's Totem") is not in the grail vocab, so _resolveGrailName rejects it; fall back to the set-piece canon so he can collect/recount a set piece by name */ if(!n){ status('“'+raw+'” isn’t a chronicle item — check the spelling'); return; } try{ if(window._vfCanon){ var _cnMk=window._vfCanon(n); if(_cnMk) n=_cnMk; } }catch(eMk){}   /* #76 v3753 — the recount box resolves a BARE chronicle name; fold to the SLOTTED ledger key the vault owns set pieces under, or the stepper touches a dead key */ if(multiKeep[n]>1){ status(n+' is already a multi-copy keeper'); } else { multiKeep[n]=2; } inp.value=''; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  window.vaultMultiKeepAdd=function(){ var inp=document.getElementById('vmk-add-input'); if(!inp) return; var raw=(inp.value||'').trim(); if(!raw) return; var n=_resolveGrailName(raw); if(!n){ try{ if(window._vfCanon && window._vfIsSetPiece){ var _crMk=window._vfCanon(raw); if(_crMk && window._vfIsSetPiece(_crMk)) n=_crMk; } }catch(eRm){} }   /* #76 v3753 — a SET PIECE ("Natalya's Totem") is not in the grail vocab, so _resolveGrailName rejects it; fall back to the set-piece canon so he can collect/recount a set piece by name */ if(!n){ status('“'+raw+'” isn’t a chronicle item — check the spelling'); return; } try{ if(window._vfCanon){ var _cnMk=window._vfCanon(n); if(_cnMk) n=_cnMk; } }catch(eMk){}   /* #76 v3753 — the recount box resolves a BARE chronicle name; fold to the SLOTTED ledger key the vault owns set pieces under, or the stepper touches a dead key */ if(_mkWant(n)>1){ status(n+' is already a multi-copy keeper'); } else { _mkSetWant(n,2); } inp.value=''; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   // scrollable "Registered" triage panel — every ✓owned item tagged muled / unsorted / not-muled
   // (account-shared stash), each with a ✕ throw-out, so the AI read is observable and the intake
   // count reconciles (Konyo: "scrollbar for registered · muled / not muled · throw out").
@@ -46988,13 +47040,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         /* a presence set piece counts once unless he asked for a spare (_vaultPresenceSpan reads multiKeep): typing it
            again IS that ask, so the multi-keep target follows his hand - a re-read still never climbs a set piece */
         try { if (window._vfIsSetPiece && window._vfIsSetPiece(pre.name) && typeof multiKeep !== 'undefined' && multiKeep
-                  && !(multiKeep[pre.name] >= _cN)) multiKeep[pre.name] = _cN; } catch (eMk) {} /* L1 hand set copy */
+                  && !(_mkWant(pre.name) >= _cN)) _mkSetWant(pre.name, _cN); } catch (eMk) {} /* L1 hand set copy */
         /* REG-2786 (#111) - THE SAME ASK FOR ANY NAME THE VAULT COUNTS FROM ITS CELLS. Once a look names a cell the count is
            the distinct cells (v3767), so a copy typed past them answered "x5 - another copy, its own row and cell" and drew
            nothing: measured, Griswold's Edge seen in 3 cells and typed twice more read 3 on the card, the mule card and the
            records. The target follows his hand only when the count would not hold the copy he typed. */
-        try { if (typeof multiKeep !== 'undefined' && multiKeep && !(multiKeep[pre.name] >= _cN) && typeof window._vaultPresenceSpan === 'function'
-                  && window._vaultPresenceSpan(pre.name, _cN) < _cN) multiKeep[pre.name] = _cN; } catch (eMkC) {} /* REG-2786 hand copy past the cells */
+        try { if (typeof multiKeep !== 'undefined' && multiKeep && !(_mkWant(pre.name) >= _cN) && typeof window._vaultPresenceSpan === 'function'
+                  && window._vaultPresenceSpan(pre.name, _cN) < _cN) _mkSetWant(pre.name, _cN); } catch (eMkC) {} /* REG-2786 hand copy past the cells */
         try { persistOwned(); } catch (eP) {}
         try { if (typeof saveA === 'function') saveA(); } catch (eS) {}
         var _cMv = null;
@@ -50161,7 +50213,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          REG-2842 (v3830 second eye) - WHATEVER THE LIVE COUNT IS NOW. It went back only on the branch that took the copy off,
          so a pick that raised copies 1 -> 2 and the target to 2, with the count lowered to 1 elsewhere before the clear, left
          the target at 2: the clear said nothing was taken back, and a later re-read was drawn as the copy it had put back. */
-      if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && multiKeep[b.name] === b.keepSet){
+      if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && _mkWant(b.name) === b.keepSet){
         if (b.keepHad) multiKeep[b.name] = b.keepWas; else delete multiKeep[b.name];
         if (!_vpCopyUndone.took) _vpCopyUndone.say += ' - the keeper target this pick raised is put back';
       }
@@ -50370,8 +50422,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              cells), the target follows it, as the + Add an item door does. The undo of this pick puts the target back. */
           var _mk = (typeof multiKeep !== 'undefined' && multiKeep) ? multiKeep : null;
           var _mkHad = !!(_mk && Object.prototype.hasOwnProperty.call(_mk, nm)), _mkWas = _mkHad ? _mk[nm] : null, _mkSet = null;
-          try { if (_mk && !(_mk[nm] >= copies[nm]) && typeof window._vaultPresenceSpan === 'function'
-                    && window._vaultPresenceSpan(nm, copies[nm]) < copies[nm]) { _mk[nm] = copies[nm]; _mkSet = copies[nm]; } } catch (eMkP) {}
+          try { if (_mk && !(_mkWant(nm) >= copies[nm]) && typeof window._vaultPresenceSpan === 'function'
+                    && window._vaultPresenceSpan(nm, copies[nm]) < copies[nm]) { _mkSetWant(nm, copies[nm]); _mkSet = copies[nm]; } } catch (eMkP) {}
           _vpCopyBump = { name: nm, token: token, prev: prevN, prevSeen: _vpCopySeen[nm], keepHad: _mkHad, keepWas: _mkWas, keepSet: _mkSet };
           routed = { ok: true, filed: true, mode: 'copy', mule: assign[nm],
             why: _copyFileSay(nm, copies[nm], assign[nm]) };
@@ -55475,14 +55527,14 @@ window.vaultAutoAssign = function(){
          extra copy - the target alone is none). A copy his hand types past what the cells count raises the target at the
          hand door (vaultHandAdd, the planner's copy), so it is drawn and counted like the rest. */
       try {
-        if (typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > _nSg)
-          return Math.max(_nSg, Math.min((have > 0) ? (have | 0) : 1, multiKeep[name])); /* REG-2786 target is not a copy */
+        if (typeof multiKeep !== 'undefined' && multiKeep && _mkWant(name) > _nSg)
+          return Math.max(_nSg, Math.min((have > 0) ? (have | 0) : 1, _mkWant(name))); /* REG-2786 target is not a copy */
       } catch (eMk) {}
       return _nSg; /* v3767 distinct cells */
     }
     try {
       if (!(window._vfIsSetPiece && window._vfIsSetPiece(name))) return have;
-      if (!(typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > 1)) return 1;
+      if (!(typeof multiKeep !== 'undefined' && multiKeep && _mkWant(name) > 1)) return 1;
     } catch (e) {}
     return have;
   }

@@ -34,7 +34,7 @@ BIBLE = os.path.join(HERE, "..", "bible.html")
 NODE = os.environ.get("NODE") or shutil.which("node")
 
 FNS = [
-    "_vaultSameItemNames", "_dockNames", "_vaultRouteHome", "_vaultPresenceSpan",
+    "_vaultSameItemNames", "_dockNames", "_vaultRouteHome", "_vaultPresenceSpan", "_mkWant",
     "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vrRecHome",
     "_vaultRecordHome", "_vaultRecordsForMule", "_vaultNamesByMule", "_muleNamesFor",
     "_vaultSpread", "packGrid", "_muleLoad", "_vaultPopFromHeader",
