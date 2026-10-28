@@ -7,6 +7,34 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2743 - HIS GROK CHATS WERE NEVER PRUNED, SO THE FOLDER THAT TOOK HIS MAC TO ENOSPC COULD DO IT AGAIN (#151, his ruling)
+His words, 2026-10-28: "pruning your own Grok chats ... architecure and build and design something so fix it and prune
+automatically if needed." The Grok CLI keeps every conversation as a folder under ~/.grok/sessions and never removes one;
+on 2026-09-01 that folder reached 11.25 GB and took his Mac to 1.1 GB free. The console's own reads already drop their
+sessions (REG-1687, REG-2718, REG-2731); his chats had nothing. tv/grok_chat_prune.py runs inside the disk sign's pass -
+after the measurement, so never while he plays or the machine is busy - and only when needed: the folder over 2 GB, or the
+disk under the ON AIR floor. It removes whole conversation folders oldest first, back under 1.5 GB or until the disk is a
+GB over its floor; never a session Grok lists as open (an unreadable registry prunes nothing), never one written in the
+last hour, never one younger than 7 days (1 day under the critical floor), never anything outside the sessions root or
+behind a link. Each pass that removes something appends a receipt to tv/.grok_prune.jsonl (gitignored, per PC), and its
+status rides the disk sign in the shared lane words (grokPrune: on / worked / lastTs / owed / say / freedBytes).
+Laws: test_his_grok_chats_are_pruned_only_when_needed (9 cases, 6 red-proofs, real removal on fixture trees) and the
+wiring cases in test_free_space_counts_what_macos_frees.
+
+### REG-2742 - THE DISK FLOORS COUNTED ONLY THE BLOCKS FREE THIS INSTANT, NOT WHAT macOS FREES ON DEMAND (#151, his ask)
+"the guards and the sign count purgeable space" - there was no 'purgeable' anywhere in tv/. macOS answers "how much can an
+important write use" with the space free now plus what it frees on demand, the figure Finder shows; MEASURED on his Mac
+2026-10-28, 13.19 GB against 11.98 GB plain, so the ON AIR floor and heart2's lane room refused earlier than macOS would.
+tv/disk_room.py reads that figure through CoreFoundation over ctypes (no pyobjc, so every Python on the Mac has it) and
+gives the larger of it and the plain free; anywhere else (Windows, Linux CI, a key that will not answer) it is the plain
+free. All 16 reads that decide something now go through it - the ON AIR floor (4 sites in tv_diablo), the picture size, the
+health figure beside the floor, the console's ON AIR facts and disk sign, the doctor's preview, the retention drain and
+plan, the hist flood check, the warden, the river's disk joint and heart2's lane room - so no two floors disagree about
+one disk (v2006). A law that replaced shutil.disk_usage is asking about a pretend disk and is never topped up with the real
+one's purgeable space; that is judged from the function itself, because the first cut captured "the real function" at
+import and this module is imported late - measured, the warden read 10.59 GiB under a law's 7 GiB disk.
+Law: test_free_space_counts_what_macos_frees (9 cases, 5 red-proofs); test_free_space_is_measured_on_every_os re-pointed.
+
 ### REG-2741 - FIND NAMED ONE CELL FOR AN ITEM HE HOLDS THREE OF (#144.9, GrokBot eyes-pass 2026-10-21)
 _vaultWhereIs walked the packer's mules and stopped at the first cell carrying the name, so FIND's row for a multi-copy
 item said where ONE copy sits; the mule window draws all of them. It now keeps every copy's cell (`cells`), and `cell`

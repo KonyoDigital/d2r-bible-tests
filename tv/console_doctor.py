@@ -369,7 +369,8 @@ def _check_disk_headroom():
     """/api/on refuses below an 8GB floor. Finding that out when you press ON AIR is too late."""
     try:
         import shutil
-        free = shutil.disk_usage(HERE).free / 1e9
+        import disk_room as _dr   # #151 (REG-2742) - the doctor reads the figure /api/on refuses on
+        free = _dr.free_bytes(HERE)[0] / 1e9
     except Exception as e:
         return UNKNOWN, "could not read disk usage: %s" % str(e)[:90]
     try:

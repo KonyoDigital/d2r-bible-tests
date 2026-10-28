@@ -99,7 +99,7 @@ RED_PROOF = [
     {
         "why": "#229 - the river measures free disk with os.statvfs again: UNKNOWN on every Windows console",
         "file": "river.py",
-        "find": "        free_gb = _sh.disk_usage(h).free / (1024.0 ** 3)\n",
+        "find": "        free_gb = _dr.free_bytes(h)[0] / (1024.0 ** 3)\n",
         "replace": "        st = os.statvfs(h)\n        free_gb = (st.f_bavail * st.f_frsize) / (1024.0 ** 3)\n",
         "matches": 1,
     },

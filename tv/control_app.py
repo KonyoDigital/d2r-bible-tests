@@ -8965,7 +8965,7 @@ def capture_preflight(door, look_for_window=True):
     # 2) disk headroom against the same floor ON AIR uses
     try:
         import shutil as _shd
-        free = _shd.disk_usage(HIST_DIR).free / 1e9
+        free = _disk_free_bytes(HIST_DIR) / 1e9
         facts["freeGb"] = round(free, 1)
         facts["diskOk"] = bool(free >= ON_AIR_FLOOR_GB)
     except Exception:
@@ -17202,7 +17202,8 @@ def _disk_sign_candidates():
     """What this console writes or keeps, with the one action that frees each. -> [(name, path, action)]"""
     grok = os.path.join(os.environ.get("GROK_HOME") or os.path.join(os.path.expanduser("~"), ".grok"), "sessions")
     return [("his reels", HIST_DIR, "the reel prune frees them - on his yes (reel retention)"),
-            ("Grok sessions", grok, "the console drops its own reads' sessions; the rest are his Grok chats"),
+            ("Grok sessions", grok, "the console drops its own reads' sessions; his old Grok chats are pruned on their own "
+                                     "when this folder passes 2 GB or the disk is short - never his live chat, never a week's"),
             ("test output", os.path.join(REPO, "test-results"), "the space warden reclaims it when the disk is short")]
 
 
@@ -17266,7 +17267,47 @@ def _disk_sign_once(now_ms=None, playing=None, busy_pct=None, candidates=None):
                           measuredAt=now, say="measured %d folder(s)" % len(rows))
     except Exception as e:
         _DISK_SIGN.update(lastTs=now, owed=1, say="the measurement raised %s" % type(e).__name__)
+    # #151 (REG-2743) - his Grok chats, pruned in the same pass and only when needed; this pass already waited out
+    # his game and a busy machine above, so the prune never runs beside either
+    _grok_prune_pass(now)
     return dict(_DISK_SIGN)
+
+
+#: #151 (REG-2743, his ruling 2026-10-28) - the automatic prune of his own Grok chats, in the shared lane words.
+#: owed: 1 while the folder is still over its budget after a pass, 0 when it is not, None when it could not be read.
+_GROK_PRUNE = {"on": True, "worked": 0, "lastTs": None, "owed": None, "say": None, "freedBytes": 0, "last": None}
+
+
+def _grok_prune_pass(now_ms=None, _run=None):
+    """#151 (REG-2743, his ruling 2026-10-28: "prune automatically if needed") - his Grok chats are pruned if, and only
+    if, they need to be: grok_chat_prune decides (the folder over its budget, or the disk under the ON AIR floor) and
+    keeps his live chat and every chat younger than a week (a day when the disk is under the critical floor). Each pass
+    that removes something writes a receipt beside the console's logs. Never raises. -> the lane record"""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    budget = None
+    try:
+        import grok_chat_prune as _gcp
+        budget = _gcp.BUDGET_BYTES
+        try:
+            free = _disk_free_bytes(HIST_DIR)
+        except Exception:
+            free = None                                     # UNKNOWN: the disk alone never triggers on a guess
+        crit = _disk_sign_floor_gb()
+        crit_b = crit * 1e9 if isinstance(crit, (int, float)) and not isinstance(crit, bool) else None
+        rec = (_run or _gcp.run)(free_bytes=free, floor_bytes=ON_AIR_FLOOR_GB * 1e9, critical_bytes=crit_b,
+                                 receipt_path=os.path.join(_log_root(), ".grok_prune.jsonl"), now_s=now / 1000.0)
+    except Exception as e:
+        rec = {"need": None, "removed": [], "freed": 0, "failed": 0, "total": None, "after": None,
+               "say": "the Grok chat prune raised %s - nothing was pruned" % type(e).__name__}
+    after = rec.get("after")
+    upd = {"lastTs": now, "say": rec.get("say"),
+           "last": {k: rec.get(k) for k in ("need", "freed", "failed", "total", "after")},
+           "owed": (None if not isinstance(after, int) or budget is None else (1 if after > budget else 0))}
+    if rec.get("removed"):
+        upd["worked"] = int(_GROK_PRUNE.get("worked") or 0) + 1
+        upd["freedBytes"] = int(_GROK_PRUNE.get("freedBytes") or 0) + int(rec.get("freed") or 0)
+    _GROK_PRUNE.update(upd)
+    return dict(_GROK_PRUNE)
 
 
 def _disk_sign_loop():
@@ -17283,13 +17324,22 @@ def _disk_sign_loop():
         time.sleep(DISK_SIGN_EVERY_S)
 
 
+
+def _disk_free_bytes(path):
+    """#151 (REG-2742) - free space at `path` as macOS counts it for a write that matters: purgeable space included
+    (disk_room.free_bytes). Every floor in this file reads it, so the ON AIR floor, the picture size and the health
+    figure beside the floor agree. Raises what shutil.disk_usage raises."""
+    import disk_room as _dr
+    return _dr.free_bytes(path)[0]
+
+
 def disk_sign_payload(_free=None):
     """#151 - the sign the console paints under its ONLINE light. -> dict. Never raises.
     freeGb is read NOW (a status call is the reading); consumers are the lane's last measurement, with its own age."""
     why = None
     free = None
     try:
-        free = round(((_free() if _free else shutil.disk_usage(HIST_DIR).free)) / 1e9, 1)
+        free = round(((_free() if _free else _disk_free_bytes(HIST_DIR))) / 1e9, 1)
     except Exception as e:
         why = "free space could not be read (%s)" % type(e).__name__
     crit = _disk_sign_floor_gb()
@@ -17299,7 +17349,8 @@ def disk_sign_payload(_free=None):
     return {"freeGb": free, "level": lvl, "lowGb": ON_AIR_FLOOR_GB, "criticalGb": crit, "why": why,
             "consumers": (cons[:3] if isinstance(cons, list) else None), "measuredAt": _DISK_SIGN.get("measuredAt"),
             "action": ((top or {}).get("action") if lvl in ("red", "amber") else None),
-            "lane": {k: _DISK_SIGN.get(k) for k in ("on", "worked", "lastTs", "owed", "say")}}
+            "lane": {k: _DISK_SIGN.get(k) for k in ("on", "worked", "lastTs", "owed", "say")},
+            "grokPrune": {k: _GROK_PRUNE.get(k) for k in ("on", "worked", "lastTs", "owed", "say", "freedBytes", "last")}}
 
 #: The stations a reel is meant to LEAVE, and the lane that moves it on. CAPTURE is not here: it waits on a
 #: capture change by design (REG-340), so it is never an alarm; ROUTED and TOMBSTONE are the far end.
@@ -28727,7 +28778,7 @@ def _retention_once():
         return None
     hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
     try:
-        free_gb = _shd.disk_usage(hist).free / 1e9
+        free_gb = _disk_free_bytes(hist) / 1e9
     except Exception as e:
         _dr = dict(_retention_drain(unknown_why="the disk could not be read (%s)" % str(e)[:60]),
                    neverRecorded=not os.path.exists(hist))
@@ -37785,7 +37836,7 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             import reel_retention as _rr
             import shutil as _shd
             _rp = _rr.plan(hist)
-            _free_gb = _shd.disk_usage(hist).free / 1e9
+            _free_gb = _disk_free_bytes(hist) / 1e9
             # v2006 — ONE SIDE DECIDES. The first cut compared the UNROUNDED float here and the
             # ROUNDED one on the board, so at exactly 12.0GB free — which is where his disk sat
             # when this shipped — python warned and the board did not. Two halves, two thresholds,
@@ -44586,7 +44637,7 @@ def farmgate_payload():
 
     # 4) disk — hist flood protection. A read that raises is not room (REG-1787).
     try:
-        free_gb = shutil.disk_usage(here).free / (1024 ** 3)
+        free_gb = _disk_free_bytes(here) / (1024 ** 3)
     except Exception:
         free_gb = None
     checks.extend(_disk_farmgate_rows(free_gb))
