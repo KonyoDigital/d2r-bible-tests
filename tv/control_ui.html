@@ -24508,6 +24508,13 @@ window._lockMark = function(isOpen, px, label){
   // v936 (STORY ARC R2b) — LAST SESSION digest: the newest SEALED reel (KAI has closed it,
   // kaiMissed!=null), rendered as one flagship tf-row on the home dash. Fed by HD_ALL, which
   // hdShelf() repopulates from /api/sessions every poll. Hidden entirely until a reel seals.
+  /* REG-2757 (#86 nit, GrokBot's v3821 pass: "LAST SESSION digest has no date") - when the digest's run was captured, from
+     its own t0 (REG-2736: dated by what it captured). No t0 is no date - never today's. -> string, '' when unknown */
+  function _lsWhenSay(t0){
+    var d = (typeof t0 === 'number' && t0 > 0) ? new Date(t0) : null;
+    if (!d || isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
   function hdLastSession(){
     try {
       var box = $('hd-lastsession'); if (!box) return;
@@ -24515,6 +24522,8 @@ window._lockMark = function(isOpen, px, label){
       if (!t && (HD_ALL || []).length > 1) t = HD_ALL[1];   // fallback: the one before the live head
       if (!t){ box.hidden = true; return; }
       var parts = [];
+      var _lsWhen = _lsWhenSay(t.t0);   /* REG-2757 */
+      if (_lsWhen) parts.push(_lsWhen);
       parts.push(_runSpanSay(t.t0, t.t1) || 'UNKNOWN');
       parts.push((t.reads || 0) + ' reads');
       if (t.tallies > 0) parts.push('📸 ' + t.tallies + ' tall' + (t.tallies > 1 ? 'ies' : 'y'));

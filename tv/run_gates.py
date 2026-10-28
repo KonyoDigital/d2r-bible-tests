@@ -12177,6 +12177,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_shelf_card_title_never_runs_under_its_pin.py")], 300,
          needs_app=False,
          why="#86 REG-2755: a Shelf card's title never runs under its pin and seal"),
+    Gate("test_the_last_session_digest_says_when",
+         [sys.executable, os.path.join(HERE, "test_the_last_session_digest_says_when.py")], 300,
+         needs_app=False,
+         why='#86 REG-2757: the LAST SESSION digest says when its run was captured'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

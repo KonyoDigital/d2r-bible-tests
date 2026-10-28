@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2757 - THE LAST SESSION DIGEST SAID NO DATE (#86 nit, GrokBot's v3821 pass)
+The home page's 📼 LAST SESSION line read "session 74 · 1h 12m · 611 reads": which run, from when, it did not say, while
+the Shelf card beside it carries the date. It now leads with the run's own capture date (_lsWhenSay from t0 - the date
+REG-2736 gives a session from what it captured); a run with no t0 gets no date, never today's (REG-2752). Law:
+test_the_last_session_digest_says_when (3 cases, the helper driven in node, 2 red-proofs).
+
 ### REG-2756 - FIND'S "WOULD GO" ANSWER NAMED ONE CELL FOR AN ITEM HE HOLDS THREE OF (the REG-2741 sweep)
 REG-2741 made the filed answer keep every copy's cell. The router's answer for an item not filed yet ("unsorted · would
 go to <locker>") still stopped at the first copy's cell, so the same item read 1 cell before Auto-Sort and 3 after. It
