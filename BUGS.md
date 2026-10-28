@@ -843,6 +843,26 @@ with a keeper target (Stormshield's is 2) counts a re-read under that target as 
 card draws it. When nothing shows a second copy, the line stays "N owned", with no guessed number. Law:
 tv/test_the_vault_header_counts_copies_from_evidence.py, 3 red-proofs. The CI spec v3747_one_record_header_parity still
 reads its owned, filed and loose numbers by their own words; its comment quoting the old line is now out of date.
+### REG-2917 - TWELVE VAULT, INTAKE AND MOVE LAWS COULD NOT BE SEEN TO REFUSE: NO EXECUTABLE RED_PROOF (#128)
+heart2's own census (heart2.report) read 1,238 gates, 1,184 declaring a proof, 54 with none - UNKNOWN, not clean. The
+twelve guarding vault, intake and move code that run without a browser now each carry an executable RED_PROOF that breaks
+the PROPERTY the law names (anchor matched exactly once; each seen RED for that property, not for an import, a crash or an
+anchor): test_vault_resume_seal (the resume skip; the seed of banked sightings), test_the_vault_find_ranks_matches (the
+rank; the alias), test_the_core_lockers_are_not_deletable (the delete door; the button), test_a_reload_reconciles_the_vault
+_records (the page-load refresh), test_find_folds_a_trailing_space_duplicate (the whitespace fold),
+test_the_vault_records_history_clears_from_the_reset_menu (the second confirm; the door's scope), test_a_restore_is_shaped
+_like_a_sweep (the list shape; the whitelisted confirm), test_the_removal_journal_forks_like_the_store (the fork class; the
+journal key), test_two_vocabularies_for_one_item (the qualifier; the apostrophe fold), test_a_banked_proposal_says_it_is
+_banked (the from-disk staleness; the label), test_a_sweep_holds_the_relaunch_lock (a fresh lock; the cold window) and
+test_the_sweep_reads_the_reels_that_have_something (the density order; a raising gate sorts last). Two sabotages that
+stayed green were dropped or re-aimed rather than kept: the reload law's UNKNOWN guard is held one layer down by the refresh
+itself (it refuses a held vault), and removing the records store's removeItem is undone by the run's own refresh. Two law
+instruments were fixed where a sabotage exposed them: the relaunch-lock law now seats _tree_is_mid_edit (a red-proof that
+edits control_app.py made the tree "mid-edit", and that refusal answered for the lock it removed), and its cold-lock case
+now reads both of the decider's lock refusals ("lock was touched"), where it saw only the in-process lane's. After: 42
+unproven, named in the report; the browser laws among them (intake move, copy witness, add/find doors, v3 layout, v3771
+face, shadow draw) need CI to be seen red.
+
 ### REG-2916 - THREE LANES PROMISED NEVER TO DELETE AND THEIR REACH DELETES, WITH NOTHING DECLARING IT (#128)
 auto_scope.undeclared_reach_abilities reported tvd-shadow-watch (reach 74), tvd-stash-watch (40) and tvd-version-drift (124)
 as forbidding delete while their depth-3 reach can delete, with no clause permitting it - only tvd-ledger-backup had one
