@@ -164,6 +164,14 @@ icon (Astreon's Iron Ward, Bartuc's Cut-Throat, Death's Fathom, Wisp Projector) 
 an earlier decision). Found and left: "Crescent Moon (sword)" is registered with the amulet's bytes. Law:
 test_a_unique_wears_its_own_picture_everywhere (node, the whole page; every surface and the whole roster). 9 red-proofs,
 all RED. tests/v406_hd_uniques_sets.spec.ts rewritten to the ruling (Chrome, CI proves it).
+### REG-2812 - A SUITE FIXTURE COULD BE THE SESSION COMPARISON'S "LAST TWO RUNS" (#86, the REG-2790/2811 sweep)
+_cmpList, the run list behind the session comparison (D14), dropped stubs and kept the suite's fixture reels - which v3083
+hides from him everywhere else ("only for backend ... not for me too in the console") and _lastSessionRow leaves out. A
+fixture newer than his runs became the comparison's default B (and an option in both pickers), and the same list feeds the
+run "since last session" measures against (D29), WHERE YOU FARM (D16) and the shelf's best runs (D17). It now drops fixtures
+as _lastSessionRow does, so the four read his runs only. Law: test_the_last_session_is_one_run (1 new case driving the real
+_cmpOpen in node over a newer fixture, a stub and two of his runs; 1 red-proof, RED; the law's 11 red-proofs all RED).
+
 ### REG-2811 - THE THEATRE BUTTON'S "REPLAY LAST SESSION" PLAYED A DIFFERENT RUN (#86, his ruling 2026-10-28)
 REG-2790 made the home's LAST SESSION digest and the Shelf's ▶ Last session name one run (_lastSessionRow); the Theatre
 button, whose title says "replay last session", still opened the newest reel with SUBSTANCE - the v786/v885 tiers (film

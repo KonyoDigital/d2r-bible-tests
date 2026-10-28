@@ -220,6 +220,75 @@ class TheLastSessionIsOneRun(unittest.TestCase):
         self.assertEqual(self.played("three_runs_since_the_seal"), [2])
 
 
+# ── REG-2812 (#86, the REG-2790/2811 sweep) - the session comparison's default "last two real runs" ─────────────────────
+CMP_FNS = ["  function esc(s){", "  function _cmpList(){", "  function _cmpFind(n){", "  function _cmpOptions(sel){",
+           "  window._cmpOpen = function(){"]
+CMP_HARNESS = r"""
+import { readFileSync } from 'node:fs';
+const CFG = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const ELS = {};
+const env = {
+  TH: { sessions: CFG.rows }, HD_ALL: [],
+  document: { getElementById: (id) => ELS[id] || (ELS[id] = { id: id, hidden: true, innerHTML: '', scrollTop: 0 }) },
+  window: {}, _cmpRender: () => {},
+};
+const f = new Function('env', 'with (env) {\n' + CFG.line + '\n' + CFG.fns + '\nwindow._cmpOpen();\n'
+  + 'return { b: CMP.b, a: CMP.a, list: _cmpList().map(function(s){ return s.n; }),'
+  + ' options: (document.getElementById("th-compare-ov").innerHTML.match(/<option value="\\d+"/g) || []).length }; }');
+process.stdout.write(JSON.stringify(f(env)));
+"""
+
+
+def _cut_cmp(sig):
+    if UI.count(sig) != 1:
+        raise AssertionError("%r occurs %d times - this law cannot see its subject" % (sig, UI.count(sig)))
+    i = UI.index(sig)
+    b = UI.index("{", i)
+    depth = 0
+    for j in range(b, len(UI)):
+        if UI[j] == "{":
+            depth += 1
+        elif UI[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return UI[i:j + 1] + (";" if sig.strip().startswith("window.") else "")
+    raise AssertionError("%r never closed - harness fault, not a pass" % sig)
+
+
+def _compare(rows):
+    if NODE is None:
+        raise AssertionError("node is not on this machine - this law does not skip")
+    line = "  var CMP = { a: null, b: null };"
+    if UI.count(line) != 1:
+        raise AssertionError("the comparison's CMP state moved - re-point this law")
+    d = tempfile.mkdtemp(prefix="last_session_cmp_")
+    try:
+        h, c = os.path.join(d, "h.mjs"), os.path.join(d, "cfg.json")
+        io.open(h, "w", encoding="utf-8").write(CMP_HARNESS)
+        io.open(c, "w", encoding="utf-8").write(json.dumps({"line": line, "fns": "\n".join(_cut_cmp(x) for x in CMP_FNS),
+                                                            "rows": rows}))
+        r = subprocess.run([NODE, h, c], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                           env=dict(os.environ, TZ="UTC"))
+    finally:
+        shutil.rmtree(d, True)
+    if r.returncode != 0:
+        raise AssertionError("node failed: %s" % r.stderr[-900:])
+    return json.loads(r.stdout)
+
+
+class TheComparisonComparesHisRuns(unittest.TestCase):
+    """REG-2812 - a suite fixture newer than his runs is not the comparison's default, nor one of its options."""
+
+    def test_a_newer_fixture_is_not_a_default(self):
+        got = _compare([_run(n=1, fixture=True, t0=T + 7200000, t1=T + 7800000, reads=80, frames=30, footageN=600),
+                        _run(n=2, t0=T, t1=T + 600000, reads=12, frames=4, footageN=30, named=1),
+                        _run(n=3, t0=T - 86400000, t1=T - 86000000, reads=9, frames=3, footageN=20),
+                        {"n": 4, "stub": True, "sessionId": "s_4", "t0": T + 9000000}])
+        self.assertEqual((got["b"], got["a"]), (2, 3), "the comparison defaulted to a suite fixture or a stub: %r" % got)
+        self.assertEqual(got["list"], [2, 3], "his runs, newest first, are not what the comparison lists: %r" % got)
+        self.assertEqual(got["options"], 4, "each picker should offer exactly his two runs: %r" % got)
+
+
 RED_PROOF = [
     {"why": "REG-2790 - the digest names the newest SEALED reel again (session 6 over three newer runs)",
      "file": "tv/control_ui.html",
@@ -263,6 +332,11 @@ RED_PROOF = [
      "find": "    var pick = thPickEntrySession();\n    if (!pick) {\n",
      "replace": "    var pick = ((TH.sessions || []).filter(function(s){ return !s.stub && (s.footageN || 0) > 10 && (s.named || 0) > 0; })[0]"
                 " || {}).n || thPickEntrySession();\n    if (!pick) {\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2812 - the comparison's runs take the suite's fixture reels again (a newer fixture is its default B)",
+     "file": "tv/control_ui.html",
+     "find": "    return (list || []).filter(function(s){ return s && !s.stub && !s.fixture; })",
+     "replace": "    return (list || []).filter(function(s){ return s && !s.stub; })",
      "matches": 1, "needs": "node"},
     {"why": "REG-2811 - the session line keeps naming whatever reel this page showed before (REG-2135's class)",
      "file": "tv/control_ui.html",

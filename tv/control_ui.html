@@ -12982,10 +12982,15 @@ window._lockMark = function(isOpen, px, label){
   // in hand (TH.sessions || HD_ALL). Two pickers default to the last two real runs; deltas on B relative to A
   // (▲ more / ▼ less, farming-metrics higher = better; duration neutral). Honest "—" for fields a reel lacks. ══
   var CMP = { a: null, b: null };
+  /* REG-2812 (#86, the REG-2790/2811 sweep) - HIS RUNS ONLY, AS _lastSessionRow READS THEM. This list dropped stubs and kept the
+     suite's fixture reels (v3083: "only for backend ... not for me too in the console"; the shelf hides them), so a fixture newer
+     than his runs could be the comparison's default B or A, the run "since last session" (D29) measures against, a place in
+     WHERE YOU FARM (D16) and a best run (D17) - the same "last" a fixture could take that REG-2790 closed for the digest and
+     the Shelf's Last session. The four read this one list, so one filter covers them. */
   function _cmpList(){
     var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
              : (typeof HD_ALL !== 'undefined' ? HD_ALL : []);
-    return (list || []).filter(function(s){ return s && !s.stub; })   // real reels only (ghosts carry no stats)
+    return (list || []).filter(function(s){ return s && !s.stub && !s.fixture; })   // real reels only (ghosts carry no stats), never a suite fixture
       .slice().sort(function(a, b){ return (b.t0 || 0) - (a.t0 || 0); });   // newest first, regardless of source order
   }
   function _cmpFind(n){ var l = _cmpList(); for (var i = 0; i < l.length; i++){ if ((l[i].n || (i + 1)) === n) return l[i]; } return null; }
