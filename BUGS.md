@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2756 - FIND'S "WOULD GO" ANSWER NAMED ONE CELL FOR AN ITEM HE HOLDS THREE OF (the REG-2741 sweep)
+REG-2741 made the filed answer keep every copy's cell. The router's answer for an item not filed yet ("unsorted · would
+go to <locker>") still stopped at the first copy's cell, so the same item read 1 cell before Auto-Sort and 3 after. It
+keeps every copy's cell now, `cell` stays the first, and FIND's would row says "3 copies: ..." as the filed row does.
+Law: test_find_names_every_copys_cell (1 new case driven on the whole page in node, 2 new red-proofs). The other half of
+GrokBot's v3823 finding - the locker card counts the copies store while the window and FIND pack the vault records - waits
+on its measurement of how many names disagree on his data (#230 6466251442) before a side is chosen.
+
 ### REG-2755 - A SHELF CARD'S DATE WRAPPED "AM" UNDER ITS PIN (#86, GrokBot's v3821 and v3823 passes)
 The card title was absolute with a fixed right reserve of 104px for the pin and the seal (v3214). "🛡 clean" + the pin +
 their gap + the inset need ~111px in Chrome's mono and more in his WebKit's, so the title's second line ran under the
