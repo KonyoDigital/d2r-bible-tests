@@ -12309,6 +12309,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_roster_vault_is_the_boards_records.py")], 300,
          needs_app=False,
          why="intake P1 REG-2817: the roster upload's vault section is the board's records, dated by their hand-over"),
+    Gate("test_a_read_carries_when_it_was_captured",
+         [sys.executable, os.path.join(HERE, "test_a_read_carries_when_it_was_captured.py")], 300,
+         needs_app=False,
+         why='a photo and a live read carry their capture time, never their arrival time (REG-2890, REG-2891)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
