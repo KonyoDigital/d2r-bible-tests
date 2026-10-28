@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2761 - A WAR ITEM HE FILED ON A WAR MULE MOVED TO THE SHARED STASH AND NEVER SAID WHY (#148.1, his ruling)
+GrokBot (#230 c6319274564): vaultAssign('Grief', WAR1) wrote the filing and both Grief tasks still targeted SHARED STASH
+through a reload, which read as his hand being ignored. His ruling 2026-10-28: war items go to the Shared stash (the war
+stash), and the WAR mules only when its 5 pages are full - L1, BY DESIGN; the move task should say why. The target stays
+(_vaultMoveHome honours a hand filing only on a NORMAL mule) and the row now carries "war stash first", its title the
+whole reason naming the mule he filed it on (_vaultMoveL1Why). Nothing is said for a filing on a normal mule or a task
+that goes elsewhere. Law: test_a_war_item_on_a_war_mule_says_why_it_waits (4 cases on the whole page in node, 4
+red-proofs). Its first cut borrowed the L1 laws' board, which drives headless Chrome - it ran on his Mac five times
+before I saw it; moved to node, and no browser was left running.
+
 ### REG-2760 - NO SEAT COULD MEASURE WHETHER HIS LOCKERS' COPIES AGREE (#144.9, his pick 2026-10-28 12:41 IDT)
 GrokBot proved on a guest that the locker card draws copies from the copies store (copyCount, through _shelfCopyCount)
 while the mule window and FIND pack the vault records (_vaultRecordsForMule): a plate said "2 items in 5 copies" over one
