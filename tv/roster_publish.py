@@ -1276,10 +1276,12 @@ def _published_html(owner, row, now_ms):
     who = html.escape(owner, quote=True)
     state, words = _ago(row.get("t"), now_ms)
     said = _age_words(state, words)
+    # REG-2866 - `t` is when the site last STORED this row (an unchanged publish is not stored again), so it dates the copy,
+    # never the owner's last publish
     if said:
-        when = "published " + said
+        when = "published · this copy is from " + said
     else:
-        when = "published, age unknown"
+        when = "published · this copy's age unknown"
     klass = "roster-owner"
     if state == "stale":
         klass += " roster-stale"

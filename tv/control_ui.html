@@ -22854,6 +22854,18 @@ window._lockMark = function(isOpen, px, label){
       + '<div class="ssv-names">' + names + '</div>'
       + (imgs.length ? '<div class="ssv-thumbs">' + imgs.join('') + '</div>' : '') + note + '</div>';
   }
+  /* REG-2866 (GrokBot #230: the bar read "last upload 34 min ago · snapshot 18:55" while the owner's own last upload
+     read 19:06) - A SHADOW DATES THE COPY IT DRAWS, NEVER THE OWNER'S LAST UPLOAD. What this PC holds is the copy the site
+     last STORED (an unchanged upload is not stored again) or, when the site could not be read, this PC's own last copy - so
+     the owner may well have uploaded since. t is that copy's own time; ago is the console's words for it (console_snapshot
+     _ago_words, one rule). One clock, 24-hour (#214). No time is UNKNOWN, never "now". */
+  function _shadowCopySay(t, ago){
+    if (typeof t !== 'number' || !(t > 0)) return 'this copy\u2019s age UNKNOWN';
+    var d = new Date(t), p2 = function (x) { return (x < 10 ? '0' : '') + x; };
+    return 'this copy is from ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + p2(d.getHours()) + ':'
+      + p2(d.getMinutes()) + ((typeof ago === 'string' && ago) ? ' (' + ago + ')' : '');
+  }
+  window._shadowCopySay = _shadowCopySay;
   function _shadowSessionsHead(owner){
     return '<div class="ssv-head"><b>📚 ' + esc(owner || 'this owner') + '\u2019s sessions</b> <span class="ssv-ro">summarized · read only</span></div>';
   }
@@ -22863,7 +22875,7 @@ window._lockMark = function(isOpen, px, label){
     if (d.ok !== true)
       return head + '<div class="ssv-unk">sessions UNKNOWN - ' + esc(String(d.why || 'the console answered without a reason')) + '</div>';
     var list = Array.isArray(d.sessions) ? d.sessions : null;
-    var sub = esc((typeof d.ago === 'string' && d.ago) ? 'uploaded ' + d.ago : 'upload age UNKNOWN')
+    var sub = esc(_shadowCopySay(d.t, d.ago))   /* REG-2866 - the copy's age, never "uploaded" */
       + (d.source === 'cache' ? ' · this PC\u2019s last copy' + (d.why ? ' - the site could not be read (' + esc(String(d.why)) + ')' : '') : '')
       + (list ? ' · ' + list.length + ' session' + (list.length === 1 ? '' : 's') : '')
       + ' · a few small key frames each; their full reels stay on their PC';
@@ -28880,11 +28892,12 @@ function escC(s) {
     var h = 72;
     try { h = (typeof window._shellHeadH === 'function') ? window._shellHeadH() : 72; } catch (e) {}
     if (bar) { bar.style.top = h + 'px'; bar.removeAttribute('hidden'); }
-    /* The marker: whose console this is and when its snapshot was taken, as a clock time beside the age words. */
+    /* The marker: whose console this is, and how old the copy it draws is - its clock time and its age (REG-2866: the
+       COPY's, never "last upload"; #214: one 24-hour clock). A copy with no time says nothing about one. */
     var at = '';
-    /* #214 (GrokBot) - the snapshot time was 12-hour AM/PM beside a 24-hour clock in the header; one clock now */
-    try { if (typeof d.t === 'number' && d.t > 0) { var _sd = new Date(d.t), _p2 = function (x) { return (x < 10 ? '0' : '') + x; };
-      at = ' · snapshot ' + _sd.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + _p2(_sd.getHours()) + ':' + _p2(_sd.getMinutes()); } } catch (e) { at = ''; }
+    if (typeof d.t === 'number' && d.t > 0) {
+      try { at = ' · ' + window._shadowCopySay(d.t, d.ago); } catch (e) { at = ' · this copy\u2019s age UNKNOWN'; }
+    }
     if (who) who.textContent = String(d.words || owner) + at + ' · read only';
     var f = document.createElement('iframe');
     f.id = 'shadow-eng';
@@ -28963,7 +28976,7 @@ function escC(s) {
       var built = null;
       try { built = window._shadowRosterStores(row, fleet, owner); } catch (e) { built = null; }
       var stores = window._shadowMergeStores(snap && snap.stores, built && built.stores);
-      open({ t: snap && snap.t, words: snap && snap.words, stores: stores });
+      open({ t: snap && snap.t, ago: snap && snap.ago, words: snap && snap.words, stores: stores });
     }).catch(function () { open(snap); });
   };
   window._shadowOpen = function (owner) {

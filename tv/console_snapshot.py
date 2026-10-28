@@ -428,8 +428,10 @@ def _ago_words(ms):
 
 
 def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
-    """What /api/roster-cache?profile= serves. `live` is the owner's console being up right now; the stores are
-    always the last upload, and `words` always says when that upload was made."""
+    """What /api/roster-cache?profile= serves. `live` is the owner's console being up right now; the stores are the copy
+    the site last stored (or, source "cache", this PC's own last copy), and `t` / `ago` date THAT copy - never the owner's
+    last upload (REG-2866: an unchanged upload is not stored again, so the owner may have uploaded since). The shadow bar
+    says it ("this copy is from ..."); `words` say only whose console it is and whether it is up."""
     if owner not in OWNERS:
         return {"ok": False, "owner": owner, "why": "not one of the five owner labels"}
     if not record_ok(rec, owner):
@@ -441,13 +443,15 @@ def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
         return {"ok": False, "owner": owner, "why": why, "source": source}
     t = rec["t"]
     ago = _ago_words(now_ms - t)
+    # #214 (GrokBot) - "live" beside "uploaded 20 min ago" read as a live view; the CONSOLE is online, the stores are a copy.
+    # REG-2866 (GrokBot #230: "last upload 34 min ago" while the owner's own upload read 19:06) - the age is the COPY's, so
+    # it is not said here as the owner's last upload; the bar dates the copy from `t` and `ago`.
     if online is True:
-        # #214 (GrokBot) - "live" beside "uploaded 20 min ago" read as a live view; the CONSOLE is online, the stores are the upload
-        state, words = "live", "%s · online now · last upload %s" % (owner, ago)
+        state, words = "live", "%s · online now" % owner
     elif online is False:
-        state, words = "offline", "%s · offline · last upload %s" % (owner, ago)
+        state, words = "offline", "%s · offline" % owner
     else:
-        state, words = "unknown", "%s · online UNKNOWN · last upload %s" % (owner, ago)
+        state, words = "unknown", "%s · online UNKNOWN" % owner
     if source == "cache":
         words += " · the site could not be read, showing this PC's last copy"
     # #210 (GrokBot) - a store the owner's PC could not send is MISSING here, and the banner says which. An upload from

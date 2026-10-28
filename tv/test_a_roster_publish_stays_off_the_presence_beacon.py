@@ -542,8 +542,10 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
                      "sections": {"vault": {"asOf": now - 2 * RP.HOUR_MS - 1, "counts": 2, "rows": []}}}
         vault_old = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [old_vault]})
         self.assertIn("as of 2 hr ago stale", vault_old)
-        self.assertIn("published under 1 min ago", vault_old)
-        self.assertNotIn("published under 1 min ago stale", vault_old)
+        # REG-2866 - the row's `t` dates the copy the site stored, never the owner's last publish
+        self.assertIn("published · this copy is from under 1 min ago", vault_old)
+        self.assertNotIn("under 1 min ago stale", vault_old)
+        self.assertNotIn("published under", vault_old)
         self.assertNotIn("0 min", vault_old)
         unknown = {"owner": OWNER, "published": True, "corrupt": False,
                    "sections": {"characters": {"counts": 1, "rows": [{"name": "Sorceress"}]}}}
@@ -734,6 +736,11 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         self.assertEqual(RP._age_state(now - 3 * 3600 * 1000, now), "stale")
 
 RED_PROOF = [
+    {"why": "REG-2866 - the roster panel dates the site's copy as the owner's last publish again",
+     "file": "roster_publish.py",
+     "find": "        when = \"published · this copy is from \" + said\n",
+     "replace": "        when = \"published \" + said\n",
+     "matches": 1},
     {"why": "REG-2205 (#99): reels_read counts stations over EVERY stamp again, so a gone reel's lingering river stamp is counted as a live station",
      "file": "roster_publish.py",
      "find": "        for reel in named:\n",

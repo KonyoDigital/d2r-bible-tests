@@ -5370,7 +5370,8 @@ def _profile_publish_once(boot):
 
 
 def _profile_view(owner):
-    """-> what the shadow viewer draws: that owner's last upload, its time, and live/offline/unknown."""
+    """-> what the shadow viewer draws: the copy of that owner's upload this PC can read, that copy's time (REG-2866: never
+    called the owner's last upload), and live/offline/unknown."""
     import console_snapshot as _cs
     now_ms = int(time.time() * 1000)
     if owner not in _cs.OWNERS:

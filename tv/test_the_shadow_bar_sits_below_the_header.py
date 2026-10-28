@@ -7,9 +7,9 @@ after. #214: the snapshot time was 12-hour AM/PM beside the header's 24-hour clo
 ago"; the dimming rule for shadow controls left labels (Load profile) out.
 
 Driven: _shadowPlace (cut from control_ui.html) in node places the bar at the header height and the frame below the
-bar; _shellSizePane calls it and _shadowSnapEnter calls it again once the shell is open; the snapshot time expression
-(cut from _shadowSnapEnter) prints HH:MM with no AM/PM; the view says "online now · last upload"; labels are dimmed.
-RED_PROOF below.
+bar; _shellSizePane calls it and _shadowSnapEnter calls it again once the shell is open; the copy's time (_shadowCopySay,
+which the bar draws - REG-2866 dates the COPY, never "last upload") prints HH:MM with no AM/PM; the view says "online now";
+labels are dimmed. RED_PROOF below.
 """
 import io
 import json
@@ -74,21 +74,33 @@ class TheShadowBarSitsBelowTheHeader(unittest.TestCase):
                         "the bar is placed before shell-open changes the header's height")
 
     def test_one_clock_and_honest_words(self):
-        line = _cut(UI, "    try { if (typeof d.t === 'number' && d.t > 0) { var _sd = new Date(d.t)",
-                    "} } catch (e) { at = '';")
-        out = self._node("var d = { t: Date.UTC(2026, 9, 27, 20, 7) }, at = '';\n" + line + " }\n"
-                         "console.log(JSON.stringify({ at: at }));\n")
-        self.assertRegex(out["at"], r"^ · snapshot \S+ \d{1,2} \d\d:\d\d$", out)
+        fn = _cut(UI, "  function _shadowCopySay(t, ago){\n", "      + p2(d.getMinutes()) + ((typeof ago === 'string' && ago) ? ' (' + ago + ')' : '');\n  }\n")
+        self.assertIn("at = ' · ' + window._shadowCopySay(d.t, d.ago);", UI, "the bar no longer draws the copy's time")
+        out = self._node(fn + "\nconsole.log(JSON.stringify({ at: _shadowCopySay(Date.UTC(2026, 9, 27, 20, 7), '34 min ago'),"
+                         " none: _shadowCopySay(null, '34 min ago') }));\n")
+        self.assertRegex(out["at"], r"^this copy is from \S+ \d{1,2} \d\d:\d\d \(34 min ago\)$", out)
         self.assertIsNone(re.search(r"AM|PM", out["at"]), out)
-        import console_snapshot as CS
-        rec = None
-        self.assertIn('"%s · online now · last upload %s"', _read(os.path.join(HERE, "console_snapshot.py")))
-        del rec, CS
+        self.assertEqual(out["none"], "this copy\u2019s age UNKNOWN", out)
+        src = _read(os.path.join(HERE, "console_snapshot.py"))
+        self.assertIn('"%s · online now" % owner', src)
+        self.assertNotIn("last upload %s", src, "the view calls the copy's age the owner's last upload again (REG-2866)")
         self.assertEqual(BIBLE.count(":is(button, input, select, textarea, label, [contenteditable], .vault-chip)"), 1,
                          "a label (Load profile) is not dimmed in the shadow")
 
 
 RED_PROOF = [
+    {"why": "REG-2866 - the view calls the copy's age the owner's last upload again",
+     "file": "tv/console_snapshot.py",
+     "find": "        state, words = \"live\", \"%s · online now\" % owner\n",
+     "replace": "        state, words = \"live\", \"%s · online now · last upload %s\" % (owner, ago)\n", "matches": 1},
+    {"why": "REG-2866 - the copy's time reads as the owner's last upload",
+     "file": "tv/control_ui.html",
+     "find": "    return 'this copy is from ' + d.toLocaleDateString(",
+     "replace": "    return 'last upload ' + d.toLocaleDateString(", "matches": 1, "needs": "node"},
+    {"why": "REG-2866 - the bar draws a bare snapshot time again, not the copy's age",
+     "file": "tv/control_ui.html",
+     "find": "      try { at = ' · ' + window._shadowCopySay(d.t, d.ago); }",
+     "replace": "      try { at = ' · snapshot ' + new Date(d.t).toLocaleString(); }", "matches": 1},
     {"why": "#215 - sizing the shell no longer places the shadow bar, so it sits over the header again",
      "file": "tv/control_ui.html",
      "find": "    _shadowPlace(h);   /* #215 */\n",
@@ -99,8 +111,8 @@ RED_PROOF = [
      "replace": "      var below = h;\n      sf.style.top", "matches": 1, "needs": "node"},
     {"why": "#214 - the snapshot time is 12-hour AM/PM again",
      "file": "tv/control_ui.html",
-     "find": "' ' + _p2(_sd.getHours()) + ':' + _p2(_sd.getMinutes()); } }",
-     "replace": "' ' + _sd.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); } }",
+     "find": "' ' + p2(d.getHours()) + ':'\n      + p2(d.getMinutes()) + ((typeof ago",
+     "replace": "' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })\n      + ((typeof ago",
      "matches": 1, "needs": "node"},
     {"why": "#214 - Load profile is not dimmed in the shadow again",
      "file": "bible.html",

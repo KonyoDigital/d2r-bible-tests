@@ -171,7 +171,7 @@ SSV_READ = """(function(){ var o = document.getElementById('shadow-sess-ov'), p 
            inBody: o.parentNode === document.body }; })()"""
 OWN = "document.getElementById('tvd-eng').contentWindow"
 SHADOW = "document.getElementById('shadow-eng').contentWindow"
-WORDS = OWNER + " · offline · last upload 2 h ago"
+WORDS = OWNER + " · offline"     # REG-2866 - the copy's age rides as t / ago, the bar says "this copy is from ..."
 # The world facts a board derives at boot, and what they draw: the cousin ribbon class and whether the seeds apply.
 WORLD = ("(function(){var w=%s; return {machine: w.D2R_MACHINE, os: w.D2R_HOST_OS, profile: w.D2R_PROFILE, "
          "ledger: w._D2R_LEDGER, cousin: w._isCousinShell, seeds: w._seedsBelongHere, "
@@ -179,7 +179,8 @@ WORLD = ("(function(){var w=%s; return {machine: w.D2R_MACHINE, os: w.D2R_HOST_O
 
 
 def _serve(stores, hits, mode):
-    view = {"ok": True, "owner": OWNER, "t": T0, "stores": stores, "words": WORDS, "online": False, "source": "site"}
+    view = {"ok": True, "owner": OWNER, "t": T0, "ago": "2 hr ago", "stores": stores, "words": WORDS, "online": False,
+            "source": "site"}
     roster = {"owners": [{"owner": OWNER, "published": True, "age": "fresh"}]}
 
     class H(http.server.SimpleHTTPRequestHandler):
@@ -500,8 +501,9 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         self.assertEqual(d["shadowPath"], "/board?app=1&engine=1")
         self.assertTrue(d["covers"], "the shadow does not fill the pane his own board fills")
         self.assertTrue(d["barShown"], "no marker on screen")
-        self.assertTrue(d["marker"].startswith(OWNER + " · offline · last upload"), d["marker"])
-        self.assertIn(" · snapshot ", d["marker"], "the marker does not say when the snapshot was taken")
+        self.assertTrue(d["marker"].startswith(OWNER + " · offline · this copy is from "), d["marker"])
+        self.assertIn(" (2 hr ago) · read only", d["marker"], "the marker does not say how old the copy it draws is")
+        self.assertNotIn("last upload", d["marker"], "the copy's age is called the owner's last upload (REG-2866)")
         self.assertTrue(d["marker"].endswith(" · read only"), d["marker"])
         for t in ("chars", "vault"):
             self.assertEqual(self.a["route:" + t], t, "his own console's header did not open " + t)
@@ -622,7 +624,7 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
             self.assertTrue(got["onTop"], "%s: the list is drawn under their board" % door)
             self.assertTrue(got["inBody"])
             self.assertEqual(got["rows"], 2, got["text"])
-            for words in (OWNER + "\u2019s sessions", "uploaded 2 hr ago", "Shako · <b>x</b>", "12 reads",
+            for words in (OWNER + "\u2019s sessions", "this copy is from ", "(2 hr ago)", "Shako · <b>x</b>", "12 reads",
                           "no pictures - r_2: this PC has no thumbnail resizer"):
                 self.assertIn(words, got["text"], "%s: %r is not on the list" % (door, words))
             self.assertEqual(got["srcs"], ["data:image/jpeg;base64,"], got["srcs"])

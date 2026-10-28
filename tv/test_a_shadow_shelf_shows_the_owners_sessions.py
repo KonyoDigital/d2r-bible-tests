@@ -40,7 +40,8 @@ NODE = shutil.which("node")
 UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
 
 FNS = ["  function esc(s){", "  function _lsWhenSay(t0){", "  function _runSpanSay(t0, t1){",
-       "  function _consoleShadowUp(){", "  function _shadowSessionRow(s){", "  function _shadowSessionsHead(owner){",
+       "  function _consoleShadowUp(){", "  function _shadowSessionRow(s){", "  function _shadowCopySay(t, ago){",
+       "  function _shadowSessionsHead(owner){",
        "  function _shadowSessionsHtml(d){", "  function _shadowSessionsClose(){", "  function _shadowSessionsOpen(){"]
 LINES = ["  var _SSV_B64 = ", "  var _ssvGen = 0;"]
 
@@ -139,6 +140,7 @@ CASES = [
     {"ok": True, "owner": "Dean", "t": T, "ago": "1 min ago", "source": "worker", "sessions": []},
     {"ok": True, "owner": "Dean", "t": T, "ago": "1 min ago", "source": "worker", "sessions": None},
     {"ok": True, "owner": "Dean", "t": T, "source": "worker", "sessions": [_session()]},
+    {"ok": True, "owner": "Dean", "t": None, "source": "worker", "sessions": [_session()]},
 ]
 
 
@@ -166,7 +168,7 @@ class TheListDrawsTheirRecord(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.got = _drive()
-        cls.worker, cls.cache, cls.refused, cls.empty, cls.nolist, cls.noage = cls.got["html"]
+        cls.worker, cls.cache, cls.refused, cls.empty, cls.nolist, cls.noage, cls.notime = cls.got["html"]
 
     def test_a_picture_is_a_jpeg_data_uri_and_nothing_else(self):
         srcs = re.findall(r'src="([^"]*)"', self.worker)
@@ -192,12 +194,15 @@ class TheListDrawsTheirRecord(unittest.TestCase):
         self.assertIn("no pictures - why UNKNOWN, the record names none", self.worker)
 
     def test_the_header_says_whose_how_old_and_whether_it_is_a_copy(self):
-        self.assertIn("uploaded 12 min ago", self.worker)
+        # REG-2866 - the record's time dates the COPY this PC reads, never the owner's last upload
+        self.assertIn("this copy is from Oct 28 12:16 (12 min ago)", self.worker)
+        self.assertNotIn("uploaded", self.worker + self.cache + self.noage)
         self.assertNotIn("last copy", self.worker)
         self.assertIn("full reels stay on their PC", self.worker)
-        self.assertIn("uploaded 3 hr ago · this PC’s last copy - the site could not be read "
+        self.assertIn("this copy is from Oct 28 12:16 (3 hr ago) · this PC’s last copy - the site could not be read "
                       "(the sessions fetch failed)", self.cache)
-        self.assertIn("upload age UNKNOWN", self.noage)
+        self.assertIn("this copy is from Oct 28 12:16 · 1 session", self.noage, "a copy with a time but no age words")
+        self.assertIn("this copy’s age UNKNOWN", self.notime)
 
     def test_a_refusal_is_unknown_never_an_empty_list(self):
         self.assertIn("sessions UNKNOWN - Dean has not published its sessions yet", self.refused)
@@ -244,7 +249,7 @@ class TheAgeIsTheServersOneRule(unittest.TestCase):
         v = SS.view("Dean", rec, T + 3 * 3600000 + 5000)
         self.assertEqual(v["ago"], CS._ago_words(3 * 3600000 + 5000))
         html = _drive(cases=[json.loads(json.dumps(v))])["html"][0]
-        self.assertIn("uploaded " + v["ago"], html)
+        self.assertIn("(" + v["ago"] + ")", html)
 
 
 class TheDoorsAreJoined(unittest.TestCase):
@@ -269,6 +274,11 @@ class TheDoorsAreJoined(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2866 - the shelf header says 'uploaded' for the copy's age again",
+     "file": "tv/control_ui.html",
+     "find": "    var sub = esc(_shadowCopySay(d.t, d.ago))   /* REG-2866 - the copy's age, never \"uploaded\" */\n",
+     "replace": "    var sub = esc((typeof d.ago === 'string' && d.ago) ? 'uploaded ' + d.ago : 'upload age UNKNOWN')\n",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2810 - the names read go into the page unescaped",
      "file": "tv/control_ui.html",
      "find": "nm.map(function(x){ return esc(x); }).join(' · ')",

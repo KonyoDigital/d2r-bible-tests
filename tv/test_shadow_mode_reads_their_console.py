@@ -255,9 +255,13 @@ class WhatTheViewerIsTold(unittest.TestCase):
         off = CS.view(OWNER, rec, now, online=False)
         unk = CS.view(OWNER, rec, now, online=None)
         self.assertEqual((live["state"], off["state"], unk["state"]), ("live", "offline", "unknown"))
-        self.assertEqual(live["words"], "Dean · online now · last upload 42 min ago")
-        self.assertEqual(off["words"], "Dean · offline · last upload 42 min ago")
-        self.assertEqual(unk["words"], "Dean · online UNKNOWN · last upload 42 min ago")
+        # REG-2866 - the age rides as the COPY's (t, ago), drawn by the bar as "this copy is from ..."; the words never
+        # call it the owner's last upload
+        self.assertEqual(live["words"], "Dean · online now")
+        self.assertEqual(off["words"], "Dean · offline")
+        self.assertEqual(unk["words"], "Dean · online UNKNOWN")
+        for v in (live, off, unk):
+            self.assertEqual((v["t"], v["ago"]), (rec["t"], "42 min ago"), "the view lost the copy's own age")
         for v in (live, off, unk):
             self.assertEqual(v["stores"], rec["stores"], "the viewer was not handed the owner's stores verbatim")
             self.assertEqual(v["t"], T0)
@@ -286,9 +290,8 @@ class WhatTheViewerIsTold(unittest.TestCase):
         self.assertEqual(rec["stores"], _stores())
         v = CS.view(OWNER, rec, T0 + 3 * 3600 * 1000, online=False, source="cache")
         self.assertTrue(v["ok"])
-        self.assertEqual(v["words"], "Dean · offline · last upload 3 hr ago · the site could not be read, "
-                                     "showing this PC's last copy")
-        self.assertEqual(v["t"], T0)
+        self.assertEqual(v["words"], "Dean · offline · the site could not be read, showing this PC's last copy")
+        self.assertEqual((v["t"], v["ago"]), (T0, "3 hr ago"), "the copy lost its own age (REG-2866)")
         path = CS.cache_path(d, OWNER)
         with io.open(path, encoding="utf-8") as fh:
             held = json.load(fh)
@@ -620,7 +623,8 @@ class TheConsoleDoors(unittest.TestCase):
             v = self.CA._profile_view(OWNER)
         self.assertTrue(v["ok"], "with the site down the PC's last copy was not shown")
         self.assertEqual((v["source"], v["t"], v["stores"]), ("cache", T0, _stores()))
-        self.assertIn("last upload", v["words"])
+        self.assertNotIn("last upload", v["words"], "the copy's age is called the owner's last upload (REG-2866)")
+        self.assertTrue(isinstance(v["ago"], str) and v["ago"], "the copy carries no age words")
         self.assertIn("showing this PC's last copy", v["words"])
 
     def test_nothing_uploaded_is_said(self):
@@ -1207,8 +1211,11 @@ process.stdout.write(JSON.stringify({ vault: vault, dean: dean, keptOpen: keptOp
     def test_the_marker_names_the_owner_and_the_profile_time(self):
         ui = _read(UI)
         enter = ui[ui.index("  window._shadowSnapEnter = function"):ui.index("  window._shadowOpen = function")]
-        # #214 - one clock: the date and a 24-hour HH:MM, as the header's clock
-        self.assertIn("at = ' · snapshot ' + _sd.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + _p2(_sd.getHours())", enter)
+        # #214 - one clock: the date and a 24-hour HH:MM, as the header's clock; REG-2866 - the COPY's time and age
+        # (_shadowCopySay, test_the_shadow_bar_sits_below_the_header runs it)
+        self.assertIn("at = ' · ' + window._shadowCopySay(d.t, d.ago);", enter)
+        self.assertIn("open({ t: snap && snap.t, ago: snap && snap.ago, words: snap && snap.words, stores: stores });", ui,
+                      "the merged shadow drops the copy's age words")
         self.assertIn("who.textContent = String(d.words || owner) + at + ' · read only';", enter)
         self.assertIn('<div id="shadow-bar" hidden><span id="shadow-who">', ui)
 
@@ -2159,6 +2166,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "                'vaultGuideTog', 'vaultGuideGo',\n",
      "replace": "", "matches": 1, "needs": "node"},
+    {"why": "REG-2866 - the merged shadow drops the copy's age words, so its bar says no age",
+     "file": "tv/control_ui.html",
+     "find": "      open({ t: snap && snap.t, ago: snap && snap.ago, words: snap && snap.words, stores: stores });\n",
+     "replace": "      open({ t: snap && snap.t, words: snap && snap.words, stores: stores });\n",
+     "matches": 1},
     {"why": "Shadow: the worker does not decode each string literal, so an escaped path or token (even under a dropped duplicate key) is stored",
      "file": "functions/api/roster.js",
      "find": "    if (PRIVATE.some((rx) => rx.test(t))) return true;\n  }\n",
@@ -2348,10 +2360,10 @@ RED_PROOF = [
      "file": "tv/console_snapshot.py",
      "find": "    re.compile(r\"(?:/Users/|/home/|/private/|/var/folders/)[^\\s\\\"']*\"),\n",
      "replace": "", "matches": 1},
-    {"why": "Shadow: the viewer is told 'live' with no age of the upload",
+    {"why": "Shadow: the viewer is told 'live' with no age of the copy (REG-2866: the age rides as the copy's)",
      "file": "tv/console_snapshot.py",
-     "find": "        state, words = \"live\", \"%s · online now · last upload %s\" % (owner, ago)\n",
-     "replace": "        state, words = \"live\", \"%s · live\" % owner\n", "matches": 1},
+     "find": "\"state\": state, \"words\": words, \"source\": source, \"ago\": ago, \"unsent\": unsent}",
+     "replace": "\"state\": state, \"words\": words, \"source\": source, \"ago\": None, \"unsent\": unsent}", "matches": 1},
     {"why": "Shadow: with the site down the viewer gets nothing instead of the PC's last copy",
      "file": "tv/control_app.py",
      "find": "        rec = _cs.read_cache(cdir, owner)\n",
