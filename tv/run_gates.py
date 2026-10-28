@@ -12357,6 +12357,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_magic_and_rare_draws_every_item_it_counts.py")], 300,
          needs_app=False,
          why='REG-2850: the MAGIC & RARE window packs every keeper its card counts, owner and shadow alike, and writes nothing'),
+    Gate("test_a_magic_or_rare_tile_draws_its_base",
+         [sys.executable, os.path.join(HERE, "test_a_magic_or_rare_tile_draws_its_base.py")], 300,
+         needs_app=False,
+         why="REG-2851/2852: a magic or rare item draws its base's picture (record, else the one grammar; a base with no key wears its uniques' sprite), the same on the card, the window, FIND and the hover"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
