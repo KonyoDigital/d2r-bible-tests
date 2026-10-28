@@ -15,6 +15,11 @@ not filed". A held or no-look row has its own bucket now, vaultPending {name, re
 brought to his ruling: a row that only SAYS stash, with no look, is not registered (one sighting is not his; none is not
 either), not filed, and counted pending. v3746's source pin follows REG-2698's thSessionsWait.
 Law: test_auto_intake_registers_on_two_sessions (a red-proof, seen RED); the two specs grade on CI.
+CI's Playwright then caught the half the node law missed: chronicleApply's ALREADY-FOUND branch (his grail has the item,
+the vault does not) sent any not-ok answer to vaultFailed, so a held row read as a vault FAILURE - it reports through the
+same pending bucket now (a second red-proof). And v712's vault-mirror spec is brought to his #202 ruling: one read (with
+its session, as a real read carries) holds Harlequin Crest, a socketed base and a RotW custom as seen-once, not owned; a
+second session's look registers each, and every stashed class then lands VISIBLE - the guarantee it was written for.
 
 ### REG-2702 - A READ THAT CARRIED ITS LOOKS AS `witnesses` SKIPPED HIS TWO-SESSION RULE (#202, caught by v3817's CI run)
 REG-2686 held a read of a name he does not own until a second session, but its "is this a read" test knew only `sessions`,

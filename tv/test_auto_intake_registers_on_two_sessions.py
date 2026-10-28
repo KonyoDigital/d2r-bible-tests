@@ -39,6 +39,7 @@ localStorage.setItem('d2r_ownerClaim', '*');
 localStorage.setItem('d2r_owned', JSON.stringify(["The Gnasher"]));
 localStorage.setItem('d2r_vaultProv', JSON.stringify({}));
 localStorage.setItem('d2r_muleAssign', JSON.stringify({}));
+localStorage.setItem('d2r_foundLog', JSON.stringify({"The Oculus": "2026-08-01"}));   // REG-2706 - the already-found branch
 """
 
 BODY = r"""
@@ -92,6 +93,9 @@ var _ap = (typeof window.chronicleApply === 'function')
 OUT.apply = _ap ? { pending: (_ap.vaultPending || []).map(function(x){ return [x.name, x.refused]; }),
                     vaulted: (_ap.vaulted || []).length, unfiled: (_ap.vaultUnfiled || []).length } : null;
 OUT.applyOwned = owned.has('Tal Rasha\'s Adjudication') || owned.has('Tal Rasha\u2019s Adjudication');
+var _ap2 = window.chronicleApply({ wouldAdd: { uniques: [{ name: 'The Oculus', loc: 'stash' }], sets: [] } });
+OUT.applyFound = _ap2 ? { pending: (_ap2.vaultPending || []).map(function(x){ return x.name; }),
+                          failed: (_ap2.vaultFailed || []).map(function(x){ return x.name; }) } : null;
 /* an unreadable hold store */
 localStorage.setItem('d2r_vaultSighted', '{broken');
 OUT.broken = reg('Shaftstop', [look(S1, 'f_7.jpg')]);
@@ -165,6 +169,9 @@ class AutoIntakeRegistersOnTwoSessions(unittest.TestCase):
         self.assertEqual(o["apply"]["vaulted"], 0)
         self.assertEqual([p[1] for p in o["apply"]["pending"]], ["no-look"],
                          "a held row fell out of the receipt without a word (REG-2706): %r" % o["apply"])
+        # the already-found branch (his grail has it, the vault does not) answers through the same bucket, never 'failed'
+        self.assertEqual(o["applyFound"], {"pending": ["The Oculus"], "failed": []},
+                         "a held row of an already-found item was reported as a vault FAILURE: %r" % o["applyFound"])
 
     def test_an_unreadable_hold_store_holds_every_read_and_is_never_written(self):
         o = page()
@@ -206,6 +213,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    if (vr && !vr.ok && (vr.refused === 'one-session' || vr.refused === 'no-look')){\n",
      "replace": "    if (false){\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2706 - a held row of an already-found item is reported as a vault failure again",
+     "file": "bible.html",
+     "find": "            if (_vs && (_vs.ok || _vs.refused === 'one-session' || _vs.refused === 'no-look')) {\n",
+     "replace": "            if (_vs && _vs.ok) {\n",
      "matches": 1, "needs": "node"},
 ]
 

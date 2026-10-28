@@ -562,7 +562,9 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
     await page.route(BRIDGE + '**', (route) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(state({
         startedAt: T - 9000,
+        /* a real read carries its session and frame (_vaultLiveWitness) - #202 counts sessions, so the mock does too */
         reads: [{ ts: T, n: 1, area: 'Harrogath', scene: 'stash', intent: 'farmed', ms: 5000, mode: 'warm',
+                  sessionId: 's_1234567000000_11111', frameId: 'f_1234567890000.jpg',
                   names: ['Harlequin Crest', 'Colossus Crossbow (5os)', 'Blood Shield', 'Ist Rune'],
                   vault_names: ['Harlequin Crest (Shako)', 'Colossus Crossbow (5os)', 'Blood Shield', 'Ist Rune'] }],
       })) }));
@@ -574,6 +576,21 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       w._tvdToggle();
     });
     await page.waitForTimeout(2200);
+    /* #202 (his ruling 2026-10-27): ONE session holds a name he does not own ("seen once"); the SECOND registers it - the
+       same bar that files it. So the first read is held and not owned, and a second session's look of each held name
+       registers it; then every stashed class must land VISIBLE, which is what this law guards. */
+    const once = await page.evaluate(() => {
+      const w = window as any;
+      const held = ((w._vaultIntakePending && w._vaultIntakePending()) || []).map((e: any) => e.name);
+      let stored: string[] = [];
+      try { stored = JSON.parse((w.LSR && w.LSR.getItem('d2r_owned')) || '[]') || []; } catch (e) { stored = []; }
+      const own = ['Harlequin Crest', 'Blood Shield'].filter((n) => stored.indexOf(n) >= 0);
+      held.forEach((n: string) => w.tvVaultRegister(n, { lane: 'stash', location: 'stash',
+        sessions: [{ session: 's_1234567999999_22222', frame: 'f_1234567999999.jpg', conf: 0.9 }] }));
+      return { held: held, ownedAfterOne: own };
+    });
+    expect(once.held.length, '#202: one read held nothing as seen-once: ' + JSON.stringify(once)).toBeGreaterThanOrEqual(3);
+    expect(once.ownedAfterOne, '#202: one read made an item his').toEqual([]);
     const r = await page.evaluate(() => {
       (window as any).renderVault && (window as any).renderVault();
       const html = (document.getElementById('mule-vault-card') || {}).innerHTML || '';

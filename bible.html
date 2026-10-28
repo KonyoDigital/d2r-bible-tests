@@ -64913,7 +64913,8 @@ function renderJournal(){
         try {
           if (_mayVault && typeof window.tvVaultRegister === 'function' && !_chAlreadyVaulted(n)) {
             var _vs = window.tvVaultRegister(n, _rowWitness(row));
-            if (_vs && _vs.ok) {
+            /* REG-2706 - a row HELD for a second session (or with no look) is not a failure: _vaultReport files it pending */
+            if (_vs && (_vs.ok || _vs.refused === 'one-session' || _vs.refused === 'no-look')) {
               _vaultReport(_vs, n);
             } else {
               res.vaultFailed = res.vaultFailed || [];
