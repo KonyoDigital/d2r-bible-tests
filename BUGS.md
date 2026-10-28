@@ -16,6 +16,15 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2718 - THE INTAKE LANE'S GROK SESSIONS WERE NEVER SWEPT (#151; a sibling of REG-1687)
+Measured on his Mac 2026-10-28: ~/.grok/sessions held 55 directories named for the intake lane's throwaway cwd
+(tvd-intake-g5-...), every one since 10-21. REG-1687 made the G5 read lane drop its own and sweep leftovers, but both
+matched "tvd-g5-" - which "tvd-intake-g5-" does not contain - and intake_grok_sub.mjs removed its work dir and never the
+session directory the Grok CLI minted for it. On 09-01 this folder reached 11 GB and ENOSPC. The intake call now drops its
+own session (dropSession, by its unique basename; a cwd that is not an intake call's removes nothing) and the read lane's
+sweep knows both names (G5_SESSION_MARKS); his own sessions and tvd-g5-home are never matched. Today's bulk (531 MB, his
+live interactive session) is his and untouched. Law: test_a_grok_session_never_outlives_its_call (4 red-proofs, each seen
+RED); REG-1687's red-proof re-pointed and seen RED.
 
 ### REG-2717 - THE RENDER TARGETS SHARE ONE BROWSER PROFILE, AND ONE SEED MINTED COPIES IN THE NEXT (the v3817 push)
 The v3817 push was refused at the render gate: vault-full painted 32 copy badges ("1/2", "2/2") cut off in its collapsed

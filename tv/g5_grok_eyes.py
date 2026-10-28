@@ -1381,6 +1381,9 @@ def _cleanup(work):
 
 #: REG-1687 — a read's own Grok session directory older than this is a leftover nobody will come back for
 G5_SESSION_STALE_S = 600
+#: #151 — the throwaway --cwd names a Grok session directory can carry: a G5 read's (tvd-g5-) and the intake lane's
+#: (intake_grok_sub.mjs, tvd-intake-g5-). Matching only the first left every intake session behind (55 on his Mac).
+G5_SESSION_MARKS = ("tvd-g5-", "tvd-intake-g5-")
 
 
 def _drop_session_dir(path, attempts=4, pause_s=0.25):
@@ -1412,7 +1415,7 @@ def _sweep_stale_sessions(sd, now=None):
         _STATS["session_sweep_unread"] = "%s: %s" % (type(e).__name__, str(e)[:80])
         return None
     for name in names:
-        if "tvd-g5-" not in name or "tvd-g5-home" in name:
+        if not any(m in name for m in G5_SESSION_MARKS) or "tvd-g5-home" in name:
             continue
         p = os.path.join(sd, name)
         try:
