@@ -12353,6 +12353,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_each_copy_carries_its_own_entry.py")], 300,
          needs_app=False,
          why="REG-2844 (#154 P3a) - each copy's record carries its own entry (an Ist Shako and a Ber Shako are told apart), through rebuilds, moves and the profile"),
+    Gate("test_magic_and_rare_draws_every_item_it_counts",
+         [sys.executable, os.path.join(HERE, "test_magic_and_rare_draws_every_item_it_counts.py")], 300,
+         needs_app=False,
+         why='REG-2850: the MAGIC & RARE window packs every keeper its card counts, owner and shadow alike, and writes nothing'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

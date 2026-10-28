@@ -312,6 +312,21 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2850 - MAGIC & RARE COUNTED 23 AND ITS WINDOW DREW 5: NO KEEPER WAS EVER PACKED (his 2026-10-28 19:31 report, the ALT's shadow on v3829)
+The locker card said 23 and its window "Items 23 · Copies 5" over a grid of 5 tiles: "its not showing the 23 items at all
+when i click the alt mule it self" (GrokBot measured the Mac at Items 14 over an empty grid). The census and the card count
+and draw every Magic & Rare keeper (d2r_magicFinds); the window's packer (_muleLoad) draws only the names its records span
+holds (v3767), and a keeper is a rolled name no catalogue holds, so ownedPool leaves it out and no record is ever homed on
+magic-rare for one - owned or not. So the cause is not old keeps left unowned: owning a keeper (REG-2830, the checker, the
+judge, the intake) does not make it a record, and the owned keepers were missing too. Measured on the whole page in node
+with his report's shape (9 keepers, 3 of them owned, 2 records the grammar routes there): Items 11 · Copies 2, and FIND
+named no cell for any keeper. Now each keeper the span lacks is packed as its card cell is drawn - one copy - whichever door
+kept it (one rule in the packer, so the throw-out review, the judge and its border hold, the photo intake and a legacy
+record are all covered, and a new door is too). It is a read, so no migration was needed and none was built: nothing is
+written, and a shadow (the records store rides in the upload without its stamp, so it rebuilds, #207) packs exactly what
+the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
+is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
+on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
 
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to
