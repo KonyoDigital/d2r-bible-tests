@@ -27315,16 +27315,19 @@ function escC(s) {
       + '<ellipse cx="33" cy="9" rx="9" ry="6"/><circle cx="33" cy="9" r="3"/></svg>';
     if (!owner) {
       return '<div class="fleet-open-eyes"><button type="button" class="fleet-hd-eyes" disabled'
-        + ' title="this PC publishes no roster profile, so there is no console to see (UNKNOWN, not empty)">'
-        + eyes + '<span>no roster profile</span></button></div>';
+        + ' title="this PC publishes no roster profile, so there is no console to see (UNKNOWN, not empty)"'
+        + ' aria-label="no roster profile - no console to see">'
+        + eyes + '</button></div>';   /* REG-2768 - the eyes alone, the words in its title */
     }
     return '<div class="fleet-open-eyes"><button type="button" class="fleet-hd-eyes" data-roster-owner="' + escC(owner) + '"'
       + ' title="' + escC('open ' + owner + '\u2019s console, read only') + '"'
       + ' aria-label="' + escC('see ' + owner + '\u2019s console') + '"'
       + ' onclick="event.stopPropagation();window._shadowOpen(this.getAttribute(\'data-roster-owner\'))">'
-      /* REG-2768 (CI on v3826: the open row's centre still landed on it) - the visible word is short, so the button at the
-         line's end never reaches the row's middle on a narrow Fleet; whose console stays in its title and aria-label */
-      + eyes + '<span>see console</span></button></div>';
+      /* REG-2768 (CI on v3826, twice: the open row's centre still landed on it) - THE EYES ALONE. Right-aligned with any
+         word in it, the button still reached the middle of a narrow Fleet row; the two eyes are ~70 px, so the row's
+         centre stays the row's own click on any row wider than ~170 px. Whose console it opens stays in its title and
+         aria-label. */
+      + eyes + '</button></div>';
   };
   window._fleetOpenEyesHtml = _fleetOpenEyesHtml;
   /* the row stays open: remembered by machine, so a fleet refresh redraws it open; a second click does not shut it */
