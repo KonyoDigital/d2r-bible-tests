@@ -340,7 +340,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2051 - a runeword is sized by a keyword in its name again (Hand of Justice read as gloves)",
      "file": "bible.html",
-     "find": "        if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[name] = cells; return cells; }\n",
+     "find": "        if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[_ck] = cells; return cells; }\n",
      "replace": "\n",
      "matches": 1},
     {"why": "REG-2051 - the packer answers with its own default again (a second copy of the footprint rule)",

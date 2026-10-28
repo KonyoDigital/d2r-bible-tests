@@ -21231,7 +21231,17 @@ function _itemCells(name){
       if (_rec0 && _rec0.base) _storedBase = String(_rec0.base);
     }
   } catch (e0) {}
-  var _ck = _storedBase ? (name + '\n' + _storedBase) : name;
+  /* REG-2855 (ACT-3, GrokBot's v3829 Vault pass) - HIS OWN RECORD OF THE ITEM NAMES ITS BASE, AND THAT BASE SIZES IT. Bone Eye
+     is a magic Ring in his Magic & Rare register and Brimstone Clasp a rare Plated Belt; both drew as a guessed 1x2, because
+     nothing here read the register and a TV stub's base is the stub writer's own name. The keeper's base sizes the item
+     ahead of any stub or name grammar, and it joins the cache key, so a base recorded later is never answered by the guess
+     made before it. With no keeper base the key is the one it always was. */
+  var _keeperBase = '';
+  try {
+    if (typeof magicFinds !== 'undefined' && magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, name) && typeof _mfBase === 'function')
+      _keeperBase = String(_mfBase(name) || '').trim();
+  } catch (eKb) { _keeperBase = ''; }   /* the register is not declared yet (an early paint): no keeper base, never a guessed one */
+  var _ck = (_storedBase ? (name + '\n' + _storedBase) : name) + (_keeperBase ? '\nkeeper ' + _keeperBase : '');
   if (Object.prototype.hasOwnProperty.call(_ITEM_CELLS_CACHE, _ck)) return _ITEM_CELLS_CACHE[_ck];
   // ⚠ THE DEFAULT IS A GUESS AND MUST SAY SO. It used to be indistinguishable from a resolved
   // footprint, so 71 bases rendered at a confident 1x2 that nobody had established. `approx` lets a
@@ -21241,12 +21251,26 @@ function _itemCells(name){
     if (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name] && EXTRA_ITEMS[name].cells){
       cells = EXTRA_ITEMS[name].cells;
     } else {
-      var base = '';
+      /* REG-2855 - A RUNE OR A GEM IS ONE CELL. "Ber" and "Perfect Amethyst" drew 1x2 (the default, marked approx) and
+         "Flawless Skull" 2x2 (the helm rule's word 'skull'): the keyword table knew 'rune' and 'gem' only as words in a
+         name. Asked of the board's own tables, whole name only - findRune (the 33 runes, a bare name or "<rune> Rune")
+         and findGem (GEM_TYPES' 35 gems). */
+      var _oneCell = false;
+      try {
+        if (typeof findRune === 'function' && findRune(name)) _oneCell = true;
+        else if (typeof findGem === 'function' && findGem(name)) _oneCell = true;
+      } catch (eRg) { _oneCell = false; }
+      if (_oneCell){ cells = {w:1, h:1}; _ITEM_CELLS_CACHE[_ck] = cells; return cells; }
+      var base = '', _stubOwn = false;
       try {
         var c = (typeof ITEM_CODEX !== 'undefined' && ITEM_CODEX[name]) ? ITEM_CODEX[name] : null;
         var t = (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[name]) ? ITEM_TIP[name] : null;
         var ex = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]) ? EXTRA_ITEMS[name] : null;
-        base = (c && c.base) || (t && t.b) || (ex && ex.base) || '';
+        /* REG-2855 - the keeper's base outranks an EXTRA entry's. A TV stub whose base is its own name carries no base at
+           all (the stub writer's placeholder, REG-2096's rule): it is kept as the name for the keyword table below, and
+           marked so the rolled-name grammar may still answer. */
+        base = (c && c.base) || (t && t.b) || _keeperBase || (ex && ex.base) || '';
+        _stubOwn = !!(!(c && c.base) && !(t && t.b) && !_keeperBase && ex && ex.val === 'tv' && String(ex.base || '') === String(name));
       } catch(e){}
       /* REG-2068 - A SET PIECE IS SIZED BY ITS SLOT. Set pieces carry no codex base; the packer's old table asked
          findSetPiece for the slot ("armor", "helm", "amulet") and REG-2051 moved the packer onto this function without
@@ -21305,8 +21329,13 @@ function _itemCells(name){
          sized. A RUNEWORD is excluded on purpose (its base varies - as the unique tier above also
          keeps). A base CB_DB cannot size, or a set-piece slot (not a base name), finds no code and
          falls through, so a genuinely unknown name keeps approx:true. Never invents a base from the
-         word. [[unknown-stays-unknown]] */
-      if (base && (typeof findRuneword !== 'function' || !findRuneword(name))
+         word. [[unknown-stays-unknown]]
+         REG-2855 - AND A BARE BASE NAME IS ITS OWN BASE. With no base above, the name itself is looked up on the same
+         table: measured on v3833, 223 of the 508 gear bases the hand door takes ("Spear", "Hand Axe", "Ring Mail",
+         "Colossus Girdle", "Rune Sword" ...) were sized by the keyword table and disagreed with their own game footprint
+         - Ring Mail and Rune Sword as a 1x1 ring and rune on a word. A name the table does not know finds no code and
+         falls through as before. */
+      if ((typeof findRuneword !== 'function' || !findRuneword(name))
           && typeof window !== 'undefined' && window
           && typeof window._cbDb === 'function' && typeof window._cbFoot === 'function'){
         try {
@@ -21320,7 +21349,7 @@ function _itemCells(name){
               }
               _cdbB._baseByName = _bbn;
             }
-            var _bCode = _cdbB._baseByName[String(base).toLowerCase()];
+            var _bCode = _cdbB._baseByName[String(base || name).toLowerCase()];   /* REG-2855 a bare base name */
             if (_bCode){
               var _bFoot = window._cbFoot({ base: _bCode });
               if (_bFoot && _bFoot[0] >= 1 && _bFoot[1] >= 1){
@@ -21336,7 +21365,25 @@ function _itemCells(name){
          size. Preferred bases count only when they agree and share an item type. */
       if (!base){
         var _rwSized = (typeof _runewordCells === 'function') ? _runewordCells(name) : null;
-        if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[name] = cells; return cells; }
+        if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[_ck] = cells; return cells; }
+      }
+      /* REG-2855 - A ROLLED RARE IS SIZED BY ITS SLOT WHEN EVERY SLOT ITS SUFFIX CAN NAME IS ONE SIZE. Doom Eye (jewel), Raven
+         Whorl (ring / jewel) and Wraith Scarab (amulet / jewel) drew a guessed 1x2: the rare grammar (_rolledQuality, the
+         game's RarePrefix + RareSuffix words) knew the slot, and nothing here asked it. Each slot is sized by this same
+         function (Ring, Amulet, Jewel 1x1; Gloves 2x2); when they disagree (Dread Grasp: gloves / ring) the name cannot
+         say which, and the table below answers as it did. Asked only with no real base - a keeper's base has answered. */
+      if ((!base || _stubOwn) && typeof _rolledQuality === 'function'){
+        try {
+          var _rqC = _rolledQuality(name), _rqSz = null;
+          var _rqOne = !!(_rqC && _rqC.q === 'rare' && _rqC.slots && _rqC.slots.length);
+          (_rqOne ? _rqC.slots : []).forEach(function(sl){
+            var z = _itemCells(sl);
+            if (!z || z.approx || !(z.w >= 1) || !(z.h >= 1)) { _rqOne = false; return; }
+            if (!_rqSz) _rqSz = { w: z.w, h: z.h };
+            else if (_rqSz.w !== z.w || _rqSz.h !== z.h) _rqOne = false;
+          });
+          if (_rqOne && _rqSz){ cells = _rqSz; _ITEM_CELLS_CACHE[_ck] = cells; return cells; }
+        } catch (eRq) {}
       }
       var s = ((base ? base + ' ' : '') + name).toLowerCase();
       // ⚠ v2240 — A PLURAL BASE MATCHED NOTHING, AND FELL ALL THE WAY THROUGH TO THE DEFAULT.
@@ -21406,7 +21453,7 @@ function _itemCells(name){
       else if (/\b(sword|saber|scimitar|falchion|axe|hatchet|cleaver|mace|club|hammer|flail|scepter|sceptre|morning star|crystal sword|phase blade|blade\b|claw|katar|grand charm)\b/.test(s)) cells = {w:1,h:3};
     }
   } catch(e){}
-  _ITEM_CELLS_CACHE[name] = cells;
+  _ITEM_CELLS_CACHE[_ck] = cells;   /* REG-2855 - under the key it is asked by (a stored or keeper base answers only for itself) */
   return cells;
 }
 window._itemCells = _itemCells;

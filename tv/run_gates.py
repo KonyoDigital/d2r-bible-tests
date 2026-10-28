@@ -12389,6 +12389,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_simulation_leaves_no_worker_behind.py")], 300,
          needs_app=False,
          why="REG-2912 (#36) - A VAULT SIMULATION STOPS THE OCR WORKER ITS SWEEP WARMED AND LEAVES ONE IT DID NOT START. test_vault_lane's TestVaultDecisions alone reproduced 'A TEST LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker' (6 passed, 1 error): vault_simulate.run's sweep warmed tv_diablo._OCR and nothing stopped it. run() now stops, in a finally, every warm worker exec_hygiene sees that was not warm before the sweep. Two stand-in cases run on every venue; two real-ocr_mac cases need macOS."),
+    Gate("test_an_item_is_sized_by_its_own_base",
+         [sys.executable, os.path.join(HERE, "test_an_item_is_sized_by_its_own_base.py")], 300,
+         needs_app=False,
+         why="REG-2855: his register's base, a rolled rare's agreeing slots and a bare base's own game footprint size an item; runes and gems are 1x1"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -501,6 +501,18 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2855 - A ROLLED NAME, A RUNE, A GEM AND A BARE BASE WERE SIZED BY A GUESS WHILE THEIR OWN BASE WAS KNOWN (ACT-3, GrokBot's v3829 Vault pass)
+Measured on the whole page in node (window._itemCells, which vaultSize, the packer and every locker tile read): Doom Eye,
+Raven Whorl, Wraith Scarab, Bone Eye and Brimstone Clasp were each a guessed 1x2; Ber, Perfect Amethyst, Jah and Chipped
+Ruby 1x2 (approx) and Flawless Skull 2x2 (the helm rule's word 'skull'). Nothing read his Magic & Rare register's base, a
+TV stub's base is its own name, and the rare grammar's slot was never asked. Now his register's base sizes the item ahead
+of any stub or grammar (Bone Eye, a magic Ring, 1x1; Brimstone Clasp, a rare Plated Belt, 2x1 where the grammar says
+amulet) and joins the cache key; with no keeper base a rolled rare takes its slot's size when every slot agrees (Doom Grip,
+gloves / ring, stays the marked guess); runes and gems are 1x1 from findRune / findGem. Swept: the same rule for a bare
+base name - 223 of the 508 gear bases the hand door takes disagreed with their own game footprint (Ring Mail and Rune
+Sword a 1x1 ring and rune, Spear 1x4, Colossus Girdle 2x4); the name is now looked up on CB_DB as REG-2248 looks up a
+codex base, 0 of 508 disagree. Law tv/test_an_item_is_sized_by_its_own_base.py, 8 red-proofs RED; the packer law's
+runeword red-proof re-aimed to the new cache line (7 RED).
 
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to
