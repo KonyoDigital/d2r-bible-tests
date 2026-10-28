@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3824",
+  "ver": "v3825",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3824: the Fleet opens then compares, film spans its run, stash focus stays, chronicle names carry their age",
+  "note": "v3825: a lock goes stale only through its own guards, the carrier line shows from start, a capture-less reel is UNKNOWN",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

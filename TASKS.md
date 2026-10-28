@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3824** | `(this commit)` | v3824 — the Fleet opens then compares, film spans its run, stash focus stays, chronicle names carry their age |
+| **v3825** | `(this commit)` | v3825 — a lock goes stale only through its own guards, the carrier line shows from start, a capture-less reel is UNKNOWN |
+| **v3824** | `b31c35b6` | v3824 — the Fleet opens then compares, film spans its run, stash focus stays, chronicle names carry their age |
 | **v3823** | `fbd5e0e8` | v3823 — purgeable space counts on every disk floor, his old Grok chats prune when needed, a watchdog verdict is not a read |
 | **v3822** | `f24e5bf2` | v3822 — proofs carry from the ALT to Dean, lockers say their copies, FIND names every copy, a filled template is not a look |
 | **v3821** | `66e152c1` | v3821 — move rows and lockers take the keyboard, shared stash tabs are tab buttons, a session is dated by what it captured |
