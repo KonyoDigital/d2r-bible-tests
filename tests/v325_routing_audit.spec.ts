@@ -46,9 +46,9 @@ test('the 9-item live test set routes 100% correctly (rank-1)', async ({ page })
       ['Socketed Body Armor (3os)','bases'],
       ['Chance Guards','uni-armor'],
       ['Bonesnap','uni-weap'],
-      ['Amazon Javelin & Spear Skiller (GC)','uni-small'],
+      ['Amazon Javelin & Spear Skiller (GC)','charms'],   // REG-2895: skillers go to the CHARMS mule (2026-10-28)
       ['Eth Giant Thresher (Infinity base)','uni-weap'],
-      ['Paladin Combat Skiller (GC)','uni-small'],
+      ['Paladin Combat Skiller (GC)','charms'],
       ['Socketed Body Armor','bases'],
     ];
     return set.map(([n,exp]) => ({ n, exp, got: (sm(n)||{id:'(null)'}).id }));

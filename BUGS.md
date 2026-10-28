@@ -436,6 +436,30 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2895 - A CHARM HAD A DIFFERENT HOME AT EVERY DOOR; HIS 2026-10-28 RULING GIVES IT ONE, AND A NEW CHARMS MULE (ACT-4, his ruling ~20:00-20:40)
+His words, in order: charms live "in shared stash/war stash"; "no gheeds no... MF no... those go to charms mmule dedicated";
+"skillers also to the dedicated charm mule"; "grand charms attack rating and resistance charms and faster hit recovery
+should be in war stash/share stash also small charms"; large charms "go to the dedicated mule or thrown out depending on
+them and the ai item checker logic coded"; and (~20:40) the charm mule is a NEW mule only for charms, not UNI-SMALL.
+Measured on the whole page in node: a rolled charm routed to MAGIC & RARE ("rolled-name keepers"), a curated one and
+Gheed's to UNI-SMALL ("charm/skiller"), and every Magic & Rare register keeper, charms included, was listed and counted on
+MAGIC & RARE. "Its charm mule" in the code was a comment for UNI-SMALL; no charm locker existed. Now one rule (_charmHome,
+asked first in suggestMule and at every register site, with the charm-mule side read off ONE constant, CHARM_MULE) sends
+Gheed's, magic-find charms, skillers and a large charm the AI Item Checker keeps to a new CHARMS core locker (after MAGIC &
+RARE; his blurb; put back on a stored roster with the board's make record, so REG-2803's one make row asks him to "Create
+mule CHARMS in the game"; its own empty-locker line); Annihilus, the Torch and every other small and grand charm to the
+SHARED STASH; a large charm the checker threw to throw out; and asks - never guesses - for a large charm it never judged
+or called borderline, an affix the game's tables do not name for that size, and any charm while the affix table is not
+on the page. Magic find and skiller are read off the game's affix rows (CB_DB .af: mag% - Lucky, of Good Luck, of
+Fortune; skilltab - Lion Branded and its 23 kin), never a typed list; the checker's keep is written onto its keeper. The
+MAGIC & RARE, UNI-SMALL (no charm routes there now, so "charms" left its note) and SHARED notes, the keep advisory ("keep
+Anni, Torch and Gheed's in your inventory" contradicted both rulings) and the reset path follow the rule. REG-2859's Gheed's
+line is superseded and its law re-aimed to CHARMS, as REG-2856's Lion Branded case. Law
+tv/test_every_charm_has_one_home_by_his_ruling.py, 12 red-proofs RED (the CHARM_MULE flip among them); moved with the
+product: three roster laws' core lists, one source check, the Chrome law test_a_rolled_rare_name_goes_to_magic_and_rare
+(its two sabotages replayed in node, RED) and six browser specs (v203 12 lockers, v425, v3743, v3721, v1958, v325) - CI
+proves the browser ones.
+
 ### REG-2859 - GHEED'S FORTUNE REACHED UNI-SMALL BY A KEYWORD WHILE THE CODE SAID "ITS CHARM MULE" (router probe, GrokBot's v3829 Vault pass)
 His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets muled." Measured on the whole page in node:
 suggestMule("Gheed's Fortune") answered UNI-SMALL as "jewelry/charm - base: Grand Charm" - it fell through to the jewelry

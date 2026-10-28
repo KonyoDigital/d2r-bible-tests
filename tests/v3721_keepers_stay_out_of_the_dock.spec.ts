@@ -31,7 +31,7 @@ test('a keep-in-inventory charm is never in the unsorted dock (so Delete-unsorte
   // REG-2241 (Elad): torches and anni stay in shared, gheeds gets muled - each has a home, none is unsorted
   expect(r.sg['Annihilus']).toBe('shared');
   expect(r.sg['Hellfire Torch']).toBe('shared');
-  expect(r.sg['Gheed’s Fortune']).toBe('uni-small');
+  expect(r.sg['Gheed’s Fortune']).toBe('charms');   // REG-2895 - his 2026-10-28 ruling: the dedicated CHARMS mule
   // the data-loss guard: none of them is in the dock list Delete-unsorted reads
   expect(r.leaked, 'a keeper leaked into the unsorted dock — Delete-unsorted would nuke it').toEqual([]);
 });

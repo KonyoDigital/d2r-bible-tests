@@ -39,7 +39,7 @@ except Exception:
 import store_door_harness as D  # noqa: E402
 
 DEFAULT_IDS = ["sets-major", "sets-rest", "uni-weap", "uni-armor", "uni-small", "runewords", "bases", "magic-rare",
-               "shared", "dupes", "wip"]
+               "charms", "shared", "dupes", "wip"]   # REG-2895 - the CHARMS core locker (his 2026-10-28 ruling)
 HELD_OWNED = "the vault is held - d2r_owned will not parse"
 
 

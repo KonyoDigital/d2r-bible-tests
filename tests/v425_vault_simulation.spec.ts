@@ -7,7 +7,7 @@ const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 // load/capacity pass to prove the vault holds the data without crashing. (Konyo: "simulate all items… make
 // sure routing, muling, SAVING the correct things… no fabrications… verify simulate ship end-to-end.")
 
-const VALID_MULES = ['sets-major','sets-rest','uni-weap','uni-armor','uni-small','runewords','bases','magic-rare','shared','dupes','wip'];
+const VALID_MULES = ['sets-major','sets-rest','uni-weap','uni-armor','uni-small','runewords','bases','magic-rare','charms','shared','dupes','wip'];   // REG-2895 + charms
 
 test('every item routes to a valid destination — no nulls, no unknown mules, no throws', async ({ page }) => {
   const consoleErrors: string[] = [];
@@ -43,7 +43,7 @@ test('every item routes to a valid destination — no nulls, no unknown mules, n
   expect(consoleErrors).toEqual([]);
 });
 
-test('keeper charms follow the 2026-10-15 ruling (Anni / Torch → shared, Gheed\'s → uni-small), sunders shared', async ({ page }) => {
+test('keeper charms follow the rulings (Anni / Torch → shared; Gheed\'s → the CHARMS mule since 2026-10-28), sunders shared', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
@@ -56,9 +56,9 @@ test('keeper charms follow the 2026-10-15 ruling (Anni / Torch → shared, Gheed
     };
   });
   /* REG-2241, his ruling 2026-10-15, already pinned by v3743: Anni and Torch ride in the
-     shared stash; Gheed's Fortune mules to UNI-SMALL. __keep remains standing kit only.
+     shared stash; Gheed's Fortune mules (UNI-SMALL then; the CHARMS mule since his 2026-10-28 ruling). __keep remains standing kit only.
      Exact ids — a softer "not throw-out" would hide a mule change. */
-  expect(r.gheeds).toBe('uni-small');
+  expect(r.gheeds).toBe('charms');   // REG-2895 - his 2026-10-28 ruling: the dedicated CHARMS mule
   expect(r.anni).toBe('shared');
   expect(r.torch).toBe('shared');
   expect(r.sunderShared).toBe(true);

@@ -42,8 +42,8 @@ import store_door_harness as D  # noqa: E402
 
 PRUNE_A = "    var _pruneHeld = "
 PRUNE_B = "    // v360 — shared-stash items"
-CORE = ["sets-major", "sets-rest", "uni-weap", "uni-armor", "uni-small", "runewords", "bases", "magic-rare", "shared",
-        "dupes", "wip"]
+CORE = ["sets-major", "sets-rest", "uni-weap", "uni-armor", "uni-small", "runewords", "bases", "magic-rare", "charms", "shared",
+        "dupes", "wip"]   # REG-2895 - his 2026-10-28 ruling adds the CHARMS core locker
 FILED = {"Grief": "uni-weap", "Harlequin Crest (Shako)": "uni-armor", "Enigma": "runewords"}
 
 

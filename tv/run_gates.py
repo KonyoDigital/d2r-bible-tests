@@ -12409,6 +12409,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_gheeds_fortune_is_muled_by_his_ruling.py")], 300,
          needs_app=False,
          why="REG-2859: his 2026-10-15 ruling itself mules Gheed's Fortune on UNI-SMALL (the charm mule) and says so - one answer, not a keyword fall-through"),
+    Gate("test_every_charm_has_one_home_by_his_ruling",
+         [sys.executable, os.path.join(HERE, "test_every_charm_has_one_home_by_his_ruling.py")], 300,
+         needs_app=False,
+         why='REG-2895: his 2026-10-28 charm ruling - one rule homes every charm (CHARMS mule / shared stash / throw out / a question), MAGIC & RARE holds none'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

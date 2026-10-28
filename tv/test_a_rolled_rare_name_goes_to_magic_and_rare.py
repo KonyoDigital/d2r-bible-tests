@@ -29,9 +29,11 @@ import test_a_sweep_never_reticks_what_he_unticked as H  # noqa: E402  (its Boar
 
 _B = {}
 ROLLED = ("Dread Grasp", "Storm Scarab", "Death Loop", "Viper Eye", "Bitter Spiral", "Doom Spiral")
-MAGIC = ("Chaotic Grand Charm of Greed", "Grand Charm of Inertia", "Steel Grand Charm of Balance")
-STUBBED = ("Grim Loop", "Skull Scarab", "Blood Spiral", "Fine Grand Charm of Life", "Small Charm of Vita",
-           "Shimmering Jewel of Fervor")
+MAGIC = ("Ruby Jewel of Fervor", "Cobalt Jewel of Fervor")
+# REG-2895 (his ruling 2026-10-28) - a charm is no rolled-name keeper of MAGIC & RARE any more: it has its own rule
+CHARMS = {"Chaotic Grand Charm of Greed": "charms", "Grand Charm of Inertia": "shared", "Steel Grand Charm of Balance": "shared",
+          "Fine Grand Charm of Life": "shared", "Small Charm of Vita": "shared"}
+STUBBED = ("Grim Loop", "Skull Scarab", "Blood Spiral", "Shimmering Jewel of Fervor")
 
 
 def board():
@@ -51,11 +53,13 @@ class ARolledRareNameGoesToMagicAndRare(unittest.TestCase):
 
     def test_the_rolled_names_go_to_magic_and_rare_and_real_items_keep_their_route(self):
         o = board().run("OUT.r = {}; %s.forEach(function(n){ var s = window.suggestMule(n); OUT.r[n] = s ? s.id : null; });"
-                        % repr(list(ROLLED) + list(MAGIC) + ["Raven Frost", "Heavy Belt", "Nokozan Relic"]).replace("'", '"'))["r"]
+                        % repr(list(ROLLED) + list(MAGIC) + list(CHARMS) + ["Raven Frost", "Heavy Belt", "Nokozan Relic"]).replace("'", '"'))["r"]
         for n in ROLLED:
             self.assertEqual(o[n], "magic-rare", "%s - a rare's rolled name - was filed into %r by one word" % (n, o[n]))
-        for n in MAGIC:   # REG-2054 (#269, tick 416 K05) - a magic charm is a rolled-name keeper too
-            self.assertEqual(o[n], "magic-rare", "%s - a magic grand charm - was filed into %r" % (n, o[n]))
+        for n in MAGIC:   # REG-2054 (#269, tick 416 K05) - a magic jewel is a rolled-name keeper too
+            self.assertEqual(o[n], "magic-rare", "%s - a magic jewel - was filed into %r" % (n, o[n]))
+        for n, home in CHARMS.items():   # REG-2895 - the charm rule's home, never MAGIC & RARE
+            self.assertEqual(o[n], home, "%s - a charm - was filed into %r, not %r" % (n, o[n], home))
         self.assertEqual(o["Raven Frost"], "shared", "a real item that shares a rare prefix lost its own route")
         self.assertEqual(o["Heavy Belt"], "__throwout", "a white base lost its throw-out advice")
         self.assertEqual(o["Nokozan Relic"], "uni-small", "the control: a catalogued unique amulet moved")
@@ -66,8 +70,11 @@ class ARolledRareNameGoesToMagicAndRare(unittest.TestCase):
         # stub whose base is its own name. The rule asked `!base`, the stub answered with the name, and nothing moved.
         # ⚠ ITS OWN NAMES: the board is shared, and a stub left behind on a fresh-board name would answer the other case
         # through this path - heart2 measured that (the fresh case stayed green with its own branch defeated).
+        # REG-2895 - the charms that taught this case have their own rule now; the stub is minted as the TV writer
+        # mints it (a magic name's base is the grammar's: "Jewel"), so a magic jewel's stub still needs this branch
         names = list(STUBBED)
-        o = board().run("OUT.r = {}; %s.forEach(function(n){ window._tvExtraRemember(n, { rarity: 'basic', base: n, "
+        o = board().run("OUT.r = {}; %s.forEach(function(n){ var rq = window._rolledQuality(n); "
+                        "window._tvExtraRemember(n, { rarity: rq ? rq.q : 'basic', base: (rq && rq.base) ? rq.base : n, "
                         "cat: 'TV-vaulted', val: 'tv' }); var s = window.suggestMule(n); OUT.r[n] = s ? s.id : null; });"
                         % repr(names).replace("'", '"'))["r"]
         for n in names:
@@ -85,7 +92,7 @@ RED_PROOF = [
      "find": "  if (w.length === 2 && RARE_NAME_PREFIXES.indexOf(w[0]) >= 0){\n",
      "replace": "        if (false){\n",
      "matches": 1},
-    {"why": "REG-2054 - a magic grand charm is filed into UNI-SMALL again",
+    {"why": "REG-2054 - a magic jewel falls past the rolled-name grammar again",
      "file": "bible.html",
      "find": "      if (_rq && _rq.q === 'magic' && muleById('magic-rare'))\n",
      "replace": "      if (false)\n",

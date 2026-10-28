@@ -64,7 +64,9 @@ test.describe('v203 the vault', () => {
     // v230: runes/essences/shards/statues → shared stash (RUNES-HIGH + MATS removed, 10→8).
     // v342: + MAGIC & RARE (8→9). v360: + SHARED STASH locker for the never-muled items (9→10).
     // v405: + RUNEWORDS locker (all forged runewords, weapon or armor) (10→11).
-    expect(r.mules).toBe(11);
+    // REG-2895: + CHARMS, the dedicated charm mule his 2026-10-28 ruling names (11→12).
+    expect(r.mules).toBe(12);
+    expect(r.names).toContain('CHARMS');
     expect(r.names).toContain('RUNEWORDS');
     expect(r.names).toContain('SHARED STASH');
     expect(r.names).toContain('MAGIC & RARE');
