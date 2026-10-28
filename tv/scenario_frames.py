@@ -131,7 +131,10 @@ def roster_names(directory=None, only=None):
 def scenario_items(sid, doc_path=None, known=None):
     """The item names a scenario's **Items:** block lists, kept only when `known` (the rosters and every name a read
     recorded) holds them - the block is prose, and a word that is not an item must never join. -> [name] | None when
-    the file will not read"""
+    the file will not read, or when no `known` set was given (REG-2784, the v3828 second eye: the default kept every
+    prose word, the opposite of this rule - without the names it may keep, it keeps none and says UNKNOWN)"""
+    if known is None:
+        return None
     text = _doc(doc_path)
     if text is None:
         return None
@@ -245,30 +248,49 @@ def load_frames(paths=None, triage=None):
     return frames, deep_by
 
 
+#: REG-2784 (the v3828 second eye) - REC-03's own Expect: "every deep row of the session is mode 'warm' ... no 'oneshot'
+#: rows, and no 'g5-primary' rows (if there are, EYES was not OFF)". Measured on his journal: warm 1,084 · empty 907 ·
+#: g5-only 149 · g5-backup 12 · oneshot 7. A read the vision worker answered warm passes; a frame with nothing to read
+#: (empty) called no worker and says nothing either way; a worker that died, a one-shot, or a read the backup had to
+#: answer fails; a read another eye answered, a canned stub, or no mode at all is not a REC-03 read - UNKNOWN, never PASS.
+_REC03_WARM = frozenset(("warm",))
+_REC03_NEUTRAL = frozenset(("empty",))
+_REC03_FAIL = frozenset(("oneshot", "error", "timeout", "g5-backup"))
+
+
 def check_rec03(sessions, deep_by):
-    """REC-03 against the record: in each session with 9 or more deep reads (enough to cross the 8-turn worker
-    respawn), every deep read was answered by a warm worker (no `oneshot`) and every commitment got its answer.
-    The newest such session decides; older ones are reported, not hidden. -> (verdict, why)"""
+    """REC-03 against the record: in each session with 9 or more worker reads (enough to cross the 8-turn worker
+    respawn), every one was answered by a warm worker and every commitment got its answer. The newest such session -
+    by its LATEST recorded read (REG-2784: never its earliest, and a row with no time never drags it down) - decides;
+    older ones are reported, not hidden. -> (verdict, why)"""
     long_ = []
     for sid in sessions:
         g = deep_by.get(sid) or []
         deep = [r for r in g if r.get("lane") == "deep"]
-        if len(deep) < 9:
+        worker = [r for r in deep if str(r.get("mode")) not in _REC03_NEUTRAL]
+        if len(worker) < 9:
             continue
         owed = sum(1 for r in g if r.get("lane") == "deep-owed")
         modes = collections.Counter(str(r.get("mode")) for r in deep)
-        t0 = min(int(r.get("ts") or 0) for r in g)
-        long_.append((t0, sid, len(deep), owed, modes))
+        ts = [int(r.get("ts") or 0) for r in g]
+        t1 = max([t for t in ts if t > 0] or [0])
+        long_.append((t1, sid, len(worker), owed, modes))
     if not long_:
-        return "UNKNOWN", "no recorded session has 9 or more deep reads, so no read crossed a worker respawn"
-    long_.sort(reverse=True)
-    t0, sid, n, owed, modes = long_[0]
+        return "UNKNOWN", "no recorded session has 9 or more worker reads, so no read crossed a worker respawn"
+    long_.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    t1, sid, n, owed, modes = long_[0]
     oneshot = sum(m.get("oneshot", 0) for _, _, _, _, m in long_)
     lost = sum(max(0, o - d) for _, _, d, o, _ in long_)
-    newest_ok = modes.get("oneshot", 0) == 0 and owed <= n
-    why = ("newest long session %s: %d deep read(s), modes %s, %d commitment(s); across %d long session(s): %d oneshot "
+    why = ("newest long session %s: %d worker read(s), modes %s, %d commitment(s); across %d long session(s): %d oneshot "
            "read(s), %d commitment(s) never answered" % (sid, n, dict(modes), owed, len(long_), oneshot, lost))
-    return ("PASS" if newest_ok else "FAIL"), why
+    if not t1:
+        return "UNKNOWN", why + " - no long session carries a read time, so none can be called the newest"
+    if any(modes.get(m, 0) for m in _REC03_FAIL) or owed > n:
+        return "FAIL", why
+    other = sorted(m for m in modes if m not in _REC03_WARM | _REC03_NEUTRAL | _REC03_FAIL)
+    if other:
+        return "UNKNOWN", why + " - read(s) of mode %s are not REC-03 reads (another eye, a stub, or no mode)" % other
+    return "PASS", why
 
 
 def report(ids=None, doc_path=None, paths=None, triage=None, sample=5, rosters=None, hist=None):

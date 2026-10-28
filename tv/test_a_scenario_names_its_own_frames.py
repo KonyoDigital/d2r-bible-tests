@@ -157,8 +157,58 @@ class AScenarioNamesItsOwnFrames(unittest.TestCase):
         self.assertEqual(SF.check_rec03({S2}, bad)[0], "FAIL", "a oneshot read in the newest long session passed")
         self.assertEqual(SF.check_rec03(set(), deep)[0], "UNKNOWN", "no long session was read as a pass")
 
+    def test_rec03_passes_only_on_reads_proven_warm(self):
+        """REG-2784 (the v3828 second eye) - only oneshot failed, so 9 stub or mode-less reads passed REC-03."""
+        def sess(mode, n=9, t=1793000000000, empty=0):
+            return ([{"lane": "deep", "mode": mode, "ts": t + i} for i in range(n)]
+                    + [{"lane": "deep", "mode": "empty", "ts": t + 100 + i} for i in range(empty)])
+        self.assertEqual(SF.check_rec03({"s_1"}, {"s_1": sess("warm", empty=4)})[0], "PASS")
+        for mode, want in (("stub", "UNKNOWN"), ("None", "UNKNOWN"), ("g5-only", "UNKNOWN"),
+                           ("g5-backup", "FAIL"), ("timeout", "FAIL")):
+            rows = sess("warm", 8) + [{"lane": "deep", "mode": (None if mode == "None" else mode), "ts": 1793000000050}]
+            self.assertEqual(SF.check_rec03({"s_1"}, {"s_1": rows})[0], want, "a %s read in REC-03's session" % mode)
+        self.assertEqual(SF.check_rec03({"s_1"}, {"s_1": sess("warm", 5, empty=9)})[0], "UNKNOWN",
+                         "frames with nothing to read were counted as worker reads across the respawn")
+
+    def test_rec03_newest_session_is_its_latest_read_and_a_timeless_row_never_drags_it(self):
+        """REG-2784 - the newest session was picked by its EARLIEST ts, and one row with ts 0 sank it."""
+        old = [{"lane": "deep", "mode": "oneshot", "ts": 1793000000000 + i} for i in range(9)]
+        new = [{"lane": "deep", "mode": "warm", "ts": 1792000000000}] + \
+              [{"lane": "deep", "mode": "warm", "ts": 1794000000000 + i} for i in range(8)] + [{"lane": "deep", "mode": "warm"}]
+        v, why = SF.check_rec03({"s_old", "s_new"}, {"s_old": old, "s_new": new})
+        self.assertEqual((v, "s_new" in why), ("PASS", True), "the session with the latest reads did not decide: %s" % why)
+
+    def test_scenario_items_without_the_known_names_keeps_none(self):
+        """REG-2784 - the default kept every prose word, the opposite of the function's own rule."""
+        self.assertIsNone(SF.scenario_items("REC-03", self.doc), "no known names, and prose words joined anyway")
+
 
 RED_PROOF = [
+    {"why": "REG-2784 - a stub, mode-less or other-eye read passes REC-03 again",
+     "file": "scenario_frames.py",
+     "find": "    if other:\n        return \"UNKNOWN\", why",
+     "replace": "    if False:\n        return \"UNKNOWN\", why",
+     "matches": 1},
+    {"why": "REG-2784 - a read the backup answered is no failure again",
+     "file": "scenario_frames.py",
+     "find": "_REC03_FAIL = frozenset((\"oneshot\", \"error\", \"timeout\", \"g5-backup\"))\n",
+     "replace": "_REC03_FAIL = frozenset((\"oneshot\", \"error\", \"timeout\"))\n",
+     "matches": 1},
+    {"why": "REG-2784 - frames with nothing to read count as worker reads across the respawn",
+     "file": "scenario_frames.py",
+     "find": "        worker = [r for r in deep if str(r.get(\"mode\")) not in _REC03_NEUTRAL]\n",
+     "replace": "        worker = deep\n",
+     "matches": 1},
+    {"why": "REG-2784 - the newest session is picked by its earliest read again",
+     "file": "scenario_frames.py",
+     "find": "        t1 = max([t for t in ts if t > 0] or [0])\n",
+     "replace": "        t1 = min(ts or [0])\n",
+     "matches": 1},
+    {"why": "REG-2784 - with no known names every prose word joins again",
+     "file": "scenario_frames.py",
+     "find": "    if known is None:\n        return None\n    text = _doc(doc_path)\n",
+     "replace": "    text = _doc(doc_path)\n",
+     "matches": 1},
     {"why": "REG-2764 - an unread TESTING_PHASE reads as no scenarios",
      "file": "scenario_frames.py",
      "find": "        if ids is None:\n            return [{\"id\": None, \"verdict\": \"UNKNOWN\",",
@@ -191,8 +241,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2764 - REC-03 passes whatever its newest long session did",
      "file": "scenario_frames.py",
-     "find": "    newest_ok = modes.get(\"oneshot\", 0) == 0 and owed <= n\n",
-     "replace": "    newest_ok = True\n",
+     "find": "    if any(modes.get(m, 0) for m in _REC03_FAIL) or owed > n:\n        return \"FAIL\", why\n",
+     "replace": "    if False:\n        return \"FAIL\", why\n",
      "matches": 1},
 ]
 

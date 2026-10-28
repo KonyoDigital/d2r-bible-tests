@@ -42,6 +42,19 @@ clone. Nothing was broken; the case was a clock. It now builds its own repo with
 a ship whose subject only says "Stamp" with its row still `(this commit)`, a later commit that mentions the version) and
 scrubs every GIT_* variable, so a hook's GIT_DIR can never point it at the real repo. Swept: no other law reads a pinned
 old version or sha out of real history. 1 new red-proof (the stamp binding dropped), 4 of 4 RED.
+### REG-2784 - REC-03 PASSED ON READS NOT PROVEN WARM, PICKED ITS NEWEST SESSION BY THE EARLIEST READ, AND SCENARIO ITEMS KEPT PROSE BY DEFAULT (the v3828 second eye)
+Three findings on REG-2764's tv/scenario_frames.py, each reproduced in its code. (1) check_rec03 failed only a `oneshot`
+read, so nine stub or mode-less deep reads passed, while REC-03's own Expect says every deep row of the session is mode
+'warm' and no 'g5-primary' row may appear (EYES off). Measured on his journal: warm 1,084 · empty 907 · g5-only 149 ·
+g5-backup 12 · oneshot 7. Now a warm read passes; a frame with nothing to read (empty) called no worker and does not count
+toward the 9; oneshot / error / timeout / g5-backup fail; another eye, a stub or no mode is not a REC-03 read - UNKNOWN,
+never PASS. (2) The newest long session was the one with the latest EARLIEST read, and one row with ts 0 sank its session;
+it is now the latest recorded read, and a long session with no read time leaves the verdict UNKNOWN. (3) scenario_items with
+no known names kept every prose word, the opposite of its own rule; it now keeps none and answers UNKNOWN. Re-judged on his
+journal: REC-03 still PASSES (newest long session, 51 worker reads, all warm). The eye's "older sessions' unanswered
+commitments are only reported" is the documented rule ("the newest decides; older ones are reported"), not a defect. Law:
+test_a_scenario_names_its_own_frames (3 cases, 5 red-proofs, 1 re-aimed).
+
 ### REG-2783 - REG-2810'S LAW READ THE SHADOW BAR'S BINDING THROUGH A GUESSED 900-CHARACTER WINDOW (test_a_source_window_must_reach_its_subject)
 The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries_the_pointer_and_binds_it read
 UI[i:i + 900] after the binding's first line, a guess about how far the block reaches that goes blind the day the block
