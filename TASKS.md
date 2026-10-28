@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3831** | `(this commit)` | v3831 — intent line is a finding, refused copy readout served, v1816 law waits, each unique wears its own picture |
+| **v3832** | `(this commit)` | v3832 — shared stash pages, owner sessions in a shadow, theatre plays the last run, compare drops fixtures, readout coverage |
+| **v3831** | `8738db55` | v3831 — intent line is a finding, refused copy readout served, v1816 law waits, each unique wears its own picture |
 | **v3830** | `159390aa` | v3830 — move popup gone, war mule and card copies at task cells, planner record, one last session, raw OCR, throw row opens |
 | **v3829** | `4759a139` | v3829 — owner sessions summarized for a shadow - digest, signed record, change-only publish, console read (REG-2765 2771-2773) |
 | **v3828** | `e3c604f1` | v3828 — live Shelf card counts its own stills (REG-2774), drawer prints agent free GB (REG-2776), scenarios name frames |

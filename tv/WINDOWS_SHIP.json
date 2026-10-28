@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3831",
+  "ver": "v3832",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3831: intent line is a finding, refused copy readout served, v1816 law waits, each unique wears its own picture",
+  "note": "v3832: shared stash pages, owner sessions in a shadow, theatre plays the last run, compare drops fixtures, readout coverage",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
