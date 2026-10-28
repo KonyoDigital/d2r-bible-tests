@@ -107,6 +107,7 @@ SURFACE_TIERS = {"lobby": 1.0, "c-panel": 1.0}
 VISIT_GAP_S = 90         # candidate frames further apart than this are separate visits
 MIN_VISITS = 2           # "witnessed a few times over"
 MAX_READS_PER_VISIT = 2
+ON_FRAME_KEEP = 12      # #211 - per-read name lists a visit keeps; a visit read more often is UNKNOWN past it
 CLOSE_READ_GAP_MS = 3000  # #103 step B: a visit whose last frame came this long after its last read gets ONE more read
                           # of that last frame - the row highlighted when he pressed Play is the character he entered with
 READS_PER_HOUR = 8       # the paid reader is his subscription; this lane never spends more than this
@@ -477,8 +478,14 @@ def save(d):
 def record(d, visit_id, rows, meta=None):
     """Fold one read of one visit into the ledger. Within a visit a character keeps the LOWEST level its reads
     agree on (two reads of one screen are not two witnesses)."""
-    v = d["visits"].setdefault(visit_id, {"reads": 0, "rows": 0})
+    v = d["visits"].setdefault(visit_id, {"reads": 0, "rows": 0, "onFrame": []})
     v["reads"] = int(v.get("reads") or 0) + 1
+    # #211 (GrokBot's v3817 pass) - WHICH NAMES ONE READ SAW TOGETHER. A read is one frame; two names on one frame are two
+    # characters, two names on two frames of one visit may be one name read two ways. Only a visit that began with this
+    # list keeps it (an older visit's earlier reads are gone), so a list as long as the visit's reads is the whole visit.
+    if isinstance(v.get("onFrame"), list):
+        v["onFrame"].append(sorted({r["key"] for r in rows or [] if r.get("key")}))
+        del v["onFrame"][:-ON_FRAME_KEEP]
     v["rows"] = max(int(v.get("rows") or 0), len(rows or []))
     v.update({k: meta[k] for k in (meta or {}) if k in ("reel", "ts", "tab", "frames", "reader")})
     if meta and meta.get("selected"):
@@ -587,6 +594,48 @@ def _cls_winner(c):
     return w[0] if len(w) == 1 else None
 
 
+def _read_together(d, vid, a, b, keys_in, always, visits_of):
+    """#211 (GrokBot's v3817 pass) - did ONE read of visit `vid` see a name of key set `a` AND a name of key set `b`?
+    -> True / False / None (UNKNOWN).
+
+    A visit is several frames of one lobby, and the reader spells one row two ways across them: on the ALT, 9-row lobbies
+    carried 10 to 27 names a visit, and Konylock shared 11 visits with Konyolock. Only a read that saw both proves two
+    characters. Exact where the visit kept its per-read lists (onFrame, as long as its reads). An older visit proves it
+    when it had one read, when its names fit in its largest read (rows), or when one of the names was read on every read
+    of every visit it is in. Anything else is UNKNOWN, and UNKNOWN is not a read that saw both."""
+    v = (d.get("visits") or {}).get(vid)
+    v = v if isinstance(v, dict) else {}
+    reads, on = v.get("reads"), v.get("onFrame")
+    if isinstance(reads, int) and reads > 0 and isinstance(on, list) and len(on) == reads:
+        return any((set(f) & a) and (set(f) & b) for f in on)
+    if reads == 1:
+        return True
+    rows = v.get("rows")
+    if isinstance(rows, int) and rows > 0 and len(keys_in.get(vid) or ()) <= rows:
+        return True
+    if any(m in always and vid in visits_of.get(m, ()) for m in (a | b)):
+        return True
+    return None
+
+
+def _always_read(chars, visits):
+    """#211 - the keys read on EVERY read of every visit they are in: each row a read returns is one count in `forms`, so
+    a name whose forms add up to the reads of its visits was never missed. -> set. A visit with no read count is UNKNOWN
+    and keeps its names out."""
+    out = set()
+    for k, c in chars.items():
+        vids = list(((c or {}).get("visitLevel") or {}))
+        if not vids:
+            continue
+        rs = [((visits.get(v) or {}) if isinstance(visits.get(v), dict) else {}).get("reads") for v in vids]
+        if not all(isinstance(r, int) and not isinstance(r, bool) and r > 0 for r in rs):
+            continue
+        n = sum(int(x or 0) for x in ((c or {}).get("forms") or {}).values())
+        if n >= sum(rs):
+            out.add(k)
+    return out
+
+
 def _merge_groups(d):
     """#211 (the ALT's 45 'characters') - SPELLING VARIANTS OF ONE CHARACTER ARE ONE CHARACTER. -> {head key: [keys]}
 
@@ -594,7 +643,9 @@ def _merge_groups(d):
     each with 2 visits became its own learned character, while the visits it was read under counted as MISSES against
     the real one. Read-time only - the ledger is never rewritten. A key joins a head when chronicle_resolve.canonical (the
     chronicle's own near-name rule: NEAR_CUTOFF, AMBIGUITY_GAP) names that head, both carry the same winning class, and
-    NO visit ever read both - two names on one screen are two characters. Heads are taken most-visited first."""
+    NO read ever saw both - two names on one screen are two characters (_read_together; GrokBot's v3817 pass found the
+    first cut refusing on a shared VISIT, which split Konylock from Konyolock on the ALT). Heads are taken most-visited
+    first."""
     chars = (d or {}).get("chars") or {}
     try:
         import chronicle_resolve as _cr
@@ -602,6 +653,13 @@ def _merge_groups(d):
         return {k: [k] for k in chars}
     order = sorted(chars, key=lambda k: (-len((chars[k] or {}).get("visitLevel") or {}),
                                          (chars[k] or {}).get("firstTs") or 0, k))
+    visits = (d or {}).get("visits") or {}
+    visits_of = {k: set((chars[k] or {}).get("visitLevel") or {}) for k in chars}
+    keys_in = {}
+    for k, vs in visits_of.items():
+        for v in vs:
+            keys_in.setdefault(v, set()).add(k)
+    always = _always_read(chars, visits)
     groups, seen_by, heads = {}, {}, []
     for k in order:
         c = chars[k] or {}
@@ -611,7 +669,8 @@ def _merge_groups(d):
         if heads and kc is not None:
             roster = {_cr._norm(_shown(chars[x]) or x): x for x in heads}
             h = _cr.canonical(_shown(c) or k, roster)
-        if h and h != k and _cls_winner(chars[h]) == kc and not (mine & seen_by[h]):
+        if h and h != k and _cls_winner(chars[h]) == kc and not any(
+                _read_together(d, v, set(groups[h]), {k}, keys_in, always, visits_of) is True for v in (mine & seen_by[h])):
             groups[h].append(k)
             seen_by[h] |= mine
         else:

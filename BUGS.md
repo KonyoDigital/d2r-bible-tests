@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2727 - A SHARED VISIT KEPT A MISSPELLING APART FROM ITS CHARACTER (#211, GrokBot's v3817 pass)
+REG-2692 merged spelling variants only when NO VISIT read both names. A visit is several frames of one lobby, and the
+reader spells one row two ways across them: on the ALT's roster (copied read-only, byte-exact, 2026-10-28) every lobby
+read showed 9 rows while a shared visit carried 10 to 27 names, Konylock shared 11 visits with Konyolock, and learned()
+returned 40 characters for a 9-character account. Two names are two characters only when ONE READ saw both. record()
+now keeps, for a visit it opens, the keys each read saw (onFrame, one list per read). An older visit without that list
+proves one screen when it had one read, when its names fit in its largest read (rows), or when one of the names was read
+on every read of every visit it is in (its forms add up to those reads); anything else is UNKNOWN, and UNKNOWN is not a
+read of both. On the ALT's roster: 40 learned characters -> 15, the 9 heads at 97-100 visits each. The 6 left over
+(2-5 visits each: Konybsin, Konyoin, Konyoburn, Konyzon, Konyobarbies, Konybarian) are kept apart by the chronicle's own
+near-name rule (canonical names no head), which this does not touch. Law: test_spelling_variants_are_one_character
+(4 new cases, 6 new red-proofs).
+
 ### REG-2721 - A LAW I RE-POINTED LOST THE ONLY WITNESS OF ONE OF ITS PROOFS (the second v3817 push)
 The v3817 push was refused at the proving stage: test_a_roster_name_opens_its_row_with_the_eyes[2] ("the eyes route to
 the wrong profile": Konyo on a mac -> Dean) came back BLIND. REG-2699 had taught that law the v3809 ruling - THIS PC's own
