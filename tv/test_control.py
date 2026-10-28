@@ -9008,6 +9008,11 @@ class TestChronicleSweepJob(unittest.TestCase):
     exercises is a second lane nobody trusts."""
 
     def setUp(self):
+        # #97 - the law pins its reader: this PC's own switch file (per machine, gitignored) must never decide the verdict;
+        # on a GROK ONLY PC the sweep was skipped and these cases read red for a reason they do not test
+        _skip0 = ca._sweep_skipped_because_reader_is_grok
+        ca._sweep_skipped_because_reader_is_grok = lambda *a, **k: None
+        self.addCleanup(setattr, ca, "_sweep_skipped_because_reader_is_grok", _skip0)
         # v1776 — EVIDENCE ACCUMULATES NOW, so a test that asserts an exact result needs a clean
         # ledger or it inherits the previous test's sightings and grounds names this run never saw.
         # The module redirect gives one temp file for the whole file; this empties it per test.
@@ -9281,6 +9286,9 @@ class TestSweepOneVisit(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp()
         self._env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_STUB_MANIFEST", "TV_HIST")}
+        _skip0 = ca._sweep_skipped_because_reader_is_grok      # #97 - the law pins its reader (see TestChronicleSweepJob)
+        ca._sweep_skipped_because_reader_is_grok = lambda *a, **k: None
+        self.addCleanup(setattr, ca, "_sweep_skipped_because_reader_is_grok", _skip0)
 
     def tearDown(self):
         for k, v in self._env.items():

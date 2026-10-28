@@ -53,6 +53,9 @@ class _Lane(unittest.TestCase):
         self.mem = json.loads(json.dumps({k: ca._VAULT_AUTOREAD.get(k) for k in ("retired", "tries", "lastWhy")}))
         self.load = ca._vault_autoread_load
         ca._vault_autoread_load = lambda: True
+        # #97 - the law pins its reader: this PC's own switch file (per machine, gitignored) must never decide the verdict
+        self.skip = ca._sweep_skipped_because_reader_is_grok
+        ca._sweep_skipped_because_reader_is_grok = lambda *a, **k: None
         ca._VAULT_AUTOREAD_STORE.update({"tried": True, "readable": True})
         ca._VAULT_AUTOREAD["lastWhy"] = {}
 
@@ -62,6 +65,7 @@ class _Lane(unittest.TestCase):
             for k, v in self.mem.items():
                 ca._VAULT_AUTOREAD[k] = v if v is not None else {}
             ca._vault_autoread_load = self.load
+            ca._sweep_skipped_because_reader_is_grok = self.skip
         self.addCleanup(_restore)
 
     def _job(self, **kw):

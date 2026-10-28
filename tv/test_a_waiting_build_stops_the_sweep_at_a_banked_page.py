@@ -79,6 +79,9 @@ class AWaitingBuildStopsTheSweep(unittest.TestCase):
         self.patches = [
             mock.patch.dict(os.environ, {"TV_SWEEP_LOCK": os.path.join(self.tmp, ".sweep.lock"),
                                          "TV_HIST": self.hist}),
+            # #97 - the law pins its reader: this PC's own switch file (gitignored, per machine) must never decide the
+            # verdict - on a GROK ONLY PC the sweep would be skipped and this law read red for a reason it does not test
+            mock.patch.object(ca, "_sweep_skipped_because_reader_is_grok", lambda *a, **k: None),
             mock.patch.object(ca, "_chron_reads_load", lambda *a, **k: {}),
             mock.patch.object(ca, "_chron_read_capped", lambda *a, **k: None),
             mock.patch.object(ca, "_chron_read_bump_if_read", lambda *a, **k: True),

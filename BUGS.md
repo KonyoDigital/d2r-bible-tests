@@ -14,6 +14,17 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2713 - A HALF-WRITTEN READER SWITCH STARTED A PAID CLAUDE SWEEP; SWEEP LAWS TOOK THEIR VERDICT FROM THE PC (#97)
+1. g5_grok_eyes._load_state answered a MISSING switch file and an UNREADABLE one alike ({on: False, mode: off}), reader() said
+   "claude" for both, and _sweep_skipped_because_reader_is_grok - whose docstring promised an unreadable switch is UNKNOWN -
+   never saw the difference (reader() never raises): a GROK ONLY PC with a corrupt or half-written switch started a PAID
+   Claude sweep. switch_state() tells absent / ok / unreadable apart; the sweep door refuses on unreadable with a sentence;
+   an absent file (a PC that never chose) still sweeps with Claude, and an env override is a choice the file cannot overrule.
+2. Sweep laws read this PC's own switch file (gitignored, per machine): measured with TV_G5_GROK_EYES=only, two non-browser
+   laws went red for a reason they do not test (test_a_waiting_build_stops_the_sweep_at_a_banked_page,
+   test_a_retirement_quotes_the_sweeps_own_reason), and test_control's two sweep classes the same. Each pins its reader now.
+Law: test_an_unreadable_reader_switch_starts_no_paid_sweep (2 red-proofs, each seen RED).
+
 ### REG-2712 - THE X ON ONE COPY SENT EVERY COPY TO THE DOCK, AND SAID "send back" (#111, reviewers C2/E/D)
 A copy cell's X calls vaultUnassign(name): copies of one item share one filing (d2r_muleAssign is per name; #76's per-copy
 record store is still dormant), so every copy goes. Making one copy leave alone is #76's model, not a one-line fix - so the
