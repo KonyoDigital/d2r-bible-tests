@@ -32,6 +32,12 @@ covers strictly more). The proof removed that unreachable line, so nothing chang
 re-proved now because v3818 moved the board under it. The dead line is gone (the comment says where the lock lives) and
 proof [26] now exempts worn gear from the main-lane lock itself, so an equipped item would get a row. Before the re-push,
 every red-proof of the 16 Chrome-free laws this push proves was swept by hand: none blind.
+SECOND PUSH, STILL BLIND - THE REAL CAUSE: the equipped lock lived in THREE places. _vaultMoveAutoRow kept its own copy
+of _vaultMoveMainLane's map and farm-loot exception and dropped a worn record before any task was built, so attacking
+_vaultMoveMainLane or the worn line alone could never show a row. _vaultMoveAutoRow now asks _vaultMoveMainLane - one
+rule - and proof [26] attacks that rule (worn lanes stop counting as main). A node case in the law
+(TheEquippedLockIsOneRuleAskedWithoutAWindow) asks the rule directly, so [26] is seen RED without a window; the
+auto-sighting law's farm-loot proof re-pointed to the one rule and its cut takes it. Swept: 4 node laws, none blind.
 
 ### REG-2714 - A REFUSED CHRONICLE SWEEP WROTE ITS REASON AND NOTHING READ IT (#97, reviewers)
 The sweep's run thread wrote _CHRON_JOB.lastRefusal (GROK ONLY is the reader, or since REG-2713 the switch could not be read)

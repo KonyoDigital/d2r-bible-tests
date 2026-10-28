@@ -19,6 +19,7 @@ NO CHROME AT ALL = a declared skip, never a pass. RED_PROOF below. [[regression-
 import json
 import re
 import os
+import subprocess
 import sys
 import unittest
 
@@ -341,6 +342,39 @@ class AHandAddRoutesByType(unittest.TestCase):
         self.assertLess(conf, kinds_bar, msg)
 
 
+
+class TheEquippedLockIsOneRuleAskedWithoutAWindow(unittest.TestCase):
+    """REG-2722 - an equipped item is locked by ONE rule (_vaultMoveMainLane), asked here in node.
+
+    The equipped lock used to live in three places (_vaultMoveAutoRow's own copy, _vaultMoveMainLane, and a _vaultMoveWorn
+    line under it), so red-proof [26] attacked one and the others held: BLIND at two v3818 pushes. It is one rule now, and
+    this case asks it directly, so the proof is seen red here without a window."""
+
+    def ask(self, lane):
+        from cb_node_harness import NODE
+        import test_an_auto_sighting_joins_the_manual_move as _A   # its _fn cutter: one copy, not a second [[copy-drift]]
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this case does not skip")
+        with open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        js = "\n".join(["var window = globalThis;", "window._laneLocked = function(){ return false; };",
+                        "window._standingKit = function(){ return true; };",
+                        "function _vaultMoveHome(){ return { id: 'uni-armor' }; }",
+                        _A._fn(src, "_vaultMoveFarmLoot"), _A._fn(src, "_vaultMoveMainLane"), _A._fn(src, "_vaultMoveAutoRow"),
+                        "process.stdout.write(JSON.stringify({ lock: _vaultMoveMainLane(%s, 'Insight'), "
+                        "auto: _vaultMoveAutoRow('Insight', { lane: %s }) }));" % (json.dumps(lane), json.dumps(lane))])
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise AssertionError("the shipped lane rule would not run in node: %s" % r.stderr[-400:])
+        return json.loads(r.stdout)
+
+    def test_an_equipped_item_is_locked_by_the_one_rule_and_a_stashed_one_is_not(self):
+        for lane in ("equipment", "equipped"):
+            o = self.ask(lane)
+            self.assertTrue(o["lock"], "%s is not a locked lane" % lane)
+            self.assertEqual(o["auto"], {"row": False, "why": "main"}, "%s: the auto row offered a move" % lane)
+        self.assertFalse(self.ask("stash")["lock"], "a stashed item is locked as if worn")
+
 RED_PROOF = [
     {"why": "The TO mini grid draws every task bound for that mule again (the merged 'TO SETS-REST' grid).",
      "file": "bible.html", "find": "      var it = [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }];",
@@ -461,8 +495,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "An equipped item gets a move row.",
      "file": "bible.html",
-     "find": "    if (_vaultMoveMainLane(t.from && t.from.location, t.name)) return false;",
-     "replace": "    if (_vaultMoveMainLane(t.from && t.from.location, t.name) && !_vaultMoveWorn(t.from)) return false;",
+     "find": "    if (!main[lane]) return false;\n    return !(lane === 'inventory' && _vaultMoveFarmLoot(name));",
+     "replace": "    if (!main[lane] || lane === 'equipment' || lane === 'equipped') return false;\n    return !(lane === 'inventory' && _vaultMoveFarmLoot(name));",
      "matches": 1},
     {"why": "An item seen worn stays locked after it is seen off the character.",
      "file": "bible.html",

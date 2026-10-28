@@ -52575,9 +52575,9 @@ window.vaultAutoAssign = function(){
   function _vaultMoveAutoRow(name, sighting){
     var lane = String((sighting && (sighting.lane || sighting.location || sighting.loc)) || '').trim().toLowerCase();
     if (lane === 'inv') lane = 'inventory';
-    var main = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
-    if (typeof _WIT_MAIN === 'object' && _WIT_MAIN) main = _WIT_MAIN;
-    if (main[lane] && !(lane === 'inventory' && _vaultMoveFarmLoot(name))) return { row: false, why: 'main' };
+    /* REG-2722 - THE ONE MAIN-LANE RULE. This kept its own copy of _vaultMoveMainLane's map and farm-loot exception, so the
+       equipped lock lived in three places and a red-proof that attacked any one of them proved nothing. */
+    if (_vaultMoveMainLane(lane, name)) return { row: false, why: 'main' };
     var home = null;
     try { home = (typeof _vaultMoveHome === 'function') ? _vaultMoveHome(name, 0) : null; } catch (eH) { home = null; }
     var sharedHome = !!(home && (home.id === 'shared' || home.location === 'shared'));

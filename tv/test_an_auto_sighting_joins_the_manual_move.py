@@ -227,6 +227,7 @@ console.log(JSON.stringify({
             "var window = globalThis;",
             _look_rule(self.src),   # #201 (v3813) - the wrapper and the sight helpers ask the one look rule
             _fn(self.src, "_vaultMoveFarmLoot"),
+            _fn(self.src, "_vaultMoveMainLane"),       # REG-2722 - the auto row asks the one main-lane rule
             _fn(self.src, "_vaultMoveAutoRow"),
             r"""
 function _vaultMoveHome(name){
@@ -734,8 +735,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The auto row refuses farming loot in MAIN inventory again (his 2026-10-27 ruling).",
      "file": "bible.html",
-     "find": "    if (main[lane] && !(lane === 'inventory' && _vaultMoveFarmLoot(name))) return { row: false, why: 'main' };",
-     "replace": "    if (main[lane]) return { row: false, why: 'main' };",
+     "find": "    if (_vaultMoveMainLane(lane, name)) return { row: false, why: 'main' };",
+     "replace": "    if (_vaultMoveMainLane(lane)) return { row: false, why: 'main' };",
      "matches": 1},
     {"why": "The collector's ensured inventory row is locked again whatever the item is.",
      "file": "bible.html",
