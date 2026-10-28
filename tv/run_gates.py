@@ -12341,6 +12341,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_hand_entry_of_an_item_already_here_asks.py")], 300,
          needs_app=False,
          why='REG-2840/2841 (#154 front-run) - a hand entry of an item already in the Vault asks same item or another copy, never a second copy by itself'),
+    Gate("test_a_cleared_pick_puts_back_its_keeper_target",
+         [sys.executable, os.path.join(HERE, "test_a_cleared_pick_puts_back_its_keeper_target.py")], 300,
+         needs_app=False,
+         why='REG-2842 (v3830 second eye) - a cleared planner pick puts back the keeper target it raised, whatever the live count is'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

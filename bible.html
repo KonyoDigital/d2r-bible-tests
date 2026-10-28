@@ -49663,15 +49663,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (cur - 1 > 1) copies[b.name] = cur - 1;
         else delete copies[b.name];
         _vpCopyUndone = { took: true, say: 'the copy of ' + b.name + ' this pick counted is taken back (' + (cur - 1) + ' counted now)' };
-        /* REG-2786 - a target this pick raised goes back with its copy, unless something else has set it since */
-        if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && multiKeep[b.name] === b.keepSet){
-          if (b.keepHad) multiKeep[b.name] = b.keepWas; else delete multiKeep[b.name];
-        }
       } else {
         _vpCopyUndone = { took: false, say: 'nothing more of ' + b.name + ' was taken back: ' + cur + ' counted now, not above the '
           + b.prev + ' there were before this pick, so the count was already lowered elsewhere' };
-        try { status(_vpCopyUndone.say); } catch (eUs) {}
       }
+      /* REG-2786 - a target this pick raised goes back with its copy, unless something else has set it since.
+         REG-2842 (v3830 second eye) - WHATEVER THE LIVE COUNT IS NOW. It went back only on the branch that took the copy off,
+         so a pick that raised copies 1 -> 2 and the target to 2, with the count lowered to 1 elsewhere before the clear, left
+         the target at 2: the clear said nothing was taken back, and a later re-read was drawn as the copy it had put back. */
+      if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && multiKeep[b.name] === b.keepSet){
+        if (b.keepHad) multiKeep[b.name] = b.keepWas; else delete multiKeep[b.name];
+        if (!_vpCopyUndone.took) _vpCopyUndone.say += ' - the keeper target this pick raised is put back';
+      }
+      if (!_vpCopyUndone.took){ try { status(_vpCopyUndone.say); } catch (eUs) {} }
     }
     if (b.prevSeen) _vpCopySeen[b.name] = b.prevSeen;
     else delete _vpCopySeen[b.name];

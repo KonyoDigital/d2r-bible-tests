@@ -207,6 +207,14 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2842 - A CLEARED PLANNER PICK LEFT THE KEEPER TARGET IT HAD RAISED (v3830 second eye)
+A planner pick of a name he holds, seen in fewer cells than copies, raises copies[] and the keeper target with it
+(REG-2786). Its clear put the target back only on the branch that also took the copy off. With the count lowered elsewhere
+before the clear (a removal, another tab's merge), the clear said nothing was taken back and left the target at 2. A later
+re-read was then drawn as the copy the clear should have put back. The clear now restores the target it set whatever the live
+count is (unless something else set it since), and says so. Law: test_a_cleared_pick_puts_back_its_keeper_target (node, the
+whole page), 1 red-proof, RED.
+
 ### REG-2841 - THE PLANNER'S PICK OF AN ITEM ALREADY IN THE VAULT FILED ANOTHER COPY (#154 front-run, his 10-28 19:25 words)
 The planner was the second hand door that counted a name he holds, typed again, as another copy. Its pick and the end of its
 edit now ask the same question as + Add an item, on the plate ("Same item?"), with one button per copy and "Another copy".
