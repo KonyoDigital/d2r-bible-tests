@@ -789,11 +789,14 @@ def surface_confluence(rows):
     return _cf.confluence(tags, SURFACE_TIERS)
 
 
-def bank_surface(d, row, image, ts=None):
+def bank_surface(d, row, image, ts=None, reel=None):
     """Store one witness per (kind, image) on chars[key]["witnesses"]. The same image twice stays one row.
 
     This does not open a character-select visit and does not set a level, so one lobby frame does not
-    teach a character. None when there is nothing to bank."""
+    teach a character. None when there is nothing to bank.
+
+    #36 (REG-2906) - `reel` is the reel folder the frame was read in, so the witness names the SESSION it saw the
+    character in (session_characters). A row banked before it carries none and is placed by its frame."""
     if not isinstance(d, dict) or not isinstance(row, dict):
         return None
     kind = row.get("kind")
@@ -811,6 +814,8 @@ def bank_surface(d, row, image, ts=None):
             return w
     stored = {"kind": kind, "image": image, "name": row.get("name"), "cls": row.get("cls"),
               "level": row.get("level"), "ts": ts}
+    if reel:
+        stored["reel"] = os.path.basename(str(reel))   # REG-2906 the session it was read in
     witnesses.append(stored)
     return stored
 
@@ -1094,6 +1099,155 @@ def logins(d):
     return out
 
 
+# ── #36 (REG-2906): WHICH CHARACTER A SESSION IS ON ────────────────────────────────────────────────────────────────
+#: His ruling, 2026-10-28 11:30: read the character from the screens he already passes through - the character-select
+#: screen at login and the in-game C panel - into ONE logic that binds a session's reads to that character, so each reel
+#: knows whose stash it filmed. The two halves existed apart: logins() named the row highlighted at character select
+#: (#103 step B), the lobby / C-panel reader banked a witness naming the character (#149), and neither said which reel it
+#: was read in for the vault - its sightings carried no holder. This joins them, read-only, over the learner's ledger.
+SESSION_ASK = "open the C panel once"
+SESSION_SAY_NONE = "no character-select, lobby or C-panel read names a character in this session"
+
+
+def _reel_start(name):
+    m = re.match(r"^reel_s_(\d{10,})$", str(name or ""))
+    return int(m.group(1)) if m else None
+
+
+def reel_of_frame(root=None):
+    """-> f(image) naming the reel folder that holds that frame, or None. For a witness banked before REG-2906, which
+    stored only the frame's file name: the frame's own time (f_<ms>) names the newest reel that started at or before
+    it, and the file must be there - a frame no reel on this PC holds is unplaced, never guessed into a neighbour."""
+    root = root or hist_root()
+    try:
+        starts = sorted((s, n) for n in os.listdir(root) for s in [_reel_start(n)] if s is not None)
+    except Exception:
+        starts = None       # the reel tree would not list: every old witness is unplaced (counted), never "no reels"
+
+    def f(image):
+        ts = _frame_ts(str(image or ""))
+        if ts is None or not starts:
+            return None
+        best = None
+        for s, n in starts:
+            if s <= ts:
+                best = n
+            else:
+                break
+        if best and os.path.isfile(os.path.join(root, best, os.path.basename(str(image)))):
+            return best
+        return None
+    return f
+
+
+def _sid(reel):
+    r = str(reel or "")
+    return r[5:] if r.startswith("reel_") else r
+
+
+def session_characters(d, reel_of=None, carried=None, report=None):
+    """#36 (REG-2906) - the character each SESSION (one reel: the journal's sessionId) is on. -> {sessionId: [span]} or
+    None when the ledger is UNKNOWN.
+
+    A span is {from, character, key, via, at, why}: a character-select login opens one at its frame time (`from`) - a
+    login is a boundary, he can change character only there - and the rows before the reel's first login are the span
+    with from None. A lobby or C-panel read names the span it falls in. The name goes through the learner's own fold
+    (_merge_groups: Konylock / Konyblock are KonyoLock), so every surface says one character one way. Two reads naming
+    different characters in one span leave it UNKNOWN with both names - never the newer one guessed over the older.
+    A login whose closing read named no row (logins' `unconfirmed`) is a boundary with an UNKNOWN character. The span
+    before the first login takes `carried` (sessionId -> name, the rollover chain the gear ledger already keeps) when
+    nothing in it names anyone, said as `carried`. A session no read names is absent: UNKNOWN to every caller.
+    `report` (a dict, when given) gets `unplaced`: the witnesses no reel on this PC holds."""
+    if d is None:
+        return None
+    chars = d.get("chars") or {}
+    groups = _merge_groups(d)
+    head = {}
+    for h, ks in groups.items():
+        for k in ks:
+            head[k] = h
+
+    def named(raw):
+        k = _fold(raw)
+        if not k:
+            return None, None
+        h = head.get(k, k)
+        c = chars.get(h)
+        return (_shown(c) if isinstance(c, dict) else None) or _clean_name(raw) or raw, h
+
+    ev = {}
+    for L in logins(d) or []:
+        sid = str(L.get("sessionId") or "")
+        if not sid:
+            continue
+        nm, key = named(L.get("character")) if L.get("character") else (None, None)
+        ev.setdefault(sid, []).append({"ts": int(L.get("ts") or 0) or None, "kind": "char-select", "name": nm, "key": key,
+                                       "why": L.get("why") if not nm else None})
+    unplaced = 0
+    for key, c in chars.items():
+        for w in ((c or {}).get("witnesses") or []) if isinstance(c, dict) else []:
+            if not isinstance(w, dict) or w.get("kind") not in SURFACE_TIERS:
+                continue
+            reel = w.get("reel") or (reel_of(w.get("image")) if reel_of else None)
+            if not reel:
+                unplaced += 1
+                continue
+            nm, k = named(w.get("name") or (c or {}).get("name") or key)
+            ts = w.get("ts") if isinstance(w.get("ts"), (int, float)) and not isinstance(w.get("ts"), bool) else None
+            ev.setdefault(_sid(reel), []).append({"ts": int(ts) if ts else None, "kind": w.get("kind"), "name": nm,
+                                                  "key": k, "why": None})
+    out = {}
+    for sid, es in ev.items():
+        es.sort(key=lambda e: (e["ts"] is None, e["ts"] or 0))
+        spans = [{"from": None, "character": None, "key": None, "via": None, "at": None, "why": SESSION_SAY_NONE}]
+        for e in es:
+            if e["kind"] == "char-select":
+                spans.append({"from": e["ts"], "character": e["name"], "key": e["key"], "via": "char-select",
+                              "at": e["ts"], "why": None if e["name"] else (e.get("why") or "the login named no row")})
+                continue
+            sp = spans[-1]
+            if sp.get("conflict"):
+                sp["conflict"] = sorted(set(sp["conflict"]) | {e["name"]})
+            elif sp["key"] is None:
+                sp.update(character=e["name"], key=e["key"], via=e["kind"], at=e["ts"], why=None)
+            elif sp["key"] is not None and sp["key"] != e["key"]:
+                sp.update(conflict=sorted({sp["character"], e["name"]}), character=None, key=None, via=None,
+                          why="two screens in one span named different characters (%s)"
+                              % " / ".join(sorted({str(sp["character"]), str(e["name"])})))
+        first = spans[0]
+        if first["character"] is None and not first.get("conflict") and carried and carried.get(sid):
+            first.update(character=str(carried[sid]), via="carried", why=None,
+                         key=head.get(_fold(carried[sid]), _fold(carried[sid])))
+        if first["character"] is None and not first.get("conflict") and len(spans) > 1:
+            spans = spans[1:]                  # nothing before the login: the session is the login's
+        out[sid] = spans
+    if isinstance(report, dict):
+        report["unplaced"] = unplaced
+    return out
+
+
+def session_character_at(sessions, sid, ts=None):
+    """The character a read at `ts` in session `sid` was taken on, from session_characters' map. -> (name, why)
+
+    The span with the newest `from` at or before ts; a read with no time takes the session's character only when every
+    span names the same one. (None, why) is UNKNOWN - never the nearest name."""
+    spans = (sessions or {}).get(str(sid or ""))
+    if not isinstance(spans, list) or not spans:
+        return None, SESSION_SAY_NONE
+    if ts is None:
+        names = {s.get("character") for s in spans}
+        if len(names) == 1 and None not in names:
+            return spans[0]["character"], None
+        return None, "the read has no time and the session names more than one span"
+    pick = None
+    for s in spans:
+        if s.get("from") is None or (isinstance(s.get("from"), (int, float)) and s["from"] <= ts):
+            pick = s
+    if pick is None:
+        return None, "the read came before the session's first login, and nothing before it names a character"
+    return pick.get("character"), (None if pick.get("character") else pick.get("why"))
+
+
 def scanned_reel(d, reel):
     """#103 step B — has the learner said everything it will say about this reel? -> True / False / None (UNKNOWN)
 
@@ -1219,7 +1373,7 @@ def _lobby_handle(rs, p, fi, st, d, surface_stats, surface_reader, size_of, now_
                 st["reads"] = int(st.get("reads") or 0) + 1
                 acc["reads"] = int(acc.get("reads") or 0) + 1
                 if row:
-                    bank_surface(d, row, os.path.basename(p), ts)
+                    bank_surface(d, row, os.path.basename(p), ts, reel=os.path.basename(os.path.dirname(p)))
                     acc["surfaces"] = int(acc.get("surfaces") or 0) + 1
     _lobby_mark(rs, fi, lhit, size_of, p, st)
 

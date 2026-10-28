@@ -12369,6 +12369,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_base_in_doubt_is_unknown_everywhere.py")], 300,
          needs_app=False,
          why='REG-2903/2904/2905: an item whose base its name or record does not give is the mark on every surface, and the mark asks why'),
+    Gate("test_a_session_knows_its_character",
+         [sys.executable, os.path.join(HERE, "test_a_session_knows_its_character.py")], 300,
+         needs_app=False,
+         why="#36 REG-2906/2907: each session knows its character from char select, the lobby and the C panel, through the learner's fold; the console serves it"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

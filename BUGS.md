@@ -247,6 +247,34 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2907 - THE CONSOLE NOW SERVES WHICH CHARACTER EACH SESSION IS ON, AND THE SHADOW UPLOAD KEEPS IT (#36)
+/api/chars_learned carries `sessions` (sessionId -> its spans: from, character, via, why), built from the learner's
+ledger with the gear ledger's rollover chain as `carried`, and says UNKNOWN (sessions null, sessionsWhy) when the ledger
+will not read - never an empty map. The shadow upload keeps it (console_snapshot.API_FIELDS), last among the fields
+dropped to fit the store cap, so a shadow's vault can say whose stash a look filmed. Law:
+test_a_session_knows_its_character (the answer built over a fixture ledger, and over an unreadable one), 2 red-proofs, RED.
+Re-aimed: test_a_slow_character_read_still_reaches_the_shadow's REG-2688 red-proof (its API_OPTIONAL line gained
+sessions), RED.
+
+### REG-2906 - NO SESSION KNEW WHICH CHARACTER IT WAS ON: THE TWO SCREENS THAT NAME HIM WERE NEVER JOINED TO A REEL (#36, his ruling 2026-10-28 11:30)
+His ruling: read the character from the screens he already passes through - the character-select screen at login and the
+in-game C panel - into one logic that binds a session's reads, stash cells and witnesses to that character, so each reel
+knows whose stash it filmed. Measured on the code: the halves existed apart. char_select.logins() named the row
+highlighted at character select, keyed by reel, and only the gear ledger read it (#103 step B); the lobby / C-panel
+reader banked a witness naming the character (#149) with the frame's file name and never the reel, so no session could
+be told from it; and the vault's sightings carry no holder at all (vault_retro's sight has none, and the board's own note
+says every carried receipt in production has character null). Now a witness records the reel it was read in, and
+char_select.session_characters joins logins and witnesses per session (the journal's sessionId) through the learner's
+own fold (Konylock is KonyoLock): a login is a boundary - he can change character only there - a lobby or C-panel read
+names the span it falls in, two screens naming two characters in one span are UNKNOWN with both names (never the newer
+guessed over the older), a login whose closing read named no row is a boundary with an UNKNOWN character, the span before
+a reel's first login takes the rollover chain's character only when nothing in it names anyone (said as carried), and a
+session no read names is absent - UNKNOWN to every caller. A witness banked before this is placed by its frame on this
+PC's reels (the newest reel that started before it, and the file must be there); one no reel holds is counted unplaced,
+never guessed into a neighbour. session_character_at gives a read the span it falls in. Not built: no pixel band detects
+the C panel yet (no C-panel frame was ever filmed - char_select's own note), so a C-panel read happens only when the lobby
+reader is shown one; measuring that band needs a filmed panel. Law: test_a_session_knows_its_character, 7 red-proofs, RED.
+
 ### REG-2905 - THE REGISTERED LIST'S MAGIC & RARE ROWS DREW THEIR OWN KEYWORD PICTURE (the REG-2904 sweep)
 Every Magic & Rare row of the registered list drew the keyword sprite of its recorded base or of its name, or a coloured
 dot: measured on the whole page in node, Chaos Whorl and Havoc Eye Ring (kept with no base) drew ring1_graphic there and the
