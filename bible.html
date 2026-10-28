@@ -74932,6 +74932,14 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
    Law: test_the_world_band_leaves_room_for_the_ladder_ribbon (the framed-search cases). */
 body.engine-driven.cousin-shell .gsearch-wrap{margin-top:26px!important}
 body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap{margin-top:49px!important}
+/* REG-2913 round 2 - MOVING THE SEARCH DOWN PUT IT UNDER THE BUILD BADGE. Measured by CDP on the framed Windows board:
+   the badge (fixed, left 8px, top 40px + the claim bar, max-width 180px) sat below the search before the reserve and
+   covered its magnifier and first letters after it, at 1440 and 901 (the badge is display:none at 720 and under). The
+   rule two blocks up already meant to clear it (margin-left:196px), and v640's !important margin has kept it inert; here
+   it takes effect for this one combination: 8px + the 180px cap + an 8px gap. */
+@media (min-width:721px){
+body.engine-driven.cousin-shell .gsearch-wrap{margin-left:196px!important}
+}
 </style>
 <script id="v687-p0-boot">
 (function(){

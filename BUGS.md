@@ -35,8 +35,17 @@ visual. Fix: body.engine-driven.cousin-shell .gsearch-wrap reserves the band (26
 plus the ladder ribbon stacked 24 px under it (49 px) - both !important, because v640's
 `.gsearch-wrap{margin:5px auto 0 0!important}` beats any plain margin. Law: test_the_world_band_leaves_room_for_the_ladder_
 ribbon gains TheWorldBandLeavesRoomForTheFramedSearch (the reserve read from the file on both sides, never the number 22;
-3 red-proofs, each RED: too small, not !important, ladder stack). Real-pixel check of the framed Windows board owed before
-this ships.
+3 red-proofs, each RED: too small, not !important, ladder stack).
+ROUND 2, found by the pixel check (CDP on the framed Windows board, 1440/1120/901/375, before and after): the reserve
+cleared the band (before: band over the input's top 11 px at 1440, 1120 and 901; after: a 10 px gap) and put the search
+UNDER the fixed build badge (left 8px, top 40px + the claim bar, capped at 180px): the badge covered the magnifier and the
+placeholder's first letters at 1440 and 901, where it had sat below the search before. The board's own clearance for it
+(`body.app-ctx.engine-driven .gsearch-wrap{margin-left:196px}`) has been inert under v640's !important margin, so it now
+takes effect for this combination at 721px and up (the badge is display:none at 720 and under): 8px + the 180px cap +
+an 8px gap. After: the band, the badge and the search share no pixel at any of the 4 widths, the full placeholder reads,
+and the MAIN/LADDER pill stays clear. Law gains test_the_moved_search_clears_the_build_badge (the badge's box read from
+ITS rule), 2 more red-proofs, both RED. Cross-family look: the Grok MCP seat was EMPTY (its API account out of credits)
+and the Grok CLI timed out at 300 s, so the pixels are UNAUDITED by another family.
 
 ### REG-2936 - THE SPINNER LAW FLAKED ONCE: ITS BASELINE WAS READ BEFORE THE PLANNER STOPPED MOVING (CI on ci/claude-v3835)
 test_the_planner_spinner_stays_under_the_cursor's arrow-key case failed once on CI ("step 1: the Sockets field moved

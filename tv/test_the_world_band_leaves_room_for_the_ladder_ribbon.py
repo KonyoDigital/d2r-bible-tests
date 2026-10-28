@@ -210,6 +210,30 @@ class TheWorldBandLeavesRoomForTheFramedSearch(unittest.TestCase):
                                 "stacked %spx under a %.1fpx band, so it needs %.1fpx"
                                 % (top, m.group(1), self.tall, need))
 
+    def test_the_moved_search_clears_the_build_badge(self):
+        """REG-2913 round 2 - the reserve moved the search down into the fixed build badge's band (CDP, 1440 and 901:
+        the badge covered the magnifier). The badge's box is read from ITS rule (left + the max-width cap); the framed
+        search must clear it wherever the badge shows, with !important or v640's margin wins again."""
+        badge = None
+        for m in re.finditer(r"(?:^|\})\s*#v687-build-badge\s*\{([^}]*)\}", self.css, flags=re.M):
+            if re.search(r"(?<![-\w])max-width\s*:", m.group(1)):
+                badge = m.group(1)
+                break
+        self.assertIsNotNone(badge, "premise: the build badge's positioned rule (with its max-width cap) is gone")
+        left, cap = _px(badge, "left"), _px(badge, "max-width")
+        self.assertTrue(left is not None and cap is not None, "premise: the badge's left or max-width is not in px")
+        hid = re.search(r"@media\s*\(max-width:\s*(\d+)px\)\s*\{\s*#v687-build-badge\s*\{[^}]*display\s*:\s*none", self.css)
+        self.assertIsNotNone(hid, "premise: the badge's narrow-width hide rule is gone")
+        clear = re.search(r"@media\s*\(min-width:\s*(\d+)px\)\s*\{\s*body\.engine-driven\.cousin-shell\s+\.gsearch-wrap"
+                          r"\s*\{[^}]*(?<![-\w])margin-left\s*:\s*([\d.]+)px\s*(!important)?", self.css)
+        self.assertIsNotNone(clear, "the framed Windows search does not clear the build badge - it sits under it")
+        self.assertLessEqual(int(clear.group(1)), int(hid.group(1)) + 1,
+                             "the clearance starts at %spx but the badge shows from %dpx" % (clear.group(1), int(hid.group(1)) + 1))
+        self.assertTrue(clear.group(3), "the clearance has no !important, so v640's .gsearch-wrap margin keeps it inert")
+        self.assertGreater(float(clear.group(2)), left + cap,
+                           "the search starts %spx in; the badge reaches %.1fpx (left %.1f + cap %.1f)"
+                           % (clear.group(2), left + cap, left, cap))
+
 
 RED_PROOF = [
     {
@@ -246,6 +270,20 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap{margin-top:49px!important}",
         "replace": "body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap{margin-top:26px!important}",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2913 round 2 - the moved search no longer clears the build badge",
+        "file": "bible.html",
+        "find": "body.engine-driven.cousin-shell .gsearch-wrap{margin-left:196px!important}",
+        "replace": "body.engine-driven.cousin-shell .gsearch-wrap{margin-left:100px!important}",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2913 round 2 - the badge clearance without !important is inert under v640's margin",
+        "file": "bible.html",
+        "find": "body.engine-driven.cousin-shell .gsearch-wrap{margin-left:196px!important}",
+        "replace": "body.engine-driven.cousin-shell .gsearch-wrap{margin-left:196px}",
         "matches": 1,
     },
 ]
