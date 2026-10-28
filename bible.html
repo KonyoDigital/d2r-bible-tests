@@ -45176,6 +45176,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
     _vaultAskProven(function(){ try { renderVault(); } catch (e) {} });
+    /* #36 (REG-2908) - the looks' holders read which character each session was on: the vault asks the console once, and
+       repaints when it answers (the Characters room asks the same answer; a page with no console never asks) */
+    try {
+      if (!window.__vaultSessionsAsked && typeof window._cbLearnedFetch === 'function'
+          && !(typeof window._sessionCharactersAnswered === 'function' && window._sessionCharactersAnswered())){
+        window.__vaultSessionsAsked = 1;
+        window._cbLearnedFetch(function(){ try { renderVault(); } catch (eRv) {} }, { quiet: true });
+      }
+    } catch (eSa) {}
     // v1251 — SELF-HEAL: a forged RUNEWORD must never sit in the Magic & Rare keeper track (magicFinds).
     // The aic-judge "keep" path used to dump runewords (Call to Arms, Spirit…) into magicFinds, so the
     // MAGIC & RARE locker painted them as a stray gold ◆ fallback tile (Konyo: "Call to Arms shows a gold
@@ -47409,23 +47418,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var fn = (/^\d+$/.test(stem) ? ('f_' + stem) : stem) + '.jpg';
     return 'tv/frames/hist/reel_' + s + '/' + fn;
   };
+  /* #36 (REG-2908, his ruling 2026-10-28 11:30: "so each reel knows whose stash it filmed") - A LOOK CARRIES THE CHARACTER
+     ITS SESSION WAS ON, unless the read named its holder. Every look here was holder-less in production: the stash sweep's
+     sighting has no holder field and the live route names a character only on a login row, so the copy keys, the move
+     tasks' "from" and the WAR mule's "seen in the game" all read UNKNOWN for every look. The holder is asked here, once,
+     for every reader of the looks, from the console's session map (_sessionCharacterAt); its frame (f_<ms>) is the read's
+     time. A session nothing names stays UNKNOWN (null), never the nearest name; `via` says when it came from the session. */
+  function _vaultLookHolder(k, sid){
+    var own = (k && (k.holder || k.character)) || null;
+    if (own) return { holder: own, via: null };
+    if (!sid || typeof window._sessionCharacterAt !== 'function') return { holder: null, via: null };
+    var m = /f_(\d{10,})/.exec(String((k && (k.frame || k.frameId)) || ''));
+    var sc = window._sessionCharacterAt(sid, m ? +m[1] : null);
+    return { holder: (sc && sc.name) || null, via: (sc && sc.name) ? 'session' : null };   /* REG-2908 session holder */
+  }
+  window._vaultLookHolder = _vaultLookHolder;
   window._vaultEvidenceLooks = function(name){
+    /* asked through window, so a law that cuts this function alone still runs it: no helper, the read's own holder */
+    var _lookHolder = (typeof window._vaultLookHolder === 'function') ? window._vaultLookHolder
+      : function(k){ return { holder: (k && (k.holder || k.character)) || null, via: null }; };
     var nm = String(name == null ? '' : name).trim();
     var _pvLk = _provAll();
     var r = _pvLk ? _pvLk[nm] : null;   /* REG-2415 — UNKNOWN: no look is read from it (the line says why) */
     /* a Magic & Rare keeper carries its own receipt (v1934: frameId · sessionId · at) */
     if (!r && typeof magicFinds === 'object' && magicFinds && magicFinds[nm] && magicFinds[nm].frameId){
       var mf = magicFinds[nm], mfAt = (typeof mf.at === 'number') ? new Date(mf.at).toISOString() : (mf.at || null);
+      var mfH = _lookHolder({ frame: mf.frameId }, mf.sessionId || null);   /* REG-2908 */
       return [{ frame: String(mf.frameId), conf: null, cell: null, session: mf.sessionId || null, at: mfAt,
-                released: false, crop: null }];
+                holder: mfH.holder, holderVia: mfH.via, released: false, crop: null }];
     }
     r = r || {};
     var looks = Array.isArray(r.looks) ? r.looks : [];
     if (!looks.length && (r.frameId || r.frame)) looks = [{ id: r.sessionId || r.reel || null, frame: r.frameId || r.frame, conf: r.conf }];
     return looks.map(function(k){
       k = k || {};
+      var hv = _lookHolder(k, k.id || k.session || null);
       return { frame: k.frame || null, conf: (typeof k.conf === 'number' ? k.conf : null),
-               cell: k.cell || null, loc: k.loc || null, holder: k.holder || k.character || null, /* v3767 look place */
+               cell: k.cell || null, loc: k.loc || null, holder: hv.holder, holderVia: hv.via, /* v3767 look place · REG-2908 */
                session: k.id || k.session || null, at: k.at || r.at || null,
                released: k.released === true, crop: k.crop || null };
     });
@@ -70362,8 +70391,19 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!d || typeof d !== 'object') return;
     if (d.ok === true || !(_cbLearned && _cbLearned.ok === true)) _cbLearned = d;
   }
-  function _cbLearnedFetch(then){
+  /* #36 (REG-2908) - the vault's own ask: the same answer through the same take, and NOT the room asking - the room's
+     "asking..." counts the room's and the builder's asks only, so an ask the vault made at boot never reads as the room's */
+  function _cbLearnedQuiet(then){
+    try {
+      if (!/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
+      fetch('/api/chars_learned', { cache: 'no-store' })
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(d){ _cbLearnedTake(d); if (then) then(); }, function(){ /* no console behind this page: holders stay UNKNOWN */ });
+    } catch (e) {}
+  }
+  function _cbLearnedFetch(then, opts){
     if (document.documentElement.classList.contains('tvd-shadow')) return;
+    if (opts && opts.quiet) return _cbLearnedQuiet(then);   /* REG-2908 quiet ask */
     try {
       if (!/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
       _cbLearnedAsking++;
@@ -70378,6 +70418,30 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   window._cbLearnedAskingNow = function(){ return _cbLearnedAsking > 0; };
   window._cbLearnedTakeForLaw = _cbLearnedTake;
   window._cbLearnedFetch = _cbLearnedFetch;
+  /* #36 (REG-2908) - WHICH CHARACTER A READ WAS TAKEN ON. The console's answer carries the character each session is on
+     (`sessions`, REG-2907: char select, the lobby and the C panel, joined per session through the learner's fold). A read
+     takes the span its frame time falls in - a login opens a span - and a read with no time takes the session's character
+     only when every span names the same one. The twin of char_select.session_character_at: one rule, and its law runs
+     both over one map. -> {name, why}; name null is UNKNOWN, never the nearest name. */
+  function _sessionCharacterAt(sid, ts){
+    var S = (_cbLearned && _cbLearned.ok === true && _cbLearned.sessions && typeof _cbLearned.sessions === 'object') ? _cbLearned.sessions : null;
+    if (!S) return { name: null, why: !_cbLearned ? 'no console has answered this page yet'
+      : String((_cbLearned && _cbLearned.sessionsWhy) || 'the console did not say which character each session is on') };
+    var spans = S[String(sid == null ? '' : sid)];
+    if (!Array.isArray(spans) || !spans.length) return { name: null, why: 'no character-select, lobby or C-panel read names a character in this session' };
+    if (ts == null || !isFinite(ts)) {
+      var names = {}; spans.forEach(function(s){ names[String((s && s.character) || '\u0001')] = 1; });
+      var only = Object.keys(names);
+      return (only.length === 1 && only[0] !== '\u0001') ? { name: only[0], why: null }
+        : { name: null, why: 'the read has no time and the session names more than one span' };
+    }
+    var pick = null;
+    spans.forEach(function(s){ if (s && (s.from == null || (typeof s.from === 'number' && s.from <= ts))) pick = s; });
+    if (!pick) return { name: null, why: 'the read came before the session\u2019s first login, and nothing before it names a character' };
+    return { name: pick.character || null, why: pick.character ? null : String(pick.why || 'UNKNOWN') };
+  }
+  window._sessionCharacterAt = _sessionCharacterAt;
+  window._sessionCharactersAnswered = function(){ return !!(_cbLearned && _cbLearned.ok === true); };
   /* 2026-09-30 — HIS RULE: "thats a personal tool for each individual console". The page's hand-typed CHARS are HIS
      characters and ship to every PC, so offered as templates they made GrokBot's empty builder open straight onto
      "Konyolock — Warlock 88" - his build on a console that is not his. A console now OFFERS only what its own reels
