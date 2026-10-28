@@ -194,8 +194,14 @@ def _render():
                       [].forEach.call(document.querySelectorAll('#fleet-list .fleet-row'), function(r){
                         var m = r.getAttribute('data-fleet-machine'), before = r.classList.contains('fleet-open');
                         var eb = r.querySelector('.fleet-hd-eyes'), vis0 = eb ? eb.getBoundingClientRect().height : -1;
+                        r.scrollIntoView({ block: 'center' });
+                        var q0 = r.getBoundingClientRect(), x0 = q0.left + q0.width / 2, y0 = q0.top + q0.height / 2;
                         r.click(); var c1 = calls.length;
                         var vis1 = eb ? eb.getBoundingClientRect().height : -1;
+                        /* REG-2768 - where a second click lands: the spot of the first, and the open row's own centre */
+                        var q1 = r.getBoundingClientRect();
+                        var onEyes = function(x, y){ var h = document.elementFromPoint(x, y); return !!(h && h.closest && h.closest('.fleet-hd-eyes')); };
+                        var eyesAt = [onEyes(x0, y0), onEyes(q1.left + q1.width / 2, q1.top + q1.height / 2)];
                         r.click();
                         var modal = !document.getElementById('fleet-xref').hidden, esc = null;
                         if (eb && !eb.disabled) { eb.focus();
@@ -203,7 +209,7 @@ def _render():
                           esc = document.getElementById('fleet-xref').hidden; }
                         out[m] = { esc: esc, before: before, open: r.classList.contains('fleet-open'),
                                    aria: r.getAttribute('aria-expanded'), calls: c1, calls2: calls.length,
-                                   modal: modal, vis0: vis0, vis1: vis1,
+                                   modal: modal, vis0: vis0, vis1: vis1, eyesAt: eyesAt,
                                    owner: eb ? eb.getAttribute('data-roster-owner') : null, disabled: eb ? eb.disabled : null };
                         document.getElementById('fleet-xref').hidden = true;
                         calls.length = 0;
@@ -298,6 +304,9 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
                 self.assertEqual(got["calls"], 0, "%s %s: the first click also opened the compare window, over the eyes it "
                                                   "had just shown (#225)" % (k, m))
                 self.assertEqual(got["calls2"], 1, "%s %s: a click on the open row did not open the compare" % (k, m))
+                self.assertEqual(got.get("eyesAt"), [False, False],
+                                 "%s %s: a second click where the first landed, or at the open row's centre, hits the eyes "
+                                 "and enters the shadow instead of the compare (REG-2768): %r" % (k, m, got.get("eyesAt")))
                 self.assertTrue(got["modal"], "%s %s: the modal is not open after the second click" % (k, m))
                 self.assertTrue(got["open"] and got["aria"] == "true", "%s %s: a second click shut the row" % (k, m))
             self.assertEqual(r["ship"][k]["afterRefresh"], [True] * 4, "%s: a fleet refresh shut the open rows" % k)
@@ -345,6 +354,11 @@ class TheRouteIsWitnessedWithoutAWindow(unittest.TestCase):
         self.assertEqual(self.owner({"nickname": "someone"}), "")
 
 RED_PROOF = [
+    {"why": "REG-2768 - the open row's eyes sit across its middle, so a second click enters the shadow",
+     "file": "tv/control_ui.html",
+     "find": "  .fleet-row.fleet-open > .fleet-open-eyes { display: flex; justify-content: flex-end; margin-right: 14px; }",
+     "replace": "  .fleet-row.fleet-open > .fleet-open-eyes { display: flex; justify-content: center; }  .fleet-hd-eyes { min-width: 70%; }",
+     "matches": 1},
     {"why": "Grok r1 - the eyes swallow every key again, so Escape no longer closes the cross-reference",
      "file": "tv/control_ui.html",
      "find": "window._shadowOpen(this.getAttribute(\\'data-roster-owner\\'))\">'",

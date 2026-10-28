@@ -6755,7 +6755,9 @@
   .fx-adv .fleet-sys .fs-f { grid-column: 2; white-space: normal; overflow: visible; text-overflow: clip; }
   /* GBL 2026-10-24 - the row a click opened: its HD eyes on the row's own last line */
   .fleet-row > .fleet-open-eyes { display: none; grid-column: 1 / -1; margin: 6px 0 2px 14px; }
-  .fleet-row.fleet-open > .fleet-open-eyes { display: block; }
+  /* REG-2768 (GrokBot's v3824 pass, #225: a second click at the open row's centre landed on "SEE ... CONSOLE" and entered
+     the shadow instead of the compare) - the eyes sit at the line's END, so the row's middle stays the row's own click */
+  .fleet-row.fleet-open > .fleet-open-eyes { display: flex; justify-content: flex-end; margin-right: 14px; }
   .fleet-hd-eyes { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; cursor: pointer;
                    border: 1px solid rgba(240,192,96,.45); border-radius: 6px; background: rgba(240,192,96,.08);
                    color: var(--gold, #f0c060); font: var(--fw-semibold) var(--fs-2xs)/1.3 var(--mono, monospace);

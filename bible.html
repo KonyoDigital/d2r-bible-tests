@@ -51355,6 +51355,17 @@ window.vaultAutoAssign = function(){
     _sharedPage = Math.max(0, Math.min(4, i | 0)); window.openMuleCard('shared');
     if (_fromKey) { try { var _sel = document.querySelector('.vd-tab[aria-selected="true"]'); if (_sel) _sel.focus(); } catch (eF2) {} }
   };
+  /* REG-2767 (GrokBot's v3824 pass, #154.19 nit: "ArrowRight does not move between tabs") - a tablist roves with the arrow
+     keys: Right/Left step a page (wrapping), Home/End go to the first/last; the switch goes through _sharedSetPage, so the
+     focus follows the selected tab exactly as Enter's does (REG-2747). Any other key is left alone. */
+  window._sharedTabKey = function(ev){
+    var k = ev && ev.key, n = 5;
+    if (k !== 'ArrowRight' && k !== 'ArrowLeft' && k !== 'Home' && k !== 'End') return false;
+    try { ev.preventDefault(); } catch (eP) {}
+    var to = (k === 'Home') ? 0 : (k === 'End') ? n - 1 : (_sharedPage + (k === 'ArrowRight' ? 1 : n - 1)) % n;
+    window._sharedSetPage(to);
+    return true;
+  };
   /* #264 — what the shared stash holds, and how ONE tab of it packs: the window draws it and the vault finder (_vaultWhereIs)
      names a cell from it, so the two can never disagree about where an item sits */
   function _sharedNames(){ try { return Object.keys(assign).filter(function(n){ return assign[n] === 'shared'; }).sort(); } catch(e){ return []; } }
@@ -51557,7 +51568,7 @@ window.vaultAutoAssign = function(){
       + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
       + '<div class="vd-game-row">'
       +   '<div class="vd-panel" style="margin:0 auto"><div class="vd-panel-title">Shared Stash</div>'
-      +     '<div class="vd-tabs" role="tablist" aria-label="shared stash pages">' + tabs + '</div>'
+      +     '<div class="vd-tabs" role="tablist" aria-label="shared stash pages" onkeydown="window._sharedTabKey(event)">' + tabs + '</div>'
       +     gridHtml(packed.placed, 10, 10, cell).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar"><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 4) % 5) + ')">◄</span><span>' + pg.icon + ' ' + pg.label + ' · Page ' + (_sharedPage + 1) + ' / 5</span><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 1) % 5) + ')">►</span></div>'
       +     '<div class="vd-goldbox">' + pg.icon + ' ' + pageN + ' on this page · ' + totalAll + ' total</div>'

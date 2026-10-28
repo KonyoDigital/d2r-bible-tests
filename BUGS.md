@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2768 - A SECOND CLICK ON AN OPEN FLEET ROW COULD ENTER THE SHADOW INSTEAD OF THE COMPARE (#225, GrokBot's v3824 pass)
+REG-2749 made the first click open the row and a click on the open row open the compare. GrokBot SAW both on Dean's row
+and found the ALT's row DIFFERS: opening the row adds its "SEE ... CONSOLE" line, the row grows, and the button sat
+across the row's middle - a second click in the same spot entered the ALT's shadow. The eyes now sit at the line's END,
+so the row's middle stays the row's own click. Law: test_a_roster_name_opens_its_row_with_the_eyes (Chrome, CI and the
+hook): a second click where the first landed, and at the open row's centre, never lands on the eyes; its red-proof
+centres a wide button over the row.
+
+### REG-2767 - THE SHARED STASH'S PAGE TABS DID NOT ROVE WITH THE ARROW KEYS (#154.19, GrokBot's v3824 pass nit)
+REG-2747 kept the focus on the page tabs after Enter (GrokBot SAW). Its nit: a role=tablist roves with the arrow keys,
+and ArrowRight did nothing. Right/Left now step a page (wrapping), Home/End go to the first/last, through the same
+_sharedSetPage so the focus follows as Enter's does; any other key is left alone. Law:
+test_a_locker_and_a_shared_tab_take_the_keyboard (1 new case in node, 2 red-proofs).
+
 ### REG-2766 - THE LIVE SHELF CARD COUNTED ITS LOOSE FILM AND NEVER DATED IT (the v3824 second eye, REG-2748's sweep)
 REG-2748 made a sealed reel's card span its footage stills. Before a reel seals there is no reel_<sid> folder: the LIVE
 card counts the loose f_<ms>.jpg stills at the reel root (v908) and never added their capture times, so one short read

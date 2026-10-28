@@ -77,6 +77,14 @@ try { W._sharedSetPage(2); } catch (e) { OUT.setErr2 = String(e && e.message || 
 OUT.focusFromMouse = focused.slice();
 document.querySelector = realQS;
 if (realAE) Object.defineProperty(document, 'activeElement', realAE); else delete document.activeElement;
+/* REG-2767 - the tablist roves with the arrow keys (GrokBot's v3824 nit): the page each key asks for, from page 2, 0, 4 */
+OUT.tabKeyWired = / role="tablist" aria-label="shared stash pages" onkeydown="window._sharedTabKey\(event\)"/.test(sh);
+var realSet = W._sharedSetPage, asked = [];
+function rove(from, k){ realSet(from); var pd = false; W._sharedSetPage = function(i){ asked.push(i); };
+  var r = W._sharedTabKey({ key: k, preventDefault: function(){ pd = true; } }); W._sharedSetPage = realSet; return [r, pd]; }
+OUT.rove = [rove(2, 'ArrowRight'), rove(2, 'ArrowLeft'), rove(2, 'Home'), rove(2, 'End'), rove(0, 'ArrowLeft'),
+            rove(4, 'ArrowRight'), rove(2, 'a')];
+OUT.roveAsked = asked;
 })();
 """
 
@@ -112,8 +120,27 @@ class ALockerAndASharedTabTakeTheKeyboard(unittest.TestCase):
         self.assertEqual(o.get("focusFromKey"), ["selected-tab"], "a keyboard page switch dropped the focus: %r" % o)
         self.assertEqual(o.get("focusFromMouse"), [], "a mouse page switch moved the focus: %r" % o)
 
+    def test_the_tablist_roves_with_the_arrow_keys(self):
+        """REG-2767 (GrokBot's v3824 pass) - ArrowRight did not move between the shared stash's page tabs."""
+        o = self.o
+        self.assertTrue(o.get("tabKeyWired"), "the shared stash tablist does not hand its keys to _sharedTabKey")
+        self.assertEqual(o.get("roveAsked"), [3, 1, 0, 4, 4, 0],
+                         "Right/Left/Home/End from pages 2, 0 and 4 did not ask for 3, 1, 0, 4 and wrap: %r" % o.get("roveAsked"))
+        self.assertEqual([r[0] for r in o.get("rove") or []], [True] * 6 + [False], "a letter key was taken, or an arrow was not")
+        self.assertTrue(all(r[1] for r in (o.get("rove") or [])[:6]), "an arrow key also scrolled the page (no preventDefault)")
+
 
 RED_PROOF = [
+    {"why": "REG-2767 - the shared stash tablist ignores the arrow keys again",
+     "file": "bible.html",
+     "find": " onkeydown=\"window._sharedTabKey(event)\">' + tabs + '</div>'",
+     "replace": ">' + tabs + '</div>'",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2767 - the arrow keys stop at the ends instead of wrapping",
+     "file": "bible.html",
+     "find": "(_sharedPage + (k === 'ArrowRight' ? 1 : n - 1)) % n;",
+     "replace": "Math.max(0, Math.min(n - 1, _sharedPage + (k === 'ArrowRight' ? 1 : -1)));",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2747 - a keyboard page switch on the shared stash drops the focus to the page again",
      "file": "bible.html",
      "find": "    if (_fromKey) { try { var _sel = document.querySelector('.vd-tab[aria-selected=\"true\"]'); if (_sel) _sel.focus(); } catch (eF2) {} }\n",
