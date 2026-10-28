@@ -16896,6 +16896,10 @@ window._lockMark = function(isOpen, px, label){
     if (rs.kind === 'miss'){
       return '<span class="th-rs th-rs-miss">' + icon + ' ' + esc(tabU) + ' tab · <b>0 counted</b> ⚠ MISS — intake fired but read nothing</span>';
     }
+    /* REG-2960 (#55) - no intake receipt for this tab this session: nothing fired, so nothing is claimed to have */
+    if (rs.kind === 'unread'){
+      return '<span class="th-rs th-rs-miss th-rs-unread">' + icon + ' ' + esc(tabU) + ' tab · <b>not read</b> ⚠ no intake ran on this tab this session</span>';
+    }
     if (rs.kind === 'named'){
       return '<span class="th-rs th-rs-named">🧠 ' + rs.counted + ' item' + (rs.counted === 1 ? '' : 's') + ' named</span>';
     }
@@ -16911,6 +16915,7 @@ window._lockMark = function(isOpen, px, label){
     var rv = String(b.routeVerdict || r.verdict || '');
     var lab = String(r.label || b.label || '');
     if (rs && rs.kind === 'miss') flags.push('<span class="th-flag f-miss">MISS</span>');
+    if (rs && rs.kind === 'unread') flags.push('<span class="th-flag f-miss" title="no intake ran on this tab this session">NOT READ</span>');   /* REG-2960 */
     if (rs && rs.superseded) flags.push('<span class="th-flag f-super">🚫0️⃣ re-read</span>');
     if (rv.indexOf('disagreement') >= 0 || rv === 'disagreement')
       flags.push('<span class="th-flag f-dis">⚡ disagree</span>');
@@ -26401,6 +26406,7 @@ window._lockMark = function(isOpen, px, label){
         + _legRow('<span class="th-os">⏣3</span>', 'sockets', 'the item was socketed — N = how many.')
         + _legRow('<span class="th-rs th-rs-ok">🔮 RUNES · counted ✓</span>', 'read', 'the panel was read and tallied — the count is the receipt.')
         + _legRow('<span class="th-rs th-rs-miss">⚠ MISS</span>', 'miss', 'intake fired but read nothing (superseded if a later re-read landed).')
+        + _legRow('<span class="th-rs th-rs-miss th-rs-unread">⚠ not read</span>', 'not read', 'the frame shows a stash tab, and no intake ran on that tab this session - nothing was read, and nothing claims it was.')
       + '</section>'
       + '<section class="lg-sec"><h4>🎬 playback modes — how the reel plays</h4>'
         + _legRow('<span class="th-btn md-real" style="pointer-events:none">⏱ REAL</span>', 'REAL', 'every photo, wall-clock 1:1 — the true session as it happened.')
