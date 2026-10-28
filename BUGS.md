@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2777 - A DEFECT PHRASED AFTER "I NEED THE" OR "READING THE" WAS DROPPED AS A PLAN TO READ (the v3827 second eye)
+REG-2770 made a line that only announces what the eye means to read not a finding, and the opener alone decided: "Reading
+the lock-heart shows the span is never closed, so the session stays pinned." matched "reading the " and was dropped, so a
+row of such lines would not count as a look and its finding was never triaged. Measured: not_a_finding returned True for
+both of the eye's examples. A line is a plan now only when every sentence opens with an intent opener and none says what
+goes wrong (", so" / ", or" / never / keeps / stays / fails / breaks / leaks / stale / wrong / drops / loses / raises /
+crashes). Against the real ledger: 0 of 770 schema finding lines change verdict, and v3825's row is still not a look. Law:
+test_a_filled_template_is_not_a_look (3 lines as a case, 2 new red-proofs, 1 re-aimed).
+
 ### REG-2776 - THE HOME CHIP PRINTED THE AGENT'S FREE GB WHILE THE DRAWER SAID "NOT REPORTED" (the v3826 second eye)
 The v3826 full look found one console saying two things about one figure: when the capture agent's reading is the only
 one, the home chip prints its GB (REG-2741/2742) and the space drawer's free row fell through to "the retention pass has

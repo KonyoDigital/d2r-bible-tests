@@ -104,6 +104,14 @@ class AFilledTemplateIsNotALook(unittest.TestCase):
         self.assertEqual(self._read(_row("v9207", findings=rows)), (1, False, 1),
                          "a real finding was read as filler - the rule is too wide")
 
+    def test_an_intent_opener_followed_by_what_goes_wrong_is_a_finding(self):
+        """REG-2777 (the v3827 second eye) - the opener alone decided, so a defect phrased after it was dropped."""
+        for i, line in enumerate(("I need the lock released before the next read, or the shelf card keeps the stale count.",
+                                  "Reading the lock-heart shows the span is never closed, so the session stays pinned.",
+                                  "I need the callers. x() returns None on a miss and the ledger writes it as 0.")):
+            self.assertEqual(self._read(_row("v92%02d" % (10 + i), findings=[line, NOTE])), (1, False, 1),
+                             "a finding phrased after an intent opener was dropped as a plan: %r" % line)
+
     def test_the_runner_files_the_note_under_the_ledgers_one_prefix(self):
         src = open(os.path.join(HERE, "second_eye_run.py"), encoding="utf-8").read()
         self.assertEqual(src.count("findings = findings + [SEL.NOT_SHOWN_PREFIX + _unseen]"), 1,
@@ -118,8 +126,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2770 - an announcement of what the eye means to read is a finding again",
      "file": "second_eye_ledger.py",
-     "find": "    return bool(_FILLER.match(t) or _INTENT.match(t))\n",
+     "find": "    return bool(_FILLER.match(t) or _only_intent(t))\n",
      "replace": "    return bool(_FILLER.match(t))\n",
+     "matches": 1},
+    {"why": "REG-2777 - an intent opener decides alone again, so a defect phrased after it is dropped",
+     "file": "second_eye_ledger.py",
+     "find": "    return bool(ss) and all(_INTENT.match(x) and not _CONSEQUENCE.search(x) for x in ss)\n",
+     "replace": "    return bool(ss) and all(_INTENT.match(x) for x in ss)\n",
+     "matches": 1},
+    {"why": "REG-2777 - only the line's first sentence is read, so a finding after a plan is dropped",
+     "file": "second_eye_ledger.py",
+     "find": "    return bool(ss) and all(_INTENT.match(x) and not _CONSEQUENCE.search(x) for x in ss)\n",
+     "replace": "    return bool(ss) and all(_INTENT.match(x) and not _CONSEQUENCE.search(x) for x in ss[:1])\n",
      "matches": 1},
     {"why": "REG-2740 - a filled-in template counts as a look again",
      "file": "second_eye_ledger.py",

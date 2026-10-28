@@ -659,6 +659,17 @@ _FILLER = re.compile(r"^(placeholder|pending|tbd|todo|n/?a|none|nothing|\.\.\.|-
 #: REG-2770 - an announcement of what the eye meant to read next, not a finding about what it read
 _INTENT = re.compile(r"^(i need (the|to read|to see|more)|i will (read|look|open|check)|i'll (read|look|open|check)|"
                      r"let me (read|look|open|check)|reading the |i am going to (read|look|open))", re.I)
+#: REG-2777 (the v3827 second eye) - a clause that says what goes WRONG. After an intent opener it makes the sentence a
+#: finding ("Reading the lock-heart shows the span is never closed, so the session stays pinned."), not a plan to read
+_CONSEQUENCE = re.compile(r"(,\s*(so|or|which|otherwise)\b|\b(never|keeps?|stays?|fails?|breaks?|leaks?|stale|wrong|drops?|"
+                          r"loses?|raises?|crash(es)?)\b)", re.I)
+
+
+def _only_intent(t):
+    """REG-2777 - every sentence of the line announces what the eye means to read, and none says what goes wrong. The
+    opener alone used to decide, so a defect phrased after "I need the" or "Reading the" was dropped as a plan. -> bool"""
+    ss = [x for x in re.split(r"(?<=[.!?])\s+", t) if x.strip()]
+    return bool(ss) and all(_INTENT.match(x) and not _CONSEQUENCE.search(x) for x in ss)
 
 
 def not_a_finding(line):
@@ -668,7 +679,7 @@ def not_a_finding(line):
     look with 3 findings while it named no defect. A line that is only a filler word, or only announces what the eye
     means to read, is not a finding. -> bool"""
     t = str(line or "").strip()
-    return bool(_FILLER.match(t) or _INTENT.match(t))
+    return bool(_FILLER.match(t) or _only_intent(t))
 
 
 def row_is_not_a_look(row):
