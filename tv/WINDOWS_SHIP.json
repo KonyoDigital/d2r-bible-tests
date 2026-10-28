@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3828",
+  "ver": "v3829",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3828: live Shelf card counts its own stills (REG-2774), drawer prints agent free GB (REG-2776), scenarios name frames",
+  "note": "v3829: owner sessions summarized for a shadow - digest, signed record, change-only publish, console read (REG-2765 2771-2773)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
