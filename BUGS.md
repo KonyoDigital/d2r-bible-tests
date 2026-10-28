@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2913 - IN A FRAMED WINDOWS BOARD THE WORLD BAND PAINTED OVER THE SEARCH (#220, GrokBot #230 6462161184)
+GrokBot on the Mac's shadow of the ALT: #cousin-ribbon ("WINDOWS - its own world", position fixed, top 0, ~22 px, z 2000,
+pointer-events none) painted over the top ~10 px of #gsearch-input. Inside the console frame (body.engine-driven) the tab
+row is hidden, so the search is the board's first row, and none of the reserved-room clamps (badge, ladder ribbon,
+console return) covered it. Clicks passed (elementFromPoint at the search centre was the input itself); the overlap was
+visual. Fix: body.engine-driven.cousin-shell .gsearch-wrap reserves the band (26 px) and, on a ladder profile, the band
+plus the ladder ribbon stacked 24 px under it (49 px) - both !important, because v640's
+`.gsearch-wrap{margin:5px auto 0 0!important}` beats any plain margin. Law: test_the_world_band_leaves_room_for_the_ladder_
+ribbon gains TheWorldBandLeavesRoomForTheFramedSearch (the reserve read from the file on both sides, never the number 22;
+3 red-proofs, each RED: too small, not !important, ladder stack). Real-pixel check of the framed Windows board owed before
+this ships.
+
+### REG-2936 - THE SPINNER LAW FLAKED ONCE: ITS BASELINE WAS READ BEFORE THE PLANNER STOPPED MOVING (CI on ci/claude-v3835)
+test_the_planner_spinner_stays_under_the_cursor's arrow-key case failed once on CI ("step 1: the Sockets field moved
+sideways", 22 px) and passed on a re-run of the same commit, with nothing in v3835 touching the planner. Same bytes,
+opposite verdicts: the law is flaky, and a flaky guard trains everyone to re-run it. Its baseline was one reading taken
+straight after the planner opened; now it is read once two readings 150 ms apart agree (up to 3 s), and the time it took
+rides in the reading, so a future failure says whether the baseline was still moving. The steps are deliberately NOT
+settled: a jump on repaint that later returns is the defect he reported (REG-2833), so each step is still read 250 ms
+after its key. If the 22 px recurs with a settled baseline, it is a real transient and REG-2833 reopens. Chrome law: CI
+proves it.
+
+### REG-2934 - THE SHADOW LAW'S OVERSIZE CASE STILL EXPECTED THE WORDS REG-2794 MOVED (CI on ci/claude-v3835)
+test_shadow_mode_reads_their_console's test_every_refusal_stores_nothing went red on CI: the oversize profile case expected
+"too large" and got "roster would not take this profile: the body is larger than 200000 bytes". REG-2794 sent a body past
+200 KB to its own 900 KB door, so a 210 KB profile now meets the profile door's byte cap, which answers in those words.
+The refusal itself is unchanged (nothing is stored); only the expected sentence moved. Re-aimed to "larger than 200000
+bytes" (the same re-aim agent-86 carried inside REG-2866). 66 of 66 pass.
+
 ### REG-2879 - REG-2803'S CHROME LAW DROVE A GUEST WORLD, WHERE THE BOARD RIGHTLY MAKES NO MULE (ci/claude-v3834, 4 cases)
 CI (agent-suite, ci/claude-v3834) failed four cases of tv/test_vault_l1_war_stash_overflow.py, which REG-2803 re-aimed without
 a local run. They were the board making WAR1 (501 rings, nine belts, the big-gear keeper) and the took-back line. The errors
