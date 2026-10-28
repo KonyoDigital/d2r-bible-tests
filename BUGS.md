@@ -7,6 +7,12 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2734 - A VAULT MOVE ROW COULD NOT BE OPENED FROM THE KEYBOARD (#148.5, GrokBot's vault sweep)
+li.vtk-line opened its move on a click only - no tabindex, no role - so only its tick box took the keyboard focus. The row
+is now focusable (tabindex 0, role button, an aria-label that says the move), and Enter or Space on the ROW opens it. A key
+that lands on a control inside the row (the tick, the witness or Keep/Junk buttons) is left to that control, and Tab is
+not taken. Law: test_v3769_vault_move_list (1 new case that runs the row's own keydown in node, 3 red-proofs).
+
 ### REG-2733 - THE ROUTES AUDIT CHILD NEVER ONCE CACHED, SO THE COLD PARSE STAYED IN THE CONSOLE'S HEAP (#172)
 REG-2701 (v3817) sends the console's cold route census to a short-lived child (tv/audit_child.py) so ~600 MB of parse
 memory leaves with it. Read from both consoles' /api/status on 2026-10-28: the routes child had FAILED on every run - 3 of

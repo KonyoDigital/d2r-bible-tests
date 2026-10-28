@@ -53059,6 +53059,10 @@ window.vaultAutoAssign = function(){
       return '<li class="vmv-row vtk-line' + (fin ? ' vtk-done' : '') + (thr ? ' vmv-throw-row' : '') + (uns ? ' vmv-unseen' : '') + '"' + (uns ? ' data-unseen="1"' : '') + ' data-name="' + esc(row.name) + '" data-copy="' + ci + '"'
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
         + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"'
+        /* #148.5 (REG-2734, GrokBot's vault sweep) - the row opened on a click only: no tabindex, no role, so only its tick
+           box took the keyboard. Enter or Space on the ROW itself opens it; inside it, the tick and the buttons keep their own keys. */
+        + ' tabindex="0" role="button" aria-label="' + esc(say) + '"'
+        + ' onkeydown="if((event.key===\'Enter\'||event.key===\' \')&&event.target===this){event.preventDefault();window._vaultTaskExpand(\'' + nm + '\',' + ci + ',this);}"'
         + ' onclick="window._vaultTaskExpand(\'' + nm + '\',' + ci + ',this)">'
         + (canUndo
             ? '<input type="checkbox" class="vtk-tick vmv-mark" aria-label="untick: not moved yet" checked'

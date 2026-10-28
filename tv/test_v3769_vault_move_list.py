@@ -482,6 +482,40 @@ console.log(JSON.stringify({
         self.assertGreaterEqual(o["grid"], 1)
         self.assertTrue(o["door"], o)
 
+    def test_a_move_row_opens_from_the_keyboard(self):
+        """#148.5 (REG-2734, GrokBot's vault sweep) - a move row opened on a click only: no tabindex, no role, so only its
+        tick box took the keyboard. The row's OWN keydown is run here: Enter and Space on the row open it, a key that
+        lands on a control inside it (the tick, a button) is left to that control, and Tab is not taken."""
+        o = self._run(r"""
+reset();
+ROUTES["Griffon's Eye"] = { id: 'uni-armor', why: 'helm' };
+see("Griffon's Eye", [L('MAIN','stash','stash:c1r1','s1','a'), L('MAIN','stash','stash:c1r1','s2','b')], 1);
+var html = _vaultMoveHtml(_vaultMoveCollect());
+var m = /<li class="[^"]*vtk-line[^"]*"([^>]*)>/.exec(html);
+var attrs = m ? m[1] : '';
+function attr(n){
+  var r = new RegExp(' ' + n + '="([^"]*)"').exec(attrs);
+  return r ? r[1].replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&') : null;
+}
+var ROW = { id: 'row' }, calls = [];
+window._vaultTaskExpand = function(name, ci, el){ calls.push([name, ci, el === ROW]); };
+var kd = attr('onkeydown');
+function fire(key, target){
+  var prevented = false;
+  if (kd) new Function('event', kd).call(ROW, { key: key, target: target, preventDefault: function(){ prevented = true; } });
+  return prevented;
+}
+var enterRow = fire('Enter', ROW), spaceRow = fire(' ', ROW), enterChild = fire('Enter', { id: 'tick' }), tabRow = fire('Tab', ROW);
+console.log(JSON.stringify({ found: !!m, tabindex: attr('tabindex'), role: attr('role'), label: attr('aria-label'),
+  calls: calls, enterRow: enterRow, spaceRow: spaceRow, enterChild: enterChild, tabRow: tabRow }));
+""")
+        self.assertTrue(o["found"], "PREMISE: no move row was drawn: %r" % o)
+        self.assertEqual((o["tabindex"], o["role"]), ("0", "button"), "a move row cannot take the keyboard focus: %r" % o)
+        self.assertIn("Griffon's Eye", o["label"] or "", "the row is focusable but says nothing: %r" % o)
+        self.assertEqual(o["calls"], [["Griffon's Eye", 0, True], ["Griffon's Eye", 0, True]],
+                         "Enter/Space on the row did not open it, or a key inside it did: %r" % o)
+        self.assertEqual((o["enterRow"], o["spaceRow"], o["enterChild"], o["tabRow"]), (True, True, False, False), o)
+
     def test_a_verified_row_stays_visible_and_an_unknown_cell_is_not_marked(self):
         o = self._run(r"""
 var same = _vaultMoveTask({
@@ -700,6 +734,21 @@ console.log(JSON.stringify({
 
 
 RED_PROOF = [
+    {"why": "#148.5 (REG-2734) - a move row takes no keyboard focus again (only its tick box)",
+     "file": "bible.html",
+     "find": "        + ' tabindex=\"0\" role=\"button\" aria-label=\"' + esc(say) + '\"'\n",
+     "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "#148.5 (REG-2734) - Enter/Space on a focused move row does nothing",
+     "file": "bible.html",
+     "find": "if((event.key===\\'Enter\\'||event.key===\\' \\')&&event.target===this){",
+     "replace": "if(false){",
+     "matches": 1, "needs": "node"},
+    {"why": "#148.5 (REG-2734) - a key on the tick or a button inside the row also opens the row",
+     "file": "bible.html",
+     "find": "if((event.key===\\'Enter\\'||event.key===\\' \\')&&event.target===this){",
+     "replace": "if((event.key===\\'Enter\\'||event.key===\\' \\')){",
+     "matches": 1, "needs": "node"},
     {"why": "A saved target is recomputed, so the cell he was sent to moves when a larger item arrives.",
      "file": "bible.html",
      "find": "if (stored && stored.to && stored.to.cell) return { task: stored, copyIx: copyIx, name: name, fresh: false }; /* v3769 saved target */",
