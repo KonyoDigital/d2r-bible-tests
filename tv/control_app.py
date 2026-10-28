@@ -3669,6 +3669,64 @@ def board_picker_load():
 PICKER_CENSUS_SLOT = "tors"
 
 
+#: #144.9 (REG-2760, his pick 2026-10-28) - the last copy readout a board handed this console, banked as handed. The
+#: vault records live in the board's own storage, so nothing here re-derives a count; it only checks the shape and keeps
+#: when it arrived. Memory only: a console restart forgets it until the board's next hand-over (about a minute).
+_COPY_AUDIT = {"audit": None, "receivedAt": None, "who": None}
+COPY_AUDIT_MAX_ROWS = 4000
+
+
+def _ca_count(v):
+    return v if (isinstance(v, int) and not isinstance(v, bool) and v >= 0) else None
+
+
+def accept_handed_copy_audit(body, who=None, now_ms=None):
+    """#144.9 (REG-2760) - shape-check and bank the copy readout a board just handed over.
+    -> (saved: True | False | None, why | None); None when this hand-over carried none (the board sends one at most
+    every 5 min). A board that could not read its copies hands a refusal, and the refusal is banked as one."""
+    a = body.get("copyAudit") if isinstance(body, dict) else None
+    if a is None:
+        return None, None
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    _p = who.get("p") if isinstance(who, dict) and isinstance(who.get("p"), str) else None
+    if not isinstance(a, dict):
+        return False, "the copy readout is not an object"
+    rows = a.get("rows")
+    if a.get("ok") is not True or not isinstance(rows, list):
+        _COPY_AUDIT.update(audit={"ok": False, "why": str(a.get("why") or "the board could not read its copies")[:200]},
+                           receivedAt=now, who=_p)
+        return True, None
+    if len(rows) > COPY_AUDIT_MAX_ROWS:
+        return False, "the copy readout has %d rows, over the %d this console keeps" % (len(rows), COPY_AUDIT_MAX_ROWS)
+    shaped = []
+    for r in rows:
+        if not isinstance(r, dict) or not isinstance(r.get("name"), str) or not isinstance(r.get("mule"), str):
+            return False, "a copy readout row has no name or no locker"
+        k = r.get("findKind")
+        shaped.append({"name": r["name"][:120], "mule": r["mule"][:64], "card": _ca_count(r.get("card")),
+                       "records": _ca_count(r.get("records")), "find": _ca_count(r.get("find")),
+                       "findKind": (k[:16] if isinstance(k, str) else None), "copies": _ca_count(r.get("copies")),
+                       "warCap": _ca_count(r.get("warCap")), "mismatch": r.get("mismatch") is True})
+    _COPY_AUDIT.update(audit={"ok": True, "at": _ca_count(a.get("at")), "recordsRead": a.get("recordsRead") is True,
+                              "dirty": a.get("dirty") if isinstance(a.get("dirty"), bool) else None,
+                              "migrateCount": _ca_count(a.get("migrateCount")), "checked": len(shaped),
+                              "mismatched": sum(1 for r in shaped if r["mismatch"]), "rows": shaped},
+                       receivedAt=now, who=_p)
+    return True, None
+
+
+def copy_audit_payload(now_ms=None):
+    """#144.9 (REG-2760) - GET /api/vault/copy_audit: the last readout with its own age, or why there is none. -> dict"""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    a, at = _COPY_AUDIT.get("audit"), _COPY_AUDIT.get("receivedAt")
+    if a is None or at is None:
+        return {"ok": False, "audit": None, "receivedAt": None, "ageS": None,
+                "why": "no board has handed this console a copy readout since it started - an open board sends one about "
+                       "a minute after it loads, then every 5 min"}
+    return {"ok": bool(a.get("ok")), "audit": a, "receivedAt": at, "ageS": max(0, (now - int(at)) // 1000),
+            "who": _COPY_AUDIT.get("who"), "why": None if a.get("ok") else a.get("why")}
+
+
 def accept_handed_picker(body, who):
     """Validate and bank the picker census a board just handed over. -> (saved: bool, why | None)
 
@@ -47030,6 +47088,10 @@ class Handler(BaseHTTPRequestHandler):
             # nothing is written but this PC's own fetch cache. The same door, not a new one.
             self._json(200, _profile_view((_rq.get("profile") or [""])[0]))
             return
+        if path == "/api/vault/copy_audit":
+            # #144.9 (REG-2760) - read only: the board's last copy readout with its age; a GET can never ask the board
+            self._json(200, copy_audit_payload())
+            return
         if path == "/api/roster-cache":
             data = _roster_cache_payload()
             import roster_publish as _rp
@@ -48555,6 +48617,11 @@ class Handler(BaseHTTPRequestHandler):
                 pass
             # #41 rank 22 (REG-1564) — AND THE PICKER CENSUS, banked before and independently of the counts
             _pk_saved, _pk_why = accept_handed_picker(body, _who)
+            # #144.9 (REG-2760) - and the copy readout, banked before and independently of the counts
+            try:
+                _ca_saved, _ca_why = accept_handed_copy_audit(body, _who)
+            except Exception as _cae:
+                _ca_saved, _ca_why = False, "the copy readout could not be banked (%s)" % type(_cae).__name__
             _t = {"v": 1, "who": _who, "route": _who,
                   "sets": _pair(body.get("sets")), "uniques": _pair(body.get("uniques")),
                   "runewords": _pair(body.get("runewords")),
@@ -48567,7 +48634,8 @@ class Handler(BaseHTTPRequestHandler):
                 # "we got nothing from you" and "we got your list but not your totals".
                 self._json(200, {"ok": False, "why": "no readable counts in that tally",
                                  "storesSaved": _st_saved, "storeWhy": _st_why,
-                                 "pickerSaved": _pk_saved, "pickerWhy": _pk_why})
+                                 "pickerSaved": _pk_saved, "pickerWhy": _pk_why,
+                                 "copyAuditSaved": _ca_saved, "copyAuditWhy": _ca_why})
                 return
             ok = board_tally_merge(_t)
             try:
@@ -48575,7 +48643,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
             self._json(200, {"ok": bool(ok), "storesSaved": _st_saved, "storeWhy": _st_why,
-                             "pickerSaved": _pk_saved, "pickerWhy": _pk_why})
+                             "pickerSaved": _pk_saved, "pickerWhy": _pk_why,
+                             "copyAuditSaved": _ca_saved, "copyAuditWhy": _ca_why})
             return
         if path == "/api/chronicle_apply":
             # v1523 — the write. POST only, and it goes through the BOARD, which owns the ledger.

@@ -29,6 +29,17 @@ card counts the loose f_<ms>.jpg stills at the reel root (v908) and never added 
 beside an hour of loose film could still read "0m00s" until the seal. The live branch now spans its first and last
 loose still, as the sealed path does. Found by the Grok CLI on v3824 (#231), reproduced by reading the branch. Law:
 test_a_session_is_dated_by_what_it_captured (1 new case: no reel folder, two loose stills; 1 red-proof).
+### REG-2760 - NO SEAT COULD MEASURE WHETHER HIS LOCKERS' COPIES AGREE (#144.9, his pick 2026-10-28 12:41 IDT)
+GrokBot proved on a guest that the locker card draws copies from the copies store (copyCount, through _shelfCopyCount)
+while the mule window and FIND pack the vault records (_vaultRecordsForMule): a plate said "2 items in 5 copies" over one
+cell each. His own records live only in his browser, so neither seat could say whether his real vault splits the same
+way (GrokBot 6466846769: BLOCKED). He chose a read-only readout. window._vaultCopyAudit(): per name filed to a locker,
+what the card draws, what the records hold for it, how many cells FIND names, the copies store's count, the war cap where
+one applies, and a mismatch flag, mismatched rows first; it writes and migrates nothing (the dirty marker and the
+migrate stamp are read raw). It rides the board's existing tally hand-over at most every 5 min, the console banks it as
+handed (accept_handed_copy_audit - shape-checked, never re-derived) and serves it with its age on GET
+/api/vault/copy_audit. Which side is right is decided after his numbers are read. Law:
+test_a_copy_readout_says_what_each_side_counts (9 cases; the board's half driven on the whole page in node, 6 red-proofs).
 
 ### REG-2759 - A SHELF ROW COUNTED THE DEEP READER'S COMMITMENT NOTE AS A READ (GrokBot's v3823 question)
 GrokBot asked whether "3 reads in 310 ms" (session 71) and "2 reads in 574 ms" (session 81) could be a read cadence. Read
