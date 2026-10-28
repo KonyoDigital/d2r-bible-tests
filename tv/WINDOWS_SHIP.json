@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3825",
+  "ver": "v3826",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3825: a lock goes stale only through its own guards, the carrier line shows from start, a capture-less reel is UNKNOWN",
+  "note": "v3826: one free figure per console, the live card spans its film, a second Fleet click compares, shadow rows open",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
