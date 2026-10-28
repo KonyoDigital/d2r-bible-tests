@@ -12385,6 +12385,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_gear_ledger_reads_the_one_span_source.py")], 300,
          needs_app=False,
          why="#36 REG-2911: the gear ledger names a session from char_select's one span source (char select, lobby, C panel); a span in doubt files nothing"),
+    Gate("test_a_simulation_leaves_no_worker_behind",
+         [sys.executable, os.path.join(HERE, "test_a_simulation_leaves_no_worker_behind.py")], 300,
+         needs_app=False,
+         why="REG-2912 (#36) - A VAULT SIMULATION STOPS THE OCR WORKER ITS SWEEP WARMED AND LEAVES ONE IT DID NOT START. test_vault_lane's TestVaultDecisions alone reproduced 'A TEST LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker' (6 passed, 1 error): vault_simulate.run's sweep warmed tv_diablo._OCR and nothing stopped it. run() now stops, in a finally, every warm worker exec_hygiene sees that was not warm before the sweep. Two stand-in cases run on every venue; two real-ocr_mac cases need macOS."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
