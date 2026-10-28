@@ -61,6 +61,16 @@ equal figures. The question now names what moved for a store of counts ("runeSta
 four names then "+N more"). Its second finding (a shadow page posting its own copy readout) is refuted: the shadow's
 network veil refuses every non-GET and every /api path. Law: test_a_profile_carries_what_its_vault_reads (the same-total
 case added, 1 red-proof).
+### REG-2772 - NOTHING POSTED THE OWNER'S SESSION DIGEST (#218 phase 2b, his ruling 2026-10-28)
+REG-2765 built the digest and REG-2771 gave it a signed record; this joins them. The roster publish lane (rows, then the
+profile, every 60 s) posts the digest to the frames door after the profile: on the console's start, then only when it
+changed, at most every 3 h, never rebuilding thumbnails every minute (it looks again after 30 min), never while the
+beacon is suppressed; a refusal waits 3 h; the reply lands in its own per-machine state (gitignored). Its law caught my
+own first cut: the digest carried its build time, so its hash moved on every build and change-only could never hold -
+the build time is out of the digest now (the site record keeps its own time). Law:
+test_the_owner_publishes_its_session_digest (7 cases, the console's real publisher on a fixture journal with the post
+captured, 6 red-proofs).
+
 ### REG-2771 - THE OWNER'S SESSION DIGEST HAD NO DOOR TO THE SITE (#218 phase 2, his ruling 2026-10-28)
 REG-2765 builds the digest a shadow can carry; nothing could store it. The roster route's profile door refuses every
 picture (his 10-07 ruling: pictures stay on that PC), so the digest gets its OWN signed record, roster:<owner>:frames -

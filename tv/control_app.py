@@ -4978,6 +4978,7 @@ def _roster_publish_loop():
     _profile_boot = True
     if _roster_profile_tick(_profile_boot) and os.path.isfile(_profile_book_path()):
         _profile_boot = False
+    _frames_boot = not _roster_frames_tick(True)          # #218 phase 2b - a console start may publish its digest
     while True:
         time.sleep(60)
         _lane_tick("_roster_publish_loop", 60)
@@ -4987,6 +4988,49 @@ def _roster_publish_loop():
             _roster_remember(type(e).__name__)
         if _roster_profile_tick(_profile_boot) and os.path.isfile(_profile_book_path()):
             _profile_boot = False
+        if _roster_frames_tick(_frames_boot):
+            _frames_boot = False
+
+
+def _frames_state_path():
+    return os.path.join(_log_root(), ".roster_frames_state.json")
+
+
+def _frames_publish_once(boot):
+    """#218 phase 2b (REG-2772) - this PC's sessions, summarized (shadow_sessions.digest), posted to roster.js's frames
+    door after the rows and the profile. Nothing is built unless an upload could go (may_build): a boot, or 3 h past the
+    last post, or 30 min past the last look. The same beacon suppression as the profile holds it."""
+    import shadow_sessions as _ss
+    import replay as _rpj
+    state = _profile_json_load(_frames_state_path()) or {}
+    held = _beacon_suppressed_by()
+    if held:
+        state["why"] = "suppressed: " + str(held)[:160]
+        _profile_json_save(_frames_state_path(), state)
+        return
+    now_ms = int(time.time() * 1000)
+    if not _ss.may_build(state, now_ms, bool(boot)):
+        return
+    d = _ss.digest(_rpj.load_journal(), HIST_DIR, _is_a_live_read, now_ms)
+    body, reason = _ss.due(state, _profile_owner(), d, now_ms, bool(boot))
+    if body is None:
+        state["why"], state["checkedAt"] = str(reason)[:200], now_ms
+        _profile_json_save(_frames_state_path(), state)
+        return
+    reply = _roster_post(_ROSTER_URL, body, os.path.join(_log_root(), ".roster_key.json"))
+    _profile_json_save(_frames_state_path(), _ss.apply_reply(state, body["hash"], reply, now_ms))
+
+
+def _roster_frames_tick(boot):
+    """-> True when the frames step ran without raising (the boot flag clears only then, as the profile's does)."""
+    try:
+        _frames_publish_once(boot)
+        return True
+    except Exception as e:
+        _st = _profile_json_load(_frames_state_path()) or {}
+        _st["why"] = type(e).__name__
+        _profile_json_save(_frames_state_path(), _st)
+        return False
 
 
 def _roster_cache_dir():

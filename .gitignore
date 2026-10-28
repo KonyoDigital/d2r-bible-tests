@@ -478,6 +478,9 @@ tv/.roster_profile_state.json
 tv/roster_profile_book.json
 tv/roster_profile_book.json.tmp
 tv/.roster_profile_state.json.tmp
+# #218 phase 2b (REG-2772): this PC's frames-digest publish state (per machine, rewritten by the console)
+tv/.roster_frames_state.json
+tv/.roster_frames_state.json.tmp
 # #203 (v3814): the last good console answers the shadow upload falls back to (private, per PC)
 tv/.roster_profile_api.json
 tv/.roster_profile_api.json.tmp

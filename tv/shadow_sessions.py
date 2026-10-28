@@ -87,9 +87,13 @@ def _key_frames(reads):
 
 
 def digest(rows, hist_dir, is_read, now_ms, make=_sips_thumb):
-    """rows: the journal's rows. is_read: the Shelf's read rule. -> {v, at, sessions: [...], bytes, dropped, left}"""
+    """rows: the journal's rows. is_read: the Shelf's read rule. -> {v, sessions: [...], bytes, dropped, left}
+
+    ⚠ REG-2772 - NO BUILD TIME IN IT. The first cut carried `at`, so its hash moved on every build and the publish lane's
+    change-only rule could never hold (its law caught a second post of an unchanged digest). The site record keeps its
+    own time; `now_ms` stays in the signature for the callers that date their checks."""
     import replay as _rp
-    out = {"v": 1, "at": int(now_ms), "sessions": [], "bytes": 0, "dropped": 0, "left": []}
+    out = {"v": 1, "sessions": [], "bytes": 0, "dropped": 0, "left": []}
     try:
         groups = _rp.split_sessions(list(rows or []))
     except Exception as e:
@@ -133,3 +137,64 @@ def digest(rows, hist_dir, is_read, now_ms, make=_sips_thumb):
             s["why"] = "its pictures were left out to keep the record under %d KB (newer sessions keep theirs)" % (MAX_TOTAL // 1024)
     out["bytes"] = total
     return out
+
+
+# ── #218 phase 2b (REG-2772): publishing the digest beside the roster row and the profile ──────────────────────
+#: change-only and at most every 3 h unless the console just started - the worker's own floor (roster.js frames door)
+MIN_GAP_MS = 3 * 60 * 60 * 1000
+#: an unchanged digest is not rebuilt every minute: the lane looks again after this long
+LOOK_AGAIN_MS = 30 * 60 * 1000
+
+
+def digest_hash(d):
+    """The hash the owner signs: console_snapshot.digest, the Python twin of roster.js hashOf(stable(..))."""
+    import console_snapshot as _cs
+    return _cs.digest(d)
+
+
+def _int(v):
+    return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+
+def may_build(state, now_ms, boot):
+    """Before a single thumbnail is made: could an upload go now? A boot always may. -> bool"""
+    state = state if isinstance(state, dict) else {}
+    if boot:
+        return True
+    for k, gap in (("refuseAt", MIN_GAP_MS), ("postedAt", MIN_GAP_MS), ("checkedAt", LOOK_AGAIN_MS)):
+        t = _int(state.get(k))
+        if t is not None and now_ms - t < gap:
+            return False
+    return True
+
+
+def due(state, owner, d, now_ms, boot):
+    """-> (body | None, why). The body is what roster.js's frames door checks; signedAt is now."""
+    import console_snapshot as _cs
+    state = state if isinstance(state, dict) else {}
+    if not _cs.profile_key(owner):
+        return None, "the owner is not one of the five labels"
+    if not isinstance(d, dict) or not d.get("sessions"):
+        return None, (d or {}).get("why") if isinstance(d, dict) and d.get("why") else "no session to summarize"
+    h = digest_hash(d)
+    if state.get("hash") == h:
+        return None, "unchanged"
+    return {"kind": "frames", "owner": owner, "boot": bool(boot), "signedAt": int(now_ms), "hash": h, "digest": d}, "post"
+
+
+def apply_reply(state, h, reply, now_ms):
+    """What the worker's answer teaches the lane. -> the new state (never raises)"""
+    s = dict(state) if isinstance(state, dict) else {}
+    if isinstance(reply, dict) and reply.get("ok"):
+        stored = "frames" in (reply.get("stored") or [])
+        skipped = reply.get("skipped") or []
+        if stored or "unchanged" in skipped:
+            s["hash"] = h                                   # the site holds these bytes
+        s["postedAt"] = int(now_ms)
+        s.pop("refuseAt", None)
+        s["why"] = "stored" if stored else ("skipped: " + ", ".join(str(x) for x in skipped))[:200]
+    else:
+        s["refuseAt"] = int(now_ms)
+        s["why"] = ("refused: " + str((reply or {}).get("why") or "no answer"))[:200] if isinstance(reply, dict) \
+            else "refused: no answer"
+    return s
