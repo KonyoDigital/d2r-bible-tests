@@ -37,6 +37,13 @@ guest never makes a mule, so the board was right and the law's world was not his
 set for that install, the same four worlds give WAR1 made by the board, with the extras on it, the make task, an empty line,
 and "you took back the WAR1 the board made" when declined. The law now claims the world in roster_with before the seed and
 asserts _D2R_OWNER as a premise. No code changed.
+### REG-2793 - THE PROFILE LOAD QUESTION SUMMED TIMESTAMPS AS COUNTS AND LISTED EMPTY-VS-NULL AS A CHANGE (GrokBot's ALT round trip, v3828)
+GrokBot loaded the ALT's profile into a throwaway browser (#230 6475742100): 19 stores, 0 differing - and the question
+read "stashMeta: 0 -> 7172604061655 (gems 0 -> 1793153131887, ...)" and "muleAssign: 0 -> 0", "copies: 0 -> 0". REG-2769
+decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta is epoch-ms per stash; and a store null
+here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
+every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
+change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
 
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to
