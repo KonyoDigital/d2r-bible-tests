@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2766 - THE LIVE SHELF CARD COUNTED ITS LOOSE FILM AND NEVER DATED IT (the v3824 second eye, REG-2748's sweep)
+REG-2748 made a sealed reel's card span its footage stills. Before a reel seals there is no reel_<sid> folder: the LIVE
+card counts the loose f_<ms>.jpg stills at the reel root (v908) and never added their capture times, so one short read
+beside an hour of loose film could still read "0m00s" until the seal. The live branch now spans its first and last
+loose still, as the sealed path does. Found by the Grok CLI on v3824 (#231), reproduced by reading the branch. Law:
+test_a_session_is_dated_by_what_it_captured (1 new case: no reel folder, two loose stills; 1 red-proof).
+
 ### REG-2759 - A SHELF ROW COUNTED THE DEEP READER'S COMMITMENT NOTE AS A READ (GrokBot's v3823 question)
 GrokBot asked whether "3 reads in 310 ms" (session 71) and "2 reads in 574 ms" (session 81) could be a read cadence. Read
 from his journal: session 71 holds an ocr row and a deep row on frame 1, and a deep-owed row - the console's note that the

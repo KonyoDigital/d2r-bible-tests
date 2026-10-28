@@ -167,6 +167,35 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
                          "the run is dated by its reads alone, not its film: %r" % ({k: by[NEW].get(k) for k in ("t0", "t1")},))
         self.assertEqual((by[OLD].get("t0"), by[OLD].get("t1")), (T_OLD, T_OLD + 60000), "a reel with no film moved")
 
+    def test_the_live_card_spans_its_loose_film_too(self):
+        """REG-2766 (the v3824 second eye) - before the reel seals there is no reel_<sid> folder: the LIVE card counts the
+        loose f_<ms>.jpg stills at the reel root, and its span must cover them as the sealed path does (REG-2748)."""
+        d = tempfile.mkdtemp(prefix="session-live-film-")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        os.makedirs(os.path.join(hist, "reel_" + OLD))          # the OLD reel sealed; NEW is still recording
+        for ts in (T_NEW - 30000, T_NEW + 900000):
+            open(os.path.join(hist, "f_%d.jpg" % ts), "wb").close()
+        journal = os.path.join(d, "sessions.jsonl")
+        with open(journal, "w", encoding="utf-8") as fh:
+            for r in _rows():
+                fh.write(json.dumps(r) + "\n")
+        import control_app as ca
+        keep = (ca.HIST_DIR, RP.JOURNAL)
+        ca.HIST_DIR, RP.JOURNAL = hist, journal
+        cached = ca.__dict__.pop("_JRNL_CACHE", None)
+        try:
+            out = ca.Handler._theatre_sessions(ca.Handler.__new__(ca.Handler))
+        finally:
+            ca.HIST_DIR, RP.JOURNAL = keep
+            ca.__dict__.pop("_JRNL_CACHE", None)
+            if cached is not None:
+                ca._JRNL_CACHE = cached
+        new = next(r for r in out if r.get("sessionId") == NEW)
+        self.assertEqual(new.get("footageN"), 2, "PREMISE: the live card did not count its loose stills: %r" % new.get("footageN"))
+        self.assertEqual((new.get("t0"), new.get("t1")), (T_NEW - 30000, T_NEW + 900000),
+                         "the live card counts loose film it does not span: %r" % ({k: new.get(k) for k in ("t0", "t1")},))
+
     def test_a_reel_of_capture_less_re_reads_is_UNKNOWN_not_today(self):
         """REG-2752 (the v3823 second eye) - the Shelf row's own fallback (the first and last row's ts) let the write time
         back in after the moments had kept it out."""
@@ -219,6 +248,11 @@ class ACommitmentIsNotARead(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2766 - the live card counts its loose film and never dates it",
+     "file": "control_app.py",
+     "find": "                                for _lx in (_lf[0], _lf[-1]):\n",
+     "replace": "                                for _lx in ():\n",
+     "matches": 1},
     {"why": "REG-2759 - the deep reader's commitment note counts as a read again",
      "file": "control_app.py",
      "find": "            and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\", \"deep-owed\", \"chronicle\"))\n",

@@ -46133,6 +46133,16 @@ class Handler(BaseHTTPRequestHandler):
                             if _lf:
                                 _reeln = len(_lf)
                                 _thumb = _lf[0]
+                                # REG-2766 (the v3824 second eye) - the LIVE card counts these stills, so it spans them
+                                # too, as the sealed reel's path does (REG-2748); counted and never dated, one short
+                                # read beside an hour of loose film still read "0m00s"
+                                for _lx in (_lf[0], _lf[-1]):
+                                    try:
+                                        _lts = int(_lx[2:-4])
+                                        if _lts > 0:
+                                            _foot_span.append(_lts)
+                                    except ValueError:
+                                        pass
                         except Exception:
                             pass
                 except Exception:
