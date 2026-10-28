@@ -244,9 +244,13 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
                 # is still byte for byte; that line is pinned to its new words on its own.
                 cut = re.compile(r'<div class="ftt-click">[^<]*</div>')
                 self.assertEqual(cut.sub("", s[m]["ftt"]), cut.sub("", b[m]["ftt"]), "%s %s: the hover card changed" % (k, m))
-                self.assertIn('<div class="ftt-click">click: open the row \u00b7 click it again:', s[m]["ftt"],
+                self.assertIn('<div class="ftt-click">click: open the row \u00b7 click it again: how this PC films and drains, '
+                              'and their set pieces against yours</div>', s[m]["ftt"],
                               "%s %s: the card does not say what each click opens" % (k, m))
-                self.assertEqual(s[m]["row"], b[m]["row"], "%s %s: the row changed beyond its eyes" % (k, m))
+                # the row carries the card, so its #225 click line is cut from both (SNAP already strips the row's own
+                # click and key handlers; the two clicks are proven by test_the_first_click_opens_the_row_and_a_second_opens_the_compare)
+                self.assertEqual(cut.sub("", s[m]["row"]), cut.sub("", b[m]["row"]),
+                                 "%s %s: the row changed beyond its eyes" % (k, m))
 
     def test_the_cross_reference_is_unchanged_but_for_the_folded_diagnostics(self):
         r = _render()
