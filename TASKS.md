@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3822** | `(this commit)` | v3822 — proofs carry from the ALT to Dean, lockers say their copies, FIND names every copy, a filled template is not a look |
+| **v3823** | `(this commit)` | v3823 — purgeable space counts on every disk floor, his old Grok chats prune when needed, a watchdog verdict is not a read |
+| **v3822** | `f24e5bf2` | v3822 — proofs carry from the ALT to Dean, lockers say their copies, FIND names every copy, a filled template is not a look |
 | **v3821** | `66e152c1` | v3821 — move rows and lockers take the keyboard, shared stash tabs are tab buttons, a session is dated by what it captured |
 | **v3820** | `ae883db8` | v3820 — spellings merge into one character, evidence reels are not re-read, the audit child caches, Grok sessions are swept |
 | **v3819** | `5ade9bc9` | v3819 — the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept |
