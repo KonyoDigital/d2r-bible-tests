@@ -457,7 +457,7 @@ class TheWorker(unittest.TestCase):
             ("another key", self._post(self._body(), self.key_b, seed=self.seed, now=T0), "different key"),
             ("hash mismatch", self._post(self._body(hash="0" * 8), self.key_a, seed=self.seed, now=T0), "hash"),
             ("a picture", self._post(self._body(stores=pic), self.key_a, seed=self.seed, now=T0), "pictures"),
-            ("oversize", self._post(self._body(stores=big), self.key_a, seed=self.seed, now=T0), "too large"),
+            ("oversize", self._post(self._body(stores=big), self.key_a, seed=self.seed, now=T0), "larger than 200000 bytes"),
             ("not an owner", self._post(self._body(owner="Somebody"), self.key_a, seed=self.seed, now=T0), "owner"),
             ("a bad store name", self._post(self._body(stores={"x": "1"}), self.key_a, seed=self.seed, now=T0), "d2r_"),
         ]
