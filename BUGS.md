@@ -106,6 +106,21 @@ test_shadow_mode_reads_their_console's test_every_refusal_stores_nothing went re
 200 KB to its own 900 KB door, so a 210 KB profile now meets the profile door's byte cap, which answers in those words.
 The refusal itself is unchanged (nothing is stored); only the expected sentence moved. Re-aimed to "larger than 200000
 bytes" (the same re-aim agent-86 carried inside REG-2866). 66 of 66 pass.
+### REG-2915 - THE TOOLTIP CROP COULD NEVER BE CUT ON HIS REELS: DIFFERENCING FINDS THE WHOLE SCREEN (#158.7)
+The crop that NAMED an item (#45, v2239) was found by differencing a hover frame against the one before it. On his reels the
+D2R world animates behind the panel, so the change box covers 53-91% of the frame and the 60 KB cap rightly refuses it - the
+lane cut nothing. The vision read that names the item already saw the tooltip: VAULT_READ_PROMPT now asks for its box ("tip":
+[left, top, right, bottom] in the picture the reader saw), normalize_item keeps a valid one, and the sweep cuts the crop from
+it (vault_retro._crop_from_box): the box is placed on the frame through the read's own picture map (the one its item points
+use), padded 2% of the frame each side, kept inside the frame, and scaled to a 512 px longest side - MEASURED on the 31 crops
+his Mac kept: at their own size they run to 61 KB, against the 60 KB cap; at 512 px, at most 45 KB. The byte cap stays the
+backstop. A read with no box behaves as before (the frame-difference crop, or why there is none) and says "the read gave no
+tooltip box (UNKNOWN)"; a box with no picture map is UNKNOWN, and one covering more of the frame than a tooltip can is
+refused - never a full-frame crop. Each look says how its crop was cut (cropFrom). The crop stays evidence to look at, never a
+witness. VAULT_PROMPT_VER is vp-reg2915 and lists vp3554 as asking the same question, so no sealed reel reopens: crops come
+from reads made from now on. Law: test_the_tooltip_crop_comes_from_the_read_that_named_it (8 cases on a fixture reel whose
+frames all differ, through vault_retro.sweep with a stubbed reader; 7 red-proofs, each RED).
+
 ### REG-2914 - "1 IMAGE ERROR" STILL NEVER SAID WHICH: THE AGENT'S ROUTE DROPPED THE CAUSE (#158)
 REG-2730 named a failed tally pass's cause (errWhy) and the board posts it with every read - to the AGENT's /intake_result
 first (the bridge port) and to the console's own route only when the agent is not listening. The console's copy keeps the
