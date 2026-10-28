@@ -12149,6 +12149,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_filled_template_is_not_a_look.py")], 300,
          needs_app=False,
          why='REG-2740 - a schema answer of findings that lists none is not a second-eye look, on the gate and the audit alike'),
+    Gate("test_find_names_every_copys_cell",
+         [sys.executable, os.path.join(HERE, "test_find_names_every_copys_cell.py")], 300,
+         needs_app=False,
+         why="#144.9 - FIND names the cell of every copy of an item, not the first one's"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

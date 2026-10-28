@@ -857,6 +857,28 @@ TARGETS = {
                             "its art and its tooltip, and the full name is in the title attribute (as the vault target)",
         },
     },
+    # #144.9 (REG-2741) - FIND names every copy's cell; a row for an item held x3 is the longest FIND draws.
+    "vault-find-copies": {
+        "why": "the vault FIND row for an item held three times - every copy's cell, wrapped inside the row",
+        "seed": """(function(){
+            localStorage.setItem('d2r_ownerClaim','*');
+            ['Lacerator','Windforce'].forEach(function(n){
+                try{ var h = window.vaultHandAdd(n, undefined, { by: 'the render seed' }); window.vaultAssign((h && h.name) || n,'uni-weap'); }catch(e){} });
+            try{ copies['Lacerator'] = 3; }catch(e){}
+            return 1; })()""",
+        "activate": """(function(){
+            var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
+              return /vault/i.test((x.getAttribute&&x.getAttribute('data-tab'))||x.textContent||'');})[0];
+            if(el) el.click();
+            try{ window.renderVault && window.renderVault(); }catch(e){}
+            try{ window.vaultFind && window.vaultFind('lacerator'); }catch(e){}
+            /* proved from the rect of the copies line itself */
+            var s=document.querySelector('#vault-find-results .vfr-cells');
+            if(!s) return false;
+            var r=s.getBoundingClientRect();
+            return !!(r.width>0 && r.height>0 && getComputedStyle(s).display!=='none'); })()""",
+        "sel": "#vault-find-results",
+    },
     # #264 (v3620, REG-2030) - the "vault" target above files every seeded item, so the dock's organizer (the rows
     # that say the mule, the stash cell and the picture for each unsorted item) never painted in any render: the
     # surface v3620 changed was UNMEASURED. These items are registered and left unsorted, so the organizer must paint.

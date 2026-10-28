@@ -40976,6 +40976,7 @@ body{
 /* #264 — the finder names the cell, or where an item would go, or why it stays; the long ones wrap rather than push the row past a phone's edge */
 .vfr-loc .vfr-cell{color:var(--text-dim)}
 .vfr-loc .vfr-would,.vfr-loc .vfr-main{white-space:normal}
+.vfr-loc .vfr-cells{white-space:normal}   /* #144.9 REG-2741 - every copy's cell wraps rather than running off the row */
 .vfr-loc .vfr-main{color:var(--gold-dim,#b89b5e)}
 /* #264 — on a phone the location gets its own line under the name, so a cell never runs past the screen's edge */
 @media (max-width: 640px){ .vfr-row{grid-template-columns:auto 1fr} .vfr-loc{grid-column:1 / -1;white-space:normal} }
@@ -43780,7 +43781,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : (w.kind === 'dock' && typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)) ? '<span class="vfr-arrow">→</span><span class="vfr-throw" title="'+esc(w.why)+'">THROW OUT task in MOVE TASKS — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>' /* L1 find names the throw-out task */
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
         : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
-          + (w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');
+          + ((w.cells && w.cells.length > 1)   /* #144.9 - every copy's cell, never the first one's alone */
+              ? '<span class="vfr-cell vfr-cells"> · ' + w.cells.length + ' copies: ' + esc(w.cells.join(' / ')) + '</span>'
+              : w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');
       /* #79 (REG-2238) — THE FIND ROW STAYS ON THE VAULT (his words, #230 6125174498: "everything should
          be smooth"). It used to ROUTE on click — a shared item opened the full Shared Stash page (REG-2230
          fixed WHICH tab, but opening at all was the trap), a mule item opened its ID card (the opened card is
@@ -51910,13 +51913,16 @@ window.vaultAutoAssign = function(){
     if (mid == null && window._vaultInMagicRare && window._vaultInMagicRare(nm)) mid = 'magic-rare';
     if (mid != null && mid !== '__throwout' && mid !== '__keep'){
       var m = muleById(mid), mName = m ? ((m.icon ? m.icon + ' ' : '') + m.name) : mid;
-      var out = { kind: 'filed', mule: mid, muleName: mName, cell: null, why: '' };
+      var out = { kind: 'filed', mule: mid, muleName: mName, cell: null, cells: [], why: '' };
+      /* #144.9 (GrokBot eyes-pass) - FIND named ONE cell for an item he holds three of. Every copy's cell is kept;
+         `cell` stays the first, so each older reader of it reads what it always read. */
+      var _put = function(c){ out.cells.push(c); if (!out.cell) out.cell = c; };
       try {
         if (mid === 'shared'){
           var pages = _sharedStashPages(_sharedDrawNames());
-          for (var i = 0; i < pages.length && !out.cell; i++){
+          for (var i = 0; i < pages.length; i++){
             var pk = _sharedPack(pages[i].items);
-            pk.placed.forEach(function(p){ if (!out.cell && p.n === nm) out.cell = pages[i].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });
+            pk.placed.forEach(function(p){ if (p.n === nm) _put(pages[i].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
             if (!out.cell && pk.left.some(function(p){ return p.n === nm; })){ out.kind = 'over'; out.cell = pages[i].label + ' tab - it does not fit on that tab'; }
           }
         } else {
@@ -51924,12 +51930,11 @@ window.vaultAutoAssign = function(){
           if (worn[nm]){ out.kind = 'worn'; out.cell = 'worn by the doll'; return out; }
           var load = _muleLoad(_muleNamesFor(mid), worn, mid);
           (load.mules || []).forEach(function(mu, pi){
-            if (out.cell) return;
             var tag = (load.mules.length > 1 ? 'Mule ' + (pi + 1) + ' · ' : '');
-            (mu.stash || []).forEach(function(p){ if (!out.cell && p.n === nm) out.cell = tag + 'Personal stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });
+            (mu.stash || []).forEach(function(p){ if (p.n === nm) _put(tag + 'Personal stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
             MULE_STASH_TABS.slice(1).forEach(function(t){ ((mu.tabs || {})[t] || []).forEach(function(p){
-              if (!out.cell && p.n === nm) out.cell = tag + MULE_AREAS[t][2] + ' stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1); }); });
-            (mu.inv || []).forEach(function(p){ if (!out.cell && p.n === nm) out.cell = tag + 'Inventory · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });
+              if (p.n === nm) _put(tag + MULE_AREAS[t][2] + ' stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); }); });
+            (mu.inv || []).forEach(function(p){ if (p.n === nm) _put(tag + 'Inventory · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
           });
           if (!out.cell && (load.rem || []).some(function(p){ return p && p.n === nm; })){ out.kind = 'over'; out.cell = 'it does not fit - this locker is over its mules'; }
         }

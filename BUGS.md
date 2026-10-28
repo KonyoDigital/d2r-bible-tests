@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2741 - FIND NAMED ONE CELL FOR AN ITEM HE HOLDS THREE OF (#144.9, GrokBot eyes-pass 2026-10-21)
+_vaultWhereIs walked the packer's mules and stopped at the first cell carrying the name, so FIND's row for a multi-copy
+item said where ONE copy sits; the mule window draws all of them. It now keeps every copy's cell (`cells`), and `cell`
+stays the first so every older reader reads what it always read. FIND's row says "3 copies: Personal stash - col 1 - row 1 /
+... col 3 ... / ... col 5 ..." and wraps inside the row (.vfr-cells) instead of running off it; an item held once reads
+exactly as before. New render target vault-find-copies. Seen at 375: the fixed compass and help buttons sit over the right
+end of the wrapped lines - the same fixed chrome covers the right edge of every vault card at 375 (a gutter the page does
+not reserve at that width), filed on its own rather than widened into this fix. Law: test_find_names_every_copys_cell
+(node, the whole page; 3 red-proofs).
+
 ### REG-2740 - A FILLED-IN SCHEMA COUNTED AS A SECOND-EYE LOOK, AND v3821 SHIPPED PAST AN EMPTY SEAT
 v3820's whole second-eye answer was {"verdict":"findings","findings":[],"unseen":"placeholder"}: the eye was held to the
 verdict schema and filled it in. The runner files the unseen note among the findings, so the row carried one line - the
