@@ -45331,9 +45331,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         /* #41 rank 17 (REG-1562) — the ✕ says when it will refuse: a HARDENED row is locked here (Shift+✕ releases it),
            and an unreadable witness store is UNKNOWN, which refuses as well */
         var _hlk = null; try { _hlk = window._vaultHardLock ? window._vaultHardLock(n) : null; } catch(e){ _hlk = null; }
-        var _xTitle = !_hlk ? 'send back to the unsorted dock'
-          : _hlk.unknown ? '⚠ the witness store could not be read — whether this is locked is UNKNOWN, so ✕ is refused until it can be'
-          : '🔒 ' + _hlk.tier + ' — locked in this locker by the evidence; hold Shift and click ✕ to release it';
+        var _xTitle = _vaultCellXTitle(n, _cc, _hlk);   /* #111 - a multi-copy cell's ✕ says every copy goes */
         /* #98 (his ruling 2026-09-30, "make it visually known") — the lock is ON the cell, not only in a tooltip */
         var _lockCls = !_hlk ? '' : (_hlk.unknown ? ' vmc-lock-unk' : ' vmc-locked');
         var _lockTag = !_hlk ? '' : '<span class="vm-cell-lock" role="img" aria-label="' + (_hlk.unknown ? 'lock unknown' : 'locked') + '" title="'
@@ -48161,6 +48159,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { label: lbl, mode: 'new' };
     } catch(e){ return null; }
   };
+  /* #111 (reviewers C2/E/D) - THE ✕ ON ONE COPY'S CELL SENT EVERY COPY TO THE DOCK, AND SAID "send back". Copies of one item
+     share one filing (d2r_muleAssign is per name; #76's per-copy record store is still dormant), so a single copy cannot leave
+     alone yet - the ✕ says so on a cell whose item has more than one copy. -> the cell ✕'s hover */
+  function _vaultCellXTitle(n, cc, hlk){
+    if (hlk) return hlk.unknown ? '⚠ the witness store could not be read — whether this is locked is UNKNOWN, so ✕ is refused until it can be'
+                               : '🔒 ' + hlk.tier + ' — locked in this locker by the evidence; hold Shift and click ✕ to release it';
+    return 'send back to the unsorted dock' + ((typeof cc === 'number' && cc > 1)
+      ? ' - ALL ' + cc + ' copies of ' + n + ' go together (copies share one filing; one copy cannot be sent alone yet)' : '');
+  }
+  window._vaultCellXTitle = _vaultCellXTitle;
   window.vaultUnassign = function(name, opts){
     opts = opts || {};
     /* REG-2521 fix round (review of REG-2521, minor) — THE CELL ✕ ASKS THE HOLD FIRST. It had no hold check: with a store
