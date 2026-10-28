@@ -585,11 +585,13 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       let stored: string[] = [];
       try { stored = JSON.parse((w.LSR && w.LSR.getItem('d2r_owned')) || '[]') || []; } catch (e) { stored = []; }
       const ownedAfterOne = stored.filter((n) => /Harlequin|Blood Shield|Colossus Crossbow/.test(n));
-      /* every stashed class, with BOTH of its sessions in one look - whatever name the TV path held it under */
+      /* every stashed class, with BOTH of its sessions in one look - whatever name the TV path held it under. UNSCORED, like
+         the mock read: _vaultLookCounts counts an unscored look only while no look in the list carries a conf, so a scored
+         second look would un-count the held first one and the item would stay held on one session (the filing rule) */
       ['Harlequin Crest (Shako)', 'Colossus Crossbow (5os)', 'Blood Shield'].forEach((n) => w.tvVaultRegister(n, {
         lane: 'stash', location: 'stash', sessions: [
-          { session: 's_1234567000000_11111', frame: 'f_1234567890000.jpg', conf: 0.9 },
-          { session: 's_1234567999999_22222', frame: 'f_1234567999999.jpg', conf: 0.9 }] }));
+          { session: 's_1234567000000_11111', frame: 'f_1234567890000.jpg' },
+          { session: 's_1234567999999_22222', frame: 'f_1234567999999.jpg' }] }));
       let after: string[] = [];
       try { after = JSON.parse((w.LSR && w.LSR.getItem('d2r_owned')) || '[]') || []; } catch (e) { after = []; }
       let assign: any = {};
