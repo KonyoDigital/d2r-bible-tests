@@ -917,6 +917,34 @@ def tearDownModule():
         _eh.quiesce_before_exec()
     except Exception:
         pass
+    # ⚠ AND IT SAYS SO UNDER ANY RUNNER. The child guard that reported the leak lives in conftest.py - pytest only - and
+    # heart2 proves this law as plain unittest, where a leaked worker passed silently: the v3824 push gate found this
+    # file's red-proof BLIND (the tamper ran, the law stayed green). So the law looks for its own leftover worker.
+    left = _ocr_children()
+    if left:
+        raise AssertionError("REG-2746 - this file left its OCR worker running: %r" % left)
+
+
+def _ocr_children():
+    """This process's descendants whose command line runs ocr_mac. -> [str]; [] off macOS (there is no ocr_mac to leak).
+    A ps that will not answer RAISES - an unread process table is not a clean one (the swallow ratchet's rank 1)."""
+    if sys.platform != "darwin":
+        return []
+    import subprocess
+    out = subprocess.run(["ps", "-Ao", "pid=,ppid=,command="], capture_output=True, text=True, timeout=20, check=True).stdout
+    kids, rows = {}, []
+    for line in out.splitlines():
+        parts = line.strip().split(None, 2)
+        if len(parts) == 3 and parts[0].isdigit() and parts[1].isdigit():
+            rows.append((int(parts[0]), int(parts[1]), parts[2]))
+            kids.setdefault(int(parts[1]), []).append(int(parts[0]))
+    mine, stack = set(), [os.getpid()]
+    while stack:
+        for c in kids.get(stack.pop(), []):
+            if c not in mine:
+                mine.add(c)
+                stack.append(c)
+    return [cmd[:120] for pid, _pp, cmd in rows if pid in mine and "ocr_mac" in cmd]
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

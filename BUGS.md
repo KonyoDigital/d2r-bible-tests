@@ -34,6 +34,9 @@ On his Mac (main v3821 too) `pytest test_vault_retro.py` read 69 passed, 1 error
 LEFT A CHILD PROCESS RUNNING ... ocr_mac --worker" at the file's last teardown. A read path in the file warms tv_diablo's
 _OCR worker and nothing stopped it. A module teardown now calls exec_hygiene.quiesce_before_exec(), which stops only the
 warm workers this process holds. CI never saw it (no ocr_mac on a Linux runner), so its red-proof needs "macos".
+The v3824 push gate found its red-proof BLIND: the child guard that reports the leak lives in conftest.py (pytest
+only) and heart2 proves laws as plain unittest, where the leak passed silently. The law now looks for its own
+leftover ocr_mac child after the quiesce and fails on one, under any runner (proved: plain unittest RED, rc 1).
 
 ### REG-2745 - THE CHRONICLE'S FRESH NAMES WERE DATED BY ITS OLD BANKED COUNTS (#200, the last item)
 A PC's chronicle section had one asOf: when its counts were banked (the board tally). Its name rows are read fresh from
