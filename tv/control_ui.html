@@ -30090,6 +30090,14 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     else _chronToolsWire();
   } catch (e) {}
 
+  /* #97 - the sentence for the sweep's last refusal, with its own age; '' when there is none. -> string */
+  function _chronRefusalSay(st, now){
+    var lr = st && st.lastRefusal;
+    if (!lr || !lr.why) return '';
+    var age = (typeof lr.at === 'number') ? Math.max(0, Math.round((now - lr.at) / 60000)) : null;
+    return 'the last sweep did not start' + (age === null ? '' : ' (' + age + ' min ago)') + ': ' + lr.why;
+  }
+  window._chronRefusalSay = _chronRefusalSay;
   function _chronPaint(st) {
     _chronLastSt = st;   /* v2297 — so a late cross-reference can repaint */
     var body = document.getElementById('chron-body');
@@ -30134,6 +30142,12 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       return;
     }
     if (run) { run.disabled = false; run.textContent = 'run it again'; }
+    /* #97 - THE SWEEP'S REFUSAL HAD NO READER. A sweep the thread refused (GROK ONLY is the reader, or the switch could not be
+       read) wrote _CHRON_JOB.lastRefusal and nothing showed it, so "run it again" pressed into the same wall in silence. It
+       is said here with its own age; a sweep that starts clears it. */
+    var _lrSay = _chronRefusalSay(st, Date.now());
+    if (run) { run.title = _lrSay || ''; run.setAttribute('data-refused', _lrSay ? '1' : ''); }
+    if (note && _lrSay) note.textContent = '⚠ ' + _lrSay;
     /* v1801 — THE LEDGER-WRITE FAILURE GETS A TAP, because until now it had none.
        v1800's commit note claimed this failure "reaches the board through chronicle_sweep_state".
        It reached the PAYLOAD and stopped: grepping the repo, the only readers of evidenceSaved
@@ -30249,7 +30263,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
           + '</div>';
       }
       rev.hidden = true;
-      if (note) note.textContent = 'read-only — nothing has been written to your chronicle';
+      if (note) note.textContent = 'read-only — nothing has been written to your chronicle' + (_lrSay ? ' · ⚠ ' + _lrSay : '');
       return;
     }
     rev.hidden = false;
@@ -30275,7 +30289,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       +   '<div class="chron-list">' + _chronNames(held, true) + '</div></div>'
       + '</div>';
     // ★ the claim that must stay true UNTIL he presses register: this changed nothing
-    if (note) note.textContent = 'read-only — nothing has been written to your chronicle';
+    if (note) note.textContent = 'read-only — nothing has been written to your chronicle' + (_lrSay ? ' · ⚠ ' + _lrSay : '');
     // v1523 — the write is offered only when there is something gated to write
     var ap = document.getElementById('chron-apply');
     var _n = u.length + sset.length;

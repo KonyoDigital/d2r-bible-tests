@@ -14,6 +14,13 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2714 - A REFUSED CHRONICLE SWEEP WROTE ITS REASON AND NOTHING READ IT (#97, reviewers)
+The sweep's run thread wrote _CHRON_JOB.lastRefusal (GROK ONLY is the reader, or since REG-2713 the switch could not be read)
+and zero readers existed in control_ui.html, so "run it again" pressed into the same wall in silence. The refusal carries its
+own time now, a sweep that starts clears it (it is the LAST run's word, never older), and the sweep panel says it - on the
+button's hover and in its note, including the note a shown result rewrites - through _chronRefusalSay.
+Law: test_a_refused_sweep_says_why (2 red-proofs, each seen RED).
+
 ### REG-2713 - A HALF-WRITTEN READER SWITCH STARTED A PAID CLAUDE SWEEP; SWEEP LAWS TOOK THEIR VERDICT FROM THE PC (#97)
 1. g5_grok_eyes._load_state answered a MISSING switch file and an UNREADABLE one alike ({on: False, mode: off}), reader() said
    "claude" for both, and _sweep_skipped_because_reader_is_grok - whose docstring promised an unreadable switch is UNKNOWN -
