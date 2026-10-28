@@ -12185,6 +12185,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_copy_readout_says_what_each_side_counts.py")], 300,
          needs_app=False,
          why='#144.9 REG-2760: a read-only copy readout says what the card, the records and FIND count'),
+    Gate("test_a_war_item_on_a_war_mule_says_why_it_waits",
+         [sys.executable, os.path.join(HERE, "test_a_war_item_on_a_war_mule_says_why_it_waits.py")], 300,
+         needs_app=False,
+         why='#148.1 REG-2761: a war item filed on a WAR mule says why its task goes to the shared stash'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

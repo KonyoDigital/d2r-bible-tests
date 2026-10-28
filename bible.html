@@ -11071,6 +11071,7 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vault-tasks-panel .vtk-line .vmv-reason{flex:0 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vault-btn{flex:0 0 auto;padding:0 6px;min-height:0;line-height:1.6;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-gone{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
+.vault-tasks-panel .vtk-line .vmv-l1{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro);color:var(--text-muted);font-weight:var(--fw-medium);cursor:help}   /* #148.1 REG-2761 */
 .vault-tasks-panel .vtk-line + .vtk-line{border-top:1px solid rgba(212,168,71,.12)!important}
 .vault-tasks-panel section.vmv-unseen{border:1px dashed rgba(240,192,96,.4);border-radius:8px;padding:4px 6px;margin:4px 0}
 .vtk-line::before{content:counter(vtk) ".";flex:0 0 auto;min-width:1.6em;text-align:right;color:var(--text-dim)}
@@ -52479,6 +52480,22 @@ window.vaultAutoAssign = function(){
     if (seam.loc === 'keep') return { id: 'main', holder: 'MAIN', location: 'inventory' }; /* v3769 home keep */
     return { id: null, holder: null, location: null };
   }
+  /* #148.1 (REG-2761, his ruling 2026-10-28: war items go to the Shared stash, the war stash, and the WAR mules only when
+     its 5 pages are full - L1, BY DESIGN) - a war-stash item he filed by hand onto a WAR mule still moves to the shared
+     stash (_vaultMoveHome honours a hand filing only on a NORMAL mule), so its task must say why instead of reading as if
+     his hand was ignored (GrokBot's 148.1: "both Grief tasks still target SHARED STASH"). -> sentence | '' */
+  function _vaultMoveL1Why(name, t){
+    try {
+      var to = t && t.to;
+      if (!to || !(to.id === 'shared' || to.location === 'shared')) return '';
+      var f = (typeof assign !== 'undefined' && assign) ? assign[name] : null;
+      var m = (f && f !== 'shared' && typeof muleById === 'function') ? muleById(f) : null;
+      if (!m || !_vaultWarRole(m)) return '';
+      return 'war gear lives on the SHARED stash first (L1): ' + (m.name || f) + ', where you filed it, takes it only when '
+           + 'the stash\'s 5 pages are full';
+    } catch (e) { return ''; }
+  }
+  try { window._vaultMoveL1Why = _vaultMoveL1Why; } catch (eL1) {}
   function _vaultMoveCopies(name){
     var g = null;
     try { g = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { g = null; }
@@ -53161,6 +53178,7 @@ window.vaultAutoAssign = function(){
       var w = row.witnesses;
       var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */
       var uns = !manual && _vaultMoveUnseen(t.from && t.from.holder, t.from && t.from.location);
+      var l1 = (!thr && typeof window._vaultMoveL1Why === 'function') ? window._vaultMoveL1Why(row.name, t) : '';   /* #148.1 */
       return '<li class="vmv-row vtk-line' + (fin ? ' vtk-done' : '') + (thr ? ' vmv-throw-row' : '') + (uns ? ' vmv-unseen' : '') + '"' + (uns ? ' data-unseen="1"' : '') + ' data-name="' + esc(row.name) + '" data-copy="' + ci + '"'
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
         + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"'
@@ -53179,6 +53197,7 @@ window.vaultAutoAssign = function(){
         + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : esc(_vtkPlace(t.to, false))) + '</span>'
 
         + (gs ? '<b class="vmv-gone">' + esc(gs) + '</b>' : '')
+        + (l1 ? '<b class="vmv-l1" title="' + esc(l1) + '">war stash first</b>' : '')   /* #148.1 REG-2761 - why his WAR-mule filing waits */
         + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="' + esc(wSay) + ' · the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + (row.witnesses == null ? '👁 0' : '👁 ' + row.witnesses) + '</button>')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-keep" title="keep it instead" onclick="event.stopPropagation();window._vaultThrowKeep(\'' + nm + '\',' + ci + ')">Keep</button>' : '')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-junk" title="yes, it is junk" onclick="event.stopPropagation();window._vaultThrowJunk(\'' + nm + '\',' + ci + ')">Junk</button>' : '')
