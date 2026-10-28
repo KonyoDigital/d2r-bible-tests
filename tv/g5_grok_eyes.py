@@ -462,6 +462,23 @@ def _load_state():
         return {"on": False, "mode": "off", "retired": False}
 
 
+def switch_state():
+    """#97 - can his reader switch be READ? -> "absent" | "ok" | "unreadable"
+
+    _load_state() answers a missing file and an unreadable one alike ({on: False, mode: off}), and reader() then says
+    "claude" for both - so a GROK ONLY PC whose switch file was half-written or corrupt started a PAID Claude sweep. An
+    absent file is a PC that never chose (Claude, the default, is right); an unreadable one chose something nobody can
+    read, which is UNKNOWN - and a paid sweep must not start on it."""
+    try:
+        if not os.path.exists(_STATE_FILE):
+            return "absent"
+        with open(_STATE_FILE, encoding="utf-8") as fh:
+            d = json.load(fh)
+        return "ok" if isinstance(d, dict) else "unreadable"
+    except Exception:
+        return "unreadable"
+
+
 def _save_state(on, mode):
     mode = str(mode or "off").strip().lower()
     if mode not in _MODES:
