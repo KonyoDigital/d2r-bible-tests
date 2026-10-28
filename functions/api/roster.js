@@ -284,6 +284,8 @@ export async function onRequestPost(context) {
   }
   // Shadow mode's profile rides this same route under its own key; rows keep their own 80 KB cap.
   if (body.kind === "profile") return profilePost(env, bytes, sig, body);
+  // #218 phase 2 - the owner's sessions, summarized (shadow_sessions.digest), under the same registered key
+  if (body.kind === "frames") return framesPost(env, bytes, sig, body);
   if (bytes.byteLength > MAX_BODY) {
     return refuse("roster would not take this publish: the body is too large to be rows");
   }
@@ -396,6 +398,9 @@ export async function onRequestGet(context) {
   let profileOwner = null;
   try { profileOwner = new URL(context.request.url).searchParams.get("profile"); } catch (e) { profileOwner = null; }
   if (profileOwner !== null) return profileGet(kv, profileOwner);
+  let framesOwner = null;
+  try { framesOwner = new URL(context.request.url).searchParams.get("frames"); } catch (e) { framesOwner = null; }
+  if (framesOwner !== null) return framesGet(kv, framesOwner);
   if (!kv) return refuse("roster would not take this fetch: storage unavailable");
   const owners = [];
   for (const owner of OWNERS) {
@@ -562,13 +567,10 @@ function unsentOf(v) {
   return v.slice();
 }
 
-async function profilePost(env, bytes, sig, body) {
-  const kv = env && env.TZ_HISTORY;
-  if (!kv) return pRefuse("storage unavailable");
-  if (bytes.byteLength > PROFILE_MAX_BODY) return pRefuse("the body is larger than " + PROFILE_MAX_BODY + " bytes");
-  const owner = body.owner;
-  if (OWNERS.indexOf(owner) === -1) return pRefuse("the key is an owner label, not a machine");
-
+// #218 phase 2 - ONE gate for every signed record kind an owner publishes beside its roster row (the profile, the
+// frames digest): the same registered key, the same intent, the same replay rule. Moved here VERBATIM from profilePost,
+// so a second kind adds a caller, never a second copy of a safety routine. -> intent | a refusal Response
+async function signedOwnerIntent(kv, owner, sig) {
   let registered;
   try { registered = await registeredOf(kv, owner); } catch (e) {
     return pRefuse("the key registered for this owner could not be read");
@@ -582,6 +584,38 @@ async function profilePost(env, bytes, sig, body) {
     if (sig.keyId) out.offered = sig.keyId;
     return pRefuse(intent.refused || "this upload was not signed by " + owner + "'s registered key", out);
   }
+  return intent;
+}
+
+// -> a refusal Response when signedAt is missing, stale or not newer than the stored record's, else null
+function signedAtRefusal(now, signedAt, prev) {
+  if (typeof signedAt !== "number" || !Number.isFinite(signedAt) || Math.abs(now - signedAt) > SKEW_MS) {
+    return pRefuse("signedAt is missing or not within 15 min of now (a replayed or stale upload)");
+  }
+  if (prev && typeof prev.signedAt === "number" && signedAt <= prev.signedAt) {
+    return pRefuse("signedAt is not newer than the stored upload's (a replayed upload)");
+  }
+  return null;
+}
+
+// #218 phase 2 - ONE rule for every record served as an owner's (the profile, the frames digest): the key that signed
+// it is that owner's registered key NOW. A record signed by a since-replaced key is not served as theirs.
+function signedByRegisteredNow(registered, prev) {
+  if (!registered || !registered.pub || b64uKey(registered.pub) !== b64uKey(prev.pub)) {
+    return false;
+  }
+  return true;
+}
+
+async function profilePost(env, bytes, sig, body) {
+  const kv = env && env.TZ_HISTORY;
+  if (!kv) return pRefuse("storage unavailable");
+  if (bytes.byteLength > PROFILE_MAX_BODY) return pRefuse("the body is larger than " + PROFILE_MAX_BODY + " bytes");
+  const owner = body.owner;
+  if (OWNERS.indexOf(owner) === -1) return pRefuse("the key is an owner label, not a machine");
+
+  const intent = await signedOwnerIntent(kv, owner, sig);
+  if (intent instanceof Response) return intent;
 
   const stores = body.stores;
   if (!storesOk(stores)) return pRefuse("stores must be d2r_ names holding strings, none of them kept home");
@@ -608,12 +642,8 @@ async function profilePost(env, bytes, sig, body) {
 
   const now = Date.now();
   const signedAt = body.signedAt;
-  if (typeof signedAt !== "number" || !Number.isFinite(signedAt) || Math.abs(now - signedAt) > SKEW_MS) {
-    return pRefuse("signedAt is missing or not within 15 min of now (a replayed or stale upload)");
-  }
-  if (prev && typeof prev.signedAt === "number" && signedAt <= prev.signedAt) {
-    return pRefuse("signedAt is not newer than the stored upload's (a replayed upload)");
-  }
+  const stale = signedAtRefusal(now, signedAt, prev);
+  if (stale) return stale;
   const said = { intentVerified: true, sig: sig.state, keyId: intent.keyId };
   const samePub = !!prev && prev.pub === sig.pub;
   if (prev && prev.hash === hash && samePub) {
@@ -662,7 +692,7 @@ async function profileGet(kv, owner) {
   try { registered = await registeredOf(kv, owner); } catch (e) {
     return pJson({ ok: false, why: "profile could not be read: the registered key could not be read" });
   }
-  if (!registered || !registered.pub || b64uKey(registered.pub) !== b64uKey(prev.pub)) {
+  if (!signedByRegisteredNow(registered, prev)) {
     return pJson({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t,
                   why: "the key that signed it is not " + owner + "'s registered key now" });
   }
@@ -672,4 +702,125 @@ async function profileGet(kv, owner) {
   const unsent = unsentOf(prev.unsent);
   if (unsent) out.unsent = unsent;
   return pJson(out);
+}
+
+// ── FRAMES: the owner's sessions, summarized, for shadow mode's Shelf and TV·D (#218 phase 2) ──────────────────
+// His ruling 2026-10-28: a shadow renders the owner's data one to one, with SUMMARIZED frames - "a few small key frames
+// per session" (a full reel is 8-12 GB and never leaves its PC; the profile still refuses every picture). This record
+// is the ONE place a picture rides: the theatre's own 160 px JPEG thumbnails, at most 3 per session, 16 sessions,
+// each under 20 KB - checked here, never trusted from the sender. Same key, intent and replay rule as the profile.
+const FRAMES_MAX_BODY = 900000;
+const FRAMES_DAY_CAP = 8;
+const FRAMES_MIN_GAP_MS = 3 * 60 * 60 * 1000;
+const FRAMES_MAX_SESSIONS = 16;
+const FRAMES_MAX_PER = 3;
+const FRAMES_MAX_JPG_B64 = 27400;          // 20 KB of JPEG, base64
+const SID_RX = /^s_\d{13}_\d{1,6}$/;
+const FID_RX = /^\d{1,6}_\d{13}$/;
+
+function framesKeyOf(owner) {
+  return "roster:" + owner + ":frames";
+}
+
+function nOrNull(v) {
+  return v === null || (typeof v === "number" && Number.isFinite(v) && v >= 0);
+}
+
+// -> null when the digest has exactly the shape shadow_sessions.digest builds, else why it does not
+export function framesWhy(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return "the digest is not an object";
+  const ss = d.sessions;
+  if (!Array.isArray(ss) || ss.length > FRAMES_MAX_SESSIONS) return "sessions must be a list of at most " + FRAMES_MAX_SESSIONS;
+  for (const s of ss) {
+    if (!s || typeof s !== "object" || Array.isArray(s)) return "a session is not an object";
+    if (!(s.sessionId === null || (typeof s.sessionId === "string" && SID_RX.test(s.sessionId)))) return "a session id is not one";
+    if (!nOrNull(s.t0) || !nOrNull(s.t1) || !(Number.isInteger(s.reads) && s.reads >= 0)) return "a session's times or reads are not numbers";
+    if (!Array.isArray(s.names) || s.names.length > 8 || s.names.some((n) => typeof n !== "string" || n.length > 80)) {
+      return "a session's names are not at most 8 short strings";
+    }
+    if (!(s.why === null || (typeof s.why === "string" && s.why.length <= 400))) return "a session's why is not a short string";
+    if (!Array.isArray(s.frames) || s.frames.length > FRAMES_MAX_PER) return "a session carries more than " + FRAMES_MAX_PER + " frames";
+    for (const f of s.frames) {
+      if (!f || typeof f !== "object" || !FID_RX.test(String(f.id || ""))) return "a frame id is not a read frame's";
+      if (typeof f.jpg !== "string" || f.jpg.length > FRAMES_MAX_JPG_B64 || f.jpg.indexOf("/9j/") !== 0
+          || !/^[A-Za-z0-9+/]+={0,2}$/.test(f.jpg)) {
+        return "a frame is not a small JPEG thumbnail";
+      }
+    }
+  }
+  const text = JSON.stringify(ss.map((s) => Object.assign({}, s, { frames: s.frames.map((f) => f.id) })));
+  if (privateIn(text)) return "the digest carries a path, an install id or a token";
+  return null;
+}
+
+async function framesPost(env, bytes, sig, body) {
+  const kv = env && env.TZ_HISTORY;
+  if (!kv) return pRefuse("storage unavailable");
+  if (bytes.byteLength > FRAMES_MAX_BODY) return pRefuse("the body is larger than " + FRAMES_MAX_BODY + " bytes");
+  const owner = body.owner;
+  if (OWNERS.indexOf(owner) === -1) return pRefuse("the key is an owner label, not a machine");
+  const intent = await signedOwnerIntent(kv, owner, sig);
+  if (intent instanceof Response) return intent;
+  const why = framesWhy(body.digest);
+  if (why) return pRefuse(why);
+  const hash = hashOf(stable(body.digest));
+  if (hash !== body.hash) return pRefuse("the digest does not match the hash that was signed");
+  const key = framesKeyOf(owner);
+  let prev = null;
+  try {
+    const raw = await kv.get(key);
+    prev = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return pRefuse("the stored frames could not be read");
+  }
+  if (!prev || typeof prev !== "object" || prev.owner !== owner) prev = null;
+  const now = Date.now();
+  const stale = signedAtRefusal(now, body.signedAt, prev);
+  if (stale) return stale;
+  const said = { intentVerified: true, sig: sig.state, keyId: intent.keyId };
+  const samePub = !!prev && prev.pub === sig.pub;
+  if (prev && prev.hash === hash && samePub) {
+    return pJson(Object.assign({ ok: true, owner: owner, stored: [], skipped: ["unchanged"] }, said));
+  }
+  const age = prev && typeof prev.t === "number" ? now - prev.t : FRAMES_MIN_GAP_MS;
+  if (prev && samePub && age < FRAMES_MIN_GAP_MS && body.boot !== true) {
+    return pJson(Object.assign({ ok: true, owner: owner, stored: [], skipped: ["within 3 h"] }, said));
+  }
+  const today = dayOf(now);
+  const n = prev && prev.day === today && typeof prev.n === "number" ? prev.n : 0;
+  if (n >= FRAMES_DAY_CAP) return pRefuse("quota: " + FRAMES_DAY_CAP + " frames uploads a day for " + owner);
+  const rec = { owner: owner, t: now, day: today, n: n + 1, hash: hash, digest: body.digest,
+                intentVerified: true, keyId: intent.keyId, pub: sig.pub, signedAt: body.signedAt };
+  try {
+    await kv.put(key, JSON.stringify(rec), { expirationTtl: TTL_S });
+  } catch (e) {
+    return pRefuse(String((e && e.message) || e).slice(0, 140));
+  }
+  return pJson(Object.assign({ ok: true, owner: owner, stored: ["frames"], key: key }, said));
+}
+
+async function framesGet(kv, owner) {
+  if (!kv) return pJson({ ok: false, why: "frames could not be read: storage unavailable" });
+  if (OWNERS.indexOf(owner) === -1) return pJson({ ok: false, why: "ask for one of the five owner labels" });
+  let prev = null;
+  try {
+    const raw = await kv.get(framesKeyOf(owner));
+    prev = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return pJson({ ok: false, why: "frames could not be read: " + String((e && e.message) || e).slice(0, 140) });
+  }
+  if (!prev || typeof prev !== "object" || prev.owner !== owner) return pJson({ ok: true, owner: owner, published: false });
+  if (framesWhy(prev.digest) || prev.hash !== hashOf(stable(prev.digest))) {
+    return pJson({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t });
+  }
+  let registered = null;
+  try { registered = await registeredOf(kv, owner); } catch (e) {
+    return pJson({ ok: false, why: "frames could not be read: the registered key could not be read" });
+  }
+  if (!signedByRegisteredNow(registered, prev)) {
+    return pJson({ ok: true, owner: owner, published: true, corrupt: true, t: prev.t,
+                  why: "the key that signed them is not " + owner + "'s registered key now" });
+  }
+  return pJson({ ok: true, owner: owner, published: true, corrupt: false, t: prev.t, hash: prev.hash,
+                 digest: prev.digest, intentVerified: prev.intentVerified === true });
 }

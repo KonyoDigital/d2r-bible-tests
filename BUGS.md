@@ -61,6 +61,19 @@ equal figures. The question now names what moved for a store of counts ("runeSta
 four names then "+N more"). Its second finding (a shadow page posting its own copy readout) is refuted: the shadow's
 network veil refuses every non-GET and every /api path. Law: test_a_profile_carries_what_its_vault_reads (the same-total
 case added, 1 red-proof).
+### REG-2771 - THE OWNER'S SESSION DIGEST HAD NO DOOR TO THE SITE (#218 phase 2, his ruling 2026-10-28)
+REG-2765 builds the digest a shadow can carry; nothing could store it. The roster route's profile door refuses every
+picture (his 10-07 ruling: pictures stay on that PC), so the digest gets its OWN signed record, roster:<owner>:frames -
+the one place a picture rides, and only the theatre's 160 px JPEG thumbnails: the worker checks every frame (a read
+frame's id, a JPEG, under 20 KB), at most 3 per session and 16 sessions, no path or token anywhere, and the hash the
+owner signed; change-only, at most every 3 h unless the console just started, 8 a day; GET ?frames=<owner> reads it
+back, served only while the key that signed it is the owner's registered key. It answers to the SAME gate as the
+profile: the signing check, the replay rule and the served-key rule moved VERBATIM into three shared helpers
+(signedOwnerIntent, signedAtRefusal, signedByRegisteredNow), so the second kind added callers, never a second copy of a
+safety routine - proved by the 161 red-proofs of the three roster laws, all still RED after the move. The console's
+publisher is phase 2b; the shadow's view is phase 3. Law: test_a_shadow_frames_record_is_signed_and_small (6 cases on
+the worker in node, real signing keys, 7 red-proofs).
+
 ### REG-2765 - A SHADOW HAD NOTHING OF THE OWNER'S SESSIONS TO SHOW (#218 phase 1, his ruling 2026-10-28)
 In a shadow, THE SHELF answered with a refusal toast and TV·D showed the viewer's own pane: the owner's sessions never
 travel (the upload keeps tvdHist and the session log home on purpose - they are large), and a full reel is 8-12 GB. His
