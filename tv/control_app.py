@@ -5360,6 +5360,44 @@ def _profile_view(owner):
     return _cs.view(owner, rec, now_ms, online=online, source=source, fetch_why=why)
 
 
+def _frames_cache_dir():
+    return os.path.join(_log_root(), "roster_frames_cache")
+
+
+def _frames_view(owner):
+    """#218 phase 3a (REG-2773) - what the shadow's Shelf and TV·D draw: that owner's summarized sessions from the site's
+    frames record, with its time. This PC's last copy stands in only when the site could not be READ; a site answering
+    "nothing uploaded" or "corrupt" is the answer, exactly as the profile's view does. -> dict, never raises"""
+    import console_snapshot as _cs
+    import shadow_sessions as _ss
+    now_ms = int(time.time() * 1000)
+    if owner not in _cs.OWNERS:
+        return _ss.view(owner, None, now_ms, fetch_why="ask for one of the five owner labels")
+    cdir = _frames_cache_dir()
+    rec, source, why, unread = None, "worker", None, True
+    held = _beacon_suppressed_by()
+    if held:
+        why = "suppressed: " + str(held)[:80]
+    else:
+        got = _roster_get(_ROSTER_URL + "?frames=" + urllib.parse.quote(owner))
+        if _ss.record_ok(got, owner):
+            rec = got
+            try:
+                _ss.write_cache(cdir, got)
+            except Exception as e:
+                why = "this PC could not keep a copy (%s)" % type(e).__name__
+        elif isinstance(got, dict) and got.get("ok") is True and got.get("published") is False:
+            why, unread = "%s has not published its sessions yet" % owner, False
+        elif isinstance(got, dict) and got.get("ok") is True and got.get("corrupt"):
+            why, unread = str(got.get("why") or "the published sessions do not match their own hash")[:120], False
+        else:
+            why = (got.get("why") if isinstance(got, dict) else None) or "the sessions fetch failed"
+    if unread and rec is None:                       # the profile view's rule: a copy only when the site went unread
+        rec = _ss.read_cache(cdir, owner)
+        source = "cache"
+    return _ss.view(owner, rec, now_ms, source=source, fetch_why=why)
+
+
 def _console_beacon_loop():
     _boot_beacon_wait()
     _console_beacon("boot")
@@ -47167,6 +47205,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, status_payload())
             return
         _rq = urllib.parse.parse_qs(urllib.parse.urlparse(self.path or "").query) if path.startswith("/api/roster-") else {}
+        if path.endswith("/roster-cache") and "frames" in _rq:
+            # #218 phase 3a (REG-2773) - the owner's summarized sessions for a shadow's Shelf / TV·D. GET only.
+            self._json(200, _frames_view((_rq.get("frames") or [""])[0]))
+            return
         if path.endswith("/roster-cache") and "profile" in _rq:
             # Shadow mode - another console's profile on the roster door (?profile=<owner>), read only. GET only;
             # nothing is written but this PC's own fetch cache. The same door, not a new one.

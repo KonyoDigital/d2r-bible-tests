@@ -61,6 +61,14 @@ equal figures. The question now names what moved for a store of counts ("runeSta
 four names then "+N more"). Its second finding (a shadow page posting its own copy readout) is refuted: the shadow's
 network veil refuses every non-GET and every /api path. Law: test_a_profile_carries_what_its_vault_reads (the same-total
 case added, 1 red-proof).
+### REG-2773 - NO CONSOLE COULD READ AN OWNER'S PUBLISHED SESSIONS (#218 phase 3a, his ruling 2026-10-28)
+REG-2772 publishes the digest; a shadow's Shelf and TV·D need to read it. GET /api/roster-cache?frames=<owner>
+(control_app._frames_view) fetches that owner's frames record and hands back the sessions with the record's own time,
+by the profile view's rule: this PC's last copy (tv/roster_frames_cache, gitignored) stands in only when the site could
+not be READ, and says it is a copy and how old; "nothing uploaded" and "corrupt" are answers no old copy is drawn over;
+a suppressed beacon reads the copy and says why. The shadow's Shelf / TV·D drawing it is phase 3b. Law:
+test_a_shadow_reads_the_owners_sessions (5 cases, the site stubbed, 4 red-proofs).
+
 ### REG-2772 - NOTHING POSTED THE OWNER'S SESSION DIGEST (#218 phase 2b, his ruling 2026-10-28)
 REG-2765 built the digest and REG-2771 gave it a signed record; this joins them. The roster publish lane (rows, then the
 profile, every 60 s) posts the digest to the frames door after the profile: on the console's start, then only when it

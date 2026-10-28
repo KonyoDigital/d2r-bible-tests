@@ -18,6 +18,7 @@ dropping the OLDEST sessions' pictures first, each drop counted. Phase 2 signs a
 roster record; phase 3 draws it in the shadow's Shelf and TV·D. Never raises; writes only the theatre's cache.
 """
 import base64
+import json
 import os
 import subprocess
 import sys
@@ -198,3 +199,55 @@ def apply_reply(state, h, reply, now_ms):
         s["why"] = ("refused: " + str((reply or {}).get("why") or "no answer"))[:200] if isinstance(reply, dict) \
             else "refused: no answer"
     return s
+
+
+# ── #218 phase 3a (REG-2773): what the viewer draws, and this PC's last copy of an owner's digest ───────────────
+def record_ok(rec, owner):
+    """A frames record the site served as this owner's, in the digest's shape. -> bool"""
+    return (isinstance(rec, dict) and rec.get("owner") == owner and rec.get("published") is True
+            and not rec.get("corrupt") and isinstance(rec.get("digest"), dict)
+            and isinstance(rec["digest"].get("sessions"), list) and isinstance(rec.get("t"), int))
+
+
+def cache_path(directory, owner):
+    import console_snapshot as _cs
+    if owner not in _cs.OWNERS:
+        return None
+    return os.path.join(directory, "%s.json" % owner.replace(" ", "_").replace("\u00b7", "-"))
+
+
+def write_cache(directory, rec):
+    p = cache_path(directory, rec.get("owner"))
+    if not p:
+        return False
+    os.makedirs(directory, exist_ok=True)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"owner": rec["owner"], "t": rec["t"], "hash": rec.get("hash"), "digest": rec["digest"],
+                   "published": True}, fh)
+    os.replace(tmp, p)
+    return True
+
+
+def read_cache(directory, owner):
+    """-> this PC's last copy of the owner's record, or None (absent or unreadable - never an empty digest)"""
+    p = cache_path(directory, owner)
+    if not p or not os.path.isfile(p):
+        return None
+    try:
+        with open(p, encoding="utf-8") as fh:
+            rec = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return rec if record_ok(rec, owner) else None
+
+
+def view(owner, rec, now_ms, source="worker", fetch_why=None):
+    """-> {ok, owner, published, sessions, t, ageS, source, why}. A copy says it is one and how old; no record says why."""
+    if not isinstance(rec, dict):
+        return {"ok": False, "owner": owner, "published": None, "sessions": None, "t": None, "ageS": None,
+                "source": None, "why": fetch_why or "no record of %s's sessions could be read" % owner}
+    t = rec.get("t")
+    return {"ok": True, "owner": owner, "published": True, "sessions": rec["digest"]["sessions"], "t": t,
+            "ageS": max(0, (int(now_ms) - t) // 1000) if isinstance(t, int) else None, "source": source,
+            "why": fetch_why if source == "cache" else None}

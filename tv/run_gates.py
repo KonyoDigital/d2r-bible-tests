@@ -12209,6 +12209,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_owner_publishes_its_session_digest.py")], 300,
          needs_app=False,
          why='#218 REG-2772: the console publishes its session digest, change-only, every 3 h unless it just started'),
+    Gate("test_a_shadow_reads_the_owners_sessions",
+         [sys.executable, os.path.join(HERE, "test_a_shadow_reads_the_owners_sessions.py")], 300,
+         needs_app=False,
+         why="#218 REG-2773: the console reads an owner's published sessions for a shadow, a copy only when the site went unread"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
