@@ -168,8 +168,8 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "#154.19 (REG-2735) - the shared stash's page tabs are divs with an onclick again",
      "file": "bible.html",
-     "find": "return '<button type=\"button\" class=\"vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '\" role=\"tab\" aria-selected=\"' + (i === _sharedPage) + '\" onclick=\"window._sharedSetPage(' + i + ')\">' + p.icon + ' ' + p.label + '</button>';",
-     "replace": "return '<div class=\"vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '\" onclick=\"window._sharedSetPage(' + i + ')\">' + p.icon + ' ' + p.label + '</div>';",
+     "find": "return '<button type=\"button\" class=\"vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '\" role=\"tab\" aria-selected=\"' + (i === _sharedPage) + '\" onclick=\"window._sharedSetPage(' + i + ')\">Page ' + (i + 1) + (p.length ? ' <b>' + p.length + '</b>' : '') + '</button>';",
+     "replace": "return '<div class=\"vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '\" onclick=\"window._sharedSetPage(' + i + ')\">Page ' + (i + 1) + '</div>';",
      "matches": 1, "needs": "node"},
 ]
 

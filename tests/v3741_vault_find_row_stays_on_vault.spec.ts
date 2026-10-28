@@ -18,7 +18,7 @@ async function openVault(page: any) {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
   await page.waitForFunction(() => (window as any).vaultFind && (window as any).renderVault
-    && (window as any)._vaultWhereIs && (window as any)._sharedTabOf);
+    && (window as any)._vaultWhereIs && (window as any)._sharedLayout);   // REG-2801: the by-slot _sharedTabOf is gone
   await page.evaluate(() => (window as any).switchTab('tools'));
 }
 

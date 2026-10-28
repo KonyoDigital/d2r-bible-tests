@@ -42813,7 +42813,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      standard UNI-ARMOR examples three specs route by.) The high-trade-value rule below
      (SoJ, Shako, Arachnid, Mara's...) already sends the other top keepers to the same stash. Sets stay with their set
      (never split a set), and Anni / Torch / Gheed's stay in his inventory (KEEP_IN_INVENTORY), both checked first.
-     The shared stash lays them out by slot across its 5 tabs (_sharedStashPages). */
+     The shared stash lays them out on its 5 pages in the plan's fill order (_sharedLayout, REG-2801). */
   var WAR_GEAR = {
     'enigma': 'teleport for any class - the swap body armour',
     'duress': 'crushing blow + open wounds body armour',
@@ -46626,7 +46626,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      His words: "tell me which mule to mule it in and stash it in" · "with the tooltip picture proof synced to the ledger
      obviously for evidence" · "without me telling it or click auto assemble". The rows already said which mule (the router,
      vaultPropose). Each row now also says WHERE in that mule: its cell, packed by the SAME packer the mule window and the
-     finder use (_muleLoad over the locker's filed items plus every item planned for it; _sharedPack per shared tab), so
+     finder use (_muleLoad over the locker's filed items plus every item planned for it; _sharedLayout for the shared stash), so
      the row, the window and the finder can never name different cells. And its evidence door (_vaultEvidenceBtn - the
      frame it was read on, opened in the evidence viewer). Nothing moves: a plan is shown, filing stays on his 2-session
      ruling, his move, or Auto-Sort. Every row is shown (the old 60 cap hid 25 of his 85). */
@@ -46643,11 +46643,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       Object.keys(byMule).forEach(function(mid){
         var planned = byMule[mid];
         if (mid === 'shared'){
-          var pages = _sharedStashPages(_sharedNames().concat(planned));
-          pages.forEach(function(pg){
-            _sharedPack(pg.items).placed.forEach(function(q){
-              if (planned.indexOf(q.n) >= 0) cells[q.n] = pg.label + ' tab · col ' + (q.x + 1) + ' · row ' + (q.y + 1); });
-          });
+          var layO = _sharedLayout(_sharedNames().concat(planned));   /* #144.10 shared half (REG-2801) - the one layout */
+          layO.pages.forEach(function(pgO, pi){ pgO.forEach(function(q){
+            if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = 'Page ' + (pi + 1) + ' · col ' + (q.x + 1) + ' · row ' + (q.y + 1); }); });
           return;
         }
         var load = (window._muleLoad || _muleLoad)(_muleNamesFor(mid).concat(planned), _mpWornFor(mid, _mpEqAll()), mid);
@@ -51428,56 +51426,12 @@ window.vaultAutoAssign = function(){
   /* ⟦/STASH TABS⟧ */
   // v364/v367 — SHARED STASH = D2R's 5 shared-stash tabs = GENERAL cross-account storage for high-value
   // "worth keeping close" keepers. Runes/gems/materials are NOT here — they live in their own dedicated
-  // planners (already individually synced). (v363's runes/materials pages were wrong.) #264 (2026-10-07):
-  // war / swap gear joins them, and the 5 tabs are laid out BY SLOT (tabs 1-4) with tab 5 the spare room —
-  // see SHARED_TABS below. (v364's "Pg1 Trade, Pg2-5 Spare" layout is gone.)
+  // planners (already individually synced). War / swap gear joins them (#264).
+  /* #144.10 shared half (REG-2801, his ruling 2026-10-28: "the war stash is basically the shared stash with those 5 pages +
+     the extra war mules if they get full") - the 5 pages are laid in the PLAN's fill order (_sharedLayout below), the
+     order every move task names. #264's by-slot tabs (Weapons / Armor · Helms · Shields / Gloves · Belts · Boots / Rings ·
+     Amulets · Charms / Spare) are gone: the window drew a Shako on "Armor" while its task sent it to page 1, col 1, row 1. */
   var _sharedPage = 0;
-  // v367 — removed dead _HIGH_RUNE_RE / _MAT_RE / _runeOrder / _isRuneName helpers (leftover from v363's
-  // runes/materials pages, never referenced after v364 made SHARED general high-value storage).
-  /* ══ #264 (2026-10-07) — THE 5 SHARED TABS ARE ORGANIZED BY SLOT, NOT PILED ON PAGE 1 ══════════════════════════════
-     His words: "should stay in the SHARED/MAIN within those 5 pages also organized". Until now every shared item was laid
-     on page 1 ("Trade") by value and pages 2-5 were empty spare room, so a stash of swap gear read as one pile. Now each
-     item goes to the tab for the slot it is worn in - the same slot the mule doll uses (_mpFit: the game's own base
-     table, then the item's tip, its set-piece slot, its runeword base, its own name). Inside a tab the best value goes
-     first. An item whose slot is not on record goes to tab 5 under its own label and is never guessed onto a slot tab.
-     ⚠ _mpFit lives further down this script; it is reached through window at render time, never at parse time. */
-  var SHARED_TABS = [
-    { icon: '⚔️', label: 'Weapons',                kinds: { weapon: 1, quiver: 1 } },
-    { icon: '🛡️', label: 'Armor · Helms · Shields', kinds: { armor: 1, helm: 1, shield: 1 } },
-    { icon: '🧤', label: 'Gloves · Belts · Boots', kinds: { gloves: 1, belt: 1, boots: 1 } },
-    { icon: '💍', label: 'Rings · Amulets · Charms', kinds: { ring: 1, amulet: 1, none: 1 } },
-    { icon: '📦', label: 'Spare · slot unknown',   kinds: {} }
-  ];
-  /* -> the tab index (0-4) an item is laid on, and the slot it was read as */
-  function _sharedTabOf(n){
-    var f = null;
-    try { f = (typeof window._mpFit === 'function') ? window._mpFit(n) : null; } catch(e){ f = null; }
-    var k = f && f.kind;
-    /* a runeword the doll's table names with a suffix ("Breath of the Dying (BotD)") is still on record in its tip: its
-       socket base ("6 socket Weapons") read by the same slot words the doll uses */
-    if (!k){
-      try {
-        var _rt = (typeof RUNEWORD_TIP !== 'undefined' && RUNEWORD_TIP) ? RUNEWORD_TIP[n] : null;
-        var _rk = (_rt && _rt.b && typeof window._mpSlotKind === 'function') ? window._mpSlotKind(_rt.b) : null;
-        if (_rk && _rk.kind) k = _rk.kind;
-      } catch(e){}
-    }
-    for (var i = 0; i < 4; i++) if (k && SHARED_TABS[i].kinds[k]) return { tab: i, kind: k };
-    return { tab: 4, kind: null };
-  }
-  try { window._sharedTabOf = _sharedTabOf; } catch(e){}
-  function _sharedStashPages(names){
-    var rank = { vhigh: 0, high: 1, med: 2, low: 3, none: 4, trash: 5 };
-    var sorted = names.slice().sort(function(a, b){
-      var ra = rank[(typeof _itemValue === 'function' ? _itemValue(a) : '') || 'none'];
-      var rb = rank[(typeof _itemValue === 'function' ? _itemValue(b) : '') || 'none'];
-      return (ra == null ? 9 : ra) - (rb == null ? 9 : rb) || a.localeCompare(b);
-    });
-    var pages = SHARED_TABS.map(function(t){ return { icon: t.icon, label: t.label, items: [] }; });
-    sorted.forEach(function(n){ pages[_sharedTabOf(n).tab].items.push(n); });
-    return pages;
-  }
-  try { window._sharedStashPages = _sharedStashPages; } catch(e){}
   window._sharedSetPage = function(i){
     /* REG-2747 (GrokBot's v3821 pass, #154.19) - the card re-renders on a page switch and the focus fell to <body>, so a
        keyboard user's next Tab restarted at the page top. A switch made from a focused tab hands the focus to the tab
@@ -51514,6 +51468,48 @@ window.vaultAutoAssign = function(){
     try { names.sort(); } catch (e3) {}
     return names;
   }
+  /* ══ #144.10 shared half (REG-2801) — ONE LAYOUT FOR THE SHARED STASH: THE PLAN'S 5 PAGES ═══════════════════════════
+     MEASURED (node, the whole page; Shako x3 + Arachnid Mesh x6 hand-added, a WAR1 mule): the move tasks put Shako 1 at
+     shared:c0r0 (page 1, col 1, row 1) and belts 1-4 on page 1 (c2r0, c2r1, c4r0, c2r2), the over-cap copies on WAR1;
+     the window opened on "Weapons" with nothing on it, drew the Shako on "Armor · Helms · Shields" and the belts on
+     "Gloves · Belts · Boots", counted 9 copies though 4 are WAR1's, and FIND named those tabs. Now one layout, read by
+     the window, FIND and the organizer alike:
+       · a copy is drawn on the page and cell its move task names - the k-th copy of a name at the k-th task cell on the
+         shared stash (_vaultPlanOn('shared'), the rule a mule card follows, REG-2782);
+       · a copy with no task packs around them first-fit, page 1 first, biggest first - the plan's own order;
+       · a name draws the copies the shared stash KEEPS: the war cap (_shelfCopyCount, the count the shelf card already
+         drew); its over-cap copies are the WAR mules' (REG-2781).
+     -> { pages: [5 lists of {n, key, x, y, w, h}], left: [what fits none of the 5 pages - the plan sends it to WAR1, WAR2 ...] } */
+  var SHARED_PAGES = 5;
+  function _sharedLayout(names){
+    var plan = null;
+    try { plan = (typeof _vaultPlanOn === 'function') ? _vaultPlanOn('shared') : null; } catch (eP) { plan = null; }
+    var pages = [], auto = [];
+    for (var pg = 0; pg < SHARED_PAGES; pg++) pages.push([]);
+    var free = function(pi, x, y, w, h){
+      if (x < 0 || y < 0 || x + w > 10 || y + h > 10) return false;
+      return !pages[pi].some(function(o){ return x < o.x + o.w && o.x < x + w && y < o.y + o.h && o.y < y + h; });
+    };
+    (names || []).forEach(function(n){
+      var sz = vaultSize(n), w = sz[0] || 1, h = sz[1] || 1, pl = (plan && plan[n]) || [], cc = 1;
+      try { cc = _shelfCopyCount(n, 'shared'); } catch (eC) { cc = 1; }
+      for (var k = 0; k < cc; k++){
+        var key = _muleItemKey(n, k), c = pl[k];
+        if (c && c.tab === 'sharedpage' && c.page >= 0 && c.page < SHARED_PAGES && free(c.page, c.x, c.y, w, h))
+          pages[c.page].push({ n: n, key: key, x: c.x, y: c.y, w: w, h: h, planned: true });
+        else auto.push({ n: n, key: key, w: w, h: h, area: w * h });
+      }
+    });
+    auto.sort(function(a, b){ return (b.area - a.area) || (a.n < b.n ? -1 : (a.n > b.n ? 1 : 0)); });
+    var left = auto;
+    for (var p2 = 0; p2 < SHARED_PAGES && left.length; p2++){
+      var pk = packGrid(left, 10, 10, pages[p2].slice());
+      pk.placed.forEach(function(q){ pages[p2].push(q); });
+      left = pk.left;
+    }
+    return { pages: pages, left: left };
+  }
+  try { window._sharedLayout = _sharedLayout; window._sharedDrawNames = _sharedDrawNames; } catch (eSl) {}
   function _sharedCopyCount(n){
     var c = 1;
     try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
@@ -51577,18 +51573,7 @@ window.vaultAutoAssign = function(){
     return '<div class="vm-spare-sec"><div class="vm-spare-head">♻️ spare copies — trade stock (' + _ovCells.length + ' cell' + (_ovCells.length === 1 ? '' : 's') + ')</div><div class="vm-grid vm-grid-spare">' + _ovCells.join('') + '</div></div>';
   }
   try { window._vaultSharedOverflowCells = _vaultSharedOverflowCells; window._vaultSharedOverflowNames = _vaultSharedOverflowNames; window._vaultSharedOverflowHtml = _vaultSharedOverflowHtml; } catch(e){}
-  function _sharedPack(items){
-    var sized = [];
-    (items || []).forEach(function(n){
-      var s = vaultSize(n);
-      var cc = _sharedCappedCopies(n);
-      var area = s[0] * s[1];
-      for (var i = 0; i < cc; i++) sized.push({ n: n, w: s[0], h: s[1], area: area });
-    });
-    sized.sort(function(a, b){ return b.area - a.area || b.h - a.h; });
-    return packGrid(sized, 10, 10);
-  }
-  try { window._sharedNames = _sharedNames; window._sharedPack = _sharedPack; } catch(e){}
+  try { window._sharedNames = _sharedNames; } catch(e){}
   /* ══ gh#235 (v3724) — THE ADVANCED SHARED / WAR-STASH PANEL (the UI half of the v3723 engine) ══
      His ask: "a list within the console like advanced setting for vault.. so i can checkmark what
      should or should not be in the shared/war stash ... like war traveler.. eventually i dont want
@@ -51674,41 +51659,48 @@ window.vaultAutoAssign = function(){
   function _sharedOverflowNote(left){
     if (!left || !left.length) return '';
     var names = left.map(function(i){ return esc(i.n); }).join(' · ');
+    /* #144.10 shared half (REG-2801) - the 5 pages fill in order and what fits none of them goes to the WAR mules (WAR1,
+       WAR2 ... in order, L1); a WAR mule is never made here, so with none those copies keep no cell until he makes one */
+    var wars = [];
+    try { wars = (typeof _vaultWarMules === 'function') ? _vaultWarMules() : []; } catch (eW) { wars = []; }
     return '<div class="vd-overflow" role="status">⚠ <strong>' + left.length + ' item' + (left.length === 1 ? '' : 's')
-      + ' will not fit on this shared tab</strong> — a shared tab is 10×10 = 100 cells and this one is full. '
-      + 'The shared stash is 5 fixed tabs with no overflow spill, so free a slot (mule or trade one) '
-      + 'or these stay off it: ' + names + '</div>';
+      + ' will not fit on the 5 shared pages</strong> — each page is 10×10 = 100 cells and all 5 are full. '
+      + (wars.length
+          ? 'Past them the move tasks send items to the WAR mules in order (' + wars.map(function(w){ return esc(w.name); }).join(', ') + '): '
+          : 'Past them the move tasks send items to the WAR mules (WAR1, WAR2 … in order), and you have no mule named WAR1, so these keep no cell until you make one: ')
+      + names + '</div>';
   }
   try { window._sharedOverflowNote = _sharedOverflowNote; } catch(e){}
   function _renderSharedStash(box){
     // v364 — SHARED holds items ASSIGNED here (auto-sorted by value during intake, or dragged manually).
+    /* #144.10 shared half (REG-2801) - drawn as the plan lays it (_sharedLayout): the page and cell each copy's move task
+       names, the rest packed after them in the plan's order, the copies the war cap keeps here */
     var names = _sharedDrawNames();
-    var pages = _sharedStashPages(names);
-    var pg = pages[_sharedPage] || pages[0];
+    var lay = _sharedLayout(names);
+    var pg = lay.pages[_sharedPage] || lay.pages[0];
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
     var cell = Math.max(28, Math.min(64, Math.floor(Math.min((vw * 0.46) / 10, (vh - 300) / 10))));
-    var packed = _sharedPack(pg.items);
     var slotName = function(p){ return 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
     /* #154.19 (REG-2735) - the shared stash's page tabs were divs with an onclick: a real tab button now (the mule tabs' own shape), so the keyboard reaches them */
-    var tabs = pages.map(function(p, i){ return '<button type="button" class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" role="tab" aria-selected="' + (i === _sharedPage) + '" onclick="window._sharedSetPage(' + i + ')">' + p.icon + ' ' + p.label + '</button>'; }).join('');
-    var list = packed.placed.map(function(p){ return '<div>' + esc(p.n) + ' → <span class="vl-slot">' + esc(pg.label.toUpperCase()) + ' ' + slotName(p) + '</span></div>'; }).join('');
-    var pageN = _sharedCopyTotal(pg.items);
-    var totalAll = _sharedCopyTotal(names);
+    var tabs = lay.pages.map(function(p, i){ return '<button type="button" class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" role="tab" aria-selected="' + (i === _sharedPage) + '" onclick="window._sharedSetPage(' + i + ')">Page ' + (i + 1) + (p.length ? ' <b>' + p.length + '</b>' : '') + '</button>'; }).join('');
+    var list = pg.map(function(p){ return '<div>' + esc(p.n) + ' → <span class="vl-slot">PAGE ' + (_sharedPage + 1) + ' ' + slotName(p) + '</span></div>'; }).join('');
+    var pageN = pg.length;
+    var totalAll = lay.pages.reduce(function(a, p){ return a + p.length; }, 0) + lay.left.length;
     box.hidden = false; box.scrollTop = 0;
     box.innerHTML = '<div class="vd-head"><span class="vd-icon">📦</span><span class="vd-name">SHARED STASH</span>'
-      + '<span class="vd-sub" style="margin:0 14px 0 6px">' + names.length + ' never-muled item' + (names.length === 1 ? '' : 's') + (totalAll > names.length ? (' · ' + totalAll + ' copies') : '') + ' · auto-assorted across the 5 shared tabs</span>'
+      + '<span class="vd-sub" style="margin:0 14px 0 6px">' + names.length + ' never-muled item' + (names.length === 1 ? '' : 's') + (totalAll > names.length ? (' · ' + totalAll + ' copies') : '') + ' · laid across the 5 pages in the order its move tasks fill them; past them, the WAR mules</span>'
       + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
       + '<div class="vd-game-row">'
       +   '<div class="vd-panel" style="margin:0 auto"><div class="vd-panel-title">Shared Stash</div>'
       +     '<div class="vd-tabs" role="tablist" aria-label="shared stash pages" onkeydown="window._sharedTabKey(event)">' + tabs + '</div>'
-      +     gridHtml(packed.placed, 10, 10, cell).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
-      +     '<div class="vd-pagebar"><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 4) % 5) + ')">◄</span><span>' + pg.icon + ' ' + pg.label + ' · Page ' + (_sharedPage + 1) + ' / 5</span><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 1) % 5) + ')">►</span></div>'
-      +     '<div class="vd-goldbox">' + pg.icon + ' ' + pageN + ' on this page · ' + totalAll + ' total</div>'
+      +     gridHtml(pg, 10, 10, cell).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
+      +     '<div class="vd-pagebar"><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 4) % 5) + ')">◄</span><span>Page ' + (_sharedPage + 1) + ' / 5</span><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 1) % 5) + ')">►</span></div>'
+      +     '<div class="vd-goldbox">' + pageN + ' on this page · ' + totalAll + ' total</div>'
       +   '</div>'
       + '</div>'
-      + _sharedOverflowNote(packed.left)
-      + (pg.items.length ? '<div class="vd-list">' + list + '</div>'
-         : '<div class="vm-empty" style="padding:8px 2px">' + (_sharedPage === 4 ? '📦 spare tab — room for fresh loot while hunting (an item whose slot is not on record is laid here too)' : 'nothing on this tab yet') + '</div>');
+      + _sharedOverflowNote(lay.left)
+      + (pg.length ? '<div class="vd-list">' + list + '</div>'
+         : '<div class="vm-empty" style="padding:8px 2px">nothing on this page yet</div>');
   }
   var openMuleId = null, _muleReturnTab = null, _mulePage = 0;
   // ⚠ v2240 — ONE MULE GEOMETRY, STATED ONCE. The inventory is 10x4 = 40 cells, so a mule is 140.
@@ -51862,7 +51854,7 @@ window.vaultAutoAssign = function(){
      parse it once and a write (another text) is read fresh; window._vaultMemoOff = true reads it every time. */
   var _vaultPlanMemo = null;
   function _vaultPlanOn(muleId){
-    if (muleId == null || muleId === 'shared' || typeof _vaultMoveBag !== 'function') return null;
+    if (muleId == null || typeof _vaultMoveBag !== 'function') return null;
     var raw = null;
     try { raw = window.LSR.getItem(_VR_STORE_KEY); } catch (e) { return null; }
     if (raw == null || raw === '') return null;
@@ -51874,11 +51866,15 @@ window.vaultAutoAssign = function(){
       var mv = bag.map[k], to = mv && mv.to;
       if (!to || to.cell == null || mv.kind === 'throw') return;
       if (to.id != null ? String(to.id) !== String(muleId) : (mName == null || String(to.holder || '') !== mName)) return;
-      var c = String(to.cell).match(/^(stash|inventory):c(\d+)r(\d+)$/);
+      var c = String(to.cell).match(/^(stash|inventory|shared):c(\d+)r(\d+)$/);
       if (!c) return;
       var p = k.split('\u0000');
       by = by || {};
-      (by[p[0]] || (by[p[0]] = [])).push({ ci: +(p[1] || 0), tab: c[1] === 'inventory' ? 'inv' : 'personal', x: +c[2], y: +c[3] });
+      /* #144.10 shared half (REG-2801) - a shared stash cell names its page by the row (shared:c3r12 = page 2, row 3, the
+         plan's own rule in _vaultMovePackHome); a mule never lays one of these (MULE_AREAS has no 'sharedpage') */
+      (by[p[0]] || (by[p[0]] = [])).push(c[1] === 'shared'
+        ? { ci: +(p[1] || 0), tab: 'sharedpage', page: Math.floor(+c[3] / 10), x: +c[2], y: +c[3] % 10 }
+        : { ci: +(p[1] || 0), tab: c[1] === 'inventory' ? 'inv' : 'personal', x: +c[2], y: +c[3] });
     });
     if (by) Object.keys(by).forEach(function(n){ by[n].sort(function(a, b){ return a.ci - b.ci; }); });
     return by;
@@ -52137,10 +52133,28 @@ window.vaultAutoAssign = function(){
   /* ══ #264 (2026-10-07) — WHERE IS IT: THE MULE AND THE CELL, THE SAME ANSWER THE MULE WINDOW DRAWS ═════════════════
      His words: "that way i also can just type it in the console and find the mule related". The finder said a mule's
      name, or "unsorted · in the dock" for everything else - including a charm sitting in MAGIC & RARE. Now it asks the
-     packer the mule window uses (_muleLoad with the doll's worn copies; _sharedPack for the shared tabs), so the finder
+     packer the mule window uses (_muleLoad with the doll's worn copies; _sharedLayout for the shared stash, REG-2801), so the finder
      and the window cannot disagree about a cell. A dock item says where it WOULD go and that Auto-Sort files it; an item
      his MAIN wore or carried when last seen says so; anything else in the dock says the router's own answer.
      -> {kind:'filed'|'worn'|'over'|'would'|'main'|'dock', mule, muleName, cell, why} or null for no name */
+  /* #144.10 shared half (REG-2801, the follow-on of REG-2781) - where the copies over the war stash's cap sit: each WAR mule
+     the plan sends them to (_vaultWarOverOn), at the cell its window draws (_muleLoad). FIND named all 3 Shakos and all 6
+     belts in the shared stash while the plan kept 1 and 4 there and sent the rest to WAR1. */
+  function _vaultWarCellsOf(nm, put){
+    var wars = [];
+    try { wars = (typeof _vaultWarMules === 'function') ? _vaultWarMules() : []; } catch (eW) { wars = []; }
+    wars.forEach(function(wm){
+      var wo = null;
+      try { wo = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(wm.id) : null; } catch (eO) { wo = null; }
+      if (!wo || !wo[nm]) return;
+      var L = _muleLoad(_muleNamesFor(wm.id), _mpWornFor(wm.id, _mpEqAll()), wm.id);
+      (L.mules || []).forEach(function(mu, pi){
+        var tag = wm.name + ' · ' + ((L.mules.length > 1) ? 'Mule ' + (pi + 1) + ' · ' : '');
+        (mu.stash || []).forEach(function(p){ if (p.n === nm) put(tag + 'Personal stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
+        (mu.inv || []).forEach(function(p){ if (p.n === nm) put(tag + 'Inventory · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
+      });
+    });
+  }
   function _vaultWhereIs(n){
     var nm = String(n == null ? '' : n).trim();
     if (!nm) return null;
@@ -52154,12 +52168,11 @@ window.vaultAutoAssign = function(){
       var _put = function(c){ out.cells.push(c); if (!out.cell) out.cell = c; };
       try {
         if (mid === 'shared'){
-          var pages = _sharedStashPages(_sharedDrawNames());
-          for (var i = 0; i < pages.length; i++){
-            var pk = _sharedPack(pages[i].items);
-            pk.placed.forEach(function(p){ if (p.n === nm) _put(pages[i].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
-            if (!out.cell && pk.left.some(function(p){ return p.n === nm; })){ out.kind = 'over'; out.cell = pages[i].label + ' tab - it does not fit on that tab'; }
-          }
+          /* #144.10 shared half (REG-2801) - the shared stash's one layout, and the over-cap copies on the WAR mules */
+          var layF = _sharedLayout(_sharedDrawNames());
+          layF.pages.forEach(function(pgF, pi){ pgF.forEach(function(p){ if (p.n === nm) _put('Page ' + (pi + 1) + ' · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); }); });
+          _vaultWarCellsOf(nm, _put);
+          if (!out.cell && layF.left.some(function(p){ return p.n === nm; })){ out.kind = 'over'; out.cell = 'the 5 shared pages are full - it goes to a WAR mule'; }
         } else {
           var eq = _mpEqAll(), worn = _mpWornFor(mid, eq);
           if (worn[nm]){ out.kind = 'worn'; out.cell = 'worn by the doll'; return out; }
@@ -52188,11 +52201,9 @@ window.vaultAutoAssign = function(){
       var _putW = function(c){ outW.cells.push(c); if (!outW.cell) outW.cell = c; };
       try {
         if (pg.id === 'shared'){
-          var pagesW = _sharedStashPages(_sharedDrawNames());
-          for (var iw = 0; iw < pagesW.length; iw++){
-            var pkW = _sharedPack(pagesW[iw].items);
-            pkW.placed.forEach(function(p){ if (p.n === nm) _putW(pagesW[iw].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });
-          }
+          var layW = _sharedLayout(_sharedDrawNames());   /* #144.10 shared half (REG-2801) */
+          layW.pages.forEach(function(pgW, pi){ pgW.forEach(function(p){ if (p.n === nm) _putW('Page ' + (pi + 1) + ' · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); }); });
+          _vaultWarCellsOf(nm, _putW);
         } else {
           var eqW = _mpEqAll(), wornW = _mpWornFor(pg.id, eqW);
           var loadW = _muleLoad(_muleNamesFor(pg.id), wornW, pg.id);
@@ -52580,7 +52591,10 @@ window.vaultAutoAssign = function(){
     var cap = _vaultWarCap(name);
     return cap < Infinity && _vaultWarKept(name, cap).indexOf(copyIx) < 0;
   }
-  /* L1 {name: over-cap copies planned on this WAR mule} — read off the same plan the task rows use */
+  /* L1 {name: copies planned on this WAR mule} — read off the same plan the task rows use. #144.10 shared half (REG-2801):
+     EVERY copy the plan puts here - the over-cap ones AND the ones that fit none of the war stash's 5 full pages (L1 sends
+     both to WAR1, WAR2 ...). Only the over-cap ones were counted, so 505 copies of an uncapped ring filled the 5 pages
+     and the 5 the plan sent to WAR1 were drawn on no window and named by no FIND. */
   function _vaultWarOverOn(muleId){
     if (muleId == null || muleId === 'shared') return null;
     var C = window._warOverCache || (window._warOverCache = {});
@@ -52594,10 +52608,8 @@ window.vaultAutoAssign = function(){
     pool.filter(function(n, i, a){ return a.indexOf(n) === i; }).forEach(function(n){
       var h0 = _vaultMoveHome(n);
       if (!h0 || h0.id !== 'shared') return;
-      var cap = _vaultWarCap(n), cc = (typeof _vaultMoveCopies === 'function') ? _vaultMoveCopies(n) : 1;
-      if (!(cap < Infinity) || cc <= cap) return;
+      var cc = (typeof _vaultMoveCopies === 'function') ? _vaultMoveCopies(n) : 1;
       for (var i = 0; i < cc; i++) {
-        if (!_vaultWarOver(n, i)) continue;
         var pl = _vaultMovePlanCell(n, i);
         if (pl && pl.cell != null && (pl.id != null ? String(pl.id) === String(muleId) : pl.holder === mm.name)) { out[n] = (out[n] || 0) + 1; any = true; }
       }

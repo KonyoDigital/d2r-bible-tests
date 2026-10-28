@@ -60,6 +60,32 @@ throw as the throw its row was painted from (window._moveModel, the model _vault
 the saved throw; a row he kept stays a move (_vaultThrowTask's rule). Moves still read the store, which is the fresher
 of the two after a sighting. Law: test_a_move_row_expands_inline_and_the_popup_is_gone (a painted-only throw and a
 saved-only throw, both NOWHERE from their own cell; 2 red-proofs).
+### REG-2801 - THE SHARED STASH WAS DRAWN ON BY-SLOT TABS WHILE ITS MOVE TASKS FILLED 5 PAGES IN ORDER (#144.10 shared half, his ruling 2026-10-28)
+His ruling: "the war stash is basically the shared stash with those 5 pages + the extra war mules if they get full that
+should open already automatically if that happens". MEASURED (node, whole page; Shako x3 + Arachnid Mesh x6 hand-added, a
+WAR1 mule): the tasks put Shako 1 at shared:c0r0 (page 1, col 1, row 1) and belts 1-4 on page 1, the over-cap copies on
+WAR1; the window opened on its "Weapons" tab (empty), drew the Shako on "Armor · Helms · Shields" and the belts on "Gloves ·
+Belts · Boots" (#264's by-slot tabs), counted 9 copies though 4 are WAR1's, and FIND named those tabs for all 3 Shakos and
+all 6 belts. Past the 5 pages: 505 copies of an uncapped ring filled pages 1-5 and the plan sent 5 to WAR1, which no window
+drew and no FIND named (_vaultWarOverOn counted only over-cap copies). FIX: one layout, _sharedLayout - a copy at the page
+and cell its task names (_vaultPlanOn now reads shared:cXrY as page + cell; k-th copy at the k-th task cell, as REG-2782 on
+a mule), a copy with no task packed after them page 1 first, biggest first, and the copies the war cap keeps there (the
+count the shelf card already drew). The window ("Page 1".."Page 5" tabs, same keyboard tablist), FIND (filed and would
+answers, plus the WAR mules' copies via _vaultWarCellsOf) and the organizer's planned cells read it; a WAR mule draws every
+copy the plan puts on it, page overflow included; the overflow note names the WAR mule that takes the rest, or says there
+is none. Removed with the tabs: SHARED_TABS (the by-slot one), _sharedTabOf, _sharedStashPages, _sharedPack. VERIFIED, NOT
+CHANGED (L1): routing past the 5 pages into an existing WAR1 is automatic (505 rings: 100 x 5 pages, then 5 on WAR1); a WAR
+mule is never created - with none, those copies keep no cell and the page says so. If his "should open already
+automatically" means the mule itself should be created, that is a change to the L1 ruling (tv/test_vault_l1_war_stash
+_overflow.py holds "no WAR mule is created") and needs his word. Re-aimed with the ruling: the keyboard law's tab red-proof,
+the footprint law's shared case (now _sharedLayout; small gear for the two-copy case), v3766's note red-proof (node, all
+RED); the finder law's shared cell and its would-cell red-proof, and specs v363 (fill order [3,0,0,0,0]), v3734 (the war
+cap: min(7, cap)), v3740, v3741, v3742 (a real 5-page overflow, a note that names where the rest goes) - Chrome, CI proves
+them, each premise measured in node first. RETIRED: the auto-sort law's "five shared tabs laid out by slot" case and its
+red-proof (the layout it guarded is gone). Not swept: the settings box's "N/500 slots" still counts every assigned copy
+(_sharedCopyTotal), not the cells the layout uses. Law: tv/test_the_shared_stash_draws_the_plans_pages.py (node, three
+worlds): 9 red-proofs, 9 RED.
+
 ### REG-2800 - THE V1816 LAW RELOADED WHILE THE PAGE'S DEFERRED VAULT WORK RAN, AND BLAMED THE REPAIR FOR A STORE THE RELOAD HAD NOT CARRIED (#160, CI shard 8 on ci/claude-v3826e)
 tests/v1814_vault_routes_by_base_data.spec.ts:212 failed on shard 8, first try and retry ("the migration ran a second
 time and overruled a placement he made by hand"); the same bytes passed on three other runs. MEASURED in the retry's trace:

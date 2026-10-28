@@ -12249,6 +12249,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_unique_wears_its_own_picture_everywhere.py")], 300,
          needs_app=False,
          why='#111 REG-2805 - one resolver gives each unique its own picture (game sprite, own icon, base only as fallback) on every surface'),
+    Gate("test_the_shared_stash_draws_the_plans_pages",
+         [sys.executable, os.path.join(HERE, "test_the_shared_stash_draws_the_plans_pages.py")], 300,
+         needs_app=False,
+         why="#144.10 shared half REG-2801: the shared stash window, FIND and organizer draw the plan's 5 pages, past them the WAR mules"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

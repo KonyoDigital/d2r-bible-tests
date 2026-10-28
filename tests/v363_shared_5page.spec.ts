@@ -5,13 +5,14 @@
 import { test, expect } from './_net_stub';
 
 // v363/v364 — the SHARED STASH fullscreen replica = D2R's 5 shared tabs. AUTO-SORT routes "worth keeping
-// close" items (high/very-high trade value) → SHARED during intake (alongside muling the rest). The
-// replica lays them on the tab for their SLOT (#264: weapons · armor/helms/shields · gloves/belts/boots ·
-// rings/amulets/charms), best value first; tab 5 is spare looting room.
+// close" items (high/very-high trade value) → SHARED during intake (alongside muling the rest).
+// #144.10 shared half (REG-2801, his ruling 2026-10-28: "the war stash is basically the shared stash with those 5 pages +
+// the extra war mules") — the replica lays them on its 5 PAGES in the order its move tasks fill them: page 1 first,
+// biggest first, page 2 only once page 1 is full. #264's by-slot tabs are gone.
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('high-value items auto-route to SHARED, laid on the tab for their slot (#264); tab 5 is spare', async ({ page }) => {
+test('high-value items auto-route to SHARED, laid on its 5 pages in the plan\'s fill order (page 1 first)', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
@@ -36,7 +37,6 @@ test('high-value items auto-route to SHARED, laid on the tab for their slot (#26
   expect(r.routes.anni).toBe('shared');        // REG-2241: torches and anni stay in shared
   expect(r.routes.arachnid).toBe('shared');    // high trade value → auto-routes to SHARED
   expect(r.routes.wf).not.toBe('shared');
-  // #264 (REG-2019) — the 5 tabs are laid out BY SLOT: Crown of Ages (a helm) on tab 2, Arachnid Mesh (a belt) on
-  // tab 3, Annihilus (a charm) on tab 4; tab 1 holds weapons (none here) and tab 5 is the spare room
-  expect(r.counts).toEqual([0, 1, 1, 1, 0]);
+  // REG-2801 — three items fit page 1 with room to spare, so all three are on it and pages 2-5 are empty
+  expect(r.counts).toEqual([3, 0, 0, 0, 0]);
 });

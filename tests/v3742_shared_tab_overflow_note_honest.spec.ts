@@ -1,4 +1,9 @@
 // REG-2240 (#137) — THE SHARED-TAB OVERFLOW NOTE MUST TELL THE TRUTH.
+// #144.10 shared half (REG-2801, his ruling 2026-10-28: "the war stash is basically the shared stash with those 5 pages +
+// the extra war mules if they get full"): the 5 pages now fill IN ORDER and what fits none of them goes to the WAR mules
+// (WAR1, WAR2 ... - L1; a WAR mule is never made here). So the honest note says the 5 pages are full and names where the
+// rest goes; "no overflow spill" is no longer true. The overflow is a real one: 505 copies of an uncapped 1x1 ring (the
+// war cap keeps every ring) fill the 5 x 100 cells and 5 are left - seeded before load, no per-item door calls.
 // A shared stash tab is 10×10 = 100 cells — the SAME size as the in-game tab. When a tab is full,
 // extra items land in packed.left. The old note read "D2R shared tabs hold 100 slots; this is the
 // 10×10 preview", implying the real stash is bigger than the preview and the overflow is only a
@@ -9,24 +14,23 @@ import { test, expect } from './_net_stub';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('shared-tab overflow note is honest: no "preview", names the items, says there is no spill', async ({ page }) => {
+test('shared overflow note is honest: no "preview", names the items, says the 5 pages are full and where the rest goes', async ({ page }) => {
   // 120 slot-unknown dummies all routed to SHARED → they pile on tab 5 (spare) and overflow its 10×10.
   // Gibberish names resolve to no doll slot (tab 5) and to the default footprint, so overflow is
   // deterministic and does not depend on any item-size or routing table.
   // The load-time owned-prune drops unknown names from a seeded d2r_owned, so register the dummies
   // through the TV door (a stub survives the prune) and file each to SHARED after load.
-  await page.addInitScript(() => { try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {} });
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('d2r_ownerClaim', '*');
+      localStorage.setItem('d2r_owned', JSON.stringify(['The Stone of Jordan']));
+      localStorage.setItem('d2r_copies', JSON.stringify({ 'The Stone of Jordan': 505 }));
+      localStorage.setItem('d2r_muleAssign', JSON.stringify({ 'The Stone of Jordan': 'shared' }));
+    } catch (e) {}
+  });
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
-  await page.waitForTimeout(1800);
-  await page.evaluate(() => {
-    const w = window as any;
-    for (let i = 0; i < 120; i++) {
-      const n = 'Zdummy' + i;
-      w.tvVaultRegister(n);
-      w.vaultFile(n, { by: 'hand', at: new Date().toISOString(), where: 'spec' }, { mule: 'shared' });
-    }
-  });
+  await page.waitForFunction(() => typeof (window as any)._sharedLayout === 'function' && typeof (window as any).openMuleCard === 'function');
 
   // PART A — the pure note builder (bulletproof RED-first: undefined before the fix, no DOM needed).
   const unit = await page.evaluate(() => {
@@ -40,20 +44,20 @@ test('shared-tab overflow note is honest: no "preview", names the items, says th
   expect(unit.note).toContain('Exile');                       // names the overflow items
   expect(unit.note).toContain('Grief');
   expect(unit.note.toLowerCase()).not.toContain('preview');   // the misleading word is gone
-  expect(unit.note).toContain('will not fit');                // honest headline
-  expect(unit.note).toContain('no overflow spill');           // says the stash cannot spill on its own
+  expect(unit.note).toContain('will not fit on the 5 shared pages');   // honest headline
+  expect(unit.note).toContain('WAR1');                        // says where the rest goes (here: there is no WAR1 to take it)
 
   // PART B — the note is WIRED into the live render (the-unjoined-end), read synchronously (no re-render race).
   const rendered = await page.evaluate(() => {
     const w = window as any;
     w.switchTab('tools');
     w.openMuleCard('shared');
-    w._sharedSetPage(4);   // the spare tab, where the slot-unknown dummies piled up
+    w._sharedSetPage(4);   // page 5, the last one the 505 rings fill
     const placed = document.querySelectorAll('#vault-detail .vd-item').length;
     const ov = document.querySelector('#vault-detail .vd-overflow');
     return { placed, has: !!ov, text: ov ? (ov.textContent || '') : '' };
   });
-  expect(rendered.placed).toBeGreaterThan(0);                     // the tab rendered its grid (render did not throw)
+  expect(rendered.placed).toBe(100);                              // page 5 is full: the pages filled in order (render did not throw)
   expect(rendered.has).toBe(true);                                // and it overflowed
   expect(rendered.text.toLowerCase()).not.toContain('preview');   // honest in the real DOM
   expect(rendered.text).toContain('will not fit');

@@ -7,7 +7,8 @@ import { test, expect } from '@playwright/test';
 //   2) CLICK TARGET: a shared-stash row opened openMuleCard('shared'), which draws _sharedPage; that
 //      defaults to 0 (the Weapons tab) and the open never changed it, so EVERY shared row opened
 //      "Shared Stash > Weapons". FIX: a shared row now opens window._sharedSetPage(_sharedTabOf(n).tab)
-//      — the exact tab the item is packed on.
+//      — the exact tab the item is packed on. (#79 then kept the click on the vault; #144.10 shared half, REG-2801,
+//      replaced the by-slot tabs and _sharedTabOf with the plan's 5 pages - the click assertion below is what stands.)
 //
 // RED without the fix: test 1 lands on Page 1 / 5 (Weapons) not the item's tab; test 2 keeps the stale
 // mule. GREEN with the fix: the click lands on the item's real tab, and the finder repaints after a move.
@@ -19,7 +20,7 @@ async function openVault(page: any) {
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
   await page.waitForFunction(() => (window as any).vaultFind && (window as any).renderVault
-    && (window as any)._sharedTabOf && (window as any)._sharedSetPage && (window as any).vaultFile
+    && (window as any)._sharedLayout && (window as any)._sharedSetPage && (window as any).vaultFile
     && (window as any)._vaultWhereIs);
   await page.evaluate(() => (window as any).switchTab('tools'));
 }
@@ -35,24 +36,23 @@ test.describe('REG-2230 vault FIND freshness + click target', () => {
     await openVault(page);
     const r = await page.evaluate(() => {
       const w = window as any;
-      // the tab _sharedStashPages actually files this item onto — the finder click must match it
-      const expectedTab = (w._sharedTabOf('Arachnid Mesh').tab | 0);
+      // REG-2801 - the page FIND names for it (the shared stash is its 5 pages now, not by-slot tabs)
+      const cell = String(((w._vaultWhereIs('Arachnid Mesh') || {}).cell) || '');
       w.vaultFind('arachnid');
       const row = document.querySelector('#vault-find-results .vfr-row') as HTMLElement | null;
       const had = !!row;
       if (row) row.click();                 // fires the row's REAL inline onclick
       return {
         had,
-        expectedTab,
+        cell,
         cardOpen: !((document.getElementById('vault-detail') as HTMLElement) || { hidden: true }).hidden,
         activeTab: (document.querySelector('#vault-detail .vd-tab.vt-on')?.textContent || ''),
         pagebar: (document.querySelector('#vault-detail .vd-pagebar')?.textContent || ''),
       };
     });
     expect(r.had, 'the finder must list the owned shared-stash item').toBe(true);
-    // a meaningful test needs an item that is NOT on the Weapons tab (index 0) — a belt is tab 2
-    expect(r.expectedTab, 'Arachnid Mesh must file to a non-weapons shared tab').toBeGreaterThan(0);
-    // #79 — the packer/finder still AGREE on the tab (expectedTab, asserted above), but the click no longer
+    expect(r.cell, 'FIND names no shared-page cell for the filed belt').toMatch(/^Page [1-5] · col \d+ · row \d+$/);
+    // #79 — the finder still names the item's cell (asserted above), but the click no longer
     // opens the shared stash page: it stays on the vault (his "page trap" is gone). The floating HD card is
     // the finder-row affordance now, covered by tests/v3741_vault_find_row_stays_on_vault.spec.ts.
     expect(r.cardOpen, 'a FIND-row click opens no shared stash page - it stays on the vault (#79)').toBe(false);

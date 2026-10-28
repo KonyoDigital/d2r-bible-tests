@@ -277,10 +277,13 @@ console.log(JSON.stringify(OUT));
 
     def test_two_copies_pack_as_two_rectangles_and_a_tile_click_stays(self):
         """Two Griefs on a stored Phase Blade are two 2x3 tiles. One name is one tile.
-        The shared-stash tile HTML does not call openDrop. The gold box counts the copies."""
+        The shared-stash tile HTML does not call openDrop. The gold box counts the copies.
+        #144.10 shared half (REG-2801): the shared stash is laid by _sharedLayout (the plan's 5 pages) - _sharedPack went
+        with the by-slot tabs. How many copies the stash keeps (the war cap) is tv/test_the_shared_stash_draws_the_plans
+        _pages.py's subject; here every copy is kept, so the footprint is all this case measures."""
         s = _src()
         pack = _cut(s, "  function packGrid(items, gw, gh, occ){\n",
-                    "  try { window._sharedNames = _sharedNames; window._sharedPack = _sharedPack; } catch(e){}\n")
+                    "  try { window._sharedNames = _sharedNames; } catch(e){}\n")
         prelude = _planner('{ Grief: { base: "7cr", q: "r", baseName: "Phase Blade", id: "grief" } }')
         tail = pack + """
 function esc(v){ return String(v == null ? '' : v); }
@@ -301,9 +304,11 @@ function take(list){
   return { n: list.length, over: over, used: used,
            tiles: list.map(function(it){ return [it.n, it.w, it.h]; }) };
 }
-var two = _sharedPack(['Grief']);
+function _muleItemKey(n, ci){ return ci ? n + ' #' + (ci + 1) : n; }
+function _shelfCopyCount(n){ return copyCount(n); }
+var lay2 = _sharedLayout(['Grief']), two = { placed: lay2.pages[0], left: lay2.left };
 copies = { Spirit: 1 };
-var one = _sharedPack(['Spirit']);
+var lay1 = _sharedLayout(['Spirit']), one = { placed: lay1.pages[0], left: lay1.left };
 var html = gridHtml([{ n: 'Grief', x: 0, y: 0, w: 2, h: 3 }], 10, 10, 46);
 copies = { Grief: 2 };
 var total = (typeof _sharedCopyTotal === 'function') ? _sharedCopyTotal(['Grief']) : null;
@@ -321,8 +326,9 @@ console.log(JSON.stringify({ two: take(two.placed), twoLeft: two.left.length, on
         self.assertFalse(got["openDrop"], "the shared-stash tile still opens the item page")
         self.assertTrue(got["tile"], got)
         self.assertEqual(got["total"], 2, got)
-        self.assertIn("_sharedCopyTotal(pg.items)", s)
-        self.assertIn("_sharedCopyTotal(names)", s)
+        # the window's gold box counts what the layout PLACED - one entry per copy - never the names on a page
+        self.assertEqual(s.count("    var pageN = pg.length;\n"), 1, "the shared window no longer counts the copies it placed")
+        self.assertEqual(s.count("    var totalAll = lay.pages.reduce(function(a, p){ return a + p.length; }, 0) + lay.left.length;\n"), 1)
         self.assertNotIn("pg.items.length + ' on this page'", s)
 
 
@@ -359,8 +365,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "two copies of one name pack as one tile again",
      "file": "bible.html",
-     "find": "      for (var i = 0; i < cc; i++) sized.push({ n: n, w: s[0], h: s[1], area: area });\n",
-     "replace": "      for (var i = 0; i < 1; i++) sized.push({ n: n, w: s[0], h: s[1], area: area });\n",
+     "find": "      for (var k = 0; k < cc; k++){\n        var key = _muleItemKey(n, k), c = pl[k];\n",
+     "replace": "      for (var k = 0; k < 1; k++){\n        var key = _muleItemKey(n, k), c = pl[k];\n",
      "matches": 1},
 ]
 

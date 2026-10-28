@@ -100,18 +100,10 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
         self.assertEqual(o["Obedience"][0], "runewords", "the control: a runeword not on the war list left its mule %r" % o)
         self.assertEqual(o["Nokozan Relic"][0], "uni-small", o)
 
-    def test_the_five_shared_tabs_are_laid_out_by_slot(self):
-        o = board().run("OUT.t = {}; ['Grief','Enigma',\"Thundergod's Vigor\",'Raven Frost','Breath of the Dying'].forEach("
-                        "function(n){ OUT.t[n] = window._sharedTabOf(n).tab; });"
-                        "var p = window._sharedStashPages(['Grief','Enigma','Raven Frost','Death']);"
-                        "OUT.n = p.length; OUT.p = p.map(function(x){ return x.items; });")
-        self.assertEqual(o["t"], {"Grief": 0, "Enigma": 1, "Thundergod's Vigor": 2, "Raven Frost": 3, "Breath of the Dying": 0},
-                         "a war item was laid on the wrong shared tab")
-        self.assertEqual(o["n"], 5)
-        self.assertEqual(sorted(o["p"][0]), ["Death", "Grief"], "the weapons tab: %r" % o["p"])
-        self.assertEqual(o["p"][1], ["Enigma"])
-        self.assertEqual(o["p"][3], ["Raven Frost"])
-        self.assertEqual(o["p"][4], [], "the spare tab held an item whose slot is on record")
+    # RETIRED (#144.10 shared half, REG-2801, his ruling 2026-10-28: "the war stash is basically the shared stash with those 5
+    # pages + the extra war mules"): REG-2019's case "the five shared tabs are laid out by slot" and its red-proof. The
+    # by-slot tabs are gone - the shared stash is drawn on its 5 pages in the order its move tasks fill them, held by
+    # tv/test_the_shared_stash_draws_the_plans_pages.py.
 
     def test_his_click_files_the_dock_and_an_automatic_caller_still_files_nothing(self):
         _seed()
@@ -226,11 +218,6 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    if (_war && _ov !== 'mule') return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};\n",
      "replace": "",
-     "matches": 1},
-    {"why": "REG-2019 - the shared stash piles everything on its first tab again",
-     "file": "bible.html",
-     "find": "    sorted.forEach(function(n){ pages[_sharedTabOf(n).tab].items.push(n); });\n",
-     "replace": "    sorted.forEach(function(n){ pages[0].items.push(n); });\n",
      "matches": 1},
     {"why": "REG-2019 - his click files a found-ever receipt nobody ever filmed",
      "file": "bible.html",

@@ -480,8 +480,8 @@ RED_PROOF = [
     {
         "why": "The shared overflow note names the real tab. Calling it a preview says the stash is bigger than it is.",
         "file": "bible.html",
-        "find": "      + ' will not fit on this shared tab</strong> — a shared tab is 10×10 = 100 cells and this one is full. '\n",
-        "replace": "      + ' will not fit this 10x10 preview</strong> — a shared tab is 10×10 = 100 cells and this one is full. '\n",
+        "find": "      + ' will not fit on the 5 shared pages</strong> — each page is 10×10 = 100 cells and all 5 are full. '\n",
+        "replace": "      + ' will not fit this 10x10 preview</strong> — each page is 10×10 = 100 cells and all 5 are full. '\n",
         "matches": 1,
     },
     {

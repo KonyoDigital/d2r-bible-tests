@@ -63,7 +63,9 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
                         + "window.openMuleCard('runewords');"
                         + "OUT.rwList = (document.querySelector('#vault-detail .vd-list') || document.getElementById('vault-detail') || {}).textContent || '';"
                         + "window.vaultCloseCard && window.vaultCloseCard();"
-                        + "window.openMuleCard('shared'); window._sharedSetPage(0);"
+                        # #144.10 shared half (REG-2801): the shared stash is its 5 pages - open the one FIND names for Grief
+                        + "window.openMuleCard('shared'); var _gp = /^Page (\\d) /.exec((window._vaultWhereIs('Grief') || {}).cell || '');"
+                        + "window._sharedSetPage(_gp ? +_gp[1] - 1 : 0);"
                         + "OUT.shList = (document.getElementById('vault-detail') || {}).textContent || '';"
                         + "window.vaultCloseCard && window.vaultCloseCard();"
                         + "window.vaultFind('grief'); OUT.find = (document.getElementById('vault-find-results') || {}).textContent || '';")
@@ -77,7 +79,7 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
     def test_a_filed_item_names_its_mule_and_a_cell(self):
         g, o = self.after["Grief"], self.after["Obedience"]
         self.assertEqual((g or {}).get("mule"), "shared", g)
-        self.assertTrue(re.match(r"^Weapons tab · col \d+ · row \d+$", g.get("cell") or ""), "Grief has no shared-tab cell: %r" % g)
+        self.assertTrue(re.match(r"^Page [1-5] · col \d+ · row \d+$", g.get("cell") or ""), "Grief has no shared-page cell: %r" % g)
         self.assertEqual((o or {}).get("mule"), "runewords", o)
         self.assertTrue(re.search(r"Personal stash · col \d+ · row \d+$", o.get("cell") or ""), "Obedience has no stash cell: %r" % o)
 
@@ -87,9 +89,9 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
         self.assertTrue(m, o)
         self.assertIn("Obedience → STASH col %s · row %s" % m.groups(), self.rwList,
                       "the finder and the mule window name different cells for the same item")
-        g = re.search(r"col (\d+) · row (\d+)$", self.after["Grief"].get("cell") or "")
+        g = re.search(r"^Page ([1-5]) · col (\d+) · row (\d+)$", self.after["Grief"].get("cell") or "")
         self.assertTrue(g, self.after["Grief"])
-        self.assertIn("Grief → WEAPONS col %s · row %s" % g.groups(), self.shList,
+        self.assertIn("Grief → PAGE %s col %s · row %s" % g.groups(), self.shList,
                       "the finder and the shared stash window name different cells for Grief")
 
     def test_magic_and_rare_and_his_main_and_a_discard_each_say_their_own_answer(self):
@@ -118,7 +120,7 @@ RED_PROOF = [
     # deleted the FILED branch's cell lines, which no case here reaches: each stayed green, BLIND on his census.
     {"why": "REG-2020 - the finder names no shared-tab cell",
      "file": "bible.html",
-     "find": "            pkW.placed.forEach(function(p){ if (p.n === nm) _putW(pagesW[iw].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); });\n",
+     "find": "          layW.pages.forEach(function(pgW, pi){ pgW.forEach(function(p){ if (p.n === nm) _putW('Page ' + (pi + 1) + ' · col ' + (p.x + 1) + ' · row ' + (p.y + 1)); }); });\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-2020 - the finder names no mule-stash cell",
