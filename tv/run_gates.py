@@ -12657,6 +12657,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_no_law_opens_the_real_console.py")], 300,
          needs_app=False,
          why="#173 (REG-2940) - no law file calls open_control_window / start_background_watchers; moved out of the update-beside-the-shadow law because it globs every law, so that law's 19 proofs can be saved"),
+    Gate("test_a_killed_push_keeps_what_it_proved",
+         [sys.executable, os.path.join(HERE, "test_a_killed_push_keeps_what_it_proved.py")], 300,
+         needs_app=False,
+         why="#150 (REG-2942/2943) - a push killed mid-gate keeps every PROVEN a green CHECKPOINT clean run already bracketed (written to disk then, not at the gate's end), a red checkpoint banks nothing, and a fatal signal writes what was already banked before it exits - never a PROVEN still waiting"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
