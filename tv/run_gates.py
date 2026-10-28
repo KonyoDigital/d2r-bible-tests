@@ -12165,6 +12165,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_names_carry_their_own_age.py")], 300,
          needs_app=False,
          why="#200 - the chronicle's names carry their own age beside banked counts, and that age is never a hash input on either end"),
+    Gate("test_a_lock_goes_stale_only_through_its_own_guards",
+         [sys.executable, os.path.join(HERE, "test_a_lock_goes_stale_only_through_its_own_guards.py")], 300,
+         needs_app=False,
+         why='#156 REG-2750: a lock goes stale or BLIND only through its own guard laws'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -74,9 +74,11 @@ person's statement about where real evidence came from, never new evidence, and 
 its own.
 """
 
+import hashlib
 import io
 import json
 import os
+import re
 import sys
 import time
 
@@ -1537,6 +1539,8 @@ def _heart_says_watched():
                        "been seen to refuse" % (_noproof, _tot)))))
 
 
+_HEART_SAYS_WATCHED_REAL = _heart_says_watched   # #156 - per-lock stands aside when a law seats the global answer
+
 #: the two phrases _heart_says_watched() uses for the two failures that mean different things.
 #: ⚠ THEY ARE MATCHED AS TEXT, AND test_the_stale_prover_is_not_a_safety_verdict PARSES THIS FILE
 #: TO PROVE BOTH STILL EXIST IN THE BRANCHES THEY CAME FROM. A silent reword would otherwise turn
@@ -1559,6 +1563,127 @@ def heart_block_kind(why):
     if _HEART_BLIND_PHRASE in w:
         return "blind"
     return "other"
+
+
+#: #156 (his ruling 2026-10-28: "do whatever is needed.. if needs to be rep-proving and build-per lock then do it") - the
+#: module(s) each lock's DOOR lives in. A lock goes STALE only through ITS OWN guard laws: the gates whose source names
+#: the lock, or directly imports (or opens) one of these modules or the lock machinery (self_arming). Measured on his
+#: census 2026-10-28: printer.stream 81, reel.route 70, frame.release 119 of 1,200 gates - so a law edited among the other
+#: ~1,100 no longer takes the river off every PC until a full re-prove (#193). A recorded BLIND still closes every lock
+#: (his 2026-09-12 ruling: BLIND is not STALE). A lock NOT listed here, and every route, keeps the global rule. Doors in
+#: control_app are guarded by ~480 laws: correct, just broad.
+LOCK_DOORS = {
+    "printer.stream": ("printer",),
+    "reel.route": ("reel_route_lane",),
+    "frame.release": ("reel_retention",),
+    "vault.sweep_start": ("control_app", "sweep_wilson"),
+    "vault.apply": ("read_names_feeder",),
+    "prune.reports": ("disk_report_wilson", "control_app"),
+    "vault.forget": (),
+    "miniauto.run": ("hover_wilson",),
+    "console.pixel_rescue": ("control_app",),
+}
+#: the lock machinery every lock stands on: a law that exercises it guards them all
+LOCK_MACHINERY = ("self_arming",)
+_LOCK_MEMO = {"key": None, "owed": None, "blind": None, "why": None, "src": {}}
+
+
+def _guards_lock(text, lock, stems):
+    """Does this gate's source guard `lock`? -> bool. Names the lock, or directly imports / opens one of its door
+    modules or the lock machinery. Static and cheap; broad in the safe direction."""
+    if not text:
+        return False
+    if ('"%s"' % lock) in text or ("'%s'" % lock) in text:
+        return True
+    for stem in tuple(stems) + LOCK_MACHINERY:
+        if (stem + ".py") in text:
+            return True
+        if re.search(r"(?m)^\s*(?:from\s+%s\s+import\b|import\s+%s\b)" % (re.escape(stem), re.escape(stem)), text):
+            return True
+    return False
+
+
+def _owed_and_blind():
+    """This PC's proof census against the gate files on disk now. -> (owed names, blind names, files) | (None, None, why)
+
+    owed = gates that DECLARE a proof and are not proven against their file as it is now (heart2.slice_owed - the same
+    rule a slice proves by), blind = what the census filed BLIND. Memoised on the census bytes and the gate fingerprint,
+    so a may() on a hot path pays what the global rule already pays."""
+    try:
+        import heart2 as _h2
+        # the call-time seam _heart_says_watched reads too, so a law's fixture census reaches both answers
+        _census = os.environ.get("TV_HEART_CENSUS") or os.path.join(_h2.HERE, ".heart2.json")
+        if not os.path.exists(_census):
+            return None, None, "no proof census on this PC"
+        with io.open(_census, "rb") as _fh:
+            raw = _fh.read()
+        key = (hashlib.sha256(raw).hexdigest(), _h2.gates_fingerprint())
+        if _LOCK_MEMO["key"] == key:
+            return _LOCK_MEMO["owed"], _LOCK_MEMO["blind"], _LOCK_MEMO["files"]
+        st = json.loads(raw.decode("utf-8"))
+        files = dict(_h2.gate_files())
+        owed = set(n for n, _k in (_h2.slice_owed(list(files.items()), st).get("owed") or []))
+        blind = set(st.get("blind") or [])
+        _LOCK_MEMO.update(key=key, owed=owed, blind=blind, files=files, src={})
+        return owed, blind, files
+    except Exception as _e:
+        return None, None, "the census could not be read for one lock (%s)" % type(_e).__name__
+
+
+def _lock_heart(lock, gwhy=None):
+    """#156 - the heart's answer for ONE lock, from its own guard laws, when the global rule called the census STALE.
+    -> (ok, why) | None (no per-lock answer: the global rule stands). Asked by may() and report() only when the global
+    rule refused; `gwhy` is that refusal (read here when a caller does not pass it).
+
+    None when the lock declares no door (LOCK_DOORS), when the census cannot be read (the global rule then fails it
+    closed), when the global answer has been seated by a law (a law that seats _heart_says_watched is asking about the
+    global rule), when the global refusal is not STALE, and whenever the census records a BLIND instrument: his
+    2026-09-12 ruling (test_a_stale_prover_is_not_a_safety_verdict) - BLIND IS NOT STALE, a gate that cannot fail is a fact
+    about supervision itself and closes every lock. #156 narrows STALE only. A guard owed a proof makes the lock STALE
+    (its reason is the global one, plus which of ITS guards are owed), and the v3042 rule still decides what STALE
+    permits (an ordinary act on merit, an irreversible one never)."""
+    if lock not in LOCK_DOORS or _heart_says_watched is not _HEART_SAYS_WATCHED_REAL:
+        return None
+    if gwhy is None:
+        try:
+            _gok, gwhy = _heart_says_watched()
+        except Exception:
+            return None
+        if _gok:
+            return None
+    if heart_block_kind(gwhy) != "stale":
+        return None
+    owed, blind, files = _owed_and_blind()
+    if owed is None or blind:
+        return None
+    stems = LOCK_DOORS[lock]
+
+    def _src(name):
+        if name in _LOCK_MEMO["src"]:
+            return _LOCK_MEMO["src"][name]
+        f = files.get(name) if isinstance(files, dict) else None
+        text = None
+        if f:
+            try:
+                import heart2 as _h2
+                with io.open(f if os.path.isabs(f) else os.path.join(_h2.HERE, f), encoding="utf-8") as _fh:
+                    text = _fh.read()
+            except Exception:
+                text = None
+        _LOCK_MEMO["src"][name] = text
+        return text
+
+    def _guard(name):
+        t = _src(name)
+        return True if t is None else _guards_lock(t, lock, stems)   # a gate that will not read is counted, never skipped
+
+    g_owed = sorted(n for n in owed if _guard(n))
+    if g_owed:
+        return False, ("%s For %s (#156, per-lock): %d of its own guard law(s) changed or are unproven since it ran (%s); "
+                       "the rest of the tree does not decide this lock."
+                       % (str(gwhy).rstrip(), lock, len(g_owed), ", ".join(g_owed[:3])))
+    return True, ("instruments watched for %s: every law that guards it is proven against the files on disk; the %d gate(s) "
+                  "owed elsewhere guard other surfaces, not this one (#156, per-lock)" % (lock, len(owed)))
 
 
 def may_on_merit(lock):
@@ -1619,6 +1744,11 @@ def may(lock):
     # v2861 — AND THE HEART, in the same chain and for the same reason. See _heart_says_watched().
     _hok, _hwhy = _heart_says_watched()
     if not _hok:
+        # #156 - the global rule refused; this lock's OWN guard laws decide when it declares a door
+        _per = _lock_heart(lock, _hwhy)
+        if _per is not None:
+            _hok, _hwhy = _per
+    if not _hok:
         _hwhy = _hwhy or "UNKNOWN: the heart refused and gave no reason - which fails CLOSED"
     return _verdict(lock, spec, rows, _hok, _hwhy)
 
@@ -1676,7 +1806,7 @@ def report():
     # be drawn from `state` alone. Both are published; a surface draws open only when both agree.
     heart = _heart_for_report()
     _leg = sp["legacy"]
-    out = [_with_permit(score(k, rows, legacy=_leg), k, LOCKS[k], rows, heart) for k in sorted(LOCKS)]
+    out = [_with_permit(score(k, rows, legacy=_leg), k, LOCKS[k], rows, _heart_of(k, heart)) for k in sorted(LOCKS)]
     out += [dict(_with_permit(score(k, rows, legacy=_leg), k, ROUTES[k], rows, heart), kind="route")
             for k in sorted(ROUTES)]
     return {"ok": True, "locks": out,
@@ -1812,6 +1942,18 @@ def _heart_for_report(_now=None):
         v = (False, "UNKNOWN: the heart refused and gave no reason - which fails CLOSED")
     _HEART_SHOWN["at"], _HEART_SHOWN["v"] = now, v
     return v
+
+
+def _heart_of(lock, heart):
+    """#156 - the heart answer one report row stands on: the global one, or - when it refused - this lock's own,
+    exactly as may() takes it, so the padlock and the act cannot disagree (REG-1737). -> (bool, why)"""
+    if heart and heart[0]:
+        return heart
+    try:
+        per = _lock_heart(lock, heart[1] if heart else None)
+    except Exception:
+        per = None
+    return per if per is not None else heart
 
 
 def _with_permit(row, lock, spec, rows, heart):

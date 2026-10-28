@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2750 - ONE BLIND OR CHANGED LAW ANYWHERE SHUT EVERY LOCK, THE RIVER'S INCLUDED (#156, his ruling)
+### REG-2752 - A REEL OF CAPTURE-LESS RE-READS COULD STILL BE DATED BY WHEN THEY WROTE (the v3823 second eye)
+REG-2744 counted a verify or intake row only through its frame's capture time. The fallback for a session with no
+moments of its own (replay.session_moments: "every row's when nothing else is there") still took every row's row_moment,
+and the Shelf row then fell back again to its first and last row's ts, so a session made only of capture-less re-reads
+was dated by the day they were written - REG-2736 by the side door. The fallback now counts a re-read only through its
+capture time too, and the Shelf row's t0/t1 are None when no moment is left; the console already says UNKNOWN for that.
+No instance today: on his journal every intake and verify row carries captureTs. Law:
+test_a_session_is_dated_by_what_it_captured (2 new cases, 2 new red-proofs; the t1 red-proof follows the new line).
+
+### REG-2751 - THE PROOF CARRIER'S LINE WAS ABSENT FOR THE FIRST MINUTES AFTER A START (#186, GrokBot's v3822 pass)
+GrokBot SAW the carrier on his console and noted the key was missing before the first self-prove tick: _SELF_PROVE
+started without a "carrier" record, so the panel had nothing to say until the lane ran. It now starts with one -
+on None, worked 0, and "not asked yet - the proof carrier runs after the first self-prove tick" - so an absent line means
+a broken console, never a young one. Law: test_a_proof_rides_only_a_registered_key (1 new case, 1 new red-proof).
+
+### REG-2750 - ANY LAW EDITED ANYWHERE SHUT EVERY LOCK, THE RIVER'S INCLUDED, UNTIL A FULL RE-PROVE (#156, his ruling)
+His words, 2026-10-28: "do whatever is needed.. if needs to be rep-proving and build-per lock then do it." may() asked
+one question of the whole tree - has any gate file changed since the census ran - so one edited law nowhere near the
+river shut frame.release (an act with no undo) on every PC until a full re-prove (#193). A lock now declares its door
+(self_arming.LOCK_DOORS); when the global rule calls the census STALE, may() and the report's padlock (one helper,
+REG-1737) ask that lock's OWN guards: the gates whose source names the lock or directly imports or opens its door module
+or the lock machinery. A guard owed a proof makes it STALE - the reason is the global one plus which of its guards are
+owed, so every reader matching the REG-2073 words still matches - and the v3042 rule still decides what STALE permits.
+Nothing else in the tree decides it. ⚠ BLIND IS NOT STALE: a recorded BLIND closes every lock, per-lock or not (his
+2026-09-12 ruling, test_a_stale_prover_is_not_a_safety_verdict). The first cut let an unrelated BLIND open a lock; CI on
+ci/claude-v3825a caught the contradiction with that law and the REG-2073 naming law. Measured on this batch's tree
+(1,204 gates, the census from before it): frame.release has 120 guards, printer.stream 82, reel.route 71; a lock whose
+door is control_app (prune.reports, vault.sweep_start, console.pixel_rescue) has ~485, so it still goes stale on most
+console edits - that is where those acts live. A lock with no declared door, every route, an unreadable census, a
+refusal that is not STALE and a law that seats the global answer keep the global rule. Law:
+test_a_lock_goes_stale_only_through_its_own_guards (9 cases on a fixture census, 7 red-proofs).
+
 ### REG-2749 - THE FLEET'S COMPARE WINDOW OPENED OVER THE ROW'S OWN SEE-CONSOLE BUTTON (#225, his ruling)
 GrokBot's v3821 pass (#230 6464730558): one click on a Fleet row opened the row inline with its see-console eyes AND the
 full-screen compare window on top of them, so he had to close the window before he could enter the shadow. That was his
