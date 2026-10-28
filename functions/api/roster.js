@@ -120,7 +120,7 @@ function dirty(v) {
   return false;
 }
 
-function shapeSection(raw) {
+export function shapeSection(raw) {   // exported for its law (REG-2745)
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const asOf = raw.asOf;
   if (typeof asOf !== "number" || !Number.isFinite(asOf) || asOf <= 0) return null;
@@ -144,16 +144,18 @@ function shapeSection(raw) {
   }
   if (Array.isArray(raw.rows) && raw.rows.length) out.rows = raw.rows;
   if (!("counts" in out) && !("rows" in out)) return null;
+  // #200 (REG-2745) - when the rows were read; kept beside them, never hashed (forHash below)
+  if (out.rows && typeof raw.rowsAsOf === "number" && Number.isFinite(raw.rowsAsOf) && raw.rowsAsOf > 0) out.rowsAsOf = raw.rowsAsOf;
   return out;
 }
 
-function forHash(sections) {
+export function forHash(sections) {   // exported for its law (REG-2745)
   const o = {};
   for (const name of Object.keys(sections).sort()) {
     const sec = sections[name];
     const c = {};
     for (const k of Object.keys(sec).sort()) {
-      if (k === "asOf" || k === "hash") continue;
+      if (k === "asOf" || k === "rowsAsOf" || k === "hash") continue;   // REG-2745
       c[k] = sec[k];
     }
     o[name] = c;

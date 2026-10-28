@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2745 - THE CHRONICLE'S FRESH NAMES WERE DATED BY ITS OLD BANKED COUNTS (#200, the last item)
+A PC's chronicle section had one asOf: when its counts were banked (the board tally). Its name rows are read fresh from
+the found stores at publish, so a viewer dated fresh names by counts that could be hours older. The section now carries
+rowsAsOf beside its rows; both shapers keep it (roster_publish.section_of on the PC, functions/api/roster.js shapeSection
+on the worker) and both hashes leave it out exactly as they leave asOf out, so a publish is never triggered by the stamp
+alone and a worker that has not deployed it yet drops the key and computes the same hash. The reader dates it (rowsAge)
+and the shadow's chronicle line says it ("names read 5 min ago"; a clock ahead of now says nothing).
+Law: test_the_names_carry_their_own_age (7 cases incl. the real roster.js in node and the console line cut out of
+control_ui.html; 5 red-proofs).
+
 ### REG-2744 - A SHELF ROW COUNTED THE WATCHDOG'S VERDICT AS A READ, AND A RE-READ COULD STILL DATE A SESSION (v3821 second eye)
 The v3821 eye on REG-2736 (#231 6464187658), each finding reproduced: (1) REAL - a Shelf row's readMs dropped watchdog rows
 (REG-2736) while the `reads` count beside it kept its old lane list, so one session counted a verdict as a read while dating

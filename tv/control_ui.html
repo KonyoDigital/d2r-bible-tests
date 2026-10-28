@@ -24288,6 +24288,16 @@ window._lockMark = function(isOpen, px, label){
     var line = parts.join(' \u00b7 ');
     if (sentence) line = line ? (line + ' \u00b7 the list wasn\u2019t sent') : 'the list wasn\u2019t sent';
     if (partial.length) line = line ? (line + ' \u00b7 ' + partial.join(' \u00b7 ')) : partial.join(' \u00b7 ');
+    /* #200 (REG-2745) - WHEN the names were read, said beside counts banked earlier; a clock ahead of now says nothing */
+    var namesAt = 0;
+    lanes.forEach(function (spec) {
+      var r = progress && progress[spec[0]];
+      if (r && r.listed === true && whole(r.rowsAsOf, 1) && r.rowsAsOf > namesAt) namesAt = r.rowsAsOf;
+    });
+    if (namesAt && line) {
+      var mins = Math.round((Date.now() - namesAt) / 60000);
+      if (mins >= -1) line += ' \u00b7 names read ' + (mins < 1 ? 'under a minute ago' : mins < 120 ? (mins + ' min ago') : (Math.round(mins / 60) + ' h ago'));
+    }
     return line;
   }
   function _paintChronicle(summary) {
@@ -28385,6 +28395,8 @@ function escC(s) {
       /* #200 - a lane carries at most 400 names; <lane>Named is how many there were, so a short list says so */
       var namedN = chron.counts && chron.counts[key + 'Named'];
       if (list.length && whole(namedN, 1) && namedN > list.length) { pair.sent = list.length; pair.named = namedN; }
+      /* #200 (REG-2745) - the names were read at publish; their own time rides beside counts that may be older */
+      if (list.length && whole(chron.rowsAsOf, 1)) pair.rowsAsOf = chron.rowsAsOf;
       progress[key] = pair;
     }
     note('uniques', found);

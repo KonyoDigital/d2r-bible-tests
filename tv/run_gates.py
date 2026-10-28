@@ -12161,6 +12161,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_his_grok_chats_are_pruned_only_when_needed.py")], 300,
          needs_app=False,
          why='#151 - his Grok chats are pruned on their own, oldest first, only when the folder or the disk needs it'),
+    Gate("test_the_names_carry_their_own_age",
+         [sys.executable, os.path.join(HERE, "test_the_names_carry_their_own_age.py")], 300,
+         needs_app=False,
+         why="#200 - the chronicle's names carry their own age beside banked counts, and that age is never a hash input on either end"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

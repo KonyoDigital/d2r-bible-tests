@@ -188,6 +188,10 @@ def section_of(raw, now_ms=None):
             out["rows"] = kept
     if "counts" not in out and "rows" not in out:
         return None
+    # #200 (REG-2745) - when the rows were read, if that differs from asOf; never a hash input (for_hash below)
+    rows_as_of = raw.get("rowsAsOf")
+    if "rows" in out and isinstance(rows_as_of, int) and not isinstance(rows_as_of, bool) and rows_as_of > 0:
+        out["rowsAsOf"] = rows_as_of
     return out
 
 
@@ -482,6 +486,10 @@ def chronicle_read(tally, now_ms, lists=None):
     if rows:
         out["rows"] = rows
         out["allow"] = ("lane", "name")
+        # #200 (REG-2745) - the names are read NOW, from the found stores, while asOf is when the counts were banked; the
+        # rows carry their own age so a viewer never dates fresh names by old counts (or the other way round)
+        if isinstance(now_ms, int) and not isinstance(now_ms, bool) and now_ms > 0:
+            out["rowsAsOf"] = now_ms
     return out
 
 
@@ -570,7 +578,7 @@ def for_hash(sections):
         sec = sections[name]
         if not isinstance(sec, dict):
             continue
-        kept = {k: sec[k] for k in sorted(sec) if k not in ("asOf", "hash", "allow")}
+        kept = {k: sec[k] for k in sorted(sec) if k not in ("asOf", "rowsAsOf", "hash", "allow")}   # REG-2745
         out[name] = kept
     return out
 
@@ -964,6 +972,8 @@ def view_one(owner, row, now_ms):
         for name, sec in kept.items():
             one = dict(sec)
             one["age"] = _age_state(sec.get("asOf"), now_ms)
+            if "rowsAsOf" in sec:
+                one["rowsAge"] = _age_state(sec.get("rowsAsOf"), now_ms)   # #200 (REG-2745) - the names' own age
             shown[name] = one
         out["sections"] = shown
     return out
