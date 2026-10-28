@@ -28,6 +28,7 @@ CUT = ("  var TH_SESSIONS_BOUND_MS = ", "\n  async function thOpen(){")
 
 PROGRAM = r"""
 var NOW = 1000000, TIMERS = [], NEXT = 1;
+var window = {}, API = '';   /* GrokBot v3817 - the cut now carries the shared /api/sessions fetch */
 Date.now = function(){ return NOW; };
 function setTimeout(fn, ms){ var id = NEXT++; TIMERS.push({ id: id, at: NOW + ms, fn: fn }); return id; }
 function setInterval(fn, ms){ var id = NEXT++; TIMERS.push({ id: id, at: NOW + ms, fn: fn, every: ms }); return id; }
@@ -145,8 +146,8 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2698 - the waiting line keeps ticking after the answer",
      "file": "tv/control_ui.html",
-     "find": "      clearTimeout(to);\n      clearInterval(tick);\n",
-     "replace": "      clearTimeout(to);\n",
+     "find": "      return await _sessionsJson();\n    } finally {\n      clearInterval(tick);\n",
+     "replace": "      return await _sessionsJson();\n    } finally {\n",
      "matches": 1, "needs": "node"},
 ]
 

@@ -16,6 +16,14 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2725 - OPENING THE SHELF ASKED FOR THE SESSIONS LIST TWICE AT ONCE (#86, GrokBot's v3817 pass)
+GrokBot, holding /api/sessions for 15 s through CDP: the page sent a second request at 3.0 s while the first was still
+pending, five in 30 s, ~270 KB each - the theatre's bounded wait (thSessionsWait) and the Shelf's own refresh (thShelf)
+each fetched, and the Sessions hub (hdShelf) a third time. Every caller now shares the request in flight (_sessionsJson);
+it is bounded where it is sent (_sessionsFetchOnce, TH_SESSIONS_BOUND_MS), and once it settles - answered or failed - the
+next caller asks afresh. Laws: test_the_sessions_list_is_asked_once (3 red-proofs, each RED); the theatre-chain law counts
+_sessionsFetchOnce on its chain; two harnesses (slow console, shelf door) cut the shared fetch with the wait.
+
 ### REG-2724 - THE SHORT MODE LABEL STILL WRAPPED ON A REAL REEL (#92, GrokBot's v3817 pass)
 REG-2690's short form kept "1:1 time" (or "time-zipped", "centered on each AI read") on the button. On the reel he opened
 - 397 photos, film 354 - "⏱ REAL · all 397 photos · 1:1 time · 📹 film 354" wrapped (scrollHeight 45 > 34) and "354"

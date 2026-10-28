@@ -200,7 +200,9 @@ def _drive(src, names, scenario, extra_stubs=""):
 _LAST = ["function thPickEntrySession(", "window._shelfLastSession = async function(){"]
 # REG-2698 - thOpen's /api/sessions wait is thSessionsWait now; it rides with thOpen, and so do its two bounds (_bounds)
 _OPEN = ["async function thOpen(){", "async function thSessionsWait(", "async function thLoadSession(",
-         "function thApplyCardPref(){", "function thPickEntrySession("]
+         "function thApplyCardPref(){", "function thPickEntrySession(",
+         # GrokBot v3817 - the wait shares one /api/sessions request in flight (_sessionsJson over _sessionsFetchOnce)
+         "async function _sessionsFetchOnce(", "function _sessionsJson("]
 
 
 def _bounds(src):
@@ -232,7 +234,7 @@ def a_reel_opened_from_the_shelf_door(src):
         "FETCH['/api/session'] = { beats: [{frame: 'f_1790000000000.jpg', ts: 1}], sessionId: 's7' };\n"
         "TH.shelfAsDoor = true;\n"
         "(async function(){ await thOpen(); var atShelf = CARD.open; await thLoadSession(7);\n"
-        "  _done({atShelf: atShelf}); })();"), extra_stubs=_bounds(src))
+        "  _done({atShelf: atShelf}); })();"), extra_stubs=_bounds(src) + "var _sessFlight = null, API = '';\n")
 
 
 def hiding_the_shelf(src, was_door):

@@ -12121,6 +12121,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_push_says_its_lanes_where_proving_starts.py")], 300,
          needs_app=False,
          why='#151 the push says how many lanes it proves in, and why, where proving starts'),
+    Gate("test_the_sessions_list_is_asked_once",
+         [sys.executable, os.path.join(HERE, "test_the_sessions_list_is_asked_once.py")], 300,
+         needs_app=False,
+         why="GrokBot v3817 - the theatre's wait, the Shelf and the Sessions hub share one /api/sessions request in flight"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

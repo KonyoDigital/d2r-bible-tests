@@ -17825,6 +17825,32 @@ window._lockMark = function(isOpen, px, label){
      leave a black stage up forever), but it is TH_SESSIONS_BOUND_MS and covers the body too, and from TH_SLOW_SAY_MS the
      stage says it is waiting and for how long instead of sitting silent. -> the /api/sessions JSON; throws on abort/failure */
   var TH_SESSIONS_BOUND_MS = 45000, TH_SLOW_SAY_MS = 4000;
+  /* GrokBot's v3817 pass - ONE /api/sessions REQUEST IN FLIGHT. Opening the Shelf sent the theatre's wait and the Shelf's own
+     refresh at once (a second request at 3.0 s while the first was pending, 5 in 30 s, ~270 KB each) - on a Mac already slow
+     enough to need REG-2698's 45 s wait. Every caller now shares the request in flight; it is bounded where it is sent
+     (TH_SESSIONS_BOUND_MS, so a request the relaunch orphaned never holds the next caller), and the next caller after it
+     settles asks afresh. -> a promise of the /api/sessions JSON */
+  var _sessFlight = null;
+  async function _sessionsFetchOnce(){
+    var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var to = setTimeout(function(){ try { if (ac) ac.abort(); } catch (e) {} }, TH_SESSIONS_BOUND_MS);
+    try {
+      var r = await fetch(API + '/api/sessions', ac ? { signal: ac.signal } : undefined);
+      return await r.json();
+    } finally {
+      clearTimeout(to);
+    }
+  }
+  function _sessionsJson(){
+    if (!_sessFlight) {
+      var p = _sessionsFetchOnce();
+      _sessFlight = p;
+      var done = function(){ if (_sessFlight === p) _sessFlight = null; };
+      p.then(done, done);
+    }
+    return _sessFlight;
+  }
+  window._sessionsJson = _sessionsJson;
   async function thSessionsWait(gen, shelfDoor){
     var t0 = Date.now();
     var tick = setInterval(function(){
@@ -17838,14 +17864,10 @@ window._lockMark = function(isOpen, px, label){
         try { var lead = document.querySelector('#th-shelfov .she-lead'); if (lead) lead.textContent = say; } catch (e) {}
       }
     }, 1000);
-    /* the bound sits beside the fetch it bounds (test_the_theatre_open_chain_cannot_hang reads them together) */
-    var ac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    var to = setTimeout(function(){ try { if (ac) ac.abort(); } catch (e) {} }, TH_SESSIONS_BOUND_MS);
+    /* the bound sits beside the fetch it bounds, in _sessionsFetchOnce (test_the_theatre_open_chain_cannot_hang reads them) */
     try {
-      var r = await fetch('/api/sessions', ac ? { signal: ac.signal } : undefined);
-      return await r.json();
+      return await _sessionsJson();
     } finally {
-      clearTimeout(to);
       clearInterval(tick);
     }
   }
@@ -19372,7 +19394,7 @@ window._lockMark = function(isOpen, px, label){
       ov.hidden = false;
       ov.innerHTML = '<div class="sh-head">🎞 THE SHELF</div><div class="sh-empty-hero"><div class="she-lead">Loading runs…</div></div>';
     }
-    fetch('/api/sessions').then(function(r){ return r.json(); }).then(function(j){
+    window._sessionsJson().then(function(j){   /* GrokBot v3817 - the theatre's wait and this share one request */
       var fresh = (j && j.sessions) || [];
       var sig = fresh.map(function(s){ return (s.sessionId||'') + ':' + (s.footageN||0) + ':' + (s.reads||0); }).join('|');
       if (fresh.length && sig !== window.__thShelfSig){
@@ -24567,7 +24589,7 @@ window._lockMark = function(isOpen, px, label){
   }
   async function hdShelf(){
     try {
-      var r = await fetch(API + '/api/sessions'); var j = await r.json();
+      var j = await window._sessionsJson();   /* GrokBot v3817 - one /api/sessions request in flight, shared */
       // v908 (Grok P1) — hold the page by MEMBERSHIP, not number: a new run prepending must
       // not slide the cards under the viewer's feet
       HD_ALL = (j.sessions || []).filter(function(x){ return !x.stub; });

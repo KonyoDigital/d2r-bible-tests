@@ -138,7 +138,7 @@ class TheTheatreOpenChainCannotHang(unittest.TestCase):
         own words. thOpen awaits thLoadSession, so the chain is both functions, not just the one
         v2228 happened to fix."""
         bad = []
-        for name in ("async function thOpen(){", "async function thSessionsWait(", "async function thLoadSession("):
+        for name in ("async function thOpen(){", "async function thSessionsWait(", "async function _sessionsFetchOnce(", "async function thLoadSession("):
             lo, hi = _span(name)
             for ln, ok in _fetch_sites(lo, hi):
                 if not ok:
@@ -152,7 +152,7 @@ class TheTheatreOpenChainCannotHang(unittest.TestCase):
         """⛔ The law above passes trivially over zero sites. If the fetches ever move out of these
         functions, this must be re-pointed rather than left green over nothing."""
         total = 0
-        for name in ("async function thOpen(){", "async function thSessionsWait(", "async function thLoadSession("):
+        for name in ("async function thOpen(){", "async function thSessionsWait(", "async function _sessionsFetchOnce(", "async function thLoadSession("):
             lo, hi = _span(name)
             total += len(_fetch_sites(lo, hi))
         self.assertGreaterEqual(total, 2,
