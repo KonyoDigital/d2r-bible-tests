@@ -486,6 +486,20 @@
   }
   @keyframes bugBreathe { 0%,100% { border-color: rgba(240,192,96,.14); } 50% { border-color: rgba(240,192,96,.34); } }
   .live-bug .dot { width: 10px; height: 10px; border-radius: 50%; background: #4a463c; flex: none; transition: .3s; }
+  /* #151 — THE DISK SIGN, under the ONLINE light. ok: a quiet readout; amber (under the ON AIR floor) and red (under the
+     room the proof lanes need) carry a hazard edge so a low disk is seen, not found. */
+  .bug-col { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: none; }
+  .disk-sign {
+    font-size: var(--fs-2xs); font-weight: var(--fw-bold); letter-spacing: var(--ls-wide);
+    text-transform: uppercase; white-space: nowrap; line-height: var(--lh-none);
+    padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.08);
+    color: var(--muted); background: rgba(0,0,0,.3); cursor: default;
+  }
+  .disk-sign[data-level="amber"] { color: #f0c060; border-color: rgba(240,192,96,.6);
+    background: repeating-linear-gradient(135deg, rgba(240,192,96,.16) 0 6px, rgba(0,0,0,.35) 6px 12px); }
+  .disk-sign[data-level="red"] { color: #ff7b6b; border-color: rgba(255,90,70,.75);
+    background: repeating-linear-gradient(135deg, rgba(255,90,70,.22) 0 6px, rgba(0,0,0,.4) 6px 12px); }
+  .disk-sign[data-level="unknown"] { color: var(--muted); border-style: dashed; }
   body[data-state="on"]  .live-bug { color: var(--mint); border-color: rgba(143,230,160,.5); animation: none; }
   body[data-state="sim"] .live-bug { color: var(--sim);  border-color: rgba(201,168,255,.5); animation: none; }
   body[data-state="on"]  .live-bug .dot { background: var(--mint); animation: ping 1.8s ease-out infinite; }
@@ -7988,7 +8002,11 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
         </nav>
       </div>
       <div class="head-right">
-        <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
+        <div class="bug-col">
+          <div class="live-bug" id="bug"><span class="dot"></span><span id="bug-txt">OFF AIR</span></div>
+          <!-- #151 — free disk, always readable; amber and red name what holds the space and the one action that frees it -->
+          <div class="disk-sign" id="disk-sign" data-level="unknown" role="status"><span id="disk-sign-txt">disk —</span></div>
+        </div>
         <div class="reader-lamps" id="reader-lamps" role="group" aria-label="readers on this PC">
           <!-- REG-1618 - his "if clicking CLAUDE it should link me and open the browser ... and same for grok": each lamp
                is its own reader's link - a click opens THAT reader's sign-in on this PC (window._lampClick) -->
@@ -10680,6 +10698,36 @@ window._lockMark = function(isOpen, px, label){
     } catch(e){}
   }
 
+  /* #151 — the disk sign's words. -> {text, title}. Pure: free GB is the payload's, never a typed number; UNKNOWN stays
+     UNKNOWN; the consumers carry the age they were MEASURED at. [[unknown-stays-unknown]] [[stale-reading]] */
+  window._diskSignWords = function(d, now){
+    if (!d || typeof d !== 'object') return { level: 'unknown', text: 'disk —', title: 'free disk: this console does not report it (an older build)' };
+    var lvl = d.level || 'unknown', f = d.freeGb;
+    var num = (typeof f === 'number') ? f.toFixed(1) + ' GB' : null;
+    var text = !num ? 'disk UNKNOWN' : lvl === 'red' ? '⛔ ' + num + ' · proofs slow' : lvl === 'amber' ? '⚠ ' + num + ' · low' : num + ' free';
+    var t = [num ? num + ' free on this PC' : ('free disk UNKNOWN' + (d.why ? ' — ' + d.why : ''))];
+    t.push('amber under ' + d.lowGb + ' GB (ON AIR stops recording)'
+      + (typeof d.criticalGb === 'number' ? ', red under ' + d.criticalGb.toFixed(1) + ' GB (proofs run one law at a time)'
+                                          : ' · the proof-lane floor is UNKNOWN'));
+    var c = Array.isArray(d.consumers) ? d.consumers : null;
+    if (c && c.length){
+      var age = (typeof d.measuredAt === 'number') ? Math.max(0, Math.round(((now || Date.now()) - d.measuredAt) / 60000)) : null;
+      t.push('biggest of what this console keeps' + (age === null ? '' : ' (measured ' + age + ' min ago)') + ': '
+        + c.map(function(r){ return r.name + ' ' + (typeof r.gb === 'number' ? (r.atLeast ? 'at least ' : '') + r.gb.toFixed(2) + ' GB' : 'UNKNOWN'); }).join(' · '));
+    } else {
+      t.push('what uses the disk: not measured yet' + (d.lane && d.lane.say ? ' (' + d.lane.say + ')' : ''));
+    }
+    if (d.action) t.push('to free room: ' + d.action);
+    return { level: lvl, text: text, title: t.join('\n') };
+  };
+  window._diskSignPaint = function(d){
+    var el = document.getElementById('disk-sign'), tx = document.getElementById('disk-sign-txt');
+    if (!el || !tx) return;
+    var w = window._diskSignWords(d);
+    el.setAttribute('data-level', w.level);
+    tx.textContent = w.text;
+    el.title = w.title;
+  };
   function paint(st){
     var mode = st.mode || 'off';
     // v899 — SIGNING OFF only while a stop is truly in flight AND bridge still up.
@@ -10741,6 +10789,7 @@ window._lockMark = function(isOpen, px, label){
 
     $('bug-txt').textContent = _shadowRec ? 'ONLINE' : (_shadowArmed && !on && !stopping) ? 'ARMED'
       : stopping ? 'FAREWELL…' : ((state === 'sim' || (typeof TH !== 'undefined' && TH.open)) ? 'THEATRE' : (on ? 'ON AIR' : 'OFF AIR'));
+    try { if (typeof window._diskSignPaint === 'function') window._diskSignPaint(st.diskSign); } catch(e){}   // #151
 
     // v846 — creative, professional phase labels (short). Giant word only when film is OFF.
     var rawPhase = stopping ? 'signing' : (state === 'sim' ? 'sim' : (on ? String(st.phase || 'watching').toLowerCase() : 'standby'));

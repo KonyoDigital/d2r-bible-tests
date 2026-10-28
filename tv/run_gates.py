@@ -12113,6 +12113,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_grok_session_never_outlives_its_call.py")], 300,
          needs_app=False,
          why='#151 the intake lane drops its own Grok session dir and the read lane sweep knows both lanes names'),
+    Gate("test_a_low_disk_is_a_sign_not_a_search",
+         [sys.executable, os.path.join(HERE, "test_a_low_disk_is_a_sign_not_a_search.py")], 300,
+         needs_app=False,
+         why='#151 free disk is a sign under the ONLINE light - amber under the ON AIR floor, red under the proof-lane room, UNKNOWN never a number'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

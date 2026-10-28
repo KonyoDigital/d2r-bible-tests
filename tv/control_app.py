@@ -9881,7 +9881,7 @@ def _win_tint_caption():
 # REG-2463 — and the orphan fold: a harness's loose frames are its fixture, and folding them on a timer would
 # change the footage a render or a demo is reading while it reads it.
 _HARNESS_ONLY_SKIP = ("tvd-eagle-watch", "tvd-version-drift", "tvd-retention",
-                      "tvd-retro-triage", "tvd-orphan-fold", "tvd-river-warm")
+                      "tvd-retro-triage", "tvd-orphan-fold", "tvd-river-warm", "tvd-disk-sign")
 
 #: v3297 — lanes the roster SKIPPED at boot (TV_STUB harness), kept module-readable so a doctor
 #: row can say "stood down by design" instead of grading a deliberate absence as a dead loop.
@@ -10060,6 +10060,8 @@ def start_background_watchers(why):
         ("tvd-eagle-watch", _eagle_watch_loop),
         # #193 - the river, read by the console itself, so the Fleet never says "nothing has asked for the river yet"
         ("tvd-river-warm", _river_warm_loop),
+        # #151 - what is using the disk, measured for the sign under the ONLINE light (never while he plays)
+        ("tvd-disk-sign", _disk_sign_loop),
         # v2080 — closes the extract -> prune cycle. ⚠ THIS LINE SAID "Deletes ONLY below the ON
         # AIR floor" until v2377 and that had been FALSE since v2226, which reversed the floor
         # gate on his explicit ruling ("regardless of room memory it should still be looped and
@@ -17141,6 +17143,150 @@ def _river_warm_loop():
         except Exception:
             pass
         time.sleep(RIVER_WARM_EVERY_S)
+
+
+#: #151 (his 2026-10-21: "this cant happen in general ... a more cool and designed style for the memory/gigabytes running
+#: low, like a warning sign under the online area") - THE DISK SIGN. On 10-21 his Mac sat at 4.0 GB free all day, under
+#: the 8 GB ON AIR floor and under the room heart2 needs for its proof lanes, so every proof ran one law at a time - and
+#: the only words saying so were inside the retention panel and a prove log the push cuts to its last 24 lines. The
+#: sign reads free space LIVE on every status call (decimal GB, the unit Finder shows); amber below ON_AIR_FLOOR_GB, red
+#: below the room heart2's lanes need (derived from heart2's own constants, never typed - UNKNOWN when it cannot be read).
+#: What is using the space is measured by its own lane, at most every DISK_SIGN_EVERY_S, never while he plays or the
+#: machine is busy, each folder walk bounded by DISK_SIGN_BUDGET_S ("at least" past it, never a total it did not count).
+DISK_SIGN_FIRST_S = 120
+DISK_SIGN_EVERY_S = 1800
+DISK_SIGN_BUDGET_S = 20.0
+DISK_SIGN_BUSY_PCT = 80.0
+_DISK_SIGN = {"on": True, "worked": 0, "lastTs": None, "owed": None, "consumers": None, "measuredAt": None,
+              "say": "what is using the disk has not been measured yet since this console started"}
+
+
+def _disk_sign_floor_gb():
+    """The room heart2's proof lanes need, in decimal GB, from heart2's own constants. -> float | None (UNKNOWN)"""
+    try:
+        import heart2 as _h2
+        mib = int(_h2.LANE_DISK_FLOOR_MB) + int(_h2.LANE_DISK_MB) * int(_h2.PROVE_WORKERS)
+        return round(mib * 1048576 / 1e9, 2)
+    except Exception:
+        return None
+
+
+def disk_sign_level(free_gb, low_gb, critical_gb):
+    """#151 - the sign's colour. -> "red" | "amber" | "ok" | "unknown". Pure.
+    red: under the room the proof lanes need (critical_gb; None = that floor is UNKNOWN, so never red on a guess);
+    amber: under the ON AIR floor; unknown: free space could not be read - never "ok"."""
+    if not isinstance(free_gb, (int, float)) or isinstance(free_gb, bool):
+        return "unknown"
+    if isinstance(critical_gb, (int, float)) and not isinstance(critical_gb, bool) and free_gb < critical_gb:
+        return "red"
+    if free_gb < low_gb:
+        return "amber"
+    return "ok"
+
+
+def _disk_sign_candidates():
+    """What this console writes or keeps, with the one action that frees each. -> [(name, path, action)]"""
+    grok = os.path.join(os.environ.get("GROK_HOME") or os.path.join(os.path.expanduser("~"), ".grok"), "sessions")
+    return [("his reels", HIST_DIR, "the reel prune frees them - on his yes (reel retention)"),
+            ("Grok sessions", grok, "the console drops its own reads' sessions; the rest are his Grok chats"),
+            ("test output", os.path.join(REPO, "test-results"), "the space warden reclaims it when the disk is short")]
+
+
+def _disk_walk(path, budget_s, _now=time.time):
+    """Bytes under `path`, bounded. -> (bytes, complete) ; (None, False) when it cannot be read at all."""
+    if not os.path.exists(path):
+        return 0, True
+    t_end, total, stack = _now() + float(budget_s), 0, [path]
+    try:
+        while stack:
+            if _now() > t_end:
+                return total, False
+            d = stack.pop()
+            try:
+                with os.scandir(d) as it:
+                    for e in it:
+                        try:
+                            if e.is_symlink():
+                                continue
+                            if e.is_dir():
+                                stack.append(e.path)
+                            else:
+                                total += e.stat().st_size
+                        except OSError:
+                            continue
+            except (NotADirectoryError, FileNotFoundError):
+                continue
+    except Exception:
+        return (total or None), False
+    return total, True
+
+
+def _disk_sign_measure(candidates=None, budget_s=None, now_ms=None):
+    """#151 - one measurement of what is using the disk, biggest first. -> [{name, gb, atLeast, action}]"""
+    rows = []
+    for name, path, action in (candidates if candidates is not None else _disk_sign_candidates()):
+        b, done = _disk_walk(path, DISK_SIGN_BUDGET_S if budget_s is None else budget_s)
+        rows.append({"name": name, "bytes": b, "gb": (None if b is None else round(b / 1e9, 2)),
+                     "atLeast": (b is not None and not done), "action": action})
+    rows.sort(key=lambda r: -(r["bytes"] if isinstance(r["bytes"], int) else -1))   # by bytes: rounded GB ties small folders
+    return rows
+
+
+def _disk_sign_once(now_ms=None, playing=None, busy_pct=None, candidates=None):
+    """#151 - one pass of the sign's lane. Never raises. -> the lane record."""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    try:
+        _play = _sp_playing_here() if playing is None else playing
+    except Exception:
+        _play = False
+    _busy = _cpu_busy_pct() if busy_pct is None else busy_pct
+    if _play:
+        _DISK_SIGN.update(lastTs=now, say="he is playing - what uses the disk is measured after the game closes")
+        return dict(_DISK_SIGN)
+    if isinstance(_busy, (int, float)) and not isinstance(_busy, bool) and _busy >= DISK_SIGN_BUSY_PCT:
+        _DISK_SIGN.update(lastTs=now, say="the machine is busy (%.0f%% CPU) - the measurement waits" % _busy)
+        return dict(_DISK_SIGN)
+    try:
+        rows = _disk_sign_measure(candidates)
+        _DISK_SIGN.update(worked=int(_DISK_SIGN.get("worked") or 0) + 1, lastTs=now, owed=0, consumers=rows,
+                          measuredAt=now, say="measured %d folder(s)" % len(rows))
+    except Exception as e:
+        _DISK_SIGN.update(lastTs=now, owed=1, say="the measurement raised %s" % type(e).__name__)
+    return dict(_DISK_SIGN)
+
+
+def _disk_sign_loop():
+    """#151 - measure what uses the disk two minutes after a start, then every DISK_SIGN_EVERY_S."""
+    time.sleep(DISK_SIGN_FIRST_S)
+    while True:
+        try:
+            _lane_tick('tvd-disk-sign', DISK_SIGN_EVERY_S)
+            r = _disk_sign_once()
+            import lane_trace as _lt
+            _lt.note('tvd-disk-sign', worked=r.get("worked"), owed=r.get("owed"), why=str(r.get("say") or "")[:200])
+        except Exception:
+            pass
+        time.sleep(DISK_SIGN_EVERY_S)
+
+
+def disk_sign_payload(_free=None):
+    """#151 - the sign the console paints under its ONLINE light. -> dict. Never raises.
+    freeGb is read NOW (a status call is the reading); consumers are the lane's last measurement, with its own age."""
+    why = None
+    free = None
+    try:
+        free = round(((_free() if _free else shutil.disk_usage(HIST_DIR).free)) / 1e9, 1)
+    except Exception as e:
+        why = "free space could not be read (%s)" % type(e).__name__
+    crit = _disk_sign_floor_gb()
+    lvl = disk_sign_level(free, ON_AIR_FLOOR_GB, crit)
+    cons = _DISK_SIGN.get("consumers")
+    top = cons[0] if isinstance(cons, list) and cons else None
+    return {"freeGb": free, "level": lvl, "lowGb": ON_AIR_FLOOR_GB, "criticalGb": crit, "why": why,
+            "consumers": (cons[:3] if isinstance(cons, list) else None), "measuredAt": _DISK_SIGN.get("measuredAt"),
+            "action": ((top or {}).get("action") if lvl in ("red", "amber") else None),
+            "lane": {k: _DISK_SIGN.get(k) for k in ("on", "worked", "lastTs", "owed", "say")}}
+
 #: The stations a reel is meant to LEAVE, and the lane that moves it on. CAPTURE is not here: it waits on a
 #: capture change by design (REG-340), so it is never an alarm; ROUTED and TOMBSTONE are the far end.
 #: REG-1812: that holds inside the newest window only. Past it, every station owes the drain (_river_owed_why).
@@ -43468,7 +43614,8 @@ def status_payload():
         # witnesses and any other data information related ledger style maybe?" Zeros here mean
         # measured-zero: the loop reports every pass, including the ones that dropped nothing.
         "prune": _t("prune", prune_stats),
-        "drift": _t("drift", drift_state),   # v2072 — running vs disk, so a five-ship-behind window says so
+        "drift": _t("drift", drift_state),
+        "diskSign": _t("diskSign", disk_sign_payload),   # #151 - the sign under the ONLINE light   # v2072 — running vs disk, so a five-ship-behind window says so
         # #64 — the auto-pull lane's own record (how its last attempt ended, since when it has failed,
         # the last stale-lock decision). The doctor row 'this checkout can update' reads THIS key over
         # the wire, because an `import control_app` beside a `__main__` console is a second copy.

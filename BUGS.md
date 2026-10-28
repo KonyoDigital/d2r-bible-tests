@@ -16,6 +16,21 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2719 - A LOW DISK HAD NO SIGN; HE FOUND IT HIMSELF AT 4.0 GB (#151)
+His words 2026-10-21: "this cant happen in general... it was a mistake that it was this low" and "a more cool and designed
+style for the memory/gigabytes running low, like a warning sign under the online area". That day his Mac sat at 4.0 GB
+free - under the 8 GB ON AIR floor and under the room heart2's proof lanes need, so every proof ran one law at a time - and
+the only words saying so were inside the retention panel and a prove log the push cuts to 24 lines. The console now
+publishes diskSign on every status call and paints it under the ONLINE light: free GB read NOW (decimal GB, as Finder
+shows it); amber under ON_AIR_FLOOR_GB; red under the room the proof lanes need, derived from heart2's own constants
+(5.97 GB - his "5.6" was the same floor in GiB; UNKNOWN, never red on a guess, when they cannot be read); a dashed
+"disk UNKNOWN" when free space cannot be read. The hover names both floors, the biggest of what this console keeps (his
+reels, Grok sessions, test output - measured by the new tvd-disk-sign lane every 30 min, never while he plays or the
+machine is busy, each walk bounded, "at least" when it ran out of time, with the age it was measured at) and, on amber
+and red only, the one action that frees room. Pixels: 1120x628 / 375 renders green; the header grows ~6 px; amber and red
+looked at in a scratch page built from the console's own rules. Law: test_a_low_disk_is_a_sign_not_a_search (10
+red-proofs, each seen RED).
+
 ### REG-2718 - THE INTAKE LANE'S GROK SESSIONS WERE NEVER SWEPT (#151; a sibling of REG-1687)
 Measured on his Mac 2026-10-28: ~/.grok/sessions held 55 directories named for the intake lane's throwaway cwd
 (tvd-intake-g5-...), every one since 10-21. REG-1687 made the G5 read lane drop its own and sweep leftovers, but both
