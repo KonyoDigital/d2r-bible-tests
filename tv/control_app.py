@@ -41043,6 +41043,8 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            # REG-2271 — fresh per-frame grouping-progress count (read by the river watchdog sig).
                            "groupFrames": 0,
+                           # #97 - a refusal is the LAST run's word: a sweep that starts clears it, so it never outlives one
+                           "lastRefusal": None,
                            "result": None, "error": None, "lanes": lanes})
     if visit:
         threading.Thread(target=_chron_visit_run, args=(int(visit),),
@@ -41111,7 +41113,7 @@ def _chron_visit_run(visit_ts):
             with _CHRON_LOCK:
                 _CHRON_JOB["running"] = False
                 _CHRON_JOB["phase"] = "idle"
-                _CHRON_JOB["lastRefusal"] = _skip
+                _CHRON_JOB["lastRefusal"] = dict(_skip, at=int(time.time() * 1000))   # #97 - its own time
             return
         vis = None
         _vl = chronicle_visits(limit=40)
@@ -41435,7 +41437,7 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             with _CHRON_LOCK:
                 _CHRON_JOB["running"] = False
                 _CHRON_JOB["phase"] = "idle"
-                _CHRON_JOB["lastRefusal"] = _skip
+                _CHRON_JOB["lastRefusal"] = dict(_skip, at=int(time.time() * 1000))   # #97 - its own time
             return
         import chronicle_retro as _cr
         import tv_diablo as _tv

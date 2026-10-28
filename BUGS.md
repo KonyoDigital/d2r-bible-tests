@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2714 - A REFUSED CHRONICLE SWEEP WROTE ITS REASON AND NOTHING READ IT (#97, reviewers)
+The sweep's run thread wrote _CHRON_JOB.lastRefusal (GROK ONLY is the reader, or since REG-2713 the switch could not be read)
+and zero readers existed in control_ui.html, so "run it again" pressed into the same wall in silence. The refusal carries its
+own time now, a sweep that starts clears it (it is the LAST run's word, never older), and the sweep panel says it - on the
+button's hover and in its note, including the note a shown result rewrites - through _chronRefusalSay.
+Law: test_a_refused_sweep_says_why (2 red-proofs, each seen RED).
+
 ### REG-2713 - A HALF-WRITTEN READER SWITCH STARTED A PAID CLAUDE SWEEP; SWEEP LAWS TOOK THEIR VERDICT FROM THE PC (#97)
 1. g5_grok_eyes._load_state answered a MISSING switch file and an UNREADABLE one alike ({on: False, mode: off}), reader() said
    "claude" for both, and _sweep_skipped_because_reader_is_grok - whose docstring promised an unreadable switch is UNKNOWN -

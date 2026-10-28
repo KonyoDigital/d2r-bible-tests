@@ -12097,6 +12097,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_unreadable_reader_switch_starts_no_paid_sweep.py")], 300,
          needs_app=False,
          why='#97 - a half-written reader switch is UNKNOWN and starts no paid Claude sweep; an absent one still sweeps with Claude'),
+    Gate("test_a_refused_sweep_says_why",
+         [sys.executable, os.path.join(HERE, "test_a_refused_sweep_says_why.py")], 300,
+         needs_app=False,
+         why="#97 - the chronicle sweep's last refusal carries its time, a start clears it, and the sweep panel says it"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
