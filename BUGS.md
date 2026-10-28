@@ -436,6 +436,16 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2897 - "HARLEQUIN CREST" WAS OWNED UNDER ITS VAULT NAME, THEN REFUSED BY THE NAME HE TYPED (ACT-6 + Tal Rasha, GrokBot's v3829 fresh-add simulation)
++ Add an item owns "Harlequin Crest" as "Harlequin Crest (Shako)" and "Tal Rasha's Guardianship" as "... (armor)" - the
+register's one name (_vaultResolveName) - and draws them there (measured in node: SHARED STASH page 1 col 1 row 1, and
+SETS-TAL-IK col 1 row 1; the tile and FIND both carry the bracketed name). vaultAssign('Harlequin Crest', ...) then refused
+'not-owned', and FIND's where-is for the bare name said only where it WOULD go, with no cell - GrokBot read these as "drawn
+on NO locker" and "no cell carries that name". Both doors now ask the same resolver for a name he does not own and act on
+the item it names; a name it cannot settle is refused as before, and a bare "Shako" is still a question (REG-2858). Swept:
+the catalogue files one unique under a base name (Harlequin Crest (Shako)), measured. Law
+tv/test_a_typed_name_finds_the_item_the_vault_holds.py, 2 red-proofs RED.
+
 ### REG-2896 - CHARMS ALREADY FILED ON MAGIC & RARE OR UNI-SMALL ARE RE-HOMED ONCE, BY HIS RULING, AND SAY SO (ACT-4, his ruling 2026-10-28)
 A charm filed before the ruling - on MAGIC & RARE (a TV-registered small charm, a skiller) or on UNI-SMALL (Gheed's, a
 curated charm card from the old "charm/skiller" route) - kept that filing and its saved move target, so the board drew it
