@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""#144.10 shared half (REG-2801, his ruling 2026-10-28) - THE SHARED STASH IS DRAWN AS ITS MOVE TASKS LAY IT: 5 PAGES, THEN
+"""#144.10 shared half (REG-2801, REG-2802, his ruling 2026-10-28) - THE SHARED STASH IS DRAWN AS ITS MOVE TASKS LAY IT: 5 PAGES, THEN
 THE WAR MULES.
 
 His words: "the war stash is basically the shared stash with those 5 pages + the extra war mules if they get full that
@@ -64,6 +64,9 @@ var at = shelf.indexOf('data-vault-mule="shared"'), nx = at < 0 ? -1 : shelf.ind
 var card = at < 0 ? '' : shelf.slice(at, nx < 0 ? shelf.length : nx);
 OUT.card = {}; NAMES.concat([%(crown)s]).forEach(function(n){ OUT.card[n] = card.split('data-vault-item="' + n.replace(/'/g, '&#39;') + '"').length - 1; });
 OUT.org = W._orgPlannedCells([{ nm: 'Raven Frost', pg: { ok: true, kind: 'mule', id: 'shared' } }]).cells;
+W.renderVault(); H.flush(60, 3);
+OUT.rows = []; var rr = /→ (SHARED STASH [^"<]*?\(\d+,\d+\))/g, mr, ml = (document.getElementById('vault-move-list') || {}).innerHTML || '';
+while ((mr = rr.exec(ml))) if (OUT.rows.indexOf(mr[1]) < 0) OUT.rows.push(mr[1]);
 """
 
 BODY_SOJ = r"""
@@ -79,6 +82,13 @@ var w = W._vaultWhereIs(n); OUT.findN = (w.cells || []).length; OUT.findWar = (w
 W.openMuleCard('shared'); var h = (document.getElementById('vault-detail') || {}).innerHTML || '';
 OUT.note = ((h.match(/<div class="vd-overflow"[^>]*>([\s\S]*?)<\/div>/) || [])[1] || '').replace(/<[^>]+>/g, '');
 OUT.roster = JSON.parse(W.LSR.getItem('d2r_muleRoster') || '[]').map(function(m){ return m.name; });
+/* REG-2802 - copy 121 sits on page 2: the row's expand must read its cell as that page's */
+var t2 = (W._vaultMoveEnsure(n, 120) || {}).task; OUT.cell120 = t2 && t2.to && t2.to.cell;
+var hx = W._vaultTaskExpandHtml(n, 120), ix = hx.indexOf('class="vtx-to"');
+var tl = /data-x="(\d+)" data-y="(\d+)"/.exec(hx.slice(ix)); OUT.expandTile = tl ? [+tl[1], +tl[2]] : null;
+OUT.expandGrid = (/data-gw="(\d+)" data-gh="(\d+)"/.exec(hx.slice(ix)) || []).slice(1).map(Number);
+OUT.expandHead = ((hx.slice(ix).match(/<div class="vtx-h">([^<]*)/) || [])[1] || '');
+OUT.find120 = (w.cells || [])[120] || null;
 """
 
 
@@ -187,6 +197,27 @@ class TheSharedStashDrawsThePlansPages(unittest.TestCase):
         self.assertIn("no mule named WAR1", n["note"], "the overflow note does not say there is no WAR1: %r" % n["note"])
 
 
+    def test_the_move_row_and_its_expand_name_the_page_and_cell_find_names(self):
+        """REG-2802 - the row said "tab" while the window and FIND said "Page" for the same cell, and a page-2 task's expand
+        read the shared cell raw: "(1,13)", its tile on row 12 of a 10x10 grid."""
+        w = self.w
+        for n in (SHAKO, BELT):
+            for c in self._shared_tasks(n):
+                pg, x, y = _cell(c)
+                self.assertIn("SHARED STASH page %d (%d,%d)" % (pg + 1, x + 1, y + 1), w["rows"],
+                              "the move row does not name %s's page and cell (%s): %r" % (n, c, w["rows"]))
+                self.assertIn("Page %d · col %d · row %d" % (pg + 1, x + 1, y + 1), w["find"][n]["cells"])
+        self.assertFalse([r for r in w["rows"] if " tab " in r], "a move row still says tab: %r" % w["rows"])
+        s = self.s
+        pg, x, y = _cell(s["cell120"])
+        self.assertEqual(pg, 1, "PREMISE: copy 121 of 505 rings is not on page 2: %r" % s["cell120"])
+        self.assertEqual(s["find120"], "Page %d · col %d · row %d" % (pg + 1, x + 1, y + 1), s)
+        self.assertIn("SHARED STASH page %d (%d,%d)" % (pg + 1, x + 1, y + 1), s["expandHead"],
+                      "the expand names another cell than the row and FIND: %r" % s["expandHead"])
+        self.assertEqual(s["expandTile"], [x, y], "the expand draws the copy off its page's cell: %r" % s)
+        self.assertTrue(s["expandTile"][1] < s["expandGrid"][1], "the expand's tile is off its %r grid: %r" % (s["expandGrid"], s["expandTile"]))
+
+
 RED_PROOF = [
     {"why": "REG-2801 - the plan reader skips the shared stash again (the window and FIND pack by size, not by task)",
      "file": "bible.html",
@@ -232,6 +263,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "            if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = 'Page ' + (pi + 1) + ' · col ' + (q.x + 1) + ' · row ' + (q.y + 1); }); });\n",
      "replace": "            if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = 'Weapons tab · col ' + (q.x + 1) + ' · row ' + (q.y + 1); }); });\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2802 - the move row says tab while the window and FIND say page",
+     "file": "bible.html",
+     "find": "        return h + ' page ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';",
+     "replace": "        return h + ' tab ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2802 - the expand reads a shared cell raw (row 13 of a 10-row page, the tile off the grid)",
+     "file": "bible.html",
+     "find": "      return m[1] === 'shared' ? { loc: m[1], x: +m[2], y: +m[3] % 10, page: Math.floor(+m[3] / 10) } : { loc: m[1], x: +m[2], y: +m[3] }; }",
+     "replace": "      return { loc: m[1], x: +m[2], y: +m[3] }; }",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2802 - the expand's words drop the page",
+     "file": "bible.html",
+     "find": "(c.page != null ? 'page ' + (c.page + 1) : (_vaultMoveStashSay(place.location) || c.loc))",
+     "replace": "(false ? 'page ' + (c.page + 1) : (_vaultMoveStashSay(place.location) || c.loc))",
      "matches": 1, "needs": "node"},
 ]
 

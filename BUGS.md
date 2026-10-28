@@ -60,6 +60,21 @@ throw as the throw its row was painted from (window._moveModel, the model _vault
 the saved throw; a row he kept stays a move (_vaultThrowTask's rule). Moves still read the store, which is the fresher
 of the two after a sighting. Law: test_a_move_row_expands_inline_and_the_popup_is_gone (a painted-only throw and a
 saved-only throw, both NOWHERE from their own cell; 2 red-proofs).
+### REG-2802 - THE MOVE ROW SAID "TAB" FOR THE SHARED STASH'S PAGES, AND A PAGE-2 TASK'S EXPAND DREW ITS TILE OFF THE GRID (#144.10 shared half, his ruling 2026-10-28)
+After REG-2801 the positions agreed on every surface - measured on the WAR1 fixture (Shako x3, Arachnid Mesh x6): each copy's
+move row, the shared stash window and FIND name the same page and cell - but in two words: the rows said "SHARED STASH tab 1
+(3,1)", the window and FIND "Page 1 · col 3 · row 1". The shared card draws no page or cell (an unplaced preview) and its
+counts already matched. Sweeping that one rule (a shared cell's page and in-page row) found a real defect beside it: the
+move row's inline expand read the shared cell raw - for a page-2 task (505 rings, copy 121 at shared:c0r12) its TO head said
+"SHARED STASH shared stash (1,13)", a row that does not exist, and its 10x10 TO grid drew the tile on row 12, off the grid,
+while the row and FIND said page 2, col 1, row 3. FIX: the row says "page" (his ruling's word, "those 5 pages"); the
+expand's model reads a shared cell as page + in-page cell and says "SHARED STASH page 2 (1,3)", tile on its page's grid.
+Re-aimed: tv/test_vault_l1_war_stash_overflow.py (its row regex and the anchor of the red-proof "the tab and in-page row
+are not read off the shared cell") and tv/test_vault_l1_rules_drive_every_move.py (its row regex) - Chrome, CI proves them.
+Not fixed (reported): _vaultMoveCellSay / _vaultMovePlaceSay read a shared cell raw the same way, but nothing on the page
+calls them - only laws do. Law: tv/test_the_shared_stash_draws_the_plans_pages.py, its REG-2802 case: 3 red-proofs, 3 RED
+(12 of 12 in the file).
+
 ### REG-2801 - THE SHARED STASH WAS DRAWN ON BY-SLOT TABS WHILE ITS MOVE TASKS FILLED 5 PAGES IN ORDER (#144.10 shared half, his ruling 2026-10-28)
 His ruling: "the war stash is basically the shared stash with those 5 pages + the extra war mules if they get full that
 should open already automatically if that happens". MEASURED (node, whole page; Shako x3 + Arachnid Mesh x6 hand-added, a

@@ -53278,12 +53278,17 @@ window.vaultAutoAssign = function(){
     var sRaw = bag.map ? bag.map[String(name) + '\u0000' + copyIx] : null;
     if (!thrT && sRaw && sRaw.kind === 'throw' && !sRaw.kept) thrT = _vaultMoveTask(sRaw);
     if (thrT) t = thrT;
-    function xy(cell){ var m = cell && String(cell).match(/^(\w+):c(\d+)r(\d+)$/); return m ? { loc: m[1], x: +m[2], y: +m[3] } : null; }
+    /* REG-2802 - a shared stash cell names its page by the row (shared:c0r12 = page 2, row 3). Read raw, the expand of a
+       page-2 task said "(1,13)" and drew its tile on row 12 of a 10x10 grid - off the grid; the row and FIND said page 2. */
+    function xy(cell){ var m = cell && String(cell).match(/^(\w+):c(\d+)r(\d+)$/); if (!m) return null;
+      return m[1] === 'shared' ? { loc: m[1], x: +m[2], y: +m[3] % 10, page: Math.floor(+m[3] / 10) } : { loc: m[1], x: +m[2], y: +m[3] }; }
+    function where(place, c){ return String(place.holder || 'not seen yet') + ' '
+      + (c.page != null ? 'page ' + (c.page + 1) : (_vaultMoveStashSay(place.location) || c.loc)) + ' (' + (c.x + 1) + ',' + (c.y + 1) + ')'; }
     function dims(loc){ return [10, (loc === 'inventory' || loc === 'inv') ? 4 : 10]; }
     function sz(n){ var s0 = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1]; return [s0[0] || 1, s0[1] || 1]; }
     var to = xy(t.to && t.to.cell), from = xy(t.from && t.from.cell);
-    var fromSay = from ? (String(t.from.holder || 'not seen yet') + ' ' + (_vaultMoveStashSay(t.from.location) || from.loc) + ' (' + (from.x + 1) + ',' + (from.y + 1) + ')') : 'MANUAL';
-    var toSay = to ? (String(t.to.holder || 'not seen yet') + ' ' + (_vaultMoveStashSay(t.to.location) || to.loc) + ' (' + (to.x + 1) + ',' + (to.y + 1) + ')') : 'not placed yet';
+    var fromSay = from ? where(t.from, from) : 'MANUAL';
+    var toSay = to ? where(t.to, to) : 'not placed yet';
     return { name: name, copyIx: copyIx, task: t, manual: !from, from: from, to: to,
              fromSay: fromSay, toSay: toSay, size: sz(name), dims: { from: from ? dims(from.loc) : null, to: to ? dims(to.loc) : null } };
   }
@@ -53330,8 +53335,10 @@ window.vaultAutoAssign = function(){
       var _pm = (place.id != null && typeof muleById === 'function') ? muleById(place.id) : null;
       var h = _pm && _pm.name ? String(_pm.name) : (place.holder == null || place.holder === '') ? 'not seen yet' : String(place.holder); /* L1 the name of the id today */
       var m = place.cell != null && String(place.cell).match(/c(\d+)r(\d+)/);
-      if (m && /^shared:/.test(String(place.cell))) /* L1 the war stash page reads as its tab */
-        return h + ' tab ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';
+      /* L1 the war stash page reads as its page and in-page cell. REG-2802 - "page", the word of his ruling ("those 5 pages")
+         and of the shared stash window and FIND (REG-2801); the row said "tab" while they said "Page" for the same cell */
+      if (m && /^shared:/.test(String(place.cell)))
+        return h + ' page ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';
       if (_pm ? _vaultWarRole(_pm) : /^war\s*\d*$/i.test(h.trim())) h = h + ' (SHARED STASH · overflow)'; /* L1 a WAR mule reads as the war stash */
       return h + (m ? ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) + 1) + ')' : '');
     }
