@@ -396,6 +396,30 @@ def _log_says_no_sandbox(log_path, start=None):
     return bool(lines) and NO_SANDBOX_MARK in lines[-1]
 
 
+#: #186 - the census's own summary line (heart2.prove, --reuse): served of asked, and what it banked
+_REUSE_LINE = re.compile(r"#186 CENSUS CACHE: (\d+) of (\d+) proof\(s\) reused.*?· (\d+) proved and banked")
+
+
+def _log_reuse(log_path, start=None):
+    """#186 - what THIS run of the prover served from the cache and banked, in its own words. -> {served, of, banked} or
+    None when this run said nothing (an older prover, the cache off, a run that died first) - UNKNOWN, never a zero.
+    Only the bytes this run wrote are read (`start`, as _log_says_no_sandbox reads them); the last such line wins."""
+    try:
+        with io.open(log_path, "rb") as fh:
+            fh.seek(0, 2)
+            end = fh.tell()
+            begin = start if isinstance(start, int) and not isinstance(start, bool) and 0 <= start <= end else None
+            fh.seek(max(0 if begin is None else begin, end - 262144))
+            text = fh.read().decode("utf-8", "replace")
+    except Exception:
+        return None
+    got = _REUSE_LINE.findall(text)
+    if not got:
+        return None
+    a, b, c = got[-1]
+    return {"served": int(a), "of": int(b), "banked": int(c)}
+
+
 def _memory_stall(mem, census, playing):
     """#193 (his ALT, 2026-10-27) - A MEMORY STAND-ASIDE NAMES THE GATES IT COULD NOT FINISH. -> None (mutates mem)
 
@@ -1017,8 +1041,10 @@ def spawn(log_path, python=None, workers=None, popen=None, names=None, door=None
         # ⚠ `nice` THE COMMAND, not preexec_fn: this runs inside the console's threaded server, and
         # Python documents preexec_fn as unsafe when threads are running.
         kw["start_new_session"] = True
+    # #186 (his ruling 2026-10-28) - --reuse: this census serves a PROVEN banked over byte-identical inputs and banks
+    # what it proves; a plain --prove (run_gates, CI, a hand run) never opens the cache
     cmd = ([py] + list(PROVER_MARK) + [os.path.join(HERE, "heart2.py"), "--prove"]
-           + ((list(names) + ["--slice"]) if names else []))
+           + ((list(names) + ["--slice"]) if names else []) + ["--reuse"])
     if not IS_WIN and os.path.exists("/usr/bin/nice"):
         cmd = ["/usr/bin/nice", "-n", "15"] + cmd
     log = open(log_path, "ab")
@@ -1310,6 +1336,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                        standingAside=aside_why, standingAsideForMemory=(play_now is not True), pid=running,
                        pidBirth=birth)
     if pid and not running and not unverified:
+        # #186 - what the ended prover served and banked, in its own words (kept until a later run says otherwise)
+        _ru = _log_reuse(_store_path(path) + ".log", mem.get("logFrom"))
+        if _ru is not None:
+            mem["reuse"] = dict(_ru, at=now_ms)
         # the proof we started has ended (or its pid now names another process): did it leave a current census?
         if mem.get("finishingSince"):
             pass                                           # booked as worked the tick its census went current
@@ -1451,6 +1481,8 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             "owed": (0 if st == "current" else (None if st == "unknown" else
                      (census.get("owed") if isinstance(census.get("owed"), int) and census.get("owed") > 0 else 1))),
             "slices": _int(mem.get("slices")),
+            # #186 - the last ended prover's own count: {served, of, banked, at}; None until one has said it (UNKNOWN)
+            "reuse": (mem.get("reuse") if isinstance(mem.get("reuse"), dict) else None),
             "key": d["key"], "say": d["why"], "census": st, "blind": census.get("blind"),
             "running": bool(mem.get("pid")), "playing": play_now, "freeMb": free_now,
             "stoodAside": _int(mem.get("stoodAside")), "asideSurvived": _int(mem.get("asideSurvived")),

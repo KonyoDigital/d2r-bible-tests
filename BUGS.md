@@ -14,6 +14,24 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2715 - THE CENSUS RE-PROVED WHAT A PUSH HAD JUST PROVED, AND BANKED NOTHING (#186, his ruling 2026-10-28)
+"NO IT DOESNT NEED TO PROVE ITSELF. it can accept a proof earned on byte identical ... it should work with that same
+recipe". Measured 2026-10-27: a push banks its PROVENs in the machine's verdict cache (29,991 entries on the Mac), and the
+census on the same PC then re-proved those very laws from scratch (test_control: 27 proofs, ~92 min) while frame.release
+and every river lock waited on it; heart2.prove() opened the cache only under push=True. Now `heart2.py --prove ...
+--reuse` - the self-prove lane's census and only it - opens the cache: each proof is served over byte-identical inputs
+through _cache_serve or run as the census always ran it (_prove_one, the whole law) and banked through _cache_bank once
+the gate's closing clean run kept it PROVEN (_census_bank, flushed per gate, so a slice that stands aside keeps it). The
+serve and the bank were cut out of _prove_push_one: one implementation, asked by the push and the census. A proof needing
+what the PC lacks (or cannot probe) is never served. A served gate keeps the age it was measured at (_reused_ages, the
+push's rule, now one helper; the slice banker stamps with it too). A served proof is kept on the banking tree's word with
+no clean run here - REG-2599's rule for a run that changes no law, and his ruling. A plain --prove (run_gates, CI, a hand
+run) never opens it, and HEART2_PROVE_CACHE=0 closes it (one predicate, _prove_cache_off, for push and census). The lane
+spawns with --reuse and reads the prover's own "#186 CENSUS CACHE: N of M reused · K banked" line back as selfProve.reuse
+(None until a run has said it). A cache that raises costs a re-prove, never a BLIND. Law: test_the_census_reuses_byte_identical_proofs (11 red-proofs, each seen RED).
+NEXT (#186 step 3): the ALT exports what its census banked (REG-2630) as a signed roster section; Dean imports it for his
+HEAD, re-keyed on his own bytes.
+
 ### REG-2714 - A REFUSED CHRONICLE SWEEP WROTE ITS REASON AND NOTHING READ IT (#97, reviewers)
 The sweep's run thread wrote _CHRON_JOB.lastRefusal (GROK ONLY is the reader, or since REG-2713 the switch could not be read)
 and zero readers existed in control_ui.html, so "run it again" pressed into the same wall in silence. The refusal carries its

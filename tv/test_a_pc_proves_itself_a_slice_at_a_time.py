@@ -311,10 +311,11 @@ class TheLaneProvesASliceAtATime(unittest.TestCase):
         SP.spawn(os.path.join(self.d, "log"), popen=popen, names=["g1", "g2"])
         cmd = seen["cmd"]
         i = cmd.index("--prove")
-        self.assertEqual(cmd[i + 1:], ["g1", "g2", "--slice"],
-                         "heart2 was not told this is a SLICE - it would stamp a census that spoke for two gates")
+        self.assertEqual(cmd[i + 1:], ["g1", "g2", "--slice", "--reuse"],
+                         "heart2 was not told this is a SLICE (or #186: that its census reuses) - it would stamp a "
+                         "census that spoke for two gates")
         SP.spawn(os.path.join(self.d, "log"), popen=popen)
-        self.assertEqual(seen["cmd"][-1], "--prove", "a whole-census run changed shape")
+        self.assertEqual(seen["cmd"][-2:], ["--prove", "--reuse"], "a whole-census run changed shape")
 
 
 class TheSlicePlan(unittest.TestCase):
