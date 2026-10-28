@@ -217,6 +217,12 @@ test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page
   // dragged back on every reload, forever, with nothing saying why. A repair is an event; a rule
   // that re-asserts itself is a policy, and he did not ask for a policy.
   await context.addInitScript(() => {
+    /* #160 (REG-2800) — WHAT THIS DOCUMENT WAS HANDED, read before this script seeds anything. CI shard 8 on v3826e failed
+       here twice: its trace shows the second load booting from the SEED (9 owned names, the pre-repair map, no stamp) —
+       the first load's stamp, its seed cleanse and his hand all absent — while the first load's last snapshot had them.
+       This script then re-seeded the pre-repair vault, the one-time repair rightly ran on what looked like a new vault,
+       and the law below blamed the migration. The premise is asserted now, so that failure names itself. */
+    try { (window as any).__v1816AtStart = { stamp: localStorage.getItem('d2r_vaultRerouteDone'), seeded: localStorage.getItem('__seeded') }; } catch (e) {}
     try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
     try { Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
     try {
@@ -247,26 +253,37 @@ test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page
   const assign = async () => page.evaluate(() => {
     try { return JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}'); } catch (e) { return {}; }
   });
+  /* #160 (REG-2800) — SETTLED, NOT SLEPT. ~1.5 s after load the page's deferred vault work (seed cleanse, set-piece
+     reconcile, records arm) runs and can write the whole mule map from its memory (vaultRemove -> saveA); it raises
+     window._vaultLoadSettled when it is done. Acting, reading or leaving before then races it: the old 1500 ms sleep sat
+     right on its start, and the failing trace reloaded while it ran. Measured in node (tv/test_the_vault_repair_runs_once
+     _whatever_the_load_order.py): a map written behind the page's memory before that chain is carried over by it. */
+  const settled = async () => page.waitForFunction(() => !!(window as any)._vaultLoadSettled, null, { timeout: 20000 });
 
   await page.goto(FILE);
   await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
   await page.waitForFunction(() => {
     try { return !!(window as any).LSR.getItem('d2r_vaultRerouteDone'); } catch (e) { return false; }
   }, null, { timeout: 20000 });
+  await settled();
   expect((await assign())['Homunculus'], 'the one-time repair should have moved it').toBe('uni-armor');
 
-  // HIS HAND: deliberately put it back in the weapons locker
-  await page.evaluate(() => {
-    const w = window as any;
-    const a = JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}');
-    a['Homunculus'] = 'uni-weap';
-    w.LSR.setItem('d2r_muleAssign', JSON.stringify(a));
-  });
+  // HIS HAND: deliberately put it back in the weapons locker, through the door his drag uses — the page's map and the store
+  // then agree, so nothing the page writes later can carry the repaired map back over it. (A repair that re-ran would
+  // still overrule this filing: measured in the node law with the one-shot check removed.)
+  await page.evaluate(() => { (window as any).vaultAssign('Homunculus', 'uni-weap'); });
+  expect((await assign())['Homunculus'], 'PREMISE: his hand did not reach the store before the reload').toBe('uni-weap');
 
   await page.goto(FILE);
   await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
-  await page.waitForTimeout(1500);
+  const atStart = await page.evaluate(() => (window as any).__v1816AtStart || null);
+  expect(atStart && atStart.stamp,
+    'PREMISE: the second load was handed a store WITHOUT the first load\'s stamp (' + JSON.stringify(atStart) + ') — the '
+    + 'browser did not carry localStorage across the reload; the migration is not what overruled him').toBeTruthy();
+  await settled();
 
+  expect(await page.evaluate(() => (window as any)._vaultReroute || null),
+    'the migration ran a second time on this load and moved something').toBeNull();
   expect((await assign())['Homunculus'],
     'the migration ran a second time and overruled a placement he made by hand').toBe('uni-weap');
 });
@@ -347,7 +364,9 @@ test('v1817 — a failed write must not stamp the repair as done', async ({ page
 
   await page.goto(FILE);
   await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
-  await page.waitForTimeout(1200);
+  // #160 (REG-2800) — the page's deferred vault work is done (it raises _vaultLoadSettled), never a fixed sleep that may
+  // land the reload below in the middle of it
+  await page.waitForFunction(() => !!(window as any)._vaultLoadSettled, null, { timeout: 20000 });
 
   const flagAfterFailure = await page.evaluate(() => {
     try { return (window as any).LSR.getItem('d2r_vaultRerouteDone'); } catch (e) { return 'ERR'; }

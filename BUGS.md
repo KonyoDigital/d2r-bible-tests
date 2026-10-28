@@ -51,6 +51,27 @@ throw as the throw its row was painted from (window._moveModel, the model _vault
 the saved throw; a row he kept stays a move (_vaultThrowTask's rule). Moves still read the store, which is the fresher
 of the two after a sighting. Law: test_a_move_row_expands_inline_and_the_popup_is_gone (a painted-only throw and a
 saved-only throw, both NOWHERE from their own cell; 2 red-proofs).
+### REG-2800 - THE V1816 LAW RELOADED WHILE THE PAGE'S DEFERRED VAULT WORK RAN, AND BLAMED THE REPAIR FOR A STORE THE RELOAD HAD NOT CARRIED (#160, CI shard 8 on ci/claude-v3826e)
+tests/v1814_vault_routes_by_base_data.spec.ts:212 failed on shard 8, first try and retry ("the migration ran a second
+time and overruled a placement he made by hand"); the same bytes passed on three other runs. MEASURED in the retry's trace:
+the second load logged "[vault] re-routed 1 mis-filed item(s): Homunculus uni-weap->uni-armor" - the repair really ran
+again - but on a store holding none of the first load's writes: the first load's last snapshot drew 3 owned items (its
+seed cleanse removed 6), the second load's first snapshot drew all 9, and every one-time stamped step of the first load
+(provenance backfill, seed cleanse "removed 6", set-piece reconcile, records migrate "persisted 3") ran again. The spec's
+init script re-seeds the pre-repair vault whenever its marker is missing, so the lost store became a new pre-repair vault
+and the repair rightly ran on it. The reload had been sent while the page's deferred vault chain (~1.5 s after load:
+cleanse -> reconcile -> records arm) was running; the spec's 1500 ms sleep sat on that chain's start. MEASURED in node,
+both orders forced, the store carried across: the page never re-runs the repair on a stamped store and his hand wins; but
+a map written straight into storage behind the page's memory (the spec's old "hand") is carried away by the chain's
+whole-map write (vaultRemove -> saveA) when the chain lands after it. FIX: the page raises window._vaultLoadSettled after
+the chain's last step; the spec waits on it before acting and before reloading (never a sleep), files his hand through
+his own door (vaultAssign - with the one-shot check removed that door is still overruled, so it does not blind the law),
+reads his hand back before the reload, asserts as a PREMISE that the second load was handed the first load's stamp (so a
+lost store names itself instead of accusing the migration), and asserts no re-route on the second load. Swept: v1817 in
+the same file slept 1200 ms and then reloaded the same way - it waits on the signal now. Not swept: 92 spec files sleep
+and then read d2r_muleAssign / d2r_owned; none has a measured race, and the signal is there for them. Law:
+tv/test_the_vault_repair_runs_once_whatever_the_load_order.py (node, two whole-page loads, store carried, both orders):
+5 red-proofs, 5 RED. The spec change is Chrome-only: CI proves it.
 
 ### REG-2782 - A MULE CARD DREW A COPY AWAY FROM THE CELL ITS MOVE TASK SENT IT TO (#144.10, GrokBot's eyes-pass A1)
 GrokBot (seeds 1012/1013/1021, "almost all batches"): "SOCKETED tasks are Monarch c0r0, Phase Blade c4r0, Thresher c5r0,

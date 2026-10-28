@@ -12241,6 +12241,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_unread_text_is_shown_as_the_ocr_read_it.py")], 300,
          needs_app=False,
          why="#86 REG-2791: KAI's unread text is printed verbatim, quoted, as raw OCR"),
+    Gate("test_the_vault_repair_runs_once_whatever_the_load_order",
+         [sys.executable, os.path.join(HERE, "test_the_vault_repair_runs_once_whatever_the_load_order.py")], 300,
+         needs_app=False,
+         why='#160 REG-2800: the v1816 repair runs once and his hand wins in either load order, and the page says when its deferred vault work is done'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

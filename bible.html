@@ -23578,6 +23578,13 @@ try {
           var _spr = null;
           try { _spr = window._setPieceReconcile({}); } catch (eRec) { _spr = null; }   /* #76 — fold any set-piece name-form duplicate, after the seed cleanse */
           try { if (typeof window._vaultRecordsMayArm === 'function' && window._vaultRecordsMayArm(_spr)) window._vaultRecordsArm(); } catch (eArm) {}   /* #76 INC-3 v3765 — the one page-load call, only when reconcile did not refuse */
+          /* #160 (REG-2800) - THE LOAD'S DEFERRED VAULT WORK IS DONE, AND THIS SAYS SO. The cleanse, the reconcile and the records
+             arm run ~1.5 s after load and then once the console answers, and each can write the whole owned set and mule map
+             from this page's memory (vaultRemove -> saveA). A reader that acts on the vault, or leaves the page, before then is
+             racing them: CI shard 8 (v3826e) reloaded while this chain was running, and a v1816 law read a vault the reload had
+             not carried. A timestamp, set after the last step whether or not any step wrote; never set on a page that did not
+             arm the chain (a shadow, a harness without a page). */
+          try { window._vaultLoadSettled = Date.now(); } catch (eSt) {}
         };
         Promise.resolve(p).then(run, run);
       };
