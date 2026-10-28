@@ -1,0 +1,138 @@
+# -*- coding: utf-8 -*-
+"""#154 (REG-2833, GrokBot's #13 drive, #230 6462208498) - THE SOCKETS SPINNER NEVER MOVES UNDER HIS CURSOR.
+
+"The editor header shifts about 17 px sideways on re-render, which moves the Sockets spinner under the cursor." Two causes,
+both in the vault planner's repaint: vaultPlannerPaint rewrites the whole host on every change, so the field he was in was
+destroyed (focus gone, the edit pane's scroll back at the top); and the edit pane (.cb-ed, overflow:auto) reserved no room
+for a scrollbar, so a classic scrollbar (17 px on Windows Chrome) arriving as the socket rows grew narrowed the pane and
+reflowed it sideways. Now the repaint carries the focused field and the pane's scroll across, and .cb-ed reserves its
+gutter (scrollbar-gutter: stable).
+
+Driven in Chrome on the SHIPPED page (layout, focus and trusted keys exist only there; the node law
+test_a_planner_edit_is_one_edit holds the data half): a Superior Monarch opened in the planner, real ArrowUp key presses on
+the Sockets field, and the pane measured with a styled (classic, 17 px) scrollbar at a tall and a short modal height.
+NO CHROME = a declared skip; CI proves it. RED_PROOF below (run by CI's census, never on his Mac).
+"""
+import os
+import sys
+import time
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
+import test_a_sweep_never_reticks_what_he_unticked as H  # noqa: E402
+
+_B = {}
+
+#: a classic scrollbar that takes room on every platform (a styled ::-webkit-scrollbar is never an overlay), and the
+#: modal's height set on the HOST, which every repaint keeps (the modal element itself is rewritten)
+STYLE = ("var st = document.getElementById('law-sb') || document.createElement('style'); st.id = 'law-sb';"
+         "st.textContent = '#vault-planner-host .cb-ed::-webkit-scrollbar{width:17px;background:#222}"
+         "#vault-planner-host .cb-ed::-webkit-scrollbar-thumb{background:#777}"
+         "#vault-planner-host .cb-modal{height:var(--law-h,min(88vh,940px)) !important;max-height:var(--law-h,88vh) !important}';"
+         "document.head.appendChild(st);")
+OPEN = ("window.switchTab('vault'); try { window.vaultPlannerClose(); } catch (e) {}"
+        "window.vaultPlannerOpen('');"
+        "var db = window._cbDb(), code = Object.keys(db.b).find(function(c){ return db.b[c][0] === 'Monarch'; });"
+        "window._cbChoose('b:' + code); window._cbQuality('sup');"
+        "await new Promise(function(r){ setTimeout(r, 200); });")
+MEASURE = ("function m(){ var i = document.getElementById('cb-sockets'), ed = document.querySelector('#vault-planner-host .cb-ed');"
+           "  var r = i ? i.getBoundingClientRect() : null, c = window._cbState().host.cur();"
+           "  return { focus: document.activeElement ? document.activeElement.id : null, x: r ? r.left : null, y: r ? r.top : null,"
+           "           value: i ? i.value : null, draft: c ? (c.sockets | 0) : null, top: ed ? ed.scrollTop : null,"
+           "           gutter: ed ? (ed.offsetWidth - ed.clientWidth) : null }; }")
+
+
+def board():
+    if "b" not in _B:
+        _B["b"] = H.Board().open()
+    return _B["b"]
+
+
+def tearDownModule():
+    b = _B.pop("b", None)
+    if b is not None:
+        b.close()
+
+
+def key_up():
+    t = board().t
+    for kind in ("keyDown", "keyUp"):
+        t.send("Input.dispatchKeyEvent", type=kind, key="ArrowUp", code="ArrowUp", windowsVirtualKeyCode=38,
+               nativeVirtualKeyCode=38)
+    time.sleep(0.25)
+
+
+@unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
+class ThePlannerSpinnerStaysUnderTheCursor(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        board().seed({"d2r_owned": [], "d2r_muleAssign": {}, "d2r_vaultRecords": None, "d2r_vaultProv": {}})
+
+    def test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not(self):
+        o = board().run(STYLE + OPEN + MEASURE +
+                        "var md = document.getElementById('vault-planner-host');"
+                        "md.style.setProperty('--law-h', '1400px'); await new Promise(function(r){ setTimeout(r, 120); }); OUT.tall = m();"
+                        "md.style.setProperty('--law-h', '260px'); await new Promise(function(r){ setTimeout(r, 120); }); OUT.short = m();"
+                        "var ed = document.querySelector('#vault-planner-host .cb-ed');"
+                        "OUT.overflows = ed ? ed.scrollHeight > ed.clientHeight : null;"
+                        "OUT.css = ed ? getComputedStyle(ed).scrollbarGutter : null;")
+        self.assertTrue(o["overflows"], "PREMISE: the short modal does not make the edit pane scroll: %r" % o)
+        self.assertEqual(o["css"], "stable", "the edit pane reserves no gutter: %r" % o)
+        self.assertEqual(o["tall"]["gutter"], o["short"]["gutter"],
+                         "the pane narrows when its scrollbar arrives, so the editor shifts sideways: %r" % o)
+        self.assertGreaterEqual(o["tall"]["gutter"], 17, "PREMISE: the styled scrollbar takes no room: %r" % o)
+
+    def test_arrow_keys_on_the_sockets_field_keep_it_focused_and_still(self):
+        board().run(STYLE + OPEN +
+                    "document.getElementById('vault-planner-host').style.setProperty('--law-h', '420px');"
+                    "var i = document.getElementById('cb-sockets'); i.scrollIntoView({ block: 'center' }); i.focus();"
+                    "OUT.ok = 1;")
+        o0 = board().run(MEASURE + "OUT.m = m();")["m"]
+        self.assertEqual(o0["focus"], "cb-sockets", "PREMISE: the Sockets field did not take focus: %r" % o0)
+        steps = []
+        for _ in range(3):
+            key_up()
+            steps.append(board().run(MEASURE + "OUT.m = m();")["m"])
+        for k, st in enumerate(steps):
+            self.assertEqual(st["focus"], "cb-sockets", "step %d: the repaint took focus off the Sockets field: %r" % (k + 1, st))
+            self.assertEqual(st["draft"], o0["draft"] + k + 1, "step %d: the arrow key did not move the draft live: %r" % (k + 1, st))
+            self.assertLess(abs(st["x"] - o0["x"]), 1, "step %d: the Sockets field moved sideways: %r -> %r" % (k + 1, o0, st))
+            self.assertLess(abs(st["y"] - o0["y"]), 1, "step %d: the Sockets field moved up or down: %r -> %r" % (k + 1, o0, st))
+            self.assertLess(abs(st["top"] - o0["top"]), 1, "step %d: the pane's scroll jumped: %r -> %r" % (k + 1, o0, st))
+        o = board().run("var a = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');"
+                        "OUT.mid = Object.keys(a).filter(function(k){ return /Monarch/.test(k); });"
+                        "window.vaultPlannerClose(); await new Promise(function(r){ setTimeout(r, 200); });"
+                        "var b = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');"
+                        "OUT.done = Object.keys(b).filter(function(k){ return /Monarch/.test(k); });")
+        self.assertEqual(o["mid"], [], "the edit was filed before Done: %r" % o)
+        self.assertEqual(len(o["done"]), 1, "Done did not file the one edit: %r" % o)
+
+
+RED_PROOF = [
+    {"why": "REG-2833 - the edit pane reserves no gutter, so the editor shifts when its scrollbar arrives",
+     "file": "bible.html",
+     "find": ".cb-ed{scrollbar-gutter:stable}",
+     "replace": ".cb-ed{scrollbar-gutter:auto}",
+     "matches": 1},
+    {"why": "REG-2833 - the repaint drops the field he is in",
+     "file": "bible.html",
+     "find": "    if (_fid){ var _f1 = document.getElementById(_fid); if (_f1 && typeof _f1.focus === 'function'){ try { _f1.focus({ preventScroll: true }); } catch (eFc) {} } }\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2833 - the repaint sends the edit pane back to the top",
+     "file": "bible.html",
+     "find": "    if (_ed1 && _edTop) _ed1.scrollTop = _edTop;\n",
+     "replace": "",
+     "matches": 1},
+]
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

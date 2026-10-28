@@ -68474,6 +68474,7 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 /* EDIT — their art tile, name + base, Change Item / Unequip, the level stepper, Base / Sockets / Ethereal, and the
    property lines in the game's face with a box on every rolled value */
 .cb-ed{flex:1;min-height:0;overflow:auto;padding:calc(14*var(--u)) calc(22*var(--u))}
+.cb-ed{scrollbar-gutter:stable}   /* REG-2833 - a scrollbar arriving as the socket rows grow never narrows the pane (17 px on his PC moved the Sockets spinner sideways) */
 .cb-ed-top{display:flex;gap:calc(14*var(--u));align-items:flex-start}
 .cb-ed-art{flex:none;width:calc(64*var(--u));height:calc(64*var(--u));min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 45%,#2b2436,#0e0c12 80%);border:1px solid #3c3450;border-radius:3px}
 .cb-ed-art .d2art-wrap{width:92%;height:92%;display:flex;align-items:center;justify-content:center}
@@ -69453,8 +69454,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       /* #174 v-B4 — THE MULE HOST WRITES THE MULE, never d2r_charBuilds: the change is made on a build-shaped copy of that
          one slot, and the slot goes back through the mule window's own writer (_mpEqPlace, source 'manual') */
       var mb = _cbMuleBuild(); mut(mb);
-      var wr = st.host.write((st.pick.kind === 'inv' ? (mb.sets[0].inv || [])[0] : mb.sets[0].slots[st.pick.slot]) || null)   // #174 v-B5: or its inventory tile
-        || { ok: false, why: 'the mule window did not answer' };
+      var _hEnt = (st.pick.kind === 'inv' ? (mb.sets[0].inv || [])[0] : mb.sets[0].slots[st.pick.slot]) || null;   // #174 v-B5: or its inventory tile
+      /* REG-2832 - in the vault planner a change made in the EDIT tab is held as a draft and filed once when the edit ends */
+      var wr = (st.host.planner && typeof st.host.hold === 'function' && st.pick.tab === 'edit' && _hEnt) ? st.host.hold(_hEnt)
+        : (st.host.write(_hEnt) || { ok: false, why: 'the mule window did not answer' });
       st.hostErr = wr.ok ? '' : (wr.why || 'not saved');
       return !!wr.ok;
     }
@@ -71195,7 +71198,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var rw = it[2] === 'r', sr = _cbSockRange(e, it), sTyped = sr.key && e.rolls && Object.prototype.hasOwnProperty.call(e.rolls, sr.key);
     var sock = '<input type="number" id="cb-sockets" min="' + sr.lo + '" max="' + sr.hi + '" value="' + (sr.key ? (sTyped ? e.rolls[sr.key] : '') : (e.sockets | 0)) + '"'
       + (sr.key ? ' placeholder="' + sr.lo + '-' + sr.hi + '"' : '') + (rw || sr.lo === sr.hi ? ' disabled' : '') + (sr.why ? ' title="' + esc(sr.why) + '"' : '')
-      + ' aria-label="sockets (' + sr.lo + ' to ' + sr.hi + (sr.why ? ': ' + esc(sr.why) : '') + ')" onchange="window._cbEdit(\'sockets\', this.value)">';
+      + ' aria-label="sockets (' + sr.lo + ' to ' + sr.hi + (sr.why ? ': ' + esc(sr.why) : '') + ')" onchange="window._cbEdit(\'sockets\', this.value)" oninput="window._cbEditLive(\'sockets\', this)">';
     var canEth = !!(base && base[17]);
     var eth = '<label class="cb-ed-f"><input type="checkbox" id="cb-eth"' + (e.eth ? ' checked' : '') + (canEth ? '' : ' disabled') + ' onchange="window._cbEdit(\'eth\', this.checked)"> Ethereal' + (canEth ? '' : ' <small>(this base has no durability, so it cannot be)</small>') + '</label>';
     var lines = (it[6] || []).map(function(l){
@@ -71373,7 +71376,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var sr = _cbSockRange(e, it);
     if (sr.hi > 0)
       ctl.push('<label class="cb-ctl"><span>Sockets</span><input type="number" id="cb-sockets" min="' + sr.lo + '" max="' + sr.hi + '" value="' + (e.sockets | 0) + '"' + (sr.lo === sr.hi ? ' disabled' : '')
-        + ' aria-label="sockets (' + sr.lo + ' to ' + sr.hi + ')" onchange="window._cbEdit(\'sockets\', this.value)"></label>');
+        + ' aria-label="sockets (' + sr.lo + ' to ' + sr.hi + ')" onchange="window._cbEdit(\'sockets\', this.value)" oninput="window._cbEditLive(\'sockets\', this)"></label>');
     if (base && base[17])
       ctl.push('<label class="cb-ctl"><span>Ethereal</span><input type="checkbox" id="cb-eth"' + (e.eth ? ' checked' : '') + ' onchange="window._cbEdit(\'eth\', this.checked)"></label>');
     var M = _cbModsHtml(e, slot, q, base, clvl), canMod = M.canMod, mods = M.mods, oddsHtml = M.odds, add = M.add;
@@ -71999,6 +72002,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (said != null){ st.modSay = said; st.modBad = bad; }
     _cbRender();
   };
+  /* REG-2832 (#154, GrokBot's #13 drive: "the socket count only commits on blur or Tab") - in the vault planner the
+     Sockets field is live: each digit or step redraws the rows at once. That is safe there and only there: a change is a
+     held draft (nothing is filed until Done) and the planner's repaint keeps the field focused (REG-2833). The builder
+     and the mule window keep their change event; an empty field (mid-typing) is left alone. */
+  window._cbEditLive = function(k, el){
+    if (!(st.host && st.host.planner && st.pick && st.pick.host === 'mule')) return false;
+    var v = el ? el.value : null;
+    if (v == null || String(v) === '') return false;
+    window._cbEdit(k, v);
+    return true;
+  };
   window._cbSocket = function(i, v){ _cbCommit(function(b){ var e = _cbCur(b); if (!e) return; e.socketed = e.socketed || []; while (e.socketed.length <= i) e.socketed.push(''); e.socketed[i] = v || ''; }); _cbRefreshQuiet(); };
   /* a typed roll: inside the range -> EXACT and saved; outside -> refused, the range shown, nothing saved */
   window._cbRollInput = function(ev){
@@ -72109,8 +72123,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* the modal's markup, drawn inside the mule window's own render (so its unit and type scale reach it). `locker` is what
      the mule window listed for this slot: {html, n (it offers), total (the locker holds)} - the tab in front is chosen
      here, once: the locker's list when it offers anything, the whole database when it offers nothing */
-  function _vpPlateHtml(say, saved){
+  function _vpPlateHtml(say, saved, edit){
     var s = String(say || '');
+    /* REG-2832 - while an edit is held, the plate says so - never SAVED or NOT IN A LOCKER for a draft nothing has filed */
+    if (edit) return '<div class="vp-plate vp-plate-edit" role="status">'
+      + '<div class="vp-plate-k">Editing</div>'
+      + '<div class="vp-plate-say">' + esc(String(edit)) + '</div>'
+      + '<button type="button" class="vp-plate-done" onclick="window.vaultPlannerClose&&window.vaultPlannerClose()">Done</button>'
+      + '</div>';
     /* REG-2536 — THE HEADLINE IS THE PICK'S RESULT, NEVER A WORD IN ITS SENTENCE. It was /filed to|already filed/ on the
        sentence, and a refusal reads "...so it is never filed to a mule": a pick the door refused (locked to his MAIN) lit
        "Saved into the vault" over nothing on disk. ctx.write keeps the result's own verdict (filed, a copy, already filed). */
@@ -72125,7 +72145,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var p = st.pick; if (!p || p.host !== 'mule' || !st.host) return '';
     st.host.locker = locker || { html: '', n: 0, total: 0 };
     if (p.tab === 'auto') p.tab = (st.host.locker.n > 0) ? 'locker' : 'select';
-    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say, st.host.saved)
+    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say, st.host.saved, st.host.pending ? st.host.editSay : '')
       : (st.host.desk === 'd2jsp' && typeof window._d2jspPlateHtml === 'function') ? window._d2jspPlateHtml(st.host.say)
       : '';
     return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(p.kind === 'inv' ? 'item for ' + (st.host.where || 'this inventory cell') : (CB_SLOT_SAY[p.slot] || p.slot))
@@ -72159,7 +72179,15 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (document.body) document.body.appendChild(host);
     }
     host.hidden = false;
+    /* REG-2833 (#154, GrokBot's #13 drive) - A REPAINT NEVER MOVES THE CONTROL HE IS USING. The whole host is rewritten on
+       every change, so the field he was in (the Sockets spinner) was destroyed under his cursor and the edit pane's
+       scroll went back to the top. The focused field (by id) and the pane's scroll are carried across the repaint. */
+    var _fa = document.activeElement, _fid = (_fa && _fa.id && typeof host.contains === 'function' && host.contains(_fa)) ? _fa.id : '';
+    var _ed0 = (typeof host.querySelector === 'function') ? host.querySelector('.cb-ed') : null, _edTop = _ed0 ? (_ed0.scrollTop || 0) : 0;
     host.innerHTML = (typeof window._cbHostHtml === 'function') ? window._cbHostHtml({ html: '', n: 0, total: 0 }) : '';
+    var _ed1 = (typeof host.querySelector === 'function') ? host.querySelector('.cb-ed') : null;
+    if (_ed1 && _edTop) _ed1.scrollTop = _edTop;
+    if (_fid){ var _f1 = document.getElementById(_fid); if (_f1 && typeof _f1.focus === 'function'){ try { _f1.focus({ preventScroll: true }); } catch (eFc) {} } }
     var m = document.getElementById('cb-modal');
     if (m){
       m.style.position = 'relative';
@@ -72171,7 +72199,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     }
     return true;
   };
+  var _vpOpenCtx = null;
   window.vaultPlannerClose = function(){
+    /* REG-2832 - Done, Esc and the close end the edit: a held draft is filed now, once, while the planner is still on
+       (so its draw waits for the close, as every planner filing does) */
+    var _cx = _vpOpenCtx; _vpOpenCtx = null;
+    try { if (_cx && typeof _cx.flush === 'function') _cx.flush(); } catch (eF) {}
     window._vaultPlannerOn = false;
     try { if (window._cbHostClose) window._cbHostClose(); } catch (e) {}
     var host = document.getElementById('vault-planner-host');
@@ -72215,17 +72248,46 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       return { ok: false, why: 'the planner is not on this page' };
     var held = null;
     var token = 'vp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    /* #154 (REG-2832, GrokBot's #13 drive) - AN EDIT IN PROGRESS IS ONE EDIT, FILED ONCE. Every change in the EDIT tab
+       came through write(), and write() filed it: measured on the whole page in node, one Superior Monarch taken from
+       1 to 4 sockets and back filed 3os, took it back for 4os, and so on - three 'planner-take-back' batches in the
+       20-deep removal journal for one edit, pushing his real removals out of reach of the undo, while the plate flipped
+       NOT IN A LOCKER / SAVED under his cursor. Now a change made in the EDIT tab is HELD (hold), drawn as the draft it is,
+       and filed once (flush) when the edit ends: Done, Esc, the close, or the next pick. The pick itself and a clear still
+       file at once through write() - REG-2536's plate reads that result, and nothing about it changed. */
+    var pending = false;
+    var _vpSayOf = function(r){
+      ctx.say = (r && r.why) || '';
+      /* REG-2536 — saved = what vaultPlannerFile itself counts as kept: filed (a copy too) or already filed */
+      ctx.saved = !!(r && r.ok !== false && (r.filed === true || r.mode === 'already'));
+    };
     var ctx = {
       kind: 'inv', cell: [0, 0], mule: 'the Vault', where: 'a manual add', planner: true,
       fits: function(){ return true; },
       cur: function(){ return held; },
       write: function(entry){
+        if (pending && entry) ctx.flush();           /* REG-2832 - the next pick ends the edit: its draft is filed first */
+        pending = false; ctx.pending = false;        /* REG-2832 - a clear drops the draft, then takes back what was filed */
         held = entry;
         var r = window.vaultPlannerFile(entry, token);
-        ctx.say = (r && r.why) || '';
-        /* REG-2536 — saved = what vaultPlannerFile itself counts as kept: filed (a copy too) or already filed */
-        ctx.saved = !!(r && r.ok !== false && (r.filed === true || r.mode === 'already'));
+        _vpSayOf(r);
         return { ok: !r || r.ok !== false, why: ctx.say || 'not saved' };
+      },
+      hold: function(entry){
+        if (!entry) return ctx.write(entry);
+        held = entry; pending = true; ctx.pending = true;
+        var nm = '';
+        try { var sh = window._cbShown(entry, window._cbItem(entry.id)); nm = (sh && sh.name) ? String(sh.name) : ''; } catch (eS) { nm = ''; }
+        ctx.editSay = (nm || 'This item') + ((entry.sockets | 0) > 0 ? ' · ' + (entry.sockets | 0) + ' socket' + ((entry.sockets | 0) === 1 ? '' : 's') : '')
+          + ' - Done saves this edit as one change; nothing is filed until then.';
+        return { ok: true, held: true, why: ctx.editSay };
+      },
+      flush: function(){
+        if (!pending) return null;
+        pending = false; ctx.pending = false;
+        var r = window.vaultPlannerFile(held, token);
+        _vpSayOf(r);
+        return r;
       },
       render: function(){ window.vaultPlannerPaint(); },
       close: function(){ window.vaultPlannerClose(); }
@@ -72235,6 +72297,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       _vpStatus(whyR);
       return { ok: false, refused: 'refused', why: whyR };
     }
+    _vpOpenCtx = ctx;   /* REG-2832 - the close files the edit in progress */
     window._vaultPlannerOn = true;
     try { var _vhw = document.getElementById('vault-hand-win'); if (_vhw && !_vhw.hidden && window.vaultHandClose) window.vaultHandClose(); } catch (eH) {} /* Vault v3 B2 — one add door at a time */
     if (q && typeof window._cbPickSearch === 'function') window._cbPickSearch(q);

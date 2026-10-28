@@ -173,8 +173,8 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2536 - the pick's result is not kept for the plate, so a pick that was kept never says it was saved",
      "file": "bible.html",
-     "find": "        ctx.saved = !!(r && r.ok !== false && (r.filed === true || r.mode === 'already'));\n",
-     "replace": "        ctx.saved = false;\n",
+     "find": "      ctx.saved = !!(r && r.ok !== false && (r.filed === true || r.mode === 'already'));\n",
+     "replace": "      ctx.saved = false;\n",
      "matches": 1, "needs": "node"},
 ]
 

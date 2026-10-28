@@ -12261,6 +12261,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_kept_or_dismissed_read_can_come_back.py")], 300,
          needs_app=False,
          why='#154.17 REG-2830/2831 - a kept read is owned with a receipt, and its X and a dismissed read can be undone from the toolbar'),
+    Gate("test_a_planner_edit_is_one_edit",
+         [sys.executable, os.path.join(HERE, "test_a_planner_edit_is_one_edit.py")], 300,
+         needs_app=False,
+         why='#154 REG-2832 - an edit in the vault planner is held as a draft and filed once, with nothing in the removal journal'),
+    Gate("test_the_planner_spinner_stays_under_the_cursor",
+         [sys.executable, os.path.join(HERE, "test_the_planner_spinner_stays_under_the_cursor.py")], 300,
+         needs_app=False,
+         why="#154 REG-2833 - the planner repaint keeps the focused field and the pane's scroll, and the edit pane reserves its scrollbar gutter (Chrome, CI)"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

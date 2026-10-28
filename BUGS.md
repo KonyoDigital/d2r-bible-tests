@@ -37,6 +37,31 @@ neither, so the gap could not explain itself. It now carries today's copy record
 (recordsByKind / recordsTotal - loose on the dock, kept, carried, orphan beside filed) and the migrate stamp's date
 (migrateAt). The console banks them shaped (at most 16 kinds, a count or nothing). Law:
 test_a_copy_readout_says_what_each_side_counts (2 cases, 3 red-proofs).
+### REG-2833 - THE SOCKETS SPINNER MOVED UNDER HIS CURSOR ON EVERY CHANGE (#154, GrokBot's #13 drive, #230 6462208498)
+GrokBot: "the editor header shifts about 17 px sideways on re-render, which moves the Sockets spinner under the cursor".
+Read in code: vaultPlannerPaint rewrote the whole planner host on every change, so the field he was in was destroyed
+(focus gone, the edit pane's scroll back at the top), and the edit pane (.cb-ed, overflow:auto) reserved no room for a
+scrollbar, so a classic one - a Windows Chrome scrollbar is the ~17 px GrokBot saw - arriving as the socket rows grew
+narrowed the pane and reflowed it sideways. Now the repaint carries the focused field (by id) and the pane's scroll across,
+and .cb-ed reserves its gutter (scrollbar-gutter: stable; every host's edit pane, the builder's and the mule window's too).
+Not measurable here (focus, layout and trusted keys exist only in Chrome): Chrome law
+test_the_planner_spinner_stays_under_the_cursor - real ArrowUp presses keep the field focused and still, and the pane's
+gutter is the same at a tall and a short modal with a 17 px styled scrollbar. 3 red-proofs; CI proves them.
+
+### REG-2832 - ONE SOCKET EDIT FILED EVERY STEP AND FILLED THE REMOVAL JOURNAL WITH ITS OWN COPIES (#154, GrokBot's #13 drive, #230 6462208498)
+Every change in the vault planner's EDIT tab reached ctx.write and was filed. Measured on the whole page in node, GrokBot's
+drive (Monarch, Superior, sockets 1 2 3 4 3 4, Done): 3 'planner-take-back' batches (3os, 4os, 3os) went into the removal
+journal - a 20-deep ring - for one edit, pushing his real removals out of reach of the undo, while the plate flipped NOT IN A
+LOCKER / SAVED mid-edit; and the count only moved on blur or Tab. Now a change made in the EDIT tab is held as a draft
+(ctx.hold) and filed once when the edit ends - Done, Esc, the close, or the next pick (which files the draft first); a clear
+drops the draft. The pick itself still files at once through ctx.write, so REG-2536's plate and its law are unchanged (its
+second red-proof re-aimed at the line's new place, RED). While a draft is held the plate says Editing; in the planner the
+Sockets field is live on input (_cbEditLive), and an empty field mid-typing is left alone. After: 0 journal batches, one
+filing at Done (Superior Monarch (4os) to SOCKETED). Part (d), broken thumbnails at 3-4 sockets: NOT A DEFECT here - every
+picture the editor, its hover and the Phoenix / Spirit chips ask for resolves to a file on disk (art/hd_kite_shield.png);
+GrokBot's guest box holds a partial art folder. Law: test_a_planner_edit_is_one_edit (node, the whole page), 6 red-proofs,
+RED.
+
 ### REG-2831 - A MAGIC & RARE X AND A DISMISSED READ COULD NOT BE TAKEN BACK FROM THE BOARD (#154.17, GrokBot's vault sweep)
 vaultThrowFind and vaultDismissUnknown deleted with no confirm and no undo the board could reach. Measured on the whole page
 in node: a dismissed read left d2r_unknownReads at once, with no journal batch; the X of a read kept to Magic & Rare wrote no
