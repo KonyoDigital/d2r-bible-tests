@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
+test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to
+17": the page's own scrollbar style wins over the law's injected 17 px one there. The law's real claim held on CI - the
+edit pane reserved the same gutter tall and short (10 = 10) - and only its premise pinned a Windows width. The premise is
+now that the scrollbar takes some room (more than 0); its red-proof (scrollbar-gutter:auto) still makes the two heights
+differ.
+
 ### REG-2789 - THREE LAWS STILL PINNED THE SHARED STASH'S OLD BY-SLOT TABS AFTER HIS 5-PAGE RULING (CI on ci/claude-v3832)
 REG-2801/2802 drew the shared stash as the plan's 5 pages (his 2026-10-28 ruling) and re-aimed the two laws that named
 them; the sweep missed three, which went red only on CI (Chrome): the finder expected "Weapons tab · col" and got

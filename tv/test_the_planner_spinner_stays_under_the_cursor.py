@@ -88,7 +88,9 @@ class ThePlannerSpinnerStaysUnderTheCursor(unittest.TestCase):
         self.assertEqual(o["css"], "stable", "the edit pane reserves no gutter: %r" % o)
         self.assertEqual(o["tall"]["gutter"], o["short"]["gutter"],
                          "the pane narrows when its scrollbar arrives, so the editor shifts sideways: %r" % o)
-        self.assertGreaterEqual(o["tall"]["gutter"], 17, "PREMISE: the styled scrollbar takes no room: %r" % o)
+        # REG-2792 (CI on ci/claude-v3833) - the page's own scrollbar style wins on CI's Chrome (10 px measured), so the
+        # premise is that the scrollbar takes SOME room, never a width guessed from one platform (17 px is Windows')
+        self.assertGreater(o["tall"]["gutter"] or 0, 0, "PREMISE: the styled scrollbar takes no room: %r" % o)
 
     def test_arrow_keys_on_the_sockets_field_keep_it_focused_and_still(self):
         board().run(STYLE + OPEN +
