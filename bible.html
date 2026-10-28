@@ -51162,14 +51162,25 @@ window.vaultAutoAssign = function(){
   function _profileKeys(){ var o = []; Object.keys(_PROFILE_STORES).forEach(function(g){ o = o.concat(_PROFILE_STORES[g]); }); return o; }
   /* REG-2763 (GrokBot: "runeStash: 2 -> 2" while Ber went 5 -> 2) - a store of counts (the stashes) says its units, every
      other store its entries */
-  function _profileCount(raw){
+  /* REG-2793 (GrokBot's ALT round trip, v3828) - a store is a store of COUNTS by name, never by shape: d2r_stashMeta holds
+     epoch-ms per stash, all numbers, and the load question summed them into "stashMeta: 0 -> 7172604061655". Only these
+     hold counts; every other store is counted by its entries. */
+  var _PROFILE_COUNT_STORES = Object.freeze({ d2r_runeStash: 1, d2r_gemStash: 1, d2r_materialStash: 1, d2r_copies: 1, d2r_multiKeep: 1 });
+  /* REG-2793 - null, '', {} and [] are one fact (nothing held): a store empty on both sides has not changed */
+  function _profileEmpty(raw){
+    if (raw == null || raw === '') return true;
+    try { var v = JSON.parse(raw); return v == null || (Array.isArray(v) ? !v.length : (typeof v === 'object' && !Object.keys(v).length)); }
+    catch (e) { return false; }
+  }
+  function _profileCount(raw, key){
     if (raw == null) return 0;
     try {
       var v = JSON.parse(raw);
       if (Array.isArray(v)) return v.length;
       if (!v || typeof v !== 'object') return 1;
       var ks = Object.keys(v);
-      if (ks.length && ks.every(function(k){ return typeof v[k] === 'number' && isFinite(v[k]); })) return ks.reduce(function(a, k){ return a + v[k]; }, 0);
+      if (key && _own(_PROFILE_COUNT_STORES, key) && ks.length && ks.every(function(k){ return typeof v[k] === 'number' && isFinite(v[k]); }))
+        return ks.reduce(function(a, k){ return a + v[k]; }, 0);
       return ks.length;
     } catch (e) { return 1; }
   }
@@ -51207,7 +51218,8 @@ window.vaultAutoAssign = function(){
   /* -> [{store, group, now, file, changed}] — the preview, reads only */
   /* REG-2769 (the second eye on v3825..v3828: "runeStash 6 -> 6" while Ber and Jah traded counts) - a store of counts
      names WHICH names moved, so a same-total change can never print as two equal figures. -> 'Ber 5 -> 1, Jah 1 -> 5' | '' */
-  function _profileCountDetail(curRaw, fileRaw){
+  function _profileCountDetail(curRaw, fileRaw, key){
+    if (!key || !_own(_PROFILE_COUNT_STORES, key)) return '';   /* REG-2793 - only a store of counts names what moved */
     var a, b;
     try { a = curRaw == null ? {} : JSON.parse(curRaw); b = fileRaw == null ? {} : JSON.parse(fileRaw); } catch (e) { return ''; }
     var num = function(o){ return o && typeof o === 'object' && !Array.isArray(o)
@@ -51223,8 +51235,9 @@ window.vaultAutoAssign = function(){
     Object.keys(_PROFILE_STORES).forEach(function(g){ _PROFILE_STORES[g].forEach(function(k){
       if (!Object.prototype.hasOwnProperty.call(stores, k)) return;
       var cur = null; try { cur = window.LSR.getItem(k); } catch (e) {}
-      out.push({ store: k, group: g, now: _profileCount(cur), file: _profileCount(stores[k]), changed: (cur == null ? null : String(cur)) !== stores[k],
-                 detail: _profileCountDetail(cur, stores[k]) });
+      out.push({ store: k, group: g, now: _profileCount(cur, k), file: _profileCount(stores[k], k),
+                 changed: !(_profileEmpty(cur) && _profileEmpty(stores[k])) && (cur == null ? null : String(cur)) !== stores[k],
+                 detail: _profileCountDetail(cur, stores[k], k) });
     }); });
     return out;
   };

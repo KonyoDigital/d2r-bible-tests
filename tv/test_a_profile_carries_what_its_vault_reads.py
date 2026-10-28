@@ -147,7 +147,46 @@ class OneListRulesBothDoors(unittest.TestCase):
                          "the shadow refuses a store a profile carries, so the shadow's vault is not his: %r" % refused)
 
 
+@unittest.skipUnless(VPN.NODE, "node is absent on this machine - UNMEASURED here, never a pass")
+class TheQuestionCountsOnlyCounts(unittest.TestCase):
+    """REG-2793 (GrokBot's ALT round trip on v3828) - the load question summed d2r_stashMeta's timestamps into
+    "stashMeta: 0 -> 7172604061655", and listed "muleAssign: 0 -> 0" (null here, {} in the file) as a change."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.o = VPN.run(
+            "window.LSR.setItem('d2r_stashMeta', JSON.stringify({gems: 1793153131887, runes: 1793153131000}));"
+            "window.LSR.setItem('d2r_runeStash', JSON.stringify({Ber: 1}));"
+            "window.LSR.removeItem('d2r_muleAssign');"
+            "var rows = window._vaultProfileDiff({ d2r_stashMeta: JSON.stringify({gems: 1793200000000}),"
+            "  d2r_runeStash: JSON.stringify({Ber: 4}), d2r_muleAssign: '{}' });"
+            "OUT.rows = {}; rows.forEach(function(r){ OUT.rows[r.store] = r; });", timeout=300)
+
+    def test_timestamps_are_never_summed_as_counts(self):
+        m = (self.o.get("rows") or {}).get("d2r_stashMeta") or {}
+        self.assertEqual((m.get("now"), m.get("file"), m.get("detail")), (2, 1, ""),
+                         "a store of timestamps was counted as a store of counts: %r" % m)
+
+    def test_a_store_of_counts_still_names_what_moved(self):
+        r = (self.o.get("rows") or {}).get("d2r_runeStash") or {}
+        self.assertEqual((r.get("now"), r.get("file"), r.get("detail")), (1, 4, "Ber 1 \u2192 4"), r)
+
+    def test_empty_on_both_sides_is_not_a_change(self):
+        a = (self.o.get("rows") or {}).get("d2r_muleAssign") or {}
+        self.assertIs(a.get("changed"), False, "null here and {} in the file was listed as a change: %r" % a)
+
+
 RED_PROOF = [
+    {"why": "REG-2793 - every all-number store is summed as counts again (timestamps included)",
+     "file": "bible.html",
+     "find": "      if (key && _own(_PROFILE_COUNT_STORES, key) && ks.length && ks.every(",
+     "replace": "      if (ks.length && ks.every(",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2793 - null against an empty store is a change again",
+     "file": "bible.html",
+     "find": "                 changed: !(_profileEmpty(cur) && _profileEmpty(stores[k])) && (cur == null ? null : String(cur)) !== stores[k],\n",
+     "replace": "                 changed: (cur == null ? null : String(cur)) !== stores[k],\n",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2769 - a same-total stash change prints two equal figures and nothing else",
      "file": "bible.html",
      "find": "      + (r.detail ? ' (' + r.detail + ')' : ''); }).join('\\n');   /* REG-2769 */",
@@ -170,7 +209,7 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2763 - a stash line counts keys, not units, again",
      "file": "bible.html",
-     "find": "      if (ks.length && ks.every(function(k){ return typeof v[k] === 'number' && isFinite(v[k]); })) return",
+     "find": "      if (key && _own(_PROFILE_COUNT_STORES, key) && ks.length && ks.every(function(k){ return typeof v[k] === 'number' && isFinite(v[k]); }))\n        return",
      "replace": "      if (false) return",
      "matches": 1, "needs": "node"},
 ]
