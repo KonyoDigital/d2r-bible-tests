@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3819** | `(this commit)` | v3819 — the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept |
+| **v3820** | `(this commit)` | v3820 — spellings merge into one character, evidence reels are not re-read, the audit child caches, Grok sessions are swept |
+| **v3819** | `5ade9bc9` | v3819 — the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept |
 | **v3818** | `ddf5beaa` | v3818 — a held lock is amber with its catch-up, a refused sweep says why, materials stay out, a copy X says every copy goes |
 | **v3817** | `c5ff5261` | v3817 — two sessions register an item, spelling variants merge, a slow console still opens the shelf, parses move to a child |
 | **v3816** | `21a3d366` | v3816 — upload fits the cap and waits the gap, Dean blind laws, a booting board is waited for, shelf and theatre |

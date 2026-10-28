@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3819",
+  "ver": "v3820",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3819: the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept",
+  "note": "v3820: spellings merge into one character, evidence reels are not re-read, the audit child caches, Grok sessions are swept",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
