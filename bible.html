@@ -46034,7 +46034,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { var mm = r.mule ? muleById(r.mule) : null; home = mm && mm.name ? mm.name : (r.kind === 'sharedStash' ? 'SHARED STASH' : (r.mule || '')); } catch (eM) { home = r.mule || ''; }
       var place = s ? [s.holder, s.location, s.cell].filter(Boolean).join(' ') : (home || 'not placed yet');
       var mine = hands.filter(function(h){ return h && (h.copyIx | 0) === k && h.entry; }).pop() || null;
-      return { copyIx: k, how: how, at: at, place: place, entry: mine ? mine.entry : null };
+      var own = (typeof window._vaultCopyEntry === 'function') ? window._vaultCopyEntry(nm, k) : null;   /* REG-2844 the copy's own entry */
+      return { copyIx: k, how: how, at: at, place: place, entry: own || (mine ? mine.entry : null) };
     });
   };
   /* -> {ask: false, decision: 'add' | 'copy', why} | {ask: true, choices, why} (choices null = UNKNOWN) */
@@ -46067,6 +46068,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var mark = { copyIx: k, at: at, by: String(opts.by || '+ Add an item'), entry: (opts.entry && typeof opts.entry === 'object') ? opts.entry : null };
     row.hands = (Array.isArray(row.hands) ? row.hands : []).concat([mark]);
     if (!_provWrite(all)) return { ok: false, refused: 'not-written', why: 'the witness row of ' + nm + ' could not be written - nothing changed' };
+    /* REG-2844 (P3a) - his typed mods complete THAT copy's record (only what it lacks); magic and rare wait for P3b */
+    if (mark.entry && !/^(m|magic|rare|c|crafted)$/.test(String(mark.entry.q || '')) && typeof window._vaultCopyEntrySet === 'function'){
+      var _jE = mark.entry, _jW = function(){ try { window._vaultCopyEntrySet(nm, k, _jE, { fill: true }); } catch (eJ) {} };
+      if (typeof setTimeout === 'function') setTimeout(_jW, 0); else _jW();
+    }
     return { ok: true, mode: 'joined', name: nm, copyIx: k, why: nm + ' - the same item: no new copy; your hand' + (mark.entry ? ' and these mods are' : ' is') + ' now on that copy' };
   };
   /* ⟦VAULT HAND JOIN END⟧ */
@@ -49898,10 +49904,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e7) {}
     }
     var introduced = keepFresh || (!beforeOwned && !beforeMagic && beforeAssign == null);
+    var _madeIx = (_vpMade && _vpMade.token === token && _vpMade.name === nm && _vpMade.copyIx != null) ? _vpMade.copyIx : null;   /* REG-2844 */
     /* REG-2837 - a perfect base is filed by the router's own door (vaultFile), never through vaultHandAdd, so it got no MOVE row */
     if (_pb && !beforeOwned && routed && (routed.mode === 'filed' || routed.mode === 'confirmed')) _vpMoveAt = { name: nm, copyIx: 0 };
     _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept),
                 cnt0: (typeof copies !== 'undefined' && copies && copies[nm] > 0) ? (copies[nm] | 0) : 1 }; /* the count this pick left */
+    /* REG-2844 (P3a) - which copy this pick is: the copy it counted, an earlier roll of this same pick (he is editing it),
+       or the first copy it introduced */
+    _vpMade.copyIx = _vpMoveAt ? _vpMoveAt.copyIx : (_madeIx != null ? _madeIx : ((kept && introduced) ? 0 : null));
     if (routed && (routed.mode === 'filed' || routed.mode === 'confirmed') && assign[nm] != null && typeof window.kaiChronicleRecord === 'function'){
       try {
         window.kaiChronicleRecord({ name: nm, status: 'filed-by-hand', store: 'assign', ledger: 'vault',
@@ -49921,6 +49931,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_vpMoveAt && typeof window._vaultMoveNoteAdded === 'function'){
       var _mvAt = _vpMoveAt, _mvW = function(){ try { window._vaultMoveNoteAdded(_mvAt.name, _mvAt.copyIx); } catch (eMvA) {} };
       if (typeof setTimeout === 'function') setTimeout(_mvW, 0); else _mvW();
+    }
+    /* REG-2844 (P3a) - that copy's record carries this entry, written on the next turn as its MOVE row is (a record build asks
+       the router). A magic or rare pick waits for its keeper record (#154 P3b) */
+    if (!magicQ && kept && _vpMade.copyIx != null && typeof window._vaultCopyEntrySet === 'function'){
+      var _enAt = { name: nm, copyIx: _vpMade.copyIx, entry: JSON.parse(JSON.stringify(entry)) };
+      var _enW = function(){ try { window._vaultCopyEntrySet(_enAt.name, _enAt.copyIx, _enAt.entry); } catch (eEn) {} };
+      if (typeof setTimeout === 'function') setTimeout(_enW, 0); else _enW();
     }
     /* The planner covers the vault. Drawing every locker on each roll is the stall he feels.
        The filing is already saved. One draw happens when the planner closes. */
@@ -53585,7 +53602,8 @@ window.vaultAutoAssign = function(){
           recId: row.recId, name: row.name, copyIx: row.copyIx || 0, kind: row.kind,
           mule: row.mule, loc: row.loc, source: row.source, sight: row.sight,
           watching: row.watching === true, locked: row.locked === true, /* v3769 lock stays */
-          move: t, prov: row.prov, provUnknown: row.provUnknown === true
+          move: t, prov: row.prov, provUnknown: row.provUnknown === true,
+          entry: row.entry, looseWhere: row.looseWhere   /* REG-2844 - a move written never drops the copy's entry (or its loose place) */
         }); /* v3769 row writer */
         if (JSON.stringify(built.move || null) !== prev) dirty = true;
         var ix = store.records.indexOf(row);
@@ -55386,6 +55404,8 @@ window.vaultAutoAssign = function(){
       locked: spec.locked === true /* v3767 record locked */
     };
     row.move = (spec.move && typeof spec.move === 'object' && !Array.isArray(spec.move)) ? spec.move : null; /* v3769 record move */
+    /* REG-2844 (#154 P3a) - THIS copy's own entry (base, quality, sockets, runes, eth, mods and rolls); only when set */
+    if (spec.entry && typeof spec.entry === 'object' && !Array.isArray(spec.entry)) row.entry = spec.entry;
     /* #208 - a loose copy says where it sat (dock / throw / other); only loose rows carry it, so no other row changes shape */
     if (spec.kind === 'loose' && (spec.looseWhere === 'dock' || spec.looseWhere === 'throw' || spec.looseWhere === 'other'))
       row.looseWhere = spec.looseWhere;
@@ -55418,6 +55438,13 @@ window.vaultAutoAssign = function(){
         priorMove[String(r.name) + '\u0000' + (r.copyIx || 0)] = r.move;
       });
     }
+    var priorEntry = {};   /* REG-2844 - each copy's own entry rides every rebuild, as its move does */
+    if (prior && Array.isArray(prior.records)) {
+      prior.records.forEach(function(r){
+        if (!r || r.name == null || !r.entry || typeof r.entry !== 'object') return;
+        priorEntry[String(r.name) + '\u0000' + (r.copyIx || 0)] = r.entry;
+      });
+    }
     var byName = {};
     (rec.records || []).forEach(function(r){ if (r && r.name != null) (byName[r.name] = byName[r.name] || []).push(r); });
     var outRecs = [];
@@ -55435,6 +55462,7 @@ window.vaultAutoAssign = function(){
           locked: r.locked === true,
           looseWhere: r.looseWhere,                                /* #208 */
           move: priorMove[String(r.name) + '\u0000' + (r.copyIx || 0)] || null, /* v3769 move carry */
+          entry: priorEntry[String(r.name) + '\u0000' + (r.copyIx || 0)] || null, /* REG-2844 entry carry */
           provUnknown: provUnknown, prov: prov[nm]
         })); /* v3767 record row */
       });
@@ -55529,6 +55557,73 @@ window.vaultAutoAssign = function(){
     }
     catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'will not parse'; if (typeof _vrRecQuarantine === 'function') _vrRecQuarantine('will not parse'); return undefined; }
   }
+  /* REG-2844 (#154 P3a) - ONE COPY, ITS OWN ENTRY. What made a copy what it is lived in stores kept by NAME: d2r_plannerMade
+     (one runeword record per name - REG-2185 kept a second Grief from writing over the first, so the second's base was
+     kept nowhere), and nothing at all for a unique's runes. Measured on the whole page in node: an Ist Shako and a Ber
+     Shako added by hand were two copies that nothing could tell apart. Each copy's record now carries its own entry,
+     written by the hand doors (the planner's filing of that copy, his "the same item" answer), carried on every rebuild,
+     and saved with the profile (d2r_vaultRecords rides in it). The stores by name stay as they are for their readers;
+     copy 0 of a runeword he built reads its planner record until it carries its own. */
+  function _vrEntryEmpty(v){
+    return v == null || v === '' || v === false || v === 0 || (Array.isArray(v) && !v.length)
+      || (typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+  }
+  function _vrEntryOf(e){
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    var out = {};
+    if (e.id != null && e.id !== '') out.id = String(e.id);
+    if (e.base != null && e.base !== '') out.base = String(e.base);
+    if (e.q != null && e.q !== '') out.q = String(e.q);
+    out.eth = !!e.eth;
+    out.sockets = e.sockets | 0;
+    out.socketed = (Array.isArray(e.socketed) ? e.socketed : []).filter(Boolean);
+    out.affixes = (Array.isArray(e.affixes) ? e.affixes : []).filter(function(a){ return a && a.id != null; })
+      .map(function(a){ return { id: a.id, rolls: (a.rolls && typeof a.rolls === 'object' && !Array.isArray(a.rolls)) ? a.rolls : {} }; });
+    out.rolls = (e.rolls && typeof e.rolls === 'object' && !Array.isArray(e.rolls)) ? e.rolls : {};
+    if (Array.isArray(e.rn) && e.rn.filter(Boolean).length) out.rn = e.rn.filter(Boolean);
+    if (e.ilvl != null && isFinite(+e.ilvl)) out.ilvl = +e.ilvl;
+    if (e.def != null && isFinite(+e.def)) out.def = +e.def;
+    return (out.id || out.base) ? out : null;
+  }
+  /* opts.fill: only fields the record lacks are written (his hand completes a record, never overwrites what was there) */
+  function _vaultCopyEntrySet(name, copyIx, entry, opts){
+    opts = opts || {};
+    var nm = String(name == null ? '' : name).trim(), k = copyIx | 0, e = _vrEntryOf(entry);
+    if (!nm || !e) return { ok: false, wrote: false, why: 'no entry to record' };
+    var find = function(st){ var hit = null; ((st && st.records) || []).forEach(function(r){ if (r && r.name === nm && (r.copyIx || 0) === k) hit = r; }); return hit; };
+    var prior = _vrRecLoadRaw();
+    if (prior === undefined) return { ok: false, wrote: false, unknown: true, why: 'd2r_vaultRecords would not read - nothing written over it' };
+    var row = find(prior);
+    if (!row && typeof _vaultRecordsPersist === 'function'){
+      var pr = _vaultRecordsPersist();
+      if (pr && pr.ok){ prior = _vrRecLoadRaw(); row = prior ? find(prior) : null; }
+    }
+    if (!row) return { ok: false, wrote: false, why: nm + ' has no record for copy ' + (k + 1) + ' - nothing written' };
+    var next = e;
+    if (row.entry && opts.fill){
+      next = JSON.parse(JSON.stringify(row.entry));
+      Object.keys(e).forEach(function(f){ if (_vrEntryEmpty(next[f]) && !_vrEntryEmpty(e[f])) next[f] = e[f]; });
+    }
+    if (JSON.stringify(row.entry || null) === JSON.stringify(next)) return { ok: true, wrote: false };
+    prior.records[prior.records.indexOf(row)] = _vrRecRow(Object.assign({}, row, { entry: next }));
+    var w = _vrRecGuardedSet(prior);
+    return { ok: !!w, wrote: !!w, why: w ? '' : 'd2r_vaultRecords refused the write' };
+  }
+  window._vaultCopyEntrySet = _vaultCopyEntrySet;
+  /* -> the entry of that copy | null (none recorded) | undefined (the records store would not read: UNKNOWN) */
+  window._vaultCopyEntry = function(name, copyIx){
+    var nm = String(name == null ? '' : name).trim(), k = copyIx | 0;
+    var raw = _vrRecLoadRaw();
+    if (raw === undefined) return undefined;
+    var hit = null;
+    ((raw && raw.records) || []).forEach(function(r){ if (r && r.name === nm && (r.copyIx || 0) === k) hit = r; });
+    if (hit && hit.entry) return hit.entry;
+    if (k === 0 && typeof window._vpMadeOf === 'function'){
+      var m = window._vpMadeOf(nm);
+      if (m) return _vrEntryOf({ id: m.id, base: m.base, q: m.q, eth: m.eth, sockets: m.sockets, affixes: m.affixes, rolls: m.rolls });
+    }
+    return null;
+  };
   function _vrRecGuardedSet(obj){
     /* NEVER overwrite a store that could not be read/parsed — the mule store _guardedSet rule (bible.html:40311). */
     if (_vrRecUnread[_VR_STORE_KEY]) {
