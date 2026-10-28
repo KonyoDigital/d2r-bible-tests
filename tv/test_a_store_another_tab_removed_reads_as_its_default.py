@@ -74,7 +74,7 @@ OTHER = ("function other(k, nv){ var ov = RAW[k] == null ? null : RAW[k]; if (nv
 WRITES = ("var WROTE = []; var _set = window.LSR.setItem; window.LSR.setItem = function(k, v){ WROTE.push(k);"
           " return _set.call(window.LSR, k, v); };\n")
 DEFAULT_IDS = ["sets-major", "sets-rest", "uni-weap", "uni-armor", "uni-small", "runewords", "bases", "magic-rare",
-               "shared", "dupes", "wip"]
+               "charms", "shared", "dupes", "wip"]   # REG-2895 - his 2026-10-28 charm ruling made CHARMS a core locker
 FILED = {"Grief": "uni-weap", "Harlequin Crest (Shako)": "uni-armor", "Enigma": "runewords"}
 
 

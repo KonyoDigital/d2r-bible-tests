@@ -53,7 +53,8 @@ function look(label, n, r){
   var c = disk('d2r_copies') || {}, mk = disk('d2r_multiKeep') || {};
   var st = document.getElementById('vault-status');
   steps.push({ label: label, name: n, disk: (c[n] == null ? null : c[n]), mem: (copies[n] == null ? null : copies[n]),
-               want: (mk[n] == null ? null : mk[n]), result: r || null, status: st ? String(st.textContent || '') : null });
+               /* REG-2900 - a keeper is stored {want, dest}: the target is its want */
+               want: (mk[n] == null ? null : ((typeof mk[n] === 'object') ? mk[n].want : mk[n])), result: r || null, status: st ? String(st.textContent || '') : null });
 }
 var steps = [], ASKED = [], ANSWER = false;
 W.confirm = function(q){ ASKED.push(String(q)); return ANSWER; };
@@ -141,13 +142,13 @@ class WantNeverWritesHave(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2537 - lowering a keep-target clamps the copies he has down to it again",
      "file": "bible.html",
-     "find": "multiKeep[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };\n",
-     "replace": "multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };\n",
+     "find": "_mkSetWant(n,nt); try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };\n",
+     "replace": "_mkSetWant(n,nt); if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2537 - removing a keep-target deletes the copy count again",
      "file": "bible.html",
-     "find": "    if (multiKeep[n] > 1) delete multiKeep[n];\n",
-     "replace": "    if (multiKeep[n] > 1){ delete multiKeep[n]; delete copies[n]; }\n",
+     "find": "    if (_mkWant(n) > 1) delete multiKeep[n];\n",
+     "replace": "    if (_mkWant(n) > 1){ delete multiKeep[n]; delete copies[n]; }\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2537 - the inflated-count reset drops copies without asking",
      "file": "bible.html",
@@ -156,8 +157,8 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2537 - a WANT step below two goes through the ✕ again, so lowering a target can reach the HAVE reset",
      "file": "bible.html",
-     "find": "var nt=multiTarget(n)+d; if(nt<2) delete multiKeep[n]; else multiKeep[n]=nt;",
-     "replace": "var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt;",
+     "find": "var nt=multiTarget(n)+d; if(nt<2) delete multiKeep[n]; else _mkSetWant(n,nt);",
+     "replace": "var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } _mkSetWant(n,nt);",
      "matches": 1, "needs": "node"},
 ]
 

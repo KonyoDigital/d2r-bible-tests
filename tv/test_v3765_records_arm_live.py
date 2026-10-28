@@ -48,7 +48,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 EXTRACT = [
     "_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
     "_vaultSharedOverflowNames", "_vaultDupesNames", "_vaultDupesCells", "_vaultSharedOverflowHtml",
-    "_vaultPresenceSpan", "_assignStoreUnknown", "_vaultRecords", "_vaultRecordsSource",
+    "_vaultPresenceSpan", "_mkWant", "_mkDest", "_mkSetWant", "_assignStoreUnknown", "_vaultRecords", "_vaultRecordsSource",
     "_vaultRecordsStampOk", "_vrRecDirty", "_vrRecMarkDirty", "_vrRecClearDirty",
     "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom", "_vrRecCanon",
     "_vrRecDerivedCanon", "_vrRecStoredCanon",
@@ -856,7 +856,7 @@ var stored = _vaultRecordsLoad().records.filter(function(r){ return r.name === N
 var liveRec = _vaultRecords();
 var live = liveRec.records.filter(function(r){ return r.name === NATALYA; }).length;
 out.before = before;
-out.target = multiKeep[NATALYA];
+out.target = _mkWant(NATALYA);   /* REG-2900 - a keeper is {want, dest}: the target is its want */
 out.stored = stored;
 out.live = live;
 out.header = _vaultRecordsHeader().copies;
@@ -1097,8 +1097,8 @@ RED_PROOF = [
     {
         "why": "A presence set piece is one record. Returning the raw count puts Natalya x4, Tal x4 and Soul Cage x3 back.",
         "file": "bible.html",
-        "find": "      if (!(typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > 1)) return 1;",
-        "replace": "      if (!(typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > 1)) return have;",
+        "find": "      if (!(typeof multiKeep !== 'undefined' && multiKeep && _mkWant(name) > 1)) return 1;",
+        "replace": "      if (!(typeof multiKeep !== 'undefined' && multiKeep && _mkWant(name) > 1)) return have;",
         "matches": 1,
     },
     {

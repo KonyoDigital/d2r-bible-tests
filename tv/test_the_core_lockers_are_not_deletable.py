@@ -27,7 +27,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 
 FN = "  function _vmAddedMule(m){ return !!(m && (m.added || /^m[0-9a-z]{6,}$/.test(String(m.id)))); }\n"
 CORE = ["uni-weap", "uni-armor", "uni-small", "sets-rest", "sets-major", "runewords",
-        "bases", "magic-rare", "shared", "dupes", "wip"]
+        "bases", "magic-rare", "charms", "shared", "dupes", "wip"]   # REG-2895 - CHARMS is a core locker (his 2026-10-28 ruling)
 
 
 def _src():

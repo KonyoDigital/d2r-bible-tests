@@ -33,7 +33,7 @@ from test_v3767_copy_witness import _assigned, _fn, _slice_fn, look_rule  # noqa
 
 FNS = [
     "packGrid", "vaultSize",
-    "_vaultCellKey", "_vaultSightGroups", "_vaultPresenceSpan",
+    "_vaultCellKey", "_vaultSightGroups", "_vaultPresenceSpan", "_mkWant",
     "_vaultAutoIntakeRead", "_vaultAutoIntakePaint", "_vaultAutoIntakeSet",
     "_vaultAutoIntakeToggle", "_vaultFrameRefuse", "_vaultIntakeGate",
     "_vaultMovePlace", "_vaultMoveSamePlace", "_vmMs", "_vaultMoveReads", "_vaultMoveSeenAtTo", "_vaultMoveHalfSay",
