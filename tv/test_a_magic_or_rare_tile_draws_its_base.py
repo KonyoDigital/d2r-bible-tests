@@ -42,14 +42,17 @@ KEEPERS = {
     "Rune Eye": {"q": "rare", "base": ""},
     "Chaos Whorl": {"q": "rare", "base": ""},                 # Whorl: a ring or a jewel - UNKNOWN
     "Stone Knot": {"q": "rare", "base": "Ring", "mods": []},
-    "Fine Small Charm of Vita": {"q": "magic", "base": "Small Charm", "mods": [], "border": True},
+    "Fine Small Charm of Vita": {"q": "magic", "base": "Small Charm", "mods": [], "border": True},   # a charm: its sprite only
+    "Ruby Amulet of Balance": {"q": "magic", "base": "Amulet", "mods": [], "border": True},
     "Bone Clasp": {"q": "rare", "base": "Plated Belt", "mods": []},
 }
 STUBS = ["Doom Eye", "Grim Knot"]            # TV stubs the grammar routes to MAGIC & RARE: the locker's records
 OWNED = ["Stone Knot", "Bone Clasp"] + STUBS
-# the base each one's picture is
+# the base each one's picture is, on MAGIC & RARE's card and window, FIND and the hover. MAGIC & RARE holds no charms (his
+# 2026-10-28 ruling, REG-2895), so the magic keeper with its base on record is an amulet; the charm keeper stays in KEEPERS
+# for the one-sprite-per-size law below.
 BASE = {"Grim Spiral (rare)": "Ring", "Bitter Noose": "Amulet", "Rune Eye": "Jewel", "Doom Eye": "Jewel", "Grim Knot": "Ring",
-        "Stone Knot": "Ring", "Fine Small Charm of Vita": "Small Charm", "Bone Clasp": "Plated Belt"}
+        "Stone Knot": "Ring", "Ruby Amulet of Balance": "Amulet", "Bone Clasp": "Plated Belt"}
 UNKNOWN = "Chaos Whorl"
 # one sprite per charm size, whichever store the charm comes from: (name, its size's base)
 CHARMS = [("Fine Small Charm of Vita", "Small Charm"), ("Small Charm of Balance", "Small Charm"),
@@ -94,7 +97,7 @@ NAMES.forEach(function(n){
                find: pic(fr, fr.indexOf('vfr-')), hover: String(hover).split('?')[0] };
 });
 OUT.base = {};
-%s.concat(['Large Charm', 'Grand Charm']).forEach(function(b){ OUT.base[b] = W.artUrl(b); });
+%s.concat(['Small Charm', 'Large Charm', 'Grand Charm']).forEach(function(b){ OUT.base[b] = W.artUrl(b); });
 OUT.charm = {};
 %s.forEach(function(c){ var m = / src="([^"]+)"/.exec(W.artOr(c[0], '', 'sm') || ''); OUT.charm[c[0]] = m ? m[1].split('?')[0] : 'MARK'; });
 /* REG-2852: every base, what it draws, and the sprites the v406 table gives the uniques built on it */
@@ -108,7 +111,7 @@ Object.keys(_KEEPER_ART.base).forEach(function(u){
 Object.keys(BASE_DB).forEach(function(b){ OUT.bases[b] = [W.artUrl(b), Object.keys(by[b] || {}), D2IO_ART[b] || null]; });
 OUT.errors = H.errors.slice();
 })();
-""" % (json.dumps(sorted(set(KEEPERS) | set(STUBS))), json.dumps(sorted(set(BASE.values()))), json.dumps(CHARMS))
+""" % (json.dumps(sorted(set(BASE) | {UNKNOWN})), json.dumps(sorted(set(BASE.values()))), json.dumps(CHARMS))
 
 
 class AMagicOrRareTileDrawsItsBase(unittest.TestCase):
