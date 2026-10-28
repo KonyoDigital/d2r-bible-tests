@@ -270,6 +270,9 @@ RED_PROOF = [
              "      var _kloc = (e.loc != null && e.loc !== '') ? e.loc : ((e.lane != null && e.lane !== '') ? e.lane : ((e.location != null && e.location !== '') ? e.location : null));\n"
              "      if (_kloc != null) _kept.loc = _kloc;\n"
              "      if (e.cell != null && e.cell !== '') _kept.cell = e.cell;\n"
+             "      /* REG-2891 - and WHEN it was seen: the look's own capture time, kept only when it reads as a time (never invented) */\n"
+             "      var _kat = (typeof e.at === 'number') ? e.at : ((typeof e.at === 'string' && e.at) ? Date.parse(e.at) : NaN);\n"
+             "      if (isFinite(_kat) && _kat > 0) _kept.at = new Date(_kat).toISOString();\n"
              "      keep.push(_kept); /* v3767 witness place */",
      "replace": "      keep.push({ id: id, frame: String(fr), conf: c, reel: String(e.reel || e.session || '') || null }); /* v3767 witness place */",
      "matches": 1},
@@ -288,6 +291,7 @@ RED_PROOF = [
              "        else if (k.location != null && k.location !== '') lk.loc = k.location;\n"
              "        else if (k.lane != null && k.lane !== '') lk.loc = k.lane;\n"
              "        if (k.cell != null && k.cell !== '') lk.cell = k.cell;\n"
+             "        if (k.at) lk.at = k.at;   /* REG-2891 capture time */\n"
              "        return lk;\n"
              "      }), /* v3767 persisted look */",
      "replace": "      looks: (wc.looks || []).map(function(k){ return { id: k.id, frame: k.frame, conf: k.conf }; }), /* v3767 persisted look */",

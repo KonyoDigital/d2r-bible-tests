@@ -46191,6 +46191,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _kloc = (e.loc != null && e.loc !== '') ? e.loc : ((e.lane != null && e.lane !== '') ? e.lane : ((e.location != null && e.location !== '') ? e.location : null));
       if (_kloc != null) _kept.loc = _kloc;
       if (e.cell != null && e.cell !== '') _kept.cell = e.cell;
+      /* REG-2891 - and WHEN it was seen: the look's own capture time, kept only when it reads as a time (never invented) */
+      var _kat = (typeof e.at === 'number') ? e.at : ((typeof e.at === 'string' && e.at) ? Date.parse(e.at) : NaN);
+      if (isFinite(_kat) && _kat > 0) _kept.at = new Date(_kat).toISOString();
       keep.push(_kept); /* v3767 witness place */
       if (c != null && (best == null || c > best)) best = c;
     });
@@ -47029,6 +47032,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         else if (k.location != null && k.location !== '') lk.loc = k.location;
         else if (k.lane != null && k.lane !== '') lk.loc = k.lane;
         if (k.cell != null && k.cell !== '') lk.cell = k.cell;
+        if (k.at) lk.at = k.at;   /* REG-2891 capture time */
         return lk;
       }), /* v3767 persisted look */
       conf: (wc.conf == null) ? null : wc.conf,
@@ -47927,7 +47931,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var one = { conf: null };
     if (session) one.session = session;
     if (frame) one.frame = frame;
-    return { lane: 'stash', by: 'tv-live', sessions: [one] }; /* live witness frame */
+    /* REG-2891 (intake design P2) - THE FRAME'S CLOCK, NOT THE READ'S. A read row carries two times: `ts`, when the read
+       landed (the board orders reads by it), and `captureTs`, the frame's own capture time (tv_diablo: "captureTs must be
+       the FRAME's capture ms, not the receipt-landing time"). This look carried neither, so its receipt was undated. It
+       carries captureTs now, on the look and on the witness (the receipt's ts); without one it stays undated - never ts. */
+    var cap = (typeof rd.captureTs === 'number' && isFinite(rd.captureTs) && rd.captureTs > 0) ? new Date(rd.captureTs).toISOString() : null;
+    var out = { lane: 'stash', by: 'tv-live', sessions: [one] }; /* live witness frame */
+    if (cap) { one.at = cap; out.at = cap; }
+    return out;
   }
   window._vaultLiveWitness = _vaultLiveWitness;
   function _vaultIntakeLook(w){
@@ -58270,6 +58281,42 @@ function renderJournal(){
       + '<div class="ai-load-bar"><span style="width:' + pct + '%"></span></div>'
       + '</div></div>';
   }
+  /* REG-2890 (intake design P2) - CAPTURE TIME, NEVER ARRIVAL TIME. A photo was stamped with the moment it was dropped,
+     so an Oct 6 screenshot dropped today read as seen today. Each file's own clock - File.lastModified, the moment the
+     game wrote the screenshot (no EXIF reader exists in this repo, and none is added) - rides on its look (`at`) and on
+     its receipt (`ts`, which the owned door then marks as measured). A file with no clock says capture time unknown: no
+     time is invented, and the receipt keeps the door's clock UNMEASURED (tsMeasured false), as before. A hand upload's
+     own `at` stays what it always was - the moment he declared it, not when it was seen. One door each, so the folder
+     watch, the TV photo and the picked file can never be timed three ways. */
+  window._vaultShotTime = function(f){
+    var lm = f && f.lastModified;
+    return (typeof lm === 'number' && isFinite(lm) && lm > 0) ? new Date(lm).toISOString() : null;
+  };
+  window._vaultPhotoWitness = function(fname, opts, cap){
+    opts = opts || {};
+    if (!opts.fromFolder && !opts.fromTv)
+      return { by: 'hand', at: new Date().toISOString(), where: 'his photo upload', frame: String(fname || '') || null };
+    var look = { session: 'photo:' + String(fname || ''), frame: String(fname || '') || null, conf: null };
+    if (cap) look.at = cap;
+    return { lane: 'stash', by: opts.fromTv ? 'tv-photo' : 'folder-photo', sessions: [look] };
+  };
+  window._vaultPhotoReceipt = function(fname, w, cap){
+    var r = (w && w.by === 'hand') ? { source: 'hand', by: 'vault intake', where: 'his photo upload (' + String(fname || '') + ')' }
+                                   : { source: (w && w.by) || 'folder-photo', by: 'vault intake', loc: 'stash', where: 'photo ' + String(fname || '') };
+    if (cap) r.ts = cap;   /* the receipt's read time is when the picture was taken */
+    return r;
+  };
+  /* the report's line: when this batch's pictures were taken; a file with no clock is counted and said, never dated today */
+  window._vaultTakenSay = function(perFile){
+    var esc0 = function(v){ return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var rows = Array.isArray(perFile) ? perFile : [];
+    var t = rows.map(function(f){ return f && f.taken; }).filter(Boolean).sort(), unk = rows.length - t.length;
+    if (!rows.length) return '';
+    if (!t.length) return '<div class="vir-taken" data-taken="unknown">📅 capture time unknown for ' + (unk === 1 ? 'this screenshot' : 'all ' + unk) + '</div>';
+    return '<div class="vir-taken" data-taken-from="' + esc0(t[0]) + '" data-taken-to="' + esc0(t[t.length - 1]) + '">📅 taken '
+      + esc0(t[0].slice(0, 16).replace('T', ' ')) + (t[t.length - 1] !== t[0] ? ' – ' + esc0(t[t.length - 1].slice(0, 16).replace('T', ' ')) : '')
+      + (unk ? ' · ' + unk + ' with capture time unknown' : '') + '</div>';
+  };
   window.vaultIntake = async function(files, opts){
     opts = opts || {};
     var _stopped = (typeof window._vaultIntakeGate === 'function') ? window._vaultIntakeGate() : { ok:false, refused:'auto-intake-off', registered:false, why:'AUTO INTAKE is not on this page - a frame does not register' };
@@ -58277,18 +58324,12 @@ function renderJournal(){
     /* #246 — WHAT ONE PHOTOGRAPH WITNESSES. A screenshot HE chose to upload is his hand declaring the items
        on it; a folder auto-watch or a TV frame is ONE automatic look with no confidence of its own, which
        never clears the two-look bar on its own — those items land in the dock, owned and unfiled. */
-    var _intakeWitness = function(fname){
-      if (!opts.fromFolder && !opts.fromTv)
-        return { by: 'hand', at: new Date().toISOString(), where: 'his photo upload', frame: String(fname || '') || null };
-      return { lane: 'stash', by: opts.fromTv ? 'tv-photo' : 'folder-photo',
-               sessions: [{ session: 'photo:' + String(fname || ''), frame: String(fname || '') || null, conf: null }] };
-    };
+    /* REG-2890 - each file's capture time (window._vaultShotTime, above), handed to the one witness and receipt door */
+    var _capAt = {};   /* file name -> ISO capture time | null (unknown) */
+    function _capOf(fname){ return Object.prototype.hasOwnProperty.call(_capAt, fname) ? _capAt[fname] : null; }
+    var _intakeWitness = function(fname){ return window._vaultPhotoWitness(fname, opts, _capOf(fname)); };
     /* 2026-09-28 — and the RECEIPT of that photograph, for the owned door */
-    var _intakeRec = function(fname){
-      var w = _intakeWitness(fname);
-      return (w.by === 'hand') ? { source: 'hand', by: 'vault intake', where: 'his photo upload (' + String(fname || '') + ')' }
-                               : { source: w.by, by: 'vault intake', loc: 'stash', where: 'photo ' + String(fname || '') };
-    };
+    var _intakeRec = function(fname){ return window._vaultPhotoReceipt(fname, _intakeWitness(fname), _capOf(fname)); };
     var report = document.getElementById('vault-intake-report');
     if (!files || !files.length || !report) return;
     window._vIntakeBusy = true;   // v396.3 — folder poll skips while a read is in flight
@@ -58404,6 +58445,7 @@ function renderJournal(){
     }
     var _seenAt0 = (function(){ try { return seenLedger(); } catch(e){ return {}; } })();
     var perFile = files.map(function(f, _i){ return { file: (f && f.name) || ('screenshot ' + (_i+1)), nw: [], own: [], unr: [], mf: [], err: false, prev: _intakePrevOf(_seenAt0, f) }; });
+    files.forEach(function(f, _i){ _capAt[perFile[_i].file] = perFile[_i].taken = window._vaultShotTime(f); });   /* REG-2890 */
     try { _vPruneShots(100); } catch(e){}   // v570 — keep the newest 100 full-res shots (was: wipe-all each scan → old cards lost their expandable screenshot)
     var endpoint = window._d2rIntakeEndpoint();
     var doneCount = 0;
@@ -58938,6 +58980,7 @@ function renderJournal(){
       + '<div class="vir-head"><span class="vir-title">📸 Last scan · ' + files.length + ' screenshot' + (files.length===1?'':'s') + '</span>'
       + '<span class="vir-tot vir-delta" title="items this scan ADDED to your vault — folded into the running total below">+' + _newThis + ' new</span>'
       + '<span class="vir-sub">this scan: ' + logged.length + ' 🏦 muled · ' + magicNew.length + ' 🔮 magic · ' + (unrec.length+cappedOut.length) + ' 🗑 throw-out' + (cost?' · ≈$'+cost.toFixed(4):'') + '</span></div>'
+      + window._vaultTakenSay(perFile)   /* REG-2890 - when the pictures were TAKEN */
       + (_preReg > 0
          ? '<div class="vir-accum" title="this batch ADDED to what was already registered — the vault remembers every prior scan and dedups against it from the first screenshot"><span class="va-pre"><b>' + _preReg + '</b> already in vault</span><span class="va-arrow">→</span><span class="va-new">+ <b>' + Math.max(0, _totalReg - _preReg) + '</b> new this scan</span><span class="va-arrow">→</span><span class="va-tot"><b>' + _totalReg + '</b> total registered</span></div>'
          : '')

@@ -81,6 +81,40 @@ an 8px gap. After: the band, the badge and the search share no pixel at any of t
 and the MAIN/LADDER pill stays clear. Law gains test_the_moved_search_clears_the_build_badge (the badge's box read from
 ITS rule), 2 more red-proofs, both RED. Cross-family look: the Grok MCP seat was EMPTY (its API account out of credits)
 and the Grok CLI timed out at 300 s, so the pixels are UNAUDITED by another family.
+3 red-proofs, each RED: too small, not !important, ladder stack). Real-pixel check of the framed Windows board owed before
+this ships.
+### REG-2891 - A LIVE READ'S LOOK CARRIED NO TIME, AND THE GATE AND THE FILING ROW DROPPED ONE THAT DID (intake design P2)
+A read row carries two clocks: `ts`, when the read landed (the board orders reads by it), and `captureTs`, the frame's own
+capture time (tv_diablo: "captureTs must be the FRAME's capture ms, not the receipt-landing time"). Measured: bible.html
+read `captureTs` nowhere, `_vaultLiveWitness` built a look with no time, so the live receipt was undated; and a look that
+did carry a time lost it at `_vaultWitnessCheck` (it kept id/frame/conf/holder/loc/cell) and at vaultFile's filing looks -
+P1 measured 0 of 20 filing looks dated. The live look and its witness now carry `captureTs` (never `ts`; none = undated),
+the gate keeps a look's `at` when it reads as a time (never invented) and the filing row keeps it. Law:
+test_a_read_carries_when_it_was_captured (whole page in node; with REG-2890, 7 red-proofs RED); test_v3767_intake_identity's
+two red-proofs on the gate and the filing looks re-aimed over the new line and re-proved RED.
+
+### REG-2890 - A PHOTO WAS DATED BY WHEN IT WAS DROPPED, NOT WHEN IT WAS TAKEN (intake design P2, #230 c6473846977)
+His design: "Capture time, never arrival time. A photo takes its file's capture date." Measured: vaultIntake's hand witness
+stamped `at: new Date()` and a folder or TV photo carried no time, so its receipt fell back to the door's clock - an Oct 6
+screenshot dropped today read as seen today. Each file's own clock (File.lastModified, the moment the game wrote it; no
+EXIF reader exists in this repo and none was added) now rides on the photo's look (`at`) and its receipt (`ts`, which the
+owned door marks measured), through one door each (_vaultShotTime, _vaultPhotoWitness, _vaultPhotoReceipt), and the scan
+report says "taken <date> - <date> - N with capture time unknown". A file with no clock gets no time and its receipt stays
+unmeasured. A hand upload's own `at` stays the moment he declared it. Law: test_a_read_carries_when_it_was_captured.
+
+### REG-2862 - FOUR OF THE SEVEN TRAY ORBS STILL RODE INTO THE TAB STRIP ON A SHORT SCREEN (finding of REG-2860)
+v1810 hides the tray column at 480px tall and under, because a bottom-anchored orb rides up into the top-anchored tab
+strip there. Its rule named help, the compass and the Forge legend (REG-2860 added the Vault guide). Read off the
+stylesheet, the column is seven orbs at right:12px on a --dock-h bottom: the Tools map (+118), the inbox (+170) and
+MOVE TASKS (+222) were not in the rule and sit higher than any orb that was. The v1810 spec could not see them - it
+loads the default tab, where the tab-scoped orbs are never drawn. All seven are now hidden by the one rule. Two of them
+are doors: the inbox keeps its sticky panel on Sessions, and MOVE TASKS gets a toolbar door (#vault-chip-tasks) that
+shows only inside the same block, so its panel is never locked; the Vault guide lights whichever door is showing.
+Law: test_every_tray_orb_yields_on_a_short_screen - finds the column from the stylesheet and refuses any orb the rule
+does not name (7 red-proofs RED). Chrome (CI proves it): the REG-2862 cases in tests/v1810_tray_short_viewport.spec.ts
+open the vault and tools tabs at the short sizes and 1440x900, and open MOVE TASKS from the toolbar at 640x400.
+NOT MEASURED: between 481 and ~655px tall the +170 and +222 orbs sit higher than the S2 orb the threshold was set
+for; where they land against the strip there has not been measured, and no case asserts it.
 
 ### REG-2936 - THE SPINNER LAW FLAKED ONCE: ITS BASELINE WAS READ BEFORE THE PLANNER STOPPED MOVING (CI on ci/claude-v3835)
 test_the_planner_spinner_stays_under_the_cursor's arrow-key case failed once on CI ("step 1: the Sockets field moved
