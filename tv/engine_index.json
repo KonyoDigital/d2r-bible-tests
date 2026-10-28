@@ -1540,6 +1540,20 @@
     "purpose": "Proves printer.stream() never invents an answer: five sabotages (owner raises, owner empty, nameless rows, stranger reel, printer_reach raises) must give UNKNOWN-with-a-reason across all 7 stations.",
     "territory": "gates-proofs"
   },
+  "proof_carrier.py": {
+    "entryPoints": [
+      "publish",
+      "take",
+      "export_payload",
+      "head_of",
+      "run_heart2",
+      "http_get",
+      "http_post"
+    ],
+    "gotcha": "It never trusts a peer's proof: take() only imports an export carried at THIS checkout's own HEAD on this platform, and heart2 --import-proved re-keys every entry on this PC's bytes and banks only what matches (REG-2630). publish() never posts unsigned - the route stores only a body signed by the key the roster already registered for that owner. The console runs it on win32 only, when he is measured NOT playing and memory is at the prover's start floor.",
+    "purpose": "#186 step 3 (REG-2737, his ruling) - carries one Windows PC's proven laws to another on the same commit through /api/proofs, so Dean's PC does not re-prove what the ALT proved over byte-identical code.",
+    "territory": "heart-organs"
+  },
   "prove_real_intake.py": {
     "entryPoints": [
       "main"

@@ -43,7 +43,7 @@ def run_heart2(args, timeout):
     """`python heart2.py <args>` in this checkout. -> (exit code or None, its last words)"""
     try:
         p = subprocess.run([sys.executable, os.path.join(HERE, "heart2.py")] + list(args), cwd=HERE,
-                           capture_output=True, text=True, timeout=timeout,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except subprocess.TimeoutExpired:
         return None, "heart2 did not finish in %d s" % timeout
@@ -123,7 +123,7 @@ def head_of(run_git=None):
             out = run_git()
         else:
             out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=HERE, capture_output=True, text=True,
-                                 timeout=20).stdout
+                                 encoding="utf-8", errors="replace", timeout=20).stdout
         out = str(out or "").strip()
         return out if len(out) == 40 else None
     except Exception:
