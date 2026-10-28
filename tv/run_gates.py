@@ -12145,6 +12145,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_locker_says_its_copies.py")], 300,
          needs_app=False,
          why='#111 - a locker that draws a cell per copy says how many copies beside its item count'),
+    Gate("test_a_filled_template_is_not_a_look",
+         [sys.executable, os.path.join(HERE, "test_a_filled_template_is_not_a_look.py")], 300,
+         needs_app=False,
+         why='REG-2740 - a schema answer of findings that lists none is not a second-eye look, on the gate and the audit alike'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

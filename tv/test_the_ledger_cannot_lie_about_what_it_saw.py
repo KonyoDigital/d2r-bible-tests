@@ -518,7 +518,7 @@ RED_PROOF = [
                "measured 2026-09-20 on 8 shipped versions (#220: moved here from a second binding "
                "at the top of this file, where the prover could never reach the rest)",
         "file": "tv/second_eye_ledger.py",
-        "find": "        if is_not_a_look(r.get(\"verdict\")):\n            continue",
+        "find": "        if row_is_not_a_look(r):\n            continue",
         "replace": "        if False:\n            continue",
         "matches": 1,
     },

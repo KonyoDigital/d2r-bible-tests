@@ -2171,7 +2171,7 @@ def record_answer(version, answer, sent, dropped="", prompt_text="", answer_mode
             if _unseen:
                 # what it was NOT shown is part of the look, not a footnote — it is the only thing
                 # that separates a clean verdict from one taken through a keyhole.
-                findings = findings + ["NOT SHOWN (the eye's own words): " + _unseen]
+                findings = findings + [SEL.NOT_SHOWN_PREFIX + _unseen]   # one spelling, the ledger's (REG-2740)
             _verdict_from = "schema"
     if _verdict_from == "prose":
         _verdict, findings = _verdict_for(answer, findings)

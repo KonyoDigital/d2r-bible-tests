@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2740 - A FILLED-IN SCHEMA COUNTED AS A SECOND-EYE LOOK, AND v3821 SHIPPED PAST AN EMPTY SEAT
+v3820's whole second-eye answer was {"verdict":"findings","findings":[],"unseen":"placeholder"}: the eye was held to the
+verdict schema and filled it in. The runner files the unseen note among the findings, so the row carried one line - the
+eye's own "NOT SHOWN: placeholder" - and `_has_evidence` read that line as a finding. The runner printed "LOOKED - 1
+finding(s) recorded", looked_at counted it, and the pre-push gate said "the second eye looked at v3820". A schema verdict of
+findings with nothing but the eye's own NOT SHOWN note contradicts itself and is no longer a look, on looked_at,
+owes_a_look, audit() and the refusal message alike (one predicate, row_is_not_a_look - the v3415 rule). Only schema rows:
+92 rows drained from public #231 comments also say findings and list none, and each is bound to the comment holding its
+findings. Measured on the real ledger: the rule reclassifies exactly one row, v3820's. The runner now spells the NOT SHOWN
+prefix from the ledger's one constant. Law: test_a_filled_template_is_not_a_look (6 cases, 4 red-proofs).
+
 ### REG-2739 - A LAW THAT READS AN OLD COMMIT FELL OFF CI'S 200-DEEP CLONE (v3820 CI red, green on the Mac)
 v3820's agent tests went red on main and on every later ci/ branch: test_a_roster_name_opens_its_row_with_the_eyes reads
 control_ui.html at BASE 694e4378 and refused with "BASE is not in this clone's history". tv-tests.yml clones 200 commits

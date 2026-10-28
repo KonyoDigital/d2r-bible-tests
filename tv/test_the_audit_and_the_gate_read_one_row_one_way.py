@@ -176,7 +176,7 @@ RED_PROOF = [
         "why": "v3415 - THE TEST BLINDED. With the verdict never consulted, a could-not-judge "
                "falls through to the plain look branch and the two surfaces disagree again.",
         "file": "second_eye_ledger.py",
-        "find": '        elif fam and _has_evidence(r) and is_not_a_look(r.get("verdict")):',
+        "find": '        elif fam and _has_evidence(r) and row_is_not_a_look(r):',
         "replace": '        elif fam and _has_evidence(r) and False:',
         "matches": 1,
     },

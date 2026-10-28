@@ -633,6 +633,33 @@ def is_not_a_look(verdict):
     return str(verdict or "").strip().lower() in _NOT_A_LOOK
 
 
+#: the prefix second_eye_run gives the eye's own "what I was not shown" line when it files it among the findings
+NOT_SHOWN_PREFIX = "NOT SHOWN (the eye's own words): "
+
+
+def a_template_not_a_look(row):
+    """REG-2740 - the eye was held to the verdict schema, answered verdict "findings" and listed NONE. -> bool
+
+    MEASURED on v3820's row: {"verdict":"findings","findings":[],"unseen":"placeholder"} - the schema filled in, a
+    placeholder where the reach note goes. The runner filed the unseen note among the findings, so the row carried one
+    line, `_has_evidence` read that line as a finding, and the push gate let v3821 ship past a seat nobody sat in.
+    A schema verdict of findings with nothing but the eye's own NOT SHOWN note contradicts itself: it is not a look.
+    ⚠ ONLY schema rows. 92 rows drained from public #231 comments also say findings and list none, and every one of
+    them is bound to the comment that carries its findings (verdictFrom "gh#231 comment <id>") - those are looks."""
+    if not isinstance(row, dict) or str(row.get("verdictFrom") or "").strip() != "schema":
+        return False
+    if str(row.get("verdict") or "").strip().lower() != "findings":
+        return False
+    lines = [str(f or "").strip() for f in (row.get("findings") or []) if str(f or "").strip()]
+    return all(f.startswith(NOT_SHOWN_PREFIX) for f in lines)
+
+
+def row_is_not_a_look(row):
+    """The ONE answer to "does this reached, cross-family, evidenced row fail to count as a look?" - read by looked_at,
+    audit() and the gate's refusal message alike, so no surface can read a row another way (v3415). -> bool"""
+    return is_not_a_look((row or {}).get("verdict")) or a_template_not_a_look(row)
+
+
 _UNSENT_MARKERS = (
     # a file-reading expression that survived into the prompt instead of being evaluated
     (re.compile(r"open\s*\(\s*['\"][^'\"]*['\"]\s*\)\s*\.\s*read\s*\(\s*\)"),
@@ -1152,7 +1179,7 @@ def looked_at(version, path=None):
             continue
         # v3403 — the eye was reached, cross-family and bound to evidence, and still said it could
         # not judge the change. That is not agreement; see _NOT_A_LOOK above.
-        if is_not_a_look(r.get("verdict")):
+        if row_is_not_a_look(r):
             continue
         # ⚠ a row must be bound to something. A hollow {version, model, reached} line proved a
         # look had happened while carrying no trace of one.
@@ -2045,7 +2072,7 @@ def audit(path=None, tasks_path=None, state=None):
             st["empty"] += 1
         elif fam and fam == author:
             st["author"] += 1
-        elif fam and _has_evidence(r) and is_not_a_look(r.get("verdict")):
+        elif fam and _has_evidence(r) and row_is_not_a_look(r):
             # ⚠⚠ v3415 — A COULD-NOT-JUDGE IS NOT A LOOK, AND THIS SURFACE WAS THE LAST TO
             # LEARN IT. v3403 taught `looked_at` (and therefore the push gate) that
             # `cannot-tell` does not count; audit() kept counting it, so ONE row was read two
@@ -2183,7 +2210,7 @@ def _cmd_check(argv):
                     bits.append("%d look(s) from the family that WROTE it, which is not a second eye"
                                 % auth)
                 cant = sum(1 for r in rows
-                           if r.get("reached") and is_not_a_look(r.get("verdict")))
+                           if r.get("reached") and row_is_not_a_look(r))
                 if cant:
                     bits.append("%d look(s) where the eye answered that it COULD NOT JUDGE the "
                                 "change — widen the payload or re-ask; re-pushing changes nothing"
