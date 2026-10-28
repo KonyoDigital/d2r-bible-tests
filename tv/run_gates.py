@@ -12197,6 +12197,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_scenario_names_its_own_frames.py")], 300,
          needs_app=False,
          why='#22 REG-2764: a hand-test scenario names the frames of his that test it'),
+    Gate("test_a_shadow_carries_the_owners_sessions_summarized",
+         [sys.executable, os.path.join(HERE, "test_a_shadow_carries_the_owners_sessions_summarized.py")], 300,
+         needs_app=False,
+         why="#218 REG-2765: the owner's sessions summarized for a shadow - thumbnails only, oldest pictures dropped first"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

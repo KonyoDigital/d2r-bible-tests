@@ -2238,6 +2238,15 @@
     "purpose": "Sole writer of shadow_ledger.json — accumulates where the Wilson shadow rule and the live gate agree or differ on chronicle names, naming each disagreement.",
     "territory": "gates-proofs"
   },
+  "shadow_sessions.py": {
+    "entryPoints": [
+      "digest",
+      "thumb_bytes"
+    ],
+    "gotcha": "Reads are counted by the Shelf's own predicate (control_app._is_a_live_read, passed in) - never a copy of it. A frame rides only as the theatre's 160 px thumbnail (cache160); a missing one is made by sips on a Mac, and a PC with no resizer carries the session without pictures and says why - never a full frame. The cap drops the OLDEST sessions' pictures first.",
+    "purpose": "#218 phase 1 (his ruling 2026-10-28: a shadow renders the owner's data one to one, with summarized key frames - full reels never leave their PC): the owner's newest 16 sessions, dated by what they captured, read counts, names read, and up to 3 key-frame thumbnails each, under a 600 KB cap.",
+    "territory": "shadow"
+  },
   "shard_suite.py": {
     "entryPoints": [
       "classes_of",

@@ -61,6 +61,18 @@ equal figures. The question now names what moved for a store of counts ("runeSta
 four names then "+N more"). Its second finding (a shadow page posting its own copy readout) is refuted: the shadow's
 network veil refuses every non-GET and every /api path. Law: test_a_profile_carries_what_its_vault_reads (the same-total
 case added, 1 red-proof).
+### REG-2765 - A SHADOW HAD NOTHING OF THE OWNER'S SESSIONS TO SHOW (#218 phase 1, his ruling 2026-10-28)
+In a shadow, THE SHELF answered with a refusal toast and TV·D showed the viewer's own pane: the owner's sessions never
+travel (the upload keeps tvdHist and the session log home on purpose - they are large), and a full reel is 8-12 GB. His
+ruling: the shadow renders the owner's data one to one, with summarized frames - "a few small key frames per session".
+tv/shadow_sessions.digest builds that on the owner's PC: the newest 16 sessions, newest first, dated by what they
+captured (REG-2736), read counts by the Shelf's own rule (control_app._is_a_live_read, passed in), the names read, and up
+to 3 key frames each as the theatre's own 160 px thumbnails (cache160; named frames first) - made by the theatre's sips
+resizer on a Mac when missing, and on a PC with no resizer the session rides without pictures and says why, never a full
+frame. A thumbnail over 20 KB is left out and named; the record stays under 600 KB by dropping the OLDEST sessions'
+pictures first. Phase 2 signs and publishes it as the owner's own roster record; phase 3 draws it in the shadow's Shelf
+and TV·D. Law: test_a_shadow_carries_the_owners_sessions_summarized (5 cases on fixtures, 5 red-proofs).
+
 ### REG-2764 - NO HAND-TEST SCENARIO KNEW WHICH OF HIS FRAMES TEST IT (#22, his rulings 2026-10-28)
 His words: "if you can take my sessions and frames and reels and do the tests your self scenario by scenario then great"
 ... "sync each scenario to each visual frame related" ... "make sure to join anything needed to be joined for that
