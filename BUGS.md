@@ -312,6 +312,18 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2911 - THE GEAR LEDGER NAMED A SESSION BY LOGINS ONLY, A SECOND ANSWER BESIDE THE VAULT'S (#36, the lead on the report)
+equipped_ledger bound worn gear to a character by character-select logins only, while the vault's looks read
+char_select.session_characters (REG-2906/2908): two answers to "whose session was this", where his ruling is one logic.
+Measured over a fixture journal: a reel with no login whose lobby named the character filed its worn items unattributed,
+and a login span in which the lobby then named a second character filed its gear under the login's name - the doubt the
+vault holds UNKNOWN. Now game_sessions asks named_at (char_select.session_span_at over session_characters' map, built with
+no `carried`: the rollover chain stays the ledger's own) for every span: a span the map names takes that character, said
+in `named`, and names its game session when that session had none, so the chain carries it; a span the map holds UNKNOWN
+files nothing and its game session says why; a span the map does not name keeps the login and the chain as before. A reel
+filed with no character is filed again once the map names it (the #234 refile). No second fold: the names come through
+the learner's. Law: test_the_gear_ledger_reads_the_one_span_source, 4 red-proofs, RED.
+
 ### REG-2910 - THE DOCTOR'S ASK SENT HIM TO THE C PANEL, WHICH NO SCAN READS (#36, the lead on the REG-2909 report)
 REG-2909's MISSING line said "open the C panel once". No pixel band finds the C panel - no C-panel frame was ever filmed
 (char_select's own CPANEL_SAY) - so no scan ever shows a C panel to the reader, and following the ask could not name the

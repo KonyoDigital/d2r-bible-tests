@@ -350,19 +350,32 @@ def char_spans(reel):
     return spans
 
 
-def game_sessions(reels, gap_ms=None):
+def game_sessions(reels, gap_ms=None, named_at=None):
     """Chain reels' spans into game sessions. -> (sessions, by_span)
 
     sessions: [{id, character, characterVia, reels, spans, t0, t1, joins}] ; by_span: {(sid, t0): session}
     A span that opens with a login starts a session. A reel's pre-login span continues the previous
     session only across a rollover-sized gap (seal -> first row <= gap_ms), inheriting its character as
     `carried`; otherwise it is its own session with no character. [[unknown-stays-unknown]]
+
+    #36 (REG-2911) - `named_at(sid, ts)` -> the session span char_select.session_characters gives that moment (the ONE
+    span source: character select, the lobby and the C panel, through the learner's fold), or None. A span it names takes
+    that character, said in `named`; a span it holds UNKNOWN (two screens named two characters) is UNKNOWN here too, and
+    files nothing - never the login's name over the doubt. A span it does not name keeps the login and the chain.
     """
     gap = int(ROLLOVER_GAP_MS if gap_ms is None else gap_ms)
     sessions, by_span, prev_reel, cur = [], {}, None, None
     for reel in reels:
         spans = char_spans(reel)
         for i, sp in enumerate(spans):
+            ns = None
+            if named_at is not None:
+                try:
+                    ns = named_at(reel["sid"], sp["t0"] if sp["t0"] is not None else sp["t1"])
+                except Exception:
+                    ns = None
+                if not (isinstance(ns, dict) and (ns.get("character") or ns.get("conflict"))):
+                    ns = None
             if sp["via"] == "char-select":
                 cur = {"id": "g_%s_%s" % (reel["sid"], "undated" if sp["t0"] is None else sp["t0"]),
                        "character": sp["character"],
@@ -406,6 +419,17 @@ def game_sessions(reels, gap_ms=None):
                            "joins": [], "why": why}
                     sessions.append(cur)
                     sp["carried"] = None
+            if ns is not None:   # REG-2911 the one span source names this span, or holds it UNKNOWN
+                sp["character"] = ns.get("character") or None
+                sp["named"] = ns.get("via") if sp["character"] else None
+                sp["carried"] = None
+                if not sp["character"]:
+                    sp["why"] = ns.get("why") or "two screens in one span named different characters"
+                if sp["via"] == "char-select" or not cur.get("character"):
+                    cur["character"] = sp["character"]
+                    cur["characterVia"] = (ns.get("via") or "char-select") if sp["character"] else None
+                    if not sp["character"]:
+                        cur["why"] = sp["why"]
             sp["session"] = cur["id"]
             by_span[(reel["sid"], sp["t0"])] = cur
         reel["spans"] = spans
@@ -688,13 +712,16 @@ def _unfile_unattributed(d, reel, hist_dir):
     u["reels"] = [s for s in (u.get("reels") or []) if s != reel["sid"]]
 
 
-def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNSET, cs=_UNSET):
+def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNSET, cs=_UNSET, sessions=_UNSET):
     """Read the journals, file every worn item of every SEALED reel not yet ingested. -> receipt
 
     receipt = {ok, why, ingested: [sid], rolling: [sid], waiting: [sid], logins, filed, unattributed, characters,
     journal}. ok None = UNKNOWN (no journal readable, or the store unreadable) and NOTHING is written.
     #103 step B: the character-select learner's logins join the journal's rows, and a sealed reel it has not walked
     yet waits (cs_waits). `logins` / `cs` default to asking the learner of THIS world; pass them to drive it.
+    #36 (REG-2911): `sessions` (char_select.session_characters' map - character select, the lobby and the C panel) names
+    the spans a login alone cannot; it defaults to the map of `cs`. The rollover chain stays this ledger's own, so the map
+    is built with no `carried`.
     """
     now = int(now_ms if now_ms is not None else time.time() * 1000)
     if logins is _UNSET or cs is _UNSET:
@@ -712,8 +739,17 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNS
                 "ingested": [], "rolling": [], "filed": 0, "unattributed": 0, "journal": rep}
     lrows = login_rows(logins)
     reels = reels_from_rows(rows + lrows)
-    sessions, _by = game_sessions(reels, gap_ms=gap_ms)
-    for s in sessions:
+    _named = None
+    try:
+        import char_select as _cs
+        if sessions is _UNSET:
+            sessions = _cs.session_characters(cs, reel_of=_cs.reel_of_frame(hist_dir)) if isinstance(cs, dict) else None
+        if isinstance(sessions, dict):
+            _named = lambda _sid, _ts: _cs.session_span_at(sessions, _sid, _ts)   # REG-2911 the one span source
+    except Exception:
+        _named = None
+    gsessions, _by = game_sessions(reels, gap_ms=gap_ms, named_at=_named)
+    for s in gsessions:
         d["gameSessions"][s["id"]] = {k: v for k, v in s.items()}
     done = set(d["lane"].get("ingested") or [])
     ingested, rolling, waiting, filed, unatt = [], [], [], 0, 0

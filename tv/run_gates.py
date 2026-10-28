@@ -12381,6 +12381,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_session_with_no_character_asks_for_the_c_panel.py")], 300,
          needs_app=False,
          why='#36 REG-2909: a session no screen named asks him in his words (open the C panel once), and says the C panel has no pixel band yet'),
+    Gate("test_the_gear_ledger_reads_the_one_span_source",
+         [sys.executable, os.path.join(HERE, "test_the_gear_ledger_reads_the_one_span_source.py")], 300,
+         needs_app=False,
+         why="#36 REG-2911: the gear ledger names a session from char_select's one span source (char select, lobby, C panel); a span in doubt files nothing"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
