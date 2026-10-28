@@ -244,9 +244,17 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
                 # is still byte for byte; that line is pinned to its new words on its own.
                 cut = re.compile(r'<div class="ftt-click">[^<]*</div>')
                 self.assertEqual(cut.sub("", s[m]["ftt"]), cut.sub("", b[m]["ftt"]), "%s %s: the hover card changed" % (k, m))
-                self.assertIn('<div class="ftt-click">click: open the row \u00b7 click it again:', s[m]["ftt"],
+                self.assertIn('<div class="ftt-click">click: open the row \u00b7 click it again: how this PC films and drains, '
+                              'and their set pieces against yours</div>', s[m]["ftt"],
                               "%s %s: the card does not say what each click opens" % (k, m))
-                self.assertEqual(s[m]["row"], b[m]["row"], "%s %s: the row changed beyond its eyes" % (k, m))
+                # the row carries the card, and #225 gave the row one click handler for its two clicks: the base row's
+                # old pair is read as the new one, the click line is cut from both, and nothing else may differ
+                old_click = "window._fleetRowOpen(this);window._fleetCompare(this.getAttribute('data-fleet-machine'))"
+                self.assertEqual(s[m]["row"].count("window._fleetRowClick(this)"), 2,
+                                 "%s %s: the row's click and key handlers are not the one two-click handler" % (k, m))
+                self.assertEqual(cut.sub("", s[m]["row"]),
+                                 cut.sub("", b[m]["row"].replace(old_click, "window._fleetRowClick(this)")),
+                                 "%s %s: the row changed beyond its eyes" % (k, m))
 
     def test_the_cross_reference_is_unchanged_but_for_the_folded_diagnostics(self):
         r = _render()
