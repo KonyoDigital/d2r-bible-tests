@@ -51995,6 +51995,61 @@ window.vaultAutoAssign = function(){
     return { kind: 'dock', mule: null, muleName: null, cell: null, why: (pg && pg.why) || 'no answer from the router' };
   }
   window._vaultWhereIs = _vaultWhereIs;
+  /* ══ #144.9 (REG-2760, his pick 2026-10-28 12:41 IDT via GrokBot #230 6466865161) - THE COPY READOUT, READ ONLY ══
+     GrokBot proved the split on a guest: the locker card draws copies from the copies store (copyCount, through
+     _shelfCopyCount) while the mule window and FIND pack the vault records (_vaultRecordsForMule). His own records live
+     only in his browser, so no seat can measure his data unless his board says it. Per name filed to a locker: what the
+     card draws, what the records hold for that locker, how many cells FIND names, what the copies store says, and a
+     mismatch flag when the first three differ. It writes nothing and migrates nothing - the dirty marker and the migrate
+     stamp are read raw, never through the readers that carry a stamp forward - and it runs in a shadow too.
+     -> {ok, at, recordsRead, checked, mismatched, dirty, migrateCount,
+         rows: [{name, mule, card, records, find, findKind, copies, warCap, mismatch}]}, mismatched rows first */
+  function _vaultCopyAudit(){
+    var out = { ok: true, at: Date.now(), recordsRead: false, checked: 0, mismatched: 0, dirty: null, migrateCount: null, rows: [] };
+    try { out.dirty = (window.LSR.getItem('d2r_vaultRecordsDirty') != null); } catch (eD) { out.dirty = null; }
+    try {
+      var _mg = JSON.parse(window.LSR.getItem('d2r_vaultRecordsMigrate') || 'null');
+      out.migrateCount = (_mg && typeof _mg.count === 'number') ? _mg.count : null;
+    } catch (eM) { out.migrateCount = null; }
+    var by = null;
+    try { by = (typeof _vaultNamesByMule === 'function') ? _vaultNamesByMule() : null; } catch (eB) { by = null; }
+    out.recordsRead = !!(by && typeof by === 'object');
+    if (!out.recordsRead) {
+      by = {};
+      Object.keys(assign).forEach(function(n){
+        var m = assign[n];
+        if (m == null || m === '__throwout' || m === '__keep') return;
+        (by[m] = by[m] || []).push(n);
+      });
+    }
+    Object.keys(by).sort().forEach(function(mid){
+      var span = null;
+      try { span = (typeof window._vaultRecordsForMule === 'function') ? window._vaultRecordsForMule(mid) : null; } catch (eS) { span = null; }
+      (by[mid] || []).slice().sort().forEach(function(n){
+        var card = null, rec = null, find = null, kind = null, cc = null, cap = null;
+        try { card = (typeof window._shelfCopyCount === 'function') ? window._shelfCopyCount(n, mid) : null; } catch (eC) { card = null; }
+        rec = (span && typeof span === 'object') ? (span[n] | 0) : null;
+        try {
+          var w = _vaultWhereIs(n);
+          kind = w ? w.kind : null;
+          find = (w && (w.kind === 'filed' || w.kind === 'would')) ? ((w.cells && w.cells.length) || (w.cell ? 1 : 0)) : null;
+        } catch (eW) { find = null; }
+        try { cc = (typeof copyCount === 'function') ? copyCount(n) : null; } catch (eCc) { cc = null; }
+        /* the war stash draws only what its cap keeps, by design (L1): the cap rides the row so a capped card reads as one */
+        try { if (mid === 'shared' && typeof window._vaultWarCap === 'function') cap = window._vaultWarCap(n); } catch (eWc) { cap = null; }
+        var known = [card, rec, find].filter(function(x){ return typeof x === 'number'; });
+        out.rows.push({ name: n, mule: mid, card: card, records: rec, find: find, findKind: kind, copies: cc, warCap: cap,
+                        mismatch: known.some(function(x){ return x !== known[0]; }) });
+      });
+    });
+    out.checked = out.rows.length;
+    out.mismatched = out.rows.filter(function(r){ return r.mismatch; }).length;
+    out.rows.sort(function(a, b){
+      return (b.mismatch - a.mismatch) || (a.mule < b.mule ? -1 : a.mule > b.mule ? 1 : (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    });
+    return out;
+  }
+  window._vaultCopyAudit = _vaultCopyAudit;
 
   /* ══ #76 PHASE 1 (slice 1, 2026-10-16) — THE ONE-RECORD INTERMEDIATE MODEL · DERIVED, READ-ONLY ══
      His spec: "one record per item with one location field; counts/badges/FIND/Integrity all derived
@@ -64425,6 +64480,18 @@ function renderJournal(){
           var _body = {};
           Object.keys(out).forEach(function(k){ _body[k] = out[k]; });
           _body.picker = _pc;
+          /* #144.9 (REG-2760) - THE COPY READOUT RIDES THE SAME HAND-OVER, so a seat can read it from the console without
+             touching his profile. At most every 5 min (it packs each locker once per name), and not on the 4 s boot
+             beat, when the vault may not be up yet: the first one goes on the 60 s beat. */
+          try {
+            var _caNow = Date.now();
+            if (window.__copyAuditAt == null) window.__copyAuditAt = _caNow - 240000;
+            if (_caNow - window.__copyAuditAt >= 300000) {
+              window.__copyAuditAt = _caNow;
+              _body.copyAudit = (typeof window._vaultCopyAudit === 'function') ? window._vaultCopyAudit()
+                : { ok: false, why: 'the vault block is not on this page (no _vaultCopyAudit)' };
+            }
+          } catch (_ce) { _body.copyAudit = { ok: false, why: 'the copy readout raised ' + ((_ce && _ce.message) || _ce) }; }
           fetch('/api/board_tally', { method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(_body) }).catch(function(){});
