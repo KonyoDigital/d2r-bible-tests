@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3818",
+  "ver": "v3819",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3818: a held lock is amber with its catch-up, a refused sweep says why, materials stay out, a copy X says every copy goes",
+  "note": "v3819: the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3818** | `(this commit)` | v3818 — a held lock is amber with its catch-up, a refused sweep says why, materials stay out, a copy X says every copy goes |
+| **v3819** | `(this commit)` | v3819 — the census reuses byte-identical proofs, a wipe or reset or hand add can be undone, intake Grok sessions are swept |
+| **v3818** | `ddf5beaa` | v3818 — a held lock is amber with its catch-up, a refused sweep says why, materials stay out, a copy X says every copy goes |
 | **v3817** | `c5ff5261` | v3817 — two sessions register an item, spelling variants merge, a slow console still opens the shelf, parses move to a child |
 | **v3816** | `21a3d366` | v3816 — upload fits the cap and waits the gap, Dean blind laws, a booting board is waited for, shelf and theatre |
 | **v3815** | `892d4d09` | v3815 — 8 vault door fixes, leaving a shadow goes back, names read right, roster keeps newest, loose count split |
