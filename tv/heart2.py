@@ -1326,8 +1326,28 @@ def _remove_all_sandboxes():
         _drop_sandbox(root)
 
 
+def _flush_on_kill():
+    """#150 (REG-2943) - the push's verdict cache, flushed on the way out of a fatal signal. -> True when written.
+    Only entries already store()d are written - a PROVEN in _CLEAN.pending has no green bracket yet. The cache's lock is
+    tried, never waited on: the signal may have landed inside the code holding it, and a handler that blocks there
+    never exits."""
+    cache = getattr(_PUSH, "cache", None)
+    if cache is None:
+        return False
+    try:
+        if not cache.lock.acquire(False):
+            return False
+        cache.lock.release()
+        return bool(cache.flush())
+    except Exception:
+        return False
+
+
 def _on_fatal_signal(signum, frame):
-    """A signal that would kill the prover removes its sandboxes first, then exits the way the signal meant to."""
+    """A signal that would kill the prover removes its sandboxes first, then exits the way the signal meant to.
+    #150 (REG-2943) - and first writes what the push already BANKED (stored, not yet flushed): never a PROVEN still
+    waiting for a clean run, and never by waiting on a lock the interrupted code may hold."""
+    _flush_on_kill()
     _remove_all_sandboxes()
     os._exit(128 + int(signum))
 
@@ -5392,9 +5412,13 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     _CLEAN.pending = []                                  # (index, key, entry) a PROVEN waits in until the closing run
     _CLEAN.served = []                                   # REG-2587 - (index, tree) of each proof the cache served
     try:
-        for i in (run.order.get(name) or list(range(len(proofs)))):
+        _order = run.order.get(name) or list(range(len(proofs)))
+        _ckpt = {"on": True}                             # #150 - False once a checkpoint was not green (the closing run decides)
+        for _n, i in enumerate(_order):
             if run.stop.is_set():
                 break
+            if _ckpt["on"] and run.cache is not None and len(getattr(_CLEAN, "pending", None) or []) >= CHECKPOINT_EVERY:
+                _ckpt["on"] = _checkpoint_bank(name, got, say, run)      # #150 (REG-2942) - before proof i, never after the last
             why = {}
             _MARK.m = {"t0": time.time()}                # REG-2353 - what this proof was forecast to do, and did
             try:
@@ -6011,6 +6035,55 @@ def _prove_gate(sandbox, name, filename, proofs, say):
             else INVALID if INVALID in verdicts
             else UNPROVABLE if UNPROVABLE in verdicts
             else PROVEN), verdicts
+
+
+# ══ #150 (REG-2942) - A KILLED PUSH KEEPS WHAT IT PROVED, AND ONLY WHAT A GREEN CLEAN RUN BRACKETS ══════════════════════
+# A push gate held every PROVEN in _CLEAN.pending until its CLOSING clean run (REG-1988), and _on_fatal_signal exited
+# without banking - so a kill (the hook's deadline, a Ctrl-C, a dead terminal) mid-gate lost every proof that gate had
+# already proved: for a law like test_control, 27 proofs at ~4 min, the whole gate. Banking each PROVEN the moment it
+# came back is NOT sound, and the key being "the bytes" does not make it so: the proofs share ONE clean run, and a proof
+# can go red because earlier runs drifted the sandbox (state outside the key) rather than because of its tamper - which
+# is exactly what the closing run exists to catch. So the bracket stays and moves earlier: once CHECKPOINT_EVERY PROVENs
+# wait and another proof is about to run, the gate's shared clean run(s) are asked again HERE. Green - every waiting
+# PROVEN sits between two green clean runs, as the closing run would have left it - is banked and FLUSHED to disk now.
+# Red, unknown or raising banks nothing and asks no further checkpoint; the closing run still judges the gate as before.
+# It costs at most one clean run per CHECKPOINT_EVERY proved proofs, and a kill now loses at most that many proofs'
+# work. [[stale-reading]] [[regression-guard]] Law: test_a_killed_push_keeps_what_it_proved.
+CHECKPOINT_EVERY = 4
+
+
+def _checkpoint_bank(name, per, say, run):
+    """#150 - ask the gate's shared clean run(s) again mid-gate; green banks and flushes every waiting PROVEN. -> bool:
+    True when green (or nothing needed asking), False when a clean run was red, unknown or raised (bank nothing)."""
+    pend = getattr(_CLEAN, "pending", None)
+    if not pend:
+        return True
+    for r in [r for r in (getattr(_CLEAN, "runs", None) or {}).values() if r.get("reused")]:
+        try:
+            ok, tail = r["again"]()
+        except Exception as _ce:
+            ok, tail = None, "it raised %s" % type(_ce).__name__
+        if not ok:
+            say("     %-52s   ↳ #150: a CHECKPOINT clean run is %s (%s) - its %d waiting PROVEN(s) are not banked here; "
+                "the closing run decides" % (name, "UNKNOWN" if ok is None else "RED", str(tail)[:60], len(pend)))
+            return False
+    keep, n = [], 0
+    for _i, _key, _entry in pend:
+        if _bankable(per.get(_i) if isinstance(per, dict) else per[_i]):
+            if callable(_key):                       # REG-2640 - the v2 key, taken now that a clean run brackets it
+                _key = _key()
+            run.cache.store(_key, _entry)
+            run.cache.count("stores")
+            with run._lock:
+                run.proofs.setdefault((name, _i), {})["b"] = True
+            n += 1
+        else:
+            keep.append((_i, _key, _entry))
+    _CLEAN.pending = keep
+    run.cache.flush()
+    say("     %-52s   ↳ #150: checkpoint clean run green - %d PROVEN(s) banked and written now, not at the gate's end"
+        % (name, n))
+    return True
 
 
 def _closing_clean(name, verdicts, say):

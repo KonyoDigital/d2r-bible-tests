@@ -299,6 +299,32 @@ new deleting function in the reach, or a table entry no lane declares is a break
 declaration was made to match the code - and the `never` lines stop saying nothing is removed. After: all four rows
 permitted. Law: test_a_lane_clears_only_what_it_declares (14 cases, a class per lane; 4 red-proofs, each widening one
 lane's reach, each RED); test_auto_scope's permission case re-aimed to 'a clause that covers it' and renamed.
+### REG-2943 - A SIGTERM MID-PUSH EXITED WITHOUT WRITING WHAT THE PUSH HAD ALREADY BANKED (#150)
+heart2._on_fatal_signal removed the sandboxes and os._exit()ed; os._exit skips atexit, so whatever store() had banked since
+the last per-gate flush (and the cache's usedAt marks) never reached the disk. It now flushes the push's verdict cache
+first (_flush_on_kill): only entries already STORED - never a PROVEN still in _CLEAN.pending, which no green clean run has
+bracketed - and only when the cache's lock is free, because the signal may have landed inside code that holds it and a
+handler that blocks there never exits. SIGKILL cannot be caught at all, which is why REG-2942 writes at each checkpoint.
+Law: test_a_killed_push_keeps_what_it_proved (a child that SIGTERMs itself leaves the banked entry on disk and not the
+waiting one); its proof declares "posix-signals", so a PC that cannot send itself a signal files it ELSEWHERE.
+
+### REG-2942 - A PUSH KILLED MID-GATE LOST EVERY PROOF THAT GATE HAD ALREADY PROVED (#150)
+_prove_gate_push held every PROVEN in _CLEAN.pending until the gate's CLOSING clean run (REG-1988) and flushed per gate,
+so a kill mid-gate - the hook's deadline, a Ctrl-C, a closed terminal - lost all of that gate's proofs (test_control: 27
+at ~4 min each), and the next push proved them again. Banking each PROVEN the moment it returns was asked for and is NOT
+sound: a gate's proofs share ONE clean run, and a proof can go red because earlier runs drifted the sandbox (state the key
+does not hold) rather than because of its tamper - the case the closing run exists to catch. So the bracket moves earlier
+instead of going away: once CHECKPOINT_EVERY (4) PROVENs wait and another proof is about to run, the gate's shared clean
+run(s) are asked again (_checkpoint_bank). Green - every waiting PROVEN now sits between two green clean runs - banks them
+through _bankable and the REG-2640 key and writes the cache to disk at once; red, unknown or raising banks nothing and
+asks no further checkpoint, and the closing run judges the gate exactly as before. COST: at most one extra clean run per 4
+freshly proved proofs in a gate (a gate re-proved from nothing pays up to 25% more runs; one with 4 or fewer fresh proofs
+pays nothing; a proof served from the cache never counts). GAIN: a kill loses at most 4 proofs' work. CHECKPOINT_EVERY is
+the one dial. Law: test_a_killed_push_keeps_what_it_proved - killed after a green checkpoint, the disk holds those 4; the
+resumed push serves all 4 and runs only the 2 still owed; a red checkpoint banks nothing; an unkilled gate of 6 pays
+exactly one checkpoint (3 clean runs). 5 red-proofs, each RED for its own assertion (sab bad 0 of 5). The 21 laws that
+drive the push path and the other 41 runnable laws that import heart2 pass with the change.
+
 ### REG-2941 - 28 LAWS LISTED ONLY THEIR OWN SCRATCH OR ONE FIXTURE FRAME, AND NONE OF THEIR PROOFS WAS EVER SAVED: 91 UNKEYABLE -> 63 (#173)
 heart2 banks a PROVEN only under a byte key, and a law file that calls os.listdir / glob.glob / os.walk is UNKEYABLE
 (what it reads is decided at run time), so every one of its proofs re-runs on every push it is in. tv/unkeyable_laws.json
