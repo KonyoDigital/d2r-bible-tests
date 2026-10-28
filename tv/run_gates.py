@@ -12225,6 +12225,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_mule_card_draws_a_copy_where_its_task_sends_it.py")], 300,
          needs_app=False,
          why='#144.10 REG-2782: a mule card (and FIND) draws each copy at the cell its move task sends it, his hand spot first'),
+    Gate("test_a_planner_record_is_not_his_hand",
+         [sys.executable, os.path.join(HERE, "test_a_planner_record_is_not_his_hand.py")], 300,
+         needs_app=False,
+         why='#111 REG-2785 - a d2r_plannerMade record alone never stands in for his hand or the Auto-Sort picture check'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

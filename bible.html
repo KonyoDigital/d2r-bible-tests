@@ -50644,7 +50644,13 @@ window.vaultAutoAssign = function(){
     } catch (e) { blob = ''; }
     if (blob.indexOf('the Vault planner') >= 0) return true;
     if (blob.indexOf('+ Add an item') >= 0) return true;
-    try { if (typeof window._vpMadeOf === 'function' && window._vpMadeOf(name)) return true; } catch (e2) {}
+    /* REG-2785 (#111) - HIS HAND IS READ OFF THE ROW, NEVER OFF THE PLANNER STORE. This also answered true for any name with a
+       d2r_plannerMade record. That record is kept per NAME for the base he built (the cell's picture, footprint and hover
+       read it), and nothing takes it out when the item leaves: vaultRemove drops the witness row and keeps the record.
+       Measured on the whole page in node: Obedience picked in the planner, removed, then read off a Chronicle page in two
+       sessions (a found-ever tick with no stash picture) - his Auto-Sort click filed it to RUNEWORDS as his hand, and the
+       REG-2223 gate below never asked. A planner pick writes its words on the row (the hand receipt, the filing's
+       VP_WHERE, and the receipt a cell X demotes it back to), so the row alone says whose hand it was. */
     return false;
   }
   function _plannerPropose(name){

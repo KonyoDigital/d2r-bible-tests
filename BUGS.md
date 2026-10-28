@@ -70,6 +70,21 @@ retired, because the popup can no longer exist. The .vm-cell.vmc-* cell classes 
 live and untouched. Law: tv/test_a_move_row_expands_inline_and_the_popup_is_gone.py (node, whole page): the doors are
 undefined at runtime and undeclared in the source, the model has no whole-container list, and each hand row expands to
 MANUAL -> its own cell alone, a sighted row to the cell it was seen in. 9 red-proofs, 9 RED.
+### REG-2785 - AUTO-SORT FILED A FOUND-EVER TICK WITH NO PICTURE WHEN ITS NAME HAD A PLANNER RECORD (#111, reviewers C2/E/D)
+_plannerHandRow tells his Auto-Sort click "his hand put this here", and the click then files a dock name to its mule (and,
+in the shared-stash arm, past REG-2223's chronicle gate) without the stash picture every other dock name needs. It read the
+row's words (the Vault planner, + Add an item) and also answered true for any name with a d2r_plannerMade record. That
+record is kept per name for the base he built (the cell's picture, footprint and hover read it) and nothing takes it out
+when the item leaves: vaultRemove drops the witness row and keeps the record. Measured on the whole page in node: Obedience
+picked in the planner, removed, then read off a Chronicle page in two sessions (a found-ever tick, loose in the dock) - his
+click filed it to RUNEWORDS and rewrote the row as an Auto-Sort hand filing; Grief, the same road, went to the shared stash.
+The 10-28 triage called it by design because the record means "he built it", which is true of the copy he removed, not of
+the row in the dock. Now the hand gate reads the row alone; the planner's words reach the row on every pick (the hand
+receipt, the filing's where, and the receipt a cell X demotes the filing back to). Swept: the other readers of the record
+(_itemCells, artOr, the built-base hover) draw a base and never decide ownership. One case changes (measured the same way): a planner pick of a
+name already owned through a found-ever tick, later sent back by its cell X, demotes to that tick and now waits for a
+picture or a drag instead of re-filing on the click. Law: test_a_planner_record_is_not_his_hand (node, the whole page; the
+shipped gate cut and run with a record for every name). 2 red-proofs, both RED.
 
 ### REG-2768 - A SECOND CLICK ON AN OPEN FLEET ROW COULD ENTER THE SHADOW INSTEAD OF THE COMPARE (#225, GrokBot's v3824 pass)
 REG-2749 made the first click open the row and a click on the open row open the compare. GrokBot SAW both on Dean's row
