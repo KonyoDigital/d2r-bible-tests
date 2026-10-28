@@ -4583,11 +4583,19 @@ class _VerdictCache(object):
                 "proof (not banked)" % (self.hits, n_total, self.stores, self.misses, self.unkeyable, self.moved))
 
 
+def _prove_cache_off():
+    """HEART2_PROVE_CACHE=0 - the ONE spelling of the cache's off switch, asked by the push (open_cache) and by #186's
+    census (_census_cache). -> bool"""
+    if str(os.environ.get("HEART2_PROVE_CACHE", "1")).strip().lower() in ("0", "no", "off", "false"):
+        return True
+    return False
+
+
 def open_cache(say=print):
     """The cache prove(push=True) hands to _prove_push -> _VerdictCache | None (HEART2_PROVE_CACHE=0: closed, said).
     R2: a push's first open also folds every checkout's own pre-R2 red memory into the machine's."""
     _red_fold_checkouts(say)
-    if str(os.environ.get("HEART2_PROVE_CACHE", "1")).strip().lower() in ("0", "no", "off", "false"):
+    if _prove_cache_off():
         say("  #42 P3 CACHE: OFF for this run (HEART2_PROVE_CACHE=0) - every proof runs, nothing is banked")
         return None
     return _VerdictCache(say=say)
@@ -5055,9 +5063,23 @@ def _final_key(cache, sandbox, name, filename, pr, key, entry):
 
 def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
     """#42 — ONE proof at push time: reused from the verdict cache when every keyed byte is identical (P3), otherwise
-    run at the widths it declares and banked only when it came back PROVEN. -> verdict (the PUSH TIME block above)"""
+    run at the widths it declares and banked only when it came back PROVEN. -> verdict (the PUSH TIME block above)
+
+    #186 - the serve and the bank are _cache_serve and _cache_bank, the ONE implementation the self-prove census asks
+    too (_census_one): two copies of "may this verdict be reused / banked" would be two rules. [[copy-drift]]"""
     cache = _PUSH.cache if _PUSH is not None else None
-    key = None
+    served, key, rels = _cache_serve(cache, sandbox, name, filename, pr, idx, say)
+    if served is not None:
+        return served
+    v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
+    _cache_bank(cache, sandbox, name, filename, pr, idx, say, key, rels, v)
+    return v
+
+
+def _cache_serve(cache, sandbox, name, filename, pr, idx, say):
+    """#42 P3 (and #186's census) - proof `idx` served from the verdict cache when every keyed byte is identical.
+    -> (PROVEN | None, key | None, [repo-relative inputs]); None = not served: run it, then hand the key to _cache_bank"""
+    key, rels = None, []
     if cache is not None:
         label = "%s[%d]" % (name, idx)
         # ⚠ THE CACHE MAY COST A RE-PROVE, NEVER A VERDICT. key_for raising here (a RecursionError from ast.parse on a
@@ -5086,9 +5108,15 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                 say("     %-52s %s (cached %s: %d byte-identical input(s), proved %s ago%s - not re-run)"
                     % (label, PROVEN, key[:8], len(hit.get("inputs") or rels), _age_say(hit.get("provedAt")),
                        (" at %s" % hit["at"]) if hit.get("at") else ""))
-                return PROVEN
+                return PROVEN, key, rels
             cache.count("misses")
-    v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
+    return None, key, rels
+
+
+def _cache_bank(cache, sandbox, name, filename, pr, idx, say, key, rels, v, by=None):
+    """#42 P3 (and #186's census) - bank proof `idx`'s PROVEN under its key, TAKEN AGAIN after the run: a key that moved
+    banks nothing. Inside a gate (_CLEAN.pending a list) the entry waits for the gate's closing clean run. `by` names who
+    proved it ("census": it ran the whole law, so it names no declared widths). -> None"""
     if key is not None and _bankable(v):
         # ⚠ KEYED AGAIN AFTER THE RUN: the tamper wrote and restored the target, and a law may write beside itself; a key
         # that moved means the bytes proved are not the bytes on disk, and a PROVEN banked under them would be a lie.
@@ -5108,6 +5136,8 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                 _entry = {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
                           "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
                           "target": str(pr.get("file") or ""), "inputs": rels, "tree": TREE_ID}
+                if by:
+                    _entry.update(by=by, at="")          # #186 - a census ran the whole law: no declared widths
                 _pend = getattr(_CLEAN, "pending", None)
                 if isinstance(_pend, list):
                     # REG-1988 - banked by _prove_gate_push after the closing run; REG-2640 - and keyed THEN, so the
@@ -5125,7 +5155,6 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
             cache.count("moved")
             say("     %-52s   ↳ #42 P3: the tree moved under this proof (%s) - PROVEN stands, "
                 "nothing is banked" % ("%s[%d]" % (name, idx), _how))
-    return v
 
 
 def _prove_push_one_run(sandbox, name, filename, pr, idx, say, why):
@@ -5829,10 +5858,7 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
         # as the OLDEST of them (a proof that ran now is newer than any entry), so the census stamps that gate with
         # that time and not this run's clock. Only PROVEN: a BLIND / INVALID / UNPROVABLE came from a proof that RAN.
         # prove() reads cache.measured and hands it to _write_state. [[stale-reading]] [[inherited-claim-is-not-evidence]]
-        _ages = {}
-        for (_gn, _i), _ms in list(cache.reused.items()):
-            if results.get(_gn) == PROVEN:
-                _ages[_gn] = min(_ages[_gn], _ms) if _gn in _ages else _ms
+        _ages = _reused_ages(cache, results)
         cache.measured = _ages
         if _ages:
             say("  #42 P3 CACHE: %d gate(s) stand on reused proofs, so the census keeps the age each was MEASURED at "
@@ -5851,6 +5877,97 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
         if stopped is not None:
             stopped.append(run.first)
     return results, per_proof
+
+
+def _reused_ages(cache, results):
+    """⚠ A REUSED PROOF KEEPS THE TIME IT WAS MEASURED - the push's rule, and (#186) the census's: a PROVEN gate standing on
+    any cached proof is only as fresh as the OLDEST of them. -> {gate: oldest provedAt ms}; {} with no cache"""
+    _ages = {}
+    if cache is not None:
+        for (_gn, _i), _ms in list(cache.reused.items()):
+            if results.get(_gn) == PROVEN:
+                _ages[_gn] = min(_ages[_gn], _ms) if _gn in _ages else _ms
+    return _ages
+
+
+#: #186 - the verdict cache the self-prove lane's census serves and banks through. prove(reuse=True) opens it; None means
+#: every proof runs - the verdict of record (run_gates, CI, a hand --prove) never opens it.
+_CENSUS = {"cache": None}
+
+
+def _census_cache(reuse, say=print):
+    """#186 (his ruling 2026-10-28: "NO IT DOESNT NEED TO PROVE ITSELF. it can accept a proof earned on byte identical ...
+    it should work with that same recipe") - the cache a census opens. -> _VerdictCache | None
+
+    Only the self-prove lane asks (`heart2.py --prove ... --reuse`): its census serves a PROVEN banked over byte-identical
+    inputs - the push's own key, the push's own lookup - and banks what it proves, so the proofs a push banked make this
+    PC's census current without re-running them, and a slice that stands aside keeps what it proved. A served proof is
+    kept on the banking tree's word with no clean run here: REG-2599's rule (a run that changes no law owes none) and his
+    ruling above. HEART2_PROVE_CACHE=0 closes it, said. A cache that will not open costs a re-prove, never a verdict."""
+    if not reuse:
+        return None
+    if _prove_cache_off():
+        say("  #186 CENSUS CACHE: OFF for this run (HEART2_PROVE_CACHE=0) - every proof runs, nothing is banked")
+        return None
+    try:
+        c = _VerdictCache(say=say)
+    except Exception as _ce:
+        say("  #186 CENSUS CACHE: could not be opened (%s) - every proof runs, nothing is banked" % type(_ce).__name__)
+        return None
+    say("  #186 CENSUS CACHE: a PROVEN banked over byte-identical inputs is served, not re-run; what this census proves "
+        "is banked (%d entr(ies) on this PC)" % len(c.entries))
+    return c
+
+
+def _census_one(sandbox, name, filename, pr, idx, say):
+    """#186 - ONE census proof: served from the cache over byte-identical inputs (_cache_serve, the push's rule), else run
+    as the census always ran it (_prove_one, the whole law) and banked (_cache_bank) once its gate's closing clean run
+    has kept it PROVEN. A proof that declares a need this PC lacks - or whose need cannot be probed - is never served:
+    it is judged here exactly as before, whatever another PC banked. -> verdict"""
+    cache = _CENSUS.get("cache")
+    _need = pr.get("needs") if isinstance(pr, dict) else None
+    if cache is not None and _need:
+        try:
+            _lacks = host_lacks(_need)[0]
+        except Exception:
+            _lacks = None
+        if _lacks is not False:
+            cache = None
+    if cache is None:
+        return _prove_one(sandbox, name, filename, pr, idx, say)
+    try:
+        served, key, rels = _cache_serve(cache, sandbox, name, filename, pr, idx, say)
+    except Exception as _se:
+        # the cache may cost a re-prove, never a verdict: a raise here would file the proof BLIND (_prove_gate_proofs),
+        # and one BLIND shuts every lock on this PC - so it runs, unbanked, as with no cache at all
+        say("     %-52s   ↳ #186: the census cache raised %s - this proof runs and is not banked"
+            % ("%s[%d]" % (name, idx), type(_se).__name__))
+        return _prove_one(sandbox, name, filename, pr, idx, say)
+    if served is not None:
+        return served
+    v = _prove_one(sandbox, name, filename, pr, idx, say)
+    _cache_bank(cache, sandbox, name, filename, pr, idx, say, key, rels, v, by="census")
+    return v
+
+
+def _census_bank(cache, name, per, say):
+    """#186 - after the gate's closing clean run (REG-1669 / REG-1988): each pending PROVEN that is STILL PROVEN is banked -
+    the same _bankable rule and deferred v2 key _prove_gate_push's loop applies - and the gate's bank reaches the disk now,
+    per gate, so a slice that stands aside keeps it. -> how many were banked"""
+    n = 0
+    for _i, _key, _entry in (getattr(_CLEAN, "pending", None) or []):
+        if _bankable(per[_i]):
+            if callable(_key):
+                _key = _key()
+            cache.store(_key, _entry)
+            cache.count("stores")
+            n += 1
+        else:
+            cache.count("moved")
+            say("     %-52s   ↳ #186: not banked - the gate's closing clean run took its PROVEN away"
+                % ("%s[%d]" % (name, _i)))
+    cache.flush()
+    return n
 
 
 def _prove_gate(sandbox, name, filename, proofs, say):
@@ -5872,11 +5989,20 @@ def _prove_gate(sandbox, name, filename, proofs, say):
         return _prove_gate_push(sandbox, name, filename, proofs, say, _PUSH)
     verdicts = []
     _CLEAN.runs = {}                                     # REG-1669 — this gate's proofs share one clean run
+    _cc = _CENSUS.get("cache")                           # #186 - the self-prove census serves and banks (his ruling)
+    _CLEAN.pending = [] if _cc is not None else None     # a census PROVEN waits for the closing clean run, as a push's does
     try:
         verdicts = _prove_gate_proofs(sandbox, name, filename, proofs, say)
         verdicts = _closing_clean(name, verdicts, say)
+        if _cc is not None:
+            try:
+                _census_bank(_cc, name, verdicts, say)
+            except Exception as _be:                     # the bank may cost a re-prove, never this gate's verdict
+                say("     %-52s   ↳ #186: its proofs could not be banked (%s) - the verdicts stand"
+                    % (name, type(_be).__name__))
     finally:
         _CLEAN.runs = None
+        _CLEAN.pending = None
     # REG-1686 — every proof judged only elsewhere: nothing was proven HERE, so the gate is not PROVEN here
     if verdicts and all(v == ELSEWHERE for v in verdicts):
         return UNPROVABLE, verdicts
@@ -5948,7 +6074,7 @@ def _prove_gate_proofs(sandbox, name, filename, proofs, say):
         # because the next unreadable proof will be a shape nobody has thought of yet.
         # [[the-unjoined-end]] [[unknown-stays-unknown]]
         try:
-            v = _prove_one(sandbox, name, filename, pr, i, say)
+            v = _census_one(sandbox, name, filename, pr, i, say)     # #186 - served, or run and banked
         except Exception as _pe:
             say("    proof %d raised %s — recorded BLIND, run continues: %s"
                 % (i, type(_pe).__name__, str(_pe)[:120]))
@@ -6073,7 +6199,7 @@ def _slice_banker(blank, say=print, every_s=None):
                 snap = {k: v for k, (v, _p) in out.items()}
                 unm = set(blank or ())
             if snap:
-                _write_state(snap, stamp=False, unmeasured=unm)
+                _write_state(snap, stamp=False, unmeasured=unm, measured=_reused_ages(_CENSUS.get("cache"), snap))
                 st["last"] = now
         finally:
             st["lk"].release()
@@ -6194,7 +6320,7 @@ def unmatched_names(only, gates):
     return out
 
 
-def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True):
+def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True, reuse=False):
     gates = gate_files()
     todo = gates_named(only, gates)                      # REG-2352 - the one predicate unmatched_names asks too
     # REG-2352 (#42 R11) — NO SILENT PROVE-NOTHING: every name that matches no gate is said here, and main() exits 2 on it
@@ -6253,10 +6379,15 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
     else:
         # REG-1676 — a SLICE (stamp=False) banks as it goes; a full run keeps its one write at the end
         _GATE_HOOK["fn"] = None if stamp else _slice_banker(_blank, say)
+        _CENSUS["cache"] = _census_cache(reuse, say)     # #186 - only the self-prove lane's census (--reuse) opens it
         try:
             results, per_proof = _prove_gates(have, say, blank=_blank)
         finally:
             _GATE_HOOK["fn"] = None     # #145 (the v3545 eye) - a raise must not leave this slice's banker installed
+            _ccache, _CENSUS["cache"] = _CENSUS["cache"], None
+        if _ccache is not None:
+            _ages = _reused_ages(_ccache, results or {})
+            say("  " + _ccache.summary(sum(len(_p) for _n, _f, _p in have)).replace("#42 P3 CACHE", "#186 CENSUS CACHE", 1))
     if results is None:
         return {}
     # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
@@ -7339,6 +7470,9 @@ def main(argv):
                     help="#242 add the push's own changed-law set (the hook's rule) to --prove - the pre-flight")
     ap.add_argument("--changed-gates", action="store_true",
                     help="#242 print the push's changed-law set, one line, and exit")
+    ap.add_argument("--reuse", action="store_true",
+                    help="#186 the self-prove lane's census: serve a PROVEN banked over byte-identical inputs and bank "
+                         "what it proves (his ruling 2026-10-28). A plain --prove never opens the cache")
     ap.add_argument("--slice", action="store_true",
                     help="#99 prove these gates as ONE SLICE of a census: the verdicts merge, and the gate fingerprint "
                          "is stamped only once no declaring gate is owed (self_prove's runs on a PC he plays on)")
@@ -7448,8 +7582,9 @@ def main(argv):
         if a.push:
             results = prove(only=set(a.prove) or None, push=True, stopped=_stopped)
         else:
-            results = (prove(only=set(a.prove) or None, stamp=False) if a.slice
-                       else prove(only=set(a.prove) or None))
+            _rk = {"reuse": True} if a.reuse else {}     # #186 - the flag travels only when the lane set it
+            results = (prove(only=set(a.prove) or None, stamp=False, **_rk) if a.slice
+                       else prove(only=set(a.prove) or None, **_rk))
     if a.detect:
         print("")
         hits = detect()

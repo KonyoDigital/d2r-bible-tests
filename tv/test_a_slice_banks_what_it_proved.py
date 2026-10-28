@@ -147,7 +147,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1676 - the banker writes nothing: the census learns a slice's verdicts only at its end",
      "file": "heart2.py",
-     "find": "                _write_state(snap, stamp=False, unmeasured=unm)\n",
+     "find": "                _write_state(snap, stamp=False, unmeasured=unm, measured=_reused_ages(_CENSUS.get(\"cache\"), snap))\n",
      "replace": "                pass\n",
      "matches": 1},
     {"why": "REG-1676 - the banker is not throttled: a gate scan per gate costs minutes per slice on the ALT",

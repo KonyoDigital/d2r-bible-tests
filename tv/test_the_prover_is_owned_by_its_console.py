@@ -70,7 +70,7 @@ class TheProverGoesThroughTheDoor(unittest.TestCase):
         self.assertEqual(role, "prover")
         self.assertEqual(cg.role_of_command(subprocess.list2cmdline(argv)), "prover",
                          "the watchdog cannot tell the self-prover's own command line apart")
-        self.assertEqual(argv[-3:], ["--prove", "g1", "--slice"], "the slice shape changed")
+        self.assertEqual(argv[-4:], ["--prove", "g1", "--slice", "--reuse"], "the slice shape changed")
 
     def test_on_windows_it_keeps_its_flags_and_takes_no_posix_kwarg(self):
         rec = _Recorder()
