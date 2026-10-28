@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2879 - REG-2803'S CHROME LAW DROVE A GUEST WORLD, WHERE THE BOARD RIGHTLY MAKES NO MULE (ci/claude-v3834, 4 cases)
+CI (agent-suite, ci/claude-v3834) failed four cases of tv/test_vault_l1_war_stash_overflow.py, which REG-2803 re-aimed without
+a local run. They were the board making WAR1 (501 rings, nine belts, the big-gear keeper) and the took-back line. The errors
+read "an extra copy is not on the board's WAR1: {0: ('SHARED STASH', 'shared:c0r0'), 1: ('SHARED STASH', None), ...}" and
+"'you took back the WAR1' not found". I replicated the law's exact world in node: its Board opens file:// on a fresh scratch
+profile with no d2r_ownerClaim and empty bare stores. That is a GUEST world (_D2R_OWNER false), and
+window._vaultWarAuto.why read "a guest world makes no mule" in all four, with CI's exact copy map. REG-2803's own rule says a
+guest never makes a mule, so the board was right and the law's world was not his. His board is owner-claimed. With the claim
+set for that install, the same four worlds give WAR1 made by the board, with the extras on it, the make task, an empty line,
+and "you took back the WAR1 the board made" when declined. The law now claims the world in roster_with before the seed and
+asserts _D2R_OWNER as a premise. No code changed.
+
 ### REG-2792 - REG-2833'S CHROME LAW ASSUMED A 17 PX SCROLLBAR, AND CI'S CHROME DRAWS 10 (CI on ci/claude-v3833)
 test_the_edit_pane_reserves_its_scrollbar_whether_it_scrolls_or_not went red on CI with "10 not greater than or equal to
 17": the page's own scrollbar style wins over the law's injected 17 px one there. The law's real claim held on CI - the
