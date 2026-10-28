@@ -155,6 +155,62 @@ class TheWorldBandLeavesRoomForTheLadderRibbon(unittest.TestCase):
                                           "this line")
 
 
+def _band_tall(band, tok):
+    """The band's line box plus its vertical padding, read from its own rule. -> float | None"""
+    fs = _px(band, "font-size", tok)
+    lh = re.fullmatch(r"([\d.]+)(px)?", _value(band, "line-height", tok) or "")
+    pad = re.search(r"(?<![-\w])padding\s*:\s*([\d.]+)px\s+[\d.]+px\s+([\d.]+)px", band or "")
+    if not (fs and lh and pad):
+        return None
+    line = float(lh.group(1)) if lh.group(2) else float(lh.group(1)) * fs
+    return line + float(pad.group(1)) + float(pad.group(2))
+
+
+class TheWorldBandLeavesRoomForTheFramedSearch(unittest.TestCase):
+    """#220 (REG-2913) - inside the console frame (body.engine-driven) the tab row is hidden and the
+    search is the first row, so on a Windows board the fixed band (and on a ladder profile the ribbon
+    stacked under it) painted over its top. GrokBot measured ~10px of #gsearch-input covered on the
+    Mac's shadow of the ALT. The reserve is read from the file on both sides, never the number 22."""
+
+    def setUp(self):
+        self.css = _css()
+        self.tok = _tokens(self.css)
+        self.tall = _band_tall(_rule(self.css, "#cousin-ribbon"), self.tok)
+        self.assertIsNotNone(self.tall, "premise: the band's height cannot be read from its rule")
+
+    def _top(self, selector):
+        decls = _rule(self.css, selector)
+        self.assertIsNotNone(decls, "no rule reserves the band's room above the framed search (%s)"
+                             % selector)
+        m = re.search(r"(?<![-\w])margin-top\s*:\s*([\d.]+)px\s*(!important)?", decls)
+        self.assertIsNotNone(m, "%s declares no px margin-top" % selector)
+        # a plain margin here is INERT: v640 sets .gsearch-wrap's margin with !important
+        if re.search(r"(?:^|\})\s*\.gsearch-wrap\s*\{[^}]*(?<![-\w])margin\s*:[^;}]*!important",
+                     self.css, flags=re.M):
+            self.assertTrue(m.group(2), "%s reserves %spx without !important, and a .gsearch-wrap rule "
+                            "sets its margin !important - the reserve never applies" % (selector, m.group(1)))
+        return float(m.group(1))
+
+    def test_the_framed_windows_search_starts_below_the_band(self):
+        top = self._top("body.engine-driven.cousin-shell .gsearch-wrap")
+        self.assertGreaterEqual(top, self.tall,
+                                "the framed search starts %.1fpx down and the band is %.1fpx tall - "
+                                "the band paints over the search" % (top, self.tall))
+
+    def test_a_framed_ladder_search_starts_below_both_ribbons(self):
+        m = re.search(r"body\.cousin-shell\s+#ladder-ribbon\s*\{[^}]*?(?<![-\w])top\s*:\s*([\d.]+)px",
+                      self.css)
+        self.assertIsNotNone(m, "premise: the ladder ribbon's stack offset is gone")
+        top = self._top("body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap")
+        # the ladder ribbon's own line box is not readable (its font shorthand is invalid, so it
+        # inherits); the band's is, and the two ribbons share one shape - the band bounds it
+        need = float(m.group(1)) + self.tall
+        self.assertGreaterEqual(top, need,
+                                "the framed ladder search starts %.1fpx down; the ladder ribbon is "
+                                "stacked %spx under a %.1fpx band, so it needs %.1fpx"
+                                % (top, m.group(1), self.tall, need))
+
+
 RED_PROOF = [
     {
         "why": "#218 - the band's font shorthand restored: `inherit` as the family is invalid, the band "
@@ -169,6 +225,27 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "font-weight:var(--fw-semibold);font-size:var(--fs-meta);line-height:var(--lh-none);/* #218",
         "replace": "font-weight:var(--fw-semibold);font-size:16px;line-height:var(--lh-none);/* #218",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2913 - the framed Windows search reserves less than the band's height",
+        "file": "bible.html",
+        "find": "body.engine-driven.cousin-shell .gsearch-wrap{margin-top:26px!important}",
+        "replace": "body.engine-driven.cousin-shell .gsearch-wrap{margin-top:12px!important}",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2913 - a plain margin is inert under v640's !important .gsearch-wrap margin",
+        "file": "bible.html",
+        "find": "body.engine-driven.cousin-shell .gsearch-wrap{margin-top:26px!important}",
+        "replace": "body.engine-driven.cousin-shell .gsearch-wrap{margin-top:26px}",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2913 - a framed ladder search reserves the band but not the ribbon stacked under it",
+        "file": "bible.html",
+        "find": "body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap{margin-top:49px!important}",
+        "replace": "body.engine-driven.cousin-shell.ladder-profile .gsearch-wrap{margin-top:26px!important}",
         "matches": 1,
     },
 ]
