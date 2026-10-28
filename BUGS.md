@@ -14,6 +14,12 @@ and the targets run in ONE browser profile - so `vault` owned 18 weapons, and `v
 and the hand door filed each as a second COPY (L1: a name typed again is another physical copy). The fixture, not the page,
 had changed. Both seeds now name their door (`by: 'the render seed'`), so a name an earlier target owns answers 'already'.
 Measured: vault-full back to clipped 0/392 and 29 pictures (it had 50), UNI-WEAPONS "29 ×2" with its hot gauge.
+### REG-2712 - THE X ON ONE COPY SENT EVERY COPY TO THE DOCK, AND SAID "send back" (#111, reviewers C2/E/D)
+A copy cell's X calls vaultUnassign(name): copies of one item share one filing (d2r_muleAssign is per name; #76's per-copy
+record store is still dormant), so every copy goes. Making one copy leave alone is #76's model, not a one-line fix - so the
+X now SAYS it on a cell whose item has more than one copy ("ALL N copies of X go together ... one copy cannot be sent alone
+yet"), through _vaultCellXTitle, which the cell paints its X with. Law: test_a_copy_cell_says_every_copy_goes (a red-proof).
+
 ### REG-2711 - "flail" CACHED NO RUNEWORDS, AND EVERY LATER "Flail" READ IT (#111, reviewers C2/E/D)
 _baseRunewords memoises on the LOWERCASED name; _baseCats looked BASE_CLASS up case-sensitively, so 'flail' found no class
 (flails are a known gap in the regex fallback), cached [] under 'flail', and every later 'Flail' read the cached nothing -

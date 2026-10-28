@@ -12089,6 +12089,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_spelling_never_poisons_the_runeword_cache.py")], 300,
          needs_app=False,
          why='REG-2711 (#111) - flail, Flail and FLAIL host the same runewords; a lowercase spelling never caches an empty answer'),
+    Gate("test_a_copy_cell_says_every_copy_goes",
+         [sys.executable, os.path.join(HERE, "test_a_copy_cell_says_every_copy_goes.py")], 300,
+         needs_app=False,
+         why="#111 - a multi-copy cell's X says every copy goes to the dock (copies share one filing until #76's per-copy store)"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
