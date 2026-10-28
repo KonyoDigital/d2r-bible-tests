@@ -28,7 +28,7 @@ _console_safe_enable()
 from cb_node_harness import NODE  # noqa: E402
 
 UI = os.path.join(HERE, "control_ui.html")
-CHIP = ("  var _fleetStuckChip = function (m) {\n", "    return bits.join('');\n  };\n")
+CHIP = ("  var _fleetStuckChip = function (m, nowMs) {\n", "    return bits.join('');\n  };\n")
 WHY = ("  function _fleetStuckWhy(list, label){\n", "join('  |  ');\n  }\n")
 
 VAULT = "vault lane: owes 7, 4318 read(s) on record; 3 ruled empty by the triage"
