@@ -7050,7 +7050,7 @@
   body[data-endurance="1"] #tly-ov .tly-panel { animation: none; }
   /* v906 — the DAILY TASK FORCE: quest rows, not a list dump */
   .hd-taskforce { background: linear-gradient(180deg, rgba(30,24,12,.55), rgba(0,0,0,.32)); border-color: rgba(240,192,96,.28); }
-  /* v945 CONSOLE PARITY C8 — the LAST SESSION digest is the newest sealed reel: a mint reel-accent */
+  /* v945 CONSOLE PARITY C8 — the LAST SESSION digest (the last session, REG-2790): a mint reel-accent */
   .hd-lastsession { border-color: rgba(143,230,160,.28); box-shadow: inset 3px 0 0 rgba(143,230,160,.5); }
   .hd-tf-rows { display: flex; flex-direction: column; gap: var(--hd-gap-row); }
   /* ══ v1636 · THE ROSTER IS A TABLE, NOT FIVE INDEPENDENT FLEX ROWS ════════════════════════════
@@ -8421,7 +8421,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
              width without this class only because it is alone in zone Ⅱ and hits the v1507
              `:nth-child(2):last-child` span — lastsession is NOT alone in zone Ⅲ. -->
         <div class="hd-col hd-wide hd-lastsession" id="hd-lastsession" hidden>
-          <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest sealed reel · one glance</span></div>
+          <div class="hd-h">📼 LAST SESSION <span class="hd-sub">newest finished run · one glance</span></div>
           <div class="hd-tf-rows" id="hd-ls-row"></div>
         </div>
         <!-- v1275 (SESSIONS FLAGSHIP D3) — HISTORY as first-class board region (collapsible).
@@ -12954,7 +12954,13 @@ window._lockMark = function(isOpen, px, label){
     }
     var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession(true) : 0;
     if (pick && typeof thLoadSession === 'function') thLoadSession(pick, true);
-    else { try { toast('no session has film yet'); } catch (e2) {} }
+    else {
+      /* REG-2790 - the last session can have nothing to replay while older reels do: say which run it is, and never
+         'no session has film' over a shelf full of film */
+      var _ls = _lastSessionRow(TH.sessions || []);
+      var _film = (TH.sessions || []).some(function(s){ return s && !s.stub && !s.fixture && ((s.frames || 0) > 0 || (s.footageN || 0) > 0); });
+      try { toast(_ls && _film ? ('the last session (session ' + _ls.n + ') has no film to replay - older reels are on the shelf') : 'no session has film yet'); } catch (e2) {}
+    }
   };
   // ══ D14 · SESSION COMPARISON — diff two runs side by side. PURE UI off the /api/sessions card data already
   // in hand (TH.sessions || HD_ALL). Two pickers default to the last two real runs; deltas on B relative to A
@@ -17833,12 +17839,18 @@ window._lockMark = function(isOpen, px, label){
   }
   function thPickEntrySession(strict){
     /* The Theatre button's pick: newest reel with real film, then anything with frames.
-       The shelf's Last session button asks the same function. One pick.
        REG-1944 (the #231 eye on v3570) - `strict` answers 0 when no session has a frame or any film:
        the pick fell back to a literal 1, so Last session loaded "session 1" (maybe not a real n) onto
        an empty stage and its own 'no session has film yet' could never be said while sessions existed.
-       The Theatre button keeps its old fallback. */
-    var pick = strict ? 0 : 1, tiers = [
+       The Theatre button keeps its old fallback.
+       REG-2790 (#86) - `strict` is the shelf's ▶ Last session, and it answers THE last session (_lastSessionRow, the run the
+       home digest names), not these tiers' newest reel with a named find - that pick played session 48 under a digest saying 28.
+       A last session with no frame and no film answers 0: another reel never plays under its name (REG-1757). */
+    if (strict){
+      var last = _lastSessionRow(TH.sessions || []);
+      return (last && ((last.frames || 0) > 0 || (last.footageN || 0) > 0)) ? (last.n || 0) : 0;
+    }
+    var pick = 1, tiers = [
       function(s){ return !s.stub && (s.footageN||0) > 10 && (s.named||0) > 0; },
       function(s){ return !s.stub && (s.footageN||0) > 10; },
       function(s){ return !s.stub && (s.reads||0) >= 3 && (s.named||0) > 0 && (s.frames||0) > 0; },
@@ -24510,9 +24522,9 @@ window._lockMark = function(isOpen, px, label){
   // the per-session strip in #hd-hist-strip via _hdHistoryRender(), both alive and polled.
   // HD_ALL stays — 19 live references, including the Theatre pickers and the KPI panel.
   var HD_ALL = [], HD_TOTAL = null;
-  // v936 (STORY ARC R2b) — LAST SESSION digest: the newest SEALED reel (KAI has closed it,
-  // kaiMissed!=null), rendered as one flagship tf-row on the home dash. Fed by HD_ALL, which
-  // hdShelf() repopulates from /api/sessions every poll. Hidden entirely until a reel seals.
+  // v936 (STORY ARC R2b) — LAST SESSION digest, one flagship tf-row on the home dash. Fed by HD_ALL, which
+  // hdShelf() repopulates from /api/sessions every poll. REG-2790: it named the newest SEALED reel (kaiMissed
+  // != null); it names _lastSessionRow's run now, sealed or not, and its badge says which (REG-2102).
   /* REG-2757 (#86 nit, GrokBot's v3821 pass: "LAST SESSION digest has no date") - when the digest's run was captured, from
      its own t0 (REG-2736: dated by what it captured). No t0 is no date - never today's. -> string, '' when unknown */
   function _lsWhenSay(t0){
@@ -24520,11 +24532,31 @@ window._lockMark = function(isOpen, px, label){
     if (!d || isNaN(d.getTime())) return '';
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
+  /* #86 (REG-2790, GrokBot's v3642 pass: "LAST SESSION card vs Shelf ▶ Last session") - ONE "LAST SESSION". The home's
+     📼 LAST SESSION said "session 28" while the Shelf's ▶ Last session opened "session 48": the digest named the newest reel
+     KAI had sealed (kaiMissed set, else HD_ALL[1]) and the button the newest reel with film and a named find
+     (thPickEntrySession's tiers). MEASURED on his journal 2026-10-28 ~16:07, the two old rules re-run over it read-only: the
+     digest named session 6 (02:00, sealed) and the button session 2 (15:00-16:00, 2,274 stills, not sealed yet), so two
+     runs played after session 6 were "last" on one surface and missing from the other.
+     The last session is the newest run that is over: not a stub (v885: under 3 rows and no film), not one of the suite's
+     fixtures (v3083: never his reels), and ON AIR not the run being recorded (n 1: the theatre is PAST only, v1380.5).
+     Sealed or not - the digest's badge says which (REG-2102). The digest and the Shelf's ▶ Last session both ask this.
+     -> the session row, or null when there is none */
+  function _lastSessionRow(list){
+    var onAir = document.body.getAttribute('data-state') === 'on';
+    var rows = list || [];
+    for (var i = 0; i < rows.length; i++){
+      var s = rows[i];
+      if (!s || s.stub || s.fixture) continue;
+      if (onAir && s.n === 1) continue;
+      return s;
+    }
+    return null;
+  }
   function hdLastSession(){
     try {
       var box = $('hd-lastsession'); if (!box) return;
-      var t = (HD_ALL || []).find(function(s){ return s.kaiMissed != null; });
-      if (!t && (HD_ALL || []).length > 1) t = HD_ALL[1];   // fallback: the one before the live head
+      var t = _lastSessionRow(HD_ALL);   /* REG-2790 - the run the Shelf's ▶ Last session opens too */
       if (!t){ box.hidden = true; return; }
       var parts = [];
       var _lsWhen = _lsWhenSay(t.t0);   /* REG-2757 */

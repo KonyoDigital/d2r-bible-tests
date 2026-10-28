@@ -12233,6 +12233,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_copy_past_the_cells_is_counted.py")], 300,
          needs_app=False,
          why='#111 REG-2786 - a keeper target is never drawn as copies held, and a copy typed past the cells is counted on every surface'),
+    Gate("test_the_last_session_is_one_run",
+         [sys.executable, os.path.join(HERE, "test_the_last_session_is_one_run.py")], 300,
+         needs_app=False,
+         why="#86 REG-2790: the home digest and the Shelf's Last session name one run"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

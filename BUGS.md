@@ -104,6 +104,20 @@ receipt, the filing's where, and the receipt a cell X demotes the filing back to
 name already owned through a found-ever tick, later sent back by its cell X, demotes to that tick and now waits for a
 picture or a drag instead of re-filing on the click. Law: test_a_planner_record_is_not_his_hand (node, the whole page; the
 shipped gate cut and run with a record for every name). 2 red-proofs, both RED.
+### REG-2790 - "LAST SESSION" NAMED ONE RUN ON THE HOME PAGE AND OPENED ANOTHER ON THE SHELF (#86, GrokBot's 28 vs 48)
+GrokBot (v3642, carried to v3686): the home's 📼 LAST SESSION card read "session 28 · 526 reads · 239 missed" while the
+Shelf's ▶ Last session opened "SESSION 48". Two rules: the digest named the newest reel KAI had sealed (kaiMissed set, else
+HD_ALL[1]) and the button the newest reel with more than 10 film stills and a named find (thPickEntrySession's tiers).
+REG-2736 fixed the order under both; the rules still disagreed. Re-run read-only over his journal 2026-10-28 ~16:07, the
+digest named session 6 (02:00, sealed) and the button session 2 (15:00-16:00, 2,274 stills, not sealed yet). One rule
+now, _lastSessionRow - the newest run that is over: not a stub (v885), not a suite fixture (v3083), and ON AIR not the run
+being recorded. "Newest finished run" won over "newest sealed reel": it is what "last" means, his v778 words for the
+theatre ("the recent last session"), and GrokBot's v3677 complaint was the Shelf listing reels newer than the digest's.
+Kept: an unsealed run still wears ◌ OPEN, never CLEAN (REG-2102); the heading says "newest finished run". The Shelf's
+▶ Last session plays that run or says it has no film to replay, never another reel under its name (REG-1757). The Theatre
+button keeps its substance pick (v786/v885) - left for his ruling. Law: test_the_last_session_is_one_run (6 cases: the
+real hdShelf -> hdLastSession and _shelfLastSession -> thPickEntrySession run in node over the same rows; 6 red-proofs,
+each RED). test_the_shelf_opens_on_the_list's harness carries the new helper.
 
 ### REG-2768 - A SECOND CLICK ON AN OPEN FLEET ROW COULD ENTER THE SHADOW INSTEAD OF THE COMPARE (#225, GrokBot's v3824 pass)
 REG-2749 made the first click open the row and a click on the open row open the compare. GrokBot SAW both on Dean's row

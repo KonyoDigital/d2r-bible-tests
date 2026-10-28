@@ -197,10 +197,11 @@ def _drive(src, names, scenario, extra_stubs=""):
     return json.loads(r.stdout)
 
 
-_LAST = ["function thPickEntrySession(", "window._shelfLastSession = async function(){"]
+# REG-2790 - the strict pick asks _lastSessionRow (the one "last session" the home digest names too), so it rides along
+_LAST = ["function _lastSessionRow(", "function thPickEntrySession(", "window._shelfLastSession = async function(){"]
 # REG-2698 - thOpen's /api/sessions wait is thSessionsWait now; it rides with thOpen, and so do its two bounds (_bounds)
 _OPEN = ["async function thOpen(){", "async function thSessionsWait(", "async function thLoadSession(",
-         "function thApplyCardPref(){", "function thPickEntrySession(",
+         "function thApplyCardPref(){", "function _lastSessionRow(", "function thPickEntrySession(",
          # GrokBot v3817 - the wait shares one /api/sessions request in flight (_sessionsJson over _sessionsFetchOnce)
          "async function _sessionsFetchOnce(", "function _sessionsJson("]
 
@@ -268,7 +269,7 @@ class TheShelfDoorLeavesTheWayItCame(unittest.TestCase):
         self.assertTrue(any(x.startswith("toast:the theatre could not open") for x in got["log"]), got["log"])
 
     def test_premise_the_theatre_button_keeps_its_fallback(self):
-        out = _drive(self.src, ["function thPickEntrySession("],
+        out = _drive(self.src, ["function _lastSessionRow(", "function thPickEntrySession("],
                      "TH.sessions = [{n: 5, frames: 0}];\n_done({loose: thPickEntrySession(), strict: thPickEntrySession(true)});")
         self.assertEqual((1, 0), (out["loose"], out["strict"]))
 
