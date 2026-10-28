@@ -3691,6 +3691,23 @@ def _ca_kinds(v):
     return out
 
 
+#: intake design P1 (REG-2816) - the doors a copy readout names a source by (bible.html _ownedProvSourceClass); any other key
+#: is dropped, so the banked readout can only say what the board's own vocabulary says
+COPY_AUDIT_SOURCES = ("hand", "auto", "sweep", "photo", "chronicle", "unknown")
+
+
+def _ca_sources(v):
+    """REG-2816 - a readout's records by source ({class: count}), shaped: the six class names only, a count or nothing.
+    -> dict | None (None = the board sent none: UNKNOWN, never "no source")"""
+    if not isinstance(v, dict):
+        return None
+    return {k: _ca_count(n) for k, n in v.items() if k in COPY_AUDIT_SOURCES}
+
+
+def _ca_text(v, n):
+    return v[:n] if isinstance(v, str) and v else None
+
+
 def accept_handed_copy_audit(body, who=None, now_ms=None):
     """#144.9 (REG-2760) - shape-check and bank the copy readout a board just handed over.
     -> (saved: True | False | None, why | None); None when this hand-over carried none (the board sends one at most
@@ -3723,16 +3740,31 @@ def accept_handed_copy_audit(body, who=None, now_ms=None):
         shaped.append({"name": r["name"][:120], "mule": r["mule"][:64], "card": _ca_count(r.get("card")),
                        "records": _ca_count(r.get("records")), "find": _ca_count(r.get("find")),
                        "findKind": (k[:16] if isinstance(k, str) else None), "copies": _ca_count(r.get("copies")),
-                       "warCap": _ca_count(r.get("warCap")), "mismatch": r.get("mismatch") is True})
+                       "warCap": _ca_count(r.get("warCap")), "mismatch": r.get("mismatch") is True,
+                       # REG-2816 - where the row's copies came from and when it was last seen, as the board read them
+                       "sources": _ca_sources(r.get("sources")), "sourceRaw": _ca_text(r.get("sourceRaw"), 48),
+                       "seenFirst": _ca_count(r.get("seenFirst")), "seenLast": _ca_count(r.get("seenLast"))})
     _COPY_AUDIT.update(audit={"ok": True, "at": _ca_count(a.get("at")), "recordsRead": a.get("recordsRead") is True,
                               "dirty": a.get("dirty") if isinstance(a.get("dirty"), bool) else None,
                               "migrateCount": _ca_count(a.get("migrateCount")), "checked": len(shaped),
                               # REG-2779 - what the readout covers beside what it checks, and the migrate receipt's date
                               "migrateAt": _ca_count(a.get("migrateAt")), "recordsTotal": _ca_count(a.get("recordsTotal")),
                               "recordsByKind": _ca_kinds(a.get("recordsByKind")),
+                              # REG-2816 - overall: records by source, the stalest and freshest last-seen, rows with none
+                              "bySource": _ca_sources(a.get("bySource")),
+                              "lastSeenOldest": _ca_count(a.get("lastSeenOldest")),
+                              "lastSeenNewest": _ca_count(a.get("lastSeenNewest")),
+                              "lastSeenNone": _ca_count(a.get("lastSeenNone")),
                               "mismatched": sum(1 for r in shaped if r["mismatch"]), "rows": shaped},
                        receivedAt=now, who=_p, refused=None)
     return True, None
+
+
+def _roster_vault_say():
+    """REG-2817 - what the roster upload's vault section is built from right now, beside the readout it is built from:
+    rows and asOf (when the board handed its records), or why there is no section. -> dict"""
+    rows, why, as_of = _roster_vault_from_records()
+    return {"rows": (len(rows) if rows is not None else None), "asOf": as_of, "why": why}
 
 
 def copy_audit_payload(now_ms=None):
@@ -3742,12 +3774,13 @@ def copy_audit_payload(now_ms=None):
     rf = _COPY_AUDIT.get("refused")   # REG-2778 - a newer hand-over this console would not keep, with its own age
     rf = dict(rf, ageS=max(0, (now - int(rf["at"])) // 1000)) if isinstance(rf, dict) and rf.get("at") is not None else None
     if a is None or at is None:
-        return {"ok": False, "audit": None, "receivedAt": None, "ageS": None, "refused": rf,
+        return {"ok": False, "audit": None, "receivedAt": None, "ageS": None, "refused": rf, "rosterVault": _roster_vault_say(),
                 "why": "no board has handed this console a copy readout since it started - an open board sends one about "
                        "a minute after it loads, then every 5 min" if rf is None else
                        "the only copy readout handed over was refused: " + rf["why"]}
     return {"ok": bool(a.get("ok")), "audit": a, "receivedAt": at, "ageS": max(0, (now - int(at)) // 1000),
-            "who": _COPY_AUDIT.get("who"), "refused": rf, "why": None if a.get("ok") else a.get("why")}
+            "who": _COPY_AUDIT.get("who"), "refused": rf, "why": None if a.get("ok") else a.get("why"),
+            "rosterVault": _roster_vault_say()}
 
 
 def accept_handed_picker(body, who):
@@ -4775,6 +4808,22 @@ def _chronicle_name_lists():
     return lists or None
 
 
+def _roster_vault_from_records():
+    """REG-2817 - the roster upload's vault rows from the board's own records: the copy readout it last handed (REG-2760),
+    one row per locker-homed name (name, locker), dated by when the board handed it. -> (rows | None, why | None, asOf | None)
+    None rows = the board has not handed its records, or could not read them: UNKNOWN, never an empty vault."""
+    a, at = _COPY_AUDIT.get("audit"), _COPY_AUDIT.get("receivedAt")
+    if not isinstance(a, dict) or not isinstance(at, int) or isinstance(at, bool) or at <= 0:
+        return None, "the board has not handed its vault records since this console started", None
+    if a.get("ok") is not True or not isinstance(a.get("rows"), list):
+        return None, ("the board could not read its vault records: " + str(a.get("why") or "no reason given"))[:200], None
+    rows = []
+    for r in a["rows"]:
+        if isinstance(r, dict) and isinstance(r.get("name"), str) and isinstance(r.get("mule"), str):
+            rows.append({"name": r["name"], "locker": r["mule"]})
+    return rows, None, int(at)
+
+
 def _roster_reads(now_ms):
     """Sections this PC actually read. A failed read stays out, never an empty list."""
     import roster_publish as _rp
@@ -4814,58 +4863,19 @@ def _roster_reads(now_ms):
         if got is not None:
             reads["characters"] = got
 
-    rows = None
-    why = None
-    mt = None
-    try:
-        acc, why, mt = _vault_store_read(VAULT_LEDGER_PATH)
-        if why == "ok" and isinstance(acc, dict) and isinstance(acc.get("owned"), list):
-            rows = []
-            for raw in acc["owned"]:
-                if not isinstance(raw, dict):
-                    continue
-                row = {}
-                for key in ("name", "tier", "mule", "locker"):
-                    if key in raw:
-                        row[key] = raw[key]
-                looks = raw.get("looks")
-                if isinstance(looks, bool) or not isinstance(looks, int):
-                    wit = raw.get("witnesses")
-                    if isinstance(wit, list):
-                        looks = 0
-                        for w in wit:
-                            if isinstance(w, dict):
-                                looks += 1
-                    else:
-                        looks = None
-                if isinstance(looks, int) and not isinstance(looks, bool):
-                    row["looks"] = looks
-                evidence = []
-                listed = raw.get("evidence")
-                if isinstance(listed, list):
-                    evidence.extend(listed)
-                wit = raw.get("witnesses")
-                if isinstance(wit, list):
-                    for w in wit:
-                        if not isinstance(w, dict):
-                            continue
-                        sid = w.get("session")
-                        if isinstance(sid, str):
-                            evidence.append(sid)
-                if evidence:
-                    row["evidence"] = evidence
-                if row:
-                    rows.append(row)
-        else:
-            rows = None
-    except Exception as e:
-        _ROSTER_FAIL["vault"] = type(e).__name__
-        rows = None
-        why = None
-    as_of = now_ms
-    if isinstance(mt, (int, float)) and not isinstance(mt, bool) and mt > 0:
-        as_of = int(mt * 1000)
-    got = _rp.vault_read(why, rows, as_of)
+    # intake design P1 (REG-2817, his ruling Q1-Q4, #230 6473846977) - THE VAULT SECTION IS THE BOARD'S RECORDS, as the
+    # board last handed them. It was this console's vault_accum.json (the sweep's evidence ledger, "evidence, not truth") with
+    # asOf = that file's mtime - or this very moment when the mtime would not read - beside a stash section from the board's
+    # d2r_owned: one upload, two sources, and a date that said when a file was touched. The rows now come from the copy
+    # readout the board hands at most every 5 min (its locker-homed copy records, REG-2760), asOf = when it handed them. A
+    # board that has not handed them since this console started, or could not read them, sends no vault section and says
+    # why - never an empty vault and never "now". The accum ledger stays where the console shows it (its vault routes).
+    rows, why, as_of = _roster_vault_from_records()
+    if rows is None:
+        _ROSTER_FAIL["vault"] = why
+    else:
+        _ROSTER_FAIL.pop("vault", None)
+    got = _rp.vault_read("ok" if rows is not None else why, rows, as_of)
     if got is not None:
         reads["vault"] = got
 

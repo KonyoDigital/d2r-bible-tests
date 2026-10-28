@@ -12301,6 +12301,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_saved_target_never_moves_unless_he_moves_it.py")], 300,
          needs_app=False,
          why='REG-2787 a saved move target never moves unless he moves it (re-file, hand spot) or its mule is deleted, and the row says why'),
+    Gate("test_the_copy_readout_says_where_copies_came_from",
+         [sys.executable, os.path.join(HERE, "test_the_copy_readout_says_where_copies_came_from.py")], 300,
+         needs_app=False,
+         why="intake P1 REG-2816: the copy readout counts each locker row's copies by recorded source and dates its last capture"),
+    Gate("test_the_roster_vault_is_the_boards_records",
+         [sys.executable, os.path.join(HERE, "test_the_roster_vault_is_the_boards_records.py")], 300,
+         needs_app=False,
+         why="intake P1 REG-2817: the roster upload's vault section is the board's records, dated by their hand-over"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

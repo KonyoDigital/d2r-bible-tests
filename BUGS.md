@@ -154,6 +154,33 @@ stash's family (the shared stash and every WAR mule, by id and role) is marked `
 expand, a WAR mule's window (with a "SHARED STASH · overflow" badge) and FIND's mule name; rows and the expand print the
 mule's name today. When a normal mule already carries the name WAR1, the board makes WAR2 instead. Law
 `tv/test_a_mule_is_a_war_mule_by_its_role_never_its_name.py` (whole page in node, 14 red-proofs, each seen RED).
+### REG-2817 - THE ROSTER UPLOAD'S VAULT SECTION WAS THE CONSOLE'S EVIDENCE FILE, DATED BY ITS MTIME (intake design P1, his ruling Q1-Q4)
+The upload's vault section was built from vault_accum.json - the sweep's evidence ledger, whose own header says "evidence,
+not truth" - with asOf = that file's mtime, or the moment of publishing when the mtime would not read, while its stash
+section came from the board's d2r_owned: one upload, two sources, and a date that said when a file was touched. The vault
+rows now come from the copy readout the board hands this console at most every 5 min (its locker-homed copy records,
+REG-2760): one row per name (name, locker), asOf = when the board handed it. A board that has not handed one since this
+console started, or handed one saying it could not read its records, sends no vault section and says why - never an empty
+vault, never "now" - and GET /api/vault/copy_audit carries it beside the readout (rosterVault: rows, asOf, or why). The
+accum ledger is not deleted; the console's vault routes still read it. Law: test_the_roster_vault_is_the_boards_records (5
+cases on control_app, through roster_publish's vault_read and section_of; 5 red-proofs, each RED). Swept: the stash and
+characters sections were dated by the publish moment too - REG-2818.
+
+### REG-2816 - THE COPY READOUT COULD NOT SAY WHERE A LOCKER ROW'S COPIES CAME FROM OR WHEN IT WAS LAST SEEN (intake design P1)
+His ruling (Q1-Q4 all yes, #230 6473846977) starts the intake design with the instrument: before any behaviour changes,
+the copy readout counts copies by source and dates the last-seen, so every later phase can be checked against it.
+MEASURED on his board's store 2026-10-28 (a read-only copy, deleted after): 22 provenance rows - 16 receipts (source
+aic-judge 11, kai-register 5; 9 carry a measured read time, and all 12 of their looks an `at`) and 6 filing rows
+(kept/evidence 4, hand/hand 1, stash/kai-register 1; their 20 looks carry no time); 13 persisted records, each carrying its
+name's one source. The store keeps ONE source per name, and capture times only where a read recorded one. So per locker
+row the readout now carries `sources` (its records under the class its provenance row records: hand / auto / sweep / photo
+/ chronicle - one table beside _ownedProvSourceSay, a filing row's lane read past to its `by` - else unknown, never a
+guess), `sourceRaw` (the recorded source/by), and `seenFirst` / `seenLast` (the oldest and newest capture time it records -
+a measured receipt time or a look's `at`; a filing's own time and an unmeasured ts are not captures - null when none);
+overall `bySource`, `lastSeenOldest` / `lastSeenNewest` and `lastSeenNone`. The console banks them shaped (the six class
+names only, a count or nothing). Law: test_the_copy_readout_says_where_copies_came_from (6 cases: the board's half on the
+whole page in node, the console's on control_app; 6 red-proofs, each RED). test_a_copy_readout_says_what_each_side_counts'
+two red-proofs re-aimed at the moved lines, 11 of 11 RED.
 
 ### REG-2783 - REG-2810'S LAW READ THE SHADOW BAR'S BINDING THROUGH A GUESSED 900-CHARACTER WINDOW (test_a_source_window_must_reach_its_subject)
 The source-window ratchet rose to 45 (ceiling 44) on v3832: test_the_bar_carries_the_pointer_and_binds_it read

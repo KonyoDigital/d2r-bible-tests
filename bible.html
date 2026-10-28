@@ -22842,6 +22842,26 @@ try {
                    'vault-filing': 'the vault door', 'evidence': 'the reset rebuild (evidence)', 'kept': 'the reset rebuild (kept kind)',
                    'd2s': 'a .d2s read', 'stash': 'witness looks in your stash', 'tv-chat': 'the in-game chat (TV)' };
   window._ownedProvSourceSay = function(src){ var s = String(src == null ? '' : src); return _SRC_SAY[s] || s || 'UNKNOWN'; };
+  /* intake design P1 (REG-2816, his ruling on Q1-Q4, #230 6473846977) - WHICH DOOR A RECORDED SOURCE CAME THROUGH, in the five
+     the design names. Read off what a provenance row already holds (its `source`, and its `by` where the source is only a lane)
+     and nothing else; a value not named here is 'unknown', never a guess. MEASURED on his store 2026-10-28 (read-only): his
+     22 rows hold source aic-judge 11, kai-register 5, kept 4, hand 1, stash 1, and by evidence 4 (the reset rebuild),
+     kai-register 1, hand 1. hand: his hand. auto: the reader on a frame (the live reader / KAI register, the TV register, the
+     AI item checker, a TV photo). sweep: the console sweep and the reset rebuild from its evidence. photo: a photo or folder
+     read. chronicle: a Chronicle apply or sweep. -> 'hand' | 'auto' | 'sweep' | 'photo' | 'chronicle' | 'unknown' */
+  var _SRC_CLASS = { 'hand': 'hand', 'manual': 'hand', 'by-hand': 'hand',
+                     'aic-judge': 'auto', 'kai-register': 'auto', 'inbox-auto': 'auto', 'tv-register': 'auto', 'tv-vault': 'auto',
+                     'tv-route': 'auto', 'tv-photo': 'auto', 'tvVaultRegister': 'auto',
+                     'vault-sweep': 'sweep', 'evidence': 'sweep',
+                     'intake-read': 'photo', 'folder-photo': 'photo',
+                     'chronicle-apply': 'chronicle', 'chronicle-sweep': 'chronicle', 'chronicleApply': 'chronicle' };
+  window._ownedProvSourceClass = function(src, by){
+    var s = String(src == null ? '' : src), b = String(by == null ? '' : by);
+    /* a filing row's `source` is the LANE it was filed from ('stash', 'kept' - neither is in the table), so who filed it,
+       its `by`, names the door */
+    if (Object.prototype.hasOwnProperty.call(_SRC_CLASS, s)) return _SRC_CLASS[s];
+    return Object.prototype.hasOwnProperty.call(_SRC_CLASS, b) ? _SRC_CLASS[b] : 'unknown';
+  };
   /* the short words a tile / slot says about a receipt */
   window._ownedProvWords = function(r, name){
     if (!r || typeof r !== 'object') return '';
@@ -52364,9 +52384,31 @@ window.vaultAutoAssign = function(){
      stamp are read raw, never through the readers that carry a stamp forward - and it runs in a shadow too.
      -> {ok, at, recordsRead, checked, mismatched, dirty, migrateCount,
          rows: [{name, mule, card, records, find, findKind, copies, warCap, mismatch}]}, mismatched rows first */
+  /* intake design P1 (REG-2816) - THE CAPTURE TIMES A PROVENANCE ROW ACTUALLY RECORDS: a receipt's own read time when it says
+     it was measured (tsMeasured: true), and every look's `at`. A filing row's `at` is when it was FILED, not when anything was
+     seen, and a receipt from before tsMeasured existed cannot be told from the wall clock - neither is a capture time.
+     MEASURED on his store: 9 of 16 receipts carry a measured ts and all 12 of their looks an `at`; 0 of the 20 filing looks
+     do. -> [ms] (empty = none recorded) */
+  function _vaultSeenTimes(row){
+    var t = [];
+    if (!row || typeof row !== 'object') return t;
+    if (row.kind === 'owned' && row.tsMeasured === true && typeof row.ts === 'number' && row.ts > 0) t.push(row.ts);
+    (Array.isArray(row.looks) ? row.looks : []).forEach(function(l){
+      var p = (l && typeof l.at === 'string') ? Date.parse(l.at) : NaN;
+      if (isFinite(p) && p > 0) t.push(p);
+    });
+    return t;
+  }
   function _vaultCopyAudit(){
     var out = { ok: true, at: Date.now(), recordsRead: false, checked: 0, mismatched: 0, dirty: null, migrateCount: null,
-                migrateAt: null, recordsTotal: null, recordsByKind: null, rows: [] };
+                migrateAt: null, recordsTotal: null, recordsByKind: null, rows: [],
+                bySource: null, lastSeenOldest: null, lastSeenNewest: null, lastSeenNone: null };
+    /* intake design P1 (REG-2816) - where each locker row's copies came from and when it was last seen, read off its one
+       provenance row (the store keeps ONE per name, not per copy - every record of the name carries that source). null =
+       the witness store would not read: UNKNOWN, never "no source". */
+    var _prov = null;
+    try { _prov = (typeof _provAll === 'function') ? _provAll() : null; } catch (eP) { _prov = null; }
+    if (!_prov || typeof _prov !== 'object' || Array.isArray(_prov)) _prov = null;
     try { out.dirty = (window.LSR.getItem('d2r_vaultRecordsDirty') != null); } catch (eD) { out.dirty = null; }
     try {
       var _mg = JSON.parse(window.LSR.getItem('d2r_vaultRecordsMigrate') || 'null');
@@ -52412,12 +52454,36 @@ window.vaultAutoAssign = function(){
         /* the war stash draws only what its cap keeps, by design (L1): the cap rides the row so a capped card reads as one */
         try { if (mid === 'shared' && typeof window._vaultWarCap === 'function') cap = window._vaultWarCap(n); } catch (eWc) { cap = null; }
         var known = [card, rec, find].filter(function(x){ return typeof x === 'number'; });
+        /* REG-2816 - by source: this row's records, under the class its provenance row records (unknown when it has none);
+           seenFirst / seenLast: the oldest and newest capture time that row records, null when it records none */
+        var srcs = null, srcRaw = null, seenFirst = null, seenLast = null;
+        if (_prov) {
+          var pr = Object.prototype.hasOwnProperty.call(_prov, n) ? _prov[n] : null;
+          var cls = (pr && typeof window._ownedProvSourceClass === 'function') ? window._ownedProvSourceClass(pr.source, pr.by) : 'unknown';
+          srcRaw = pr ? (String(pr.source == null ? '' : pr.source) + '/' + String(pr.by == null ? '' : pr.by)).slice(0, 48) : null;
+          if (typeof rec === 'number') { srcs = {}; srcs[cls] = rec; }
+          var ts = _vaultSeenTimes(pr);
+          if (ts.length) { seenFirst = Math.min.apply(null, ts); seenLast = Math.max.apply(null, ts); }
+        }
         out.rows.push({ name: n, mule: mid, card: card, records: rec, find: find, findKind: kind, copies: cc, warCap: cap,
-                        mismatch: known.some(function(x){ return x !== known[0]; }) });
+                        mismatch: known.some(function(x){ return x !== known[0]; }),
+                        sources: srcs, sourceRaw: srcRaw, seenFirst: seenFirst, seenLast: seenLast });
       });
     });
     out.checked = out.rows.length;
     out.mismatched = out.rows.filter(function(r){ return r.mismatch; }).length;
+    /* REG-2816 - overall: the records by source over these rows, and the stalest and freshest last-seen among them; a row with
+       no recorded capture time is counted apart (lastSeenNone), never dated. With the witness store unread all stay null. */
+    if (_prov) {
+      var _bs = {}, _last = [];
+      out.lastSeenNone = 0;
+      out.rows.forEach(function(r){
+        Object.keys(r.sources || {}).forEach(function(k){ _bs[k] = (_bs[k] || 0) + r.sources[k]; });
+        if (typeof r.seenLast === 'number') _last.push(r.seenLast); else out.lastSeenNone += 1;
+      });
+      out.bySource = _bs;
+      if (_last.length) { out.lastSeenOldest = Math.min.apply(null, _last); out.lastSeenNewest = Math.max.apply(null, _last); }
+    }
     out.rows.sort(function(a, b){
       return (b.mismatch - a.mismatch) || (a.mule < b.mule ? -1 : a.mule > b.mule ? 1 : (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
     });
