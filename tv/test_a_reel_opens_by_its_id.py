@@ -48,7 +48,9 @@ OLD = _rows("s_1000_1", 1000000) + _rows("s_2000_2", 2000000) + _rows("s_3000_3"
 NEW = OLD + _rows("s_4000_4", 4000000)      # one more session started after the shelf was drawn
 # split_sessions orders reels by their NEWEST row, so a retro lane (kai, intake) writing a row onto an OLD reel
 # moves it to the top with no new session at all - the Mac's own list has a Sep-8 reel at n=2 for 850 kai rows.
-RETRO = OLD + [{"ts": 5000000, "sessionId": "s_1000_1", "lane": "kai", "names": []}]
+# REG-2736 - a post-hoc KAI note no longer moves a reel (a session is dated by what it CAPTURED), so the reorder this
+# case needs is a reel that genuinely resumed: a read captured later on the old reel.
+RETRO = OLD + [{"ts": 5000000, "captureTs": 5000000, "sessionId": "s_1000_1", "names": []}]
 
 
 class _Fake(object):

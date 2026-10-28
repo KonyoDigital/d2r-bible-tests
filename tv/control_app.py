@@ -46209,7 +46209,10 @@ class Handler(BaseHTTPRequestHandler):
                             "coverage": _coverage, "classFrames": (_class_frames or None),   # v1276 (D5 engine) — decision-story meter + montage
                             "superRecovery": _super_recovery, "missedFrames": _missed_frames,   # v1278 (D6 engine) — recovery badge + missed-text drill
                             "sealMs": _seal_ms, "regretItems": _regret_items,   # v1280 (D7 engine) — seal-latency chip + regret spotlight
-                            "n": i, "t0": sess[0].get("ts"), "t1": sess[-1].get("ts"),
+                            # REG-2736 - dated by when its rows were CAPTURED (replay.row_moment): a re-read days later
+                            # is not the session ending today
+                            "n": i, "t0": min(_rp.session_moments(sess) or [0]) or sess[0].get("ts"),
+                            "t1": max(_rp.session_moments(sess) or [0]) or sess[-1].get("ts"),
                             # v1563 — READ SPAN, not wall-clock. t0..t1 is the session's first row to
                             # its last, which includes idle and any trailing heartbeat. One of his
                             # sessions spans 1798.9 MINUTES around 3.5 minutes of actual reading, and
@@ -46223,10 +46226,10 @@ class Handler(BaseHTTPRequestHandler):
                                 # a two-read session would span max(ts) - 0 = ~56 YEARS and drown
                                 # the fleet rate at ~0/hr — the exact ghost-span class v1563 was
                                 # written to kill, reintroduced by its own guard.
-                                [_t for _t in ((r2.get("ts") or 0) for r2 in sess
+                                [_t for _t in (_rp.row_moment(r2) for r2 in sess   # REG-2736 - captured, not written
                                  if not r2.get("sessionEnd") and r2.get("scene") != "session_end"
                                  and r2.get("mode") != "session_end" and r2.get("kind") != "skip"
-                                 and r2.get("lane") not in ("kai", "verify", "intake")) if _t > 0]),
+                                 and r2.get("lane") not in ("kai", "verify", "intake", "watchdog")) if _t > 0]),   # REG-2736 - a verdict is not a read
                             "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3

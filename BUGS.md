@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2736 - A RE-READ OF AN OLD REEL MOVED IT TO THE TOP OF THE SHELF WITH A 17-DAY SPAN (#86, his "Last session" 28 vs 48)
+MEASURED on his journal and /api/sessions 2026-10-28: the Shelf's first eight rows were September and October reels, and
+the LAST SESSION digest named an October 10 reel. The REG-2728 loop had re-closed them all morning, and every re-close
+wrote rows with ts = today: kai-funnel receipts (carrying their frame's captureTs), the KAI closer's "closed the session"
+note (ts and captureTs both today, dated from the session's newest row - the previous note - so 59 re-closes walked one
+September reel forward to today) and the watchdog's verdict. replay.split_sessions ordered sessions by their newest ts,
+and the Shelf row took t0/t1 from its first and last ts, so one reel read t1 = today and readMs 1,490,631,272 (17 days).
+A row's moment is now its frame's capture time when it carries one (replay.row_moment), and the lanes that annotate a
+session after it (POST_HOC_LANES: the KAI ledger, the watchdog) are left out of its moments - every row counting only when
+nothing else is there. The order, t0/t1 and the read span use them (a watchdog verdict is not a read). On his journal the
+re-read reels fall back to Oct 10 and Sep 28 and today's sessions lead. REG-1933's law needed a reorder; it now gets one
+from a read captured later on the old reel, not a KAI note. Law: test_a_session_is_dated_by_what_it_captured (4 cases,
+5 red-proofs; the real Handler._theatre_sessions over a fixture journal).
+
 ### REG-2735 - A LOCKER AND A SHARED-STASH TAB COULD NOT BE REACHED FROM THE KEYBOARD (#154.19, GrokBot's vault sweep)
 The same defect as REG-2734, swept: a locker's plate (div.vm-plate) opened its ID card on a click only, and the shared
 stash's five page tabs were divs with an onclick - while the mule tabs beside them were already real tab buttons. The

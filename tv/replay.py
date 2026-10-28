@@ -77,6 +77,34 @@ def load_journal(path=None):
     return reads
 
 
+def row_moment(r):
+    """REG-2736 (#86) - WHEN A JOURNAL ROW HAPPENED: its frame's capture time when it carries one, else its ts. -> int
+
+    `ts` is when the row was WRITTEN. For a live read the two are seconds apart; for a re-read of an old reel they are
+    days apart. MEASURED 2026-10-28 on his journal: the KAI closer's re-closes of 12 October reels (REG-2728) wrote
+    intake, kai and watchdog rows with ts = today - every one carrying its frame's captureTs - and the Shelf, which
+    ordered and dated sessions by ts, put an October 10 reel first, called it the LAST SESSION, and gave it a 17-day
+    read span. A session is ordered and dated by when its moments were captured."""
+    c = (r or {}).get("captureTs")
+    if isinstance(c, (int, float)) and not isinstance(c, bool) and c > 0:
+        return int(c)
+    t = (r or {}).get("ts")
+    return int(t) if isinstance(t, (int, float)) and not isinstance(t, bool) and t > 0 else 0
+
+
+#: REG-2736 - lanes that ANNOTATE a session after it: the KAI closer's ledger ("KAI closed the session ...") and the
+#: watchdog's verdict. They say when the note was written, not when anything in the session happened - and each re-close
+#: dated its note from the session's newest row, the last note, so 59 re-closes walked one September reel to today.
+POST_HOC_LANES = ("kai", "watchdog")
+
+
+def session_moments(g):
+    """REG-2736 - the moments a session's own rows were captured (row_moment), the post-hoc notes left out; every row's
+    when nothing else is there. -> [int] (positive only)"""
+    m = [x for x in (row_moment(r) for r in (g or []) if (r or {}).get("lane") not in POST_HOC_LANES) if x > 0]
+    return m or [x for x in (row_moment(r) for r in (g or [])) if x > 0]
+
+
 def split_sessions(reads):
     """Chronological journal → list of sessions (newest first).
 
@@ -140,8 +168,9 @@ def split_sessions(reads):
 
     sessions.extend(by_sid.values())
     # newest first, by the LATEST row each group holds — a reel that resumed after another
-    # started belongs where it ENDED, which is where he looks for it.
-    sessions.sort(key=lambda g: max((r.get("ts") or 0) for r in g))
+    # started belongs where it ENDED, which is where he looks for it. REG-2736: by when its rows were CAPTURED
+    # (row_moment), so a re-read of an old reel days later does not move it to the top.
+    sessions.sort(key=lambda g: max(session_moments(g) or [0]))
     sessions.reverse()
     return sessions
 

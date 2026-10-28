@@ -12133,6 +12133,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_locker_and_a_shared_tab_take_the_keyboard.py")], 300,
          needs_app=False,
          why='REG-2735 (#154.19) - a locker plate and a shared-stash tab take the keyboard'),
+    Gate("test_a_session_is_dated_by_what_it_captured",
+         [sys.executable, os.path.join(HERE, "test_a_session_is_dated_by_what_it_captured.py")], 300,
+         needs_app=False,
+         why='REG-2736 (#86) - a session is ordered and dated by what it captured, not by a later re-read'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
