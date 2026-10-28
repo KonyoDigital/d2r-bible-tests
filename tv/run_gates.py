@@ -12361,6 +12361,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_magic_or_rare_tile_draws_its_base.py")], 300,
          needs_app=False,
          why="REG-2851/2852: a magic or rare item draws its base's picture (record, else the one grammar; a base with no key wears its uniques' sprite), the same on the card, the window, FIND and the hover"),
+    Gate("test_a_move_that_does_not_happen_says_why",
+         [sys.executable, os.path.join(HERE, "test_a_move_that_does_not_happen_says_why.py")], 300,
+         needs_app=False,
+         why="REG-2854: the vault's move door answers every move, and a refused one (a Magic & Rare keeper, a locker the board lacks) is said"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

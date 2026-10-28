@@ -312,6 +312,20 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2854 - A MAGIC & RARE KEEPER "MOVED" TO THE SHARED STASH WHERE NOTHING DREW IT, AND THE MOVE DOOR ANSWERED NOTHING (GrokBot's ACT-8 on his MAGIC & RARE)
+GrokBot: vaultAssign('Fine Small Charm of Vita','shared') "returned nothing and moved nothing". Measured on the whole page
+in node: an owned keeper filed on the shared stash said "-> SHARED STASH" and returned undefined, while it stayed drawn in
+MAGIC & RARE and nowhere else - a rolled name is no record, so no other locker draws it, and a filing beside its keeper
+record is the double filing the integrity check takes back (REG-2184); an unowned keeper was told only that it "is not on
+your owned list"; a locker id the board does not have returned undefined and said nothing (the status kept the last
+move's words); and every filing that did happen returned undefined. Now each refusal returns {ok, refused, why} and is said
+where he is looking (_vaultLockSay); a keeper's refusal says it is a Magic & Rare keeper and why it stays there; a filing
+returns {ok: true, mule}; a unique, a set piece or a runeword sitting in Magic & Rare is filed as before (REG-2184 keeps a
+catalogue item's mule filing). Not decided here: taking a keeper OUT of Magic & Rare (his charm ruling, ACT-4) - a keeper
+can only be drawn somewhere else once that locker draws rolled names. Law: test_a_move_that_does_not_happen_says_why,
+4 red-proofs, RED. Re-aimed: test_a_hardened_filing_is_locked_until_he_releases_it's #98 P4 red-proof (its line now
+returns the answer), RED.
+
 ### REG-2852 - A RARE WHOSE BASE IS NO ART KEY STILL DREW THE DIAMOND, AND ONE CHARM SIZE WORE TWO SPRITES (the REG-2851 sweep, GrokBot's ACT-2)
 A rare kept with its base on record drew the mark when that base was no art key - his Brimstone Clasp, a rare Plated Belt.
 Measured on the whole page in node: 36 of BASE_DB's 508 bases answered no picture from artUrl (Plated Belt, War Belt,
