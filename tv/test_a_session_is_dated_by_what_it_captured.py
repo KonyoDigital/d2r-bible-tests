@@ -83,6 +83,15 @@ class ASessionIsOrderedByWhatItCaptured(unittest.TestCase):
         self.assertEqual(RP.session_moments([{"lane": "kai", "ts": 7, "captureTs": 7}]), [7],
                          "a session holding only a KAI note lost its only moment")
 
+    def test_a_re_read_counts_only_through_its_capture_time(self):
+        """REG-2744 (the v3821 second eye) - a verify or intake row with no capture time is when the re-read WROTE."""
+        live = {"ts": 5, "captureTs": 5}
+        self.assertEqual(RP.session_moments([live, {"lane": "verify", "ts": 999}]), [5],
+                         "a verify row with no capture time dated the session by when it was written")
+        self.assertEqual(RP.session_moments([live, {"lane": "intake", "ts": 999}]), [5])
+        self.assertEqual(sorted(RP.session_moments([live, {"lane": "intake", "ts": 999, "captureTs": 7}])), [5, 7],
+                         "an intake row's own capture time stopped counting")
+
 
 class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
 
@@ -115,10 +124,21 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
         self.assertEqual((old.get("t0"), old.get("t1")), (T_OLD, T_OLD + 60000),
                          "the old reel is dated by when it was last written about: %r" % ({k: old.get(k) for k in ("t0", "t1")},))
         self.assertEqual(old.get("readMs"), 60000, "the read span stretched to the re-read: %r" % old.get("readMs"))
+        self.assertEqual(old.get("reads"), 3, "REG-2744 - the watchdog's verdict was counted as a read: %r" % old.get("reads"))
         self.assertEqual((by[NEW].get("t0"), by[NEW].get("t1")), (T_NEW, T_NEW + 120000))
 
 
 RED_PROOF = [
+    {"why": "REG-2744 - a re-read row with no capture time dates the session by when it wrote",
+     "file": "replay.py",
+     "find": "        return int(cap) if isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap > 0 else 0\n",
+     "replace": "        return row_moment(r)\n",
+     "matches": 1},
+    {"why": "REG-2744 - the read count keeps its own lane list and counts the watchdog's verdict",
+     "file": "control_app.py",
+     "find": "                            \"reads\": len([r2 for r2 in sess if _is_a_live_read(r2)]),",
+     "replace": "                            \"reads\": len([r2 for r2 in sess if _is_a_live_read(r2) or r2.get(\"lane\") == \"watchdog\"]),",
+     "matches": 1},
     {"why": "REG-2736 - sessions are ordered by their newest WRITTEN row again (a re-read reel jumps to the top)",
      "file": "tv/replay.py",
      "find": "    sessions.sort(key=lambda g: max(session_moments(g) or [0]))\n",
@@ -141,8 +161,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2736 - the watchdog's verdict counts as a read and stretches the read span",
      "file": "tv/control_app.py",
-     "find": "and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\")) if _t > 0]),",
-     "replace": "and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\")) if _t > 0]),",
+     "find": "            and r2.get(\"kind\") != \"skip\" and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\"))\n",
+     "replace": "            and r2.get(\"kind\") != \"skip\" and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\"))\n",
      "matches": 1},
 ]
 
