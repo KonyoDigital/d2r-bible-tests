@@ -121,11 +121,29 @@ class AnotherTabsWriteIsMergedNotClobbered(unittest.TestCase):
 
     def test_a_roster_first_saved_in_the_other_tab_is_taken_not_held(self):
         """Nothing saved yet: this tab runs on the default lockers, so the other tab's first save is a change to that."""
-        o = _run("var r = window.__V.roster().map(function(m){ return Object.assign({}, m); });"
+        o = _run("OUT.savedAtBoot = RAW['d2r_muleRoster'] != null;"
+                 "var r = window.__V.roster().map(function(m){ return Object.assign({}, m); });"
                  "other('d2r_muleRoster', JSON.stringify(r.concat([{ id: 'war1', name: 'WAR1', icon: 'x', note: '' }])));"
                  "OUT.ids = window.__V.roster().map(function(m){ return m.id; });"
                  "OUT.held = window.LSR.quarantined('d2r_muleRoster');", seed={}, vault=True)
+        # REG-2967 - a board with no saved roster writes none at load (the WAR-role stamp skips the default lockers)
+        self.assertFalse(o["savedAtBoot"], "a fresh board saved a roster at load, so it is no longer 'nobody saved here'")
         self.assertIsNone(o["held"], "a roster nobody had saved here must be taken, not held: %r" % o["held"])
+        self.assertIn("war1", o["ids"])
+
+    def test_a_saved_roster_stamped_at_load_still_takes_the_other_tabs_save(self):
+        """REG-2967 - REG-2804's one-time WAR-role stamp is saved WITH the roster, so this tab's memory equals the store and
+        the other tab's next save is taken; a stamp left only in memory read as an edit this tab made (held as stale)."""
+        o0 = _run("OUT.r = window.__V.roster().map(function(m){ var c = Object.assign({}, m); delete c.warRoleV; return c; });",
+                  seed={}, vault=True)
+        o = _run("OUT.stamped = (window.__V.roster().filter(function(m){ return m.id === 'shared'; })[0] || {}).warRoleV;"
+                 "var r = window.__V.roster().map(function(m){ return Object.assign({}, m); });"
+                 "other('d2r_muleRoster', JSON.stringify(r.concat([{ id: 'war1', name: 'WAR1', icon: 'x', note: '' }])));"
+                 "OUT.ids = window.__V.roster().map(function(m){ return m.id; });"
+                 "OUT.held = window.LSR.quarantined('d2r_muleRoster');",
+                 seed={"d2r_muleRoster": json.dumps(o0["r"])}, vault=True)
+        self.assertEqual(o["stamped"], 1, "premise: the saved roster was not stamped at load: %r" % o)
+        self.assertIsNone(o["held"], "a saved roster this tab only stamped was held as an edit: %r" % o["held"])
         self.assertIn("war1", o["ids"])
 
     def test_bytes_that_will_not_parse_are_quarantined_here_too(self):
@@ -215,6 +233,14 @@ RED_PROOF = [
      "file": "bible.html", "matches": 1,
      "find": "    var tl = tv, bl = base.ok ? valOf(base.v) : [];\n",
      "replace": "    var tl = tv, bl = (base.ok && base.v) || [];\n"},
+    {"why": "REG-2967 - the WAR-role stamp runs on a roster nobody saved, and the fresh board saves one at load",
+     "file": "bible.html", "matches": 1,
+     "find": "    if (!_rosterSaved) return;\n",
+     "replace": ""},
+    {"why": "REG-2967 - the stamp stays in memory only, so the other tab's next save is held as an edit this tab made",
+     "file": "bible.html", "matches": 1,
+     "find": "    try { _guardedSet(RK, JSON.stringify(roster)); } catch (eWv) {}   /* REG-2967 the stamp is saved with it, changed or not: memory = store */\n",
+     "replace": "    if (changed) { try { _guardedSet(RK, JSON.stringify(roster)); } catch (eWv) {} }\n"},
     {"why": "REG-2413 - a storage another tab cleared is ignored and this tab writes its old copy back",
      "file": "bible.html", "matches": 1,
      "find": "              var _h = window.LSR.hold(x, 'another tab cleared this browser\u2019s saved data');\n",

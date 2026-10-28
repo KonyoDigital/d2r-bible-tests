@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2967 - REG-2804'S ONE-TIME WAR-ROLE STAMP MADE ANOTHER TAB'S FIRST ROSTER SAVE A CONFLICT (found by agent-guide's sweep)
+test_another_tabs_write_is_merged_not_clobbered's "a roster first saved in the other tab is taken, not held" went red on the
+v3836 batch (it passed on v3834 and on CI). Bisected by reverting: REG-2804 alone. Its legacy migration set
+`sh.warRoleV = 1` on the in-memory roster on EVERY board, including one that had never saved a roster, and wrote it only when
+a name-made WAR mule changed - so memory differed from the store, and the cross-tab sync read that as an edit this tab made
+and held the other tab's save as "stale". Now a never-saved roster is skipped (the default lockers carry no name-made WAR
+mule), and on a saved roster the stamp is saved with it whether or not a mule changed, so memory equals the store. Law:
++1 case (a saved roster stamped at load still takes the other tab's save) and an assertion that a fresh board saves no
+roster at load; 2 red-proofs, both RED; REG-2804's own laws pass (8, 6, 4, 20 cases).
+
+
 ### REG-2937 - THE SPINNER LAW'S SCROLL PROOF WAS BLIND: ITS CASE NEVER SCROLLED THE PANE (the v3832/v3833 push gate)
 The second push attempt was refused on test_the_planner_spinner_stays_under_the_cursor[2] ("the repaint sends the edit pane
 back to the top") staying GREEN with its sabotage in. The arrow-key case opened the planner at a 420 px modal; in the

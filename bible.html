@@ -42746,6 +42746,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      it was renamed back) is taken off. The marker rides the shared stash's own entry, saved with the roster. */
   (function(){
     if (_muleUnread[RK]) return;
+    /* REG-2967 - a roster never saved here has nothing to stamp: the default lockers carry no name-made WAR mule, and a
+       stamp left in memory only read to the cross-tab sync as an edit this tab made, so the other tab's FIRST save was held
+       as stale (test_another_tabs_write_is_merged_not_clobbered). */
+    if (!_rosterSaved) return;
     var sh = roster.filter(function(m){ return m && m.id === 'shared'; })[0];
     if (!sh || sh.warRoleV >= 1) return;
     var changed = false;
@@ -42757,7 +42761,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (x) { m.role = 'war'; m.warN = x[1] ? +x[1] : 1; changed = true; }
     });
     sh.warRoleV = 1;
-    if (changed) { try { _guardedSet(RK, JSON.stringify(roster)); } catch (eWv) {} }
+    try { _guardedSet(RK, JSON.stringify(roster)); } catch (eWv) {}   /* REG-2967 the stamp is saved with it, changed or not: memory = store */
   })();
   // v404 migration — inject the RUNEWORDS mule into rosters saved before it existed (Konyo: "just a
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
