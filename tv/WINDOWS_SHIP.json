@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3834",
+  "ver": "v3835",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3834: board makes WAR mules and tasks him, integrity never rescues a router throw, circlet needs a look, a cap is a refusal",
+  "note": "v3835: REC-03 reads proven warm, profile question counts only counts, a digest past 200 KB stores, a held start keeps boot",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
