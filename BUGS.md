@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2755 - A SHELF CARD'S DATE WRAPPED "AM" UNDER ITS PIN (#86, GrokBot's v3821 and v3823 passes)
+The card title was absolute with a fixed right reserve of 104px for the pin and the seal (v3214). "🛡 clean" + the pin +
+their gap + the inset need ~111px in Chrome's mono and more in his WebKit's, so the title's second line ran under the
+cluster. The title and the cluster are one flex row now (.shc-top): the cluster takes what it needs (flex:none), the
+title takes the rest (min-width:0), and the title's time is one unit (.shc-hm) so a narrow card breaks at the dot. The
+overlap depends on font metrics, so the law parses the stylesheet: test_a_shelf_card_title_never_runs_under_its_pin
+(4 cases, 4 red-proofs).
+
 ### REG-2754 - THE GROK CHAT PRUNE AND THE DISK SIGN NAMED TWO SIZES FOR ONE FOLDER, AND THE ALT'S LINE SAID NOTHING (#151)
 GrokBot's v3823 pass: the prune's line said the chats hold 0.74 GB while the sign's list said "Grok sessions 0.82 GB",
 and the ALT's prune line read say: null while he played. The budget counts the conversation folders and the list
@@ -14,6 +22,15 @@ measures the whole sessions folder (its other files too); each now says which, a
 folder triggers the prune. The line starts "not asked yet - ..." and a pass that waits for his game or a busy machine
 says so on the prune's line too, its lastTs staying the last pass that ran. Law: test_free_space_counts_what_macos_frees
 (3 new cases, 3 new red-proofs).
+
+### REG-2753 - THE DISK SIGN READ 11.9 GB AND A CHIP ON THE SAME CONSOLE READ 12.3 (#151, GrokBot's v3823 pass)
+Three free-space readings reach the console from three moments: the disk sign's (read at the status call, through
+disk_room - it matched Finder's 11.91 GB), the last retention pass's (up to 15 min old) and the agent's health blob (only
+while the agent runs). The home chip, the status line's under-floor and 24 h trend clauses, the drawer's free row and
+the shadow's floor sentence each read one of the older two. window._diskFreeNow is the one answer now - the sign's, else
+the retention pass's (with its age), else the agent's, else UNKNOWN - and all five ask it. The agent's own DISK FULL fault
+keeps the agent's figure: it reports what the agent decided on. Law: test_one_console_shows_one_free_figure (4 cases,
+4 red-proofs).
 
 ### REG-2752 - A REEL OF CAPTURE-LESS RE-READS COULD STILL BE DATED BY WHEN THEY WROTE (the v3823 second eye)
 REG-2744 counted a verify or intake row only through its frame's capture time. The fallback for a session with no
