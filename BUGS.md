@@ -60,6 +60,18 @@ test_the_task_force_repaints_only_when_it_changed.py ran `subprocess.run([NODE, 
 refuses everywhere because Linux caps one argv string at 128 KB and the failure reads as an OS error with no word about the
 law. Its program is small today; the rule is about the shape. It now feeds node on stdin (`[NODE, "-"], input=js`), and
 both laws pass (3/3 and 2/2).
+### REG-2888 - REG-2803'S LAW WENT RED ON INT-7: IT COUNTED EVERY MAKE ROW AND THE SHELF'S EVERY BADGE, AND REG-2895'S CHARMS MULE ADDED ONE OF EACH (the v3834 second-eye follow-up, measured on claude/int-7)
+The full-diff Grok second eye on v3834 claimed that deleting a WAR mule records the take-back "in memory" and never writes
+it. MEASURED on the whole page in node, executing the real doors (vaultDeleteMule, his confirm answered yes): the claim
+does not hold. The shared stash's entry is an element of the roster the delete saves in its one write (saveR). The stored
+roster held warDeclined ['WAR1'], and a reload made nothing. No return sits between the decline and the save, and his
+"no" returns before either, so the take-back is written exactly when the delete is. That case is now a guard that runs the
+door (tv/test_a_war_mule_he_took_back_stays_back_by_its_number.py). Running REG-2803's own law on claude/int-7 found it
+RED on int-7's own bible (2 of 10). Since REG-2895 the board also makes the dedicated CHARMS mule and asks him to make it
+in the game. The law counted every make row (2: CHARMS and WAR1) and read the made-by-the-board badge across the whole
+shelf, so WAR1's badge still looked present after his tick. It now counts the WAR mule's own make rows and reads the badge
+on the WAR1 card. 12 of 12 red-proofs still RED.
+
 ### REG-2965 - A MAGIC CHARM PICKED AND LEFT BARE WAS LOST (integration int-4: REG-2839 meets REG-2895)
 
 REG-2839 files a magic planner pick he leaves bare, once, at Done; REG-2895's one charm rule names no home for a charm whose affix it cannot read (a doubt is asked, never guessed). Meeting on one branch, measured on the whole page in node: the planner's route answered "stays unfiled" and its caller dropped the pick's register record and never owned it - a bare magic Small Charm was lost, and REG-2839's law (test_a_magic_pick_files_once_with_its_mods) went red. _vpRoute now owns such a pick and keeps its record when the router's unsorted answer is the charm rule's question, and says so ("is yours and stays unfiled until you say which charm it is"); the caller counts it as kept. No mule is guessed. Same step, a fixture re-aim: test_magic_and_rare_draws_every_item_it_counts (REG-2850/2853) used three charms as Magic & Rare keepers, which his ruling now homes off that locker; they are a magic jewel pair and an amulet, its 5 red-proofs re-proven RED. Law test_a_bare_charm_pick_is_his_and_asked (2 cases), 3 red-proofs RED.
