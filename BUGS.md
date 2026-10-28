@@ -558,6 +558,23 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2849 - HIS HAND COULD NOT REMOVE THE COPY HE MEANT: THE STEPPER TOOK THE LAST ONE (#154 P3c)
+Each copy carries its own entry (REG-2844), but no door took out ONE named copy. The count stepper took the LAST copy off.
+Measured on the whole page in node: with an Ist Shako (copy 1) and a Ber Shako (copy 2), removing the Ist one took the Ber
+record, and the Ist entry stayed under the copy that was left.
+
+The trade door (REG-2877) already removed THAT copy, and the copies after it closed up. That mechanism is reused here, so
+there is no second one. window.vaultRemoveCopy(name, copyIx) goes through window._vaultTradeEvent as 'remove-copy':
+- the copy's record (its move and its own entry) leaves in a removal-journal batch on his ✕'s lane (card-click), with no
+  trade slot and no traded row the D2JSP card would count;
+- the copies after it close up with their own entries, cells and moves, and the count drops one;
+- the toolbar Undo is named for that copy, and vaultRestoreLast puts it back where it was;
+- the last copy leaves through vaultRemove as his ✕, noted removed (REG-2845).
+
+The opened MOVE row of each copy carries "✕ Remove this copy". Two REG-2877/2881 red-proofs whose lines now read the lane
+and the undo words through variables are re-aimed, and the three trade laws prove RED. Law:
+test_his_hand_removes_the_copy_it_names (node, the whole page), 5 red-proofs, RED.
+
 ### REG-2848 - A SIGHTING NEVER JOINED ITS COPY: A NEW CELL READ AS COPY 0 MOVING, AND HAND COPIES VANISHED (#154 P3c)
 His plan is to add his items by hand now and let AUTO's sightings join those same records later. Measured on the whole page
 in node:
