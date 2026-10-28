@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3823",
+  "ver": "v3824",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3823: purgeable space counts on every disk floor, his old Grok chats prune when needed, a watchdog verdict is not a read",
+  "note": "v3824: the Fleet opens then compares, film spans its run, stash focus stays, chronicle names carry their age",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
