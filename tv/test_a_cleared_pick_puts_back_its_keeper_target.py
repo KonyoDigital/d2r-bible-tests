@@ -86,8 +86,8 @@ class AClearedPickPutsBackItsKeeperTarget(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2842 - the clear puts the target back only when it also takes the copy off",
      "file": "bible.html",
-     "find": "      if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && multiKeep[b.name] === b.keepSet){\n",
-     "replace": "      if (_vpCopyUndone.took && b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && multiKeep[b.name] === b.keepSet){\n",
+     "find": "      if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && _mkWant(b.name) === b.keepSet){\n",
+     "replace": "      if (_vpCopyUndone.took && b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && _mkWant(b.name) === b.keepSet){\n",
      "matches": 1, "needs": "node"},
 ]
 
