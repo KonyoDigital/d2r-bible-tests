@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2750 - ONE BLIND OR CHANGED LAW ANYWHERE SHUT EVERY LOCK, THE RIVER'S INCLUDED (#156, his ruling)
+His words, 2026-10-28: "do whatever is needed.. if needs to be rep-proving and build-per lock then do it." may() asked
+one question of the whole tree - is the census current (no gate file changed since it ran) and is nothing BLIND - so a
+blind law nowhere near the river shut printer.stream, reel.route and frame.release on every PC (#193), and any test edit
+closed every lock until a full re-prove. A lock now declares its door (self_arming.LOCK_DOORS); when the global rule
+refuses, may() and the report's padlock (one helper, REG-1737) ask that lock's OWN guards: the gates whose source names
+the lock or directly imports or opens its door module or the lock machinery. A guard BLIND closes it, a guard owed a
+proof makes it STALE (the v3042 rule still decides what STALE permits), and nothing else in the tree decides it.
+Measured on this batch's own tree (1,204 gates, the census from before it): the global rule calls every lock STALE
+because the gate fingerprint moved; per lock, frame.release is owed 2 of its 120 guards, printer.stream 1 of 82 and
+reel.route 1 of 71 - the laws this batch touched that name or import them - and each reason names those laws. A lock
+whose door is control_app (prune.reports, vault.sweep_start, console.pixel_rescue) has ~485 guards, so it still goes
+stale on almost any console change: that is where those acts live. A lock with no declared door, every route, an
+unreadable census and a law that seats the global answer keep the global rule. Law:
+test_a_lock_goes_stale_only_through_its_own_guards (9 cases on a fixture census, 5 red-proofs).
+
 ### REG-2749 - THE FLEET'S COMPARE WINDOW OPENED OVER THE ROW'S OWN SEE-CONSOLE BUTTON (#225, his ruling)
 GrokBot's v3821 pass (#230 6464730558): one click on a Fleet row opened the row inline with its see-console eyes AND the
 full-screen compare window on top of them, so he had to close the window before he could enter the shadow. That was his
