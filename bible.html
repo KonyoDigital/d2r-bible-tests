@@ -13351,6 +13351,8 @@ function d2jspPriceLine(q) {
         <span class="vault-tb-sp" aria-hidden="true"></span>
         <div class="vault-tb-grp vault-tb-chips">
           <button type="button" class="vault-chip" id="vault-chip-locks" hidden onclick="window.vaultLocksShow()" title="Open Locked where they are, collapsed at the bottom of the vault">🔒 <span id="vault-chip-locks-n">0</span> locked on MAIN</button>
+          <!-- #145 — the last change that had no way back (a wipe, a reset, a records clear, a hand add) can be undone, once, from here -->
+          <button type="button" class="vault-chip" id="vault-chip-undo" data-state="undo" hidden onclick="window.vaultUndoLast()">↶ Undo <span id="vault-chip-undo-what"></span></button>
         </div>
         <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
      _startAutoWatch polls the linked folder every 12s and feeds the same window.vaultIntake,
@@ -40989,6 +40991,7 @@ body{
 #mule-vault-card .vault-tb-sp{flex:1 1 var(--vsp-4)}
 #mule-vault-card .vault-chip{font-family:var(--serif-display,serif);font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;padding:var(--vsp-1) var(--vsp-3);border-radius:999px;border:1px solid rgba(240,192,96,.35);background:var(--surface-2);color:var(--text-muted);cursor:pointer}
 #mule-vault-card .vault-chip[data-state="on"]{color:var(--best);border-color:rgba(102,255,136,.45)}
+#mule-vault-card .vault-chip[data-state="undo"]{color:var(--gold-bright);border-color:rgba(240,192,96,.7)}
 #mule-vault-card label.vault-btn{display:inline-flex;align-items:center;cursor:pointer}
 #mule-vault-card .vault-deck{display:grid;grid-template-columns:1fr 1fr;gap:var(--vsp-4);align-items:stretch;margin:0 0 var(--vsp-4)}
 #mule-vault-card .vault-tool{display:flex;flex-direction:column;gap:var(--vsp-2);min-width:0;padding:var(--vsp-3) var(--vsp-4);border-radius:10px;background:var(--surface-2);border:1px solid rgba(240,192,96,.32);border-top:3px solid var(--gold-bright)}
@@ -46418,10 +46421,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, refused: 'no-list', why: 'the planner list was not read' };
     var row = null;
     cat.rows.forEach(function(r){ if (!row && r && r.id === id) row = r; });
+    var _undoText = (row && row.name && typeof window._vaultUndoSnap === 'function') ? window._vaultUndoSnap() : null;   /* #145 */
     var res = (!row || !row.name) ? { ok: false, refused: 'not-listed', why: 'that item is not in the planner list — nothing was added' }
             : window.vaultHandAdd(row.name, new Date().toISOString(), { kind: _VH_KIND[row.q] || null });
+    /* #145 trap 12 - a mistaken hand add had no way back: one that changed something can be undone from the toolbar */
+    var _undoHas = !!(res && res.ok && (res.mode === 'added' || res.mode === 'copy') && _undoText
+                      && typeof window._vaultUndoTake === 'function' && window._vaultUndoTake('the add of ' + (res.name || row.name), '', _undoText));
     var say = document.getElementById('vault-hand-say');
-    if (say){ say.textContent = res.why || ''; say.setAttribute('data-state', res.ok ? res.mode : 'refused'); }
+    if (say){ say.textContent = (res.why || '') + (_undoHas ? ' · ↶ Undo is in the toolbar' : ''); say.setAttribute('data-state', res.ok ? res.mode : 'refused'); }
     if (res.ok && res.mode === 'added'){
       try { renderVault(); } catch (eR) {}
       var qi = document.getElementById('vault-hand-q');
@@ -50895,27 +50902,30 @@ window.vaultAutoAssign = function(){
      materials, set pieces, runewords and the chronicle stay. Law: tv/test_a_wipe_items_empties_every_locker.py */
   window.vaultWipeItems = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultWipeItems'), {cancelFirst:true, title:'⚠ Danger — Wipe items'}))) return;
+    var _undoOk = window._vaultUndoTry ? window._vaultUndoTry('Wipe items', 'The linked screenshot folder is not part of it - link it again after an undo.') : null;  /* #145 */
     var R = await _vaultResetRun('vaultWipeItems');
     var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
     try { renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){}
     try { renderVault(); } catch(e){}
     try { window._repaintOwned(); } catch(e){}
-    status(_vaultResetSay(R), 20000);
+    status(_vaultResetSay(R) + (window._vaultUndoSay ? window._vaultUndoSay(_undoOk) : ''), 20000);
   };
   /* ALT inject run (Elad 2026-10-24 14:09 IDT, bug 1) - the records' clear-history door: the same scope runner and
      receipt as every reset, asked twice (Cancel first both times). Law: tv/test_the_vault_records_history_clears_from_the_reset_menu.py */
   window.vaultClearRecords = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultClearRecords'), {cancelFirst:true}))) return;
     if (!(await uiConfirm('Are you sure? This is the second confirmation - the vault records history is cleared now.', {cancelFirst:true}))) return;
+    var _undoOk = window._vaultUndoTry ? window._vaultUndoTry('Clear records history') : null;   /* #145 */
     var R = await _vaultResetRun('vaultClearRecords');
     try { renderVault(); } catch(e){}
-    status(_vaultResetSay(R), 20000);
+    status(_vaultResetSay(R) + (window._vaultUndoSay ? window._vaultUndoSay(_undoOk) : ''), 20000);
   };
   window.vaultReset = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultReset'), {cancelFirst:true, title:'⚠ Danger — Reset assignments'}))) return;
+    var _undoOk = window._vaultUndoTry ? window._vaultUndoTry('Reset assignments') : null;   /* #145 */
     var R = await _vaultResetRun('vaultReset');
     try { renderVault(); } catch(e){}
-    status(_vaultResetSay(R), 20000);
+    status(_vaultResetSay(R) + (window._vaultUndoSay ? window._vaultUndoSay(_undoOk) : ''), 20000);
   };
   /* ── Vault v3 (Elad t663u→t664u→t665u) — SAVE / LOAD PROFILE ───────────────────────────────────────────────
      WHAT ALREADY SAVES, MAPPED FIRST (and left untouched):
@@ -50986,8 +50996,8 @@ window.vaultAutoAssign = function(){
     var diff = window._vaultProfileDiff(P.stores), ch = diff.filter(function(r){ return r.changed; });
     if (!ch.length){ status('Profile matches what is here — nothing to change.', 8000); return { ok: true, wrote: 0 }; }
     var lines = ch.map(function(r){ return '• ' + r.group + ' · ' + r.store.replace(/^d2r_/, '') + ': ' + r.now + ' → ' + r.file; }).join('\n');
-    var msg = 'Load this profile' + (P.saved ? ' (saved ' + P.saved.slice(0, 16).replace('T', ' ') + ')' : '') + '? It replaces '
-      + ch.length + ' store(s) — the chronicle is not touched:\n' + lines;
+    var msg = (opts.lead ? String(opts.lead) : 'Load this profile' + (P.saved ? ' (saved ' + P.saved.slice(0, 16).replace('T', ' ') + ')' : ''))
+      + '? It replaces ' + ch.length + ' store(s) — the chronicle is not touched:\n' + lines;
     var yes = (typeof opts.confirm === 'function') ? await opts.confirm(msg) : await uiConfirm(msg, { cancelFirst: true, title: '⚠ Danger — Load profile' });
     if (!yes){ status('Profile not loaded — cancelled. Nothing was changed.'); return { ok: false, why: 'cancelled' }; }
     var before = {}; ch.forEach(function(r){ try { before[r.store] = window.LSR.getItem(r.store); } catch (e) { before[r.store] = null; } });
@@ -51027,6 +51037,51 @@ window.vaultAutoAssign = function(){
       .catch(function(e){ status('⚠ Profile not loaded — ' + String(e && e.message || e) + '. Nothing was changed.', 12000); }); };
     r.onerror = function(){ status('⚠ Profile not loaded — the file could not be read. Nothing was changed.', 12000); };
     r.readAsText(f); ev.target.value = '';
+  };
+  /* #145 (GrokBot ACT-A traps 7/8/12) — A WIPE, A RESET, A RECORDS CLEAR AND A HAND ADD HAD NO WAY BACK. Each now snapshots
+     the vault, stashes and characters (_vaultProfileBuild: the Save-profile file's own text, so a round trip is
+     byte-identical) in THIS page's memory just before it changes anything - after its confirm, so a cancelled one leaves no
+     undo. The ↶ chip names what it undoes and loads the snapshot back through vaultProfileLoad, which lists every store it
+     would change, confirms Cancel-first, puts back what it wrote when a store refuses, then reloads. ONE step (the newest
+     change replaces it), memory only (gone on reload - the profile file is the durable copy). The linked screenshot folder
+     lives in IndexedDB, outside a profile: an undone wipe says to link it again. */
+  window._vaultUndo = null;
+  /* -> the snapshot text, or null when a store could not be read (then there is no undo, and the caller says so) */
+  window._vaultUndoSnap = function(){
+    try { var t = window._vaultProfileBuild(); return (typeof t === 'string' && t) ? t : null; } catch (e) { return null; }
+  };
+  /* -> true when this change can be undone; `text` from _vaultUndoSnap (taken before), or taken now */
+  window._vaultUndoTake = function(what, note, text){
+    var t = (text === undefined) ? window._vaultUndoSnap() : text;
+    window._vaultUndo = t ? { what: String(what || 'the last change'), note: String(note || ''), at: Date.now(), text: t } : null;
+    window._vaultUndoPaint();
+    return !!window._vaultUndo;
+  };
+  window._vaultUndoPaint = function(){
+    var b = document.getElementById('vault-chip-undo'), u = window._vaultUndo;
+    if (!b) return;
+    b.hidden = !u;
+    var w = document.getElementById('vault-chip-undo-what');
+    if (w) w.textContent = u ? u.what : '';
+    b.title = u ? ('Undo ' + u.what + ' — puts the vault, stashes and characters back as they were just before it. You see every '
+      + 'store it changes and confirm first; the page reloads. Only the newest change can be undone, and only until this page reloads.'
+      + (u.note ? ' ' + u.note : '')) : '';
+  };
+  /* a reset line's tail: where the undo is, or that there is none (null: the undo block is not on this page) -> string */
+  window._vaultUndoSay = function(ok){
+    return ok === true ? ' · ↶ Undo is in the toolbar' : ok === false ? ' · ⚠ no undo: the stores could not be read before it' : '';
+  };
+  /* the door's own call: a door works the same whether or not this block loaded -> true | false | null (no undo block) */
+  window._vaultUndoTry = function(what, note){
+    return (typeof window._vaultUndoTake === 'function') ? window._vaultUndoTake(what, note) : null;
+  };
+  /* -> vaultProfileLoad's answer; the undo is spent only when it loaded */
+  window.vaultUndoLast = async function(opts){
+    var u = window._vaultUndo;
+    if (!u){ status('Nothing to undo on this page.', 6000); return { ok: false, why: 'nothing to undo' }; }
+    var r = await window.vaultProfileLoad(u.text, Object.assign({ lead: 'Undo ' + u.what }, opts || {}));
+    if (r && r.ok && r.wrote){ window._vaultUndo = null; window._vaultUndoPaint(); }
+    return r;
   };
   /* Vault v3 — the locks chip reads the collapsed lock rows. AUTO INTAKE's only switch is the Advanced button. */
   window._vaultChipsPaint = function(){
@@ -57109,12 +57164,13 @@ window.vaultAutoAssign = function(){
   // second eye on 0704d1bc caught this comment still saying owned was out of reach.
   window.vaultClearHistory = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultClearHistory'), {cancelFirst:true, title:'⚠ Danger — Reset vault'}))) return;
+    var _undoOk = window._vaultUndoTry ? window._vaultUndoTry('Reset vault', 'The linked screenshot folder is not part of it - link it again after an undo.') : null;   /* #145 */
     var R = await _vaultResetRun('vaultClearHistory');
     var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
     try { renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){}
     try { renderVault(); } catch(e){}
     try { window._repaintOwned(); } catch(e){}   // v1599 — was a permanently-false `typeof renderAll` guard
-    status(_vaultResetSay(R), 20000);
+    status(_vaultResetSay(R) + (window._vaultUndoSay ? window._vaultUndoSay(_undoOk) : ''), 20000);
   };
   // v342.25 — LIGHT reset: wipe ONLY the seen-files scan ledger (d2r_intakeSeen) so the folder
   // watch re-reads every screenshot as fresh. Does NOT touch owned items, mules, Magic & Rare,

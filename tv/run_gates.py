@@ -12105,6 +12105,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_census_reuses_byte_identical_proofs.py")], 300,
          needs_app=False,
          why='#186 the self-prove census serves a proof banked over byte-identical inputs and banks what it proves (his ruling 2026-10-28)'),
+    Gate("test_a_vault_change_can_be_undone",
+         [sys.executable, os.path.join(HERE, "test_a_vault_change_can_be_undone.py")], 300,
+         needs_app=False,
+         why='#145 a wipe, a reset, a records clear and a hand add can be undone once from the toolbar'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

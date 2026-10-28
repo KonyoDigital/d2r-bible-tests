@@ -857,6 +857,30 @@ TARGETS = {
             return !!(r.width>0 && r.height>0 && s.querySelector('.vault-org-row[data-name]')); })()""",
         "sel": "#vault-organize",
     },
+    # #145 (v3819) — the ↶ Undo chip in the vault toolbar. It is hidden until a change that has no other way back
+    # (a wipe, a reset, a records clear, a hand add) has taken its snapshot, so activate takes one the way a wipe does
+    # (_vaultUndoTake, after nothing is changed) and proves the chip painted from its rect, in the toolbar row it sits in.
+    "vault-undo-chip": {
+        "why": "the vault toolbar with the ↶ Undo chip showing (#145) - the chip beside the locks chip, in the same row",
+        "seed": """(function(){
+            localStorage.setItem('d2r_ownerClaim','*');
+            ['War Traveler','Enigma','Griffon\\'s Eye','Arachnid Mesh'].forEach(function(n){
+                try{ window.tvVaultRegister(n); }catch(e){} });
+            return 1; })()""",
+        "activate": """(function(){
+            var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
+              return /vault/i.test((x.getAttribute&&x.getAttribute('data-tab'))||x.textContent||'');})[0];
+            var on=[].slice.call(document.querySelectorAll('#head-tabs .ht.active,[data-tab].active')).some(function(x){
+              return /vault/i.test(x.getAttribute('data-tab')||''); });
+            if(el && !on) el.click();
+            try{ window.renderVault && window.renderVault(); }catch(e){}
+            try{ window._vaultUndoTake && window._vaultUndoTake('Wipe items'); }catch(e){}
+            var c=document.getElementById('vault-chip-undo');
+            if(!c || c.hidden) return false;
+            var r=c.getBoundingClientRect();
+            return !!(r.width>0 && r.height>0 && /Wipe items/.test(c.textContent||'')); })()""",
+        "sel": "#mule-vault-card .vault-toolbar",
+    },
     # gh#235 (v3724) — the advanced shared/war-stash checkmark panel. renderShareSettings() lists the
     # owned items the rules keep in the shared stash (war-gear + high/vhigh), each a toggle; it is hidden
     # when empty, so seed shared candidates, open the drawer, and prove the rows painted from the rect.

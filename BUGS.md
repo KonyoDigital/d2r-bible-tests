@@ -38,6 +38,20 @@ _vaultMoveMainLane or the worn line alone could never show a row. _vaultMoveAuto
 rule - and proof [26] attacks that rule (worn lanes stop counting as main). A node case in the law
 (TheEquippedLockIsOneRuleAskedWithoutAWindow) asks the rule directly, so [26] is seen RED without a window; the
 auto-sighting law's farm-loot proof re-pointed to the one rule and its cut takes it. Swept: 4 node laws, none blind.
+### REG-2716 - A WIPE, A RESET OR A HAND ADD BY MISTAKE HAD NO WAY BACK (#145, GrokBot ACT-A traps 7/8/12)
+GrokBot's trap run: Wipe items, Reset assignments and Reset vault confirmed Cancel-first (fixed in Vault v2) but, once
+confirmed, ran with no snapshot; a mistaken hand add had no undo either, only the owned un-tick on the item card. Each
+destructive door (Wipe items, Reset assignments, Reset vault, Clear records history) and the add-by-name door now snapshot
+the vault, stashes and characters (_vaultProfileBuild - the Save-profile file's own text) in the page's memory after the
+confirm and before any change. The ↶ Undo chip in the toolbar names what it undoes and loads the snapshot back through
+vaultProfileLoad, which lists every store it changes, confirms Cancel-first, puts back what it wrote if a store refuses,
+then reloads. One step, memory only (the open question "memory or saved" took the conventional default; the profile file
+stays the durable copy). A cancelled door leaves no undo; a snapshot that cannot be read gives none and the reset line says
+so; the linked screenshot folder (IndexedDB) is outside a profile and the wipe's undo says to link it again. Render target
+vault-undo-chip added (painted 1/1 at all six widths; its floor raised by hand from that run, as --bless refuses a subset).
+Law: test_a_vault_change_can_be_undone (a real wipe then undo leaves every profile store byte-identical; 7 red-proofs,
+each seen RED).
+
 ### REG-2715 - THE CENSUS RE-PROVED WHAT A PUSH HAD JUST PROVED, AND BANKED NOTHING (#186, his ruling 2026-10-28)
 "NO IT DOESNT NEED TO PROVE ITSELF. it can accept a proof earned on byte identical ... it should work with that same
 recipe". Measured 2026-10-27: a push banks its PROVENs in the machine's verdict cache (29,991 entries on the Mac), and the
