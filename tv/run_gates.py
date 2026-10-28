@@ -12457,6 +12457,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_charm_ruling_moves_only_the_targets_it_empties.py")], 300,
          needs_app=False,
          why="REG-2964 (int-4) - the charm ruling re-plans only saved targets on MAGIC & RARE or UNI-SMALL of a charm, says why in REG-2787's words, and leaves every other target standing"),
+    Gate("test_a_bare_charm_pick_is_his_and_asked",
+         [sys.executable, os.path.join(HERE, "test_a_bare_charm_pick_is_his_and_asked.py")], 300,
+         needs_app=False,
+         why="REG-2965 (int-4) - a magic charm picked and left bare is owned, its record kept, unfiled with the charm rule's question - never lost, never a guessed home"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
