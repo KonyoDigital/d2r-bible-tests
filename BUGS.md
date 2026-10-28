@@ -106,6 +106,17 @@ test_shadow_mode_reads_their_console's test_every_refusal_stores_nothing went re
 200 KB to its own 900 KB door, so a 210 KB profile now meets the profile door's byte cap, which answers in those words.
 The refusal itself is unchanged (nothing is stored); only the expected sentence moved. Re-aimed to "larger than 200000
 bytes" (the same re-aim agent-86 carried inside REG-2866). 66 of 66 pass.
+### REG-2914 - "1 IMAGE ERROR" STILL NEVER SAID WHICH: THE AGENT'S ROUTE DROPPED THE CAUSE (#158)
+REG-2730 named a failed tally pass's cause (errWhy) and the board posts it with every read - to the AGENT's /intake_result
+first (the bridge port) and to the console's own route only when the agent is not listening. The console's copy keeps the
+reason (v1945 err/guardHeld, REG-2730 errWhy); the agent's built its record from seven fields and dropped the rest, so a
+receipt it wrote read "read failed (1 image error)", and the reader's own report on the board printed "1 image error"
+with the cause sitting unused. The agent's record now keeps the reason fields as sent (tv_diablo._intake_result_fields), the
+receipt says the one rule's sentence from them (control_app._intake_why: "read failed - 1 image error - the intake answered
+HTTP 503"), and the gems, runes and materials reports print the same cause (_imgErrSay, escaped). A record or read with no
+cause reads as before. Not swept, named: the set-piece, crafted-item and grail readers count image errors that never had a
+cause (they do not read through _tallyRead). Law: test_an_image_error_reaches_its_receipt_with_its_cause (7 cases: the
+agent's builder, its row through the real receipt stream, _imgErrSay in node; 6 red-proofs, each RED).
 
 ### REG-2879 - REG-2803'S CHROME LAW DROVE A GUEST WORLD, WHERE THE BOARD RIGHTLY MAKES NO MULE (ci/claude-v3834, 4 cases)
 CI (agent-suite, ci/claude-v3834) failed four cases of tv/test_vault_l1_war_stash_overflow.py, which REG-2803 re-aimed without
