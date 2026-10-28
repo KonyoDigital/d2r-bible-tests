@@ -17336,8 +17336,14 @@ def _is_a_live_read(r2):
     """REG-2744 (the v3821 second eye) - ONE rule for "is this journal row a read", used by a Shelf row's read COUNT and its
     read SPAN alike. REG-2736 taught the span that a watchdog verdict is not a read and left the count on its old lane list,
     so one session counted a verdict as a read while dating itself as if that row did not happen. -> bool"""
+    # REG-2759 (GrokBot's v3823 question: "3 reads in 310 ms", "2 reads in 574 ms") - a deep-owed row is the console's
+    # note that a frame was COMMITTED to the deep reader (its answer is the lane=deep row), and a chronicle row is a
+    # ledger's visit note: neither reads a frame. MEASURED on his journals 2026-10-28: 2,272 deep-owed rows were each
+    # counted as a read, one per committed frame, and each stretched its session's read span to its own write time
+    # (310 ms and 574 ms were exactly that gap). A known-scene row IS a look at a frame and stays.
     return (not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end"
-            and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake", "watchdog"))
+            and r2.get("kind") != "skip"
+            and r2.get("lane") not in ("kai", "verify", "intake", "watchdog", "deep-owed", "chronicle"))
 
 
 def _disk_free_bytes(path):

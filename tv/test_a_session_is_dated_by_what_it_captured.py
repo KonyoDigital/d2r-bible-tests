@@ -201,7 +201,29 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
         self.assertEqual((by[OLD].get("t0"), by[NEW].get("t0")), (T_OLD, T_NEW), "a dated reel moved")
 
 
+class ACommitmentIsNotARead(unittest.TestCase):
+    """REG-2759 (GrokBot's v3823 question) - his session 71 (s_1792317613152_58017) read "3 reads in 310 ms" beside 2
+    frames: an ocr row and a deep row on frame 1, and a deep-owed row - the console's note that the frame was committed to
+    the deep reader - written 310 ms later. The note was counted as a read and stretched the span to its write time."""
+
+    def test_the_deep_owed_and_chronicle_notes_are_not_reads(self):
+        import control_app as ca
+        t = 1792317655895
+        rows = [{"ts": t, "frameId": "1_%d" % t, "lane": "ocr", "scene": "loot", "mode": "ocr"},
+                {"ts": t + 310, "frameId": "snap_0_1.jpg", "lane": "deep-owed"},
+                {"ts": t, "captureTs": t, "frameId": "1_%d" % t, "lane": "deep", "scene": "gameplay"},
+                {"ts": t + 9000, "lane": "chronicle", "kind": "visit"},
+                {"ts": t + 20, "frameId": "1_x", "lane": "known", "mode": "known", "scene": "transition"}]
+        got = [r["lane"] for r in rows if ca._is_a_live_read(r)]
+        self.assertEqual(got, ["ocr", "deep", "known"], "a note about a frame was counted as a read: %r" % got)
+
+
 RED_PROOF = [
+    {"why": "REG-2759 - the deep reader's commitment note counts as a read again",
+     "file": "control_app.py",
+     "find": "            and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\", \"deep-owed\", \"chronicle\"))\n",
+     "replace": "            and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\", \"chronicle\"))\n",
+     "matches": 1},
     {"why": "REG-2752 - the moments' fallback counts a capture-less re-read by when it wrote",
      "file": "replay.py",
      "find": "    return m or [x for x in (_session_moment(r) for r in (g or [])) if x > 0]\n",
@@ -249,8 +271,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2736 - the watchdog's verdict counts as a read and stretches the read span",
      "file": "tv/control_app.py",
-     "find": "            and r2.get(\"kind\") != \"skip\" and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\"))\n",
-     "replace": "            and r2.get(\"kind\") != \"skip\" and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\"))\n",
+     "find": "            and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"watchdog\", \"deep-owed\", \"chronicle\"))\n",
+     "replace": "            and r2.get(\"lane\") not in (\"kai\", \"verify\", \"intake\", \"deep-owed\", \"chronicle\"))\n",
      "matches": 1},
 ]
 
