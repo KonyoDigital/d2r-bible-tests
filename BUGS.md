@@ -70,6 +70,25 @@ retired, because the popup can no longer exist. The .vm-cell.vmc-* cell classes 
 live and untouched. Law: tv/test_a_move_row_expands_inline_and_the_popup_is_gone.py (node, whole page): the doors are
 undefined at runtime and undeclared in the source, the model has no whole-container list, and each hand row expands to
 MANUAL -> its own cell alone, a sighted row to the cell it was seen in. 9 red-proofs, 9 RED.
+### REG-2786 - THE MULE CARD HEADER STOPPED COUNTING AT 3 COPIES: A KEEPER TARGET WAS DRAWN AS COPIES HELD (#111, reviewers C2/E/D)
+Located: every copy count on the vault (the locker card's cells and its "N items in M copies" line, the mule card's
+"N items total · M copies" header, the records model, the mule packer) asks _vaultPresenceSpan, and once any look named a
+cell (v3767) it answered the distinct cells, or the keeper TARGET when that was larger, never copies[]. The page's default
+targets are 3 for The Stone of Jordan, Mara's Kaleidoscope and Shako. Measured on the whole page in node: Mara's seen in
+one cell drew 3 cells and "3 copies" held x1; held x3 and typed twice more by hand it still read 3 while the door answered
+"x5 - another copy, its own row and cell"; Griswold's Edge seen in 3 cells and typed twice more read 3 on the card, the
+mule card and the records, and its two typed copies got MANUAL move rows naming the mule and no cell; a planner pick of a
+filed Obedience seen in one cell said "copy 2 filed" and the count stayed 1. Now a target counts only as far as copies[]
+holds (his v3767 rule: a multi-keep re-read under its target is a real copy; the target alone is none), and a copy his
+hand types past what the cells count raises the target at the hand door - the rule L1 already kept for a set piece - in
+vaultHandAdd and in the planner's copy, whose undo puts the target back. Swept: _vaultMoveCopies (the move planner) kept
+its own cell count and now asks the same span, so each typed copy gets its own cell beside its siblings (measured, and a
+multi-keep copy under its target had no planned cell either). The v3767 guard stands: one cell re-read into copies[] 4 is
+one copy, and a name with no cell gains no target from a typed copy. Left as it was: a store whose copies[] already sits
+above the target with no hand record (typed before this fix) still reads the target - raising the target on the keeper
+row draws them. Law: test_a_copy_past_the_cells_is_counted (node, the whole page, five stores). 7 red-proofs, all RED;
+test_v3767_copy_witness red-proof 11 re-aimed at the new line (same sabotage, RED).
+
 ### REG-2785 - AUTO-SORT FILED A FOUND-EVER TICK WITH NO PICTURE WHEN ITS NAME HAD A PLANNER RECORD (#111, reviewers C2/E/D)
 _plannerHandRow tells his Auto-Sort click "his hand put this here", and the click then files a dock name to its mule (and,
 in the shared-stash arm, past REG-2223's chronicle gate) without the stash picture every other dock name needs. It read the

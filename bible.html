@@ -46245,6 +46245,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            again IS that ask, so the multi-keep target follows his hand - a re-read still never climbs a set piece */
         try { if (window._vfIsSetPiece && window._vfIsSetPiece(pre.name) && typeof multiKeep !== 'undefined' && multiKeep
                   && !(multiKeep[pre.name] >= _cN)) multiKeep[pre.name] = _cN; } catch (eMk) {} /* L1 hand set copy */
+        /* REG-2786 (#111) - THE SAME ASK FOR ANY NAME THE VAULT COUNTS FROM ITS CELLS. Once a look names a cell the count is
+           the distinct cells (v3767), so a copy typed past them answered "x5 - another copy, its own row and cell" and drew
+           nothing: measured, Griswold's Edge seen in 3 cells and typed twice more read 3 on the card, the mule card and the
+           records. The target follows his hand only when the count would not hold the copy he typed. */
+        try { if (typeof multiKeep !== 'undefined' && multiKeep && !(multiKeep[pre.name] >= _cN) && typeof window._vaultPresenceSpan === 'function'
+                  && window._vaultPresenceSpan(pre.name, _cN) < _cN) multiKeep[pre.name] = _cN; } catch (eMkC) {} /* REG-2786 hand copy past the cells */
         try { persistOwned(); } catch (eP) {}
         try { if (typeof saveA === 'function') saveA(); } catch (eS) {}
         var _cMv = null;
@@ -49292,6 +49298,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (cur - 1 > 1) copies[b.name] = cur - 1;
         else delete copies[b.name];
         _vpCopyUndone = { took: true, say: 'the copy of ' + b.name + ' this pick counted is taken back (' + (cur - 1) + ' counted now)' };
+        /* REG-2786 - a target this pick raised goes back with its copy, unless something else has set it since */
+        if (b.keepSet != null && typeof multiKeep !== 'undefined' && multiKeep && multiKeep[b.name] === b.keepSet){
+          if (b.keepHad) multiKeep[b.name] = b.keepWas; else delete multiKeep[b.name];
+        }
       } else {
         _vpCopyUndone = { took: false, say: 'nothing more of ' + b.name + ' was taken back: ' + cur + ' counted now, not above the '
           + b.prev + ' there were before this pick, so the count was already lowered elsewhere' };
@@ -49480,7 +49490,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           prevN = prevN | 0;
           if (!(prevN > 0)) prevN = 1;
           copies[nm] = prevN + 1;
-          _vpCopyBump = { name: nm, token: token, prev: prevN, prevSeen: _vpCopySeen[nm] };
+          /* REG-2786 (#111) - the planner's copy is his hand too: when the count would not hold it (a name counted from its
+             cells), the target follows it, as the + Add an item door does. The undo of this pick puts the target back. */
+          var _mk = (typeof multiKeep !== 'undefined' && multiKeep) ? multiKeep : null;
+          var _mkHad = !!(_mk && Object.prototype.hasOwnProperty.call(_mk, nm)), _mkWas = _mkHad ? _mk[nm] : null, _mkSet = null;
+          try { if (_mk && !(_mk[nm] >= copies[nm]) && typeof window._vaultPresenceSpan === 'function'
+                    && window._vaultPresenceSpan(nm, copies[nm]) < copies[nm]) { _mk[nm] = copies[nm]; _mkSet = copies[nm]; } } catch (eMkP) {}
+          _vpCopyBump = { name: nm, token: token, prev: prevN, prevSeen: _vpCopySeen[nm], keepHad: _mkHad, keepWas: _mkWas, keepSet: _mkSet };
           routed = { ok: true, filed: true, mode: 'copy', mule: assign[nm],
             why: _copyFileSay(nm, copies[nm], assign[nm]) };
         }
@@ -52608,9 +52624,10 @@ window.vaultAutoAssign = function(){
   }
   try { window._vaultMoveL1Why = _vaultMoveL1Why; } catch (eL1) {}
   function _vaultMoveCopies(name){
-    var g = null;
-    try { g = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { g = null; }
-    if (g && g.length) return g.length;
+    /* REG-2786 (#111) - THE MOVE PLANNER COUNTS WHAT THE CARD COUNTS. It returned the distinct cells here and never asked
+       _vaultPresenceSpan, which already reads those cells: a copy typed past them (or a multi-keep copy under its target)
+       was a record with no planned cell - measured, Griswold's Edge seen in 3 cells and typed twice more got two MANUAL
+       rows whose target named the mule and no cell. With no keeper target the span answers the cells, exactly as before. */
     var cc = 1;
     try { cc = (typeof copyCount === 'function' ? (copyCount(name) || 1) : 1) | 0; } catch (e2) { cc = 1; }
     if (!(cc > 0)) cc = 1;
@@ -53962,8 +53979,16 @@ window.vaultAutoAssign = function(){
     try { _sg = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (eSg2) { _sg = null; }
     if (_sg && _sg.length) {
       var _nSg = _sg.length;
+      /* REG-2786 (#111 "the mule card header stops counting at 3 copies") - A KEEPER TARGET IS WHAT HE WANTS, NOT WHAT HE
+         HOLDS. Once a look named a cell, this returned the target itself whenever it beat the cells, and copies[] was never
+         asked. Measured on the whole page in node: Mara's Kaleidoscope (the default target 3) seen in one cell drew 3 cells
+         on the locker card and "3 copies" on the mule card held x1, and still 3 when two more were typed by hand (x5). The
+         target now counts only as far as copies[] holds (his v3767 rule: a multi-keep re-read under its target is a real
+         extra copy - the target alone is none). A copy his hand types past what the cells count raises the target at the
+         hand door (vaultHandAdd, the planner's copy), so it is drawn and counted like the rest. */
       try {
-        if (typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > _nSg) return multiKeep[name];
+        if (typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > _nSg)
+          return Math.max(_nSg, Math.min((have > 0) ? (have | 0) : 1, multiKeep[name])); /* REG-2786 target is not a copy */
       } catch (eMk) {}
       return _nSg; /* v3767 distinct cells */
     }

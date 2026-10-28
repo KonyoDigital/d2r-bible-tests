@@ -12229,6 +12229,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_planner_record_is_not_his_hand.py")], 300,
          needs_app=False,
          why='#111 REG-2785 - a d2r_plannerMade record alone never stands in for his hand or the Auto-Sort picture check'),
+    Gate("test_a_copy_past_the_cells_is_counted",
+         [sys.executable, os.path.join(HERE, "test_a_copy_past_the_cells_is_counted.py")], 300,
+         needs_app=False,
+         why='#111 REG-2786 - a keeper target is never drawn as copies held, and a copy typed past the cells is counted on every surface'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
