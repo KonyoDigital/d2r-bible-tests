@@ -133,8 +133,9 @@ def plan(rows, live, free_bytes, floor_bytes, critical_bytes, now_s):
 
 
 def run(root=None, registry=None, free_bytes=None, floor_bytes=None, critical_bytes=None, receipt_path=None,
-        now_s=None, remove=None):
-    """One pass. Never raises. -> the pass record {need, removed, freed, total, after, say}"""
+        now_s=None, remove=None, disk_note=None):
+    """One pass. Never raises. -> the pass record {need, removed, freed, total, after, say}. disk_note: why free_bytes is
+    None, when the caller knows (REG-2762: the chats sit on another disk than the one that is short)."""
     now_s = time.time() if now_s is None else now_s
     root = root or sessions_root()
     registry = registry or os.path.join(os.path.dirname(root), "active_sessions.json")
@@ -160,8 +161,10 @@ def run(root=None, registry=None, free_bytes=None, floor_bytes=None, critical_by
     if p["need"] is None:
         # REG-2754 (GrokBot's v3823 pass: 0.74 GB here, "Grok sessions 0.82 GB" on the sign's list) - the budget counts the
         # conversation folders, and the sign's list measures the whole sessions folder; the words say which
-        rec["say"] = "not needed - the Grok chats (their conversation folders) hold %.2f GB, under the %.0f GB budget, and the disk is over its floor" % (
-            p["total"] / 1e9, BUDGET_BYTES / 1e9)
+        _disk = ("and the disk is over its floor" if isinstance(free_bytes, (int, float)) and not isinstance(free_bytes, bool)
+                 else "and the disk did not decide (%s)" % (disk_note or "its free space was not read"))
+        rec["say"] = "not needed - the Grok chats (their conversation folders) hold %.2f GB, under the %.0f GB budget, %s" % (
+            p["total"] / 1e9, BUDGET_BYTES / 1e9, _disk)
     elif live is None:
         rec["say"] = "needed (%s) but %s - nothing pruned" % (p["need"], p["keep_why"])
     else:

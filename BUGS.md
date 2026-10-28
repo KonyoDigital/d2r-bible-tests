@@ -29,6 +29,15 @@ card counts the loose f_<ms>.jpg stills at the reel root (v908) and never added 
 beside an hour of loose film could still read "0m00s" until the seal. The live branch now spans its first and last
 loose still, as the sealed path does. Found by the Grok CLI on v3824 (#231), reproduced by reading the branch. Law:
 test_a_session_is_dated_by_what_it_captured (1 new case: no reel folder, two loose stills; 1 red-proof).
+### REG-2762 - A SHORT FOOTAGE DISK COULD DELETE GROK CHATS THAT DO NOT FREE IT (#151, the v3823 second eye)
+_grok_prune_pass read free space at the footage folder, and the plan counts each removed chat as room regained there
+until the ON AIR floor plus 1 GB is met. That holds only when the chats sit on the footage disk: on a PC whose footage
+lives on another volume (a Windows PC with reels on D:), a short footage disk would have removed chats older than a week
+for a disk they do not feed, and the plan would have believed it recovered. The console now compares the two folders'
+volumes; when they differ, or cannot be read, the disk does not decide and only the 2 GB budget can, and the prune's line
+says the disk did not decide and why, never "over its floor". Live chats and the age floor held either way. Law:
+test_free_space_counts_what_macos_frees (2 new cases, 2 new red-proofs).
+
 ### REG-2761 - A WAR ITEM HE FILED ON A WAR MULE MOVED TO THE SHARED STASH AND NEVER SAID WHY (#148.1, his ruling)
 GrokBot (#230 c6319274564): vaultAssign('Grief', WAR1) wrote the filing and both Grief tasks still targeted SHARED STASH
 through a reload, which read as his hand being ignored. His ruling 2026-10-28: war items go to the Shared stash (the war
