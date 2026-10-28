@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2776 - THE HOME CHIP PRINTED THE AGENT'S FREE GB WHILE THE DRAWER SAID "NOT REPORTED" (the v3826 second eye)
+The v3826 full look found one console saying two things about one figure: when the capture agent's reading is the only
+one, the home chip prints its GB (REG-2741/2742) and the space drawer's free row fell through to "the retention pass has
+not reported". The drawer now prints the agent's figure too, and says whose reading it is. Swept: the three other readers
+of window._diskFreeNow (the header's "GB free" chip, the status line's low-space note, the ON AIR floor) take its .gb
+whatever its source; the drawer was the only one that branched on the source and dropped the agent's.
+tv/test_one_console_shows_one_free_figure.py adds the drawer case; its red-proof is RED.
+
 ### REG-2774 - THE LIVE SHELF CARD COUNTED ORPHAN STILLS AS ITS FILM AND DATED ITSELF FROM OCT 13 (GrokBot's v3826 pass)
 GrokBot read the Mac's live Shelf card as "Oct 13 -> now · 1 read · 3440 frames" for a session that began that day. The
 reel root holds loose stills no reel owns (3442 on his Mac, the oldest Oct 13); REG-2766 made the live card count and span

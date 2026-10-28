@@ -14225,6 +14225,9 @@ window._lockMark = function(isOpen, px, label){
     if (_fNd.src === 'sign') dRows.push(_vxRow('free', _fNd.gb + 'GB', 'on the volume holding the reels · read just now'));
     else if (rt.freeGb != null) dRows.push(_vxRow('free', rt.freeGb + 'GB',
                                              'on the volume holding the reels · ' + _rtAge));
+    /* REG-2776 (the v3826 second eye) - when the agent's reading is the only one, the home chip prints it, so the drawer
+       does too (with whose reading it is) - one console never says a number in one place and "not reported" in another */
+    else if (_fNd.src === 'agent') dRows.push(_vxRow('free', _fNd.gb + 'GB', 'on the volume holding the reels · the capture agent\'s reading'));
     else                   dRows.push(_vxRow('free', null, 'the retention pass has not reported'));
     if (rt.freedMb)        dRows.push(_vxRow('freed last pass', Math.round(rt.freedMb) + 'MB', 'reclaimed by the prune'));
     if (st.downGb != null) dRows.push(_vxRow('downloaded 24h', st.downGb + 'GB', 'this machine, all apps — not this console'));

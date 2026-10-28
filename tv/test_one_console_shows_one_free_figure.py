@@ -94,12 +94,22 @@ class EveryReaderAsksIt(unittest.TestCase):
         self.assertIn("if (_fNd.src === 'sign') dRows.push(_vxRow('free', _fNd.gb + 'GB'", UI,
                       "the drawer's free row prints the retention pass's older figure while the sign has one")
 
+    def test_the_drawer_prints_the_agents_figure_when_it_is_the_only_one(self):
+        """REG-2776 (the v3826 second eye) - the chip printed the agent's GB while the drawer said 'not reported'."""
+        self.assertIn("else if (_fNd.src === 'agent') dRows.push(_vxRow('free', _fNd.gb + 'GB',", UI,
+                      "the drawer says 'not reported' while the home chip prints the agent's figure")
+
     def test_the_agents_own_fault_keeps_the_agents_figure(self):
         self.assertIn("fault = 'DISK FULL — ' + H.freeGB + 'GB free", UI,
                       "PREMISE: the agent's DISK FULL fault moved - it reports what the AGENT decided on")
 
 
 RED_PROOF = [
+    {"why": "REG-2776 - the drawer drops the agent's figure the home chip prints",
+     "file": "control_ui.html",
+     "find": "    else if (_fNd.src === 'agent') dRows.push(",
+     "replace": "    else if (false) dRows.push(",
+     "matches": 1},
     {"why": "REG-2753 - the older retention reading wins over the sign read now",
      "file": "control_ui.html",
      "find": "    if (d && typeof d.freeGb === 'number') return { gb: d.freeGb, src: 'sign', at: null };\n",
