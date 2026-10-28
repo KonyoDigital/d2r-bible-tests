@@ -11072,6 +11072,8 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vtk-sec{font-family:var(--serif-display,serif);margin:8px 0 4px;font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold-bright,#f0c060)}
 .vtk-list{list-style:none;margin:0;padding:0;counter-reset:vtk}
 .vault-tasks-panel li.vtk-line.vmv-row{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:3px 4px;margin:0;border-radius:6px;border:0;background:none;box-shadow:none;cursor:pointer;font-size:var(--fs-meta);counter-increment:vtk;grid-template-columns:none}
+/* REG-2803 - his 'make it in the game' task reads as a task line (the move row's layout, numbered), but it is a tick, not a click */
+.vault-tasks-panel li.vtk-line.vtk-make{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:3px 4px;margin:0;border-radius:6px;font-size:var(--fs-meta);counter-increment:vtk}
 .vault-tasks-panel .vtk-line .vmv-reason{flex:0 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vault-btn{flex:0 0 auto;padding:0 6px;min-height:0;line-height:1.6;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-gone{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
@@ -45486,7 +45488,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         /* #154.19 (REG-2735, GrokBot's vault sweep) - the plate opened a locker on a click only; it takes the keyboard now:
            focusable, a button to a reader, and Enter or Space on the PLATE itself clicks it (the click handler does the rest). */
         + '<div class="vm-plate" tabindex="0" role="button" onkeydown="if((event.key===\'Enter\'||event.key===\' \')&&event.target===this){event.preventDefault();this.click();}" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
-        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'+((window._vaultWarRole&&window._vaultWarRole(m))?'<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages" style="margin-left:4px;font-size:var(--fs-micro);padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060">SHARED STASH · overflow</span>':'')/* L1 WAR mule is the war stash */
+        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'+((window._vaultWarRole&&window._vaultWarRole(m))?'<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages" style="margin-left:4px;font-size:var(--fs-micro);padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060">SHARED STASH · overflow</span>':'')
+        + ((m.auto && !m.inGame && !(typeof _vaultMuleSeenInGame === 'function' && _vaultMuleSeenInGame(m, (window._moveModel || {}).records))) ? '<span class="vm-auto" title="the board made this mule for the war stash overflow - make a character of this name in the game (MOVE TASKS)" style="margin-left:4px;font-size:var(--fs-micro);padding:0 4px;border:1px dashed rgba(240,192,96,.6);border-radius:3px;color:#f0c060">made by the board · not in the game yet</span>' : '')/* REG-2803 *//* L1 WAR mule is the war stash */
         + '<span class="vm-count"'
           + ' title="'+_itemN+' item'+(_itemN===1?'':'s')
           + (_known ? (' · '+cells+' cells'
@@ -51034,6 +51037,9 @@ window.vaultAutoAssign = function(){
     var _heldDel = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
     if (_heldDel){ try { status('⚠ ' + m.name + ' was not deleted - ' + _heldDel); } catch (eS) {} return; }
     if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
+    /* REG-2803 - a WAR mule he deletes stays deleted: the board would otherwise make it again on the next paint. The name is
+       kept on the shared stash (the war stash's own entry); a mule he adds by that name later is his as always. */
+    try { _vaultWarDecline(m); } catch (eDl) {}
     roster=roster.filter(function(x){return x.id!==id;});
     Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });
     /* #246 — the items return to the dock; their witness rows stay (with no home), so pressing the sorter
@@ -51692,14 +51698,15 @@ window.vaultAutoAssign = function(){
     if (!left || !left.length) return '';
     var names = left.map(function(i){ return esc(i.n); }).join(' · ');
     /* #144.10 shared half (REG-2801) - the 5 pages fill in order and what fits none of them goes to the WAR mules (WAR1,
-       WAR2 ... in order, L1); a WAR mule is never made here, so with none those copies keep no cell until he makes one */
+       WAR2 ... in order, L1); the board makes the next WAR mule (REG-2803), so "none" is a WAR mule he took back, a guest's
+       world or a held store - and those copies keep no cell until one exists */
     var wars = [];
     try { wars = (typeof _vaultWarMules === 'function') ? _vaultWarMules() : []; } catch (eW) { wars = []; }
     return '<div class="vd-overflow" role="status">⚠ <strong>' + left.length + ' item' + (left.length === 1 ? '' : 's')
       + ' will not fit on the 5 shared pages</strong> — each page is 10×10 = 100 cells and all 5 are full. '
       + (wars.length
           ? 'Past them the move tasks send items to the WAR mules in order (' + wars.map(function(w){ return esc(w.name); }).join(', ') + '): '
-          : 'Past them the move tasks send items to the WAR mules (WAR1, WAR2 … in order), and you have no mule named WAR1, so these keep no cell until you make one: ')
+          : 'Past them the move tasks send items to the WAR mules (WAR1, WAR2 … in order), and you have no mule named WAR1, so these keep no cell until one exists: ')
       + names + '</div>';
   }
   try { window._sharedOverflowNote = _sharedOverflowNote; } catch(e){}
@@ -52575,6 +52582,80 @@ window.vaultAutoAssign = function(){
     return r.sort(function(a, b){ return a.n - b.n || (a.name < b.name ? -1 : 1); });
   }
   window._vaultWarMules = _vaultWarMules;
+  /* ══ REG-2803 (his ruling 2026-10-28 ~17:50 IDT: "yea the board should automatically create a mule and name it War1/War2 for
+     each mule and prompt me to create that same mule ingame so i get tasked to do it") — THE BOARD MAKES THE WAR MULE THE
+     OVERFLOW NEEDS. It supersedes L1's "a mule is never created here" (2026-10-20). When the war stash's plan leaves copies
+     with no cell - its 5 pages full, or copies over the war cap - and no WAR mule can take them, the next WAR<n> is made
+     under the add-mule door's own rules (_vmNameOk; added:true, so his delete takes it back like any mule he added), with
+     the war role on its id and the record of who made it, when and why (auto). MOVE TASKS then asks him to make it in the
+     game (_vaultWarMakeRows) until he ticks it, or the reader sees an item on a character of that name.
+     Only from the move paint - never from FIND, the copy readout or a row's expand, which plan the same overflow and write
+     nothing; never in a shadow or a guest's world; never while the mule store is UNKNOWN (held); never a name he took back
+     (the shared stash's warDeclined, kept by vaultDeleteMule). -> {made: [names], why} */
+  function _vaultWarAutoMule(){
+    var made = [];
+    if (window._tvdShadow) return { made: made, why: 'a shadow is read only' };
+    if (window._D2R_OWNER !== true) return { made: made, why: 'a guest world makes no mule' };
+    var held = (typeof window._vaultHeldFor === 'function') ? window._vaultHeldFor([RK]) : null;
+    if (held) return { made: made, why: held.why };
+    var sh = (typeof muleById === 'function') ? muleById('shared') : null;
+    if (!sh) return { made: made, why: 'there is no shared stash to overflow' };
+    var fresh = function(){ window._movePackCache = {}; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null; };
+    for (var guard = 0; guard < 8; guard++){
+      fresh();
+      _vaultMovePackHome({ id: 'shared', holder: sh.name || 'SHARED STASH', location: 'shared' }, _vaultMoveBag());
+      var lost = (window._vaultWarFull || []).length;
+      if (!lost) break;
+      var n = 1;
+      _vaultWarMules().forEach(function(w){ if (w.n >= n) n = w.n + 1; });
+      var name = 'WAR' + n;
+      if ((sh.warDeclined || []).indexOf(name) >= 0) { fresh(); return { made: made, why: 'you took back the ' + name + ' the board made' }; }
+      var v = _vmNameOk(name, null);
+      if (!v.ok) { fresh(); return { made: made, why: v.why }; }
+      var at = new Date().toISOString();
+      var m = { id: 'm' + Date.now().toString(36) + n, name: v.name, icon: '⚔️', note: 'war stash overflow - made by the board ' + at.slice(0, 10),
+                added: true, role: 'war', warN: n,
+                auto: { by: 'board', at: at, why: lost + ' war stash cop' + (lost === 1 ? 'y had' : 'ies had') + ' no cell' } };
+      roster.push(m);
+      if (_guardedSet(RK, JSON.stringify(roster)) === false) { roster.pop(); fresh(); return { made: made, why: 'the mule store refused the write' }; }
+      made.push(m.name);
+    }
+    fresh();
+    return { made: made, why: made.length ? '' : 'nothing past the war stash needs a mule' };
+  }
+  /* an item read on a character of this name: the reader's own witness that the mule exists in the game */
+  function _vaultMuleSeenInGame(m, recs){
+    var nm = String((m && m.name) || '').trim().toUpperCase();
+    return !!nm && (recs || []).some(function(r){ return !!(r && r.sight && String(r.sight.holder || '').trim().toUpperCase() === nm); });
+  }
+  /* the mules the board made that he has not made in the game yet - his first tasks */
+  function _vaultWarMakeRows(recs){
+    return (roster || []).filter(function(m){ return !!(m && m.auto && !m.inGame && !_vaultMuleSeenInGame(m, recs)); });
+  }
+  /* his tick: he made it in the game. Written like the create, refused (and said) while the store is held */
+  window._vaultWarMadeInGame = function(id){
+    var m = (typeof muleById === 'function') ? muleById(id) : null;
+    if (!m || !m.auto) return { ok: false, why: 'not a mule the board made' };
+    var held = (typeof window._vaultHeldFor === 'function') ? window._vaultHeldFor([RK]) : null;
+    if (held) { try { status('⚠ ' + m.name + ' was not marked made - ' + held.why); } catch (eS) {} return { ok: false, why: held.why }; }
+    m.inGame = { by: 'hand', at: new Date().toISOString() };
+    if (_guardedSet(RK, JSON.stringify(roster)) === false) { delete m.inGame; return { ok: false, why: 'the mule store refused the write' }; }
+    try { renderVault(); } catch (eR) {}
+    return { ok: true };
+  };
+  /* his delete of a WAR mule: its name is kept on the shared stash's entry (saved with the roster the delete writes), so the
+     board does not make it again. Only a WAR mule; any other mule he deletes changes nothing here. -> bool (recorded) */
+  function _vaultWarDecline(m){
+    if (!m || !_vaultWarRole(m)) return false;
+    var sh = (typeof muleById === 'function') ? muleById('shared') : null;
+    if (!sh) return false;
+    var dl = (sh.warDeclined || []).slice();
+    if (dl.indexOf(m.name) < 0) dl.push(m.name);
+    sh.warDeclined = dl;
+    return true;
+  }
+  try { window._vaultWarAutoMule = _vaultWarAutoMule; window._vaultWarMakeRows = _vaultWarMakeRows; window._vaultMuleSeenInGame = _vaultMuleSeenInGame;
+        window._vaultWarDecline = _vaultWarDecline; } catch (eWa) {}
   window._vaultRosterNow = function(){ try { return (roster || []).map(function(m){ return { id: m.id, name: m.name }; }); } catch (e) { return null; } }; /* L1 read-only roster copy */
   /* L1 (Elad's standing rule 2026-10-20: moves come from the placement rules, never a Fix / Auto-assign press). A name
      FILED on a mule the current rules no longer pick (war gear on UNI-*, the VAULT INTEGRITY mismatches) plans its move
@@ -52843,7 +52924,8 @@ window.vaultAutoAssign = function(){
       /* L1 (Elad 2026-10-20) — THE WAR STASH HAS 5 PAGES (SHARED_TABS). Page p is rows 10p..10p+9 of the shared cell
          (shared:c3r12 = page 2, row 3), each page packed on its own 10x10 so nothing straddles a page. What does
          not fit on any of the 5 spills to the mules named WAR1, WAR2, ... in order (case-insensitive). With none,
-         or all full, the item keeps NO cell and the move list says so plainly - a mule is never created here. */
+         or all full, the item keeps NO cell here; the move paint then makes the next WAR mule (REG-2803, his ruling
+         2026-10-28 - it was "a mule is never created here" until then) and plans again. */
       var overIt = items.filter(function(it){ return it.over; }).map(function(it){ var c = {}; for (var kk in it) c[kk] = it[kk]; delete c.near; return c; });
       var left = items.filter(function(it){ return !it.over; }), SHARED_TABS = 5; /* L1 the war stash has 5 pages; over-cap copies skip them */
       for (var pg = 0; pg < SHARED_TABS && left.length; pg++) {
@@ -53440,8 +53522,18 @@ window.vaultAutoAssign = function(){
       + unr.map(function(n){ return '<b>' + esc(n) + '</b>'; }).join(', ') + '</p>' : ''; /* L1 never "nothing" while hand adds wait */
     var _wf = (window._vaultWarFull || []).filter(function(n, i, a){ return a.indexOf(n) === i; });
     if (_wf.length) unrHtml += '<p class="vmv-warfull" data-n="' + _wf.length + '">No room: ' + esc(window._vaultWarFullWhy || 'the war stash is full')
-      + ' — make a mule named WAR1 (then WAR2…) for: ' + _wf.map(function(n){ return '<b>' + esc(n) + '</b>'; }).join(', ') + '</p>'; /* L1 war full said plainly */
+      + ' — make a mule named WAR1 (then WAR2…) for: ' + _wf.map(function(n){ return '<b>' + esc(n) + '</b>'; }).join(', ')
+      + ((window._vaultWarAuto && window._vaultWarAuto.why) ? ' (the board did not make it: ' + esc(window._vaultWarAuto.why) + ')' : '') + '</p>'; /* L1 war full said plainly; REG-2803 why the board did not */
     var html = head;
+    /* REG-2803 - "prompt me to create that same mule ingame so i get tasked to do it": first, before the moves that go to it */
+    var makes = (typeof _vaultWarMakeRows === 'function') ? _vaultWarMakeRows(built.records) : [];
+    if (makes.length) html += '<p class="vtk-sec" data-sec="make">Make in the game · ' + makes.length + '</p><ol class="vtk-list" data-sec="make">'
+      + makes.map(function(m){
+          var why = (m.auto && m.auto.why) ? m.auto.why : 'war stash overflow';
+          return '<li class="vtk-line vtk-make" data-mule="' + esc(m.id) + '"><input type="checkbox" class="vtk-tick" aria-label="I made ' + esc(m.name) + ' in the game"'
+            + ' onclick="event.stopPropagation()" onchange="window._vaultWarMadeInGame(\'' + jsArg(m.id) + '\')">'
+            + '<span class="vtk-say">Create mule <b>' + esc(m.name) + '</b> in the game — the board made it (' + esc(why) + '); the moves to it are below</span></li>';
+        }).join('') + '</ol>';
     if (moves.length) html += '<p class="vtk-sec" data-sec="moves">Moves · ' + moves.length + '</p>'
       + '<ol class="vtk-list" data-sec="moves">' + moves.map(line).join('') + '</ol>'; /* L1 (Elad v3778) one collapsed row per task, never a shared 'Location not seen yet' block */
     if (throws.length) html += '<section class="vmv-throw" data-holder="THROW OUT"><p class="vtk-sec" data-sec="throws">Throw-outs · ' + throws.length + '</p><ol class="vtk-list" data-sec="throws">' + throws.map(line).join('') + '</ol></section>';
@@ -53705,6 +53797,11 @@ window.vaultAutoAssign = function(){
     window._movePaintBusy = true;
     try {
       var built = _vaultMoveCollect();
+      /* REG-2803 - the board makes the WAR mule the overflow needs, then plans again so the overflow lands on it */
+      var _wa = null;
+      try { _wa = (typeof _vaultWarAutoMule === 'function') ? _vaultWarAutoMule() : null; } catch (eWa) { _wa = { made: [], why: 'it raised (' + String((eWa && eWa.message) || eWa).slice(0, 60) + ')' }; }
+      window._vaultWarAuto = _wa;
+      if (_wa && _wa.made && _wa.made.length) built = _vaultMoveCollect();
       window._moveModel = built;
       var host = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
       if (host) { host.hidden = false; host.innerHTML = ((typeof _vaultMoveHeldHtml === 'function') ? _vaultMoveHeldHtml() : '') + _vaultMoveHtml(built); }
@@ -53712,7 +53809,7 @@ window.vaultAutoAssign = function(){
       try {
         var _bn = document.getElementById('vault-tasks-n');
         if (_bn && host) {
-          var _open = host.querySelectorAll('ol.vtk-list[data-sec="moves"] li.vtk-line, ol.vtk-list[data-sec="throws"] li.vtk-line').length;
+          var _open = host.querySelectorAll('ol.vtk-list[data-sec="make"] li.vtk-line, ol.vtk-list[data-sec="moves"] li.vtk-line, ol.vtk-list[data-sec="throws"] li.vtk-line').length;   /* REG-2803 his make-task counts */
           _bn.hidden = !_open; _bn.textContent = _open ? String(_open) : '';
           var _fab = document.getElementById('vault-tasks-fab');
           if (_fab) _fab.title = 'MOVE TASKS — ' + (_open ? _open + ' to do' : 'nothing to move');

@@ -13,9 +13,9 @@ plan sent 5 to WAR1, which no window drew and no FIND named (_vaultWarOverOn cou
 Now one layout, _sharedLayout: each copy at the page and cell its task names (the k-th copy at the k-th shared task cell,
 _vaultPlanOn('shared')), a copy with no task packed after them page 1 first, and the copies the war cap keeps there (the
 count the shelf card already drew). The window, FIND (filed and would answers, plus the WAR mules' copies) and the
-organizer read it; a WAR mule draws every copy the plan puts on it. VERIFIED, NOT CHANGED (L1): overflow past the 5 pages
-goes to WAR1, WAR2 ... on its own when such a mule exists; a WAR mule is never created - with none, those copies keep no
-cell and the note says to make one.
+organizer read it; a WAR mule draws every copy the plan puts on it. Overflow past the 5 pages goes to WAR1, WAR2 ... on its
+own; since REG-2803 (his ruling 2026-10-28) the board makes the WAR mule when there is none, so the world below with no WAR
+mule ends with the board's WAR1 holding the 5 rings past the pages.
 
 Driven on the whole page in node (vault_page_node - never a browser on his Mac). RED_PROOF below.
 """
@@ -77,7 +77,9 @@ OUT.plan = {}; for (var i = 0; i < copyCount(n); i++) { var t = (W._vaultMoveEns
   var k = !to || !to.cell ? 'none' : (to.id === 'shared' ? 'page ' + (Math.floor(+String(to.cell).match(/r(\d+)$/)[1] / 10) + 1) : (to.holder || to.id)); OUT.plan[k] = (OUT.plan[k] || 0) + 1; }
 var lay = W._sharedLayout(W._sharedDrawNames());
 OUT.pages = lay.pages.map(function(p){ return p.length; }); OUT.left = lay.left.length;
-var L = W._muleLoad(W._muleNamesFor(%(war)s), {}, %(war)s); OUT.warDraws = L.phys;
+var _w1 = JSON.parse(W.LSR.getItem('d2r_muleRoster') || '[]').filter(function(m){ return /^war1$/i.test(m.name); })[0] || null;
+OUT.war1 = _w1 ? { id: _w1.id, auto: (_w1.auto || {}).by || null } : null;
+var L = _w1 ? W._muleLoad(W._muleNamesFor(_w1.id), {}, _w1.id) : { phys: 0 }; OUT.warDraws = L.phys;
 var w = W._vaultWhereIs(n); OUT.findN = (w.cells || []).length; OUT.findWar = (w.cells || []).filter(function(c){ return c.indexOf('WAR1 · ') === 0; }).length;
 W.openMuleCard('shared'); var h = (document.getElementById('vault-detail') || {}).innerHTML || '';
 OUT.note = ((h.match(/<div class="vd-overflow"[^>]*>([\s\S]*?)<\/div>/) || [])[1] || '').replace(/<[^>]+>/g, '');
@@ -190,11 +192,16 @@ class TheSharedStashDrawsThePlansPages(unittest.TestCase):
         self.assertEqual((s["findN"], s["findWar"]), (505, 5), "FIND does not name every copy, WAR1's among them: %r" % s)
         self.assertIn("(WAR1)", s["note"], "the overflow note does not name the WAR mule that takes them: %r" % s["note"])
 
-    def test_with_no_war_mule_none_is_made_and_the_note_says_so(self):
+    def test_with_no_war_mule_the_board_makes_war1_and_the_rest_go_there(self):
+        """REG-2803 (his ruling 2026-10-28): with no WAR mule the board makes WAR1; the 5 rings past the pages land on it, its
+        window draws them, and the note names it."""
         n = self.n
-        self.assertEqual(n["plan"].get("none"), 5, "PREMISE: the 5 copies past the pages kept a cell with no WAR mule: %r" % n["plan"])
-        self.assertFalse([r for r in n["roster"] if re.match(r"^war", str(r), re.I)], "a WAR mule was created: %r" % n["roster"])
-        self.assertIn("no mule named WAR1", n["note"], "the overflow note does not say there is no WAR1: %r" % n["note"])
+        self.assertEqual(n["plan"], {"page 1": 100, "page 2": 100, "page 3": 100, "page 4": 100, "page 5": 100, "WAR1": 5},
+                         "the 5 rings past the pages did not land on the board's WAR1: %r" % n["plan"])
+        self.assertEqual([r for r in n["roster"] if re.match(r"^war", str(r), re.I)], ["WAR1"], "not exactly one WAR mule: %r" % n["roster"])
+        self.assertEqual((n["war1"] or {}).get("auto"), "board", "WAR1 was not made by the board: %r" % n["war1"])
+        self.assertEqual(n["warDraws"], 5, n)
+        self.assertIn("(WAR1)", n["note"], "the overflow note does not name the board's WAR1: %r" % n["note"])
 
 
     def test_the_move_row_and_its_expand_name_the_page_and_cell_find_names(self):

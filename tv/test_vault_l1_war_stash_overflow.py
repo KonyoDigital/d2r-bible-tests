@@ -7,8 +7,12 @@ Elad, live v3774 (2026-10-20): "a 2nd Aldur's Deception I added vanished - no ro
     MANUAL -> cell row (the Grief x2 copies[] store; a set piece he types twice is the spare he asked for);
   - the war stash has 5 pages (10x10 each), all used before any overflow;
   - overflow fills the mules named WAR1, then WAR2 ... (case-insensitive), in order;
-  - none / all full: the item keeps NO cell and MOVE TASKS says so plainly; a mule is never created (Add mule is
-    never pressed - the WAR mules here are seeded into the roster store, the way his saved roster holds them).
+  - none / all full: SUPERSEDED 2026-10-28 ~17:50 IDT (REG-2803) - his words: "yea the board should automatically create a
+    mule and name it War1/War2 for each mule and prompt me to create that same mule ingame so i get tasked to do it". The
+    board now makes WAR1 (then WAR2 ...) itself, the copies land on it, and MOVE TASKS asks him first to create it in the
+    game. Until then (2026-10-20) it read: the item keeps NO cell and MOVE TASKS says so; a mule is never created. The
+    MOVE TASKS line still says so when the board may not make one: a WAR mule he took back (deleted).
+    The WAR mules a case starts with are seeded into the roster store, the way his saved roster holds them.
 Driven on the SHIPPED page through the real door (window.vaultHandAdd), AUTO INTAKE off. RED_PROOF below.
 NO CHROME AT ALL = a declared skip, never a pass. [[regression-guard]]
 """
@@ -33,6 +37,9 @@ READ = T.READ + r"""
 function mv(re){ return recs().filter(function(r){ return re.test(r.name) && r.move; }).map(function(r){ return { n: r.name, c: r.copyIx || 0, to: r.move.to }; }); }
 function rows(re){ var h = document.getElementById('vault-move-list'); return h ? Array.prototype.filter.call(h.querySelectorAll('.vtk-list:not([data-sec="done"]) .vmv-row'), function(r){ return re.test(r.getAttribute('data-name') || ''); }).map(function(r){ return r.textContent.replace(/\s+/g, ' '); }) : null; }
 """
+_MAKE = ("var _ml = (document.getElementById('vault-move-list') || {}).innerHTML || '';"
+         "OUT.make = Array.prototype.map.call(document.querySelectorAll('#vault-move-list li.vtk-make'), function(e){ return e.textContent; });"
+         "OUT.makeFirst = _ml.indexOf('data-sec=\"make\"') >= 0 && (_ml.indexOf('data-sec=\"moves\"') < 0 || _ml.indexOf('data-sec=\"make\"') < _ml.indexOf('data-sec=\"moves\"'));")
 BELT_PER_GRID = 100    # a 1x1 ring on a 10x10 grid (rings / amulets keep every copy in the war stash)
 BELT = "The Stone of Jordan"   # the page-fill filler: the only war gear with no copy cap
 CAP_BELT = "Arachnid Mesh"     # a 2x1 belt: at most 4 copies in the war stash (Elad 2026-10-20 22:05)
@@ -42,8 +49,9 @@ def tearDownModule():
     T.tearDownModule()
 
 
-def roster_with(names):
-    """the saved roster, plus mules named `names` (seeded like his saved store - never the Add mule button)"""
+def roster_with(names, declined=None):
+    """the saved roster, plus mules named `names` (seeded like his saved store - never the Add mule button); `declined` = the
+    WAR mules he took back (REG-2803: kept on the shared stash's entry, so the board does not make them again)"""
     T.fresh()
     r = T.board().run("OUT.r = JSON.parse(window.LSR.getItem('d2r_muleRoster') || 'null') || (window._vaultRosterNow && window._vaultRosterNow());")["r"]
     assert isinstance(r, list) and r, "PREMISE: the page saved no roster to extend: %r" % (r,)
@@ -51,6 +59,11 @@ def roster_with(names):
          and not str(m.get("id", "")).startswith("war-law-") and m.get("role") != "war"]  # a renamed WAR box from another test
     for i, n in enumerate(names):
         r.append({"id": "war-law-%d" % i, "name": n})
+    for m in r:
+        if m.get("id") == "shared":
+            m.pop("warDeclined", None)
+            if declined:
+                m["warDeclined"] = list(declined)
     T.board().seed({"d2r_muleRoster": r, "d2r_owned": [], "d2r_vaultProv": {}, "d2r_muleAssign": {},
                     "d2r_vaultRecords": None, "d2r_copies": {}, "d2r_multiKeep": {}})
 
@@ -137,17 +150,23 @@ class WarStashOverflow(unittest.TestCase):
         self.assertTrue(o["rows"] and all("SHARED STASH · overflow" in t for t in o["rows"]),
                         "a WAR row does not say it is the Shared Stash overflow: %r" % o["rows"][:3])
 
-    def test_no_war_mule_says_so_and_creates_none(self):
+    def test_no_war_mule_the_board_makes_war1_and_tasks_him(self):
+        """REG-2803 (his ruling 2026-10-28): the 5 pages full and no WAR mule - the board makes WAR1, the copy lands on it,
+        and MOVE TASKS asks him first to create WAR1 in the game."""
         roster_with([])
         n = 5 * BELT_PER_GRID + 1
         add_many([BELT] * n, step=5)  # each add re-plans every copy; small batches keep each CDP call short late in the fill
         o = T.board().run(READ + "OUT.m = mv(/^The Stone of Jordan$/); OUT.line = ((document.querySelector('#vault-move-list .vmv-warfull') || {}).textContent || '');"
-                          "OUT.roster = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').map(function(m){ return m.name; });")
+                          "OUT.wars = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').filter(function(m){ return /^war/i.test(m.name); })"
+                          ".map(function(m){ return [m.name, (m.auto || {}).by || null]; });" + _MAKE)
         placed = [m for m in o["m"] if (m["to"] or {}).get("cell")]
-        self.assertEqual(len(placed), 5 * BELT_PER_GRID)
-        self.assertIn("no WAR1 mule", o["line"], "the overflow is not said plainly: %r" % o["line"])
-        self.assertIn("Stone of Jordan", o["line"])
-        self.assertFalse(any(re.match(r"^war", str(x), re.I) for x in o["roster"]), "a WAR mule was created: %r" % o["roster"])
+        self.assertEqual(len(placed), n, "a copy kept no cell: %d of %d" % (len(placed), n))
+        self.assertEqual(sum(1 for m in placed if (m["to"] or {}).get("holder") == "WAR1"), 1, "the 501st copy is not on WAR1")
+        self.assertEqual(o["wars"], [["WAR1", "board"]], "the board did not make exactly one WAR1: %r" % o["wars"])
+        self.assertEqual(o["line"], "", "MOVE TASKS still says there is no WAR mule: %r" % o["line"])
+        self.assertEqual(len(o["make"]), 1, o["make"])
+        self.assertIn("Create mule WAR1 in the game", o["make"][0])
+        self.assertTrue(o["makeFirst"], "the make task is not above the moves")
 
     def test_utility_proc_and_charge_gear_routes_to_the_war_stash(self):
         """Elad 2026-10-20: Demon Limb (Enchant charges), Metamorphosis (Mark of Bear/Wolf), Treachery (Fade) -> SHARED STASH"""
@@ -197,7 +216,8 @@ class WarStashOverflow(unittest.TestCase):
         self.assertEqual(A[0][0], "SHARED STASH", A)
         self.assertTrue(all(A[c] == B[c] for c in A), "a copy moved or swapped after another add: %r -> %r" % (A, B))
         self.assertEqual(sum(1 for v in B.values() if v[0] == "SHARED STASH" and v[1]), 1, B)
-        self.assertTrue(all(v[1] is None for c, v in B.items() if c != 0), "with no WAR mule an extra copy keeps no cell: %r" % B)
+        # REG-2803: with no WAR mule of his, the board makes WAR1 and the extra copies land on it
+        self.assertTrue(all(v[0] == "WAR1" and v[1] for c, v in B.items() if c != 0), "an extra copy is not on the board's WAR1: %r" % B)
 
     def test_renaming_a_war_mule_keeps_its_tasks_colour_and_place(self):
         """Elad 2026-10-20: mule names get renamed to character names later - routing, tasks, colour and place bind to the id"""
@@ -224,15 +244,17 @@ class WarStashOverflow(unittest.TestCase):
             self.assertLess(int(o["sorder"]), int(o["order"]), "SHARED STASH is not above its WAR box")
             self.assertLess(int(o["order"]), 0, "the WAR box is not ahead of the other mules: %r" % o["order"])
 
-    def _cap_case(self, wars):
-        roster_with(wars)
+    def _cap_case(self, wars, declined=None):
+        roster_with(wars, declined)
         T.add_all([CAP_BELT] * 9 + ["The Stone of Jordan"] * 6)
         return T.board().run(READ + "OUT.m = mv(/^Arachnid Mesh$/); OUT.rows = rows(/^Arachnid Mesh$/); OUT.soj = mv(/^The Stone of Jordan$/);"
                              "OUT.line = ((document.querySelector('#vault-move-list .vmv-warfull') || {}).textContent || '');"
                              "OUT.roster = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').map(function(m){ return m.name; });"
-                             "var ss = document.querySelector('.vault-mule[data-vault-mule=\"shared\"]'), w = document.querySelector('.vault-mule[data-vault-mule=\"war-law-0\"]');"
+                             "var _w1 = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').filter(function(m){ return /^war1$/i.test(m.name); })[0] || {};"
+                             "OUT.war1 = { id: _w1.id || null, auto: (_w1.auto || {}).by || null };"
+                             "var ss = document.querySelector('.vault-mule[data-vault-mule=\"shared\"]'), w = _w1.id ? document.querySelector('.vault-mule[data-vault-mule=\"' + _w1.id + '\"]') : null;"
                              "function n(c){ return c ? c.querySelectorAll('.vm-cell[data-vault-item=\"Arachnid Mesh\"]').length : null; }"
-                             "OUT.card = n(ss); OUT.wcard = n(w); OUT.sojcard = ss ? ss.querySelectorAll('.vm-cell[data-vault-item=\"The Stone of Jordan\"]').length : null;")
+                             "OUT.card = n(ss); OUT.wcard = n(w); OUT.sojcard = ss ? ss.querySelectorAll('.vm-cell[data-vault-item=\"The Stone of Jordan\"]').length : null;" + _MAKE)
 
     def test_nine_belts_keep_four_in_the_war_stash_and_five_go_to_war1(self):
         """Elad 2026-10-20 22:05 (live v3776: 9 Arachnid Mesh in the war stash, 'that cant happen'): rings and amulets
@@ -251,17 +273,33 @@ class WarStashOverflow(unittest.TestCase):
         self.assertEqual(o["sojcard"], 6)
         self.assertEqual(o["line"], "", "no overflow line when WAR1 holds the extras: %r" % o["line"])
 
-    def test_nine_belts_with_no_war_mule_say_make_war1_and_create_none(self):
+    def test_nine_belts_with_no_war_mule_the_board_makes_war1_and_tasks_him(self):
+        """REG-2803 (his ruling 2026-10-28): 9 belts, no WAR mule - the war stash keeps 4, the board makes WAR1, the other 5
+        land on it with their rows, and MOVE TASKS asks him first to create WAR1 in the game."""
         o = self._cap_case([])
         by = [(m["c"], (m["to"] or {}).get("holder"), (m["to"] or {}).get("cell")) for m in o["m"]]
         self.assertEqual(sum(1 for _, h, c in by if h == "SHARED STASH" and c), 4, by)
-        self.assertFalse(any(h not in (None, "SHARED STASH") for _, h, _c in by), "an extra went to a normal mule: %r" % by)
+        self.assertEqual(sum(1 for _, h, c in by if h == "WAR1" and c), 5, "the 5 extra belts are not on the board's WAR1: %r" % by)
+        self.assertFalse(any(h not in ("WAR1", "SHARED STASH") for _, h, _c in by), "an extra went to a normal mule: %r" % by)
         self.assertEqual(len(o["rows"]), 9, "every copy keeps its own row: %r" % o["rows"])
+        self.assertEqual(o["war1"]["auto"], "board", "WAR1 was not made by the board: %r" % o["war1"])
+        self.assertEqual([x for x in o["roster"] if re.match(r"^war", str(x), re.I)], ["WAR1"], "not exactly one WAR mule: %r" % o["roster"])
+        self.assertEqual(o["line"], "", "MOVE TASKS still says to make WAR1 by hand: %r" % o["line"])
+        self.assertEqual(o["card"], 4)
+        self.assertEqual(o["wcard"], 5, "the board's WAR1 card draws %r belts, not 5" % o["wcard"])
+        self.assertTrue(o["make"] and "Create mule WAR1 in the game" in o["make"][0] and o["makeFirst"], o["make"])
+
+    def test_a_war_mule_he_took_back_is_not_made_again_and_the_line_says_why(self):
+        """REG-2803: a WAR mule he deleted is kept on the shared stash's entry - the board does not make it again, the
+        extras keep no cell, and MOVE TASKS says so and why."""
+        o = self._cap_case([], declined=["WAR1"])
+        by = [(m["c"], (m["to"] or {}).get("holder"), (m["to"] or {}).get("cell")) for m in o["m"]]
+        self.assertFalse([x for x in o["roster"] if re.match(r"^war", str(x), re.I)], "the board made the WAR1 he took back: %r" % o["roster"])
+        self.assertEqual(sum(1 for _, h, c in by if h == "SHARED STASH" and c), 4, by)
         self.assertIn("no WAR1 mule", o["line"])
         self.assertIn("make a mule named WAR1", o["line"])
         self.assertIn("Arachnid Mesh", o["line"])
-        self.assertEqual(o["card"], 4)
-        self.assertFalse(any(re.match(r"^war", str(x), re.I) for x in o["roster"]), "a WAR mule was created: %r" % o["roster"])
+        self.assertIn("you took back the WAR1", o["line"], "the line does not say why the board did not make it: %r" % o["line"])
 
     def test_the_cap_is_read_off_footprint_and_base_not_a_name_list(self):
         o = T.board().run("OUT.r = {}; ['The Stone of Jordan', 'Raven Frost', \"Mara's Kaleidoscope\", \"Highlord's Wrath\", 'Arachnid Mesh', \"Thundergod's Vigor\", 'Enigma', \"Andariel's Visage\", 'Demon Limb']"

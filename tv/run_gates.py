@@ -12273,6 +12273,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_no_sentence_names_a_surface_nothing_draws.py")], 300,
          needs_app=False,
          why='#154 REG-2834 - no sentence sends him to an undo surface nothing draws; the take-back names the toolbar Undo it arms'),
+    Gate("test_the_board_makes_the_war_mule_the_overflow_needs",
+         [sys.executable, os.path.join(HERE, "test_the_board_makes_the_war_mule_the_overflow_needs.py")], 300,
+         needs_app=False,
+         why='REG-2803 his ruling 2026-10-28: the board makes WAR1/WAR2 for the war stash overflow and tasks him to make it in the game'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

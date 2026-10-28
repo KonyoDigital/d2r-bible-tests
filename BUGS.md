@@ -100,6 +100,26 @@ task": neither door's item gets a vault record or a move task (Magic & Rare has 
 receipt. Its later X then wrote 0 journal batches and nothing could put it back (the checker-kept control: 1 batch, restored
 whole). Now the keep owns the name with his hand as its receipt (by: the throw-out review), and its X is journaled like every
 Magic & Rare X, with the record riding in the batch. Law: test_a_kept_or_dismissed_read_can_come_back, 1 red-proof, RED.
+### REG-2803 - THE BOARD NOW MAKES THE WAR MULE THE OVERFLOW NEEDS AND TASKS HIM TO MAKE IT IN THE GAME (his ruling 2026-10-28)
+His words, 2026-10-28 ~17:50 IDT: "yea the board should automatically create a mule and name it War1/War2 for each mule and
+prompt me to create that same mule ingame so i get tasked to do it". It supersedes L1's line of 2026-10-20, "a mule is never
+created". MEASURED before (node, whole page): Shako x3 hand-added with no WAR mule - the war cap keeps 1, the 2 extra copies
+kept NO cell, and MOVE TASKS only said "make a mule named WAR1". NOW: the move paint (_vaultMovePaint -> _vaultWarAutoMule)
+re-plans the war stash; when copies still have no cell it makes the next WAR<n> under the add-mule door's rules (_vmNameOk,
+added:true so his delete takes it back, role 'war' + warN on the id, and auto {by:'board', at, why} recorded) and plans
+again, so the copies land on it in the same paint. MOVE TASKS opens with "Create mule WAR1 in the game" (data-sec="make",
+counted on the tasks badge) until he ticks it (_vaultWarMadeInGame -> inGame {by:'hand'}) or an item is read on a
+character of that name (the witness rows' holder - no new store); the WAR1 card says "made by the board · not in the game
+yet" until then (the task line has the move row's numbered layout, .vtk-make, tokens only). GUARDS, each a law case: one WAR1 across repeated paints and a reload; nothing without a real overflow;
+nothing in a shadow, a guest's world, or while the mule store is UNKNOWN (held - its bytes left as they were); nothing from
+FIND, the copy readout or a row's expand (only the paint makes); a WAR mule he deleted is kept on the shared stash's entry
+(warDeclined) and not made again - the MOVE TASKS line then says why. Re-aimed: tv/test_vault_l1_war_stash_overflow.py
+(Chrome, CI proves it) - docstring quotes the new words; "no WAR mule says so and creates none" and "nine belts with no WAR
+mule ... create none" now assert the board's WAR1 and his task; the keeper-stability case expects the extras on WAR1; a new
+case (a WAR1 he took back) keeps red-proof "a full war stash says nothing" catchable. tv/test_the_shared_stash_draws_the_
+plans_pages.py's no-WAR world now ends with the board's WAR1 holding the 5 rings past the pages. Law: tv/test_the_board_
+makes_the_war_mule_the_overflow_needs.py (node, whole page, seven worlds): 12 red-proofs, 12 RED (one was inert at first -
+dropping added:true alone still leaves the mint-id shape deletable - and was re-aimed to drop both).
 
 ### REG-2778 - A COPY READOUT THE CONSOLE REFUSED LEFT THE OLDER ONE SERVED ALONE (#144.9, the v3827 second eye)
 accept_handed_copy_audit banks a board's own refusal ("could not read its copies"), but a readout the CONSOLE would not
