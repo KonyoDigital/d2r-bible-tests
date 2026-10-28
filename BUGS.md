@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2937 - THE SPINNER LAW'S SCROLL PROOF WAS BLIND: ITS CASE NEVER SCROLLED THE PANE (the v3832/v3833 push gate)
+The second push attempt was refused on test_the_planner_spinner_stays_under_the_cursor[2] ("the repaint sends the edit pane
+back to the top") staying GREEN with its sabotage in. The arrow-key case opened the planner at a 420 px modal; in the
+hook's Chrome the edit pane did not overflow there, so its scrollTop was 0 before any key and putting it back after a
+repaint changed nothing the case reads. It now opens at the 260 px its sibling case proves makes the pane scroll, leaves
+the pane scrolled (a 12 px nudge when centring the field did not scroll it), and asserts the pane IS scrolled as a premise
+before the first key - so this proof can only stay green if the restore line genuinely holds. Chrome law: proven by the
+push gate.
+
 ### REG-2935 - THE WAR STASH LAW'S SET-PIECE PROOF WENT BLIND WHEN REG-2786 GAVE THE SAME RAISE A SECOND HOME (the v3832/v3833 push gate)
 The pre-push red-proof gate refused v3832+v3833: test_vault_l1_war_stash_overflow[3] ("a set piece typed twice stays one
 presence item") stayed GREEN with its sabotage in. The law changed in v3832 (the 5-page shared stash re-aims), so every

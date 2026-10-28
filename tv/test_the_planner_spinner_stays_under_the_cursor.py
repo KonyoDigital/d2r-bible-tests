@@ -94,11 +94,20 @@ class ThePlannerSpinnerStaysUnderTheCursor(unittest.TestCase):
 
     def test_arrow_keys_on_the_sockets_field_keep_it_focused_and_still(self):
         board().run(STYLE + OPEN +
-                    "document.getElementById('vault-planner-host').style.setProperty('--law-h', '420px');"
+                    "document.getElementById('vault-planner-host').style.setProperty('--law-h', '260px');"
                     "var i = document.getElementById('cb-sockets'); i.scrollIntoView({ block: 'center' }); i.focus();"
+                    # REG-2937 - and the pane is left SCROLLED (a nudge when centring the field did not scroll it), so a
+                    # repaint that sends it back to the top is a change this case can see
+                    "var ed = document.querySelector('#vault-planner-host .cb-ed');"
+                    "if (ed && ed.scrollTop < 1) ed.scrollTop = Math.min(ed.scrollHeight - ed.clientHeight, 12);"
                     "OUT.ok = 1;")
         o0 = board().run(MEASURE + "OUT.m = m();")["m"]
         self.assertEqual(o0["focus"], "cb-sockets", "PREMISE: the Sockets field did not take focus: %r" % o0)
+        # REG-2937 (the v3832/v3833 push gate: RED_PROOF[2] BLIND) - at 420 px the hook's Chrome did not scroll the edit pane,
+        # so its scrollTop was 0 before any key and putting it back after a repaint changed nothing this case can see.
+        # The case now opens the modal at the 260 px its sibling proves makes the pane scroll, and says so first.
+        self.assertGreater(o0["top"] or 0, 0, "PREMISE: the edit pane is not scrolled, so a repaint that sends it back to "
+                                             "the top would change nothing this case can see: %r" % o0)
         steps = []
         for _ in range(3):
             key_up()
