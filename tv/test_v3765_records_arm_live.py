@@ -58,7 +58,7 @@ EXTRACT = [
     "_vaultRecordsPersist", "_vaultRecordsRefresh", "_vaultRecordsMigrate",
     "_vaultRecordsMigrateUndo", "_vaultRecordsMayArm", "_vaultRecordsArm",
     "_shelfCopyCount", "_shelfDrawNames", "_muleLoad",
-    "_inMagicRare", "_dockNames", "_vaultWhereIs", "_vaultFindHome", "_vfNorm", "_vfKey", "_vaultFindMatches",
+    "_inMagicRare", "_dockNames", "_vaultWhereIs", "_vaultFindHome", "_vfNorm", "_vfKey", "_vfVaultKey", "_vaultFindMatches",
     "saveA", "persistOwned",
 ]
 

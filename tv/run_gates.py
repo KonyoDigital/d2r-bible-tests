@@ -12441,6 +12441,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_keeper_row_sets_where_its_copies_go.py")], 300,
          needs_app=False,
          why='REG-2902 (#149.2) - each Keepers row carries Destination [Auto|Shared|WAR|Mule], stored as {want, dest} and routed at once; a missing mule, a non-keeper and a shadow are refused in words'),
+    Gate("test_find_lists_a_unique_by_the_base_in_its_name",
+         [sys.executable, os.path.join(HERE, "test_find_lists_a_unique_by_the_base_in_its_name.py")], 300,
+         needs_app=False,
+         why="REG-2958 (#154.16) - FIND 'shako' lists Harlequin Crest (Shako) beside the Shako base, by its vault name too; a search match only, the bare-Shako ask stands"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

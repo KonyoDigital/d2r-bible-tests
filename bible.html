@@ -44257,12 +44257,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* #154.16 (GrokBot) - "tal rashas" found nothing: the fold kept the apostrophe in "rasha's". FIND compares with every
      apostrophe dropped on both sides, so a name typed without one still finds it. */
   function _vfKey(x){ return _vfNorm(x).replace(/'/g, ''); }
+  /* REG-2958 (#154.16 follow-up) - FIND "shako" LISTS HARLEQUIN CREST (SHAKO) BESIDE THE SHAKO BASES. The vault's one name
+     for a unique carries its base in brackets (the register's name, v792 / REG-2897), so the match reads that name: a name
+     he owns under a bare spelling written before it ("Harlequin Crest") is matched by its vault name too
+     (window._vaultResolveName, asked once per name). A SEARCH match only: the row shows the name he owns, and the hand
+     door's question for a bare "Shako" (REG-2858) is untouched. -> the vault name's key, or '' when it is the name itself */
+  function _vfVaultKey(n){
+    var memo = _vfVaultKey.memo || (_vfVaultKey.memo = {});
+    if (Object.prototype.hasOwnProperty.call(memo, n)) return memo[n];
+    var v = n;
+    try { if (typeof window._vaultResolveName === 'function') v = String(window._vaultResolveName(n) || n); } catch (e) { v = n; }
+    return (memo[n] = (v === n) ? '' : _vfKey(v));
+  }
   function _vaultFindMatches(pool, q){
     var qn = _vfNorm(q).trim(); if (!qn) return [];
     var qa = _vfKey(_VF_ALIAS[qn] || qn);
     var reWord = new RegExp('\\b' + qa.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
-    function score(n){ var ln=_vfKey(n); if(ln===qa) return 0; if(ln.indexOf(qa)===0) return 1; if(reWord.test(ln)) return 2; return 3; }
-    return pool.filter(function(n){ return _vfKey(n).indexOf(qa) !== -1; })
+    function keys(n){ var a = _vfKey(n), b = _vfVaultKey(n); return b ? [a, b] : [a]; }
+    function rank(ln){ if(ln===qa) return 0; if(ln.indexOf(qa)===0) return 1; if(reWord.test(ln)) return 2; return 3; }
+    function score(n){ return Math.min.apply(null, keys(n).map(rank)); }
+    return pool.filter(function(n){ return keys(n).some(function(k){ return k.indexOf(qa) !== -1; }); })
                .sort(function(a,b){ var sa=score(a), sb=score(b); return sa!==sb ? sa-sb : a.localeCompare(b); });
   }
   /* #76 — a set piece stored under TWO name-forms (bare "Natalya's Totem" + slotted "Natalya's Totem (helm)")
