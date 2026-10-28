@@ -83,23 +83,34 @@ test('non-runeword bases (circlet/orb/javelin/throwing/belt/boot/glove) → thro
     expect((r as any)[k]).toBe('bases'));
 });
 
-test('a RARE circlet is a keeper (MAGIC & RARE locker); white/magic circlet is not', async ({ page }) => {
+test('a RARE circlet with its stats read is a keeper (MAGIC & RARE locker); a bare rare needs a look; white/magic is not', async ({ page }) => {
   // magicFinds is a module let loaded from localStorage — seed it BEFORE the page loads
+  // REG-2814 (#158.6) - a rare circlet is judged on its stats: with its lines read (+2 skills / FCR / FRW) it is kept; a
+  // ground label carries the name and no lines, so with no stat read it is not filed and says it needs a tooltip look.
   await page.addInitScript(() => {
     localStorage.setItem('d2r_magicFinds', JSON.stringify({
-      'Viper Coronet of the Whale': { q: 'rare', base: 'Coronet', mods: [] },
+      'Viper Coronet of the Whale': { q: 'rare', base: 'Coronet',
+        mods: ['+2 to Sorceress Skill Levels', '20% Faster Cast Rate', '30% Faster Run/Walk'] },
+      'Grim Tiara of the Fox': { q: 'rare', base: 'Tiara', mods: [] },
       'Coronet of Frost': { q: 'magic', base: 'Coronet', mods: [] },
     }));
   });
   await page.goto(URL); await page.waitForTimeout(1600);
   const r = await page.evaluate(() => {
     const w: any = window;
+    const bare = w.suggestMule('Grim Tiara of the Fox') || {};
     return {
       rare: (w.suggestMule('Viper Coronet of the Whale') || {}).id,
+      bareId: bare.id === undefined ? 'undefined' : bare.id,
+      bareUnsorted: bare.unsorted === true,
+      bareWhy: String(bare.why || ''),
       magic: (w.suggestMule('Coronet of Frost') || {}).id,
     };
   });
-  expect(r.rare).toBe('magic-rare');   // RARE circlet → keeper
+  expect(r.rare).toBe('magic-rare');   // RARE circlet, stats read → keeper
+  expect(r.bareId).toBeNull();         // RARE circlet, no stat read → not filed (REG-2814)
+  expect(r.bareUnsorted).toBe(true);
+  expect(r.bareWhy).toContain('needs a tooltip look');
   expect(r.magic).toBe('__throwout');  // MAGIC circlet → vendor (Konyo: only rare)
 });
 
