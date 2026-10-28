@@ -12465,6 +12465,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_vault_guide_walks_the_real_controls.py")], 300,
          needs_app=False,
          why='the Vault guide lights real controls, tutorial first, closed folds, and writes nothing (REG-2860)'),
+    Gate("test_every_tray_orb_yields_on_a_short_screen",
+         [sys.executable, os.path.join(HERE, "test_every_tray_orb_yields_on_a_short_screen.py")], 300,
+         needs_app=False,
+         why='every tray-column orb is hidden at 480px tall and MOVE TASKS keeps a toolbar door there (REG-2862)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
