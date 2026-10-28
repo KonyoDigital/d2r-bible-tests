@@ -3,7 +3,12 @@ name: proof-keys shards (ci/proof-keys-* only)
 # (tv/proof_shard.py, REG-2585) and banks it into its OWN verdict cache; the fan-in job checks the 16 caches form one
 # whole set of this commit (the SAME rules `heart2 --import-shards` applies, REG-2586) and hands them on as ONE
 # artifact. Nothing is imported here: the import runs on the machine that pushes, and it refuses a partial set.
-# Never on main. Nothing here may call the Claude CLI: D2R_NO_CLAUDE=1 and a `claude` on PATH that refuses.
+# A push to main never starts it on its own; Publish CALLS it (workflow_call, gate: deploy) and its deploy waits for the
+# fan-in's verdict (REG-2962). Nothing here may call the Claude CLI: D2R_NO_CLAUDE=1 and a `claude` on PATH that refuses.
+# REG-2961 - EACH SHARD STARTS FROM THE PROOFS THE LAST MAIN RUN BANKED: a read-only seed restored by actions/cache
+# (HEART2_SHARD_SEED). heart2 serves a seed entry only under the key it takes from THIS checkout's bytes (a sha256 over
+# every input's bytes, tv/heart2.py _VerdictCache._key), so a seed of any commit can never serve a proof for other bytes;
+# the shard's own file still starts empty and holds only proofs of its own plan. Main runs save the next seed.
 # ⚠ N LIVES IN TWO PLACES - PROOF_SHARDS and the matrix list - and
 # tv/test_the_shard_workflow_proves_every_proof_once.py goes red if they disagree. 16 <= the Free plan's 20 jobs.
 on:
@@ -11,11 +16,17 @@ on:
     branches:
       - 'ci/proof-keys-*'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      gate:
+        description: "deploy - Publish's gate: the shards never fail the run, the fan-in's verdict on this push's laws does"
+        type: string
+        default: ""
 permissions:
   contents: read
 concurrency:
   group: proof-keys-shards-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/heads/ci/') }}
 env:
   PROOF_SHARDS: "16"
 jobs:
@@ -63,6 +74,13 @@ jobs:
         timeout-minutes: 5
         continue-on-error: true
         run: npx playwright install-deps chromium
+      - name: Restore the proofs the last main run banked (REG-2961)
+        # a miss is a cold run, never a failure: every proof of this shard then runs, as before the seed
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/heart2-seed
+          key: heart2-proofs-${{ github.sha }}
+          restore-keys: heart2-proofs-
       - name: A claude that refuses
         run: |
           mkdir -p "$RUNNER_TEMP/noclaude"
@@ -76,11 +94,20 @@ jobs:
           D="$RUNNER_TEMP/shard-${{ matrix.shard }}"
           mkdir -p "$D"
           export HEART2_CACHE_PATH="$D/.heart2_cache.json"
+          export HEART2_SHARD_SEED="$RUNNER_TEMP/heart2-seed/.heart2_cache.json"
+          if [ -f "$HEART2_SHARD_SEED" ]; then echo "REG-2961: seeded from the last main run's proofs"; else
+            unset HEART2_SHARD_SEED; echo "REG-2961: no seed restored - every proof of this shard runs"; fi
           S=$(date +%s)
           set +e
           python3 -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${PROOF_SHARDS}" 2>&1 | tee "$D/prove.log"
           rc=${PIPESTATUS[0]}
           echo "prove_seconds=$(( $(date +%s) - S )) rc=$rc" | tee -a "$D/prove.log"
+          if [ "${{ inputs.gate }}" = "deploy" ]; then
+            # REG-2962 - Publish's gate: a failure is named in this shard's manifest (owed), and the fan-in's verdict holds
+            # the deploy when it is one of THIS push's laws. A shard that never finishes leaves no manifest: refused there.
+            echo "deploy gate: rc=$rc is the fan-in verdict's to judge"
+            exit 0
+          fi
           exit $rc
       - name: Upload this shard's cache
         if: always()
@@ -98,6 +125,9 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - name: Fetch every shard's cache
@@ -119,6 +149,17 @@ jobs:
           path: census.md
           if-no-files-found: warn
           retention-days: 30
+      - name: Bank this run's proofs as the next run's seed (REG-2961, main only)
+        # main's cache scope is the one every branch may restore; a ci/ branch's cache would serve that branch alone
+        if: ${{ always() && github.ref == 'refs/heads/main' }}
+        run: python3 tv/proof_shard.py --merge-shards shards --out "$RUNNER_TEMP/heart2-seed/.heart2_cache.json"
+      - name: Save the seed (REG-2961, main only)
+        if: ${{ always() && github.ref == 'refs/heads/main' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/heart2-seed
+          key: heart2-proofs-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Every shard finished, on this commit, on one plan
         run: python3 tv/proof_shard.py --fan-in shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA"
       - name: Hand the whole set on as one artifact
@@ -129,3 +170,17 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+      - name: May this commit publish? (REG-2962, Publish's gate only)
+        # every law the push changed since the last commit Publish published must be PROVEN here (or be one only the
+        # Mac can prove, which the hook proved); no last publish or no diff -> every law is this push's
+        if: ${{ inputs.gate == 'deploy' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BASE="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow publish.yml --branch main --status success \
+                   --limit 1 --json headSha --jq '.[0].headSha' 2>/dev/null || true)"
+          if [ -n "$BASE" ] && ! git fetch --no-tags --depth=1 origin "$BASE" 2>/dev/null; then
+            echo "the last published commit ${BASE:0:12} could not be fetched - every law is this push's"; BASE=""
+          fi
+          echo "last published commit: ${BASE:-UNKNOWN}"
+          python3 tv/proof_shard.py --deploy-verdict shards --shards "$PROOF_SHARDS" --head "$GITHUB_SHA" --base "$BASE"

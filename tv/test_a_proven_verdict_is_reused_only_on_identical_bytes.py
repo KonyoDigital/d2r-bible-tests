@@ -516,13 +516,18 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
                 text = fh.read()
             if n == "proof-keys-shards.yml":
                 # REG-2588 - the ONE exception: a proof shard proves at push time into its OWN fresh cache (REG-2585
-                # refuses one that already exists), so it consults nothing banked. Every --push line must be a shard's,
-                # and the cache may be named only where its fresh per-shard path is set.
+                # refuses one that already exists). Every --push line must be a shard's, and the cache may be named only
+                # where its fresh per-shard path is set - or, REG-2961, as the shard's READ-ONLY seed (HEART2_SHARD_SEED:
+                # heart2 serves a seed entry only under the key this checkout's bytes give it) and the seed the fan-in
+                # writes from the shards (--merge-shards). Never this machine's store, never a path the hook reads.
                 lines = text.splitlines()
                 self.assertTrue(all("--proof-shard" in l for l in lines if "--push" in l),
                                 "workflow %s runs a push-time prove that is not a proof shard" % n)
-                self.assertTrue(all("HEART2_CACHE_PATH=" in l for l in lines if ".heart2_cache" in l),
-                                "workflow %s names the cache other than as a shard's own fresh path" % n)
+                self.assertTrue(all(("HEART2_CACHE_PATH=" in l or "HEART2_SHARD_SEED=" in l or "--merge-shards" in l)
+                                    for l in lines if ".heart2_cache" in l),
+                                "workflow %s names the cache other than as a shard's own fresh path or its seed" % n)
+                self.assertTrue(all("heart2-seed/" in l for l in lines if "HEART2_SHARD_SEED=" in l or "--merge-shards" in l),
+                                "workflow %s seeds a shard from somewhere other than the restored seed dir" % n)
                 continue
             self.assertNotIn(".heart2_cache", text, "workflow %s names the cache" % n)
             self.assertNotIn("--push", text, "workflow %s runs a push-time prove - CI must run every proof" % n)

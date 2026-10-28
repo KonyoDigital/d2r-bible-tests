@@ -12465,6 +12465,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_bare_charm_pick_is_his_and_asked.py")], 300,
          needs_app=False,
          why="REG-2965 (int-4) - a magic charm picked and left bare is owned, its record kept, unfiled with the charm rule's question - never lost, never a guessed home"),
+    Gate("test_ci_reuses_a_proof_only_for_identical_bytes",
+         [sys.executable, os.path.join(HERE, "test_ci_reuses_a_proof_only_for_identical_bytes.py")], 300,
+         needs_app=False,
+         why="REG-2961 (#161) - a CI shard starts from the last main run's proofs as a read-only seed, served only under the key this checkout's bytes give; the fan-in saves the next seed from main"),
+    Gate("test_the_deploy_waits_for_the_proof_of_its_laws",
+         [sys.executable, os.path.join(HERE, "test_the_deploy_waits_for_the_proof_of_its_laws.py")], 300,
+         needs_app=False,
+         why="REG-2962 (#161) - Publish's deploy needs the proof shards, whose verdict holds it while any law the push changed since the last publish is owed a fix"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -4323,6 +4323,7 @@ class _VerdictCache(object):
         self.measured = {}               # gate -> the OLDEST provedAt among its reused proofs; the census stamp
         self.used = {}                   # R4 - key -> ms of this run's hits (usedAt), written at the next flush
         self._vidx, self._vgen = None, None   # REG-2640 - ident -> unread-sets, rebuilt when the entries are replaced
+        self.seed = {}                   # REG-2961 - a CI shard's earlier proofs, read only: seed_from()
         self.file = _StoreFile(self.path, say)
         self.file.sweep()                # R9 - a tmp a dead writer left beside the store
         if self.path == CACHE and CACHE_WHY:
@@ -4366,7 +4367,7 @@ class _VerdictCache(object):
         with self.lock:
             if self._vidx is None or self._vgen != id(self.entries):
                 idx = {}
-                for e in self.entries.values():
+                for e in list(self.entries.values()) + list(self.seed.values()):   # REG-2961 - a seeded v2 key too
                     if isinstance(e, dict) and e.get("ident") and isinstance(e.get("unread"), list) and e["unread"]:
                         idx.setdefault(e["ident"], []).append((_proven_at(e), tuple(str(x) for x in e["unread"])))
                 self._vidx, self._vgen = idx, id(self.entries)
@@ -4512,6 +4513,8 @@ class _VerdictCache(object):
         date cannot keep its age in the census, so it is re-proved."""
         with self.lock:
             e = self.entries.get(key)
+            if e is None:
+                e = self.seed.get(key)       # REG-2961 - an earlier run's proof, under the key these bytes give it
         if not (isinstance(e, dict) and isinstance(e.get("provedAt"), (int, float))
                 and not isinstance(e.get("provedAt"), bool)):
             return None
@@ -4529,7 +4532,27 @@ class _VerdictCache(object):
         if e is not None:
             with self.lock:
                 self.used[key] = int(time.time() * 1000)       # R4 - usedAt: eviction is by use, written at the flush
+                if key not in self.entries:                   # REG-2961 - served from the seed: this run's own now
+                    self.entries[key] = e
+                    self.dirty = True
+                    self._vidx = None
         return e
+
+    def seed_from(self, path):
+        """REG-2961 (#161 stage 2) - A CI SHARD SERVES WHAT AN EARLIER RUN PROVED OVER THE SAME BYTES. The shard's own file
+        still starts empty (REG-2585); `path` (HEART2_SHARD_SEED: the proofs the last main run banked, restored by
+        actions/cache) is read ONLY, into self.seed. peek() asks it after self.entries and serves an entry only under the
+        key key_for() takes from THIS checkout's bytes - the key is a sha256 over every input's bytes (_key), so a seed
+        entry for other bytes is never found, whatever cache the restore handed over. An entry served from it is copied
+        into this run's entries (lookup), so the shard's file holds only proofs of its own plan: served or proved here.
+        -> (entries seeded, why-unread | None)"""
+        body, why = _read_store(path, _entries_shape)
+        if why is not None:
+            return 0, why
+        with self.lock:
+            self.seed = dict((k, v) for k, v in ((body or {}).get("entries") or {}).items() if isinstance(v, dict))
+            self._vidx = None
+        return len(self.seed), None
 
     def store(self, key, entry):
         """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run). R4: nothing is
@@ -4599,7 +4622,15 @@ def open_cache(say=print):
     if _prove_cache_off():
         say("  #42 P3 CACHE: OFF for this run (HEART2_PROVE_CACHE=0) - every proof runs, nothing is banked")
         return None
-    return _VerdictCache(say=say)
+    cache = _VerdictCache(say=say)
+    seed = os.environ.get("HEART2_SHARD_SEED") or ""
+    if seed and _SHARD.get("spec"):                  # REG-2961 - a CI proof shard only; never this machine's store
+        n, why = cache.seed_from(seed)
+        say("  REG-2961 SEED: %s" % ("%d proof(s) an earlier run banked may be served, each only under the key this "
+                                    "checkout's bytes give it" % n if why is None else
+                                    "%s is not read (%s) - nothing is seeded, every proof of this shard runs"
+                                    % (os.path.basename(seed), why)))
+    return cache
 
 
 def _age_say(ms):
@@ -7520,7 +7551,8 @@ def main(argv):
         if _sw is None and str(os.environ.get("HEART2_PROVE_CACHE", "1")).strip().lower() in ("0", "no", "off", "false"):
             _sw = "--proof-shard with the cache OFF would bank nothing"
         if _sw is None and os.path.exists(CACHE):
-            _sw = "%s already exists - a shard starts from an empty file, so it serves nothing it did not prove" % CACHE
+            _sw = ("%s already exists - a shard's own file starts empty, so it holds only what this run serves or proves "
+                   "(REG-2961: earlier proofs come in read only, through HEART2_SHARD_SEED)" % CACHE)
         if _sw is not None:
             _SHARD["spec"] = None
             print("  ✗ REG-2585: %s" % _sw)

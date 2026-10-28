@@ -485,6 +485,129 @@ def fan_in(root, n, head, say=print):
     return 0
 
 
+def merge_shards(root, out, say=print):
+    """REG-2961 (#161 stage 2) - THE SEED THE NEXT RUN RESTORES: every servable entry the shard files under `root` hold,
+    in one heart2 store at `out` (no shard manifest - it is no shard's file). Read only by heart2's seed (HEART2_SHARD_SEED),
+    which serves an entry only under the key the checkout's own bytes give it, so a seed of any age is safe; it is saved
+    by actions/cache from main runs only. A key two files carry keeps the newer proof. -> exit code: 0 written, 2 none"""
+    take, files = {}, 0
+    for d in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        path = os.path.join(root, d, STORE_NAME)
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                body = json.load(fh)
+        except (OSError, ValueError) as e:
+            say("  ⚠ REG-2961: %s is unreadable (%s) - left out of the seed" % (d, type(e).__name__))
+            continue
+        files += 1
+        for key, e in ((body.get("entries") if isinstance(body, dict) else None) or {}).items():
+            if not servable(e):          # what the import would bank, never more
+                continue
+            cur = take.get(key)
+            if cur is None or e.get("provedAt") > cur.get("provedAt"):
+                take[key] = e
+    if not files:
+        say("  ✗ REG-2961: no shard file under %s - nothing to seed the next run with" % root)
+        return 2
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    with open(out + ".tmp", "w", encoding="utf-8") as fh:
+        json.dump({"_why": "REG-2961 - PROVEN verdicts of one CI proof run, the next run's read-only seed; keyed by a digest "
+                           "of every byte each proof depends on (tv/heart2.py _key)", "format": 2, "entries": take}, fh)
+    os.replace(out + ".tmp", out)
+    say("  ✓ REG-2961: %d PROVEN entr(ies) from %d shard file(s) -> %s" % (len(take), files, os.path.basename(out)))
+    return 0
+
+
+def _changed_paths(base, head):
+    """REG-2962 - the repo paths that differ between two commits. -> set | None (no base, or git could not say)"""
+    import subprocess
+    if not base or not head:
+        return None
+    p = subprocess.run(["git", "-c", "core.quotePath=false", "diff", "--name-only", "-z", str(base), str(head)],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if p.returncode != 0:
+        return None
+    return set(x for x in p.stdout.split("\0") if x)
+
+
+def _gates_of(paths):
+    """REG-2962 - the gates the hook proves for these changed paths (heart2.gates_for_tests: the hook's own rule); every
+    gate when `paths` is None (UNKNOWN changes are judged as all of them). -> [name]"""
+    import heart2 as _H
+    if paths is None:
+        return sorted(set(n for n, _f in _H.gate_files(say=lambda *a, **k: None)))
+    return _H.gates_for_tests(sorted(p for p in paths if p.startswith("tv/test_") and p.endswith(".py")))
+
+
+def _mac_only(names):
+    """REG-2962 - of `names`, the gates the Mac proves and CI cannot bank (tv/proof_keys_mac.local_gates' rule). -> set"""
+    import heart2 as _H
+    import proof_keys_mac as _M
+    files = dict(_H.gate_files(say=lambda *a, **k: None))
+    have = [(n, files[n], _H.red_proofs_in(files[n]) or []) for n in names if n in files]
+    along, unkeyable, _why = _M.local_gates(have, _H._tracked_files(), lambda *a: "keyed", _H.proof_needs_in)
+    return set(along) | set(unkeyable)
+
+
+def deploy_verdict(root, n, head, base, say=print, changed=None, gates_of=None, mac_only=None):
+    """REG-2962 (#161 stage 2) - MAY THIS COMMIT PUBLISH? Every law the push changed since the last commit that published
+    (`base`) must be PROVEN on CI, unless it is one only the Mac can prove (the hook proved it there).
+
+    The proof set must be whole first (fan_in's rules); with no base, or a diff git cannot take, EVERY law is this push's
+    (UNKNOWN is never "nothing changed"). A law is unproven when any shard OWES a failure on it (REG-2591: a shard that
+    keeps going names every failure it found) - whatever its other proofs say. A law owed a fix that this push did not
+    change is said and never holds the deploy: the hook never proved unchanged laws either. -> 0 publish, 1 held, 2 refused"""
+    gates_of = gates_of or _gates_of
+    mac_only = mac_only or _mac_only
+    bodies = []
+    for d in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+        path = os.path.join(root, d, STORE_NAME)
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                body = json.load(fh)
+            bodies.append((d, body if isinstance(body, dict) else None, None if isinstance(body, dict) else "not a map"))
+        except (OSError, ValueError) as e:
+            bodies.append((d, None, type(e).__name__))
+    ok, why, shards = check_shards(bodies, head)
+    if ok and len(shards) != int(n):
+        ok, why = False, "%d of %d shards" % (len(shards), int(n))
+    if not ok:
+        say("  ✗ REG-2962 DEPLOY HELD: the proof set is not whole (%s) - this push's laws are UNPROVEN on CI" % why)
+        return 2
+    if changed is None:
+        changed = _changed_paths(base, head)
+    names = gates_of(changed)
+    local = mac_only(names) if names else set()
+    mine = sorted(set(names) - set(local))
+    _text, tot = census(root, head, n)
+    owed = {}
+    for f in tot["fix"]:
+        owed.setdefault(str(f[0]), []).append(f)
+    held = [g for g in mine if g in owed]
+    scope = ("the %d law(s) this push changed since %s" % (len(names), str(base)[:12])) if changed is not None else (
+        "EVERY law (%d) - the last published commit is unknown or git could not diff it, so every law is this push's"
+        % len(names))
+    if local:
+        say("  REG-2962: %d of them only the Mac can prove (the hook proved them there): %s"
+            % (len(local), ", ".join(sorted(local)[:12])))
+    others = sorted(set(owed) - set(held))
+    if others:
+        say("  REG-2962: %d law(s) this push did NOT change are owed a fix on CI (the census lists them); they do not hold "
+            "this deploy: %s" % (len(others), ", ".join(others[:12])))
+    if held:
+        say("  ✗ REG-2962 DEPLOY HELD: %d law(s) of %s are owed a fix on CI:" % (len(held), scope))
+        for g in held:
+            for f in owed[g]:
+                say("     %s[%s] %s - %s (shard %s)" % (f[0], f[1], f[2], str(f[3])[:140], f[4]))
+        return 1
+    say("  ✓ REG-2962: %s - %d proved on CI, none owed a fix. The deploy may go." % (scope, len(mine)))
+    return 0
+
+
 def census(root, head=None, n=None):
     """REG-2595 - the post-push CENSUS of one 16-shard run: what each shard proved, and which laws the next batch must
     fix. Never a gate: it reads whatever the shards left (a missing or broken store is named, never fatal).
@@ -570,8 +693,27 @@ def main(argv=None):
     ap.add_argument("--measure-costs", dest="measure", default=None,
                     help="REG-2593: dir of finished shard artifacts -> write proof_costs.json (seconds per proof)")
     ap.add_argument("--census", default=None, help="REG-2595: dir of shard artifacts -> the post-push census (markdown)")
-    ap.add_argument("--out", default=None, help="with --census: also write the census to this file")
+    ap.add_argument("--out", default=None, help="with --census: also write the census to this file; with --merge-shards: "
+                                                "the seed file")
+    ap.add_argument("--merge-shards", dest="merge", default=None,
+                    help="REG-2961: dir of shard artifacts -> one seed store (--out) for the next run's shards")
+    ap.add_argument("--deploy-verdict", dest="verdict", default=None,
+                    help="REG-2962: dir of shard artifacts -> may this commit publish (with --shards, --head, --base)")
+    ap.add_argument("--base", default=None, help="with --deploy-verdict: the last commit that published (empty: UNKNOWN)")
     a = ap.parse_args(argv)
+    if a.merge:
+        if not a.out:
+            ap.error("--merge-shards needs --out FILE")
+        return merge_shards(a.merge, a.out)
+    if a.verdict:
+        if a.shards is None:
+            ap.error("--deploy-verdict needs --shards N")
+        head = a.head
+        if not head:
+            p = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8",
+                               errors="replace")
+            head = p.stdout.strip() if p.returncode == 0 else ""
+        return deploy_verdict(a.verdict, a.shards, head, (a.base or "").strip() or None)
     if a.census:
         text, _t = census(a.census, a.head, a.shards)
         print(text)

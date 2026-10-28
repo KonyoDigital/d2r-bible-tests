@@ -282,10 +282,24 @@ jobs:
             echo "high=$(grep -ciE '^\s*HIGH' /tmp/review.txt || true)" >> "$GITHUB_OUTPUT"
           fi
 
+  # REG-2962 (#161 stage 2, his go 2026-10-21: "do whatever is recommended") - NOTHING THIS PUSH CHANGED PUBLISHES
+  # UNPROVEN. The laws' red-proofs (heart2 --prove) are cut across 16 runners by proof-keys-shards.yml, each shard
+  # starting from the proofs the last main run banked (REG-2961), and its fan-in's verdict passes only when every law the
+  # push changed since the last commit that published is PROVEN there (or is one only the Mac can prove: the hook
+  # proved it). hooks/pre-push leaves the browser laws to this job (REG-2963), so it must stay in `needs` below.
+  proof:
+    name: Prove the laws (16 runners)
+    uses: ./.github/workflows/proof-keys-shards.yml
+    with:
+      gate: deploy
+    permissions:
+      contents: read
+      actions: read
+
   deploy:
     name: Deploy to Cloudflare Pages
-    needs: [smoke, suites, review]
-    # `needs` already requires smoke+suites to have SUCCEEDED. The extra condition is about the
+    needs: [smoke, suites, review, proof]
+    # `needs` already requires smoke+suites+proof to have SUCCEEDED. The extra condition is about the
     # review specifically: a HIGH finding holds publication. A missing key does NOT hold it — that
     # would let an unset secret quietly stop his site updating, which is a worse failure than an
     # unreviewed ship, and the review job says so loudly in its own summary either way.
