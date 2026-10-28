@@ -12473,6 +12473,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_deploy_waits_for_the_proof_of_its_laws.py")], 300,
          needs_app=False,
          why="REG-2962 (#161) - Publish's deploy needs the proof shards, whose verdict holds it while any law the push changed since the last publish is owed a fix"),
+    Gate("test_a_browser_law_is_proved_on_one_venue_at_least",
+         [sys.executable, os.path.join(HERE, "test_a_browser_law_is_proved_on_one_venue_at_least.py")], 300,
+         needs_app=False,
+         why='REG-2963 (#161) - the push leaves a changed browser law to the CI proof job only on a push to main whose deploy waits for it, names it, and proves every other law on the Mac'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

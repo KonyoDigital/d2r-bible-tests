@@ -1094,9 +1094,32 @@ for g in run_gates.GATES:
 print(" ".join(sorted(set(out))))
 PYGATE
 )"
-  if [ -z "$_gates" ]; then
+  # >>> browser split (REG-2963, #161 stage 2) - A BROWSER LAW IS PROVED ON GITHUB WHEN THE DEPLOY WAITS FOR IT THERE.
+  # tv/proof_keys_mac.py --split reads the refs being pushed and the two workflow files: a changed law that starts a
+  # browser goes to the CI proof job only when this push ships to main AND publish.yml's deploy waits for that job
+  # (REG-2962); a law only the Mac can prove, every non-browser law, and every law when either is not so, is proved
+  # here. Each changed law lands in exactly one venue, and the ones left to CI are NAMED - never a silent skip. A split
+  # that cannot be decided proves every changed law here. Law: test_a_browser_law_is_proved_on_one_venue_at_least.
+  _gates_ci=""
+  if [ -n "$_gates" ]; then
+    _split="$(printf '%s\n' "$_PUSH_REFS" | python3 "$REPO/tv/proof_keys_mac.py" --split $_gates 2>/dev/null)" || _split=""
+    if printf '%s\n' "$_split" | grep -q '^local:'; then
+      _gates_ci="$(printf '%s\n' "$_split" | sed -n 's/^ci: *//p')"
+      _gates="$(printf '%s\n' "$_split" | sed -n 's/^local: *//p')"
+      if [ -n "$_gates_ci" ]; then
+        echo "pre-push: [$(_pp_el)] the CI proof job proves $(echo $_gates_ci | wc -w | tr -d ' ') browser law(s); the deploy waits for it"
+        echo "          ($(printf '%s\n' "$_split" | sed -n 's/^why: *//p')): $_gates_ci"
+      fi
+    else
+      echo "pre-push: [$(_pp_el)] ⚠ the browser split could not be decided - every changed law is proved here"
+    fi
+  fi
+  # <<< browser split
+  if [ -z "$_gates" ] && [ -z "$_gates_ci" ]; then
     echo "pre-push: [$(_pp_el)] ⚠ tv/test_*.py changed but no gate name could be derived, so no red-proof was"
     echo "          exercised. THIS IS A SKIP, NOT A PASS."
+  elif [ -z "$_gates" ]; then
+    echo "pre-push: [$(_pp_el)] every changed law is a browser law the CI proof job proves - nothing to prove here"
   else
     _prove_log="${TMPDIR:-/tmp}/d2r-prove.$$.log"
     # REG-2361 — WHAT THE PROVING STAGE IS ABOUT TO COST, SAID BEFORE IT STARTS. `heart2 --forecast` reads the keys and

@@ -197,6 +197,95 @@ def local_gates(have, tracked, keyer, proof_needs):
     return along, unkeyable, why
 
 
+PUBLISH_FILE = os.path.join(REPO, ".github", "workflows", "publish.yml")
+MAIN_REF = "refs/heads/main"
+
+
+def _yaml_code(text):
+    """a workflow's lines with comment lines dropped: prose is never the subject"""
+    return "\n".join(l for l in str(text or "").split("\n") if not l.lstrip().startswith("#"))
+
+
+def proof_gate(publish_text, shards_text):
+    """REG-2963 (#161 stage 2) - DOES A PUSH TO MAIN REACH A CI PROOF THE DEPLOY WAITS FOR? -> (bool, why)
+
+    Read from the two workflow files as they are in this checkout: Publish has a job that calls proof-keys-shards.yml
+    with gate deploy, its deploy job needs that job, and the shard workflow takes workflow_call with a `gate` input. Any
+    one missing and the hook proves every changed law itself: a browser law never runs nowhere. [[the-unjoined-end]]"""
+    import re
+    pub, sh = _yaml_code(publish_text), _yaml_code(shards_text)
+    m = re.search(r"^  ([A-Za-z][\w-]*):[ \t]*\n(?:    [^\n]*\n|[ \t]*\n)*?    uses: \./\.github/workflows/"
+                  r"proof-keys-shards\.yml[ \t]*\n((?:    [^\n]*\n|[ \t]*\n)*)", pub + "\n", re.M)
+    if not m:
+        return False, "publish.yml has no job that calls proof-keys-shards.yml"
+    job = m.group(1)
+    if not re.search(r"^      gate: deploy[ \t]*$", m.group(2), re.M):
+        return False, "publish.yml calls the proof shards without gate: deploy"
+    d = re.search(r"^  deploy:[ \t]*\n(?:    [^\n]*\n)*?    needs: \[([^\]]*)\]", pub, re.M)
+    if not d or job not in [x.strip() for x in d.group(1).split(",")]:
+        return False, "the deploy job does not wait for the %s job" % job
+    if not re.search(r"^  workflow_call:[ \t]*\n(?:    [^\n]*\n)*?      gate:", sh, re.M):
+        return False, "proof-keys-shards.yml takes no workflow_call with a gate input"
+    return True, "the deploy waits for the %s job (publish.yml)" % job
+
+
+def ships_to_main(refs_text):
+    """REG-2963 - does this push ship bytes to main? (a deletion of main ships nothing) -> bool"""
+    for ln in str(refs_text or "").splitlines():
+        parts = ln.split()
+        if len(parts) == 4 and parts[2] == MAIN_REF and set(parts[1]) != {"0"}:
+            return True
+    return False
+
+
+def split(names, refs_text, gate, browser, mac_only):
+    """REG-2963 (#161 stage 2) - WHICH CHANGED LAWS THE MAC PROVES AT PUSH TIME, AND WHICH THE CI PROOF JOB PROVES.
+
+    names     the changed gates the hook would prove (its own rule)
+    refs_text the ref lines git hands the hook
+    gate      proof_gate()'s (bool, why)
+    browser   set: the gates a push proves one at a time because they start a browser (heart2._push_browser)
+    mac_only  set: the gates CI cannot bank (local_gates: a need a runner lacks, a PROOF_NEEDS git does not track)
+    -> (local [name], ci [name], why). A browser law goes to CI only when this push ships to main AND the deploy waits for
+    the CI proof job; every other law, and every law when either is not so, is proved on the Mac. Each name lands in
+    exactly one list."""
+    names = sorted(set(n for n in (names or []) if n))
+    if not ships_to_main(refs_text):
+        return names, [], "this push does not ship to main, where the CI proof job runs - every changed law is proved here"
+    if not (gate and gate[0]):
+        return names, [], "%s - every changed law is proved here" % ((gate or (False, "the proof gate is unknown"))[1])
+    ci = [n for n in names if n in (browser or set()) and n not in (mac_only or set())]
+    local = [n for n in names if n not in ci]
+    return local, ci, gate[1]
+
+
+def split_main(names, refs_text, say=print):
+    """`proof_keys_mac.py --split NAME...` (refs on stdin): prints `local: ...`, `ci: ...`, `why: ...`. Anything that
+    cannot be decided proves every name here. -> 0"""
+    names = sorted(set(names or []))
+    try:
+        with io.open(PUBLISH_FILE, encoding="utf-8") as fh:
+            pub = fh.read()
+        with io.open(WORKFLOW_FILE, encoding="utf-8") as fh:
+            sh = fh.read()
+        gate = proof_gate(pub, sh)
+        browser, mac_only = set(), set()
+        if gate[0] and ships_to_main(refs_text):
+            import heart2 as H
+            files = dict(H.gate_files(say=lambda *a, **k: None))
+            have = [(n, files[n], H.red_proofs_in(files[n]) or []) for n in names if n in files]
+            browser = H._push_browser(have)
+            along, unkeyable, _w = local_gates(have, H._tracked_files(), lambda *a: "keyed", H.proof_needs_in)
+            mac_only = set(along) | set(unkeyable)
+        local, ci, why = split(names, refs_text, gate, browser, mac_only)
+    except Exception as e:
+        local, ci, why = names, [], "the split could not be decided (%s) - every changed law is proved here" % type(e).__name__
+    say("local: %s" % " ".join(local))
+    say("ci: %s" % " ".join(ci))
+    say("why: %s" % why)
+    return 0
+
+
 def pick_run(runs, sha, branch=None):
     """The workflow run THIS push started, never another's: head_sha is `sha`, the event a push, the branch this
     driver's ci/proof-keys-<sha12> (when given). -> the NEWEST such run (highest id; a re-run attempt of the same run
@@ -342,6 +431,9 @@ def classify(say=print):
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["--split"]:                        # REG-2963 - hooks/pre-push asks, before its proving stage
+        return split_main(argv[1:], sys.stdin.read())
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--dry-run", action="store_true", help="preflight and the local set only: push nothing")
     ap.add_argument("--timeout-min", type=float, default=150.0)
