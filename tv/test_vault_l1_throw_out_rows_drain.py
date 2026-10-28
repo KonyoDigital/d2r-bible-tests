@@ -190,11 +190,16 @@ OUT.b0 = both();
                          "one dropped copy must close exactly one copy's row: %r" % o["one"])
         self.assertEqual(o["two"], [[0, "closed"], [1, "closed"]], "the 2nd drop did not close the other copy: %r" % o["two"])
 
-    def test_a_move_seen_at_its_target_closes_at_once(self):
+    def test_a_move_seen_at_its_target_in_two_sessions_closes(self):
+        """REG-2843 - his done rule: one full look of the target is half-way; a second session read after it opened closes it"""
         world()
-        o = board().run(READ + "var t = bag()[%s].to; OUT.to = t; obs({ session: 'm1', holder: t.holder, location: t.location,"
-                        " items: [{ name: %s, cell: t.cell }] }); OUT.m = bag()[%s];"
-                        % (json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SHAKO)))
+        o = board().run(READ + "var t = bag()[%s].to, T0 = Date.now(); OUT.to = t;"
+                        " function look(n){ var ms = T0 + n * 60000; return { session: 's_' + ms + '_' + n, at: new Date(ms).toISOString(),"
+                        " holder: t.holder, location: t.location, items: [{ name: %s, cell: t.cell }] }; }"
+                        " obs(look(1)); OUT.h = bag()[%s]; obs(look(2)); OUT.m = bag()[%s];"
+                        % (json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SHAKO)))
+        self.assertEqual(o["h"]["status"], "to-move", "one full look closed the task: %r" % o)
+        self.assertEqual(len(o["h"].get("seen") or []), 1, o)
         self.assertEqual(o["m"]["status"], "verified", o)
 
     def test_a_vanished_move_drains_after_five_sessions(self):

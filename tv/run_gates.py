@@ -12345,6 +12345,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_cleared_pick_puts_back_its_keeper_target.py")], 300,
          needs_app=False,
          why='REG-2842 (v3830 second eye) - a cleared planner pick puts back the keeper target it raised, whatever the live count is'),
+    Gate("test_a_move_closes_on_two_sessions_at_its_target",
+         [sys.executable, os.path.join(HERE, "test_a_move_closes_on_two_sessions_at_its_target.py")], 300,
+         needs_app=False,
+         why='REG-2843 (#230 his done table) - a MOVE task ticks itself on two sessions at its target, both read after it opened; one is half-way'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

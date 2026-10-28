@@ -11094,6 +11094,7 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vault-tasks-panel .vtk-line .vmv-reason{flex:0 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vault-btn{flex:0 0 auto;padding:0 6px;min-height:0;line-height:1.6;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-gone{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
+.vault-tasks-panel .vtk-line .vmv-half{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-l1{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro);color:var(--text-muted);font-weight:var(--fw-medium);cursor:help}   /* #148.1 REG-2761 */
 .vault-tasks-panel .vtk-line .vmv-retarget{flex:0 1 150px;min-width:0;overflow:hidden;text-overflow:ellipsis}   /* REG-2787 the why shrinks like a reason; the title carries it whole */
 .vault-tasks-panel .vtk-line + .vtk-line{border-top:1px solid rgba(212,168,71,.12)!important}
@@ -11126,6 +11127,7 @@ html:not([data-active-tab="vault"]) .vault-tasks-pop,html:not([data-active-tab="
 .vmv-nowhere{color:var(--q-orange)}
 .vmv-reason{flex:0 1 auto;white-space:nowrap;color:var(--text-dim);font-size:var(--fs-meta)}
 .vmv-gone{color:var(--q-orange);font-size:var(--fs-meta);font-weight:var(--fw-medium)}
+.vmv-half{color:var(--acc-intel);font-size:var(--fs-meta);font-weight:var(--fw-medium)}
 .vmv-chip[data-status="junk"]{color:var(--q-orange);border-color:rgba(255,168,0,.5)}
 .vmv-empty{margin:0;padding:8px 2px;font-size:var(--fs-body);color:var(--text-muted)}
 #vault-auto-intake{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 1px 0 rgba(240,192,96,.16)}
@@ -52866,6 +52868,51 @@ window.vaultAutoAssign = function(){
         && String(a.location || '') === String(b.location || '')
         && String(a.cell) === String(b.cell);
   }
+  /* REG-2843 (#230, his done table) - HOW A MOVE TASK TICKS ITSELF. It verified on ONE sighting at its target cell. His
+     rule: reads at the target from VAULT_WITNESS_MIN distinct sessions (s_1 and its re-look s_1#2 are one, the rule
+     _vaultLookSessions keeps), each captured AFTER the task opened, with no newer read placing it elsewhere. One such read
+     is half-way: "seen at target once (date)", still open. His own tick closes it at once. A full look of the target
+     container is one session. A read whose time cannot be told is not after anything (UNKNOWN is never counted). */
+  function _vmMs(v){
+    if (typeof v === 'number') return (isFinite(v) && v > 0) ? v : null;
+    if (v == null || v === '') return null;
+    var n = Number(v);
+    if (isFinite(n) && n > 1e11) return n;
+    var p = Date.parse(String(v));
+    return isFinite(p) ? p : null;
+  }
+  /* the sessions one sighting carries, by the one look rule, each with when it was captured: the look's own time, else the
+     sighting's, else the start a reel id carries (s_<start ms>_<n>) -> [{s, at (ms | null), frame}] */
+  function _vaultMoveReads(sighting){
+    var w = sighting || {};
+    var list = Array.isArray(w.sessions) ? w.sessions : (Array.isArray(w.looks) ? w.looks : (Array.isArray(w.witnesses) ? w.witnesses : []));
+    var sid0 = w.session || w.sessionId || w.reel || w.sid;
+    if (!list.length && sid0) list = [{ session: sid0, frame: w.frame || w.frameId || null, conf: w.conf, at: w.at }];
+    var scored = (typeof window._vaultLooksScored === 'function') ? window._vaultLooksScored(list) : false, by = {};
+    list.forEach(function(l){
+      var sid = (typeof window._vaultLookCounts === 'function') ? window._vaultLookCounts(l, scored) : null;
+      if (!sid) return;
+      sid = String(sid).split('#')[0];
+      var at = _vmMs(l.at) || _vmMs(l.ts) || _vmMs(w.at) || _vmMs(w.ts), m = /^s_(\d{13})_/.exec(sid);
+      if (at == null && m) at = +m[1];
+      if (!by[sid] || (at != null && (by[sid].at == null || at > by[sid].at)))
+        by[sid] = { s: sid, at: at, frame: (l.frame || l.frameId) ? String(l.frame || l.frameId) : null };
+    });
+    return Object.keys(by).map(function(k){ return by[k]; });
+  }
+  /* records the reads at its target that count (each session once, captured at or after it opened); -> true at the bar */
+  function _vaultMoveSeenAtTo(t, reads){
+    var seen = (t.seen || []).slice();
+    (reads || []).forEach(function(r){
+      if (!r || !r.s || r.at == null || t.opened == null || r.at < t.opened) return;   /* older than its opening, or UNKNOWN */
+      var ix = -1;
+      seen.forEach(function(x, i){ if (x.s === r.s) ix = i; });
+      if (ix < 0) seen.push(r); else if (r.at > seen[ix].at) seen[ix] = r;
+    });
+    seen.sort(function(a, b){ return a.at - b.at; });
+    if (seen.length) t.seen = seen.slice(-4); else delete t.seen;
+    return seen.length >= ((typeof window.VAULT_WITNESS_MIN === 'number') ? window.VAULT_WITNESS_MIN : 2);
+  }
   function _vaultMoveTask(spec){
     spec = spec || {};
     var allowed = { 'to-move': 1, 'moved-manual': 1, 'verified': 1, 'moved-elsewhere': 1, 'closed': 1 }; /* L1 drain closed */
@@ -52894,6 +52941,16 @@ window.vaultAutoAssign = function(){
     if (spec.junk === true) out.junk = true;
     if (spec.left === true) out.left = true;
     if (typeof spec.closedBy === 'string' && spec.closedBy) out.closedBy = spec.closedBy;
+    /* REG-2843 - when it opened, and the sessions that have seen it at its target since (written only when set) */
+    var _op = _vmMs(spec.opened);
+    if (_op != null) out.opened = _op;
+    var _sn = [];
+    (Array.isArray(spec.seen) ? spec.seen : []).forEach(function(x){
+      var s = (x && x.s != null) ? String(x.s).split('#')[0] : '', a = x ? _vmMs(x.at) : null;
+      if (!s || a == null || _sn.some(function(y){ return y.s === s; })) return;
+      _sn.push({ s: s, at: a, frame: (x.frame != null && x.frame !== '') ? String(x.frame) : null });
+    });
+    if (_sn.length) out.seen = _sn.slice(-4);
     /* Vault v2 (Elad 2026-10-23) — a HAND tick can be undone: the row remembers what it was before his tick. Written only
        on a moved-manual row (a reel's verified/closed is proof, not a click, and has nothing to undo). */
     if (st === 'moved-manual' && spec.undo && typeof spec.undo === 'object' && spec.undo.status && allowed[spec.undo.status] && spec.undo.status !== 'moved-manual')
@@ -52907,7 +52964,7 @@ window.vaultAutoAssign = function(){
     return out;
   }
   function _vaultMoveQueue(name, from, to){
-    return _vaultMoveTask({ name: name, from: from, to: to, status: 'to-move', evidence: [], manual: true }); /* v3767 move queue */
+    return _vaultMoveTask({ name: name, from: from, to: to, status: 'to-move', evidence: [], manual: true, opened: Date.now() }); /* v3767 move queue */
   }
   function _vaultMoveTally(task){
     var t = _vaultMoveTask(task);
@@ -52922,19 +52979,33 @@ window.vaultAutoAssign = function(){
     if (place.cell == null) return t; /* v3767 move unknown */
     var frame = sighting.frame || null;
     if (frame != null && frame !== '' && t.evidence.indexOf(String(frame)) < 0) t.evidence.push(String(frame)); /* v3767 move proof */
+    var reads = _vaultMoveReads(sighting), rt = null, r0 = null;   /* REG-2843 */
+    reads.forEach(function(r){ if (r.at != null){ if (rt == null || r.at > rt) rt = r.at; if (r0 == null || r.at < r0) r0 = r.at; } });
+    if (rt == null) rt = _vmMs(sighting.at);
+    /* a row saved before the done rule (or opened by this read) opens at this read - at the latest now */
+    if (t.opened == null) t.opened = Math.min(r0 != null ? r0 : Date.now(), Date.now());
     if ((t.from == null || t.from.cell == null) && !t.manual) { /* auto intake from */
       var sameBox = _vaultMoveSamePlace(place, t.to);
       t.from = place;
-      if (sameBox) { t.status = 'verified'; return t; }
+      if (sameBox && _vaultMoveSeenAtTo(t, reads)) { t.status = 'verified'; return t; }   /* REG-2843 first read already home: one session */
       t.status = 'to-move';
       return t;
     }
     var atTo = _vaultMoveSamePlace(place, t.to);
     var atFrom = _vaultMoveSamePlace(place, t.from);
-    if (atTo && !atFrom) {
-      t.status = 'verified'; /* v3767 move verified */
+    /* REG-2843 - an item first read already at its home has FROM = TO: a later read there is at its target, never "still" */
+    if (atTo && (!atFrom || _vaultMoveSamePlace(t.from, t.to))) {
+      /* REG-2843 - his tick already closed it (a read confirms it); else VAULT_WITNESS_MIN sessions since it opened */
+      if (t.status === 'moved-manual' || _vaultMoveSeenAtTo(t, reads)) {
+        t.status = 'verified'; /* v3767 move verified */
+      }
       return t;
     }
+    /* REG-2843 - a read elsewhere OLDER than its newest read at the target changes nothing; a newer one (or one whose time
+       cannot be told) reopens it, and its reads at the target start again */
+    var nt = (t.seen && t.seen.length) ? t.seen[t.seen.length - 1].at : null;
+    if (nt != null && rt != null && rt < nt) return t;
+    delete t.seen;
     if (atFrom) {
       t.status = 'to-move'; /* v3767 move still */
       return t;
@@ -52946,6 +53017,14 @@ window.vaultAutoAssign = function(){
   try { window._vaultMoveQueue = _vaultMoveQueue; } catch (eMq) {}
   try { window._vaultMoveTally = _vaultMoveTally; } catch (eMy) {}
   try { window._vaultMoveWitness = _vaultMoveWitness; } catch (eMw) {}
+  /* REG-2843 - the half-way words: "seen at target once (2026-10-28)" while fewer sessions than the bar have seen it there */
+  function _vaultMoveHalfSay(t){
+    var s = (t && Array.isArray(t.seen)) ? t.seen : [];
+    if (!s.length || s.length >= ((typeof window.VAULT_WITNESS_MIN === 'number') ? window.VAULT_WITNESS_MIN : 2)) return '';
+    var d = ''; try { d = new Date(s[s.length - 1].at).toISOString().slice(0, 10); } catch (eD) { d = ''; }
+    return 'seen at target ' + (s.length === 1 ? 'once' : s.length + ' times') + (d ? ' (' + d + ')' : '');
+  }
+  try { window._vaultMoveHalfSay = _vaultMoveHalfSay; window._vaultMoveReads = _vaultMoveReads; } catch (eMh) {}
 
   /* v3769 — the list the v3767 record was waiting for. Target cell from the same packer
      the mule window uses. Saved on the record. A later witness verifies only while AUTO INTAKE is on. */
@@ -53468,7 +53547,8 @@ window.vaultAutoAssign = function(){
       evidence: stored ? stored.evidence : [],
       manual: stored ? stored.manual : false,
       retarget: _rt,   /* REG-2787 why this copy planned again */
-      undo: stored ? stored.undo : null   /* Vault v2 — a no-cell rebuild keeps his tick's undo snapshot (the sanitizer drops it off a non-hand row) */
+      undo: stored ? stored.undo : null,   /* Vault v2 — a no-cell rebuild keeps his tick's undo snapshot (the sanitizer drops it off a non-hand row) */
+      opened: stored ? stored.opened : null   /* REG-2843 - when it opened; a new row opens at its first read (_vaultMoveWitness) */
     });
     return { task: task, copyIx: copyIx, name: name, fresh: true };
   }
@@ -53606,7 +53686,7 @@ window.vaultAutoAssign = function(){
     if (t.manual && t.status === 'to-move' && !atTo && (t.from == null || t.from.cell == null || _vaultMoveWorn(t.from))) {
       var ev0 = (t.evidence || []).slice();
       if (sighting.frame != null && sighting.frame !== '' && ev0.indexOf(String(sighting.frame)) < 0) ev0.push(String(sighting.frame));
-      var up = _vaultMoveTask({ name: name, from: place, to: t.to, status: 'to-move', evidence: ev0, manual: true }); /* L1 sighting upgrades the manual row */
+      var up = _vaultMoveTask({ name: name, from: place, to: t.to, status: 'to-move', evidence: ev0, manual: true, opened: t.opened, seen: t.seen }); /* L1 sighting upgrades the manual row */
       _vaultMoveCommit([{ name: name, copyIx: hit.copyIx, task: up }]);
       try { if (!window._movePaintBusy && typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP1) {}
       return { applied: true, task: up, upgraded: true };
@@ -53709,7 +53789,8 @@ window.vaultAutoAssign = function(){
     /* Elad's ruling: a hand-typed item reads MANUAL -> target cell. A later sighting fills the real from-cell
        on the same row (_vaultMoveApplySight), which keeps the row and drops the MANUAL face. */
     var hand = _vaultMoveTask({ name: nm, from: _newCopy ? null : ens.task.from, to: ens.task.to, status: ens.task.status,
-                                evidence: ens.task.evidence || [], manual: true });
+                                evidence: ens.task.evidence || [], manual: true,
+                                opened: (ens.task.opened != null) ? ens.task.opened : Date.now(), seen: ens.task.seen });   /* REG-2843 his add opens it */
     var wrote = _vaultMoveCommit([{ name: nm, copyIx: copyIx, task: hand }]); /* v3773 manual row */
     try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {}
     return { ok: !!(wrote && wrote.ok), shown: true, task: hand, assign: (typeof assign !== 'undefined' ? assign[nm] : undefined) }; /* v3773 no assign */
@@ -53977,6 +54058,7 @@ window.vaultAutoAssign = function(){
       var canUndo = !!(fin && t.status === 'moved-manual' && t.undo); /* Vault v2 — his own tick can be taken back */
       var manual = !!(t.manual && !(t.from && t.from.cell != null));
       var gs = (typeof _vaultGoneSay === 'function') ? _vaultGoneSay(t) : ((t.gone && t.gone.length) ? 'gone ' + t.gone.length + '/' + (window.VAULT_GONE_SESSIONS || 5) : '');
+      var hw = (!fin && !thr && typeof window._vaultMoveHalfSay === 'function') ? window._vaultMoveHalfSay(t) : '';   /* REG-2843 */
       var say = row.name + ' · ' + _vtkPlace(t.from, manual) + ' → ' + (thr ? 'NOWHERE' : _vtkPlace(t.to, false));
       var w = row.witnesses;
       var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */
@@ -54001,6 +54083,7 @@ window.vaultAutoAssign = function(){
         + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : '<span class="vtk-to">' + esc(_vtkPlace(t.to, false)) + '</span>') + '</span>'
 
         + (gs ? '<b class="vmv-gone">' + esc(gs) + '</b>' : '')
+        + (hw ? '<b class="vmv-half" title="' + esc(hw) + ' - one more session there closes it">' + esc(hw) + '</b>' : '')   /* REG-2843 half-way */
         + (l1 ? '<b class="vmv-l1" title="' + esc(l1) + '">war stash first</b>' : '')   /* #148.1 REG-2761 - why his WAR-mule filing waits */
         + ((!thr && t.retarget) ? '<b class="vmv-l1 vmv-retarget" data-retarget="1" title="' + esc(t.retarget.why) + '">new target: ' + esc(t.retarget.why) + '</b>' : '')   /* REG-2787 why the target changed */
         + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="' + esc(wSay) + ' · the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + (row.witnesses == null ? '👁 0' : '👁 ' + row.witnesses) + '</button>')
@@ -54116,7 +54199,7 @@ window.vaultAutoAssign = function(){
     window._movePackCache = null; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
     var b2 = _vaultMoveBag(); delete b2.map[String(name) + '\u0000' + copyIx];
     var to = _vaultMovePlanCell(name, copyIx, b2); /* the same packer every move uses */
-    var mv = _vaultMoveTask({ name: name, from: t0.from, to: to, status: 'to-move', kept: true, evidence: t0.evidence });
+    var mv = _vaultMoveTask({ name: name, from: t0.from, to: to, status: 'to-move', kept: true, evidence: t0.evidence, opened: Date.now() });   /* REG-2843 his Keep opens it */
     _vaultMoveCommit([{ name: name, copyIx: copyIx, task: mv }]);
     try { _vaultMovePaint(); } catch (eP) {}
     try { if (typeof renderVault === 'function') renderVault(); } catch (eR) {}
@@ -54174,7 +54257,14 @@ window.vaultAutoAssign = function(){
         return;
       }
       if (t.kind !== 'throw' && shows(t.to) && here(name, t.to.cell)) {
-        next = _vaultMoveTask(t); next.status = 'verified'; next.closedBy = 'seen at target';
+        /* REG-2843 - a full look of its target container is ONE session at the target, under the same done rule */
+        next = _vaultMoveTask(t);
+        var _fs = sid.split('#')[0], _fa = _vmMs(frame.at) || _vmMs(frame.ts), _fm = /^s_(\d{13})_/.exec(_fs);
+        if (_fa == null && _fm) _fa = +_fm[1];
+        if (next.opened == null) next.opened = Math.min(_fa != null ? _fa : Date.now(), Date.now());
+        if (next.status === 'moved-manual' || _vaultMoveSeenAtTo(next, [{ s: _fs, at: _fa, frame: frame.frame ? String(frame.frame) : null }])) {
+          next.status = 'verified'; next.closedBy = 'seen at target';
+        }
       } else if (shows(t.from)) {
         if (here(name, t.from.cell)) { if (t.gone || t.left) { next = _vaultMoveTask(t); delete next.gone; delete next.left; } }
         else {
