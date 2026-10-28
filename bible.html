@@ -42986,7 +42986,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v409 / REG-2241 — the three iconic charms (Annihilus, Hellfire Torch, Gheed's Fortune; the 6 Sunder
   // charms are caught by isSharedStash). His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets
   // muled." — so routing NO LONGER sends them to __keep (see suggestMule: Anni & Torch → the shared stash,
-  // Gheed's → its charm mule, and his per-item switch wins above that). This regex is now ONLY the owned
+  // Gheed's → UNI-SMALL, the charm mule, and his per-item switch wins above that). This regex is now ONLY the owned
   // grail-charm SURVIVAL marker: _vaultKeeps keeps them in ownedPool (Hellfire Torch is in no boss drop
   // table, so nothing else would) and _dockNames keeps them off the "Delete unsorted" list (REG-2207).
   var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i;   // REG-2191 - apostrophe optional
@@ -43006,7 +43006,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      Stormshield, Vampire Gaze, Andariel's Visage, Nightwing's Veil - came off: general gear, not swap gear, and the
      standard UNI-ARMOR examples three specs route by.) The high-trade-value rule below
      (SoJ, Shako, Arachnid, Mara's...) already sends the other top keepers to the same stash. Sets stay with their set
-     (never split a set), and Anni / Torch / Gheed's stay in his inventory (KEEP_IN_INVENTORY), both checked first.
+     (never split a set), and Anni / Torch (the shared stash) and Gheed's (UNI-SMALL) are his 2026-10-15 ruling, both
+     checked first.
      The shared stash lays them out on its 5 pages in the plan's fill order (_sharedLayout, REG-2801). */
   var WAR_GEAR = {
     'enigma': 'teleport for any class - the swap body armour',
@@ -43280,7 +43281,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        Keepers and standing kit still win above it. ignoreShareOverride leaves
        _shareDefault on the rules alone; this does not call it, so it does not recurse. */
     var _keepHome = function(nm){
-      /* REG-2241 (his ruling 2026-10-15) — Annihilus / Hellfire Torch / Gheed's Fortune no longer park on MAIN as __keep; they route below (Anni & Torch → shared stash, Gheed's → its charm mule). KEEP_IN_INVENTORY stays only as the owned grail-charm SURVIVAL marker (_vaultKeeps, _dockNames). Standing kit still keeps below. */
+      /* REG-2241 (his ruling 2026-10-15) — Annihilus / Hellfire Torch / Gheed's Fortune no longer park on MAIN as __keep; they route below (Anni & Torch → shared stash, Gheed's → UNI-SMALL, the charm mule). KEEP_IN_INVENTORY stays only as the owned grail-charm SURVIVAL marker (_vaultKeeps, _dockNames). Standing kit still keeps below. */
       try {
         var _kitF = String(nm || '').replace(/[‘’ʼ`]/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
         var _kitL = (window._FURNITURE_WORDS || []).filter(function(w){ return w !== 'tome'; }).concat(window._FURNITURE_WHOLE || []);
@@ -43413,11 +43414,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_ov === 'shared') return {id:'shared', why:'your setting — kept in the shared stash'};
     /* REG-2241 — HIS RULING 2026-10-15 (verbatim): "torches and anni stay in shared. gheeds gets muled."
        Annihilus and the Hellfire Torch ride in the SHARED stash every character can reach — they USED to
-       park on MAIN (__keep). Gheed's Fortune is deliberately NOT here: it falls through to its grand-charm
-       mule (uni-small) below. His per-item switch still wins — a forced 'shared' returned just above, and a
-       forced 'mule' (_ov) drops through to that charm mule. [[regression-guard]] [[unknown-stays-unknown]] */
+       park on MAIN (__keep). Gheed's Fortune is answered on the next line, UNI-SMALL. His per-item switch still
+       wins — a forced 'shared' returned just above, and a forced 'mule' (_ov) reaches that charm mule.
+       [[regression-guard]] [[unknown-stays-unknown]] */
     if (_ov !== 'mule' && /^(Annihilus|Hellfire Torch)$/i.test(_keepName(name)))
       return {id:'shared', why:'keep close in the shared stash — every character can reach it (his 2026-10-15 ruling)'};
+    /* REG-2859 (router probe, GrokBot's v3829 Vault pass) - GHEED'S HALF OF THE SAME RULING IS DECIDED BY THE RULING. It
+       reached UNI-SMALL only by falling through to the jewelry word table ("jewelry/charm - base: Grand Charm"), while
+       the comments called its home "its charm mule" - which GrokBot read as a mule of its own, beside the UNI-SMALL the
+       router answered: two answers for one item. The charm mule IS UNI-SMALL, and the ruling now says so itself, so a
+       later trade-value or keyword change cannot move it silently. Where charms belong in general is his ACT-4 ruling. */
+    if (/^Gheed'?s Fortune$/i.test(_keepName(name)) && muleById('uni-small'))
+      return {id:'uni-small', why:'Gheed\u2019s Fortune is muled \u2014 UNI-SMALL, the charm mule (his 2026-10-15 ruling: \u201cgheeds gets muled\u201d)'};
     /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
        drawers (sets are not on the list, and KEEP_IN_INVENTORY above wins) */
     var _war = warGearRole(name);
@@ -43876,7 +43884,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try{
       if (typeof ITEMS==='undefined' || typeof n !== 'string' || !n) return false;
       if (isAggregate(n)) return false;
-      // Annihilus, Hellfire Torch and Gheed's Fortune are drawn. They stay with MAIN; they are not a mule.
+      // Annihilus, Hellfire Torch and Gheed's Fortune are drawn wherever the router files them (REG-2241 / REG-2859: Anni and
+      // Torch in the shared stash, Gheed's on UNI-SMALL). This keeps them in the pool; it does not decide their home.
       if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(_keepName(n))) return true;
       // v324: EXTRA_ITEMS (socketed bases + reference finds) are real owned items too — they MUST
       // survive ownedPool or renderVault prunes their mule assignment every render (the bug behind
@@ -44283,7 +44292,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if(m){ muled.push([n,m]); return; }
       /* REG-2241 — an owned keeper charm with NO filing YET is still not loose: handled by identity, exactly as
          _dockNames excludes it (holds the v2402 / REG-2207 invariant that this reader and the dock agree on what
-         is loose). Once Auto-Sort files it — Anni/Torch → shared, Gheed's → its charm mule (his 2026-10-15 ruling) —
+         is loose). Once Auto-Sort files it — Anni/Torch → shared, Gheed's → UNI-SMALL, the charm mule (his 2026-10-15 ruling) —
          the muled branch above draws it under that home instead of here. */
       if(typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))){ kept.push(n); return; }
       loose.push(n);
