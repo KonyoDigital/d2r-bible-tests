@@ -128,6 +128,18 @@ went as the pick rotated. The paint now leaves its own mark on the rows element 
 and the skip reads that mark - still the DOM's word on whether this paint landed (a rebuilt element carries none), never
 a re-serialization. Swept: no other `innerHTML ===` guard is left in control_ui.html. Law:
 test_the_task_force_repaints_only_when_it_changed (3 cases, 2 red-proofs); test_control's v2336 law re-aimed to the mark.
+### REG-2867 - A REFUSED SESSIONS POST WAS SAID NOWHERE (the roster lane named only its rows)
+The roster lane posts three things - the rows, the profile and the summarized sessions - and each keeps its own receipt on
+this PC (.tvd_roster.json, .roster_profile_state.json, .roster_frames_state.json, with why / postedAt / refuseAt). GET
+/api/roster-cache's meLine and the console's roster panel described only the rows' post, so GrokBot could not find a
+refused frames post anywhere. The route now serves laneLines, one line per post from its own receipt
+(roster_publish.lane_line), and the panel and the route's html draw them under the rows' line: HELD when the beacon is
+suppressed; "did NOT go through (<age>): <the site's words>" for a refusal or an unreached site (the receipt cannot tell
+them apart, so neither is claimed); stored or skipped with its age; "posted nothing" with the look's reason; UNKNOWN with no
+receipt. The profile keeps its last POST whole, so a later gate reason never hides its refusal. Law:
+test_the_roster_lane_says_its_profile_and_sessions_posts (7 cases on each lane's real apply_reply, the route's own lines
+and the panel; 6 red-proofs).
+
 ### REG-2866 - THE SHADOW CALLED ITS COPY'S AGE THE OWNER'S "LAST UPLOAD" (GrokBot #230)
 The shadow bar read "<owner> · online now · last upload 34 min ago · snapshot 18:55" while the owner's own last upload read
 19:06. The time it printed is the copy this PC reads: the record the site last STORED (an unchanged upload is not stored
