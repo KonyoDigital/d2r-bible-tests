@@ -14,6 +14,15 @@ STORED role, and REG-2968 seeds this law's war mules by role and number, so that
 changed nothing the law can see. The proof now breaks the property the law depends on: _vaultWarRole recognising a stored
 role (the seeded war1 then takes no overflow). The name regex's own behaviour stays pinned by REG-2804's law. Chrome law:
 proven by the push gate.
+### REG-2969 - THREE LAWS STILL CARRIED THE WORLD FROM BEFORE THE CHARMS LOCKER AND THE CAPTURE-TIME MAP (integration, v3837)
+Measured on the v3837 tree (integration steps 1-4 on v3836), each red for a reason in the LAW, not the product:
+test_a_refused_map_write_never_drops_a_filing typed its 11 core lockers by hand, so after REG-2895 made CHARMS a core locker
+its "other tab's" roster lacked one and the board rightly refused it as a store of the wrong shape; the law now reads the
+core ids from the page's own DEFAULT_ROSTER (asserting it read at least 10), so the next core locker cannot do this again.
+test_a_reread_is_the_same_file's shared node harness (also driving test_a_renamed_item_comes_back_as_his_fix) predated
+REG-2890's per-file capture-time map (_capAt / _capOf / window._vaultShotTime) that the cut intake now uses ("_capAt is not
+defined"); it now stubs it the shipped way (no clock is no time). REG-2803's law was the third, re-aimed by agent-144 as
+REG-2888 and picked here. All pass (6, 6, 2, 10); sab bad 0 on each.
 
 
 ### REG-2968 - THE WAR STASH LAW SEEDED NAME-ONLY WAR MULES INTO A ROSTER REG-2804 HAD ALREADY STAMPED (CI on ci/claude-v3836, 4 cases)

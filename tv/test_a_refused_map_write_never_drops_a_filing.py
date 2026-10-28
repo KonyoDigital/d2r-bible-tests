@@ -13,7 +13,10 @@ The focused second-eye review of the r3a fix round (ede52513c, REG-2521/2522 fix
 RED_PROOF: the live-map restore removed from vaultUnassign; the restore door's write check removed; _rosterMapWhy taken
 the prune's wait for another tab's map removed.
 """
+import io
+import json
 import os
+import re
 import sys
 import unittest
 
@@ -63,15 +66,26 @@ OUT.disk = disk();
 """
 
 
+# REG-2969 - THE CORE LOCKERS ARE READ FROM THE PAGE, NEVER TYPED HERE. A hand list of them (11 ids) went stale the day
+# REG-2895 made CHARMS a core locker: the 'other tab's' roster then lacked it, the board rightly refused it as a store of
+# the wrong shape, and the case measured that refusal instead of the map write it is about.
+def _core_ids():
+    _src = io.open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html"), encoding="utf-8").read()
+    _blk = re.search(r"var DEFAULT_ROSTER=\[(.*?)\n  \];", _src, re.S)
+    _ids = re.findall(r"\{id:'([a-z-]+)'", _blk.group(1)) if _blk else []
+    assert len(_ids) >= 10, "PREMISE: the page's DEFAULT_ROSTER ids could not be read: %r" % (_ids,)
+    return _ids
+
+
 SYNC_PRELUDE = r"""
 var __SL = []; (function(){ var _ael = window.addEventListener;
   window.addEventListener = function(t, f, o){ if (t === 'storage') __SL.push(f); return _ael.apply(this, arguments); }; })();
 localStorage.setItem('d2r_ownerClaim', '*');
 localStorage.setItem('d2r_owned', JSON.stringify(['Grief', 'Shako']));
-var __BASE = ['sets-major','sets-rest','uni-weap','uni-armor','uni-small','runewords','bases','magic-rare','shared','dupes','wip']
+var __BASE = __CORE_IDS__
   .map(function(id){ return { id: id, name: id.toUpperCase(), icon: 'x', note: '' }; });
 localStorage.setItem('d2r_muleRoster', JSON.stringify(__BASE));
-"""
+""".replace("__CORE_IDS__", json.dumps(_core_ids()))
 
 SYNC_BODY = r"""
 (function(){

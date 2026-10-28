@@ -81,6 +81,11 @@ var SEEN_KEY = 'd2r_intakeSeen';
 %(seenLedger)s
 var owned = new Set(), magicFinds = {}, assign = {}, copies = {}, unknownReads = new Set();
 var REMOVED = {}, UNREADABLE = {};
+/* REG-2969 - REG-2890's per-file capture-time map, which the cut per-file and items code now writes and reads; no clock
+   is no time (null), the shipped rule */
+var _capAt = {};
+function _capOf(fname){ return Object.prototype.hasOwnProperty.call(_capAt, fname) ? _capAt[fname] : null; }
+window._vaultShotTime = function(){ return null; };
 window._removedAfter = function(n, at){
   if (UNREADABLE[n]) return { unknown: 'the removal journal would not read' };
   return REMOVED[n] ? { at: at + 1, lane: 'card-click' } : null;
