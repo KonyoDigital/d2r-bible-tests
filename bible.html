@@ -43352,7 +43352,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _shareOverride(name){ var v = _shareOvMap()[_keepName(name)]; return (v === 'shared' || v === 'mule') ? v : null; }
   /* what the RULES alone say — asked override-free so it cannot recurse into the override */
   function _shareDefault(name){
-    try { var r = suggestMule(name, {ignoreShareOverride:true}); return (r && r.id === 'shared') ? 'shared' : 'mule'; }
+    /* REG-2901 - the switch's default is the RULES' answer: a keeper destination is another of his settings, and read
+       here it would make a switch he sets equal to it look like the default and drop the stored choice */
+    try { var r = suggestMule(name, {ignoreShareOverride:true, ignoreKeeperDest:true}); return (r && r.id === 'shared') ? 'shared' : 'mule'; }
     catch(e){ return 'mule'; }
   }
   /* the UI toggle: want = 'shared' | 'mule' | 'auto'. Stores only when it DIFFERS from the rule
@@ -43519,6 +43521,55 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){ return { registry: 0, calculator: 0 }; }
   };
 
+  /* #149.2 (REG-2901) - WAS THIS FILING HIS HAND'S? The vault door writes a hand filing's witness row with source 'hand'
+     at the mule it filed (vaultFile). -> true | false, and true when the witness store will not read: an UNKNOWN filing is
+     never re-homed by a setting, so it is kept as if his hand put it there. [[unknown-stays-unknown]] */
+  function _vaultFiledByHand(name){
+    var mid = null;
+    try { mid = assign[name]; } catch (e) { return false; }
+    if (mid == null) return false;
+    var all = null;
+    try { all = (typeof _provAll === 'function') ? _provAll() : {}; } catch (eP) { return true; }
+    if (all === null) return true;
+    var r = all && all[name];
+    return !!(r && typeof r === 'object' && r.kind !== 'owned' && r.source === 'hand' && r.mule === mid);
+  }
+  /* #149.2 (REG-2901, GrokBot's GB-L Advanced-drawer pass, ACT 2) - HIS KEEPER DESTINATION IS A HOME THE ROUTER ANSWERS.
+     A keeper's dest (REG-2900) was stored and read by nothing that places an item. Now the router asks it first, ahead of
+     the share switch, the charm rule, war gear, sets, trade value and every category rule below, and the order is
+     hand > keeper dest > router: a name his hand filed keeps that filing (this returns null for it, so the rules answer
+     as they did), an explicit dest beats the rules, and 'auto' leaves the rules alone. The answers:
+       'shared'     -> the shared stash: every copy he keeps, on its 5 pages, then the WAR mules when they are full
+                       (_vaultWarCap lifts the one-big-copy cap for it);
+       'war'        -> the WAR mules: the shared stash's home with a cap of 0, so every copy overflows to WAR1, then WAR2;
+       'mule:<id>'  -> that mule, by its stable id (a rename keeps it). A mule this board does not have is a stated refusal -
+                       Unsorted with the reason, never a guess at another mule.
+     Only a keeper has a destination (a want of 2 or more); a name is asked as written, then by its canon (a set piece's
+     slotted name, which is how the keeper list stores it). -> null | {id, why, keeperDest} | {id:null, unsorted, why, keeperDest} */
+  function _keeperDestHome(name){
+    if (typeof _mkDest !== 'function' || typeof _mkWant !== 'function') return null;
+    var nm = String(name == null ? '' : name), key = nm, d = 'auto';
+    try {
+      d = _mkDest(nm);
+      if (d === 'auto' && typeof window._vfCanon === 'function'){
+        var c = window._vfCanon(nm);
+        if (c && c !== nm && _mkDest(c) !== 'auto'){ key = c; d = _mkDest(c); }
+      }
+    } catch (e) { return null; }
+    if (d === 'auto' || !(_mkWant(key) > 1)) return null;
+    if (_vaultFiledByHand(nm)) return null;
+    if (d === 'shared') return { id: 'shared', keeperDest: 'shared',
+      why: 'your keeper setting \u2014 the shared stash: every copy you keep, on its 5 pages, then the WAR mules when they are full' };
+    if (d === 'war') return { id: 'shared', keeperDest: 'war',
+      why: 'your keeper setting \u2014 the WAR mules: every copy goes to WAR1, then WAR2' };
+    var mm = /^mule:(.+)$/.exec(d);
+    if (!mm) return { id: null, unsorted: true, keeperDest: d, why: 'your keeper setting says \u201c' + d + '\u201d, which is not a destination \u2014 nothing is guessed: pick it again in Keepers' };
+    var m = (typeof muleById === 'function') ? muleById(mm[1]) : null;
+    if (!m) return { id: null, unsorted: true, keeperDest: d,
+      why: 'your keeper setting names a mule this board does not have (' + mm[1] + ') \u2014 nothing is guessed: pick its destination again in Keepers' };
+    return { id: m.id, keeperDest: d, why: 'your keeper setting \u2014 ' + (m.name || m.id) + ', the mule you chose for every copy' };
+  }
+  try { window._keeperDestHome = _keeperDestHome; window._vaultFiledByHand = _vaultFiledByHand; } catch (eKdh) {}
   function suggestMule(name, opts){
     if (isSharedStash(name)) return null;
     /* The fold hops below recurse on the folded spelling and return before the
@@ -43648,6 +43699,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        also match a real off-hand, so it is left to the lock that already uses it. */
     var _kept = _keepHome(name);
     if (_kept) return _kept;
+    /* #149.2 (REG-2901) - his keeper destination, ahead of every rule below (hand > keeper dest > router, _keeperDestHome) */
+    if (!(opts && opts.ignoreKeeperDest)){
+      var _kdHome = null;
+      try { _kdHome = _keeperDestHome(name); } catch (eKd) { _kdHome = null; }
+      if (_kdHome) return _kdHome;
+    }
     /* gh#235 — his per-item shared switch (store/helpers defined above). Checked ('shared') beats the
        set/runeword/trade rules below so he can force anything in; keepers above still win (a charm
        cannot be forced to a stash it cannot use). Unchecked ('mule') makes the two shared branches
@@ -53727,6 +53784,14 @@ window.vaultAutoAssign = function(){
   function _vaultMisfiled(name){
     var mid = null;
     try { mid = assign[name]; } catch (e) { return null; }
+    /* #149.2 (REG-2901) - a shared-stash filing the board made is re-homed by his keeper destination too (a hand filing
+       never is: _keeperDestHome answers null for it) */
+    var _kdMf = null;
+    try { _kdMf = (mid === 'shared' && typeof _keeperDestHome === 'function') ? _keeperDestHome(name) : null; } catch (eKd) { _kdMf = null; }
+    if (_kdMf && _kdMf.id != null && _kdMf.id !== 'shared' && !/^__/.test(String(_kdMf.id))) {
+      try { if (typeof _hardLock === 'function' && _hardLock(name)) return null; } catch (eLk) { return null; }
+      return { seam: { loc: 'filed', mule: _kdMf.id }, filed: mid };
+    }
     if (mid == null || mid === 'shared' || /^__/.test(String(mid)) || !(typeof muleById === 'function' && muleById(mid))) return null;
     try { if (typeof _hardLock === 'function' && _hardLock(name)) return null; } catch (eL) { return null; }
     var sg = null;
@@ -53754,6 +53819,13 @@ window.vaultAutoAssign = function(){
      order) with their own rows; with no WAR mule they keep no cell and the 'make a mule named WAR1' line says so. */
   var _WAR_SMALL_CAP = 4;
   function _vaultWarCap(name){
+    /* #149.2 (REG-2901) - his keeper destination sets the cap: 'war' keeps no copy on the pages (every copy to the WAR
+       mules), 'shared' keeps every copy he wants there (the pages, then the WAR mules when they are full). A hand filing
+       has no keeper destination (_keeperDestHome), so its cap is the rules'. */
+    var _kdC = null;
+    try { _kdC = (typeof _keeperDestHome === 'function') ? _keeperDestHome(name) : null; } catch (eKc) { _kdC = null; }
+    if (_kdC && _kdC.keeperDest === 'war') return 0;
+    if (_kdC && _kdC.keeperDest === 'shared') return Infinity;
     var CC = window._warCapCache || (window._warCapCache = {});
     if (Object.prototype.hasOwnProperty.call(CC, name)) return CC[name];
     return (CC[name] = _vaultWarCap0(name));
@@ -53874,7 +53946,10 @@ window.vaultAutoAssign = function(){
          but is not filed there, so its extras overflow to the WAR mules rather than a mule he never put it on. This also
          leaves the base home (null copyIx) and the keeper on 'shared', so _vaultWarOverOn still sees id 'shared'. */
       var _filed = (typeof assign !== 'undefined' && assign) ? assign[name] : null;
-      if (copyIx != null && copyIx !== _vaultWarKeeper(name) && !_vaultWarSmall(name) && _filed && _filed !== 'shared') {
+      /* #149.2 (REG-2901) - an explicit keeper destination names where EVERY copy goes, so no extra copy returns to a filed mule */
+      var _kdX = null;
+      try { _kdX = (typeof _keeperDestHome === 'function') ? _keeperDestHome(name) : null; } catch (eKx) { _kdX = null; }
+      if (!_kdX && copyIx != null && copyIx !== _vaultWarKeeper(name) && !_vaultWarSmall(name) && _filed && _filed !== 'shared') {
         var _fM = (typeof muleById === 'function') ? muleById(_filed) : null;
         if (_fM && !_vaultWarRole(_fM)) return { id: _filed, holder: _fM.name || null, location: 'stash' }; /* L1 the extra copy to its filed mule */
       }
