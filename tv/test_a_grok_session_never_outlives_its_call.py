@@ -23,6 +23,8 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 - this run's scratch dirs leave with it; list_own reads only them
+_fx_tmp.contain()
 from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 from cb_node_harness import NODE  # noqa: E402
@@ -66,7 +68,7 @@ class _Folder(unittest.TestCase):
         return name
 
     def left(self):
-        return sorted(os.listdir(self.sd))
+        return sorted(_fx_tmp.list_own(self.sd))
 
 
 class TheReadLanesSweepKnowsBothNames(_Folder):
@@ -75,8 +77,8 @@ class TheReadLanesSweepKnowsBothNames(_Folder):
         old = G.G5_SESSION_STALE_S + 60
         g5 = self.plant(_enc("/private/var/folders/T/tvd-g5-AbC123"), old)
         intake = self.plant(_enc("/private/var/folders/T/tvd-intake-g5-XyZ789"), old)
-        his = self.plant(_enc("/Users/konyo"), old)
-        repo = self.plant(_enc("/Users/konyo/d2r_bible_tests"), old)
+        his = self.plant(_enc("/home/player"), old)
+        repo = self.plant(_enc("/home/player/d2r_bible_tests"), old)
         homeish = self.plant(_enc("/private/var/folders/T/tvd-g5-home"), old)
         fresh = self.plant(_enc("/private/var/folders/T/tvd-intake-g5-Fresh1"), 0)
         gone = G._sweep_stale_sessions(self.sd)
@@ -103,7 +105,7 @@ class TheIntakeLaneDropsItsOwnSession(_Folder):
     def test_only_this_calls_session_goes(self):
         mine = self.plant(_enc("/private/var/folders/T/tvd-intake-g5-Q1w2E3"))
         other = self.plant(_enc("/private/var/folders/T/tvd-intake-g5-R4t5Y6"))
-        his = self.plant(_enc("/Users/konyo"))
+        his = self.plant(_enc("/home/player"))
         n = self.drop("/var/folders/T/tvd-intake-g5-Q1w2E3")
         self.assertEqual(n, 1, "left: %r" % self.left())
         self.assertEqual(self.left(), sorted([other, his]), "it removed another call's session, or his")
@@ -111,8 +113,8 @@ class TheIntakeLaneDropsItsOwnSession(_Folder):
 
     def test_a_work_dir_that_is_not_this_lanes_removes_nothing(self):
         """a cwd LONGER than the lane's prefix, so only the prefix check can refuse it (the length check alone would not)"""
-        his = self.plant(_enc("/Users/konyo/d2r_bible_tests"))
-        self.assertEqual(self.drop("/Users/konyo/d2r_bible_tests"), 0,
+        his = self.plant(_enc("/home/player/d2r_bible_tests"))
+        self.assertEqual(self.drop("/home/player/d2r_bible_tests"), 0,
                          "a cwd that is not an intake call's matched his own session")
         self.assertEqual(self.left(), [his])
 
