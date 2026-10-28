@@ -115,9 +115,11 @@ def _session_moment(r):
 
 def session_moments(g):
     """REG-2736 - the moments a session's own rows were captured (row_moment), the post-hoc notes left out; every row's
-    when nothing else is there. REG-2744 - a re-read lane's row counts only through its capture time. -> [int]"""
+    when nothing else is there. REG-2744 - a re-read lane's row counts only through its capture time. REG-2752 (the v3823
+    second eye) - and the fallback keeps that: a re-read row with no capture time is never a moment, so a session made of
+    nothing else has none (its date is UNKNOWN, never the day the re-read wrote). -> [int]"""
     m = [x for x in (_session_moment(r) for r in (g or []) if (r or {}).get("lane") not in POST_HOC_LANES) if x > 0]
-    return m or [x for x in (row_moment(r) for r in (g or [])) if x > 0]
+    return m or [x for x in (_session_moment(r) for r in (g or [])) if x > 0]
 
 
 def split_sessions(reads):
