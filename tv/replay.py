@@ -98,10 +98,25 @@ def row_moment(r):
 POST_HOC_LANES = ("kai", "watchdog")
 
 
+#: REG-2744 (the v3821 second eye) - lanes that read a session's frames AGAIN, later: their row is a moment of the session
+#: only through the frame's capture time. Without one, its ts is when the re-read wrote, and that moved t0/t1 and the
+#: order exactly as the KAI notes had (REG-2736). Measured on his journal 2026-10-28: all 965 intake and 7 verify rows
+#: carry captureTs, so nothing moves today; this closes the door before a row without one arrives.
+REREAD_LANES = ("verify", "intake")
+
+
+def _session_moment(r):
+    """A row's moment for dating its session: a re-read lane counts by its frame's capture time alone. -> int (0 = none)"""
+    if (r or {}).get("lane") in REREAD_LANES:
+        cap = r.get("captureTs") if isinstance(r, dict) else None
+        return int(cap) if isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap > 0 else 0
+    return row_moment(r)
+
+
 def session_moments(g):
     """REG-2736 - the moments a session's own rows were captured (row_moment), the post-hoc notes left out; every row's
-    when nothing else is there. -> [int] (positive only)"""
-    m = [x for x in (row_moment(r) for r in (g or []) if (r or {}).get("lane") not in POST_HOC_LANES) if x > 0]
+    when nothing else is there. REG-2744 - a re-read lane's row counts only through its capture time. -> [int]"""
+    m = [x for x in (_session_moment(r) for r in (g or []) if (r or {}).get("lane") not in POST_HOC_LANES) if x > 0]
     return m or [x for x in (row_moment(r) for r in (g or [])) if x > 0]
 
 

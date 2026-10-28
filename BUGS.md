@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2744 - A SHELF ROW COUNTED THE WATCHDOG'S VERDICT AS A READ, AND A RE-READ COULD STILL DATE A SESSION (v3821 second eye)
+The v3821 eye on REG-2736 (#231 6464187658), each finding reproduced: (1) REAL - a Shelf row's readMs dropped watchdog rows
+(REG-2736) while the `reads` count beside it kept its old lane list, so one session counted a verdict as a read while dating
+itself as if that row did not exist; both read one predicate now (_is_a_live_read). (2) REAL IN CLASS, NO INSTANCE - t0/t1
+and the order took verify and intake rows by row_moment, which falls back to the write time when captureTs is missing:
+REG-2736's defect, waiting for such a row. Measured on his journal: all 965 intake and 7 verify rows carry captureTs and no
+capture-less row was written over an hour after its session; a re-read lane (REREAD_LANES) now counts only through its
+capture time. (3) NOT A DEFECT - the KAI exclusion is pinned by this law's own red-proof. Law:
+test_a_session_is_dated_by_what_it_captured (+1 case, +2 red-proofs, one re-pointed; 7 of 7 seen RED).
+
 ### REG-2743 - HIS GROK CHATS WERE NEVER PRUNED, SO THE FOLDER THAT TOOK HIS MAC TO ENOSPC COULD DO IT AGAIN (#151, his ruling)
 His words, 2026-10-28: "pruning your own Grok chats ... architecure and build and design something so fix it and prune
 automatically if needed." The Grok CLI keeps every conversation as a folder under ~/.grok/sessions and never removes one;

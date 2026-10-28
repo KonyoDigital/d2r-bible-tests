@@ -17325,6 +17325,14 @@ def _disk_sign_loop():
 
 
 
+def _is_a_live_read(r2):
+    """REG-2744 (the v3821 second eye) - ONE rule for "is this journal row a read", used by a Shelf row's read COUNT and its
+    read SPAN alike. REG-2736 taught the span that a watchdog verdict is not a read and left the count on its old lane list,
+    so one session counted a verdict as a read while dating itself as if that row did not happen. -> bool"""
+    return (not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end"
+            and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake", "watchdog"))
+
+
 def _disk_free_bytes(path):
     """#151 (REG-2742) - free space at `path` as macOS counts it for a write that matters: purgeable space included
     (disk_room.free_bytes). Every floor in this file reads it, so the ON AIR floor, the picture size and the health
@@ -46377,10 +46385,8 @@ class Handler(BaseHTTPRequestHandler):
                                 # the fleet rate at ~0/hr — the exact ghost-span class v1563 was
                                 # written to kill, reintroduced by its own guard.
                                 [_t for _t in (_rp.row_moment(r2) for r2 in sess   # REG-2736 - captured, not written
-                                 if not r2.get("sessionEnd") and r2.get("scene") != "session_end"
-                                 and r2.get("mode") != "session_end" and r2.get("kind") != "skip"
-                                 and r2.get("lane") not in ("kai", "verify", "intake", "watchdog")) if _t > 0]),   # REG-2736 - a verdict is not a read
-                            "reads": len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip" and r2.get("lane") not in ("kai", "verify", "intake")]), "frames": len(frames),
+                                 if _is_a_live_read(r2)) if _t > 0]),
+                            "reads": len([r2 for r2 in sess if _is_a_live_read(r2)]), "frames": len(frames),   # REG-2744 - the span's own rule
                             "named": sum(1 for r in sess if r.get("names")),
                             "areas": areas[:6], "stub": (len([r2 for r2 in sess if not r2.get("sessionEnd") and r2.get("scene") != "session_end" and r2.get("mode") != "session_end" and r2.get("kind") != "skip"]) < 3
                              and _reeln == 0),   # v885 (Grok #1) — a 1-read ghost never poses as a run
