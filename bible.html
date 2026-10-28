@@ -21455,7 +21455,8 @@ function artOr(name, fallbackHtml, size){
   var u = (_raw && /\/base_/.test(_raw) && _cu && !/\/base_/.test(_cu)) ? _cu : (_raw || _cu);
   /* A magic, rare, crafted or plain item is drawn as its base. The rolled name is not an art key,
      which is why a vault cell of one painted the missing-art mark. The base is the one the keeper
-     recorded, or the catalogue row — never a word guessed out of the name. A unique or a set is
+     recorded, or the catalogue row, or - when neither names one - the base the board's one grammar for a
+     rolled name reads off it (REG-2851): never a loose word guessed out of the name. A unique or a set is
      not given a base picture: when its own picture is missing, the mark stays. */
   if (!u){
     var _rolledBase = '';
@@ -21471,6 +21472,22 @@ function artOr(name, fallbackHtml, size){
       var _er = String((_ex && _ex.rarity) || '').toLowerCase();
       var _eb = (_ex && _ex.base) ? String(_ex.base) : '';
       if (_eb && _eb !== String(name) && (_er === 'magic' || _er === 'rare' || _er === 'crafted' || _er === 'basic')) _rolledBase = _eb;
+    }
+    /* REG-2851 (his report 2026-10-28 19:31: MAGIC & RARE drew white diamonds, "the images are not rendering proeprly") - a
+       keeper kept with no base (the throw-out review's keep writes base '', a legacy record has none) and a TV stub (its
+       base is its own name) drew the missing-art mark on the card, in the mule window and in FIND. _rolledQuality is the
+       board's ONE grammar for a rolled name (REG-2054), the one the router files these by: a magic charm, jewel, ring or
+       amulet carries its base in its name by the game's naming rule, and a rare's suffix word belongs to one slot or to
+       several (RARE_NAME_POOLS, from the game's RareSuffix rows). One slot is the base; two (Whorl: ring or jewel) leave
+       it UNKNOWN, and the mark stays. The picture is still artUrl's, of the base - one resolver. */
+    if (!_rolledBase && !_keeperBlocks && typeof _rolledQuality === 'function'){
+      var _exR = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS && EXTRA_ITEMS[name]) ? String(EXTRA_ITEMS[name].rarity || '').toLowerCase() : '';
+      if (_exR !== 'unique' && _exR !== 'set'){
+        var _rqA = null;
+        try { _rqA = _rolledQuality(_clean); } catch (eRq) { _rqA = null; }
+        if (_rqA && _rqA.q === 'magic' && _rqA.base) _rolledBase = String(_rqA.base);
+        else if (_rqA && _rqA.q === 'rare' && _rqA.slots && _rqA.slots.length === 1) _rolledBase = String(_rqA.slots[0]);   /* REG-2851 one grammar */
+      }
     }
     if (_rolledBase && _rolledBase !== String(name) && _rolledBase !== _clean && _rolledBase !== _cleanP){
       var _bu = artUrl(_rolledBase);
@@ -36625,7 +36642,11 @@ renderCraftWorkshop();
   var ART = {
     gloves:'art/leathergloves_graphic.png', boots:'art/leatherboots_graphic.png', belt:'art/belt_graphic.png',
     ring:'art/ring1_graphic.png', amulet:'art/amu1_graphic.png', jewel:'art/jewel02_graphic.png',
-    grandcharm:'art/largecharm01_graphic.png', smallcharm:'art/bluecharm_graphic.png',
+    /* REG-2852 (GrokBot's ACT-2 on his MAGIC & RARE: "the same small-charm family draws bluecharm_graphic in some cells
+       and hd_charm_small in others") - a charm wears its SIZE's sprite, the one the base names wear (Small / Large / Grand
+       Charm, registered below with the curated charms): a TV-read charm drew this table's old keyword graphic while a
+       keeper with its base on record drew the HD sprite, and a Large Charm drew the grand one (no 'large charm' rule). */
+    grandcharm:'art/hd_charm_large.png', largecharm:'art/hd_charm_medium.png', smallcharm:'art/hd_charm_small.png',   /* REG-2852 one sprite per charm size */
     diadem:'art/diadem_graphic.png', circlet:'art/tiara_graphic.png', helm:'art/fangedhelm_graphic.png',
     body:'art/balrogskin_graphic.png', shield:'art/rondache_graphic.png',
     sword:'art/swordguard_graphic.png', axe:'art/broadaxe_graphic.png', mace:'art/maul_graphic.png',
@@ -36633,7 +36654,7 @@ renderCraftWorkshop();
   };
   // ordered [needle, artKey] — first substring hit wins (specific before generic)
   var RULES = [
-    ['small charm','smallcharm'], ['grand charm','grandcharm'], ['skiller','grandcharm'], ['charm','grandcharm'],
+    ['small charm','smallcharm'], ['large charm','largecharm'], ['grand charm','grandcharm'], ['skiller','grandcharm'], ['charm','grandcharm'],
     ['gloves','gloves'], ['glove','gloves'], ['boots','boots'], ['boot','boots'], ['belt','belt'],
     ['amulet','amulet'], ['ring','ring'],
     ['diadem','diadem'], ['tiara','circlet'], ['coronet','circlet'], ['circlet','circlet'],
@@ -36811,6 +36832,27 @@ try {
       if (!_rbu) return;                    /* no curated base with a picture: UNKNOWN here, the table keeps what it had */
       _KEEPER_ART.base[_rl] = _rbu; D2IO_ART[_rl] = _rbu;                             /* REG-2806 runeword wears its base */
     });
+  /* REG-2852 (his report 2026-10-28 19:31, the MAGIC & RARE diamonds) - A BASE WITH NO PICTURE OF ITS OWN WEARS THE SPRITE
+     THE v406 TABLE GIVES THE UNIQUES BUILT ON IT. A rare kept with its base on record drew the missing-art mark when the
+     base itself was no art key: a rare Plated Belt. Measured on the whole page in node: 36 of BASE_DB's 508 bases answer
+     no picture from artUrl (Plated Belt, War Belt, Boots, Greaves, Mesh Belt, Demonhide Sash...). The v406 table above is
+     each unique's base sprite from the game files, and its uniques never disagree about one base (0 of 266 bases with
+     two sprites): Bladebuckle and Sigon's Wrap, both Plated Belts, wear hd_girdle_h. So a base with no picture takes the
+     one sprite its uniques share - additive (a base that draws keeps what it draws), and a base no unique is built on, or
+     whose uniques disagree, stays UNKNOWN. The picture is still read through artUrl: one resolver, one table. */
+  if (typeof BASE_DB !== "undefined" && (typeof ITEM_CODEX !== "undefined" || typeof ITEM_TIP !== "undefined")){
+    var _bSpr = {};
+    Object.keys(_KEEPER_ART.base).forEach(function(_bu){
+      var _bc = (typeof ITEM_CODEX !== "undefined" && ITEM_CODEX[_bu]) || null, _bt = (typeof ITEM_TIP !== "undefined" && ITEM_TIP[_bu]) || null;
+      var _bb = (_bc && _bc.base) || (_bt && _bt.b) || '';
+      if (!_bb || !Object.prototype.hasOwnProperty.call(BASE_DB, _bb)) return;
+      (_bSpr[_bb] = _bSpr[_bb] || {})[_KEEPER_ART.base[_bu]] = 1;
+    });
+    Object.keys(_bSpr).forEach(function(_bb){
+      var _bs = Object.keys(_bSpr[_bb]);
+      if (_bs.length === 1 && _bs[0].indexOf("art/hd_") === 0 && !artUrl(_bb)) D2IO_ART[_bb] = _bs[0];   /* REG-2852 base sprite */
+    });
+  }
 } catch(e){}
 // v408 — runeword tile art: every forged runeword (Enigma, Spirit, Insight…) gets a representative HD
 // sprite of its base type (from RUNEWORD_TIP base category) so the RUNEWORDS-locker chip shows real art
@@ -45546,6 +45588,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _xTitle = _vaultCellXTitle(n, _cc, _hlk);   /* #111 - a multi-copy cell's ✕ says every copy goes */
         /* #98 (his ruling 2026-09-30, "make it visually known") — the lock is ON the cell, not only in a tooltip */
         var _lockCls = !_hlk ? '' : (_hlk.unknown ? ' vmc-lock-unk' : ' vmc-locked');
+        /* REG-2851 - the picture the mule window, FIND and the hover draw (artOr) comes first; the keyword sprite only where
+           artOr has none. Asking artUrl alone, a rolled name drew ring1_graphic here and the base's own sprite everywhere else. */
+        var _cellArt = art(n, '◆', 'lg');
         var _lockTag = !_hlk ? '' : '<span class="vm-cell-lock" role="img" aria-label="' + (_hlk.unknown ? 'lock unknown' : 'locked') + '" title="'
           + esc(_hlk.unknown ? _hlk.why : ('🔒 ' + _hlk.tier + ((_hlk.successes != null && _hlk.trials != null) ? ' ' + _hlk.successes + '/' + _hlk.trials : '')
               + ' — the evidence locked it in this locker. Hold Shift while you drop it on another locker, or Shift+click ✕, to release it.'))
@@ -45557,7 +45602,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + (cl.approx ? ' vmc-approx' : '') + _lockCls + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
           + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_mark.title ? ' · ' + _mark.title : '')
           + (cl.approx ? ' — size not established: no footprint rule matches this base, so it is drawn at the default 1x2. Set names (\'Tal Rasha set (any piece)\') are not items and have no single size.' : ' — ' + cl.w + '×' + cl.h + ' = ' + (cl.w*cl.h) + ' cell' + (cl.w*cl.h===1?'':'s')) + '">'
-          + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
+          + '<span class="vm-cell-art">' + ((/ src="/.test(_cellArt) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? _cellArt : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
           + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')
           + _lockTag

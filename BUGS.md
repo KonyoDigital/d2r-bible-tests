@@ -247,6 +247,35 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2852 - A RARE WHOSE BASE IS NO ART KEY STILL DREW THE DIAMOND, AND ONE CHARM SIZE WORE TWO SPRITES (the REG-2851 sweep, GrokBot's ACT-2)
+A rare kept with its base on record drew the mark when that base was no art key - his Brimstone Clasp, a rare Plated Belt.
+Measured on the whole page in node: 36 of BASE_DB's 508 bases answered no picture from artUrl (Plated Belt, War Belt,
+Boots, Greaves, Mesh Belt, Demonhide Sash...). The v406 table holds each unique's base sprite from the game files, and its
+uniques never disagree about a base (0 of 266 bases with two sprites). A base with no picture now wears the one sprite the
+uniques built on it share (Bladebuckle and Sigon's Wrap, Plated Belts: hd_girdle_h), registered where artUrl reads, so every
+surface and the builder draw it. Additive: a base that draws keeps its picture (Belt keeps belt_graphic). 25 are filled; 11
+stay UNKNOWN, the table holding no unique with that base on record (Shako, Colossus Girdle, Mirrored Boots...). Swept with
+it, the charms: v305 dressed a TV-read charm in its keyword graphic (bluecharm_graphic, largecharm01_graphic) while a keeper
+with its base on record wore the HD base sprite, and a Large Charm wore the grand one (the table had no 'large charm'
+rule). Measured: Small Charm of Balance bluecharm_graphic beside Fine Small Charm of Vita's hd_charm_small, Serpent's Large
+Charm of Vita largecharm01_graphic. Each charm now wears its size's base sprite (hd_charm_small / medium / large). Law:
+test_a_magic_or_rare_tile_draws_its_base, 4 red-proofs, RED.
+
+### REG-2851 - A MAGIC OR RARE ITEM WITH NO BASE ON RECORD DREW THE WHITE DIAMOND ON THE CARD, THE WINDOW AND FIND (his 2026-10-28 19:31 report)
+artOr drew a rolled item as the base its record names, and the missing-art mark when none was named: the throw-out
+review's keep writes base '', a legacy record is a bare quality string, and a TV stub's base is its own name. Measured on
+the whole page in node: "Grim Spiral (rare)", "Bitter Noose", "Rune Eye" and the stub "Doom Eye" drew the mark on the card,
+in the mule window and in FIND. artOr now asks the board's one grammar for a rolled name (_rolledQuality, REG-2054 - what
+the router files them by) when nothing recorded a base: a magic charm, jewel, ring or amulet carries its base in its name,
+and a rare's suffix word belongs to one slot or to several (RARE_NAME_POOLS, from the game's RareSuffix rows). One slot is
+the base; two (Whorl: a ring or a jewel) stay UNKNOWN and keep the mark - no guess drawn as a fact. The picture is still
+artUrl's, of the base: one resolver, no second one. Swept every surface that draws these tiles: the card's record cells
+asked artUrl alone and fell to the keyword sprite, so a stub the window drew as hd_ring drew ring1_graphic on the card -
+they take artOr's picture first now; the window grid, FIND and the card's keeper cells draw through art() -> artOr; the
+hover already asked artOr before its keyword fallback, so it now draws the same base picture (amu1_graphic -> hd_amulet).
+Left as it was: a name that stays UNKNOWN keeps the hover's keyword sprite (its last resort, v345) while its tile shows the
+mark. Law: test_a_magic_or_rare_tile_draws_its_base (card, window, FIND and the hover's order, per item), 4 red-proofs, RED.
+
 ### REG-2850 - MAGIC & RARE COUNTED 23 AND ITS WINDOW DREW 5: NO KEEPER WAS EVER PACKED (his 2026-10-28 19:31 report, the ALT's shadow on v3829)
 The locker card said 23 and its window "Items 23 · Copies 5" over a grid of 5 tiles: "its not showing the 23 items at all
 when i click the alt mule it self" (GrokBot measured the Mac at Items 14 over an empty grid). The census and the card count
