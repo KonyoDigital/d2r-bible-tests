@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2764 - NO HAND-TEST SCENARIO KNEW WHICH OF HIS FRAMES TEST IT (#22, his rulings 2026-10-28)
+His words: "if you can take my sessions and frames and reels and do the tests your self scenario by scenario then great"
+... "sync each scenario to each visual frame related" ... "make sure to join anything needed to be joined for that
+logic". The 33 TESTING_PHASE scenarios named items and screens; his journals hold every read with the screen it saw, and
+retro_triage.json labels 8,160 stash frames of older reels - but nothing joined them. tv/scenario_frames.py (a report:
+reads, never writes) joins each scenario to its ITEMS (names from its Items block, kept only when a roster or a recorded
+read knows them), each item to the FRAMES whose reads named it, each frame to its own PICTURE, and REC-03 to its recorded
+check. Two wrong joins were caught on the way: the reel folder's f_<ms>.jpg are footage stills, not a read's picture (the
+first cut found 0 of every sample on disk - a read's picture is <frameId>.jpg at the reel root); and LOOKED AT, MR-01's
+only joined frame was a Spirit tooltip whose "Monarch" is the runeword's base, not the white-base control - a base read
+beside a runeword no longer joins. On his data: REC-03 PASS (9/9 items read on 28 frames; the newest long session's deep
+reads all warm, every commitment answered); MR-01's items were never read as themselves (his hands). Law:
+test_a_scenario_names_its_own_frames (7 cases on fixtures, 6 red-proofs).
+
 ### REG-2763 - A SAVED PROFILE COULD NOT REBUILD ITS OWN VAULT ON ANOTHER PC (his ruling 2026-10-28, GrokBot's round trip)
 GrokBot (#230 6467035373) loaded a profile made from his real Mac data into a fresh browser: every store came back
 byte-exact, the chronicle read 0/99 · 6/403 · 0/135, and the VAULT changed shape (Grief 3x2 -> 2x1, Heart of the Oak 2x1 ->

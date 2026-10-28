@@ -12193,6 +12193,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_profile_carries_what_its_vault_reads.py")], 300,
          needs_app=False,
          why='REG-2763: a profile carries the chronicle its own vault reads, and an undo never does'),
+    Gate("test_a_scenario_names_its_own_frames",
+         [sys.executable, os.path.join(HERE, "test_a_scenario_names_its_own_frames.py")], 300,
+         needs_app=False,
+         why='#22 REG-2764: a hand-test scenario names the frames of his that test it'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
