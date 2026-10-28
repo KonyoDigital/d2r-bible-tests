@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2748 - A SHELF CARD SAID "0m00s" BESIDE "3127 frames · full video" (#86 nit, GrokBot v3821 pass)
+REG-2736 dated a session by its captured moments, and a footage run with a single read has one moment, so its "ran" span
+(t0 to t1) was 0m00s beside an hour of film. The footage stills are captures of the same session - each is named
+f_<capture ms>.jpg and the Shelf already lists them per reel - so the first and last still now join the session's moments
+for t0/t1. A reel with no film reads exactly as before, and the order (split_sessions) is unchanged. Law:
+test_a_session_is_dated_by_what_it_captured (+1 case over a fixture reel with stills outside its reads, 1 red-proof).
+
 ### REG-2747 - A KEYBOARD PAGE SWITCH ON THE SHARED STASH DROPPED THE FOCUS TO THE PAGE TOP (#154.19 nit, GrokBot v3821 pass)
 GrokBot (#230 6464730558): Enter on a shared-stash tab switched the page, then the card re-rendered and the focus fell to
 <body>, so the next Tab restarted at the top of the page instead of moving to the next tab. _sharedSetPage now hands the

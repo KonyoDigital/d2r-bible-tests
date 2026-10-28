@@ -127,8 +127,44 @@ class TheShelfRowCarriesTheCapturedSpan(unittest.TestCase):
         self.assertEqual(old.get("reads"), 3, "REG-2744 - the watchdog's verdict was counted as a read: %r" % old.get("reads"))
         self.assertEqual((by[NEW].get("t0"), by[NEW].get("t1")), (T_NEW, T_NEW + 120000))
 
+    def test_a_run_with_film_spans_its_film(self):
+        """REG-2748 (GrokBot's v3821 pass) - a card read "0m00s" beside "3127 frames · full video": one read, an hour of
+        film. The footage stills are captures of the session (f_<capture ms>.jpg), so the span covers them."""
+        d = tempfile.mkdtemp(prefix="session-film-")
+        self.addCleanup(shutil.rmtree, d, True)
+        hist = os.path.join(d, "hist")
+        for sid in (OLD, NEW):
+            os.makedirs(os.path.join(hist, "reel_" + sid))
+        for ts in (T_NEW - 30000, T_NEW + 60000, T_NEW + 600000):
+            open(os.path.join(hist, "reel_" + NEW, "f_%d.jpg" % ts), "wb").close()
+        journal = os.path.join(d, "sessions.jsonl")
+        with open(journal, "w", encoding="utf-8") as fh:
+            for r in _rows():
+                fh.write(json.dumps(r) + "\n")
+        import control_app as ca
+        keep = (ca.HIST_DIR, RP.JOURNAL)
+        ca.HIST_DIR, RP.JOURNAL = hist, journal
+        cached = ca.__dict__.pop("_JRNL_CACHE", None)
+        try:
+            out = ca.Handler._theatre_sessions(ca.Handler.__new__(ca.Handler))
+        finally:
+            ca.HIST_DIR, RP.JOURNAL = keep
+            ca.__dict__.pop("_JRNL_CACHE", None)
+            if cached is not None:
+                ca._JRNL_CACHE = cached
+        by = dict((r.get("sessionId"), r) for r in out)
+        self.assertEqual(by[NEW].get("footageN"), 3, "PREMISE: the film stills were not counted: %r" % by[NEW].get("footageN"))
+        self.assertEqual((by[NEW].get("t0"), by[NEW].get("t1")), (T_NEW - 30000, T_NEW + 600000),
+                         "the run is dated by its reads alone, not its film: %r" % ({k: by[NEW].get(k) for k in ("t0", "t1")},))
+        self.assertEqual((by[OLD].get("t0"), by[OLD].get("t1")), (T_OLD, T_OLD + 60000), "a reel with no film moved")
+
 
 RED_PROOF = [
+    {"why": "REG-2748 - a run with film is dated by its reads alone again (0m00s beside an hour of footage)",
+     "file": "control_app.py",
+     "find": "                                    _foot_span.append(_fts)\n",
+     "replace": "                                    pass\n",
+     "matches": 1},
     {"why": "REG-2744 - a re-read row with no capture time dates the session by when it wrote",
      "file": "replay.py",
      "find": "        return int(cap) if isinstance(cap, (int, float)) and not isinstance(cap, bool) and cap > 0 else 0\n",
@@ -156,7 +192,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2736 - the Shelf row's t1 is its last written row again",
      "file": "tv/control_app.py",
-     "find": "                            \"t1\": max(_rp.session_moments(sess) or [0]) or sess[-1].get(\"ts\"),\n",
+     "find": "                            \"t1\": max((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[-1].get(\"ts\"),\n",
      "replace": "                            \"t1\": sess[-1].get(\"ts\"),\n",
      "matches": 1},
     {"why": "REG-2736 - the watchdog's verdict counts as a read and stretches the read span",

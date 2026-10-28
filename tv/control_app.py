@@ -46089,6 +46089,7 @@ class Handler(BaseHTTPRequestHandler):
                 miss = max(0, want - len(frames))
                 _reeln = 0
                 _thumb = ""
+                _foot_span = []   # REG-2748 - the first and last footage still's own capture time (f_<ms>.jpg)
                 try:
                     _rd2 = os.path.join(HIST_DIR, "reel_" + str(sess[0].get("sessionId") or ""))
                     if os.path.isdir(_rd2):
@@ -46097,6 +46098,13 @@ class Handler(BaseHTTPRequestHandler):
                         _rfs = sorted(f2 for f2 in os.listdir(_rd2)
                                       if f2.startswith("f_") and f2.endswith(".jpg"))
                         _reeln = len(_rfs)
+                        for _fx in ((_rfs[0], _rfs[-1]) if _rfs else ()):
+                            try:
+                                _fts = int(_fx[2:-4])
+                                if _fts > 0:
+                                    _foot_span.append(_fts)
+                            except ValueError:
+                                pass
                         if _rfs:
                             # v890 — the card's art IS the run: its middle frame, 160px lane
                             _thumb = "reel_" + str(sess[0].get("sessionId") or "") + "/" + _rfs[len(_rfs) // 2]
@@ -46369,8 +46377,10 @@ class Handler(BaseHTTPRequestHandler):
                             "sealMs": _seal_ms, "regretItems": _regret_items,   # v1280 (D7 engine) — seal-latency chip + regret spotlight
                             # REG-2736 - dated by when its rows were CAPTURED (replay.row_moment): a re-read days later
                             # is not the session ending today
-                            "n": i, "t0": min(_rp.session_moments(sess) or [0]) or sess[0].get("ts"),
-                            "t1": max(_rp.session_moments(sess) or [0]) or sess[-1].get("ts"),
+                            # REG-2748 (GrokBot's v3821 pass: "0m00s" beside 3127 frames) - the footage stills are
+                            # captures of this session too, so a run with one read and an hour of film spans the film
+                            "n": i, "t0": min((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[0].get("ts"),
+                            "t1": max((_rp.session_moments(sess) or []) + _foot_span or [0]) or sess[-1].get("ts"),
                             # v1563 — READ SPAN, not wall-clock. t0..t1 is the session's first row to
                             # its last, which includes idle and any trailing heartbeat. One of his
                             # sessions spans 1798.9 MINUTES around 3.5 minutes of actual reading, and
