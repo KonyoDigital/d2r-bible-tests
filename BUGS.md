@@ -22,6 +22,21 @@ its loose film, and every one of those orphans was counted and spanned with it. 
 captured on or after its own session's start (the id's s_<start ms>_<n>, else its first captured moment), with a minute's
 grace for the first frame. tv/test_a_session_is_dated_by_what_it_captured.py plants an orphan still ten days before the
 session; its red-proof (the filter removed) is RED.
+### REG-2781 - AN OPEN WAR MULE SAID 0 ITEMS WHILE ITS MOVE TASKS SENT IT FOUR COPIES (#144.11, GrokBot's eyes-pass A2)
+GrokBot (seeds 1012/1017/1021): "the open WAR1 card says 0 items total while its preview tile shows 8 items and 8 tasks
+target WAR1". Measured on this tree in node (whole page, a WAR1 mule, Shako x3 and Arachnid Mesh x6 hand-added): four
+copies are over the war stash's cap and their tasks go to WAR1 (stash:c0r0, c2r0, c4r0, c6r0), yet the WAR1 window drew
+nothing and said "Items 0 · 0 items total", _vaultLockerItems said 0 and the shelf tile "0 items in 2 copies". Those copies
+stay homed on the shared stash in the records, so _muleNamesFor, _muleLoad's records span and the census never saw them;
+only the tile's own badge asked the plan (_vaultWarOverOn). Now all three ask it: WAR1 says 2 items, 4 copies, and draws
+two of each. SWEPT: an item he filed ON WAR1 by hand (REG-2761's case) drew 8 cells for 6 owned belts on the tile
+(_shelfCopyCount added the over-cap copies to copies that already held them) while the window drew 6; both now follow one
+rule - filed there, its own copies; else the over-cap copies planned there. NOT swept (reported): FIND names all 3 Shakos
+and all 6 belts in the shared stash's typed tabs, which neither the plan (1 + 2 on WAR1) nor the shared card (the cap)
+says - that is FIND's copy logic, under #144.9 / REG-2760's pending choice. Law:
+tv/test_a_war_mule_draws_the_copies_planned_on_it.py (node, whole page, two worlds): 7 red-proofs, 7 RED; the pre-fix page
+fails its three defect cases (census 0, an empty name list, a tile of 8 for 6).
+
 ### REG-2780 - THE BEFORE | AFTER MOVE POPUP WAS DEAD CODE THAT LAWS KEPT PHOTOGRAPHING AS THE VAULT (#144.14, found landing v3783)
 Elad's 2026-10-20 22:35 ruling ("one grid per task") made a move row expand inline (_vaultTaskExpandHtml) and nothing on
 the page opened the BEFORE | AFTER popup again, but _vaultMoveCompareHtml / Open / Close, the model's whole-container

@@ -44819,7 +44819,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { /* L1 (Elad 2026-10-20) the war stash card draws only what its cap keeps; a WAR mule draws the over-cap copies planned on it */
       if (muleId === 'shared' && typeof window._vaultWarCap === 'function') { var _cap = window._vaultWarCap(n); if (c > _cap) c = _cap; }
       var _wo = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(muleId) : null;
-      if (_wo && _wo[n]) c = (window._vaultFiledOn && window._vaultFiledOn(n) === muleId ? c : 0) + _wo[n];
+      /* #144.11 (REG-2781) - filed on this WAR mule: its own copies, which already hold the over-cap ones (adding them drew
+         8 cells for 6 owned belts); else only the over-cap copies the plan sends here - the one rule _muleLoad follows */
+      if (_wo && _wo[n]) c = (window._vaultFiledOn && window._vaultFiledOn(n) === muleId) ? c : _wo[n];
     } catch (eWc) {}
     return c;
   }
@@ -51771,7 +51773,24 @@ window.vaultAutoAssign = function(){
       try { _spanOf = _vaultRecordsForMule(muleId); } catch (eSp) { _spanOf = null; }
       if (!_spanOf || typeof _spanOf !== 'object') _spanOf = null;
     }
+    /* #144.11 (REG-2781, GrokBot's eyes-pass A2: "the open WAR1 card says 0 items total while 8 tasks target WAR1") - the
+       copies over the war stash's cap that the plan sends to this WAR mule. Their records are homed on the shared stash, so
+       the span below skipped every one and the window drew an empty mule. Drawn here as many as the plan puts on this mule
+       (_vaultWarOverOn, the count the shelf card's badge uses). A name he FILED on this mule is drawn as filed - all its
+       copies, the over-cap ones among them - so nothing is counted twice (measured: 6 owned belts filed on WAR1 drew 8). */
+    var _woOn = null;
+    if (muleId != null && muleId !== 'shared') {
+      try { _woOn = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(muleId) : null; } catch (eWo) { _woOn = null; }
+    }
     (names || []).forEach(function(n){
+      var _woN = (_woOn && _woOn[n]) | 0;
+      if (_woN && !(typeof window._vaultFiledOn === 'function' && window._vaultFiledOn(n) === muleId)) {
+        var _ws = vaultSize(n), _wt = tipOf(n), _ww = Math.min(_woN, Math.max(0, (worn && worn[n]) | 0));
+        _wornN += _ww;
+        for (var _wi = 0; _wi < _woN - _ww; _wi++)
+          sized.push({n:n, key:_muleItemKey(n, _wi), w:_ws[0], h:_ws[1], area:_ws[0]*_ws[1], set:(_wt&&_wt.setName)||'', ct:_woN});
+        return;
+      }
       if (_spanOf && !Object.prototype.hasOwnProperty.call(_spanOf, n)) return;
       var s = vaultSize(n); var t = tipOf(n);
       var cc = (_spanOf && typeof _spanOf[n] === 'number' && _spanOf[n] >= 1) ? _spanOf[n] : ((typeof copyCount === 'function' ? copyCount(n) : 1) || 1);
@@ -51955,6 +51974,10 @@ window.vaultAutoAssign = function(){
     if (!names) names = Object.keys(assign).filter(function(n){ return assign[n] === muleId; }).sort();
     if (muleId === 'magic-rare' && typeof magicFinds === 'object' && magicFinds)
       Object.keys(magicFinds).sort().forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); });
+    /* #144.11 (REG-2781) - and a WAR mule's list holds the over-cap copies planned on it, as the shelf card's badge already
+       did (_shelfDrawNames + _vaultWarOverOn): the badge and the window drew from two lists */
+    try { var _wo11 = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(muleId) : null;
+          if (_wo11) Object.keys(_wo11).sort().forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); }); } catch (eWo) {}
     return names;
   }
   window._muleNamesFor = _muleNamesFor;
@@ -54080,6 +54103,10 @@ window.vaultAutoAssign = function(){
     if (muleId === 'dupes') {
       try { (_vaultDupesNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}
     }
+    /* #144.11 (REG-2781) - a WAR mule holds the copies over the war stash's cap that the plan sends to it; their records
+       stay homed on the shared stash, so without this the WAR card and its window said 0 items with tasks bound for it */
+    try { var _wo11 = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(muleId) : null;
+          if (_wo11) Object.keys(_wo11).forEach(function(n){ if (n) names[n] = 1; }); } catch (e4) {}
     return Object.keys(names).length;
   }
   window._vaultLockerItems = _vaultLockerItems;

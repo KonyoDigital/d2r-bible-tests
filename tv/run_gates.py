@@ -12217,6 +12217,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_move_row_expands_inline_and_the_popup_is_gone.py")], 300,
          needs_app=False,
          why="#144.14 REG-2780: the dead BEFORE|AFTER popup stays gone and the move row's inline expand draws its own FROM -> TO"),
+    Gate("test_a_war_mule_draws_the_copies_planned_on_it",
+         [sys.executable, os.path.join(HERE, "test_a_war_mule_draws_the_copies_planned_on_it.py")], 300,
+         needs_app=False,
+         why="#144.11 REG-2781: a WAR mule's window, census and tile draw the over-cap copies its tasks send it, and a name filed there is counted once"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
