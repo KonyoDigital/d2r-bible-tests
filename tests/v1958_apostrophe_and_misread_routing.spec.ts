@@ -50,8 +50,9 @@ test('★★★ Gheed’s Fortune is muled the same whichever apostrophe reads i
   });
 
   // REG-2241 (Elad): "gheeds gets muled" - both apostrophes reach the same small-charm mule
-  expect(r.straight?.id).toBe('uni-small');
-  expect(r.curly?.id, 'a curly apostrophe must route like the straight one').toBe('uni-small');
+  // REG-2895 - and since his 2026-10-28 ruling that mule is the dedicated CHARMS mule
+  expect(r.straight?.id).toBe('charms');
+  expect(r.curly?.id, 'a curly apostrophe must route like the straight one').toBe('charms');
 });
 
 test('★★★ a curly apostrophe routes to the same mule as a straight one', async ({ page }) => {

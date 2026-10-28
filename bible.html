@@ -26802,6 +26802,147 @@ function _rolledRoute(rq){
     : {id:'magic-rare', why:'a magic ' + String(rq.base || 'item').toLowerCase() + ' (a rolled prefix / suffix) \u2014 rolled-name keepers live in MAGIC & RARE'};
 }
 window._rolledRoute = _rolledRoute;
+/* REG-2895 (ACT-4, his ruling 2026-10-28 ~20:00-20:10) - WHERE A CHARM LIVES: ONE RULE, READ BY EVERY DOOR. His words, in
+   order: charms live "in shared stash/war stash"; "no gheeds no... MF no... those go to charms mmule dedicated"; "skillers also
+   to the dedicated charm mule"; "grand charms attack rating and resistance charms and faster hit recovery should be in war
+   stash/share stash also small charms"; and large charms "go to the dedicated mule or thrown out depending on them and the ai
+   item checker logic coded". So:
+     the CHARMS mule  - Gheed's Fortune, every magic-find charm, every skiller, and a large charm the AI Item Checker keeps;
+     the SHARED STASH - Annihilus, Hellfire Torch and every other small and grand charm (resist, AR, FHR, life ...), on its
+                        5 pages and then the WAR mules, as the war stash fills (REG-2801 / REG-2803);
+     THROW OUT        - a large charm the checker throws;
+     a QUESTION       - a large charm the checker has not judged (or called borderline), and a charm whose affix the game's
+                        tables do not name for its size: magic find or skiller is then UNKNOWN, and a doubt is asked;
+     MAGIC & RARE     - no charm.
+   Before this the router sent a rolled charm to MAGIC & RARE ("rolled-name keepers"), a curated one to UNI-SMALL
+   ("charm/skiller") and Gheed's to UNI-SMALL, so one charm had a different home at each door. Magic find and skiller are
+   read off the game's own affix rows (CB_DB .af: a prefix or suffix that rolls mag% on that charm size - Lucky, of Good
+   Luck, of Fortune - and a grand-charm prefix that rolls skilltab - Lion Branded and its kin), never off a typed list;
+   his keeper's own mods, or a curated card's stats and name, answer when the name is not the game's. Sunder charms are
+   never asked: the shared-stash regex answers them first. */
+/* the charm-mule side's ONE destination. His answer (2026-10-28 ~20:40): a NEW dedicated mule for charms only, not UNI-SMALL -
+   the CHARMS core locker (DEFAULT_ROSTER; a law holds the two ids equal). Every charm-mule answer reads this. */
+var CHARM_MULE = 'charms';
+window.CHARM_MULE = CHARM_MULE;
+var _CHARM_ITYPE = { 'Small Charm': 'scha', 'Large Charm': 'mcha', 'Grand Charm': 'lcha' };   /* the game's own type codes */
+var _CHARM_SIZE = { 'Small Charm': 'small', 'Large Charm': 'large', 'Grand Charm': 'grand' };
+var _CHARM_NAME_RE = /^(?:(.+?)\s+)?(Small Charm|Large Charm|Grand Charm)(?:\s+(of\s+.+))?$/;
+var _CHARM_AF = null;
+/* the charm affix rows, by kind and name: {its: {scha|mcha|lcha: 1}, mods: {code: 1}} | null when the table is not on this page */
+function _charmAffixes(){
+  if (_CHARM_AF) return _CHARM_AF;
+  var db = null;
+  try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
+  if (!db || !Array.isArray(db.af)) return null;     /* unread: asked again on the next charm, never cached as empty */
+  var out = {};
+  db.af.forEach(function(a){
+    if (!a || !a[2] || !Array.isArray(a[9])) return;
+    var its = a[9].filter(function(t){ return t === 'scha' || t === 'mcha' || t === 'lcha'; });
+    if (!its.length) return;
+    var k = (a[1] === 's' ? 's:' : 'p:') + String(a[2]).toLowerCase();
+    var e = out[k] || (out[k] = { its: {}, mods: {} });
+    its.forEach(function(t){ e.its[t] = 1; });
+    (a[11] || []).forEach(function(m){ if (m && m[3]) e.mods[String(m[3])] = 1; });
+  });
+  _CHARM_AF = out;
+  return out;
+}
+/* -> null when the name is not a charm | {kind:'unique'|'small'|'large'|'grand', mf, skiller, read, unknown} */
+function _charmKind(name){
+  var raw = String(name == null ? '' : name).trim();
+  if (!raw) return null;
+  var fold = raw.replace(/[‘’ʼ`´]/g, "'");
+  if (/^Annihilus$/i.test(fold) || /^Hellfire Torch$/i.test(fold)) return { kind: 'unique', mf: false, skiller: false, read: true };
+  if (/^Gheed'?s Fortune$/i.test(fold)) return { kind: 'unique', mf: true, skiller: false, read: true };
+  var ex = null, kp = null;
+  try { ex = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[raw]) ? EXTRA_ITEMS[raw] : null; } catch (eX) { ex = null; }
+  try { kp = (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[raw] && typeof magicFinds[raw] === 'object') ? magicFinds[raw] : null; } catch (eK) { kp = null; }
+  var m = _CHARM_NAME_RE.exec(fold.replace(/\s*\([^()]*\)\s*$/, ''));   /* a reference card's note in brackets is not its name */
+  var base = m ? m[2] : '';
+  if (!base){
+    var b2 = (kp && kp.base) || (ex && ex.base) || '';
+    if (_CHARM_SIZE[b2]) base = b2;
+  }
+  if (!base) return null;
+  var ity = _CHARM_ITYPE[base], out = { kind: _CHARM_SIZE[base], mf: false, skiller: false, read: !!m, unknown: m ? null : 'its name' };
+  var af = _charmAffixes();
+  [['p', m && m[1]], ['s', m && m[3]]].forEach(function(pw){
+    if (!pw[1]) return;
+    if (!af){ out.read = false; out.tableUnread = true; return; }   /* the table is not on this page (yet): UNKNOWN, never a miss */
+    var e = af[pw[0] + ':' + String(pw[1]).toLowerCase()];
+    if (!e || !e.its[ity]){ out.read = false; if (!out.unknown) out.unknown = String(pw[1]); return; }
+    if (e.mods['mag%']) out.mf = true;
+    if (e.mods.skilltab) out.skiller = true;
+  });
+  if (m && !m[1] && !m[3]) { out.read = false; out.unknown = out.unknown || 'no affix'; }   /* a bare base name rolled nothing to read */
+  /* his keeper's own mods, or a curated card's stats and name - read when the name is not the game's */
+  var said = [].concat((kp && Array.isArray(kp.mods)) ? kp.mods : [], (ex && Array.isArray(ex.stats)) ? ex.stats : [],
+                      (ex && ex.val !== 'tv' && ex.desc) ? [String(ex.desc)] : []);   /* a curated card is the board's own word on it */
+  var txt = said.concat([raw]).join('\n');
+  if (/better chance of getting magic items|\bmagic find\b|\bMF\b/i.test(txt)) out.mf = true;
+  if (/\bskiller\b/i.test(txt) || (out.kind === 'grand' && /\+\s*\d+\s+to\s+[A-Za-z&' ]+\s+Skills\b/i.test(txt))) out.skiller = true;
+  if (!out.read && !out.tableUnread && (said.length || out.mf || out.skiller)) out.read = true;
+  if (out.tableUnread && (out.mf || out.skiller)) out.read = true;   /* his mods or the card already name it */
+  return out;
+}
+window._charmKind = _charmKind;
+/* the AI Item Checker's word on a large charm, from the checker's own records (never a second judge): a keeper it judged
+   carries its verdict (keep | border | toss); a borderline hold carries border; a tossed one is in its thrown log.
+   -> 'keep' | 'border' | 'toss' | null (it never looked) */
+function _charmVerdict(name){
+  var nm = String(name == null ? '' : name).trim();
+  try {
+    var v = (typeof magicFinds !== 'undefined' && magicFinds) ? magicFinds[nm] : null;
+    if (v && typeof v === 'object'){
+      if (v.verdict) return String(v.verdict).toLowerCase();
+      if (v.border) return 'border';
+    }
+  } catch (eV) {}
+  try {
+    var thrown = (typeof _aicThrownGet === 'function') ? _aicThrownGet() : [];
+    for (var i = 0; i < thrown.length; i++) if (thrown[i] && String(thrown[i].name || '') === nm) return 'toss';
+  } catch (eT) {}
+  return null;
+}
+window._charmVerdict = _charmVerdict;
+/* -> null when the name is not a charm | {id:CHARM_MULE|'shared'|'__throwout'|null, unsorted?, why} */
+function _charmHome(name){
+  var k = _charmKind(name);
+  if (!k) return null;
+  var RULE = ' (his 2026-10-28 ruling)';
+  if (k.kind === 'unique')
+    return k.mf ? { id: CHARM_MULE, why: 'Gheed’s Fortune, a magic-find charm — the CHARMS mule' + RULE }
+                : { id: 'shared', why: 'a unique charm — the SHARED STASH every character reaches' + RULE };
+  if (k.mf) return { id: CHARM_MULE, why: 'a magic-find ' + k.kind + ' charm — the CHARMS mule' + RULE };
+  if (k.skiller) return { id: CHARM_MULE, why: 'a skiller grand charm — the CHARMS mule' + RULE };
+  if (!k.read && k.tableUnread) return { id: null, unsorted: true, unknown: true,
+    why: 'a ' + k.kind + ' charm \u2014 the game\u2019s affix table is not on this page yet, so whether it is magic find or a skiller is UNKNOWN' };
+  if (!k.read) return { id: null, unsorted: true,
+    why: 'a ' + k.kind + ' charm ' + ((k.unknown && k.unknown !== 'no affix' && k.unknown !== 'its name')
+           ? 'whose affix ("' + k.unknown + '") the game’s tables do not name for a ' + k.kind + ' charm'
+           : 'whose name carries no affix the game’s tables can read')
+       + ' — whether it is magic find or a skiller is UNKNOWN, so no home is guessed: say which charm it is' };
+  if (k.kind === 'large'){
+    var v = _charmVerdict(name);
+    if (v === 'keep') return { id: CHARM_MULE, why: 'a large charm the AI Item Checker keeps — the CHARMS mule' + RULE };
+    if (v === 'toss') return { id: '__throwout', why: 'a large charm the AI Item Checker throws — throw it out' + RULE };
+    return { id: null, unsorted: true,
+      why: 'a large charm waits for the AI Item Checker: it keeps it (the CHARMS mule) or throws it (throw out)' + RULE
+         + (v === 'border' ? ' — the checker called this one borderline, so the call is yours' : ' — it has not looked yet') };
+  }
+  return { id: 'shared', why: 'a ' + k.kind + ' charm — the SHARED STASH, the war stash every character reaches' + RULE };
+}
+window._charmHome = _charmHome;
+/* a Magic & Rare register keeper's home: the charm rule's for a charm, MAGIC & RARE for every other keeper.
+   -> undefined when the register does not hold the name | a mule id | '__throwout' | null (a question) */
+function _mfKeeperHome(name){
+  try {
+    if (typeof magicFinds === 'undefined' || !magicFinds || !Object.prototype.hasOwnProperty.call(magicFinds, name)) return undefined;
+  } catch (e) { return undefined; }
+  var ch = _charmHome(name);
+  return ch ? ch.id : 'magic-rare';
+}
+window._mfKeeperHome = _mfKeeperHome;
 function _rareNamePoolHtml(){
   var chips = function(arr){ return arr.map(function(w){ return '<span class="rnp-chip">'+w+'</span>'; }).join(''); };
   var rows = Object.keys(RARE_NAME_POOLS).map(function(slot){
@@ -42538,20 +42679,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* #264 — ONE copy of the shared stash's note (it was written twice), and the old one is retired on a stored roster below:
      Anni was never here (it stays in his inventory), and war / swap gear now is */
   var SHARED_NOTE_OLD = 'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs';
-  var SHARED_NOTE = 'war & swap gear and top-value keepers every character can reach — Enigma · Grief · Raven Frost · Dwarf Star · SoJ · Shako — 5 tabs laid out by slot';
+  var SHARED_NOTE_2026 = 'war & swap gear and top-value keepers every character can reach — Enigma · Grief · Raven Frost · Dwarf Star · SoJ · Shako — 5 tabs laid out by slot';
+  /* REG-2895 (his ruling 2026-10-28 ~20:00-20:10) - the notes say where charms live: the SHARED STASH takes Annihilus, the
+     Torch and the small and grand charms; the CHARMS mule takes Gheed's, magic-find charms, skillers and kept large charms;
+     MAGIC & RARE and UNI-SMALL take none (their old notes said "skillers · magic / rare charms" and "charms"). */
+  var SHARED_NOTE = 'war & swap gear and top-value keepers every character can reach — Enigma · Grief · Raven Frost · Dwarf Star · SoJ · Shako · Annihilus · Torch · small & grand charms — 5 tabs laid out by slot';
   var RUNEWORDS_NOTE = 'forged runewords — Spirit · Insight · Obedience · every runeword that is not war gear (Enigma, Grief, Infinity, Call to Arms live in the SHARED STASH)';
-  /* a stored roster keeps the note it was saved with; these exact retired notes are replaced, a note he edited is his */
-  var RETIRED_NOTES = { shared: [SHARED_NOTE_OLD, SHARED_NOTE],
-                        runewords: ['forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor', RUNEWORDS_NOTE] };
+  var MAGIC_RARE_NOTE = 'magic / rare jewels · rings · amulets · crafts (rolled-name keepers) — no charms: they live in the SHARED STASH and the CHARMS mule';
+  var CHARMS_NOTE = 'Gheed\u2019s, magic-find charms, skillers, kept large charms';   /* his blurb, 2026-10-28 */
+  var UNI_SMALL_NOTE = 'rings · amulets · jewels';
+  /* a stored roster keeps the note it was saved with; these exact retired notes are replaced, a note he edited is his.
+     id -> [the retired note, or a list of them, the note now] */
+  var RETIRED_NOTES = { shared: [[SHARED_NOTE_OLD, SHARED_NOTE_2026], SHARED_NOTE],
+                        runewords: ['forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor', RUNEWORDS_NOTE],
+                        'magic-rare': ['skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)', MAGIC_RARE_NOTE],
+                        'uni-small': ['rings · amulets · jewels · charms', UNI_SMALL_NOTE] };
   var DEFAULT_ROSTER=[
     {id:'sets-major', name:'SETS-TAL-IK', icon:'🛡️', note:'Tal Rasha · Immortal King · Griswold — never split a set'},
     {id:'sets-rest',  name:'SETS-REST',   icon:'🧩', note:'every other set — partials live here'},
     {id:'uni-weap',   name:'UNI-WEAPONS', icon:'⚔️', note:'unique melee + caster weapons'},
     {id:'uni-armor',  name:'UNI-ARMOR',   icon:'🪖', note:'body armor · helms · shields · belts · boots · gloves'},
-    {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
+    {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:UNI_SMALL_NOTE},
     {id:'runewords',  name:'RUNEWORDS',   icon:'📜', note:RUNEWORDS_NOTE},
     {id:'bases',      name:'SOCKETED',    icon:'🔩', note:'socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)'},
-    {id:'magic-rare', name:'MAGIC & RARE',icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'},
+    {id:'magic-rare', name:'MAGIC & RARE',icon:'🔮', note:MAGIC_RARE_NOTE},
+    /* REG-2895 - the dedicated charm mule his 2026-10-28 ruling names (CHARM_MULE). It is a mule he must make in the game,
+       so it carries the board's own make record (`auto`): MOVE TASKS asks him to "Create mule CHARMS in the game" with REG-2803's
+       one make row (roster mules with auto and no inGame), until he ticks it or an item is read on a character of that name. */
+    {id:'charms',     name:'CHARMS',      icon:'💠', note:CHARMS_NOTE,
+     auto:{by:'the board', why:'his 2026-10-28 ruling: the dedicated charm mule for Gheed\u2019s, magic-find charms, skillers and kept large charms'}},
     {id:'shared',     name:'SHARED STASH',icon:'📦', note:SHARED_NOTE},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
@@ -42676,7 +42832,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var pid = DEFAULT_ROSTER[j].id;
         at = list.findIndex(function(m){ return m && m.id === pid; });
       }
-      list.splice(at + 1, 0, Object.assign({}, DEFAULT_ROSTER[i]));
+      var put = Object.assign({}, DEFAULT_ROSTER[i]);
+      if (put.auto) put.auto = Object.assign({ at: new Date().toISOString() }, put.auto);   /* REG-2895 - when the board put it back */
+      list.splice(at + 1, 0, put);
       back.push(id);
     });
     return back;
@@ -42918,7 +43076,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v342.5 — ensure the MAGIC & RARE locker exists on rosters saved before it (holds the magicFinds keepers)
   (function(){
     if (!roster.some(function(m){ return m.id==='magic-rare'; })){
-      var mr={id:'magic-rare', name:'MAGIC & RARE', icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'};
+      var mr={id:'magic-rare', name:'MAGIC & RARE', icon:'🔮', note:MAGIC_RARE_NOTE};
       var idx=roster.findIndex(function(m){ return m.id==='bases'; });
       if (idx>=0) roster.splice(idx+1, 0, mr); else roster.push(mr);
       try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
@@ -42927,7 +43085,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!roster.some(function(m){ return m.id==='shared'; })) _vaultEnsureSharedLocker();
     // #264 — a roster saved with a retired note gets the current one (only that exact text: a note he edited stays his)
     var _retired = false;
-    roster.forEach(function(m){ var r = RETIRED_NOTES[m.id]; if (r && m.note === r[0]){ m.note = r[1]; _retired = true; } });
+    roster.forEach(function(m){ var r = RETIRED_NOTES[m.id]; if (r && [].concat(r[0]).indexOf(m.note) >= 0){ m.note = r[1]; _retired = true; } });
     if (_retired){ try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){} }
   })();
   /* REG-2522 fix round — A CORE LOCKER HIS ROSTER LACKS COMES BACK, the v404 / v342.5 / v360 way. Until REG-2195
@@ -42948,8 +43106,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v322 polish: each locker carries a rarity ACCENT (like the Crafted Workshop's per-craft gem
   // colours) — tinted plate + top stripe + gauge, keyed to what the locker HOLDS. Sets green,
   // uniques gold, SOCKETED white, dupes cyan, WIP muted — coherent with the in-game palette.
-  var MULE_ACCENT = { 'sets-major':'vm-a-set','sets-rest':'vm-a-set','uni-weap':'vm-a-uni','uni-armor':'vm-a-uni','uni-small':'vm-a-uni','bases':'vm-a-basic','magic-rare':'vm-a-magic','dupes':'vm-a-dupe','wip':'vm-a-wip' };
+  var MULE_ACCENT = { 'sets-major':'vm-a-set','sets-rest':'vm-a-set','uni-weap':'vm-a-uni','uni-armor':'vm-a-uni','uni-small':'vm-a-uni','bases':'vm-a-basic','magic-rare':'vm-a-magic','charms':'vm-a-magic','dupes':'vm-a-dupe','wip':'vm-a-wip' };
   function _muleAccent(id){ return MULE_ACCENT[id] || ''; }
+  /* REG-2895 - what an empty locker says, where saying what lands there helps; any other locker says 'empty locker' */
+  var MULE_EMPTY_SAY = { 'charms': 'empty locker \u2014 Gheed\u2019s, magic-find charms, skillers and kept large charms land here' };
 
   // ── taxonomy brain ──
   var MAJOR_SETS = /^(Tal Rasha|Immortal King|Griswold)/i;
@@ -42986,7 +43146,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // v409 / REG-2241 — the three iconic charms (Annihilus, Hellfire Torch, Gheed's Fortune; the 6 Sunder
   // charms are caught by isSharedStash). His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets
   // muled." — so routing NO LONGER sends them to __keep (see suggestMule: Anni & Torch → the shared stash,
-  // Gheed's → UNI-SMALL, the charm mule, and his per-item switch wins above that). This regex is now ONLY the owned
+  // Gheed's → the CHARMS mule since his 2026-10-28 ruling, and his per-item switch wins above that). This regex is now ONLY the owned
   // grail-charm SURVIVAL marker: _vaultKeeps keeps them in ownedPool (Hellfire Torch is in no boss drop
   // table, so nothing else would) and _dockNames keeps them off the "Delete unsorted" list (REG-2207).
   var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i;   // REG-2191 - apostrophe optional
@@ -43006,8 +43166,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      Stormshield, Vampire Gaze, Andariel's Visage, Nightwing's Veil - came off: general gear, not swap gear, and the
      standard UNI-ARMOR examples three specs route by.) The high-trade-value rule below
      (SoJ, Shako, Arachnid, Mara's...) already sends the other top keepers to the same stash. Sets stay with their set
-     (never split a set), and Anni / Torch (the shared stash) and Gheed's (UNI-SMALL) are his 2026-10-15 ruling, both
-     checked first.
+     (never split a set), and Anni / Torch (the shared stash) and Gheed's (the CHARMS mule) are his 2026-10-15 and
+     2026-10-28 rulings, both checked first.
      The shared stash lays them out on its 5 pages in the plan's fill order (_sharedLayout, REG-2801). */
   var WAR_GEAR = {
     'enigma': 'teleport for any class - the swap body armour',
@@ -43281,7 +43441,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        Keepers and standing kit still win above it. ignoreShareOverride leaves
        _shareDefault on the rules alone; this does not call it, so it does not recurse. */
     var _keepHome = function(nm){
-      /* REG-2241 (his ruling 2026-10-15) — Annihilus / Hellfire Torch / Gheed's Fortune no longer park on MAIN as __keep; they route below (Anni & Torch → shared stash, Gheed's → UNI-SMALL, the charm mule). KEEP_IN_INVENTORY stays only as the owned grail-charm SURVIVAL marker (_vaultKeeps, _dockNames). Standing kit still keeps below. */
+      /* REG-2241 (his ruling 2026-10-15) — Annihilus / Hellfire Torch / Gheed's Fortune no longer park on MAIN as __keep; they route below (Anni & Torch → shared stash, Gheed's → the CHARMS mule since the 2026-10-28 ruling). KEEP_IN_INVENTORY stays only as the owned grail-charm SURVIVAL marker (_vaultKeeps, _dockNames). Standing kit still keeps below. */
       try {
         var _kitF = String(nm || '').replace(/[‘’ʼ`]/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
         var _kitL = (window._FURNITURE_WORDS || []).filter(function(w){ return w !== 'tome'; }).concat(window._FURNITURE_WHOLE || []);
@@ -43414,8 +43574,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_ov === 'shared') return {id:'shared', why:'your setting — kept in the shared stash'};
     /* REG-2241 — HIS RULING 2026-10-15 (verbatim): "torches and anni stay in shared. gheeds gets muled."
        Annihilus and the Hellfire Torch ride in the SHARED stash every character can reach — they USED to
-       park on MAIN (__keep). Gheed's Fortune is answered on the next line, UNI-SMALL. His per-item switch still
-       wins — a forced 'shared' returned just above, and a forced 'mule' (_ov) reaches that charm mule.
+       park on MAIN (__keep). Gheed's Fortune is answered by the charm rule below, the CHARMS mule. His per-item switch
+       still wins — a forced 'shared' returned just above, and a forced 'mule' (_ov) reaches the CHARMS mule.
        [[regression-guard]] [[unknown-stays-unknown]] */
     if (_ov !== 'mule' && /^(Annihilus|Hellfire Torch)$/i.test(_keepName(name)))
       return {id:'shared', why:'keep close in the shared stash — every character can reach it (his 2026-10-15 ruling)'};
@@ -43424,8 +43584,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        the comments called its home "its charm mule" - which GrokBot read as a mule of its own, beside the UNI-SMALL the
        router answered: two answers for one item. The charm mule IS UNI-SMALL, and the ruling now says so itself, so a
        later trade-value or keyword change cannot move it silently. Where charms belong in general is his ACT-4 ruling. */
-    if (/^Gheed'?s Fortune$/i.test(_keepName(name)) && muleById('uni-small'))
-      return {id:'uni-small', why:'Gheed\u2019s Fortune is muled \u2014 UNI-SMALL, the charm mule (his 2026-10-15 ruling: \u201cgheeds gets muled\u201d)'};
+    /* REG-2895 (his ruling 2026-10-28) - EVERY CHARM IS ANSWERED HERE, BY THE ONE CHARM RULE (_charmHome), ahead of the
+       war-gear, set, trade-value, curated, register and rolled-name answers below, so a charm has one home at every door. It
+       supersedes REG-2859's line, which mules Gheed's on UNI-SMALL by the 2026-10-15 ruling: Gheed's Fortune is a
+       magic-find charm, and its home is the CHARMS mule now. His per-item switch still wins: a forced 'shared' returned
+       above, and a forced 'mule' takes a shared-stash charm to the CHARMS mule, the one charm mule there is. */
+    try {
+      var _ch = (typeof _charmHome === 'function') ? _charmHome(name) : null;
+      if (_ch){
+        var _chMule = (typeof CHARM_MULE === 'string' && CHARM_MULE) ? CHARM_MULE : 'charms';
+        var _chId = (_ch.id === 'shared' && _ov === 'mule') ? _chMule : _ch.id;
+        var _chWhy = (_chId !== _ch.id) ? 'your setting keeps it off the shared stash \u2014 the CHARMS mule, the one charm mule' : _ch.why;
+        if (_chId == null) return {id:null, unsorted:true, why:_chWhy};
+        if (_chId === _chMule && !muleById(_chMule))
+          return {id:null, unsorted:true, why:_chWhy + ' \u2014 and this board has no CHARMS mule to file it on'};
+        return {id:_chId, why:_chWhy};
+      }
+    } catch(eCh){}
     /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
        drawers (sets are not on the list, and KEEP_IN_INVENTORY above wins) */
     var _war = warGearRole(name);
@@ -43885,7 +44060,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (typeof ITEMS==='undefined' || typeof n !== 'string' || !n) return false;
       if (isAggregate(n)) return false;
       // Annihilus, Hellfire Torch and Gheed's Fortune are drawn wherever the router files them (REG-2241 / REG-2859: Anni and
-      // Torch in the shared stash, Gheed's on UNI-SMALL). This keeps them in the pool; it does not decide their home.
+      // Torch in the shared stash, Gheed's on the CHARMS mule since 2026-10-28). This keeps them in the pool; it does not decide their home.
       if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(_keepName(n))) return true;
       // v324: EXTRA_ITEMS (socketed bases + reference finds) are real owned items too — they MUST
       // survive ownedPool or renderVault prunes their mule assignment every render (the bug behind
@@ -44182,10 +44357,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else if(/key|horn|brain|\beye\b|essence|wirt|leg/.test(lk)) ingred.push(tag);
       else shared.push(tag);
     }); }catch(e){}
-    try{ if(typeof owned!=='undefined') ['Annihilus','Hellfire Torch',"Gheed's Fortune"].forEach(function(n){ if(_gFound(n)) charm.push(n); }); }catch(e){}
+    /* REG-2895 (his ruling 2026-10-28) - Annihilus and the Torch live in the shared stash with the sunders; Gheed's is muled on
+       the CHARMS mule, so this advice no longer tells him to keep it in his inventory (two answers for one item) */
+    try{ if(typeof owned!=='undefined') ['Annihilus','Hellfire Torch'].forEach(function(n){ if(_gFound(n)) charm.push(n); }); }catch(e){}
     var rows=[];
     if(shared.length) rows.push({ic:'🏦', t:'Account-shared stash', items:shared, count:true, r:"runes, gems, essences, Worldstone shards & Colossal statues sit in your shared stash — reachable by every character instantly. A separate alt ACCOUNT can't see it, so keep them here."});
-    if(charm.length) rows.push({ic:'💠', t:'Charms — keep in your inventory', items:charm, r:"Sunders, Annihilus, Torch, Gheed's & skillers only do anything in the inventory of the character you're playing — never bury them on an alt."});
+    if(charm.length) rows.push({ic:'💠', t:'Charms — the shared stash', items:charm, r:"Sunders, Annihilus and the Torch live in the shared stash every character on this account reaches (his 2026-10-28 ruling) — a charm works only in the inventory of the character you play, so move it there to use it. Gheed's, magic-find charms and skillers go to the CHARMS mule."});
     if(ingred.length) rows.push({ic:'🗝️', t:'Active cube / uber ingredients', items:ingred, r:"Pandemonium keys, uber organs, Token essences & Wirt's Leg — you need these on-hand to cube portals / a Token. Keep them reachable."});
     if(!rows.length){ el.hidden=true; el.innerHTML=''; return; }
     el.hidden=false;
@@ -44292,7 +44469,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if(m){ muled.push([n,m]); return; }
       /* REG-2241 — an owned keeper charm with NO filing YET is still not loose: handled by identity, exactly as
          _dockNames excludes it (holds the v2402 / REG-2207 invariant that this reader and the dock agree on what
-         is loose). Once Auto-Sort files it — Anni/Torch → shared, Gheed's → UNI-SMALL, the charm mule (his 2026-10-15 ruling) —
+         is loose). Once Auto-Sort files it — Anni/Torch → shared, Gheed's → the CHARMS mule (his 2026-10-15 and 2026-10-28 rulings) —
          the muled branch above draws it under that home instead of here. */
       if(typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))){ kept.push(n); return; }
       loose.push(n);
@@ -45579,7 +45756,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // they have their own planners). Items come from byMule['shared'] like any other locker.
       // v342.5 — the MAGIC & RARE locker also holds the magicFinds keepers (rolled-name items kept OUT
       // of grail `owned`/`assign`, so they render straight from the magicFinds map, not from byMule).
-      var magicItems=(m.id==='magic-rare' && typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort() : [];
+      /* REG-2895 - and since his 2026-10-28 ruling a register CHARM is on the SHARED STASH or the CHARMS mule, by the one rule */
+      var magicItems=(typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort().filter(function(n){ return (typeof _mfKeeperHome === 'function' ? _mfKeeperHome(n) : 'magic-rare') === m.id; }) : [];
       var drawn = _shelfDrawNames(items, m.id);
       var total = drawn.length + magicItems.length;
       /* REG-2224 (#10 count-sync, GrokBot #230 "cards count cells not items, 329 vs 220") — `total` and
@@ -45749,7 +45927,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       function _gridWrap(arr){ return '<div class="vm-grid">' + arr.join('') + '</div>'; }
       var itemsHtml;
-      if (!itemRows.length){ itemsHtml = (linked || _ovHtml ? '' : '<div class="vm-empty">empty locker</div>'); }   /* REG-2226 — a dupes locker with only spare-overflow cells is NOT empty */
+      if (!itemRows.length){ itemsHtml = (linked || _ovHtml ? '' : '<div class="vm-empty">' + esc(MULE_EMPTY_SAY[m.id] || 'empty locker') + '</div>'); }   /* REG-2226 — a dupes locker with only spare-overflow cells is NOT empty */
       else if (itemRows.length > SHOWN){
         itemsHtml = _gridWrap(itemRows.slice(0,SHOWN))
           + '<details class="vm-more"><summary class="vm-more-sum"><span class="vmm-open">+ '+(itemRows.length-SHOWN)+' more ▾</span><span class="vmm-close">show less ▴</span></summary>'
@@ -47283,7 +47461,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          id and must exist on this roster; without it the door refuses as no-home, in words, never a guess. A row
          whose rarity is UNKNOWN (null) is routed exactly as before. */
       var rarR = (pr.rarity === 'blue' || pr.rarity === 'gold') ? String(pr.rarity) : '';
-      var home = keptHome ? '__keep' : (opts.mule || (rarR && _vHomeOk('magic-rare') ? 'magic-rare' : null));
+      /* REG-2895 - a charm the evidence proved is homed by the one charm rule (his 2026-10-28 ruling), never MAGIC & RARE;
+         a charm the rule asks about is refused in the rule's words, never filed by a guess */
+      var _chR = (rarR && !keptHome && !opts.mule && typeof _charmHome === 'function') ? _charmHome(nm) : null;
+      if (_chR && !_vHomeOk(_chR.id)) return { ok: false, refused: (_chR.id == null ? 'unsorted' : 'no-home'), why: nm + ': ' + _chR.why };
+      var home = keptHome ? '__keep' : (opts.mule || (_chR ? _chR.id : (rarR && _vHomeOk('magic-rare') ? 'magic-rare' : null)));
       var w = (witness && typeof witness === 'object' && !Array.isArray(witness)) ? witness : {};
       if (!keptHome){
         var wcR = window._vaultWitnessCheck(w, retroN ? VAULT_RETRO_KEEP_MIN : VAULT_WITNESS_MIN);
@@ -49889,7 +50071,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* Magic & Rare is the magicFinds record. The locker draws that list, and
        Integrity calls a mule-map filing beside it double-filed. Own the name
        so the count moves. Do not write assign. */
-    if (id === 'magic-rare' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]){
+    if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm] && (typeof _mfKeeperHome === 'function' ? _mfKeeperHome(nm) : 'magic-rare') === id){   /* REG-2895 - a register charm's locker too */
       try {
         if (typeof owned !== 'undefined' && owned && owned.has && !owned.has(nm)
             && typeof window._ownedAdd === 'function')
@@ -50667,10 +50849,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                The tally lane (runes/gems/materials) has keyed its durable ledger on
                sid|frameId|name since v889. Keepers went through a different door and lost it.
                [[the-unjoined-end]] */
+            /* REG-2895 - and the checker's own word goes with the keeper ("persist what you knew"): a large charm is
+               homed by that verdict (keep -> the CHARMS mule), and a keeper that never carried it is a question */
             magicFinds[nm] = { q: q || 'magic', base: base, mods: mods,
                                frameId: meta.frameId || '',
                                sessionId: meta.sid || meta.sessionId || '',
-                               at: meta.fts || meta.firstSeenTs || Date.now() };
+                               at: meta.fts || meta.firstSeenTs || Date.now(), verdict: 'keep' };
           }
           try {
             /* #246 — THE KEEP TIER FILES ONLY ON A WITNESS. It used to write the map with no container gate,
@@ -50687,7 +50871,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 if (typeof owned !== 'undefined' && owned && !owned.has(nm) && typeof window._ownedAdd === 'function')
                   window._ownedAdd(nm, { source: 'aic-judge', by: 'aicJudgeApply (keep)', where: 'Magic & Rare' });
               } catch (eMfOwn) {}
-              out.mule = 'magic-rare';
+              /* REG-2895 - the keeper's home by the one rule: a charm on the SHARED STASH or the CHARMS mule, a large
+                 charm the checker has not judged on none (its question is the router's), every other keeper on MAGIC & RARE */
+              out.mule = (typeof window._mfKeeperHome === 'function') ? window._mfKeeperHome(nm) : 'magic-rare';
+              if (out.mule == null && sg && sg.why) out.why = sg.why;
             } else if (sg && !assign[nm] && (sg.id === '__throwout' || sg.id === '__keep' || (typeof muleById === 'function' && muleById(sg.id)))){
               var _jf = window.vaultFile(nm, _jw, { mule: sg.id });
               if (_jf && _jf.ok) out.mule = _jf.mule;
@@ -52772,8 +52959,10 @@ window.vaultAutoAssign = function(){
       } catch (eN) { names = null; }
     }
     if (!names) names = Object.keys(assign).filter(function(n){ return assign[n] === muleId; }).sort();
-    if (muleId === 'magic-rare' && typeof magicFinds === 'object' && magicFinds)
-      Object.keys(magicFinds).sort().forEach(function(n){ if (names.indexOf(n) < 0) names.push(n); });
+    /* REG-2895 - a register keeper is listed on the locker the one rule homes it on (_mfKeeperHome): a charm on the
+       SHARED STASH or the CHARMS mule, every other keeper on MAGIC & RARE, as it always was */
+    if (typeof magicFinds === 'object' && magicFinds)
+      Object.keys(magicFinds).sort().forEach(function(n){ if ((typeof _mfKeeperHome === 'function' ? _mfKeeperHome(n) : 'magic-rare') === muleId && names.indexOf(n) < 0) names.push(n); });
     /* #144.11 (REG-2781) - and a WAR mule's list holds the over-cap copies planned on it, as the shelf card's badge already
        did (_shelfDrawNames + _vaultWarOverOn): the badge and the window drew from two lists */
     try { var _wo11 = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(muleId) : null;
@@ -52810,7 +52999,7 @@ window.vaultAutoAssign = function(){
     var nm = String(n == null ? '' : n).trim();
     if (!nm) return null;
     var mid = assign[nm];
-    if (mid == null && window._vaultInMagicRare && window._vaultInMagicRare(nm)) mid = 'magic-rare';
+    if (mid == null && window._vaultInMagicRare && window._vaultInMagicRare(nm)) mid = (typeof _mfKeeperHome === 'function' ? _mfKeeperHome(nm) : 'magic-rare');   /* REG-2895 - its one home; a question stays null */
     if (mid != null && mid !== '__throwout' && mid !== '__keep'){
       var m = muleById(mid), mName = m ? ((m.icon ? m.icon + ' ' : '') + m.name) : mid;
       var out = { kind: 'filed', mule: mid, muleName: mName, cell: null, cells: [], why: '' };
@@ -55434,8 +55623,8 @@ window.vaultAutoAssign = function(){
       else if (rec.kind === 'sharedStash') home = 'shared';
       if (home === muleId) names[rec.name] = 1;
     });
-    if (muleId === 'magic-rare' && typeof magicFinds === 'object' && magicFinds) {
-      try { Object.keys(magicFinds).forEach(function(n){ if (n) names[n] = 1; }); } catch (e2) {}
+    if (typeof magicFinds === 'object' && magicFinds) {   /* REG-2895 - the register keeper on the locker the one rule homes it on */
+      try { Object.keys(magicFinds).forEach(function(n){ if (n && (typeof _mfKeeperHome === 'function' ? _mfKeeperHome(n) : 'magic-rare') === muleId) names[n] = 1; }); } catch (e2) {}
     }
     if (muleId === 'dupes') {
       try { (_vaultDupesNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}

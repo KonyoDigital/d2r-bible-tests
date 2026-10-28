@@ -8,7 +8,8 @@ import { test, expect } from '@playwright/test';
 // wins above the rule.
 //
 // RED before the fix: suggestMule returns {id:'__keep'} for all three, so every id assertion below fails.
-// GREEN after: Anni/Torch -> 'shared', Gheed's -> a real mule id (uni-small), override and fold hops hold.
+// GREEN after: Anni/Torch -> 'shared', Gheed's -> a real mule id (uni-small; the CHARMS mule since his 2026-10-28
+// ruling, REG-2895), override and fold hops hold.
 
 test.beforeEach(async ({ page }) => {
   await page.goto('file://' + process.cwd() + '/bible.html');
@@ -39,7 +40,8 @@ test('the three keeper charms route per his 2026-10-15 ruling', async ({ page })
   expect(r.gheed, "Gheed's Fortune must NOT stay shared").not.toBe('shared');
   expect(['__keep', '__throwout', '__null', null, undefined, ''],
     "Gheed's Fortune must route to a real mule, not a keep/throwout sentinel").not.toContain(r.gheed);
-  expect(r.gheed, "Gheed's Fortune (a grand charm) mules to UNI-SMALL").toBe('uni-small');
+  // REG-2895 - his 2026-10-28 ruling: Gheed's Fortune, a magic-find charm, mules on the dedicated CHARMS mule
+  expect(r.gheed, "Gheed's Fortune (a magic-find grand charm) mules to the CHARMS mule").toBe('charms');
   // the apostrophe-fold hop answers the curly catalogue name the SAME way
   expect(r.gheedCurly, "curly 'Gheed’s Fortune' must fold to the same mule as the straight one").toBe(r.gheed);
   // the share panel reads its defaults from the same rule
@@ -75,5 +77,5 @@ test('his per-item share switch still wins over the ruling', async ({ page }) =>
   expect(r.gheedForcedIn, "a forced-in Gheed's Fortune must enter the shared stash").toBe('shared');
   // 'auto' restores the ruling defaults
   expect(r.anniAuto, 'auto restores Annihilus to the shared stash').toBe('shared');
-  expect(r.gheedAuto, "auto restores Gheed's Fortune to its mule").toBe('uni-small');
+  expect(r.gheedAuto, "auto restores Gheed's Fortune to its mule").toBe('charms');   // REG-2895, 2026-10-28
 });

@@ -8,7 +8,9 @@ Measured on the whole page in node before the fix (window.suggestMule, which the
   * Lion Branded Grand Charm - magic there, with a TV stub - to UNI-SMALL as "charm/skiller", while MAGIC & RARE counted the
     same name from the same register: two answers for one item.
 Now the register's answer (REG-2093) is asked first by the stub path and by the no-base path, and names his record's base.
-A rolled name the register does not hold keeps the grammar's answer. Where charms belong is his ACT-4 ruling, not this one.
+A rolled name the register does not hold keeps the grammar's answer. Since his 2026-10-28 charm ruling (REG-2895) a
+charm is answered by the one charm rule before either: Lion Branded Grand Charm is a skiller, so the CHARMS mule - one
+answer at the router and the proposal, which is what this law holds it to.
 
 Driven on the whole page in node (vault_page_node), fixtures only. RED_PROOF below.
 """
@@ -74,9 +76,9 @@ class HisRegisterAnswersBeforeAStubOrTheGrammar(unittest.TestCase):
         self.assertIn("(magic Ring)", b["why"], "a magic Ring in his register was routed by its name's grammar: %r" % b)
         self.assertNotIn("jewel", b["why"], b)
         lb = self.r["Lion Branded Grand Charm"]
-        self.assertEqual(lb["id"], "magic-rare",
-                         "a registered magic grand charm with a TV stub was filed beside the register: %r" % lb)
-        self.assertEqual(lb["home"], "MAGIC & RARE", "the proposal gives a second answer: %r" % lb)
+        self.assertEqual(lb["id"], "charms",
+                         "a registered skiller grand charm with a TV stub was not given the charm rule's one home: %r" % lb)
+        self.assertEqual(lb["home"], "CHARMS", "the proposal gives a second answer: %r" % lb)
 
     def test_an_unstubbed_registered_name_takes_the_registers_answer_before_the_grammar(self):
         c = self.r["Brimstone Clasp"]

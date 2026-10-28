@@ -1208,7 +1208,9 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(find.count("Object.keys(magicFinds)"), 1)
         self.assertEqual(find.count("_vaultFindMatches(pool, q)"), 1)  # REG-2194 — FIND delegates to the ranked matcher
         self.assertEqual(where.count("pg.kind === 'keep'"), 1)
-        self.assertEqual(where.count("mid = 'magic-rare'"), 1)
+        # REG-2895 - a register keeper's home is the one rule's (a charm on SHARED / CHARMS); this cut carries no rule,
+        # so the fallback MAGIC & RARE answers here, which is what the source must still say
+        self.assertEqual(where.count("mid = (typeof _mfKeeperHome === 'function' ? _mfKeeperHome(nm) : 'magic-rare')"), 1)
         if not NODE:
             raise AssertionError("node is not on this machine — this law does not skip")
         prog = (
