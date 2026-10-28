@@ -38,6 +38,15 @@ async function simToggle(page: any) {
   await page.$eval('#btn-sim', (el: any) => el.click());
 }
 
+// REG-2811 (his ruling 2026-10-28, "yea join same logic why not") - the Theatre button plays THE last session: the run
+// the home digest and the Shelf's Last session name, not the newest reel with film and a find (the v786/v885 tiers this
+// pack was written against). On his live console that run can be one with nothing to play (the stage says so and loads
+// no reel) or one with film and no read beat. Those are measured states of HIS data, so a check that needs a reel, or a
+// read beat, on that run says it could not be measured there - a skip with the reason, never a pass.
+const LAST_HAS_NO_REEL = 'REG-2811: the last session has nothing to play, so the Theatre loaded no reel - UNMEASURED here';
+const LAST_HAS_NO_READ = 'REG-2811: the last session has no read beat, so the read line is UNMEASURED on it';
+const reelLoaded = async (page: any) => page.evaluate(() => ((window as any).TH?.beats || []).length > 0);
+
 test.describe('v851 theatre pack (live control app)', () => {
   test.beforeEach(async () => {
     test.skip(!(await controlUp()), 'control app not running — Mac-gate-only spec');
@@ -63,7 +72,9 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await simToggle(page);
     await page.waitForTimeout(1600);
+    test.skip(!(await reelLoaded(page)), LAST_HAS_NO_REEL);
     const cap = await gotoReadBeat(page);
+    test.skip(!cap.includes('CAPTURE'), LAST_HAS_NO_READ);
     expect(cap).toContain('CAPTURE');
     expect(cap).toMatch(/AI READ|IT SAW/);
     // read line block exists
@@ -75,7 +86,8 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await simToggle(page);
     await page.waitForTimeout(1400);
-    await gotoReadBeat(page);   // v918.4 — 'identity' lives on READ cards; intake beats show the tally table
+    test.skip(!(await reelLoaded(page)), LAST_HAS_NO_REEL);
+    test.skip(!(await gotoReadBeat(page)).includes('CAPTURE'), LAST_HAS_NO_READ);   // v918.4 — 'identity' lives on READ cards
     const drawer = page.locator('#th-drawer');
     if (await drawer.isHidden()) { await page.keyboard.press('i'); await page.waitForTimeout(300); }
     await expect(drawer).toBeVisible();
@@ -93,6 +105,7 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await simToggle(page);
     await page.waitForTimeout(1400);
+    test.skip(!(await reelLoaded(page)), LAST_HAS_NO_REEL);
     // v859.1 — footage-heavy reels have beats with no 'read #'; track the beat index instead
     const beatNo = async () => Number((((await page.locator('#th-sess').textContent()) ?? '').match(/beat (\d+)\//) || [])[1] || 0);
     const a = await beatNo();
@@ -110,6 +123,7 @@ test.describe('v851 theatre pack (live control app)', () => {
     await page.waitForTimeout(1200);
     await simToggle(page);
     await page.waitForTimeout(1400);
+    test.skip(!(await reelLoaded(page)), LAST_HAS_NO_REEL);
     // v918.4 — default-agnostic: v896 made ⏱ REAL the debugger default, so blind clicks land
     // wherever the cycle starts. Assert the CYCLE (3 distinct labels, wraps to start) and the
     // axis truth (CUT is the smallest reel — FULL/REAL play ≥ the highlight cut).

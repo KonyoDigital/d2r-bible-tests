@@ -11,9 +11,15 @@ One rule now, _lastSessionRow: the newest run that is over - not a stub, not a s
 recorded (n 1). Sealed or not; the digest's badge says which (REG-2102). The Shelf's ▶ Last session plays that run, or says
 it has nothing to replay - it never plays another reel under its name (REG-1757).
 
-Driven: the real hdShelf -> hdLastSession and window._shelfLastSession -> thPickEntrySession(true), cut out of
-control_ui.html and run in node over the SAME /api/sessions rows; each case reads the session the digest names and the
-session the button loads. RED_PROOF below.
+REG-2811 (his ruling 2026-10-28 on the Theatre button: "yea join same logic why not") - the THIRD surface. The Theatre
+button's "replay last session" played the newest reel with substance (v786/v885 tiers); it plays the same run now, and when
+that run has nothing to play its stage says which run it is (_lastSessionNoFilmSay, the Shelf button's sentence) and no
+other reel loads - the old fallback to session 1 is gone.
+
+Driven: the real hdShelf -> hdLastSession, window._shelfLastSession -> thPickEntrySession(true), and thOpen ->
+thPickEntrySession() (the Theatre button's open, its /api/sessions wait stubbed), cut out of control_ui.html and run in
+node over the SAME /api/sessions rows; each case reads the session the digest names, the one the Shelf button loads and
+the one the Theatre loads. RED_PROOF below.
 """
 import io
 import json
@@ -37,9 +43,9 @@ NODE = shutil.which("node")
 UI = io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
 
 FNS = ["  function esc(s){", "  function _lsWhenSay(t0){", "  function _runSpanSay(t0, t1){", "  function _runSeal(sm){",
-       "  function _runSealGapsSay(rs){", "  function _lastSessionRow(list){", "  function hdLastSession(){",
-       "  async function hdShelf(){", "  function thPickEntrySession(strict){",
-       "  window._shelfLastSession = async function(){"]
+       "  function _runSealGapsSay(rs){", "  function _lastSessionRow(list){", "  function _lastSessionNoFilmSay(list){",
+       "  function hdLastSession(){", "  async function hdShelf(){", "  function thPickEntrySession(strict){",
+       "  window._shelfLastSession = async function(){", "  async function thOpen(){"]
 
 
 def _cut(sig):
@@ -70,18 +76,24 @@ for (const C of CFG.cases) {
     LOG: LOG,
     $: (id) => ELS[id] || (ELS[id] = _el(id)),
     document: { getElementById: (id) => env.$(id),
-                body: { getAttribute: (k) => (k === 'data-state' && C.onAir) ? 'on' : null } },
+                body: { getAttribute: (k) => (k === 'data-state' && C.onAir) ? 'on' : null,
+                        classList: { add: () => {}, remove: () => {}, contains: () => false } } },
     window: { _sessionsJson: async () => ({ sessions: C.rows }) },
     TH: { sessions: C.rows },
     toast: (m) => LOG.push('toast:' + m),
     thLoadSession: (n) => LOG.push('load:' + n),
-    thOpen: async () => LOG.push('open'),
     _sceneFingerprint: () => '', _findsStrip: () => '', _hdHistoryRender: () => {}, _hdKpiRender: () => {},
+    // the Theatre button's open: its /api/sessions wait answers these rows; the stage helpers do nothing
+    thSessionsWait: async () => ({ sessions: C.rows }),
+    thArtInit: () => {}, thRibbon: () => {}, thCoachOnce: () => {}, thLit: () => {}, thApplyCardPref: () => {},
   };
   const run = new Function('env', 'with (env) { var HD_ALL = [], HD_TOTAL = null;\n' + CFG.fns + '\n'
     + 'return (async function(){ await hdShelf(); var box = $("hd-lastsession"), row = $("hd-ls-row").innerHTML;'
     + ' var m = /<b>session (\\d+)<\\/b>/.exec(row); await window._shelfLastSession();'
-    + ' return { digest: box.hidden ? null : (m ? +m[1] : "unparsed"), row: row, log: LOG }; })(); }');
+    + ' var shelfLog = LOG.splice(0, LOG.length); TH.open = false; TH.sessions = [];'
+    + ' env.thLoadSession = function(n){ LOG.push("load:" + n); }; await thOpen();'
+    + ' return { digest: box.hidden ? null : (m ? +m[1] : "unparsed"), row: row, log: shelfLog,'
+    + ' theatre: LOG.slice(), stage: $("th-caption").textContent, line: $("th-sess").textContent }; })(); }');
   out.push(await run(env));
 }
 process.stdout.write(JSON.stringify(out));
@@ -158,11 +170,16 @@ class TheLastSessionIsOneRun(unittest.TestCase):
     def loaded(self, name):
         return [int(x[5:]) for x in self.got[name]["log"] if x.startswith("load:")]
 
+    def played(self, name):
+        return [int(x[5:]) for x in self.got[name]["theatre"] if x.startswith("load:")]
+
     def same(self, name, n):
         g = self.got[name]
         self.assertEqual(g["digest"], n, "%s: the LAST SESSION digest named %r, not session %d: %r" % (name, g["digest"], n, g))
         self.assertEqual(self.loaded(name), [n], "%s: the Shelf's ▶ Last session loaded %r, not session %d: %r"
                          % (name, self.loaded(name), n, g["log"]))
+        self.assertEqual(self.played(name), [n], "%s: the Theatre button's 'replay last session' played %r, not session %d"
+                         % (name, self.played(name), n))
 
     def test_runs_played_after_the_last_seal_are_the_last_session(self):
         self.same("three_runs_since_the_seal", 2)
@@ -182,13 +199,25 @@ class TheLastSessionIsOneRun(unittest.TestCase):
         g = self.got["the_last_one_has_no_film"]
         self.assertEqual(g["digest"], 1, g)
         self.assertEqual(self.loaded("the_last_one_has_no_film"), [], "another reel played under 'Last session': %r" % g["log"])
-        self.assertTrue(any(x.startswith("toast:the last session (session 1) has no film") for x in g["log"]), g["log"])
+        say = "the last session (session 1) has no film to replay - older reels are on the shelf"
+        self.assertIn("toast:" + say, g["log"])
+        self.assertEqual(self.played("the_last_one_has_no_film"), [],
+                         "the Theatre button played another reel under 'replay last session': %r" % g["theatre"])
+        self.assertEqual(g["stage"], "🎞 " + say, "the Theatre's stage does not say which run has no film")
+        self.assertEqual(g["line"], "session 1 · no film to replay", "the session line names another reel")
 
     def test_no_run_is_no_last_session(self):
         g = self.got["only_a_stub"]
         self.assertIsNone(g["digest"], "a stub was shown as the last session: %r" % g)
         self.assertEqual(self.loaded("only_a_stub"), [])
         self.assertIn("toast:no session has film yet", g["log"])
+        self.assertEqual(self.played("only_a_stub"), [], "the Theatre played a stub (the old fallback to session 1)")
+        self.assertEqual(g["stage"], "🎞 no session has film yet")
+
+    def test_the_theatre_plays_the_last_session_not_the_newest_with_a_find(self):
+        """REG-2811 - the substance tiers would play session 48 (film and a find) over session 28 (stills, no film)."""
+        self.assertEqual(self.played("grokbots_28_vs_48"), [28])
+        self.assertEqual(self.played("three_runs_since_the_seal"), [2])
 
 
 RED_PROOF = [
@@ -198,10 +227,11 @@ RED_PROOF = [
      "replace": "      var t = (HD_ALL || []).find(function(s){ return s.kaiMissed != null; });\n"
                 "      if (!t && (HD_ALL || []).length > 1) t = HD_ALL[1];\n",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2790 - the Shelf's Last session asks the substance tiers again (opens 48 under a digest saying 28)",
+    {"why": "REG-2790/2811 - the entry pick prefers the newest reel with film and a find again (plays 48 under a digest saying 28)",
      "file": "tv/control_ui.html",
-     "find": "    if (strict){\n      var last = _lastSessionRow(TH.sessions || []);\n",
-     "replace": "    if (false){\n      var last = _lastSessionRow(TH.sessions || []);\n",
+     "find": "    var last = _lastSessionRow(TH.sessions || []);\n    return (last && ((last.frames || 0) > 0",
+     "replace": "    var last = (TH.sessions || []).filter(function(s){ return !s.stub && (s.footageN || 0) > 10 && (s.named || 0) > 0; })[0]"
+                " || _lastSessionRow(TH.sessions || []);\n    return (last && ((last.frames || 0) > 0",
      "matches": 1, "needs": "node"},
     {"why": "REG-2790 - ON AIR, the run being recorded is called the last session",
      "file": "tv/control_ui.html",
@@ -218,10 +248,31 @@ RED_PROOF = [
      "find": "      if (!s || s.stub || s.fixture) continue;\n",
      "replace": "      if (!s || s.fixture) continue;\n",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2790 - a last session with no film is reported as 'no session has film' over a shelf of film",
+    {"why": "REG-2790/2811 - a last session with no film is reported as 'no session has film' over a shelf of film",
      "file": "tv/control_ui.html",
-     "find": "      try { toast(_ls && _film ? ('the last session (session ' + _ls.n + ') has no film to replay - older reels are on the shelf') : 'no session has film yet'); } catch (e2) {}\n",
-     "replace": "      try { toast('no session has film yet'); } catch (e2) {}\n",
+     "find": "    return (ls && film) ? ('the last session (session ' + ls.n",
+     "replace": "    return (false) ? ('the last session (session ' + ls.n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2811 - the Theatre button falls back to session 1 again when the last session has nothing to play",
+     "file": "tv/control_ui.html",
+     "find": "    return (last && ((last.frames || 0) > 0 || (last.footageN || 0) > 0)) ? (last.n || 0) : 0;\n  }\n",
+     "replace": "    return (last && ((last.frames || 0) > 0 || (last.footageN || 0) > 0)) ? (last.n || 0) : (strict ? 0 : 1);\n  }\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2811 - the Theatre button alone goes back to the newest reel with film and a find",
+     "file": "tv/control_ui.html",
+     "find": "    var pick = thPickEntrySession();\n    if (!pick) {\n",
+     "replace": "    var pick = ((TH.sessions || []).filter(function(s){ return !s.stub && (s.footageN || 0) > 10 && (s.named || 0) > 0; })[0]"
+                " || {}).n || thPickEntrySession();\n    if (!pick) {\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2811 - the session line keeps naming whatever reel this page showed before (REG-2135's class)",
+     "file": "tv/control_ui.html",
+     "find": "            if (_ns) _ns.textContent = _lsr ? 'session ' + _lsr.n + ' · no film to replay' : 'no session to replay'; } catch (e) {}\n",
+     "replace": "            } catch (e) {}\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2811 - the Theatre's stage is silent about a last session with nothing to play",
+     "file": "tv/control_ui.html",
+     "find": "      try { $('th-caption').textContent = '🎞 ' + _lastSessionNoFilmSay(TH.sessions); } catch (e) {}\n",
+     "replace": "",
      "matches": 1, "needs": "node"},
 ]
 

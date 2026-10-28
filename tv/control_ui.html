@@ -12974,10 +12974,8 @@ window._lockMark = function(isOpen, px, label){
     if (pick && typeof thLoadSession === 'function') thLoadSession(pick, true);
     else {
       /* REG-2790 - the last session can have nothing to replay while older reels do: say which run it is, and never
-         'no session has film' over a shelf full of film */
-      var _ls = _lastSessionRow(TH.sessions || []);
-      var _film = (TH.sessions || []).some(function(s){ return s && !s.stub && !s.fixture && ((s.frames || 0) > 0 || (s.footageN || 0) > 0); });
-      try { toast(_ls && _film ? ('the last session (session ' + _ls.n + ') has no film to replay - older reels are on the shelf') : 'no session has film yet'); } catch (e2) {}
+         'no session has film' over a shelf full of film. REG-2811 - the Theatre button says the same sentence. */
+      try { toast(_lastSessionNoFilmSay(TH.sessions)); } catch (e2) {}
     }
   };
   // ══ D14 · SESSION COMPARISON — diff two runs side by side. PURE UI off the /api/sessions card data already
@@ -17876,28 +17874,16 @@ window._lockMark = function(isOpen, px, label){
        The Theatre button keeps its old fallback.
        REG-2790 (#86) - `strict` is the shelf's ▶ Last session, and it answers THE last session (_lastSessionRow, the run the
        home digest names), not these tiers' newest reel with a named find - that pick played session 48 under a digest saying 28.
-       A last session with no frame and no film answers 0: another reel never plays under its name (REG-1757). */
-    if (strict){
-      var last = _lastSessionRow(TH.sessions || []);
-      return (last && ((last.frames || 0) > 0 || (last.footageN || 0) > 0)) ? (last.n || 0) : 0;
-    }
-    var pick = 1, tiers = [
-      function(s){ return !s.stub && (s.footageN||0) > 10 && (s.named||0) > 0; },
-      function(s){ return !s.stub && (s.footageN||0) > 10; },
-      function(s){ return !s.stub && (s.reads||0) >= 3 && (s.named||0) > 0 && (s.frames||0) > 0; },
-      function(s){ return !s.stub && (s.reads||0) >= 3 && (s.frames||0) > 0; },
-      function(s){ return !s.stub && ((s.frames||0) > 0 || (s.footageN||0) > 0); },
-      function(s){ return (s.frames||0) > 0 || (s.footageN||0) > 0; }
-    ];
-    var list = TH.sessions || [];
-    if (!list.length) return 0;
-    outer:
-    for (var t = 0; t < tiers.length; t++){
-      for (var i = 0; i < list.length; i++){
-        if (tiers[t](list[i])){ pick = list[i].n || (i+1); break outer; }
-      }
-    }
-    return pick;
+       A last session with no frame and no film answers 0: another reel never plays under its name (REG-1757).
+       REG-2811 (#86, his ruling 2026-10-28 on the Theatre button: "yea join same logic why not") - AND SO DOES THE THEATRE
+       BUTTON. Its "replay last session" played the newest reel with SUBSTANCE (v786: restart shards won the newest slot;
+       v885: footage-aware and stub-blind), a third "last" beside the digest and the Shelf's button. Every door that loads the
+       theatre's entry reel now gets that one run when it has a frame or film, else 0 - and thOpen says which run it is
+       (_lastSessionNoFilmSay) instead of the old fallback to session 1. v885's stub rule lives on inside _lastSessionRow;
+       the substance tiers had no other caller (the only `footageN > 10` in the tree was here), so they are gone, not moved.
+       `strict` stays for its callers and gets the same answer. */
+    var last = _lastSessionRow(TH.sessions || []);
+    return (last && ((last.frames || 0) > 0 || (last.footageN || 0) > 0)) ? (last.n || 0) : 0;
   }
   /* REG-2698 (GrokBot's v3816 pass, #86, 2026-10-28) - A SLOW CONSOLE IS NOT A DEAD ONE. Measured on his Mac under load
      (load ~20): /api/sessions answered in 10.8 s and 21.6 s (266 KB), and thOpen aborted it at 8 s and closed the stage on
@@ -18102,6 +18088,8 @@ window._lockMark = function(isOpen, px, label){
     // then anything with frames.
     // v885 (Grok third-eye #1) — the pick is FOOTAGE-AWARE and STUB-BLIND: a sealed reel with
     // real video beats everything; a 1-read ghost (stub flag) can never win the default slot.
+    // REG-2811 (his ruling 2026-10-28) — the entry reel is THE last session now (thPickEntrySession):
+    // the run the home digest and the Shelf's ▶ Last session name; stubs stay out of it (v885).
     if (_shelfDoor) {
       try { $('th-caption').textContent = 'the shelf'; } catch (e) {}
       TH.cardPrefOwed = true;   // REG-1944 - the first reel he opens from this shelf gets his saved panel
@@ -18110,6 +18098,16 @@ window._lockMark = function(isOpen, px, label){
     }
     TH.cardPrefOwed = false;
     var pick = thPickEntrySession();
+    if (!pick) {
+      /* REG-2811 - the last session has nothing to play: the stage says which run it is (the empty-list caption's idiom
+         above), and no other reel loads under "replay last session" */
+      try { $('th-caption').textContent = '🎞 ' + _lastSessionNoFilmSay(TH.sessions); } catch (e) {}
+      /* and the session line names THAT run, never a reel this page showed earlier (REG-2135's "header flips 48 / 28") */
+      try { var _lsr = _lastSessionRow(TH.sessions), _ns = $('th-sess');
+            if (_ns) _ns.textContent = _lsr ? 'session ' + _lsr.n + ' · no film to replay' : 'no session to replay'; } catch (e) {}
+      thLit();
+      return;
+    }
     await thLoadSession(pick, true);   // v943 §C1 — entry pins REAL
     thApplyCardPref();
     thLit();
@@ -24692,6 +24690,17 @@ window._lockMark = function(isOpen, px, label){
       return s;
     }
     return null;
+  }
+  /* REG-2790 / REG-2811 - what a door says when the last session has nothing to play: which run it is while an older reel
+     has film, else that no session has any. The Shelf's ▶ Last session toasts it; the Theatre button's stage says it.
+     -> string */
+  function _lastSessionNoFilmSay(list){
+    list = list || [];
+    var ls = _lastSessionRow(list);
+    var older = ls ? list.slice(list.indexOf(ls) + 1) : [];
+    var film = older.some(function(s){ return s && !s.stub && !s.fixture && ((s.frames || 0) > 0 || (s.footageN || 0) > 0); });
+    return (ls && film) ? ('the last session (session ' + ls.n + ') has no film to replay - older reels are on the shelf')
+      : 'no session has film yet';
   }
   function hdLastSession(){
     try {

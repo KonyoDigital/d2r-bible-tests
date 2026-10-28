@@ -2220,7 +2220,10 @@ TARGETS = {
             return !!(txt.height > 0 && txt.top >= tl.getBoundingClientRect().bottom - 1); })()""",
         "activateWhy": """(function(){
             if (!(window.TH && TH.open)) return 'the theatre never opened';
-            if (!(TH.beats && TH.beats.length)) return 'the theatre opened with no reel loaded';
+            /* REG-2811 - the entry reel is THE last session now; when it has nothing to play the stage says which run, so
+               the refusal carries those words rather than guessing */
+            if (!(TH.beats && TH.beats.length)) return 'the theatre opened with no reel loaded - its stage says: '
+                 + ((document.getElementById('th-caption') || {}).textContent || '(nothing)');
             var tl = document.querySelector('#theatre .th-topline'), cap = document.getElementById('th-caption');
             /* REG-2140 (the v3635 second eye) - the same guards as activate, or a missing node throws and the refusal names a
                script error instead of what is wrong */

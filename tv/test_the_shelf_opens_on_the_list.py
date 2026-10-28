@@ -198,10 +198,13 @@ def _drive(src, names, scenario, extra_stubs=""):
 
 
 # REG-2790 - the strict pick asks _lastSessionRow (the one "last session" the home digest names too), so it rides along
-_LAST = ["function _lastSessionRow(", "function thPickEntrySession(", "window._shelfLastSession = async function(){"]
+# REG-2811 - and the sentence both doors say when that run has nothing to play
+_LAST = ["function _lastSessionRow(", "function _lastSessionNoFilmSay(", "function thPickEntrySession(",
+         "window._shelfLastSession = async function(){"]
 # REG-2698 - thOpen's /api/sessions wait is thSessionsWait now; it rides with thOpen, and so do its two bounds (_bounds)
 _OPEN = ["async function thOpen(){", "async function thSessionsWait(", "async function thLoadSession(",
-         "function thApplyCardPref(){", "function _lastSessionRow(", "function thPickEntrySession(",
+         "function thApplyCardPref(){", "function _lastSessionRow(", "function _lastSessionNoFilmSay(",
+         "function thPickEntrySession(",
          # GrokBot v3817 - the wait shares one /api/sessions request in flight (_sessionsJson over _sessionsFetchOnce)
          "async function _sessionsFetchOnce(", "function _sessionsJson("]
 
@@ -268,10 +271,16 @@ class TheShelfDoorLeavesTheWayItCame(unittest.TestCase):
         self.assertNotIn("toast:no session has film yet", got["log"], "a failed open was reported as 'no film'")
         self.assertTrue(any(x.startswith("toast:the theatre could not open") for x in got["log"]), got["log"])
 
-    def test_premise_the_theatre_button_keeps_its_fallback(self):
+    def test_the_theatre_button_asks_the_same_run_as_last_session(self):
+        """REG-2811 (his ruling 2026-10-28: "yea join same logic why not") - the Theatre button no longer keeps REG-1944's
+        fallback to session 1: with nothing to play it answers 0, as Last session does, and with a run to play both name it."""
         out = _drive(self.src, ["function _lastSessionRow(", "function thPickEntrySession("],
-                     "TH.sessions = [{n: 5, frames: 0}];\n_done({loose: thPickEntrySession(), strict: thPickEntrySession(true)});")
-        self.assertEqual((1, 0), (out["loose"], out["strict"]))
+                     "TH.sessions = [{n: 5, frames: 0}];\nvar a = {loose: thPickEntrySession(), strict: thPickEntrySession(true)};\n"
+                     "TH.sessions = [{n: 3, frames: 2, footageN: 0}, {n: 4, footageN: 900, named: 6}];\n"
+                     "_done({none: a, run: {loose: thPickEntrySession(), strict: thPickEntrySession(true)}});")
+        self.assertEqual(out["none"], {"loose": 0, "strict": 0}, "a pick with nothing to play fell back to a session")
+        self.assertEqual(out["run"], {"loose": 3, "strict": 3},
+                         "the Theatre button and Last session name different runs: %r" % out["run"])
 
     def test_a_reel_opened_from_the_shelf_door_gets_his_saved_panel(self):
         got = a_reel_opened_from_the_shelf_door(self.src)
@@ -299,7 +308,8 @@ RED_PROOF = [
     {"why": "REG-1944 - Last session's pick falls back to session 1 again, so 'no session has film yet' is unreachable",
      "file": "control_ui.html",
      "find": "    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession(true) : 0;\n",
-     "replace": "    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession() : 0;\n",
+     # REG-2811 re-aimed: the loose pick answers the same run now, so the sabotage restores the fallback itself
+     "replace": "    var pick = (typeof thPickEntrySession === 'function') ? (thPickEntrySession(true) || 1) : 0;\n",
      "matches": 1},
     {"why": "REG-1944 - a theatre that would not open is toasted as 'no session has film yet'",
      "file": "control_ui.html",

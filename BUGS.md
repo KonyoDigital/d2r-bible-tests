@@ -156,6 +156,20 @@ icon (Astreon's Iron Ward, Bartuc's Cut-Throat, Death's Fathom, Wisp Projector) 
 an earlier decision). Found and left: "Crescent Moon (sword)" is registered with the amulet's bytes. Law:
 test_a_unique_wears_its_own_picture_everywhere (node, the whole page; every surface and the whole roster). 9 red-proofs,
 all RED. tests/v406_hd_uniques_sets.spec.ts rewritten to the ruling (Chrome, CI proves it).
+### REG-2811 - THE THEATRE BUTTON'S "REPLAY LAST SESSION" PLAYED A DIFFERENT RUN (#86, his ruling 2026-10-28)
+REG-2790 made the home's LAST SESSION digest and the Shelf's ▶ Last session name one run (_lastSessionRow); the Theatre
+button, whose title says "replay last session", still opened the newest reel with SUBSTANCE - the v786/v885 tiers (film
+over 10 stills and a named find first) - and fell back to session 1 when nothing had any. His ruling on that third
+definition: "yea join same logic why not". Every door that loads the theatre's entry reel now gets that one run when it
+has a frame or film; when it has neither, the stage says which run it is in the Shelf button's own sentence
+(_lastSessionNoFilmSay, one helper for both doors), the session line names that run, and no other reel loads. The tiers
+had no other caller (the only `footageN > 10` in the tree), so they are gone; v885's stub rule lives on inside
+_lastSessionRow. Re-aimed: test_the_shelf_opens_on_the_list (its premise that the Theatre keeps REG-1944's fallback is now
+the opposite, and the REG-1944 red-proof restores that fallback itself); tests/v851_theatre_pack (live console, Mac only):
+a last session with no reel or no read beat is a skip with the reason, never a pass; render_check theatre-head's refusal
+quotes the stage. Law: test_the_last_session_is_one_run (now 7 cases over three surfaces - the digest, the Shelf's button
+and thOpen; 10 red-proofs, each RED).
+
 ### REG-2810 - IN A SHADOW, THE SHELF SHOWED NOTHING OF THE OWNER'S SESSIONS (#218 phase 3b, his ruling 2026-10-28)
 His ruling: a shadow renders the owner's exact data one to one, with summarized frames - a few small key frames per
 session; full reels never leave their PC. REG-2765/2771/2772/2773 publish that digest and read it back on
