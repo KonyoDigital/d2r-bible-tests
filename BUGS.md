@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2706 - A ROW HELD FOR A SECOND SESSION FELL OUT OF THE APPLY'S RECEIPT WITHOUT A WORD (#202, v3817's CI)
+#202 (REG-2686) holds a reader row of a name he does not own until a second session, and refuses one with no look at all.
+chronicleApply's _vaultReport dropped every not-ok register result (`if (!vr || !vr.ok) return false`), so a held row
+left no trace in the receipt - Playwright's v2193 spec caught it: "the receipt does not say which rows were registered but
+not filed". A held or no-look row has its own bucket now, vaultPending {name, refused, why}. The same spec's #246 case is
+brought to his ruling: a row that only SAYS stash, with no look, is not registered (one sighting is not his; none is not
+either), not filed, and counted pending. v3746's source pin follows REG-2698's thSessionsWait.
+Law: test_auto_intake_registers_on_two_sessions (a red-proof, seen RED); the two specs grade on CI.
+
 ### REG-2702 - A READ THAT CARRIED ITS LOOKS AS `witnesses` SKIPPED HIS TWO-SESSION RULE (#202, caught by v3817's CI run)
 REG-2686 held a read of a name he does not own until a second session, but its "is this a read" test knew only `sessions`,
 `looks` and a top-level frame. The filing door (_vaultIntakeLook, vaultFile) also reads a look from `witnesses`, so a read

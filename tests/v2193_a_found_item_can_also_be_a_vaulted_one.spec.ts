@@ -148,22 +148,25 @@ test('an item the grail already knows still reaches the vault', async ({ page })
     .toBe(before.foundTotal);
 });
 
-test('#246 a row that only SAYS stash, with no look behind it, is registered and NOT filed', async ({ page }) => {
+test('#246 a row that only SAYS stash, with no look behind it, is NOT registered and NOT filed', async ({ page }) => {
   /* The other half of the law, and the half his vault was missing: a location with no witness is not a
-     witness. The name lands in `owned` (the dock) and waits for a real look or his hand; the mule map
-     does not move, and the receipt says why. */
+     witness. #202 (his ruling 2026-10-27): a read registers only on its SECOND session, the same bar that files it,
+     so a row with no look at all is not registered either - it is held, the mule map does not move, and the
+     receipt says so in its own bucket (vaultPending, REG-2706). */
   const found: Record<string, string> = {};
   ALREADY_FOUND.forEach((n) => { found[n] = '2026-08-01'; });
   await boot(page, { d2r_foundLog: found, d2r_owned: [], d2r_muleAssign: {} });
   const res = await page.evaluate((names: string[]) => {
     const r = (window as any).chronicleApply({ wouldAdd: { uniques: names.map((n) => ({ name: n, loc: 'stash' })), sets: [] } });
     try { (window as any).vaultAutoAssign && (window as any).vaultAutoAssign(); } catch (e) {}
-    return { vaulted: (r && r.vaulted || []).length, unfiled: (r && r.vaultUnfiled || []).length };
+    return { vaulted: (r && r.vaulted || []).length, unfiled: (r && r.vaultUnfiled || []).length,
+             pending: (r && r.vaultPending || []).length };
   }, ALREADY_FOUND);
   const after = await read(page, ALREADY_FOUND);
   expect(after.muledOfOurs, 'a row with a location and NO look was filed to a mule — the found-ever refill').toBe(0);
+  expect(after.ownedOfOurs, '#202: a row with NO look was registered - one sighting is not his, none is not either').toBe(0);
   expect(res.vaulted, 'the receipt counted an unwitnessed row as vaulted').toBe(0);
-  expect(res.unfiled, 'the receipt does not say which rows were registered but not filed').toBe(ALREADY_FOUND.length);
+  expect(res.pending, 'the receipt does not say which rows wait for a look (REG-2706)').toBe(ALREADY_FOUND.length);
 });
 
 test('the vault survives a reload, which is where v1991 lost it', async ({ page }) => {

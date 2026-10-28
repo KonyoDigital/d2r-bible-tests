@@ -86,6 +86,12 @@ OUT.w2 = regW('Crown of Ages', [look(S2, 'f_12.jpg')]);
 OUT.w2Owned = owned.has('Crown of Ages');
 OUT.wFrameOnly = regW('Arachnid Mesh', [{ frame: 'f_13.jpg', lane: 'stash', cell: 'stash:c3r4' }]);
 OUT.wFrameOnlyOwned = owned.has('Arachnid Mesh');
+/* REG-2706 - a chronicle apply's receipt says which rows wait for a look (vaultPending), never nothing */
+var _ap = (typeof window.chronicleApply === 'function')
+  ? window.chronicleApply({ wouldAdd: { uniques: [{ name: 'Tal Rasha\u2019s Adjudication', loc: 'stash' }], sets: [] } }) : null;
+OUT.apply = _ap ? { pending: (_ap.vaultPending || []).map(function(x){ return [x.name, x.refused]; }),
+                    vaulted: (_ap.vaulted || []).length, unfiled: (_ap.vaultUnfiled || []).length } : null;
+OUT.applyOwned = owned.has('Tal Rasha\'s Adjudication') || owned.has('Tal Rasha\u2019s Adjudication');
 /* an unreadable hold store */
 localStorage.setItem('d2r_vaultSighted', '{broken');
 OUT.broken = reg('Shaftstop', [look(S1, 'f_7.jpg')]);
@@ -152,6 +158,14 @@ class AutoIntakeRegistersOnTwoSessions(unittest.TestCase):
         self.assertEqual(o["wFrameOnly"]["refused"], "no-look", "a frame with no session registered: %r" % o["wFrameOnly"])
         self.assertFalse(o["wFrameOnlyOwned"])
 
+    def test_a_chronicle_apply_says_which_rows_wait_for_a_look(self):
+        o = page()
+        self.assertIsNotNone(o["apply"], "PREMISE: chronicleApply is not on the page")
+        self.assertFalse(o["applyOwned"], "#202: a chronicle row with no look was registered")
+        self.assertEqual(o["apply"]["vaulted"], 0)
+        self.assertEqual([p[1] for p in o["apply"]["pending"]], ["no-look"],
+                         "a held row fell out of the receipt without a word (REG-2706): %r" % o["apply"])
+
     def test_an_unreadable_hold_store_holds_every_read_and_is_never_written(self):
         o = page()
         self.assertEqual(o["broken"]["refused"], "hold-unknown", o["broken"])
@@ -188,6 +202,11 @@ RED_PROOF = [
     {"why": "REG-2702 - a read carrying its looks as `witnesses` is not a read to the two-session rule again",
      "file": "bible.html", "find": "        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks) || Array.isArray(witness.witnesses)\n",
      "replace": "        && (Array.isArray(witness.sessions) || Array.isArray(witness.looks)\n", "matches": 1, "needs": "node"},
+    {"why": "REG-2706 - a row held for a look falls out of the receipt without a word again",
+     "file": "bible.html",
+     "find": "    if (vr && !vr.ok && (vr.refused === 'one-session' || vr.refused === 'no-look')){\n",
+     "replace": "    if (false){\n",
+     "matches": 1, "needs": "node"},
 ]
 
 if __name__ == "__main__":

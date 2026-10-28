@@ -137,7 +137,8 @@ test.describe('v3746 — THE SHELF card opens the River directly, never an empty
     const src = fs.readFileSync(path.resolve(__dirname, '..', 'tv', 'control_ui.html'), 'utf8');
     const i = src.indexOf('async function thOpen()');
     expect(i, 'thOpen is gone — re-point this law').toBeGreaterThan(-1);
-    const wait = src.indexOf("await fetch('/api/sessions'", i);
+    // REG-2698 - thOpen's /api/sessions wait is thSessionsWait (bounded at 45 s, says it is waiting); thOpen awaits it here
+    const wait = src.indexOf("j = await thSessionsWait(", i);
     expect(wait, 'thOpen no longer awaits /api/sessions — re-point this law').toBeGreaterThan(i);
     const preWait = src.slice(i, wait);
     expect(preWait,

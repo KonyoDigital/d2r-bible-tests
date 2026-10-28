@@ -64748,6 +64748,14 @@ function renderJournal(){
        to the same names from outside the apply returns 'new' for all four. Gating the report on
        'new' therefore reports nothing at all, which is how the first cut of this fix turned a
        double-count into a silence. `ok` is the fact the report is about: the vault has it. */
+    /* REG-2706 (#202, v3817 CI) - a read HELD for a second session (his 2026-10-27 ruling) or refused for having no look
+       at all is neither vaulted nor unfiled, and it fell out of the receipt without a word. It has its own bucket. */
+    if (vr && !vr.ok && (vr.refused === 'one-session' || vr.refused === 'no-look')){
+      res.vaultPending = res.vaultPending || [];
+      if (!res.vaultPending.some(function(x){ return x.name === nm; }))
+        res.vaultPending.push({ name: nm, refused: vr.refused, why: String(vr.why || '').slice(0, 160) });
+      return false;
+    }
     if (!vr || !vr.ok) return false;
     /* #246 — REGISTERED IS NOT FILED. The register can land the name in `owned` and still refuse the mule
        (no witness, a MAIN lock); that is its own bucket, never counted as vaulted. */
