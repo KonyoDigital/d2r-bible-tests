@@ -72886,6 +72886,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       write: function(entry){
         if (pending && entry) ctx.flush();           /* REG-2832 - the next pick ends the edit: its draft is filed first */
         pending = false; ctx.pending = false;        /* REG-2832 - a clear drops the draft, then takes back what was filed */
+        /* #154 front-run (REG-2839) - A MAGIC PICK WITH NO MOD YET IS THE START OF ONE EDIT, NOT AN ITEM. A magic item's name
+           is its mods, so the pick filed the bare base ("Grand Charm") and the first mod renamed it - a take-back of the bare
+           base into the removal journal on every magic add. Measured on the whole page in node, 505 hand adds: all 20 batches
+           the journal keeps (its ring) were such take-backs ("Small Charm", "Amulet", "Grand Charm"), so twenty magic adds
+           pushed every real removal of his out of reach of the undo. It is held as a draft until Done files it once, with its
+           mods. A rare keeps its rolled name as mods are added, so it files at the pick as before. */
+        if (entry && entry.q === 'm' && !(entry.affixes && entry.affixes.length)) return ctx.hold(entry);
         held = entry;
         var r = window.vaultPlannerFile(entry, token);
         _vpSayOf(r);

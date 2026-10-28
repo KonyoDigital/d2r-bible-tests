@@ -207,6 +207,16 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2839 - EVERY MAGIC ITEM ADDED FROM THE PLANNER TOOK ITS BARE BASE BACK INTO THE REMOVAL JOURNAL (front-run measure, his 10-28 plan)
+A magic item's name is its mods. The planner filed the pick as soon as the quality was chosen - the bare base, "Grand
+Charm" - and the first mod renamed it, so every magic add took the bare base back through the removal door. Measured on the
+whole page in node, 505 hand adds: all 20 batches the removal journal keeps (its ring) were such take-backs ("Small
+Charm", "Amulet", "Grand Charm"), so twenty magic adds put every real removal of his out of reach of the undo. The planner's
+host now holds a magic pick with no mod as a draft (REG-2832's hold) until Done files it once, with its mods; the plate says
+Editing meanwhile. A rare keeps its rolled name as mods are added, so it still files at the pick; a bare magic pick is still
+filed at Done; the filing door (vaultPlannerFile) is unchanged. Law: test_a_magic_pick_files_once_with_its_mods (node, the
+whole page), 1 red-proof, RED.
+
 ### REG-2838 - A SIGHTING OF HIS SECOND HAND COPY WAS READ AS THE FIRST COPY MOVING ELSEWHERE (front-run measure, his 10-28 plan)
 Later, with AUTO on, a sighting must join the records he typed. Measured on the whole page in node: two Stones of Jordan
 added by hand; the first sighting (stash c0r0) gave copy 0 its FROM cell and frame, and the second (a new cell, c2r0) went to

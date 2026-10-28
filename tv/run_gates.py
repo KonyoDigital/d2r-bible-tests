@@ -12333,6 +12333,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_hand_copy_gets_its_move_and_its_sighting.py")], 300,
          needs_app=False,
          why='front-run REG-2837/2838 - every planner copy gets its MOVE row, and a new-cell sighting joins the unseen hand copy'),
+    Gate("test_a_magic_pick_files_once_with_its_mods",
+         [sys.executable, os.path.join(HERE, "test_a_magic_pick_files_once_with_its_mods.py")], 300,
+         needs_app=False,
+         why='front-run REG-2839 - a magic planner pick is held until its mods, filed once, with no take-back in the removal journal'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
