@@ -48,8 +48,9 @@ class TheTheatreModeButtonStaysShort(unittest.TestCase):
               "function $(id){ return EL; }\n"
               "var document = { getElementById: function(){ return null; } };\n"
               + _fn("  function _filmPhotoSay(film, photos){") + "\n" + _fn("  function _filmShortSay(film){") + "\n"
-              + _fn("  function thModeLabel(m){") + "\n" + _fn("  function thModePill(m){") + "\n"
+              + _fn("  function thModeLabel(m){") + "\n" + _fn("  function _thModeSay(m){") + "\n" + _fn("  function thModePill(m){") + "\n"
               "var out = {};\n"
+              "STATS = { allFoot: 354, allPhoto: 397, curFoot: 354, curPhoto: 397 }; thModePill('real'); out.big = EL.textContent;\n"
               "STATS = { allFoot: 12, allPhoto: 20, curFoot: 12, curPhoto: 20 };\n"
               "['real', 'highlight', 'full'].forEach(function(m){ thModePill(m); out[m] = { label: EL.textContent, title: EL.title }; });\n"
               "STATS = { allFoot: null, allPhoto: 20, curFoot: 0, curPhoto: 20 }; thModePill('real'); out.unknown = EL.textContent;\n"
@@ -59,12 +60,18 @@ class TheTheatreModeButtonStaysShort(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr[-800:])
         out = json.loads(r.stdout.strip().splitlines()[-1])
         for m in ("real", "highlight", "full"):
-            self.assertLessEqual(len(out[m]["label"]), 60, "the %s label is %d characters: %r" % (m, len(out[m]["label"]), out[m]["label"]))
+            self.assertLessEqual(len(out[m]["label"]), 34, "the %s label is %d characters: %r" % (m, len(out[m]["label"]), out[m]["label"]))
             self.assertIn("film 12", out[m]["label"])
             self.assertIn("photos 20 (every framed beat)", out[m]["title"], "the whole sentence left the hover: %r" % out[m])
         self.assertIn("film UNKNOWN", out["unknown"])
         self.assertNotIn("film", out["same"]["label"])
-        self.assertEqual(out["same"]["title"], "")
+        # #92 (GrokBot v3817) - the reel he opened (397 photos, film 354) wrapped at ~45 characters; what a mode does is
+        # in its hover now, and the label names the mode and its counts
+        self.assertEqual(out["big"], "\u23f1 REAL \u00b7 397 photos \u00b7 \U0001f4f9 film 354", out["big"])
+        self.assertEqual(out["same"]["title"], "REAL - every photo at 1:1 time", "the hover lost what the mode does")
+        self.assertIn("1:1 time", out["real"]["title"])
+        self.assertIn("time-zipped", out["full"]["title"])
+        self.assertIn("centered on each AI read", out["highlight"]["title"])
 
 
 RED_PROOF = [
@@ -75,8 +82,18 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "#92 - the whole sentence is dropped instead of moved to the hover",
      "file": "tv/control_ui.html",
-     "find": "          el.title = (st.allFoot !== st.allPhoto) ? ('film and photos differ' + _filmPhotoSay(st.allFoot, st.allPhoto)) : ''; } catch (eTt) {}",
+     "find": "          el.title = _thModeSay(m) + ((st.allFoot !== st.allPhoto) ? (' · film and photos differ' + _filmPhotoSay(st.allFoot, st.allPhoto)) : ''); } catch (eTt) {}",
      "replace": "          void st; } catch (eTt) {}",
+     "matches": 1, "needs": "node"},
+    {"why": "#92 (GrokBot v3817) - the mode button carries what the mode does again, and wraps on a loaded reel",
+     "file": "tv/control_ui.html",
+     "find": "    return '\u23f1 REAL \u00b7 ' + (st.allPhoto || n) + ' photos' + _fpExtra;",
+     "replace": "    return '\u23f1 REAL \u00b7 all ' + (st.allPhoto || n) + ' photos \u00b7 1:1 time' + _fpExtra;",
+     "matches": 1, "needs": "node"},
+    {"why": "#92 (GrokBot v3817) - what the mode does leaves the hover too",
+     "file": "tv/control_ui.html",
+     "find": "          el.title = _thModeSay(m) + ((st.allFoot",
+     "replace": "          el.title = '' + ((st.allFoot",
      "matches": 1, "needs": "node"},
 ]
 

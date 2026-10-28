@@ -16,6 +16,13 @@ The rule is a pure function, so it is now witnessed directly: TheRouteIsWitnesse
 _fleetRosterOwner from control_ui.html and asks it in node (Konyo on a mac, Konyo on Windows, a roster label, a stranger).
 Proof [2] seen RED on that case by hand; the 24 Chrome-free gates the refused push never reached were swept the same
 way before the next push.
+### REG-2724 - THE SHORT MODE LABEL STILL WRAPPED ON A REAL REEL (#92, GrokBot's v3817 pass)
+REG-2690's short form kept "1:1 time" (or "time-zipped", "centered on each AI read") on the button. On the reel he opened
+- 397 photos, film 354 - "⏱ REAL · all 397 photos · 1:1 time · 📹 film 354" wrapped (scrollHeight 45 > 34) and "354"
+spilled out of the 36 px button; the 60-character cap the law held was never the real measure. The button now names the
+mode and its counts ("⏱ REAL · 397 photos · 📹 film 354"); what the mode does rides in the hover (_thModeSay) beside the
+film-and-photos sentence. The law caps the label at 34 characters and pins the real reel's label. 4 red-proofs, each RED.
+
 ### REG-2723 - AN OFFLINE ROW READ "river · starting" FOR 5.5 HOURS (#193, GrokBot's v3817 pass)
 GrokBot's row, last heard at 00:24 IDT on v3815, still said "river · starting" with "this console started moments ago" at
 05:39 and 05:52: the first beacon after a start carries key 'starting', and a PC that goes offline right then keeps that

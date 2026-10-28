@@ -11881,11 +11881,19 @@ window._lockMark = function(isOpen, px, label){
        #92 (GrokBot) - in SHORT words on the button (the full sentence made a 97-character pill); the whole sentence is
        the button's hover (thModePill). */
     var _fpExtra = (st.allFoot !== st.allPhoto) ? _filmShortSay(st.allFoot) : '';
+    /* #92 (GrokBot's v3817 pass) - EVEN THE SHORT FORM WRAPPED: on a loaded reel "⏱ REAL · all 397 photos · 1:1 time ·
+       📹 film 354" broke onto a second line that spilled out of the 36 px button. The button names the mode and its counts;
+       what the mode does (1:1 time, time-zipped, centered on each AI read) rides in the hover (_thModeSay). */
     if (m === 'highlight')
-      return '🎬 STORY · ' + n + ' photos · centered on each AI read' + _fpExtra;
+      return '🎬 STORY · ' + n + ' photos' + _fpExtra;
     if (m === 'full')
-      return '⏩ FAST · all ' + (st.allPhoto || n) + ' photos · time-zipped' + _fpExtra;
-    return '⏱ REAL · all ' + (st.allPhoto || n) + ' photos · 1:1 time' + _fpExtra;
+      return '⏩ FAST · ' + (st.allPhoto || n) + ' photos' + _fpExtra;
+    return '⏱ REAL · ' + (st.allPhoto || n) + ' photos' + _fpExtra;
+  }
+  /* #92 - what each mode does, in words, for the button's hover -> string */
+  function _thModeSay(m){
+    return m === 'highlight' ? 'STORY - the AI-reader cut, centered on each AI read'
+         : m === 'full' ? 'FAST - every photo, time-zipped' : 'REAL - every photo at 1:1 time';
   }
   // v946.9 — photo index among framed beats (what L/R actually steps)
   function thFramedIndices(beats){
@@ -11931,7 +11939,7 @@ window._lockMark = function(isOpen, px, label){
     el.classList.add(m === 'highlight' ? 'md-highlight' : (m === 'full' ? 'md-full' : 'md-real'));
     el.textContent = thModeLabel(m);
     try { var st = thSessionPhotoStats();   /* #92 - the whole sentence rides in the hover */
-          el.title = (st.allFoot !== st.allPhoto) ? ('film and photos differ' + _filmPhotoSay(st.allFoot, st.allPhoto)) : ''; } catch (eTt) {}
+          el.title = _thModeSay(m) + ((st.allFoot !== st.allPhoto) ? (' · film and photos differ' + _filmPhotoSay(st.allFoot, st.allPhoto)) : ''); } catch (eTt) {}
     // v948.8 — STORY is the AI-reader cut: pin the read's dossier/verdict prominently while it plays
     try { $('theatre').classList.toggle('story-mode', m === 'highlight'); } catch (e) {}
   }
