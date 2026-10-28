@@ -50292,6 +50292,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : (id === '__throwout') ? ('throw-out advice — ' + why)
         : (id === '__keep') ? ('stays with your MAIN, not a mule — ' + why)
         : (id == null ? (why || 'no mule was named') : ('no mule on this board has id ' + id));
+      /* REG-2965 (integration int-4: REG-2839 meets REG-2895) - A MAGIC CHARM HE PICKED AND LEFT BARE IS HIS, AND ASKED. The one
+         charm rule names no home for a charm whose affix it cannot read (his rule: a doubt is asked, never guessed), and this
+         branch then dropped the pick's register record and never owned it - the bare magic Small Charm REG-2839 files at Done
+         was lost. It is owned now, its record kept, and it stays unfiled with the rule's question, the way an unjudged large
+         charm stays in Unsorted (REG-2895). No home is guessed. */
+      var _chQ = null;
+      try { _chQ = (sg.unsorted && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm] && typeof _charmHome === 'function') ? _charmHome(nm) : null; } catch (eCq) { _chQ = null; }
+      if (_chQ && _chQ.unsorted){
+        try {
+          if (typeof owned !== 'undefined' && owned && owned.has && !owned.has(nm) && typeof window._ownedAdd === 'function')
+            window._ownedAdd(nm, { source: 'hand', by: 'the Vault planner', where: VP_WHERE });
+        } catch (eCo) {}
+        return { ok: true, filed: false, mode: 'asked', why: nm + ' is yours and stays unfiled until you say which charm it is — ' + say };
+      }
       return { ok: true, filed: false, why: nm + ' stays unfiled — ' + say };
     }
     /* Magic & Rare is the magicFinds record. The locker draws that list, and
@@ -50560,7 +50574,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       _vpCopySeen[nm] = token;
     }
-    var kept = routed && (routed.filed || routed.mode === 'already');
+    var kept = routed && (routed.filed || routed.mode === 'already' || routed.mode === 'asked');   /* REG-2965 - an asked charm is kept */
     if (!kept && magicQ && !beforeMagic && magicFinds && magicFinds[nm]){
       delete magicFinds[nm];
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e7) {}

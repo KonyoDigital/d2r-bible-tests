@@ -38,13 +38,14 @@ except Exception:
     pass
 import vault_page_node as VPN  # noqa: E402
 
-# The keepers, one of each door's shape (fixture names, never his):
+# The keepers, one of each door's shape (fixture names, never his). REG-2964 integration: no charm - his 2026-10-28 ruling
+# (REG-2895) homes every charm off MAGIC & RARE, so the magic keepers here are jewels and an amulet:
 KEEPERS = {
     "Grim Spiral (rare)": {"q": "rare", "base": ""},                      # the throw-out review's keep, before REG-2830: not owned
     "Bitter Noose": "rare",                                              # a legacy record (a bare quality string)
     "Stone Knot": {"q": "rare", "base": "Ring", "mods": [], "frameId": "f1", "sessionId": "s1", "at": 1},   # the photo intake, owned
-    "Fine Small Charm of Vita": {"q": "magic", "base": "Small Charm", "mods": [], "border": True},          # the judge's border hold
-    "Sharp Grand Charm of Sustenance": {"q": "magic", "base": "Grand Charm", "mods": [], "border": True},   # owned AND a TV stub
+    "Garnet Jewel of Fervor": {"q": "magic", "base": "Jewel", "mods": [], "border": True},                 # the judge's border hold
+    "Ruby Jewel of Fervor": {"q": "magic", "base": "Jewel", "mods": [], "border": True},                   # owned AND a TV stub
     "Shadow Hold": {"q": "rare", "base": "Ring", "mods": [], "border": True},
     "Bone Clasp": {"q": "rare", "base": "Plated Belt", "mods": [], "frameId": "f2", "sessionId": "s1", "at": 2},  # owned
     "Rune Eye": {"q": "rare", "base": ""},
@@ -52,10 +53,10 @@ KEEPERS = {
 }
 # TV stubs (d2r_tvExtraItems: rarity 'basic', base = the name itself). The two not in Magic & Rare are routed there by the
 # rolled-name grammar and so are the locker's records; the third is a keeper too (the orphan shape his ALT holds five of).
-STUBS = ["Doom Eye", "Small Charm of Balance", "Sharp Grand Charm of Sustenance"]
-RECORDS = ["Doom Eye", "Small Charm of Balance"]
-KEPT_STUB = "Sharp Grand Charm of Sustenance"     # owned, a TV stub and a keeper: its record is homed on the locker (REG-2853)
-OWNED = ["Stone Knot", "Sharp Grand Charm of Sustenance", "Bone Clasp"] + RECORDS
+STUBS = ["Doom Eye", "Ruby Amulet of Balance", "Ruby Jewel of Fervor"]
+RECORDS = ["Doom Eye", "Ruby Amulet of Balance"]
+KEPT_STUB = "Ruby Jewel of Fervor"     # owned, a TV stub and a keeper: its record is homed on the locker (REG-2853)
+OWNED = ["Stone Knot", "Ruby Jewel of Fervor", "Bone Clasp"] + RECORDS
 ALL = sorted(set(KEEPERS) | set(RECORDS))
 
 
