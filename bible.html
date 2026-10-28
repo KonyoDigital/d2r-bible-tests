@@ -46910,6 +46910,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     try { var _rw = (typeof window.findRuneword === 'function') ? window.findRuneword(r.name) : null;
           if (_rw && String(_rw).toLowerCase() === String(r.name).toLowerCase()) r = { ok: true, name: String(_rw) }; } catch (eRw) {}
+    /* REG-2898 (GrokBot's v3829 fresh-add simulation, ACT-7) - A SOCKETED BASE IS AN ITEM THE VAULT DRAWS. "Monarch (4os)" was
+       refused with "not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries)" while the
+       router sends it to SOCKETED: its entry is made only when a reader registers it (tvVaultRegister asks
+       _ensureSocketBaseEntry), and the hand door never asked. It asks now, the same way, so a socket label he types is
+       carried as the reader's would be; a base that can hold no runeword is still not made one (that function's own rule). */
+    if (!_vaultKeeps(r.name) && /\(\s*(?:\d+\s*os(?:\s+low base)?|larzuk base)\s*\)\s*$/i.test(r.name)){
+      try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(r.name); } catch (eSb) {}
+    }
     if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)){   /* REG-2857 a rune or a gem says which stash counts it */
       var _cnt = null;
       try { _cnt = _vhStashCount(r.name); } catch (eCnt) { _cnt = null; }

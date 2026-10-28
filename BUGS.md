@@ -501,6 +501,14 @@ written, and a shadow (the records store rides in the upload without its stamp, 
 the owner's screen packs. The same packer gives FIND its cell and the card its gauge. Where a keeper packs (its footprint)
 is the router's, ACT-3. Law: test_magic_and_rare_draws_every_item_it_counts (the owner on the armed records store, a shadow
 on the rebuild; the window's open is read for writes), 2 red-proofs, RED.
+### REG-2898 - + ADD AN ITEM REFUSED "MONARCH (4OS)" WITH A SENTENCE THAT NAMES SOCKETED BASES (ACT-7, GrokBot's v3829 fresh-add simulation)
+Measured on the whole page in node: vaultHandAdd('Monarch (4os)') answered "not an item the vault draws (a unique, a set
+piece, a runeword or a socketed base it carries)" while the router sends a 4os Monarch to SOCKETED - the door contradicted
+its own sentence. A socket label's entry was made only when a reader registered it (tvVaultRegister asks
+_ensureSocketBaseEntry); the hand door never asked. It asks now, the same way: a Monarch (4os) is owned and homed on
+SOCKETED, and a base that holds no runeword (Circlet (2os)) is still refused - that function's own rule. Law
+tv/test_the_hand_door_takes_a_socketed_base.py, 1 red-proof RED.
+
 ### REG-2897 - "HARLEQUIN CREST" WAS OWNED UNDER ITS VAULT NAME, THEN REFUSED BY THE NAME HE TYPED (ACT-6 + Tal Rasha, GrokBot's v3829 fresh-add simulation)
 + Add an item owns "Harlequin Crest" as "Harlequin Crest (Shako)" and "Tal Rasha's Guardianship" as "... (armor)" - the
 register's one name (_vaultResolveName) - and draws them there (measured in node: SHARED STASH page 1 col 1 row 1, and

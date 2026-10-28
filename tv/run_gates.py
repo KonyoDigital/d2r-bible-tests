@@ -12421,6 +12421,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_typed_name_finds_the_item_the_vault_holds.py")], 300,
          needs_app=False,
          why="REG-2897: vaultAssign and FIND resolve the name he types (Harlequin Crest, Tal Rasha's Guardianship) to the item the vault holds"),
+    Gate("test_the_hand_door_takes_a_socketed_base",
+         [sys.executable, os.path.join(HERE, "test_the_hand_door_takes_a_socketed_base.py")], 300,
+         needs_app=False,
+         why='REG-2898: + Add an item takes a socketed base (Monarch (4os)) and it lands on SOCKETED; a base that holds no runeword is still refused'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
