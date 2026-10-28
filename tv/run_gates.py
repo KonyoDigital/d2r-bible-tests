@@ -12317,6 +12317,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_full_look_outranks_an_older_read.py")], 300,
          needs_app=False,
          why='a full look is a contract that stamps its container and drains, and an older read places nothing (REG-2892, REG-2893)'),
+    Gate("test_every_record_says_when_it_was_last_seen",
+         [sys.executable, os.path.join(HERE, "test_every_record_says_when_it_was_last_seen.py")], 300,
+         needs_app=False,
+         why="every FIND row says when the item was last captured, through P1's one helper (REG-2894)"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

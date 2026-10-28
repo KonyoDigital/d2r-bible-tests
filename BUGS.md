@@ -18,6 +18,14 @@ plus the ladder ribbon stacked 24 px under it (49 px) - both !important, because
 ribbon gains TheWorldBandLeavesRoomForTheFramedSearch (the reserve read from the file on both sides, never the number 22;
 3 red-proofs, each RED: too small, not !important, ladder stack). Real-pixel check of the framed Windows board owed before
 this ships.
+### REG-2894 - FIND NEVER SAID WHEN AN ITEM WAS LAST SEEN (intake design P2: "every record shows last seen <date>")
+FIND named where each item sits and not when it was last seen, so a placement read on Oct 6 looked as current as one read
+today. Each FIND row now says "last seen <date>" - the newest capture time the item's witness row records - through P1's
+one helper (_vaultSeenTimes, REG-2816; cherry-picked onto this branch so there is one helper, never two). The helper now also
+reads the receipt a filing row keeps (`ownedBy`), so a photo filed by his hand stays dated by when it was taken, and the
+copy readout reads the same answer. No capture time says "no capture time", never today; a witness store that will not
+read says UNKNOWN. Law: test_every_record_says_when_it_was_last_seen (whole page in node; 4 red-proofs RED).
+
 ### REG-2893 - AN OLD READ COULD STILL PLACE AN ITEM AFTER ITS STASH WAS SEEN WHOLE (intake design P2, his Q2)
 His Q2: "A read older than the container's newest full look can't add, move or remove anything. It is kept as history."
 Nothing compared a read with any look of its container. `window._vaultStaleRead` now does, at the tvVaultRegister door as

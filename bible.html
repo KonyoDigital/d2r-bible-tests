@@ -41099,7 +41099,8 @@ body{
 /* #264 — the finder names the cell, or where an item would go, or why it stays; the long ones wrap rather than push the row past a phone's edge */
 .vfr-loc .vfr-cell{color:var(--text-dim)}
 .vfr-loc .vfr-would,.vfr-loc .vfr-main{white-space:normal}
-.vfr-loc .vfr-cells{white-space:normal}   /* #144.9 REG-2741 - every copy's cell wraps rather than running off the row */
+.vfr-loc .vfr-cells{white-space:normal}
+.vfr-row .vfr-seen{margin-left:8px;color:var(--text-dim);font-size:var(--fs-micro)}   /* REG-2894 - when it was last seen, quiet beside where it sits */   /* #144.9 REG-2741 - every copy's cell wraps rather than running off the row */
 .vfr-loc .vfr-main{color:var(--gold-dim,#b89b5e)}
 /* #264 — on a phone the location gets its own line under the name, so a cell never runs past the screen's edge */
 @media (max-width: 640px){ .vfr-row{grid-template-columns:auto 1fr} .vfr-loc{grid-column:1 / -1;white-space:normal} }
@@ -43889,6 +43890,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return live;
   }
   window.vaultFind = function(q){
+    /* REG-2894 - the FIND row's "last seen": the newest capture time of the item, or that none was recorded - old is never
+       shown as now. Inside the finder, so a harness that cuts vaultFind out of the page cuts it out whole. */
+    function _vaultSeenSpan(name){
+      var ls = (typeof window._vaultLastSeen === 'function') ? window._vaultLastSeen(name) : { ms: null, unknown: true };
+      if (ls.unknown) return '<span class="vfr-seen" data-seen="unknown">last seen UNKNOWN</span>';
+      if (ls.ms == null) return '<span class="vfr-seen" data-seen="none" title="no read of it recorded when it was captured">last seen: no capture time</span>';
+      var iso = new Date(ls.ms).toISOString();
+      return '<span class="vfr-seen" data-seen="' + esc(iso) + '" title="last captured ' + esc(iso) + '">last seen ' + esc(iso.slice(0, 10)) + '</span>';
+    }
     var res = document.getElementById('vault-find-results');
     if (!res) return;
     q = String(q||'').trim().toLowerCase();
@@ -43962,7 +43972,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         ? '<span class="vd-mule-nav"><button type="button" class="vd-mule-arrow" onclick="event.stopPropagation();window._muleOpenAt(\''+jsArg(mid)+'\','+_fnav.index+')">'+esc(_fnav.label)+'</button></span>'
         : '';
       return '<div class="vfr-row" title="'+esc(n)+'">'
-        + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span>'+_navHtml+'</div>';
+        + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span>'+_navHtml+_vaultSeenSpan(n)+'</div>';
     }).join('');
     /* #79 — the row opens nothing now: it names where each item sits and floats the item card on hover */
     res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — each row names where it sits · hover an item for its card</div>' + rows;
@@ -52418,8 +52428,22 @@ window.vaultAutoAssign = function(){
       var p = (l && typeof l.at === 'string') ? Date.parse(l.at) : NaN;
       if (isFinite(p) && p > 0) t.push(p);
     });
+    /* REG-2894 - a filing row keeps the receipt it replaced (ownedBy): that receipt's capture times are still sightings
+       of this item, so a photo filed by his hand stays dated by when the picture was taken */
+    if (row.ownedBy && typeof row.ownedBy === 'object' && row.ownedBy !== row) t = t.concat(_vaultSeenTimes(row.ownedBy));
     return t;
   }
+  try { window._vaultSeenTimes = _vaultSeenTimes; } catch (eSt) {}
+  /* REG-2894 (intake design P2) - EVERY RECORD SAYS WHEN IT WAS LAST SEEN, by capture time, through the one helper above.
+     -> {ms} the newest capture time | {ms: null} none recorded (said, never dated now) | {ms: null, unknown: true} the
+     witness store would not read */
+  window._vaultLastSeen = function(name){
+    var all = null;
+    try { all = (typeof _provAll === 'function') ? _provAll() : null; } catch (e) { all = null; }
+    if (!all || typeof all !== 'object') return { ms: null, unknown: true };
+    var t = _vaultSeenTimes(Object.prototype.hasOwnProperty.call(all, name) ? all[name] : null);
+    return t.length ? { ms: Math.max.apply(null, t) } : { ms: null };
+  };
   function _vaultCopyAudit(){
     var out = { ok: true, at: Date.now(), recordsRead: false, checked: 0, mismatched: 0, dirty: null, migrateCount: null,
                 migrateAt: null, recordsTotal: null, recordsByKind: null, rows: [],
