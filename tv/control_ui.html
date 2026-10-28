@@ -24897,6 +24897,8 @@ window._lockMark = function(isOpen, px, label){
     } catch(e){}
   }
   var _hdTfSig = '';
+  /* REG-2796 - the mark a task-force paint leaves on its rows element: a hash of exactly what it wrote */
+  function _hdTfHash(s){ s = String(s || ''); var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h + ':' + s.length; }
   function hdTaskForce(st){
     try {
       var fs = null, ai = '', led = [];
@@ -25353,13 +25355,22 @@ window._lockMark = function(isOpen, px, label){
          The skip now asks the DOM whether the paint actually LANDED, and the signature is
          committed only after it did. A memo may cache what you computed; it must never be the
          only record that you drew it. [[the-unjoined-end]] [[regression-guard]] */
+      /* REG-2796 (GrokBot, his DAILY PICK flicker on v3829/v3830) - `rowsEl.innerHTML === html` could never hold for some
+         rows: the browser hands back what it PARSED, not the string it was given. esc() writes ' as &#39; and Chrome
+         serializes a bare ' ("Cow King's Leathers"), and an art <img> whose onerror removes it changes the DOM after the
+         paint. So `landed` was false on every 1.5 s poll and the whole roster was rewritten - the flicker, which came and
+         went as the pick rotated. The paint now leaves its own mark on the element (data-tf-sig, a hash of what it
+         wrote) and the skip reads that mark: still the DOM's word on whether THIS paint landed (a rebuilt or emptied
+         element carries no mark), never a re-serialization of it. */
+      var _tfMark = _hdTfHash(html);
       var landed = !!(box && rowsEl
                       && box.hidden === !rows.length
-                      && (!rows.length || rowsEl.innerHTML === html));
+                      && (!rows.length || rowsEl.getAttribute('data-tf-sig') === _tfMark));
       if (html === _hdTfSig && landed) return;
       if (!box || !rowsEl) return;          // nothing to paint into — do NOT commit the signature
       if (rows.length){
         rowsEl.innerHTML = html;
+        rowsEl.setAttribute('data-tf-sig', _tfMark);   // REG-2796 - the mark this paint landed
         box.hidden = false;
         var _tfd = $('hd-tf-date');
         if (_tfd) _tfd.textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });

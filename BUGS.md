@@ -37,6 +37,17 @@ guest never makes a mule, so the board was right and the law's world was not his
 set for that install, the same four worlds give WAR1 made by the board, with the extras on it, the make task, an empty line,
 and "you took back the WAR1 the board made" when declined. The law now claims the world in roster_with before the seed and
 asserts _D2R_OWNER as a premise. No code changed.
+### REG-2796 - THE DAILY PICK FLICKERED: THE TASK FORCE REPAINTED EVERY POLL WHEN A ROW HAD AN APOSTROPHE (GrokBot, his screenshot, v3829/v3830)
+His Sessions task-force hero row ("Sets 134/135 pieces - finish Cow King's Leathers", DAILY PICK) jumped and redrew on
+every status poll (1.5 s idle, 0.8 s hot). hdTaskForce's identical-repaint skip (v1425, made DOM-aware by v2336) compared
+`rowsEl.innerHTML === html`, and the browser hands back what it parsed, not the string it was given: esc() writes ' as
+&#39; and Chrome serializes a bare ', and an art <img> whose onerror removes it changes the DOM after the paint. GrokBot
+measured both round trips unequal in headless Chrome. So the skip never held for those rows, and the flicker came and
+went as the pick rotated. The paint now leaves its own mark on the rows element (data-tf-sig, a hash of what it wrote)
+and the skip reads that mark - still the DOM's word on whether this paint landed (a rebuilt element carries none), never
+a re-serialization. Swept: no other `innerHTML ===` guard is left in control_ui.html. Law:
+test_the_task_force_repaints_only_when_it_changed (3 cases, 2 red-proofs); test_control's v2336 law re-aimed to the mark.
+
 ### REG-2795 - A CONSOLE START WHILE THE BEACON WAS HELD SPENT ITS BOOT EXEMPTION WITHOUT POSTING (the v3829 second eye, both lanes)
 _roster_frames_tick returned True whenever _frames_publish_once did not raise, and the suppressed path returned normally,
 so a start under a held beacon cleared the boot flag with nothing posted; once the hold lifted the restart waited out the
