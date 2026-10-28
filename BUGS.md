@@ -247,6 +247,19 @@ the router with no lines ("RARE circlet with no stats read ... needs a tooltip l
 hand-added rare vanished; the desk's trade post dropped every affix line. The formatter is now published beside
 window._cbAf: the charm keeps its two lines, the Diadem is kept in Magic & Rare with its three. Law:
 test_a_planner_magic_item_keeps_its_mods (node, the whole page). 1 red-proof, RED.
+### REG-2908 - EVERY VAULT LOOK READ HOLDER UNKNOWN: NOTHING TOLD A STASH READ WHOSE STASH IT FILMED (#36)
+Measured on the whole page in node: every look of a filed item read holder null - the stash sweep's sighting has no holder
+field and the live route names a character only on a login row - so the copy keys (_vaultSightGroups), the records'
+sight, the move tasks' "from" and the WAR mule's "seen in the game" (REG-2803) all read UNKNOWN for every look, on every
+PC. Now _vaultEvidenceLooks asks _vaultLookHolder once for every reader of the looks: the read's own holder when it named
+one, else the character the console says that look's session was on at the look's frame time (_sessionCharacterAt, the
+page's twin of char_select.session_character_at, fed by /api/chars_learned's sessions, REG-2907); a session nothing names
+stays UNKNOWN, and `holderVia: 'session'` says where a holder came from. The vault asks the console for that answer once
+(the same answer through the same take, but not counted as the room asking - the room's "asking..." stays its own) and repaints when it comes; a page with no console never asks. _vaultEvidenceLooks asks the helper through window, so a law that cuts that function alone still runs it. In a shadow the
+upload's copy answers. Law: test_a_look_carries_its_sessions_character (the whole page, the JS twin checked against the
+python rule over one map), 6 red-proofs, RED. Re-aimed: test_v3767_copy_witness's look-place red-proof (the line now
+reads the helper's holder), RED.
+
 ### REG-2907 - THE CONSOLE NOW SERVES WHICH CHARACTER EACH SESSION IS ON, AND THE SHADOW UPLOAD KEEPS IT (#36)
 /api/chars_learned carries `sessions` (sessionId -> its spans: from, character, via, why), built from the learner's
 ledger with the gear ledger's rollover chain as `carried`, and says UNKNOWN (sessions null, sessionsWhy) when the ledger
