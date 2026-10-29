@@ -362,6 +362,10 @@ no pass on record the sentence is unchanged. Measured on his river, read only: a
 nothing here releases a reel - whether these holds may ever end is his ruling (the options are with him). Law:
 test_a_held_reel_is_named_by_its_hold (5 cases; 7 red-proofs, each RED). test_the_fleet_says_where_a_river_is_stuck's
 REG-2098 [1] and REG-1987 [2] proofs re-anchored to the reshaped lines, each RED on its reader class.
+Follow-up (Routine M on ci/claude-v3841b, the swallow ratchet 66 -> 67): _retention_holds handed back {} when the
+pass's kept rows did not read - 'holds nothing', so every reel the drain holds would be called its debt again, the misstatement
+this entry removes. It returns None (UNREAD) now, and the sentence says 'UNKNOWN which of them the drain holds - its last
+pass's kept rows did not read'. Ratchet back to 66; law +1 case (red on the shipped helper), red-proofs 9 of 9 RED.
 
 ### REG-3052 - THE MAC'S FLEET ROW CALLED 12 RELEASED REELS "STUCK": THE STUCK READER NEVER ASKED THE DRAIN WHICH REELS IT HAD FINISHED (#193)
 #193, "why the Mac's river doesn't drain", measured read only on his Mac 2026-10-29 (plan() run from his tree in a separate

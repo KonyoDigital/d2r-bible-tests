@@ -17887,7 +17887,7 @@ def _retention_holds(p):
             if isinstance(k, dict) and k.get("reel") and k.get("tag") not in (None, "recent"):
                 out[str(k["reel"])] = {"tag": str(k.get("tag"))[:40], "why": _word_cut(str(k.get("why") or ""), 120)}
     except Exception:
-        return {}
+        return None     # UNREAD, never "holds nothing" - {} would call every reel the drain holds its debt again
     return out
 
 
@@ -17898,8 +17898,11 @@ def _river_held_say(reels):
         r = dict(_RETENTION)
         holds = r.get("holds") if isinstance(r.get("holds"), dict) else None
         checked = r.get("checked")
+        unread = "holds" in r and r.get("holds") is None and checked is not None
     except Exception:
         return None, 0
+    if unread and reels:    # a pass ran and its kept rows did not read: which reels it holds is UNKNOWN, never "none"
+        return "UNKNOWN which of them the drain holds - its last pass's kept rows did not read", None
     if not holds or not reels:
         return None, 0
     by = {}
@@ -17929,7 +17932,7 @@ def _river_owed_why(station, keep, reels=None):
     # said "the drain owes them a tombstone". A reel the drain holds is named with the drain's own tag and reason, and when
     # the drain last said so. Wording only: nothing here releases a reel.
     held, n_held = _river_held_say(reels)
-    if held and n_held >= len(reels or ()):
+    if held and (n_held is None or n_held >= len(reels or ())):
         return "older than the newest %s - %s" % (keep, held)
     if station in _RIVER_OWNER:
         return "older than the newest %s - %s" % (keep, _word_cut(_river_stuck_why(station), 200)) + (

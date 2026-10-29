@@ -92,11 +92,22 @@ class AHeldReelIsNamedByItsHold(unittest.TestCase):
         once = once[:once.index("\ndef ", 10)]
         self.assertIn('"holds": _retention_holds(p),', once, "the retention pass does not keep the drain's holds")
 
+    def test_an_unread_pass_says_unknown_never_owed(self):
+        # REG-3053 follow-up (Routine M on v3841): a pass whose kept rows did not read keeps holds None - UNREAD - and the
+        # sentence says the drain's holds are UNKNOWN; "holds nothing" ({}) would call every held reel its debt again.
+        self.assertIsNone(CA._retention_holds({"kept": 5}))
+        self.assertIsNone(CA._retention_holds("not a pass"))
+        out = self._stuck(_rows([A, B], "ROUTED") + _rows(NEW, "CAPTURE"), _pass(None))
+        why = out[0]["why"]
+        self.assertEqual(why, "older than the newest 16 - UNKNOWN which of them the drain holds - its last pass's kept rows "
+                              "did not read", why)
+        self.assertNotIn("owes them a tombstone", why)
+
 
 RED_PROOF = [
     {"why": "REG-3053 - a reel the drain holds is called its debt again",
      "file": "tv/control_app.py",
-     "find": "    if held and n_held >= len(reels or ()):\n",
+     "find": "    if held and (n_held is None or n_held >= len(reels or ())):\n",
      "replace": "    if False:\n",
      "matches": 1},
     {"why": "REG-3053 - a row part held names only the debt",
@@ -128,6 +139,16 @@ RED_PROOF = [
      "file": "tv/control_app.py",
      "find": "        _rs = e.pop(\"_reels\", [])\n",
      "replace": "        _rs = e.get(\"_reels\", [])\n",
+     "matches": 1},
+    {"why": "REG-3053 follow-up - an unreadable pass reads as 'holds nothing' again",
+     "file": "tv/control_app.py",
+     "find": "        return None     # UNREAD, never \"holds nothing\"",
+     "replace": "        return {}     # UNREAD, never \"holds nothing\"",
+     "matches": 1},
+    {"why": "REG-3053 follow-up - an unread pass falls through to the debt sentence",
+     "file": "tv/control_app.py",
+     "find": "    if unread and reels:",
+     "replace": "    if False and unread and reels:",
      "matches": 1},
 ]
 
