@@ -107,6 +107,30 @@ Follow-up: test_v3766_grokbot_retest slices _sharedOverflowNote out of the page,
 law raised ReferenceError (8 errors) until its slice carried _vaultLetters and _vaultWarName. The first sweep listed laws that
 NAME the war mules, not laws that SLICE a function this fix edited; the second sweep (every law quoting a touched function's
 name) found only this one.
+### REG-3005 - ONE SHARED-STASH CELL, ONE SPELLING: "Page 1 · col 3 · row 1" ON EVERY SURFACE (#144(a))
+One fact was spelled four ways:
+- the shared stash window's per-item list: "→ PAGE 1 col 3 · row 1"
+- FIND, its move-target words and the plan's cell map: "Page 1 · col 3 · row 1"
+- the MOVE row and its expand: "SHARED STASH page 1 (3,1)"
+- the move list's cell words read a shared cell raw. A page-2 cell said "shared:c2r10 · col 3 · row 11": no page,
+  and a row a 10-row page does not have.
+FIX: one helper, _sharedSpotSay(page, x, y), sits beside _vaultCellAt and returns "Page 1 · col 3 · row 1". Every
+surface asks it: the window's list, FIND (both builders), FIND's move-target words, the plan's cell map, the move
+list's cell words, the MOVE row and its expand. Swept with a grep for every place that prints a shared-stash
+page / col / row in bible.html, tv/control_ui.html and tv/*.py; the console prints none of its own.
+Not touched (named): a mule's own cells are still "(3,1)" on the MOVE row and "col 3 · row 1" in FIND. That is the
+same class on a different fact, and it is outside this ask.
+GUARD: tv/test_a_shared_stash_cell_has_one_spelling.py checks three things: the helper's words (in node), that every
+surface's own line calls it, and that the old spellings are gone from the code. It has 4 red-proofs, all RED.
+test_the_shared_stash_draws_the_plans_pages drives the surfaces themselves: the window, FIND, the plan, the MOVE row
+and its expand, on a page-2 copy in node. It is re-aimed at the one spelling, with its 12 red-proofs re-anchored and
+all RED. Its MOVE-row reader accepts both spellings, so a revert is read and refused.
+Also re-aimed at the one spelling. These are Chrome laws: CI runs them, his Mac does not.
+- test_the_vault_finder_names_the_mule_and_the_cell
+- test_vault_l1_war_stash_overflow
+- test_vault_l1_every_hand_add_is_a_move_task
+- test_vault_l1_rules_drive_every_move
+
 ### REG-3004 - A RUNE, GEM OR MATERIAL TYPED BY HAND NOW MOVES ITS TALLY UP OR DOWN THROUGH THE TOOLS TAB'S OWN DOOR (his Q5, #144)
 His ask: a rune, gem or material added by hand may move its tally up or down, and the tools section already has a
 tally up/down control for a misread.
