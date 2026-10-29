@@ -66,6 +66,8 @@ out.yr = [d2jspLineYear('Posted Oct 12, 2026 9:00'), d2jspLineYear('12 Oct 2025'
 out.mixed = d2jspRead('Oct 3, 2025\nShako 300 fg\nOct 3, 2026\nShako 200 fg\nHarlequin Crest 100 fg\nShakos 999 fg', 'Harlequin Crest', 'x');
 out.undated = d2jspRead('Shako 300 fg', 'Harlequin Crest', 'x');
 out.old = d2jspRead('Mar 1, 2025\nShako 300 fg', 'Harlequin Crest', 'x');
+out.fg = ['300fg', '300 fg', '1,500 fg', '30,000fg', '1.5k', '25k fg', '10K', '2os 40ias 300ed', '35MF gheeds', '5 keys 20fg', '99999999 fg'].map(d2jspFgAmounts);
+out.big = d2jspRead('Oct 20, 2026\nGlyph Scratch eth CS 25k\nGlyph Scratch 30,000 fg\nGlyph Scratch 1.5k', 'Glyph Scratch', 'x');
 process.stdout.write(JSON.stringify(out));
 """
         cls.out = _node(cls.parser + "\n" + body)
@@ -96,6 +98,11 @@ process.stdout.write(JSON.stringify(out));
         self.assertEqual(self.out["undated"]["reason"], "no prices")
         self.assertIsNone(self.out["undated"]["fg"])
         self.assertEqual(self.out["old"]["reason"], "no prices")
+
+    def test_large_fg_amounts_read_whole(self):
+        self.assertEqual(self.out["fg"], [[300], [300], [1500], [30000], [1500], [25000], [10000], [], [], [20], []])
+        b = self.out["big"]
+        self.assertEqual((b["low"], b["high"], b["n"], b["fg"]), (1500, 30000, 3, 25000))
 
     def test_the_lexicon_carries_no_prices(self):
         lex = _block(self.parser, "var D2JSP_SLANG = {", "};")

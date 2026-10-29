@@ -138,6 +138,20 @@ function d2jspFoldPrice(text) {
   return String(text || '').replace(/['\u2018\u2019\u02BC`]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+/* v3843 - THE FG AMOUNTS ON A LINE, LARGE ONES INCLUDED. "300fg", "300 fg", "1,500 fg", "30,000fg", "1.5k", "25k fg",
+   "10K". A comma groups thousands (before this "1,500 fg" read as 500). A bare "k" amount counts: the trade forum writes
+   tens-of-thousands prices that way. Anything at or above 10,000,000 is not a price. */
+function d2jspFgAmounts(line) {
+  var out = [], m, re = /(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(k\b|k(?=\s*fg)|)\s*(fg\b)?/ig;
+  while ((m = re.exec(String(line || '')))) {
+    if (!m[2] && !m[3]) continue;
+    var n = Number(m[1].replace(/,/g, ''));
+    if (m[2]) n = Math.round(n * 1000);
+    if (n > 0 && n < 10000000) out.push(n);
+  }
+  return out;
+}
+
 function d2jspPrices(text, itemName) {
   var forms = d2jspSearchWords(itemName).forms;
   if (!forms.length) return [];
@@ -154,12 +168,7 @@ function d2jspPrices(text, itemName) {
     var folded = ' ' + d2jspFoldPrice(line).replace(/[^a-z0-9]+/g, ' ') + ' ';
     var named = forms.some(function (f) { return folded.indexOf(' ' + f.replace(/[^a-z0-9]+/g, ' ').trim() + ' ') >= 0; });
     if (!named) return;
-    var re = /(\d+(?:\.\d+)?)\s*fg\b/ig;
-    var m;
-    while ((m = re.exec(line))) {
-      var n = Number(m[1]);
-      if (n > 0 && n < 1000000) nums.push(n);
-    }
+    d2jspFgAmounts(line).forEach(function (n) { nums.push(n); });
   });
   return nums;
 }
