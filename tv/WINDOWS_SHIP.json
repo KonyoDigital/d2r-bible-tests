@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3841",
+  "ver": "v3842",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3841: The river names the reels its drain holds, and every D2JSP card finds its base again (#193 #83)",
+  "note": "v3842: one gate ledger per repo, Mac-only test reds fixed, opt-in parallel full",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
