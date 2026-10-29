@@ -589,7 +589,8 @@ RED_PROOF = [
         # control_ui.html L2654, L4511, L6116 and L6782 and ALL FOUR are real CSS — checked for
         # the comment trap, none is prose. The breadth IS the proof here: this anchor is a
         # deliberate token CENSUS, so the honest repair is the count, never a narrower anchor.
-        'matches': 4,
+        # v3843 - 5, not 4. The version-history card's date (.hist-date) is a fifth real one.
+        'matches': 5,
     },
 ]
 

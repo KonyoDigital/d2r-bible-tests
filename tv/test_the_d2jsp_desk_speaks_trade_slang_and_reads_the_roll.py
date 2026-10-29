@@ -41,7 +41,7 @@ def _block(src, begin, end):
 
 
 def _node(prog):
-    out = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=60)
+    out = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
     if out.returncode != 0:
         raise AssertionError(out.stderr)
     return json.loads(out.stdout)

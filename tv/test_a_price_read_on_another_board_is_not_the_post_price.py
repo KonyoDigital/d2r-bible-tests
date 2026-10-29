@@ -259,7 +259,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#113 - the price line stops naming the board its reading came from",
      "file": "bible.html",
-     "find": "    var head = on ? ('Board ' + on + (on === 243 ? ' (D2:R Switch Ladder Trading)' : '')) : 'Public';\n",
+     "find": "    var head = on ? ('Board ' + on + (on === 243 ? ' (D2:R Switch Ladder Trading)' : (on === 268 ? ' (D2:R RotW Softcore Trading)' : ''))) : 'Public';\n",
      "replace": "    var head = 'Public';\n",
      "matches": 1},
     {"why": "#113 - the card no longer says the post goes to another board",

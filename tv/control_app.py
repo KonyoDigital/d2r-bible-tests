@@ -47749,9 +47749,14 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.json"), encoding="utf-8") as fh:
                     _log = json.load(fh)
-            except (OSError, ValueError):
-                _log = []
-            self._json(200, {"versions": _log if isinstance(_log, list) else []})
+            except (OSError, ValueError) as e:
+                # an unreadable history is UNKNOWN, never an empty one - the overlay says it could not be read
+                self._json(503, {"versions": None, "error": "changelog unreadable: %s" % type(e).__name__})
+                return
+            if not isinstance(_log, list):
+                self._json(503, {"versions": None, "error": "changelog is not a list"})
+                return
+            self._json(200, {"versions": _log})
             return
         if path == "/api/heart":
             # v2443 — ♥ THE HEART. Derived per read (45 s memo), never stored. ?force=1 re-derives.

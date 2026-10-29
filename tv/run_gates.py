@@ -11679,6 +11679,17 @@ GATES = [
          why="REG-2501 (#113) - prices are read on board 243 and posts go to 268 / 271, two economies; with no typed "
              "price the four post callers used the board-243 median as his asking price. A reading is the post price only "
              "when read on the post board (d2jspQuotedForBoard); the price line names its board. Node, the room's own code."),
+    Gate("test_the_d2jsp_desk_speaks_trade_slang_and_reads_the_roll",
+         [sys.executable, os.path.join(HERE, "test_the_d2jsp_desk_speaks_trade_slang_and_reads_the_roll.py")], 120,
+         needs_app=False,
+         why="v3843 - the price search matched the full item name only, read board 243 and cut 1,500 fg to 500. It now "
+             "searches the Softcore non-ladder board 268 with the trade slang (shako, anni, gheeds), counts only 2026 "
+             "posts, reads large fg amounts whole, and the desk shows the roll tier. The quote block runs in node."),
+    Gate("test_the_bump_carries_its_changelog_entry",
+         [sys.executable, os.path.join(HERE, "test_the_bump_carries_its_changelog_entry.py")], 60,
+         needs_app=False,
+         why="v3843 - the footer's version history: bump_version.py writes one CHANGELOG.json entry per version, "
+             "never doubled, the console serves it on /api/changelog and the overlay draws one card per version."),
     Gate("test_the_d2jsp_desk_forks_with_the_profile",
          [sys.executable, os.path.join(HERE, "test_the_d2jsp_desk_forks_with_the_profile.py")], 60,
          needs_app=False,

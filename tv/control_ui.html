@@ -6462,18 +6462,18 @@
   /* v3843 - THE VERSION HISTORY: a small button beside the era name opens one card per shipped version */
   #foot-hist {
     appearance: none; background: none; border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; margin: 0 0 0 4px;
-    font: inherit; font-size: .9em; color: inherit; cursor: pointer; opacity: .7; line-height: 1.2;
+    font: inherit; font-size: var(--fs-xs); color: inherit; cursor: pointer; opacity: .7; line-height: 1.2;
   }
   #foot-hist:hover, #foot-hist:focus-visible { opacity: 1; color: var(--gold, #d8a94a); }
   #hist-ov { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; }
-  #hist-ov[hidden] { display: none; }
+  #hist-ov[hidden] { display: none !important; }
   #hist-box { position: relative; width: min(560px, 92vw); max-height: 80vh; overflow: auto; background: #14161a; color: #ddd;
     border: 1px solid #3a3f47; border-radius: 8px; padding: 18px 18px 12px; box-sizing: border-box; }
-  #hist-box h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .08em; text-align: center; }
-  #hist-x { position: absolute; top: 8px; right: 10px; appearance: none; background: none; border: 0; color: inherit; font-size: 18px; cursor: pointer; }
+  #hist-box h2 { margin: 0 0 12px; font-size: var(--fs-sm); letter-spacing: .08em; text-align: center; }
+  #hist-x { position: absolute; top: 8px; right: 10px; appearance: none; background: none; border: 0; color: inherit; font-size: var(--fs-md); cursor: pointer; }
   .hist-card { border: 1px solid #2c3037; border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; }
-  .hist-head { display: flex; justify-content: space-between; font-weight: 600; }
-  .hist-date { opacity: .7; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .hist-head { display: flex; justify-content: space-between; font-weight: var(--fw-medium); }
+  .hist-date { opacity: .7; font-weight: var(--fw-regular); font-variant-numeric: tabular-nums; }
   .hist-card ul { margin: 6px 0 0; padding-left: 18px; }
   #heart-chip {
     appearance: none; background: none; border: 0; padding: 0 2px; margin: 0;
@@ -33148,8 +33148,6 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
        first. [[unknown-stays-unknown]] */
     if (_sadv) window._advFill(_sadv, window.__advFillMissed ? 'deferred' : 'load');
   } catch (e) {}
-</script>
-<script>
 /* v3843 - THE VERSION HISTORY OVERLAY. One card per version, newest first, from /api/changelog (tv/CHANGELOG.json,
    which every bump commit appends to). Closes on the top-right x, Esc, or a click outside the box. */
 (function(){
@@ -33179,8 +33177,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     var o = ov(), l = o.querySelector('#hist-list');
     l.innerHTML = '<div class="hist-card">Reading the history.</div>';
     o.hidden = false;
-    fetch('/api/changelog', { cache: 'no-store' }).then(function(r){ return r.json(); })
-      .then(function(j){ l.innerHTML = cardsHtml(j && j.versions); })
+    fetch('/api/changelog', { cache: 'no-store' }).then(function(r){ if (!r.ok) throw new Error('changelog ' + r.status); return r.json(); })
+      .then(function(j){ if (!j || !Array.isArray(j.versions)) throw new Error('no versions'); l.innerHTML = cardsHtml(j.versions); })
       .catch(function(){ l.innerHTML = '<div class="hist-card">The history could not be read.</div>'; });
   }
   window._histOpen = open; window._histClose = close;
