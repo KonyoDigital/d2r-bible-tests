@@ -22870,7 +22870,9 @@ window._lockMark = function(isOpen, px, label){
     if (d.ok !== true)
       return head + '<div class="ssv-unk">sessions UNKNOWN - ' + esc(String(d.why || 'the console answered without a reason')) + '</div>';
     var list = Array.isArray(d.sessions) ? d.sessions : null;
-    var sub = esc((typeof d.ago === 'string' && d.ago) ? 'uploaded ' + d.ago : 'upload age UNKNOWN')
+    /* REG-3034 - the age names its record: these sessions, not the board the shadow bar dates ("board uploaded ..."). One
+       view said "last upload 44 min ago" and "uploaded 12 min ago" at once; both were true, of two different uploads. */
+    var sub = esc((typeof d.ago === 'string' && d.ago) ? 'sessions uploaded ' + d.ago : 'sessions upload age UNKNOWN')
       + (d.source === 'cache' ? ' · this PC\u2019s last copy' + (d.why ? ' - the site could not be read (' + esc(String(d.why)) + ')' : '') : '')
       + (list ? ' · ' + list.length + ' session' + (list.length === 1 ? '' : 's') : '')
       + ' · a few small key frames each; their full reels stay on their PC';

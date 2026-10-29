@@ -429,7 +429,12 @@ def _ago_words(ms):
 
 def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
     """What /api/roster-cache?profile= serves. `live` is the owner's console being up right now; the stores are
-    always the last upload, and `words` always says when that upload was made."""
+    always the last upload, and `words` always says when that upload was made.
+
+    REG-3034 - AND WHAT IT WAS AN UPLOAD OF. The words said "last upload 44 min ago" while the same shadow's sessions list
+    said "uploaded 12 min ago" (GrokBot v3836, #230 6485132266): two true ages of two different records - this board
+    snapshot, held by the 75 min gap above, and the sessions digest posted at the owner's 03:00 restart - each read as the
+    owner's last upload. An age names the thing it dates: here the board."""
     if owner not in OWNERS:
         return {"ok": False, "owner": owner, "why": "not one of the five owner labels"}
     if not record_ok(rec, owner):
@@ -443,11 +448,11 @@ def view(owner, rec, now_ms, online=None, source="worker", fetch_why=None):
     ago = _ago_words(now_ms - t)
     if online is True:
         # #214 (GrokBot) - "live" beside "uploaded 20 min ago" read as a live view; the CONSOLE is online, the stores are the upload
-        state, words = "live", "%s · online now · last upload %s" % (owner, ago)
+        state, words = "live", "%s · online now · board uploaded %s" % (owner, ago)
     elif online is False:
-        state, words = "offline", "%s · offline · last upload %s" % (owner, ago)
+        state, words = "offline", "%s · offline · board uploaded %s" % (owner, ago)
     else:
-        state, words = "unknown", "%s · online UNKNOWN · last upload %s" % (owner, ago)
+        state, words = "unknown", "%s · online UNKNOWN · board uploaded %s" % (owner, ago)
     if source == "cache":
         words += " · the site could not be read, showing this PC's last copy"
     # #210 (GrokBot) - a store the owner's PC could not send is MISSING here, and the banner says which. An upload from

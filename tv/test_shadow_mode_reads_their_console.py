@@ -255,9 +255,9 @@ class WhatTheViewerIsTold(unittest.TestCase):
         off = CS.view(OWNER, rec, now, online=False)
         unk = CS.view(OWNER, rec, now, online=None)
         self.assertEqual((live["state"], off["state"], unk["state"]), ("live", "offline", "unknown"))
-        self.assertEqual(live["words"], "Dean · online now · last upload 42 min ago")
-        self.assertEqual(off["words"], "Dean · offline · last upload 42 min ago")
-        self.assertEqual(unk["words"], "Dean · online UNKNOWN · last upload 42 min ago")
+        self.assertEqual(live["words"], "Dean · online now · board uploaded 42 min ago")
+        self.assertEqual(off["words"], "Dean · offline · board uploaded 42 min ago")
+        self.assertEqual(unk["words"], "Dean · online UNKNOWN · board uploaded 42 min ago")
         for v in (live, off, unk):
             self.assertEqual(v["stores"], rec["stores"], "the viewer was not handed the owner's stores verbatim")
             self.assertEqual(v["t"], T0)
@@ -286,7 +286,7 @@ class WhatTheViewerIsTold(unittest.TestCase):
         self.assertEqual(rec["stores"], _stores())
         v = CS.view(OWNER, rec, T0 + 3 * 3600 * 1000, online=False, source="cache")
         self.assertTrue(v["ok"])
-        self.assertEqual(v["words"], "Dean · offline · last upload 3 hr ago · the site could not be read, "
+        self.assertEqual(v["words"], "Dean · offline · board uploaded 3 hr ago · the site could not be read, "
                                      "showing this PC's last copy")
         self.assertEqual(v["t"], T0)
         path = CS.cache_path(d, OWNER)
@@ -620,7 +620,7 @@ class TheConsoleDoors(unittest.TestCase):
             v = self.CA._profile_view(OWNER)
         self.assertTrue(v["ok"], "with the site down the PC's last copy was not shown")
         self.assertEqual((v["source"], v["t"], v["stores"]), ("cache", T0, _stores()))
-        self.assertIn("last upload", v["words"])
+        self.assertIn("board uploaded", v["words"])
         self.assertIn("showing this PC's last copy", v["words"])
 
     def test_nothing_uploaded_is_said(self):
@@ -2342,7 +2342,7 @@ RED_PROOF = [
      "replace": "", "matches": 1},
     {"why": "Shadow: the viewer is told 'live' with no age of the upload",
      "file": "tv/console_snapshot.py",
-     "find": "        state, words = \"live\", \"%s · online now · last upload %s\" % (owner, ago)\n",
+     "find": "        state, words = \"live\", \"%s · online now · board uploaded %s\" % (owner, ago)\n",
      "replace": "        state, words = \"live\", \"%s · live\" % owner\n", "matches": 1},
     {"why": "Shadow: with the site down the viewer gets nothing instead of the PC's last copy",
      "file": "tv/control_app.py",

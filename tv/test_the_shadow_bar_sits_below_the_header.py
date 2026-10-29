@@ -8,7 +8,8 @@ ago"; the dimming rule for shadow controls left labels (Load profile) out.
 
 Driven: _shadowPlace (cut from control_ui.html) in node places the bar at the header height and the frame below the
 bar; _shellSizePane calls it and _shadowSnapEnter calls it again once the shell is open; the snapshot time expression
-(cut from _shadowSnapEnter) prints HH:MM with no AM/PM; the view says "online now · last upload"; labels are dimmed.
+(cut from _shadowSnapEnter) prints HH:MM with no AM/PM; the view says "online now · board uploaded" (REG-3034); labels
+are dimmed.
 RED_PROOF below.
 """
 import io
@@ -82,7 +83,7 @@ class TheShadowBarSitsBelowTheHeader(unittest.TestCase):
         self.assertIsNone(re.search(r"AM|PM", out["at"]), out)
         import console_snapshot as CS
         rec = None
-        self.assertIn('"%s · online now · last upload %s"', _read(os.path.join(HERE, "console_snapshot.py")))
+        self.assertIn('"%s · online now · board uploaded %s"', _read(os.path.join(HERE, "console_snapshot.py")))
         del rec, CS
         self.assertEqual(BIBLE.count(":is(button, input, select, textarea, label, [contenteditable], .vault-chip)"), 1,
                          "a label (Load profile) is not dimmed in the shadow")

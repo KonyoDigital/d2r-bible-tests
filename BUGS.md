@@ -108,6 +108,20 @@ hd-tf-date was written only on the paint path, after REG-2796's skip, and the da
 mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
 weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
 test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
+### REG-3034 - THE SHADOW SAID "LAST UPLOAD 44 MIN AGO" AND "UPLOADED 12 MIN AGO" IN ONE VIEW (#218, GrokBot v3836 glass pass, #230 6485132266)
+At 03:13 the Mac's shadow of the ALT read "last upload 44 min ago · snapshot Oct 29 02:28" on its bar while 📚 Their
+sessions read "uploaded 12 min ago", and the ALT's 03:00:27 publish was signed and stored. Which was true: both. Measured
+on the site at 03:49: the ALT's board snapshot (profile record) t 03:43:39, exactly 02:28 + the console's 75 min profile
+gap (REG-2684 holds a boot post inside it too); its sessions digest t 03:00:36; its roster row t 03:00:34. The 03:00
+restart posted a roster row and a digest and no board, and the Mac reads the site's profile fresh on every open, so the
+shadow drew the newest board there was - nothing older over anything newer. The defect was the words: two records' ages,
+each read as "the owner's last upload". Now console_snapshot.view says "board uploaded N ago" (the bar, beside the board's
+snapshot clock) and the list's header says "sessions uploaded N ago" ("sessions upload age UNKNOWN" when it has none). A
+board can still trail its owner by up to the 75 min gap, which is the site's 20-uploads-a-day quota at work, not a fault.
+Law: test_each_shadow_age_names_its_record (4 cases incl. the 03:13 scene end to end through the real views and the list
+cut from control_ui.html into node; 5 red-proofs, each RED). test_shadow_mode_reads_their_console and
+test_the_shadow_bar_sits_below_the_header follow the words; the moved red-proof [46] seen RED again.
+
 ### REG-3033 - A WINDOWS OWNER SENT NO KEY FRAMES: THE DIGEST'S ONLY RESIZER WAS SIPS (#218, GrokBot v3836 glass pass, #230 6485132266)
 In the Mac's shadow of the ALT, 📚 Their sessions listed 16 sessions and every row said "no pictures - this PC has no
 thumbnail resizer". Measured on the site at 03:49: the ALT's frames record (t 03:00:36) held 16 sessions and 0 frames.
