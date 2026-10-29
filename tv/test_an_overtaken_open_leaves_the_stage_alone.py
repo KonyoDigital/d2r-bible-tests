@@ -143,8 +143,8 @@ RED_PROOF = [
     {
         "why": "dropping the catch-side guard lets an abandoned open close a LATER open's stage",
         "file": "tv/control_ui.html",
-        "find": "      if (_thGen !== TH.gen) return;\n      try {\n        TH.open = false;",
-        "replace": "      try {\n        TH.open = false;",
+        "find": "      if (_thGen !== TH.gen) return;\n      /* REG-3050 (#86, folded #245",
+        "replace": "      /* REG-3050 (#86, folded #245",
         "matches": 1,
     },
     {

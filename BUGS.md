@@ -172,6 +172,23 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3050 - A SLOW OR FAILED SESSIONS ASK CLOSED THE SHELF HE OPENED, AND A FAILED REFRESH CALLED HIS RUNS ABSENT (#86, folded #245)
+GrokBot's folded #245 tick: "the gallery self-closes 8-10 s after the Shelf button". thOpen's catch closed #theatre whenever
+/api/sessions did not answer - right for the REEL door (v2228: a black stage with nothing coming), wrong for the Shelf door:
+#theatre holds the shelf, so a slow or orphaned ask (aborted at 8 s then, REG-2698's 45 s now) took the open gallery away,
+the "could not reach the console" caption it wrote sat inside the hidden theatre where nobody could read it, and the Shelf
+button's handler then saw TH.open false and quietly returned. Measured on the real HEAD thOpen driven in node with the ask
+made to fail: open=false, #theatre hidden, theatre-open removed. The same path had a second lie: thShelf's own refresh,
+failing with no runs in hand, painted the shelf from nothing - "No runs recorded yet". Now the Shelf door keeps the theatre
+and the shelf open and says "your runs: UNKNOWN" in place with its own ↻ and ✕ (the shelf's click handler exists only after
+a paint that had runs) and tells the Doctor (shelf-open-no-sessions); the Shelf button's thShelf then asks once more,
+saying "asking the console again"; a failed refresh with no runs says UNKNOWN, and one with runs keeps the cards under a line
+naming them the console's last answer and its age (TH.sessionsAt). The reel door still closes (v2228). Law:
+test_a_failed_ask_never_closes_the_shelf (6 cases on the real thOpen and thShelf in node; 5 red-proofs, each RED);
+test_an_overtaken_open_leaves_the_stage_alone's catch-guard proof re-anchored past the new block, 3 of 3 RED. NEEDS LIVE:
+GrokBot opens THE SHELF on a loaded Mac and sees it stay. (The ACTIVITY-chart click the same #86 note lists was fixed in
+v3816 by REG-2681 and REG-2708; both laws pass on this tree.)
+
 ### REG-3039 - REG-3038 NEARLY SERVED A FAILED SIPS AS THE MAC'S SCRUB FRAME: THE SHARED CALL DROPPED THE EXIT CODE (found reviewing REG-3038)
 Before REG-3038, _serve_hist ran sips itself and served the full frame when `r.returncode != 0 or not os.path.isfile(cached)`.
 REG-3038 moved that call into shadow_sessions.make_derivative, whose _sips_thumb judged only that the output file existed

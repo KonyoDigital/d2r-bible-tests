@@ -4538,6 +4538,9 @@
   .sh-empty-hero .she-lead { font: var(--fw-bold) var(--fs-lg)/var(--lh-tight) var(--serif); color: #e8cf96; letter-spacing: var(--ls-wide); }
   .sh-empty-hero .she-sub { font: var(--fw-normal) var(--fs-sm)/var(--lh-relaxed) var(--mono); color: #9a8e70; max-width: 520px; }
   .sh-empty-hero .she-sub b { color: var(--mint); }
+  /* REG-3050 - the shelf's cards are the console's last answer: the line that says so, and how old */
+  .sh-stale-note { margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--edge); border-radius: 8px; color: #e9b96e;
+    font: var(--fw-normal) var(--fs-xs)/var(--lh-snug) var(--mono); }
   #th-shelfov { padding-bottom: clamp(80px, 12vh, 120px) !important; }   /* v1275 (D3 · z-index) — tall cards scroll fully clear of the transport deck, never clipped/hidden behind it */
   /* ══ v1282 (SESSIONS FLAGSHIP D8 · SHELF SEARCH) — filter the run cards live (item · area · grail · session) ══ */
   .sh-search-wrap { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
@@ -18095,6 +18098,23 @@ window._lockMark = function(isOpen, px, label){
          it waited, the visible theatre belongs to a LATER open and closing it here would be the
          failure this fix exists to remove, arriving from the error path instead of the happy one. */
       if (_thGen !== TH.gen) return;
+      /* REG-3050 (#86, folded #245: "the gallery self-closes 8-10 s after the Shelf button") - A FAILED ASK NEVER CLOSES
+         THE SHELF HE OPENED. The close below exists for the REEL door (v2228: a black stage with nothing coming). The Shelf
+         door has no black stage - its overlay covers it from the first frame (REG-2253) - and this arm closed #theatre,
+         which holds the shelf, so a slow or orphaned /api/sessions (8 s then, REG-2698's 45 s now) took the open gallery
+         away with no word. The shelf stays open and says UNKNOWN in place, with ↻ and ✕; the Shelf button's own
+         thShelf(true) then asks once more. */
+      if (_shelfDoor) {
+        TH.sessionsFailWhy = String(_e).slice(0, 120);
+        try { var _ovU = $('th-shelfov'); if (_ovU) { _ovU.hidden = false; _shelfUnknownPaint(_ovU, TH.sessionsFailWhy); } } catch (e) {}
+        try { $('th-caption').textContent = 'the shelf — your runs are UNKNOWN: the console did not answer'; } catch (e) {}
+        try {
+          fetch('/api/ui_fault', {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({kind:'shelf-open-no-sessions', why:'/api/sessions did not answer: ' + TH.sessionsFailWhy,
+              where:'control_ui thOpen'})});
+        } catch (e) {}
+        return;
+      }
       try {
         TH.open = false;
         $('theatre').hidden = true;
@@ -18114,6 +18134,7 @@ window._lockMark = function(isOpen, px, label){
       return;
     }
     TH.sessions = (j.sessions && j.sessions.length !== undefined) ? j.sessions : [];
+    TH.sessionsAt = Date.now(); TH.sessionsFailWhy = null;   /* REG-3050 - when this list was last answered */
     if (!TH.sessions.length){
       $('theatre').hidden = false; TH.open = true;
       $('th-caption').textContent = '🎞 no intake sessions yet — ON AIR, pause on stash/loot, then SIM replays those shots';
@@ -18680,6 +18701,40 @@ window._lockMark = function(isOpen, px, label){
   // v834 (Konyo) — DELETE SESSION: two-click arm (no native dialogs), then the reel + its
   // frames are gone forever and the next session loads.
   // v837 (SIMULATION_SPEC #5) — THE SESSION SHELF: pick any reel by sight, not blind arrows.
+  /* REG-3050 - THE SHELF WHEN /api/sessions DID NOT ANSWER: UNKNOWN in place, never "No runs recorded yet" and never closed.
+     It carries its own ↻ and ✕ because the shelf's click handler is set only by a paint that had runs. */
+  function _shelfUnknownPaint(ov, why){
+    ov.innerHTML = '<div class="sh-head">🎞 THE SHELF</div>'
+      + '<div class="sh-empty-hero sh-unknown"><div class="she-lead">your runs: UNKNOWN</div>'
+      + '<div class="she-sub">the console did not answer the sessions list (' + esc(String(why || 'no reason given'))
+      + '). This is not an empty shelf — nothing here says you have no runs.</div>'
+      + '<div><button type="button" class="chron-btn" id="sh-unk-retry">↻ ask again</button> '
+      + '<button type="button" class="chron-btn" id="sh-unk-x">✕ close</button></div></div>';
+    var r = ov.querySelector('#sh-unk-retry'), x = ov.querySelector('#sh-unk-x');
+    if (r) r.onclick = function(e){ if (e && e.stopPropagation) e.stopPropagation(); thShelf(true); };
+    if (x) x.onclick = function(e){
+      if (e && e.stopPropagation) e.stopPropagation();
+      ov.hidden = true;
+      if (_thShelfWasTheDoor()) { try { thClose(); } catch (_c) {} }
+    };
+  }
+  /* REG-3050 - runs in hand and the refresh unanswered: the cards stay, and one line says they are the console's last answer
+     and how old that answer is (the stale-reading rule: a reading carries the age of what it measured) */
+  function _shelfStaleNote(ov, why){
+    var n = ov.querySelector('#sh-stale-note');
+    if (!n) {
+      n = document.createElement('div');
+      n.id = 'sh-stale-note';
+      n.className = 'sh-stale-note';
+      ov.insertBefore(n, ov.firstChild);
+    }
+    var at = TH.sessionsAt, age = 'an earlier answer whose age is UNKNOWN';
+    if (typeof at === 'number' && at > 0) {
+      var m = Math.round((Date.now() - at) / 60000);
+      age = 'its answer from ' + (m < 1 ? 'under a minute ago' : m < 120 ? m + ' min ago' : Math.round(m / 60) + ' h ago');
+    }
+    n.textContent = 'the console did not answer (' + String(why || 'no reason given') + ') — these runs are ' + age;
+  }
   function thShelf(force){
     var ov = $('th-shelfov'); if (!ov) return;
     var on = (force !== undefined) ? force : ov.hidden;
@@ -19512,10 +19567,13 @@ window._lockMark = function(isOpen, px, label){
     if (_had) { _paintShelf(); _reopenClear(); }
     else {
       ov.hidden = false;
-      ov.innerHTML = '<div class="sh-head">🎞 THE SHELF</div><div class="sh-empty-hero"><div class="she-lead">Loading runs…</div></div>';
+      /* REG-3050 - asked again after a failed ask, it says so rather than a plain first load */
+      ov.innerHTML = '<div class="sh-head">🎞 THE SHELF</div><div class="sh-empty-hero"><div class="she-lead">'
+        + (TH.sessionsFailWhy ? 'asking the console again\u2026' : 'Loading runs…') + '</div></div>';
     }
     window._sessionsJson().then(function(j){   /* GrokBot v3817 - the theatre's wait and this share one request */
       var fresh = (j && j.sessions) || [];
+      TH.sessionsAt = Date.now(); TH.sessionsFailWhy = null;   /* REG-3050 */
       var sig = fresh.map(function(s){ return (s.sessionId||'') + ':' + (s.footageN||0) + ':' + (s.reads||0); }).join('|');
       if (fresh.length && sig !== window.__thShelfSig){
         window.__thShelfSig = sig; TH.sessions = fresh;
@@ -19523,7 +19581,15 @@ window._lockMark = function(isOpen, px, label){
         TH.sessions = fresh;
       }
       if (!ov.hidden) { _paintShelf(); _reopenClear(); }
-    }).catch(function(){ if (!_had && !ov.hidden) { _paintShelf(); _reopenClear(); } });
+    }).catch(function(e){
+      /* REG-3050 - NO ANSWER IS NOT AN EMPTY SHELF. With no runs in hand this painted the shelf from nothing, which reads
+         "No runs recorded yet" - his runs, called absent because a request failed. It says UNKNOWN in place instead; with
+         runs in hand, the cards stay and a line says they are the console's LAST answer, and how old. */
+      TH.sessionsFailWhy = String(e).slice(0, 120);
+      if (ov.hidden) return;
+      if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); return; }
+      _shelfStaleNote(ov, TH.sessionsFailWhy);
+    });
   }
   var SHELF_Q = '';   // v1282 (D8) — the live shelf-search query, preserved across shelf re-renders
   /* ══ v2199 — 2,261 OF HIS 2,461 SHELF CARDS WERE EMPTY GHOSTS ═══════════════════════════
