@@ -689,6 +689,39 @@ def _read_quote_parser():
     return src[start:end]
 
 
+def _public_posts(raw):
+    """v3844 - the evidence under a reading, cleaned for the desk: at most 40 posts, each with its fg, its day, a link
+    only when it is a forums.d2jsp.org address, the roll as read, and its weight. The post's own words stay on the forum (the answer is the reading, never the page): the link opens
+    them."""
+    out = []
+    for r in (raw if isinstance(raw, list) else [])[:40]:
+        if not isinstance(r, dict):
+            continue
+        try:
+            fg = float(r.get("fg"))
+            w = float(r.get("w", 1))
+        except (TypeError, ValueError):
+            continue
+        if fg <= 0:
+            continue
+        link = str(r.get("link") or "")
+        if not link.startswith("https://forums.d2jsp.org/"):
+            link = ""
+        roll = []
+        for t in (r.get("roll") or [])[:4]:
+            if isinstance(t, list) and all(isinstance(x, (int, float)) for x in t):
+                roll.append([int(x) for x in t[:6]])
+        row = {"fg": int(fg) if fg == int(fg) else fg, "day": str(r.get("day") or "")[:10], "link": link,
+               "roll": roll, "w": max(0.0, min(1.0, w))}
+        mods = [str(x)[:30] for x in (r.get("mods") or [])[:12] if isinstance(x, str)]
+        if mods:
+            row["mods"] = mods
+        if r.get("out"):
+            row["out"] = str(r.get("out"))[:80]
+        out.append(row)
+    return out
+
+
 def _public_fields(parsed, item, read_at):
     if not isinstance(parsed, dict):
         return _quote_unknown(item, read_at, "unread")
@@ -723,6 +756,7 @@ def _public_fields(parsed, item, read_at):
         "readAt": parsed.get("readAt") or read_at,
         "reason": reason,
         "board": QUOTE_BOARD,
+        "posts": _public_posts(parsed.get("posts")) if reason == "read" else [],
     }
 
 

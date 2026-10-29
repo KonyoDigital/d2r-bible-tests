@@ -2,7 +2,7 @@
  * /api/d2jsp_quote — a public reading of forum gold for one item.
  *
  * The bible cannot read forums.d2jsp.org from the browser (no CORS). This
- * function fetches the Switch Ladder board search and returns the middle
+ * function fetches the board 268 search and returns the middle
  * fg price only when a line that names the item carries an fg number.
  * A challenge page, a login wall, a failed fetch, or a page with no such
  * line returns fg:null. It never substitutes a remembered or default price.
@@ -167,26 +167,76 @@ function d2jspFgAmounts(line) {
   return out;
 }
 
-function d2jspPrices(text, itemName, nowMs) {
+/* v3844 - 2026 POSTS ONLY (Elad, 2026-10-30): on top of the rolling window, no post dated before this day prices an item. */
+var D2JSP_QUOTE_SINCE_MS = Date.UTC(2026, 0, 1);
+
+/* v3844 - THE POST A PRICE CAME FROM. Before the tags are stripped, a link to a forum topic or post is kept as a marker,
+   so every price line knows the post it sits under and the evidence drawer can open it. */
+var D2JSP_LINK_MARK = /\u27e6L:([^\u27e7]*)\u27e7/g;
+function d2jspAbsLink(href) {
+  var h = String(href || '').replace(/&amp;/g, '&').trim();
+  if (!h) return '';
+  if (/^https:\/\/forums\.d2jsp\.org\//i.test(h)) return h;
+  if (/^https?:/i.test(h)) return '';
+  return 'https://forums.d2jsp.org/' + h.replace(/^\/+/, '');
+}
+
+/* v3844 - WHICH AMOUNTS ON A LINE ARE THIS ITEM'S. A line that names one thing and carries one price is that price. A
+   line listing several items ("anni 5 ist, pc 2000 fg, torch 300 fg") is split into its clauses, and only an amount in
+   a clause that names the item counts - before this, Annihilus read 5-2000 off other items' prices. */
+function d2jspNamed(text, forms) {
+  var folded = ' ' + d2jspFoldPrice(text).replace(/[^a-z0-9]+/g, ' ') + ' ';
+  return forms.some(function (f) { return folded.indexOf(' ' + f.replace(/[^a-z0-9]+/g, ' ').trim() + ' ') >= 0; });
+}
+function d2jspLineAmounts(line, forms) {
+  var all = d2jspFgAmounts(line);
+  if (all.length <= 1) return all;
+  var clauses = String(line).split(/\s*(?:[;|\u2022]|,(?!\d{3}(?!\d)))\s*/), out = [];
+  clauses.forEach(function (c) { if (d2jspNamed(c, forms)) d2jspFgAmounts(c).forEach(function (n) { out.push(n); }); });
+  return out;
+}
+
+/* each price with its evidence: the post's link, its day, the fg and the roll as read (the slash
+   notation). The post's own words stay on the forum - the link opens them. */
+function d2jspPosts(text, itemName, nowMs) {
   if (nowMs == null) nowMs = Date.now();
   var forms = d2jspSearchWords(itemName).forms;
   if (!forms.length) return [];
   var plain = String(text || '')
+    .replace(/<a\s[^>]*href\s*=\s*["']([^"']*(?:topic\.php|[?&]t=\d|[?&]p=\d)[^"']*)["'][^>]*>/gi, ' \u27e6L:$1\u27e7 ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(?:p|div|tr|li|h\d)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
-  var nums = [], when = null;
-  plain.split('\n').forEach(function (line) {
+  var rows = [], when = null, link = '';
+  plain.split('\n').forEach(function (raw) {
+    var m, re = new RegExp(D2JSP_LINK_MARK.source, 'g');
+    while ((m = re.exec(raw))) { var a = d2jspAbsLink(m[1]); if (a) link = a; }
+    var line = raw.replace(new RegExp(D2JSP_LINK_MARK.source, 'g'), ' ');
     var d = d2jspLineDate(line, nowMs);
     if (d != null) when = d;
-    /* v3843 - a price counts only under a recently dated post */
-    if (!d2jspRecent(when, nowMs)) return;
-    var folded = ' ' + d2jspFoldPrice(line).replace(/[^a-z0-9]+/g, ' ') + ' ';
-    var named = forms.some(function (f) { return folded.indexOf(' ' + f.replace(/[^a-z0-9]+/g, ' ').trim() + ' ') >= 0; });
-    if (!named) return;
-    d2jspFgAmounts(line).forEach(function (n) { nums.push(n); });
+    /* v3843 - a price counts only under a recently dated post; v3844 - and only a 2026 one */
+    if (!d2jspRecent(when, nowMs) || when < D2JSP_QUOTE_SINCE_MS) return;
+    if (!d2jspNamed(line, forms)) return;
+    var note = d2jspNotation(line);
+    d2jspLineAmounts(line, forms).forEach(function (n) {
+      rows.push({ fg: n, day: new Date(when).toISOString().slice(0, 10), link: link,
+        roll: note.tuples, mods: note.words.slice(0, 12), w: 1 });
+    });
   });
-  return nums;
+  return d2jspTrim(rows);
+}
+
+/* v3844 - A FAR PRICE IS SET ASIDE. With five or more prices, one more than three times off the middle (a 2000 fg
+   bundle beside 18 fg singles) is kept in the evidence, marked out, and does not move the price. */
+function d2jspTrim(rows) {
+  if (rows.length < 5) return rows;
+  var mid = d2jspMedian(rows.map(function (r) { return r.fg; }));
+  rows.forEach(function (r) { if (r.fg > mid * 3 || r.fg * 3 < mid) { r.w = 0; r.out = 'far from the middle ' + mid + ' fg'; } });
+  return rows;
+}
+
+function d2jspPrices(text, itemName, nowMs) {
+  return d2jspPosts(text, itemName, nowMs).filter(function (r) { return r.w > 0; }).map(function (r) { return r.fg; });
 }
 
 function d2jspMedian(nums) {
@@ -214,7 +264,8 @@ function d2jspRead(html, item, readAt) {
     base.reason = 'need-login';
     return base;
   }
-  var nums = d2jspPrices(text, item, d2jspNowMs(readAt));
+  var posts = d2jspPosts(text, item, d2jspNowMs(readAt));
+  var nums = posts.filter(function (r) { return r.w > 0; }).map(function (r) { return r.fg; });
   var fg = d2jspMedian(nums);
   if (fg == null) {
     base.reason = 'no prices';
@@ -223,7 +274,8 @@ function d2jspRead(html, item, readAt) {
   var span = d2jspSpan(nums);
   return {
     item: String(item || ''), fg: fg, low: span.low, high: span.high,
-    n: nums.length, readAt: readAt, reason: 'read', board: D2JSP_QUOTE_BOARD
+    n: nums.length, readAt: readAt, reason: 'read', board: D2JSP_QUOTE_BOARD,
+    posts: posts.slice(0, 40)
   };
 }
 /* ⟦D2JSP QUOTE END⟧ */

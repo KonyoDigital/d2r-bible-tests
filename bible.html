@@ -11941,6 +11941,16 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
     #tab-d2jsp .d2jsp-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     #tab-d2jsp .d2jsp-draft{white-space:pre-wrap;margin:8px 0;font-family:var(--mono);font-size:var(--fs-body);color:#f6e7c2;line-height:1.45}
     #tab-d2jsp #d2jsp-add, #tab-d2jsp #d2jsp-shop{margin:8px 8px 8px 0}
+    #tab-d2jsp .d2jsp-price-search{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid rgba(240,192,96,.55);border-radius:8px;padding:10px;margin:8px 0 12px;background:rgba(10,9,7,.55)}
+    #tab-d2jsp .d2jsp-price-search .d2jsp-k{font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;color:#f0c060}
+    #tab-d2jsp .d2jsp-price-search input{font-family:var(--mono);background:#120e08;color:#f6e7c2;border:1px solid rgba(233,208,122,.4);border-radius:6px;padding:6px 8px}
+    #tab-d2jsp #d2jsp-price-out{grid-column:1 / -1}
+    #tab-d2jsp .d2jsp-ev{margin:4px 0;color:#e9d07a}
+    #tab-d2jsp .d2jsp-ev summary{cursor:pointer;color:#f0c060}
+    #tab-d2jsp .d2jsp-ev table{border-collapse:collapse;margin-top:6px;font-family:var(--mono);width:100%}
+    #tab-d2jsp .d2jsp-ev th{color:#a07830;text-align:left;padding:2px 8px 2px 0;border-bottom:1px solid rgba(240,192,96,.3)}
+    #tab-d2jsp .d2jsp-ev td{padding:2px 8px 2px 0;color:#f6e7c2}
+    #tab-d2jsp .d2jsp-ev a{color:#f0c060}
     #d2jsp-lamp{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:2px 8px 2px 6px;border-radius:999px;border:1px solid rgba(140,122,104,.45);background:rgba(0,0,0,.25);color:#b5a48a;font-family:ui-monospace,Menlo,monospace;font-weight:var(--fw-medium);font-size:var(--fs-meta);line-height:1.3;letter-spacing:.06em;cursor:pointer}
     #d2jsp-lamp i{width:7px;height:7px;border-radius:50%;background:#1d1813;box-shadow:inset 0 0 0 1px rgba(140,122,104,.5);font-style:normal}
     #d2jsp-lamp[data-lamp="on"]{color:#8fe6a0;border-color:rgba(143,230,160,.55)}
@@ -11986,6 +11996,12 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
     <div class="boss-body">
       <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R RotW Softcore Trading.</p>
       <p class="d2jsp-say">This room never asks for the password. Forum gold stays unknown until a public reading returns a number, and the time of that reading is shown.</p>
+      <form class="d2jsp-price-search" id="d2jsp-price-form" role="search">
+        <label class="d2jsp-k" for="d2jsp-price-q">Price search</label>
+        <input id="d2jsp-price-q" type="search" placeholder="anni 20/20/10, 40/15 shako, jmod" aria-label="Price search: an item and its roll, as traders write it" autocomplete="off" spellcheck="false">
+        <button type="submit" class="vault-btn vault-btn-primary" id="d2jsp-price-go">Price it</button>
+        <div class="d2jsp-say" id="d2jsp-price-out" aria-live="polite">2026 posts on board 268 only. Nothing is posted.</div>
+      </form>
       <input id="d2jsp-find" type="search" placeholder="Find a filed item" aria-label="Find a filed item" autocomplete="off" spellcheck="false">
       <button type="button" class="vault-btn" id="d2jsp-add">Add an item</button>
       <button type="button" class="vault-btn" id="d2jsp-shop" data-d2jsp-shop="1">Post the list</button>
@@ -12398,7 +12414,9 @@ function d2jspAffixRead(mods, db, itemName) {
     });
     if (!any) return;
     if (best) {
-      var pct = best.hi === best.lo ? 100 : Math.round((v - best.lo) / (best.hi - best.lo) * 100);
+      /* v3844 - a mod that rolls below zero (-9% to Enemy Lightning Resistance) is better the more negative it is */
+      var neg = best.hi <= 0 && best.lo < 0;
+      var pct = best.hi === best.lo ? 100 : Math.round(((neg ? best.hi - v : v - best.lo)) / (best.hi - best.lo) * 100);
       out.push({ line: t, value: v, lo: best.lo, hi: best.hi, pct: pct, warn: '' });
     } else {
       var legal = v > hi ? hi : lo;
@@ -12408,21 +12426,112 @@ function d2jspAffixRead(mods, db, itemName) {
   });
   return out;
 }
+/* v3844 - THE ROLL TIER IS MOD-WEIGHTED (Elad, 2026-10-30 00:41). A trader prices a Guardian's Thunder jewel on its
+   lightning skill damage and its -enemy lightning resistance; its gold find and experience barely move the price. So
+   each mod carries a weight for its item family: the key mods 1, the filler 0, the rest a quarter. A family with no
+   defaults learns them from the 2026 posts that priced it: a mod the posts name often counts more. The tier line names
+   the key mods, and the similar-post price uses the same weights. Advisory only: the post template is unchanged. */
+var D2JSP_FAMILY_MODS = {
+  jewel: { key: [/skill damage/i, /enemy .*resist/i, /enhanced (?:maximum )?damage/i, /attack speed/i, /all resist/i, /faster/i],
+    filler: [/gold/i, /magic find|better chance of getting magic/i, /experience/i, /light radius/i, /requirement/i, /attack rating/i] },
+  annihilus: { key: [/all attributes/i, /all resist/i, /experience/i] },
+  torch: { key: [/to .*skills|skill levels/i, /all attributes|to (?:strength|dexterity|vitality|energy)/i, /all resist/i], filler: [/light radius/i] },
+  gheeds: { key: [/gold/i, /magic find|better chance of getting magic/i, /vendor|reduce/i] },
+  charm: { key: [/to .*skills/i, /to life/i, /all resist|resist/i, /faster/i, /maximum damage|max damage/i, /attack rating/i, /strength|dexterity/i],
+    filler: [/gold/i, /light radius/i, /magic find|better chance of getting magic/i] },
+  jewelry: { key: [/to all skills|to .*skills/i, /faster cast/i, /strength|dexterity/i, /to life/i, /to mana/i, /all resist/i, /attack rating/i, /life stolen|leech/i],
+    filler: [/gold/i, /light radius/i, /replenish/i, /requirement/i] }
+};
+/* the slash notation's order for the families traders write that way ("anni 20/20/10" is attributes/res/experience) */
+var D2JSP_TUPLE_ORDER = {
+  annihilus: [/all attributes/i, /all resist/i, /experience/i],
+  torch: [/all attributes|to (?:strength|dexterity|vitality|energy)/i, /all resist/i],
+  gheeds: [/gold/i, /vendor|reduce/i, /magic find|better chance of getting magic/i]
+};
+function d2jspFamily(itemName, base) {
+  var t = (String(itemName || '') + ' ' + String(base || '')).toLowerCase();
+  if (/annihilus/.test(t)) return 'annihilus';
+  if (/hellfire torch/.test(t)) return 'torch';
+  if (/gheed/.test(t)) return 'gheeds';
+  if (/jewel|rainbow facet|guardian'?s (?:thunder|light)|protector'?s stone/.test(t)) return 'jewel';
+  if (/charm/.test(t)) return 'charm';
+  if (/\b(?:ring|amulet)\b|stone of jordan|wedding band|raven frost|kaleidoscope|highlord|mara/.test(t)) return 'jewelry';
+  return null;
+}
+function d2jspWordsOf(text) {
+  return String(text || '').toLowerCase().replace(/[^a-z ]+/g, ' ').split(/\s+/).filter(function (w) {
+    return w.length > 2 && ['the', 'and', 'with', 'enemy', 'chance', 'getting', 'items', 'all'].indexOf(w) < 0;
+  });
+}
+/* the learned weight of each read from the posts: the share of priced posts whose mods name it, the most-named at 1 */
+function d2jspLearnedWeights(reads, posts) {
+  var priced = (posts || []).filter(function (p) { return p && p.w > 0 && p.mods && p.mods.length; });
+  if (!priced.length) return null;
+  var counts = (reads || []).map(function (r) {
+    var mine = d2jspWordsOf(r.line);
+    return priced.filter(function (p) {
+      return p.mods.some(function (m) { return d2jspWordsOf(m).some(function (w) { return mine.indexOf(w) >= 0; }); });
+    }).length;
+  });
+  var top = Math.max.apply(null, counts.concat([0]));
+  if (!top) return null;
+  return counts.map(function (c) { return c / top; });
+}
+/* -> one weight per read, with where it came from: 'family' defaults, 'posts' (learned) or 'even' */
+function d2jspModWeights(reads, itemName, posts, base) {
+  var fam = d2jspFamily(itemName, base), spec = fam ? D2JSP_FAMILY_MODS[fam] : null;
+  if (spec) {
+    return { from: 'family', family: fam, w: (reads || []).map(function (r) {
+      if (spec.key.some(function (re) { return re.test(r.line); })) return 1;
+      if ((spec.filler || []).some(function (re) { return re.test(r.line); })) return 0;
+      return 0.25;
+    }) };
+  }
+  var learned = d2jspLearnedWeights(reads, posts);
+  if (learned) return { from: 'posts', family: null, w: learned };
+  return { from: 'even', family: null, w: (reads || []).map(function () { return 1; }) };
+}
+function d2jspWeightedTier(reads, itemName, posts, base) {
+  var ranged = (reads || []).filter(function (r) { return r.hi > r.lo && !r.warn; });
+  if (!ranged.length) return null;
+  var mw = d2jspModWeights(ranged, itemName, posts, base), sw = 0, sp = 0;
+  ranged.forEach(function (r, i) { sw += mw.w[i]; sp += mw.w[i] * r.pct; });
+  var even = ranged.reduce(function (s, r) { return s + r.pct; }, 0) / ranged.length;
+  var keys = ranged.filter(function (r, i) { return mw.w[i] >= 0.75; });
+  return { pct: sw > 0 ? sp / sw : even, even: even, keys: keys, n: ranged.length, from: mw.from, family: mw.family };
+}
+function d2jspKeyValue(r) {
+  var m = /[-+]?\d+(?:\.\d+)?%?/.exec(String(r.line || ''));
+  return m ? m[0].replace(/^\+/, '') : String(r.value);
+}
 function d2jspTierWord(pct) {
   return pct >= 100 ? 'perfect' : (pct >= 85 ? 'near-perfect' : (pct >= 50 ? 'mid' : 'low'));
 }
 /* the roll-tier line: the mean place in the rolls of every mod that has a range, and each flag */
-function d2jspTierLine(reads) {
+function d2jspTierLine(reads, itemName, posts, base) {
   var ranged = (reads || []).filter(function(r){ return r.hi > r.lo && !r.warn; });
   var warns = (reads || []).filter(function(r){ return r.warn; }).map(function(r){ return 'Check: ' + r.warn + '.'; });
   if (!ranged.length) return warns.length ? warns.join(' ') : '';
+  if (itemName) {
+    var wt = d2jspWeightedTier(reads, itemName, posts, base);
+    var head = 'Roll tier: ' + d2jspTierWord(Math.round(wt.pct));
+    if (wt.keys.length && wt.keys.length < wt.n) {
+      head += ' on the key mods ' + wt.keys.map(d2jspKeyValue).join(' / ') + ', ' + Math.round(wt.pct) + '% weighted; '
+        + Math.round(wt.even) + '% across all ' + wt.n + ' mods read';
+    } else {
+      head += ', ' + Math.round(wt.pct) + '% up the rolls (' + wt.n + ' ' + (wt.n === 1 ? 'mod' : 'mods') + ' read)';
+    }
+    head += (wt.from === 'posts' ? ', weights learned from the posts' : '') + '.';
+    return warns.length ? (head + ' ' + warns.join(' ')) : head;
+  }
   var avg = Math.round(ranged.reduce(function(s, r){ return s + r.pct; }, 0) / ranged.length);
   var line = 'Roll tier: ' + d2jspTierWord(avg) + ', ' + avg + '% up the rolls (' + ranged.length + ' ' + (ranged.length === 1 ? 'mod' : 'mods') + ' read).';
   return warns.length ? (line + ' ' + warns.join(' ')) : line;
 }
-function d2jspTierAvg(reads) {
+function d2jspTierAvg(reads, itemName, posts, base) {
   var ranged = (reads || []).filter(function(r){ return r.hi > r.lo && !r.warn; });
   if (!ranged.length) return null;
+  if (itemName) return d2jspWeightedTier(reads, itemName, posts, base).pct;
   return ranged.reduce(function(s, r){ return s + r.pct; }, 0) / ranged.length;
 }
 /* the price by roll tier: the low end of the recent range for a low roll, the high end for a top one. Advice under
@@ -12433,6 +12542,89 @@ function d2jspTierPrice(q, avg) {
   if (q.reason !== 'read' || avg == null || !(low > 0) || !(high > low)) return '';
   var at = Math.round(low + (high - low) * Math.max(0, Math.min(100, avg)) / 100);
   return 'For a ' + d2jspTierWord(Math.round(avg)) + ' roll: about ' + at + ' fg of ' + low + '\u2013' + high + '.';
+}
+/* v3844 - POSTS LIKE YOURS. A post's slash roll ("anni 20/20/10") is set against the roll you hold, mod by mod with the
+   family's weights: the closer, the heavier. The price is the weighted middle of those posts; a post set aside as far
+   from the middle stays out. */
+function d2jspSimilarity(mine, theirs, weights) {
+  if (!mine || !theirs || mine.length !== theirs.length) return 0;
+  var sw = 0, sd = 0;
+  for (var i = 0; i < mine.length; i++) {
+    var w = weights && weights[i] != null ? weights[i] : 1, span = Math.max(Math.abs(mine[i]), Math.abs(theirs[i]), 1);
+    sw += w; sd += w * Math.min(1, Math.abs(mine[i] - theirs[i]) / span);
+  }
+  return sw > 0 ? Math.max(0, 1 - sd / sw) : 0;
+}
+function d2jspWeightedMiddle(pairs) {
+  var s = pairs.filter(function (p) { return p.w > 0; }).sort(function (a, b) { return a.fg - b.fg; });
+  var total = s.reduce(function (t, p) { return t + p.w; }, 0), run = 0;
+  for (var i = 0; i < s.length; i++) { run += s[i].w; if (run >= total / 2) return s[i].fg; }
+  return null;
+}
+/* the roll you hold as the family's slash tuple, from the typed mod reads (null when the family is not written that way) */
+function d2jspTupleOf(reads, itemName) {
+  var order = D2JSP_TUPLE_ORDER[d2jspFamily(itemName)];
+  if (!order) return null;
+  var out = order.map(function (re) { var r = (reads || []).filter(function (x) { return re.test(x.line); })[0]; return r ? Math.abs(Number(r.value)) : null; });
+  return out.every(function (v) { return v != null; }) ? out : null;
+}
+/* -> {posts: each post with its weight, fg: the weighted price or null, like: how many posts matched the roll} */
+function d2jspSimilarPrice(q, mine, itemName) {
+  var posts = (q && q.posts) || [], fam = d2jspFamily(itemName), order = D2JSP_TUPLE_ORDER[fam] || [];
+  var spec = fam ? D2JSP_FAMILY_MODS[fam] : null;
+  var tw = order.map(function (re) { return spec && spec.key.some(function (k) { return String(k) === String(re); }) ? 1 : 0.25; });
+  var like = 0;
+  var rows = posts.map(function (p) {
+    var sim = null, w = Number(p.w) > 0 ? Number(p.w) : 0;
+    if (mine && mine.length && w > 0) {
+      var best = 0;
+      (p.roll || []).forEach(function (t) { best = Math.max(best, d2jspSimilarity(mine, t, tw.length === mine.length ? tw : null)); });
+      sim = best;
+      if (best > 0) like++;
+      w = w * (best > 0 ? 0.1 + 0.9 * best * best : 0.1);
+    }
+    return { fg: Number(p.fg), day: p.day || '', link: p.link || '', roll: p.roll || [], w: w, sim: sim, out: p.out || '' };
+  });
+  return { posts: rows, fg: mine && like ? d2jspWeightedMiddle(rows) : null, like: like };
+}
+function d2jspEscText(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+}
+/* v3844 - THE EVIDENCE DRAWER under every quote: each post the price came from - when, how much, the roll as read, its
+   weight - with the link to open it on the forum, so a price can be checked by hand. Nothing here posts. */
+function d2jspEvidenceHtml(sim) {
+  var rows = (sim && sim.posts) || [];
+  if (!rows.length) return '';
+  var body = rows.map(function (p) {
+    var roll = (p.roll || []).map(function (t) { return t.join('/'); }).join(', ') || 'no roll written';
+    var weight = p.out ? ('set aside, ' + p.out) : (p.w > 0 ? p.w.toFixed(2) : '0');
+    var open = p.link ? ('<a href="' + d2jspEscText(p.link) + '" target="_blank" rel="noopener noreferrer">open post</a>') : 'no link';
+    return '<tr><td>' + d2jspEscText(p.day) + '</td><td>' + d2jspEscText(p.fg) + ' fg</td><td>' + d2jspEscText(roll)
+      + '</td><td>' + d2jspEscText(weight) + '</td><td>' + open + '</td></tr>';
+  }).join('');
+  return '<details class="d2jsp-ev" data-d2jsp-ev><summary>show the ' + rows.length + ' ' + (rows.length === 1 ? 'post' : 'posts')
+    + '</summary><table><thead><tr><th>date</th><th>price</th><th>roll as read</th><th>weight</th><th>post</th></tr></thead><tbody>'
+    + body + '</tbody></table></details>';
+}
+/* v3844 - THE PRICE SEARCH reads what a trader types ("anni 20/20/10", "40/15 shako", "jmod", "torch sorc 18/18"): the
+   words left after the slash rolls, the bare numbers and the condition words are the item the forum is searched for,
+   and the rolls are the roll you hold. */
+function d2jspParseSearch(text) {
+  var t = String(text || '').replace(/\s+/g, ' ').trim(), tuples = [], m, re = /(\d+(?:\/\d+)+)/g;
+  while ((m = re.exec(t))) tuples.push(m[1].split('/').map(Number));
+  var item = t.replace(/\d+(?:\/\d+)+/g, ' ').replace(/@\s*\d+|\d+\s*@/g, ' ').replace(/\b\d+\s*os\b/gi, ' ')
+    .replace(/\b(?:eth|perf(?:ect)?|up'?d|upped|rand|unid|wts|wtb|ft|fg|price|pc)\b/gi, ' ').replace(/\b\d+(?:\.\d+)?\b/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+  return { item: item, roll: tuples[0] || null, text: t };
+}
+function d2jspSearchLine(q, sim, parsed) {
+  var line = d2jspPriceLine(q);
+  if (q && q.reason === 'read' && parsed && parsed.roll) {
+    line += sim && sim.fg != null
+      ? (' Posts like ' + parsed.roll.join('/') + ': about ' + sim.fg + ' fg from ' + sim.like + ' ' + (sim.like === 1 ? 'post' : 'posts') + '.')
+      : (' No 2026 post wrote a roll like ' + parsed.roll.join('/') + '.');
+  }
+  return line;
 }
 /* ⟦D2JSP DESK END⟧ */
 (function(){
@@ -12710,14 +12902,26 @@ function d2jspTierPrice(q, avg) {
     if (reading) return 'Reading the public price.';
     return 'Public price unknown.';
   }
+  /* v3844 - the evidence drawer under a card's quote: its posts, weighted against the roll the card holds */
+  function cardSim(n){
+    var q = quoted[n];
+    if (!q || q.reason !== 'read') return null;
+    var db = null;
+    try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
+    var mine = db && modsOf(n).trim() ? d2jspTupleOf(d2jspAffixRead(modsOf(n), db, n), n) : null;
+    return d2jspSimilarPrice(q, mine, n);
+  }
+  function evHtml(n){ return d2jspEvidenceHtml(cardSim(n)); }
   /* v3843 - the roll-tier line and the tier price, under the price line; nothing when no mod is read */
   function tierHtml(n, mods){
     var db = null;
     try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
     if (!db || !String(mods || '').trim()) return '';
-    var reads = d2jspAffixRead(mods, db, n), line = d2jspTierLine(reads);
+    /* v3844 - weighted by the item family's key mods (or by what the 2026 posts priced it on) */
+    var posts = quoted[n] && quoted[n].posts, base = baseOf(n);
+    var reads = d2jspAffixRead(mods, db, n), line = d2jspTierLine(reads, n, posts, base);
     if (!line) return '';
-    var tp = quoted[n] ? d2jspTierPrice(quoted[n], d2jspTierAvg(reads)) : '';
+    var tp = quoted[n] ? d2jspTierPrice(quoted[n], d2jspTierAvg(reads, n, posts, base)) : '';
     return '<div class="d2jsp-say" data-d2jsp-tier>' + esc(line + (tp ? (' ' + tp) : '')) + '</div>';
   }
   function cardHtml(n){
@@ -12742,6 +12946,7 @@ function d2jspTierPrice(q, avg) {
       + '<pre class="d2jsp-draft" data-d2jsp-draft' + (postText ? '' : ' hidden') + '>' + esc(postText) + '</pre>'
       + '<div class="d2jsp-say" data-d2jsp-wait' + (draft.ok ? ' hidden' : '') + '>The post waits for a price.</div>'
       + '<div class="d2jsp-say" data-d2jsp-price>' + esc(priceText(n)) + '</div>'
+      + '<div data-d2jsp-evbox>' + evHtml(n) + '</div>'
       + tierHtml(n, mods)
       + '<div class="d2jsp-fields">'
       + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-options="' + esc(n) + '">Options</button>' + mark + remove + '</div>'
@@ -12780,6 +12985,11 @@ function d2jspTierPrice(q, avg) {
       var n = card && card.getAttribute('data-d2jsp-item');
       if (!n) continue;
       nodes[i].textContent = priceText(n);
+      var evb = card.querySelector('[data-d2jsp-evbox]');
+      if (evb) {   /* an open drawer stays open unless its posts changed */
+        var evh = evHtml(n);
+        if (evb.getAttribute('data-sig') !== evh) { evb.setAttribute('data-sig', evh); evb.innerHTML = evh; }
+      }
       var send = sendOf(n);
       var sold = soldOf(n);
       var btn = card.querySelector('[data-d2jsp-post]');
@@ -13259,6 +13469,33 @@ function d2jspTierPrice(q, avg) {
     return { kind: 'maybe', text: heard + ', so the post may be up. Check board ' + n + ' before you post again.', link: d2jspForumUrl(n) };
   }
   /* ⟦D2JSP SEND WORDS END⟧ */
+  /* v3844 - THE PRICE SEARCH: any typed item and roll, read through the same quote path as the cards */
+  var searchGen = 0;
+  function priceSearch(){
+    var el = document.getElementById('d2jsp-price-q'), out = document.getElementById('d2jsp-price-out');
+    if (!el || !out) return;
+    var parsed = d2jspParseSearch(el.value);
+    if (!parsed.item) { out.textContent = 'Type an item, for example anni 20/20/10.'; return; }
+    var gen = ++searchGen, paths = ['/api/d2jsp_quote?item=', '/d2r/api/d2jsp_quote?item='], i = 0;
+    out.textContent = 'Reading 2026 posts for ' + parsed.item + '.';
+    function show(j){
+      if (gen !== searchGen) return;     /* only the newest search paints */
+      var sim = d2jspSimilarPrice(j, parsed.roll, parsed.item);
+      out.innerHTML = '<div>' + esc(d2jspSearchLine(j, sim, parsed)) + '</div>' + (j && j.reason === 'read' ? d2jspEvidenceHtml(sim) : '');
+    }
+    function step(){
+      if (i >= paths.length) { show({ fg: null, n: 0, readAt: null, reason: 'unanswered' }); return; }
+      fetch(paths[i++] + encodeURIComponent(parsed.item)).then(function(r){ return r.json(); }).then(function(j){
+        if (j && (j.reason === 'no prices' || j.reason === 'read' || j.reason === 'need-login')) { show(j); return; }
+        step();
+      }).catch(function(){ step(); });
+    }
+    step();
+  }
+  window._d2jspPriceSearch = priceSearch;
+  document.addEventListener('submit', function(ev){
+    if (ev.target && ev.target.id === 'd2jsp-price-form') { ev.preventDefault(); priceSearch(); }
+  });
   document.addEventListener('input', function(ev){
     var t = ev.target;
     if (!t || !t.getAttribute) return;
