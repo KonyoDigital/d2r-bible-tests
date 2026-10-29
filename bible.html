@@ -63069,8 +63069,13 @@ function renderJournal(){
      forgeScan()'s payload it is allowed to see. Copying the renderer would have been copy-drift
      with 195 craft mentions to keep in step. [[copy-drift]] */
   var _craftsFilter='all';  // the crafts room keeps its OWN chip state, so the two do not fight
+  /* REG-3056 (GrokBot #230 6486545342) - HIS CHIP OUTRANKS THE AUTO-LANDING. The sealed-chronicle landing and the crafts
+     auto-land below ran on EVERY render, so on a sealed board a click on ALL or COMPLETED in Crafts snapped straight back to
+     MAKE NOW. A landing chooses the first view only; once he picks a chip in a room, that room keeps his pick. */
+  var _forgeByHand = { forge: false, crafts: false };
   window.forgeSetFilter=function(f, scope){
-    if (scope === 'crafts'){ _craftsFilter=(f===_craftsFilter && f!=='all')?'all':f; renderForge('crafts'); return; }
+    if (scope === 'crafts'){ _forgeByHand.crafts = true; _craftsFilter=(f===_craftsFilter && f!=='all')?'all':f; renderForge('crafts'); return; }
+    _forgeByHand.forge = true;
     _forgeFilter=(f===_forgeFilter && f!=='all')?'all':f; renderForge();
   };
   window.renderCrafts=function(){ return renderForge('crafts'); };
@@ -63441,14 +63446,15 @@ function renderJournal(){
        CONSTRUCTION, so it auto-selected Completed on every render, drew the (empty) runeword
        Completed list and returned — measured: crafts-body 0 chars while Forge drew 140,911. The
        room that owns the question is the one that may answer it. */
-    if (!_isCrafts && _F==='all' && !total && !(s.farm||[]).length && nowCount===0){
+    var _byHand = !!_forgeByHand[_isCrafts ? 'crafts' : 'forge'];   /* REG-3056 his chip outranks every landing */
+    if (!_byHand && !_isCrafts && _F==='all' && !total && !(s.farm||[]).length && nowCount===0){
       if (_sealed691) _F='completed';
     }
     // v1411 — Ready crafts are Make-now work, but ONLY auto-land on ⚒ Make now when the
     // runeword chronicle is SEALED. Forcing 'now' on an open chronicle hid 🌾 farm / one-step
     // words from the DOM (v604 coverage invariant: every unmade word must remain visible).
     // On All (unsealed), crafts still render inside the Make-now section via show('now').
-    if ((s.crafts||[]).length > 0 && _sealed691 && (_F==='all' || _F==='completed')){
+    if (!_byHand && (s.crafts||[]).length > 0 && _sealed691 && (_F==='all' || _F==='completed')){
       _F='now';
     }
     if (_isCrafts) { _craftsFilter=_F; } else { _forgeFilter=_F; }

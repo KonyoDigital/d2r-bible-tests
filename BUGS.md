@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3056 - ON A SEALED BOARD HIS CRAFTS CHIP SNAPPED BACK TO MAKE NOW (GrokBot #230 6486545342)
+GrokBot, a shadow of the Mac (every runeword made) -> Runewords -> Crafts: ALL 40 and COMPLETED snapped back to MAKE NOW 4.
+renderForge's v1411 crafts auto-land (and the chronicle's v2094 sealed landing) ran on EVERY render, so his chip was
+overwritten by the next paint. A landing now chooses the FIRST view only: forgeSetFilter records his pick per room
+(_forgeByHand.crafts / .forge), and both landings stand aside once he has picked. Measured on the whole page in node, every
+runeword made and one craft's rune and gem added through the Tools tab's tally doors: lands on MAKE NOW first; his ALL and
+COMPLETED survive a re-render. Law test_his_forge_chip_outranks_the_landing, 2 red-proofs RED.
+
 ### REG-3040 - #161'S HOOK EDIT DROPPED THE PUSH HOOK'S EXECUTABLE BIT, WHICH WOULD HAVE SWITCHED THE WHOLE LOCAL GATE OFF
 core.hooksPath=hooks, and git runs a hook only when it is executable: a 100644 hooks/pre-push is skipped with a one-line
 hint while every push still "succeeds". REG-2963's commit (#161 stage 2, 38399892d) changed hooks/pre-push 100755 -> 100644
