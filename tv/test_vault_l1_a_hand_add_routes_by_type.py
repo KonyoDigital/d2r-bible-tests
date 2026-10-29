@@ -40,7 +40,9 @@ BY_TYPE = [
     ("set", "Tal Rasha's Guardianship", "Tal Rasha's Guardianship (armor)", "SETS-TAL-IK", (2, 3)),
     ("unique", "Harlequin Crest", "Harlequin Crest (Shako)", "SHARED STASH", (2, 2)),
     ("runeword", "Insight", "Insight", "RUNEWORDS", (2, 4)),
-    ("charm", "Gheed's Fortune", "Gheed's Fortune", "UNI-SMALL", (1, 3)),
+    # REG-2993 - his 2026-10-28 ruling (REG-2895): "no gheeds no... MF no... those go to charms mmule dedicated" - Gheed's
+    # Fortune is muled on the dedicated CHARMS mule, which supersedes REG-2859's UNI-SMALL (his 2026-10-15 ruling)
+    ("charm", "Gheed's Fortune", "Gheed's Fortune", "CHARMS", (1, 3)),
     ("jewel", "Rainbow Facet", "Rainbow Facet", "SHARED STASH", (1, 1)),
     ("amulet", "Nokozan Relic", "Nokozan Relic", "UNI-SMALL", (1, 1)),
     ("belt", "Arachnid Mesh", "Arachnid Mesh", "SHARED STASH", (2, 1)),
@@ -512,6 +514,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "(manual ? '<b class=\"vmv-manual-badge\">MANUAL</b>'",
      "replace": "(true ? '<b class=\"vmv-manual-badge\">MANUAL</b>'",
+     "matches": 1},
+    {"why": "REG-2993 - Gheed's Fortune goes back to UNI-SMALL (REG-2859's answer), not the CHARMS mule his 2026-10-28 ruling names.",
+     "file": "bible.html",
+     "find": "    return k.mf ? { id: CHARM_MULE, why: 'Gheed\u2019s Fortune, a magic-find charm \u2014 the CHARMS mule' + RULE }",
+     "replace": "    return k.mf ? { id: 'uni-small', why: 'Gheed\u2019s Fortune, a magic-find charm \u2014 the CHARMS mule' + RULE }",
      "matches": 1},
 ]
 

@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2993 - THE HAND-ADD LAW STILL SENT GHEED'S FORTUNE TO UNI-SMALL, AGAINST HIS 10-28 RULING (CI on ci/claude-v3837)
+test_vault_l1_a_hand_add_routes_by_type read 'CHARMS' != 'UNI-SMALL'. The CODE is right. His words, 2026-10-28 ~20:02: "no
+gheeds no... MF no... those go to charms mmule dedicated". REG-2895 homes Gheed's Fortune on the CHARMS mule, superseding
+REG-2859's UNI-SMALL (his 10-15 ruling). Annihilus and Hellfire Torch stay on the SHARED STASH by the same ruling, and the
+law's Annihilus case already expects that. The row now expects CHARMS. A new red-proof sends Gheed's back to 'uni-small' in
+_charmHome; replayed in node on v3837's page, that routes the hand add to UNI-SMALL, which the row's holder check refuses.
+Chrome law: CI proves it.
+
+
 ### REG-2992 - THE FINDER LAW STILL WANTED HIS MAGIC-FIND CHARM ON MAGIC & RARE, WHICH HOLDS NO CHARMS SINCE HIS 10-28 RULING (CI on ci/claude-v3837)
 test_the_vault_finder_names_the_mule_and_the_cell read 'charms' != 'magic-rare' for Harpoonist's Grand Charm. The FINDER is
 right: Harpoonist's is a skiller grand charm (the page's _charmKind: grand, skiller, read), and his 2026-10-28 ruling
