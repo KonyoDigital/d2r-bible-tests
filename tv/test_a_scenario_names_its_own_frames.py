@@ -178,12 +178,33 @@ class AScenarioNamesItsOwnFrames(unittest.TestCase):
         v, why = SF.check_rec03({"s_old", "s_new"}, {"s_old": old, "s_new": new})
         self.assertEqual((v, "s_new" in why), ("PASS", True), "the session with the latest reads did not decide: %s" % why)
 
+    def test_rec03_newest_session_is_its_latest_worker_read_never_a_commitment_row(self):
+        """REG-3025 (the v3836 second eye) - the newest session was picked by the latest time on ANY row stored for it,
+        a deep-owed commitment included, so an old session's late commitment row decided REC-03 over a newer session's
+        reads - both ways (a false FAIL and a false PASS)."""
+        def reads(mode, t):
+            return [{"lane": "deep", "mode": mode, "ts": t + i} for i in range(9)]
+        owed = {"lane": "deep-owed", "ts": 1795000000000}
+        v, why = SF.check_rec03({"s_old", "s_new"}, {"s_old": reads("oneshot", 1793000000000) + [owed],
+                                                     "s_new": reads("warm", 1794000000000)})
+        self.assertEqual((v, "newest long session s_new" in why), ("PASS", True),
+                         "an old session's late commitment row decided over the newer reads: %s %s" % (v, why))
+        v, why = SF.check_rec03({"s_old", "s_new"}, {"s_old": reads("warm", 1793000000000) + [owed],
+                                                     "s_new": reads("oneshot", 1794000000000)})
+        self.assertEqual((v, "newest long session s_new" in why), ("FAIL", True),
+                         "an old warm session's late commitment row passed over the newer oneshot reads: %s %s" % (v, why))
+
     def test_scenario_items_without_the_known_names_keeps_none(self):
         """REG-2784 - the default kept every prose word, the opposite of the function's own rule."""
         self.assertIsNone(SF.scenario_items("REC-03", self.doc), "no known names, and prose words joined anyway")
 
 
 RED_PROOF = [
+    {"why": "REG-3025 - a deep-owed commitment row's time picks REC-03's newest session again",
+     "file": "scenario_frames.py",
+     "find": "        ts = [int(r.get(\"ts\") or 0) for r in worker]   # REG-3025",
+     "replace": "        ts = [int(r.get(\"ts\") or 0) for r in g]   # REG-3025",
+     "matches": 1},
     {"why": "REG-2784 - a stub, mode-less or other-eye read passes REC-03 again",
      "file": "scenario_frames.py",
      "find": "    if other:\n        return \"UNKNOWN\", why",

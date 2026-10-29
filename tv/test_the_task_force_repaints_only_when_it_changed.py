@@ -40,6 +40,17 @@ class TheTaskForceRepaintsOnlyWhenItChanged(unittest.TestCase):
         blk = _block()
         self.assertLess(blk.index("rowsEl.innerHTML = html;"), blk.index("rowsEl.setAttribute('data-tf-sig', _tfMark);"))
 
+    def test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint(self):
+        """REG-3028 (the v3836 second eye) - the date was written only on the paint path, after the skip, and it is not in
+        the rows' html, so the header kept Monday's name all Tuesday once the rows held still across midnight."""
+        blk = _block()
+        skip = blk.index("if (html === _hdTfSig && landed) return;")
+        w = blk.find("_tfd.textContent = _tfDay")
+        self.assertGreaterEqual(w, 0, "nothing writes the task force's weekday")
+        self.assertLess(w, skip, "the weekday is written only after the skip, so an unchanged roster freezes it")
+        self.assertIn("if (_tfd.textContent !== _tfDay)", blk, "the weekday is rewritten on every poll even when unchanged")
+        self.assertEqual(blk.count("$('hd-tf-date')"), 1, "a second weekday writer sits on the paint path")
+
     @unittest.skipUnless(NODE, "node is absent - the mark's own behaviour is UNMEASURED here, never a pass")
     def test_the_mark_is_the_same_for_the_same_rows_and_differs_when_they_change(self):
         fn = re.search(r"function _hdTfHash\(s\)\{.*?\n", UI).group(0)
@@ -51,6 +62,11 @@ class TheTaskForceRepaintsOnlyWhenItChanged(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-3028 - the weekday is written only on a repaint again, so it freezes across midnight",
+     "file": "control_ui.html",
+     "find": "      var _tfd = box && $('hd-tf-date');\n",
+     "replace": "      if (html === _hdTfSig && landed) return;\n      var _tfd = box && $('hd-tf-date');\n",
+     "matches": 1},
     {"why": "REG-2796 - the skip compares innerHTML again, so an apostrophe repaints the roster on every poll",
      "file": "control_ui.html",
      "find": "                      && (!rows.length || rowsEl.getAttribute('data-tf-sig') === _tfMark));\n",

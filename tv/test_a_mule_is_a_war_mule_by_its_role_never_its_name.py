@@ -84,11 +84,16 @@ OUT.shared = { name: (byId('shared') || {}).name, renameButton: ((card('shared')
 W.prompt = function(){ return 'war5'; }; W.vaultAddMule();
 var w5 = R().filter(function(m){ return m.name === 'WAR5'; })[0] || {};
 OUT.war5 = { role: w5.role || null, warN: w5.warN || null };
+// REG-3027 - a mule he creates as WAR0 is no war mule (0 read back as WAR1)
+W.prompt = function(){ return 'war0'; }; W.vaultAddMule();
+var w0 = R().filter(function(m){ return m.name === 'WAR0'; })[0] || null;
+OUT.war0 = w0 ? { role: w0.role || null, read: W._vaultWarRole(w0) } : null;
 """
 
 BODY_LEGACY = READ + r"""
 OUT.legacy = byId('war-law-0'); OUT.core = byId('uni-armor'); OUT.mark = (byId('shared') || {}).warRoleV || null;
 OUT.read = { legacy: W._vaultWarRole(byId('war-law-0')), core: W._vaultWarRole(byId('uni-armor')) };
+OUT.zero = { stored: byId('war-law-z'), read: W._vaultWarRole(byId('war-law-z')), wars: W._vaultWarMules().map(function(w){ return w.id; }) };
 rename('mlawadded1', 'WAR3');
 OUT.war3 = W._vaultWarRole(byId('mlawadded1'));
 OUT.raw = {}; H.RAW.forEach(function(v, k){ OUT.raw[k] = v; });
@@ -96,6 +101,13 @@ OUT.raw = {}; H.RAW.forEach(function(v, k){ OUT.raw[k] = v; });
 
 BODY_RELOAD = READ + r"""
 OUT.war3 = { stored: byId('mlawadded1'), read: W._vaultWarRole(byId('mlawadded1')) };
+"""
+
+BODY_SHARED = READ + r"""
+W.renderVault(); H.flush(60, 3);
+OUT.stored = (byId('shared') || {}).name || null;
+OUT.card = ((card('shared') || {}).html || '').indexOf('SHARED STASH') >= 0;
+OUT.oldName = ((card('shared') || {}).html || '').indexOf('BIG STASH') >= 0;
 """
 
 BODY_CORE = READ + r"""
@@ -132,7 +144,8 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
         cls.r = VPN.run(BODY_RENAME, prelude=CLAIM, timeout=300)
         base = _base()
         legacy = [dict(m, **({"role": "war", "warN": 2} if m.get("id") == "uni-armor" else {})) for m in base]
-        legacy += [{"id": "war-law-0", "name": "WAR1"}, {"id": "mlawadded1", "name": "UNI-WEAP-2", "icon": "📦", "added": True}]
+        legacy += [{"id": "war-law-0", "name": "WAR1"}, {"id": "mlawadded1", "name": "UNI-WEAP-2", "icon": "📦", "added": True},
+                   {"id": "war-law-z", "name": "WAR0", "icon": "📦", "added": True}]
         cls.l = VPN.run(BODY_LEGACY, prelude=_seed(legacy), timeout=300)
         raw = cls.l.pop("raw")
         carry = "".join("localStorage.setItem(%s, %s);\n" % (json.dumps(k), json.dumps(v)) for k, v in raw.items())
@@ -141,6 +154,8 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
                        , **({"warRoleV": 1} if m.get("id") == "shared" else {})) for m in base]
         cls.c = VPN.run(BODY_CORE, prelude=_seed(core), timeout=300)
         cls.t = VPN.run(BODY_TAKEN, prelude=CLAIM, timeout=300)
+        renamed = [dict(m, **({"name": "BIG STASH", "warRoleV": 1} if m.get("id") == "shared" else {})) for m in base]
+        cls.s = VPN.run(BODY_SHARED, prelude=_seed(renamed), timeout=300)
 
     def test_a_renamed_war1_keeps_its_role_and_the_shared_familys_look_everywhere(self):
         r = self.r
@@ -174,6 +189,24 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
         self.assertFalse(s["renameButton"], "the shared stash's card still offers a rename")
         self.assertTrue(s["otherButton"], "PREMISE: no other card offers a rename either - the check reads nothing")
 
+    def test_a_shared_stash_renamed_before_the_rule_gets_its_name_back(self):
+        """REG-3026 (the v3836 second eye) - the door refuses every rename of the shared stash, so one renamed BIG STASH
+        before REG-2804 could never be put back: its card and rows printed BIG STASH, its lock and plan SHARED STASH."""
+        s = self.s
+        self.assertEqual(s["__boot"]["errors"], [], s["__boot"])
+        self.assertEqual(s["stored"], "SHARED STASH", "a shared stash renamed before REG-2804 kept the old name: %r" % s)
+        self.assertTrue(s["card"] and not s["oldName"], "the shared stash's card still prints the old name: %r" % s)
+
+    def test_war0_is_never_a_war_number(self):
+        """REG-3027 (the v3836 second eye) - WAR0 stored warN 0, which _vaultWarRole read back as 1: it collided with WAR1."""
+        self.assertIsNotNone(self.r["war0"], "PREMISE: the board would not make a mule named WAR0: %r" % self.r)
+        self.assertEqual(self.r["war0"], {"role": None, "read": 0}, "a mule he creates as WAR0 is a war mule: %r" % self.r["war0"])
+        z = self.l["zero"]
+        self.assertIsNotNone(z["stored"], "PREMISE: the legacy WAR0 mule is not in the roster: %r" % z)
+        self.assertNotIn("role", z["stored"], "an old roster's WAR0 was stamped a war mule: %r" % z)
+        self.assertEqual(z["read"], 0, z)
+        self.assertNotIn("war-law-z", z["wars"], "WAR0 counts among the war mules: %r" % z)
+
     def test_a_mule_he_creates_as_war5_is_a_war_mule(self):
         self.assertEqual(self.r["war5"], {"role": "war", "warN": 5}, "creating WAR5 by hand stored no war role: %r" % self.r["war5"])
 
@@ -205,6 +238,21 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-3026 - a shared stash renamed before REG-2804 keeps its old name",
+     "file": "bible.html",
+     "find": "    if (!sh || sh.name === 'SHARED STASH') return;\n",
+     "replace": "    return;\n",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-3027 - an old roster's WAR0 is stamped war number 0, which reads back as WAR1",
+     "file": "bible.html",
+     "find": "      var x = /^war\\s*([1-9]\\d*)?$/i.exec(",
+     "replace": "      var x = /^war\\s*(\\d*)$/i.exec(",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-3027 - a mule he creates as WAR0 is a war mule numbered 0, read as WAR1",
+     "file": "bible.html",
+     "find": "    var _wx = /^war\\s*([1-9]\\d*)?$/i.exec(v.name);",
+     "replace": "    var _wx = /^war\\s*(\\d*)$/i.exec(v.name);",
+     "matches": 1, "needs": "node"},
     {"why": "REG-2804 - a name makes a war mule again (UNI-ARMOR renamed WAR2)",
      "file": "bible.html",
      "find": "    if (m.role === 'war') return +m.warN || 1;\n    return 0;\n",

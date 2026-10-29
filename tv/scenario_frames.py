@@ -272,7 +272,7 @@ def check_rec03(sessions, deep_by):
             continue
         owed = sum(1 for r in g if r.get("lane") == "deep-owed")
         modes = collections.Counter(str(r.get("mode")) for r in deep)
-        ts = [int(r.get("ts") or 0) for r in g]
+        ts = [int(r.get("ts") or 0) for r in worker]   # REG-3025 - the reads decide, never a deep-owed commitment row
         t1 = max([t for t in ts if t > 0] or [0])
         long_.append((t1, sid, len(worker), owed, modes))
     if not long_:

@@ -43125,11 +43125,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!m) return;
       if (_WAR_CORE[m.id]) { if (m.role === 'war') { delete m.role; delete m.warN; changed = true; } return; }
       if (m.role) return;
-      var x = /^war\s*(\d*)$/i.exec(String(m.name || '').trim());
+      var x = /^war\s*([1-9]\d*)?$/i.exec(String(m.name || '').trim());   /* REG-3027 WAR0 is no war number: 0 read back as WAR1 */
       if (x) { m.role = 'war'; m.warN = x[1] ? +x[1] : 1; changed = true; }
     });
     sh.warRoleV = 1;
     try { _guardedSet(RK, JSON.stringify(roster)); } catch (eWv) {}   /* REG-2967 the stamp is saved with it, changed or not: memory = store */
+  })();
+  /* REG-3026 (the v3836 second eye) - THE SHARED STASH KEEPS ITS NAME, EVEN ONE RENAMED BEFORE REG-2804. The door refuses every
+     rename of it now, so a stash he had renamed (BIG STASH) could never be put back: its card and move rows printed BIG STASH
+     while its lock and plan said SHARED STASH. It is put back once, at load, and saved only when it changed. */
+  (function(){
+    if (_muleUnread[RK] || !_rosterSaved) return;
+    var sh = roster.filter(function(m){ return m && m.id === 'shared'; })[0];
+    if (!sh || sh.name === 'SHARED STASH') return;
+    sh.name = 'SHARED STASH';
+    try { _guardedSet(RK, JSON.stringify(roster)); } catch (eSn) {}
   })();
   // v404 migration — inject the RUNEWORDS mule into rosters saved before it existed (Konyo: "just a
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
@@ -52040,7 +52050,7 @@ window.vaultAutoAssign = function(){
     var _nm = {id:id, name:v.name, icon:'📦', note:'', added:true};
     /* REG-2804 - a mule he CREATES as WAR<n> is a war mule (MOVE TASKS asks him to make one so); its role is stored now,
        so a later rename keeps it - and a rename to WAR<n> never makes one */
-    var _wx = /^war\s*(\d*)$/i.exec(v.name); if (_wx) { _nm.role = 'war'; _nm.warN = _wx[1] ? +_wx[1] : 1; }
+    var _wx = /^war\s*([1-9]\d*)?$/i.exec(v.name);   /* REG-3027 */ if (_wx) { _nm.role = 'war'; _nm.warN = _wx[1] ? +_wx[1] : 1; }
     roster.push(_nm); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
   };
   window.vaultRenameMule = function(id){

@@ -73,6 +73,31 @@ differs only by case. artUrl now folds case as a lookup fallback, like the v2762
 a fold answers only when it names ONE key - two keys that differ only by case are ambiguous and draw nothing. Never a
 rewrite: the caller's name is untouched. CI could not see this: the render gate runs only in the Mac hook. Law
 test_an_art_name_folds_its_case (node, whole page; 3 cases), 2 red-proofs RED.
+### REG-3025 - REC-03'S NEWEST SESSION WAS PICKED BY A COMMITMENT ROW'S TIME, NOT ITS READS (the v3836 second eye)
+check_rec03 took each long session's latest time over EVERY row stored for it (deep_by mixes "deep" reads and "deep-owed"
+commitment rows), so an old session whose commitment was written late decided REC-03 over a newer session's reads - a false
+FAIL (9 old oneshots + a late commitment beat 9 newer warm reads) and the reverse false PASS. Measured on v3836's
+scenario_frames.py with both shapes. The time now comes from the worker reads the verdict is about. Law case
+test_rec03_newest_session_is_its_latest_worker_read_never_a_commitment_row; red-proof RED.
+
+### REG-3026 - A SHARED STASH RENAMED BEFORE REG-2804 COULD NEVER GET ITS NAME BACK (the v3836 second eye)
+REG-2804 made the rename door refuse the shared stash and dropped its rename button, but nothing restored a name changed
+before that: a stash renamed BIG STASH kept printing BIG STASH on its card and move rows while its lock and plan said SHARED
+STASH, and the one door that could correct it now refused. At load the shared stash's name is put back once and saved only
+when it changed (the REG-2967 guards: never on an unread or never-saved roster). Law case
+test_a_shared_stash_renamed_before_the_rule_gets_its_name_back (node, whole page); red-proof RED.
+
+### REG-3027 - WAR0 STORED WAR NUMBER 0, WHICH READ BACK AS WAR1 (the v3836 second eye)
+The legacy stamp and vaultAddMule matched /^war\s*(\d*)$/ and stored `x[1] ? +x[1] : 1`; "0" is truthy, so WAR0 stored
+warN 0, and _vaultWarRole's `+m.warN || 1` read it as 1 - a second war mule 1 beside WAR1. Both doors now match
+/^war\s*([1-9]\d*)?$/: WAR0 is an ordinary name (the board never makes it), WAR alone is still war mule 1. Law case
+test_war0_is_never_a_war_number (an old roster's WAR0 and one he creates); 2 red-proofs RED.
+
+### REG-3028 - THE TASK FORCE'S WEEKDAY FROZE ACROSS MIDNIGHT (the v3836 second eye, REG-2796's skip)
+hd-tf-date was written only on the paint path, after REG-2796's skip, and the date is not part of the rows' html or their
+mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
+weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
+test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
 
 ### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
 The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with

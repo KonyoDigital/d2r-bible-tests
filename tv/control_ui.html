@@ -25387,14 +25387,16 @@ window._lockMark = function(isOpen, px, label){
       var landed = !!(box && rowsEl
                       && box.hidden === !rows.length
                       && (!rows.length || rowsEl.getAttribute('data-tf-sig') === _tfMark));
+      /* REG-3028 (the v3836 second eye) - the weekday is not in the rows, so REG-2796's skip held it across midnight: the
+         header said Monday all Tuesday. It is written on every poll, and only when it changed (no repaint, no flicker). */
+      var _tfd = box && $('hd-tf-date');
+      if (_tfd && rows.length){ var _tfDay = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }); if (_tfd.textContent !== _tfDay) _tfd.textContent = _tfDay; }
       if (html === _hdTfSig && landed) return;
       if (!box || !rowsEl) return;          // nothing to paint into — do NOT commit the signature
       if (rows.length){
         rowsEl.innerHTML = html;
         rowsEl.setAttribute('data-tf-sig', _tfMark);   // REG-2796 - the mark this paint landed
         box.hidden = false;
-        var _tfd = $('hd-tf-date');
-        if (_tfd) _tfd.textContent = '· ' + new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
       } else {
         box.hidden = true;                  // an empty roster hides the panel, it does not freeze it
       }
