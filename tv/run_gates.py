@@ -12857,6 +12857,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_no_page_function_is_declared_twice.py")], 300,
          needs_app=False,
          why="REG-3070's near-miss: every page function is declared once in its script - a second declaration is hoisted and wins silently for every caller"),
+    Gate("test_a_sweep_apply_claims_possession_only_through_the_vault_door",
+         [sys.executable, os.path.join(HERE, "test_a_sweep_apply_claims_possession_only_through_the_vault_door.py")], 300,
+         needs_app=False,
+         why="REG-3086 (#158): a sweep apply claims possession only through the vault's door - AUTO INTAKE off owns nothing, a refused read is never owned, his hand still owns"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
