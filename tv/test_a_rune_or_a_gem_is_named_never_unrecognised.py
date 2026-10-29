@@ -55,7 +55,9 @@ W._vaultAutoIntakeSet && W._vaultAutoIntakeSet(true);
 var g = W.tvVaultRegister('Perfect Amethyst', { by: 'hand', at: new Date().toISOString(), where: 'the law' });
 OUT.reg = g && { refused: g.refused, why: g.why };
 /* the register door's no-home answer carries the router's own Unsorted reason (REG-2857's sweep): a name nothing knows */
-var v = W.tvVaultRegister('Bone Visor', { by: 'hand', at: new Date().toISOString(), where: 'the law' });
+/* REG-3088 - 'Bone Visor' is a game rare (Bone + Visor, a helm suffix) now read by the grammar; a name nothing knows is a
+   made-up one */
+var v = W.tvVaultRegister('Quovadis Fnord', { by: 'hand', at: new Date().toISOString(), where: 'the law' });
 OUT.regUnsorted = v && { refused: v.refused, why: v.why };
 })();
 """
