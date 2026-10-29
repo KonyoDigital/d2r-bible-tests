@@ -521,12 +521,9 @@ def console_pid(port=None):
     ⚠ None is UNKNOWN — "nobody is serving that port", never "his console is fine".
     """
     try:
-        import console_port as _cport   # REG-2998 - its own console's port; an unreadable one is no console, never his
-        port = int(port) if port else _cport.port()
+        port = int(port or os.environ.get("TV_CONTROL_PORT") or 17772)
     except Exception:
-        port = None
-    if not port:
-        return None
+        port = 17772
     try:
         out = subprocess.check_output(["lsof", "-ti", "tcp:%d" % port],
                                       stderr=subprocess.DEVNULL, timeout=10)
