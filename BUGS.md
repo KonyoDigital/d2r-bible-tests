@@ -103,6 +103,22 @@ the first item Dean filed would have erased the other four; a persist now carrie
 cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
 (node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
 and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+### REG-2928 - A VAULT MULE NEVER SAID WHETHER IT EXISTS IN GAME (#251)
+The vault names its mules (UNI-ARMOR, CHARMS, a renamed WAR mule, a mule he added), and nothing checked that a character
+of that name exists, or even could. window._vaultMuleSaveSay answers under each mule's plate. It is a check that is
+said, never a block: only the card asks it.
+- "a D2R name is letters only, so this exact name cannot be made in game": the name is no D2R name (2-15 characters,
+  letters, at most one '-' or '_'), whatever the saves say.
+- "on this account (seen in this PC's saves)": the save folder (GET /api/saves) names it, compared without case.
+- "not in this PC's saves": the saves answered and do not name it. It may live on another PC.
+Saves that never answered, a PC with no save folder and a shadow say nothing about the account, and SHARED STASH is no
+character. WAR naming and the make-task text are untouched. Measured on a fresh board: the default SETS-TAL-IK locker
+reads "cannot be made in game" (two hyphens), and so does MAGIC & RARE. They are said, not renamed: renaming a core
+locker is not this task.
+Law test_a_mule_says_whether_it_exists_in_game (the whole page in node, the vault painted), 6 cases, 5 red-proofs RED
+(digits pass as a name, the saves compared with case, unread saves said as "not on the account", the card never draws
+it, SHARED STASH judged as a character), baseline green. 14 vault card neighbours ran green; 4 laws go to CI.
+
 ### REG-2927 - THE CHARACTERS ROOM KNEW ONLY WHAT THE REELS HAD SEEN TWICE, NOT THE NAMES THIS PC'S SAVES HOLD (#251)
 The room and the builder offered only characters this console's reels had read on two character-select visits, in the
 OCR's spelling (KONYOLOCK). The save folder names every character played on this PC, exactly (REG-2925, GET /api/saves
