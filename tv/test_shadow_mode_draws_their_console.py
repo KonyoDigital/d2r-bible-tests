@@ -341,11 +341,13 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
 
         # A - the owner's own console on its own stores
         cls.mode[0] = "A"
-        # A's world is this headless Linux browser's own (machine 'windows', host LINUX) with a ledger of its own;
-        # the viewer below is pinned to the Mac world on the seed ledger, so a shadow that took the viewer's world
+        # A's world is pinned to the Windows machine with a ledger of its own (it used to be whatever the headless
+        # browser derived - 'windows' on Linux CI, but 'mac' on a Mac, where the fixture stopped differing); the
+        # viewer below is pinned to the Mac world on the seed ledger, so a shadow that took the viewer's world
         # draws the Mac ribbon and lets the Mac's seeds in.
         seed(dict(cls.stores, d2r_ownerClaim="*", d2r_installIdCache="tvdshadow0000000",
-                  d2r_installId="tvdshadow0000000", d2r_ledgerName="Dean ledger"))
+                  d2r_installId="tvdshadow0000000", d2r_ledgerName="Dean ledger",
+                  d2r_activeMachine="windows", d2r_machineSource="user"))
         nav("/")
         ready(OWN)
         time.sleep(8)
