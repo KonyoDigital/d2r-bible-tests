@@ -39,7 +39,7 @@ BODY = r"""
 (function(){
 var W = window, N = %s;
 function paint(){ try { W.renderVault(); } catch (e) { OUT.renderErr = String(e && e.message || e); } H.flush(60, 3); }
-function mk(){ return Object.prototype.hasOwnProperty.call(multiKeep, N) ? multiKeep[N] : null; }
+function mk(){ return Object.prototype.hasOwnProperty.call(multiKeep, N) ? _mkWant(N) : null; }   /* the want, through REG-2900's one accessor: a target is {want, dest} */
 function stored(){ try { var m = JSON.parse(W.LSR.getItem('d2r_multiKeep') || '{}'); return (N in m) ? m[N] : null; } catch (e) { return 'UNREADABLE'; } }
 paint();
 var it = W._cbItem('r92'), b = (W._cbBasesOf(it) || [])[0];

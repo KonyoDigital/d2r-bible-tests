@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2989 - REG-2842'S LAW READ A KEEPER TARGET AS A NUMBER AFTER REG-2900 MADE IT {want, dest} (CI on ci/claude-v3837)
+test_a_cleared_pick_puts_back_its_keeper_target compared multiKeep[name] with 2 and CI read (2, {'want': 2, 'dest': 'auto'})
+!= (2, 2). REG-2900 stores a multi-copy keeper as {want, dest}, and every reader asks _mkWant; the law's mk() now does too, so
+it pins the want the pick raised and the clear put back, whatever the shape. Its red-proof was re-aimed at integration int-4
+and read RED then, but the law was already red on its own, so that proof proved nothing: the sabotage runner had no baseline.
+It now runs each law clean first and refuses on a red baseline. Re-proven on v3837's bytes: baseline green, 1 of 1 RED.
+
+
 ### REG-2988 - THE GATE COST TABLE COVERED 94.5% OF THE GATE SET, UNDER ITS 95% FLOOR (CI on ci/claude-v3837)
 test_the_gate_set_shards_cleanly refused v3837: tv/gate_costs.json was measured on 1,207 gates and the registry had grown to
 1,277, so 5.5% of the set would have been sharded on the median guess. Refreshed with tv/gate_costs.py from that run's own job
