@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3842** | `(this commit)` | v3842 — one gate ledger per repo, Mac-only test reds fixed, opt-in parallel full |
+| **v3843** | `(this commit)` | v3843 — version history button, d2jsp slang search on the non-ladder board, recent-only prices |
+| **v3842** | `14917d0a` | v3842 — one gate ledger per repo, Mac-only test reds fixed, opt-in parallel full |
 | **v3841** | `57522952` | v3841 — The river names the reels its drain holds, and every D2JSP card finds its base again (#193 #83) |
 | **v3840** | `245ad9cd` | v3840 — Profiles upload again, carried proofs only from the ALT, a slow Chrome is no red, the Shelf stays open (#172 #186) |
 | **v3839** | `3e0d8eac` | v3839 — Renewed sunders draw their own carving, Dean confirms unevidenced ticks, Windows sends key frames (#111 #163 #218) |

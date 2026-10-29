@@ -1,5 +1,18 @@
 [
   {
+    "ver": "v3843",
+    "date": "2026-10-29",
+    "items": [
+      "version history button in the footer",
+      "d2jsp slang lexicon and notation parser",
+      "price search on the Softcore non-ladder board",
+      "only recent posts price an item",
+      "large fg amounts read whole",
+      "roll-tier line on the desk",
+      "shadow page skips the copy audit"
+    ]
+  },
+  {
     "ver": "v3842",
     "date": "2026-10-29",
     "items": [
