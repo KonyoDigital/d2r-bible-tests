@@ -5193,7 +5193,8 @@ window._foundBySay = function(row){
    shadow is read-only and refuses both. */
 window._UNCONF_RW_KEY = function(n){ return 'rw:' + String(n == null ? '' : n); };
 function _unconfReadOnly(){
-  try { return !!(window._tvdShadow || document.documentElement.classList.contains('tvd-shadow')); } catch (e) { return false; }
+  if (window._tvdShadow) return true;   /* the shadow law's guard form: a shadow refuses, it never draws differently */
+  try { return document.documentElement.classList.contains('tvd-shadow'); } catch (e) { return false; }
 }
 /* the stores the list is built from -> {fl, sp, rw, fb, ev, gf} | null when the found log, the set list or the runeword list
    will not read (UNKNOWN - never an empty list) */

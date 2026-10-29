@@ -235,7 +235,7 @@ runeword's row keyed 'rw:<name>', so a runeword and a unique of one name never a
 drops it); _ticksClear presses each store's own un-tick (toggleSetPiece / toggleOwned / rwToggleMade), so REG-1638's redo puts
 a cleared unique's date back, refuses any tick that has evidence, and refuses a name toggleOwned would route to the vault. A
 shadow refuses both. Boot and every timer leave the ticks as they are. Law tv/test_a_tick_with_no_evidence_asks_its_owner.py
-(node, the whole page, Dean's shape and his ledger), 7 red-proofs, all RED.
+(node, the whole page, Dean's shape and his ledger), 7 red-proofs, all RED. Integration note (v3839): its read-only check now takes the shadow law's guard form (`if (window._tvdShadow) return true;`), so test_shadow_mode_reads_their_console's no-branch rule holds; behaviour unchanged.
 
 ### REG-3007 - EVERY MAGIC CHARM DREW THE LATENT BLACK CLEFT TOTEM (#111, the REG-3006 sweep)
 _magicArtSrc, the picture a rolled magic or rare item takes from its base, answered art/logo_charm.png for every charm - and
