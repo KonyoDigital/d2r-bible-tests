@@ -12833,6 +12833,22 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_characters_room_says_why_its_saves_name_what_they_name.py")], 300,
          needs_app=False,
          why="#251 REG-3079 - the Characters room says why this PC's saves name what they name (no .d2s here, no save folder); a shadow says the owner's, from their upload"),
+    Gate("test_gear_seen_under_an_alias_reaches_its_character",
+         [sys.executable, os.path.join(HERE, "test_gear_seen_under_an_alias_reaches_its_character.py")], 300,
+         needs_app=False,
+         why='REG-3069 (#36): gear seen under a spelling the learner merged into a character reaches that character; an alias two characters claim stays UNKNOWN'),
+    Gate("test_a_worn_item_draws_its_slots_picture",
+         [sys.executable, os.path.join(HERE, "test_a_worn_item_draws_its_slots_picture.py")], 300,
+         needs_app=False,
+         why="REG-3070 (#36): the character window draws a worn item by its slot - a runeword's base of that slot's type, a rare's base by its slot, never another slot's"),
+    Gate("test_a_socket_range_never_passes_its_base",
+         [sys.executable, os.path.join(HERE, "test_a_socket_range_never_passes_its_base.py")], 300,
+         needs_app=False,
+         why="REG-3071 (#36): every surface that prints an item's socket range caps it at its base's ceiling (Aldur's Rhythm 2-3 on a Jagged Star)"),
+    Gate("test_no_page_function_is_declared_twice",
+         [sys.executable, os.path.join(HERE, "test_no_page_function_is_declared_twice.py")], 300,
+         needs_app=False,
+         why="REG-3070's near-miss: every page function is declared once in its script - a second declaration is hoisted and wins silently for every caller"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

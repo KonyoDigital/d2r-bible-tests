@@ -252,6 +252,82 @@ Follow-up: test_v3766_grokbot_retest slices _sharedOverflowNote out of the page,
 law raised ReferenceError (8 errors) until its slice carried _vaultLetters and _vaultWarName. The first sweep listed laws that
 NAME the war mules, not laws that SLICE a function this fix edited; the second sweep (every law quoting a touched function's
 name) found only this one.
+### REG-3071 - A SOCKET RANGE PRINTED PAST ITS BASE: ALDUR'S RHYTHM "SOCKETED (2-5)" ON A JAGGED STAR THAT HOLDS 3 (GrokBot 04:03, #36)
+GrokBot on the builder's tooltip: Aldur's Rhythm said "Socketed (2-5)". That is its own data line (s68: sock 2-5), but a
+Jagged Star holds at most 3, and the game caps an item's sockets at its base's ceiling.
+FIX: one display rule, with no data edit. _cbSockCapLine(line, base, item level) caps a numeric socket range at
+_cbMaxSock(base, item level), and passes any other line, or a base the database cannot read, unchanged. Every surface
+that prints an item's lines asks it:
+- the tooltip (_cbTipEntry, which also covers a magic item's picked mods);
+- the socket stepper's range (_cbSockRange);
+- a fixed count (_cbEntryFor);
+- the Edit tab's lines and its picked mods;
+- a d2jsp post's lines.
+SWEPT over the whole database on the page in node:
+- 3 items printed past their base: Aldur's Rhythm 2-5 on a Jagged Star (now 2-3), Heaven's Light 1-3 on a Mighty
+  Scepter (now 1-2), and Blade of Ali Baba 3 on a Tulwar (now 2).
+- A magic Jeweler's (Socketed 4) on a Jagged Star printed 4. It now prints 3.
+- Every range already inside its base is untouched.
+NOT CHANGED: the Edit tab's add-mod list still names each affix by its table words ("Jeweler's: Socketed (4)"). Once
+picked, the mod is capped.
+GUARD: tv/test_a_socket_range_never_passes_its_base.py, 5 cases: Aldur's tooltip and stepper, the sweep, the magic mod,
+the door itself, and each surface's call. 4 red-proofs, all RED.
+
+### REG-3070 - THE CHARACTER WINDOW DREW A WORN ITEM BY ITS NAME, NOT ITS SLOT: FORTITUDE AS ARMOR DREW A CRYSTAL SWORD (GrokBot 04:03, #36)
+GrokBot on the character window: each worn item drew by its own NAME, #248's defect again on the one surface that has
+only a name. A runeword drew the base its picture is keyed to, whatever the slot: Fortitude in the Armor slot drew
+hd_crystal_sword, and Plague and Splendor drew another slot's base too. A rare's name or a plain word drew nothing at all:
+Carrion Greaves, Wraith Grasp, Dragon Talon, and the bare "Shield", "Armor" and "Boots" a read sometimes leaves.
+FIX: _cbSlotArtName(name, slot, base) in the builder's block, asked by _chxDollHtml. This is #248's rule, given the slot:
+- A unique or set item draws its own graphic.
+- A recorded base of THAT slot's type draws that base. A plain base names itself, when it is of that slot's type.
+- A runeword draws a base of that slot's type it can be made in. Its own picture stays when it is one (Enigma's plate
+  mail on the torso, Fortitude's crystal sword in the hand), and is dropped when it is another slot's (Fortitude's
+  crystal sword on the torso). The slot's own kind comes first: in the off-hand a shield beats a second weapon, so
+  Spirit draws a shield and Lawbringer, which cannot be one, a sword.
+- Anything else draws a base of that slot's type: a rare's name, a bare word, or a runeword read in a slot it cannot be
+  made for.
+- A name the database lacks that has its own picture keeps it.
+- null when the builder's database cannot be read. The doll draws that as UNKNOWN.
+The slot's kinds are the builder's own rail categories (the planner's Shields, Body Armor, Helmets ...). No table was
+added.
+NOT CHANGED: the gear ledger records no base today (its rows carry item, sightings, tier, ts and reel). The `base`
+argument is ready for a reader that records one.
+GUARD: tv/test_a_worn_item_draws_its_slots_picture.py. The page runs in node:
+- 19 cases (GrokBot's list, the off-hand's two kinds, a unique and a set piece). Each is checked against the database's
+  own type tree: the base is of the slot's kind, and a runeword's base is one its recipe names when the slot has one.
+- The window is opened on a gear map, and each worn cell's picture is read.
+4 red-proofs, all RED.
+NEAR-MISS, CAUGHT BEFORE COMMIT: the new helper was first named _cbSlotCats, which is also the name of the builder's own
+category reader in the same block. A function declaration is hoisted and the last one wins, so the builder's tree, its
+hand catalogue and its node rows called the new helper. Four laws fell over (test_the_character_builder_is_their_builder
+and three page laws: _cbBaseInCat, cat undefined), and the JS syntax gate stayed green. Renamed to _cbWorn*.
+GUARD: tv/test_no_page_function_is_declared_twice.py. Every inline script's functions at its top two levels are
+declared once. Today's only twin is downscale(file), one inside each AI intake handler, allowed with that reason.
+1 red-proof, RED.
+
+### REG-3069 - GEAR SEEN UNDER AN ALIAS NEVER REACHED ITS CHARACTER: KONYOLOCK'S ARMOR "NOT SEEN YET" BESIDE A WATCHED ENIGMA (GrokBot 04:03, #36)
+GrokBot on the ALT's /api/chars_learned: gear['konylock'] held Enigma on the torso (WATCHED), and konylock is
+KonyoLock's top alias, yet KonyoLock's card said Armor "not seen yet". gear['konydress'] and its character showed the
+same thing. The gear ledger files a reel's worn items under the name that session read. The learner merges misread
+spellings into one character and names them in each row's `aliases`. The two never met: the page reads
+gear[<character key>], and nothing folded the alias keys into it.
+FIX: equipped_ledger.fold_aliases. chars_learned_answer runs it on the gear map with the learner's own rows. It never
+guesses by name:
+- An alias's gear joins its character's key, the alias key leaves the map, and the character names the spellings it
+  took (`aliases`).
+- An alias two characters claim is folded into neither. It stays under its own key, and `aliasWhy` says whose is
+  UNKNOWN.
+- One item under two spellings is one item, with its looks added and its tier on the sum.
+- Two different items in one slot: the one seen LAST is worn now, and the other is kept in `alsoSeen`. If either side
+  has no time, the slot is UNKNOWN (item None, `why`).
+- Unplaced items are merged, and so are reels and the last time.
+- A fold that raises makes the gear UNKNOWN (gearWhy), never the unfolded map.
+The card, the window's sentence and the doll now say "UNKNOWN - <why>: <items each spelling saw>" for an undecided
+slot, never "not seen yet". All four ask one helper, _gearWhy.
+GUARD: tv/test_gear_seen_under_an_alias_reaches_its_character.py, 9 cases, including the ALT's konylock/konydress
+shape and the console's own answer. 6 red-proofs, all RED.
+
 ### REG-3068 - ENTER IN THE ADD BOX TOOK THE TOP ROW BY GUESS: "Spirit" ADDED CEREBUS' BITE (GrokBot 05:07, #230)
 GrokBot on his board: Vault → "or add by name only" → type "Spirit". The list was [Cerebus' Bite, Ravenlore, Spirit,
 Spirit Forge, ...] and Enter added Cerebus' Bite, the top row. "Oath" lists [Bane's Oathmaker (sword), Oath], so Enter
