@@ -12625,6 +12625,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_console_reads_gate_proofs_and_census_rows_from_a_child.py")], 300,
          needs_app=False,
          why="REG-2985 (#172 phase C) - a console reads the gate files' RED_PROOF lists and the swallow census rows from a short-lived child per file stamp (0 parses in its own heap, from 3), never serves a stale entry, a law spawns nothing, a failed child fails open, and control_app.py is parsed once per stamp for the lane stamps"),
+    Gate("test_two_small_charms_of_vita_are_two_copies",
+         [sys.executable, os.path.join(HERE, "test_two_small_charms_of_vita_are_two_copies.py")], 300,
+         needs_app=False,
+         why='#202 P3b (REG-2972): a keeper read with other mods is another copy with its own, never written over the first (checker and photo intake, one door)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
