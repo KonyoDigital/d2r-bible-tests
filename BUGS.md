@@ -14,6 +14,21 @@ and test_a_confirmed_d2jsp_post_lists_its_copies_on_the_vault each hand-added "S
 base. Nothing was owned, so the trade-out said "Shako is not in the vault". Each law now hand-adds "Harlequin Crest", which
 files as Harlequin Crest (Shako) (REG-2897; measured in node). REG-2858 is untouched, and the pane halves that fake the vault
 keep their 'Shako' keys. Red-proofs re-proven RED on green baselines: 12/12, 6/6, 10/10.
+### REG-2997 - A WAR MULE HE TOOK BACK STOPPED THE BOARD FROM OFFERING THE NEXT ONE (#144, his ruling 2026-10-29 Q2)
+His ruling: when he declines war-A, the board offers the next one (war-B) when there is overflow, with the same "make it in
+the game" task. MEASURED before (whole page in node, the real doors): the board made WAR-A for Shako x3, he deleted it, and
+the next paint made nothing - _vaultWarAutoMule returned "you took back the WAR-A the board made" - so the two copies past
+the war stash kept no cell for good. Now the maker passes over a number he took back (warDeclined, 'WAR'+n, REG-2889) and a
+name another mule holds (REG-2804) in one loop, and makes the next war mule: first in MOVE TASKS as a make task, the copies'
+moves sent to it, and its record saying which ones he took back ("...; you took back WAR-A, so this is the next one"). A
+second take-back offers the third. With nothing past the war stash, a take-back still makes nothing.
+Law: test_a_war_mule_he_took_back_makes_the_board_offer_the_next_one (4 tests, 4 red-proofs RED). Re-aimed to the rule: the
+REG-2803 law's declined case (war mule 2 is made, never 1), the REG-2889 law (war mule 2 alone, after the delete and a
+reload), the REG-2804 law's name-taken red-proof (the new loop), and the Chrome war stash law (CI proves it): its declined
+case expects war mule 2 with the 5 extra belts and its make row; its board-made cases read the name from _vaultWarName (REG-2980)
+and find war mule 1 by role. They also read the war mule's OWN make row - the CHARMS mule the board makes (REG-2895) has
+its make row first, which REG-2888 found in the node law and which made make row [0] the wrong row here too.
+That Chrome law's role lookup assumes REG-2968's seeding (role + warN), which is on the ship branches, not on claude/int.
 
 ### REG-2980 - THE BOARD NAMED A WAR MULE "WAR1", A NAME THE GAME REFUSES (#144, his ruling 2026-10-29)
 agent-guide measured that a D2R character name is 2-15 letters with at most one '-' or '_' and no digit. The board made its war
