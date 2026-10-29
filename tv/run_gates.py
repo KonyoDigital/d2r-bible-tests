@@ -12649,6 +12649,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_tv_stub_never_outranks_what_the_name_is.py")], 300,
          needs_app=False,
          why="REG-3054..3055 (GrokBot #230): a TV stub's basic over its own name never outranks a catalogue runeword or the rolled-name grammar, and a runeword is sized by its bases or his copies' recorded bases"),
+    Gate("test_the_board_names_a_war_mule_by_a_name_the_game_accepts",
+         [sys.executable, os.path.join(HERE, "test_the_board_names_a_war_mule_by_a_name_the_game_accepts.py")], 300,
+         needs_app=False,
+         why='REG-2980 a war mule is named WAR-A/WAR-B, a name D2R accepts, never WAR1'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
