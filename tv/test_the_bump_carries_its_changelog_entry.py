@@ -1,7 +1,10 @@
 """v3843 - THE VERSION HISTORY. The console footer's history button opens one card per shipped version, newest first,
 read from tv/CHANGELOG.json through /api/changelog. Every ship writes its own entry in the bump commit (bump_version.py
 appends it beside the four version stamps), so the version this tree carries is always the top entry, and a ship that
-forgot its entry fails here before it reaches the pre-push."""
+forgot its entry fails here before it reaches the pre-push.
+v3844 - the panel wears the console: the history button sits in one group with the era name (CHILIAD 843 · history),
+a gold frame with an amber heading, symmetric cards (version gold, date dimmed, one bullet per change), and it closes
+on ×, Esc or a click outside. Focus moves into the panel on open and back to the button on close (Elad, 2026-10-30)."""
 from __future__ import annotations
 
 import io
@@ -78,6 +81,19 @@ class TheBumpCarriesItsChangelogEntry(unittest.TestCase):
         self.assertIn("ev.target === o", ui, "a click outside the box does not close it")
         self.assertIn('id="hist-x"', ui)
         self.assertIn("if (gen !== histGen) return;", ui, "an older history answer can overwrite a newer open")
+
+    def test_v3844_the_panel_takes_focus_and_gives_it_back_and_history_sits_with_the_era(self):
+        ui = _read("tv", "control_ui.html")
+        era = ui[ui.index('<span id="foot-era">'):ui.index('id="heart-chip"')]
+        self.assertLess(era.index('id="foot-ver"'), era.index('id="foot-hist"'))
+        self.assertLess(era.index('id="foot-hist"'), era.index('</span>', era.index('id="foot-hist"')) + 1)
+        close = ui[ui.index("function histClose(){"):ui.index("var histGen = 0;")]
+        self.assertIn("getElementById('foot-hist')", close, "closing does not hand focus back to the button")
+        self.assertIn(".focus()", close)
+        opn = ui[ui.index("function histOpen(){"):ui.index("fetch('/api/changelog'")]
+        self.assertIn("querySelector('#hist-x')", opn, "opening does not move focus into the panel")
+        self.assertIn(".focus()", opn)
+        self.assertIn('aria-labelledby="hist-h"', ui)
 
     def test_the_cards_show_version_date_and_one_bullet_each(self):
         if NODE is None:
