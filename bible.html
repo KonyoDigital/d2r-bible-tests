@@ -50430,6 +50430,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                 proof: (opts.proof && typeof opts.proof === 'object') ? opts.proof : null };
       /* REG-2404 — a Magic & Rare record the same click took (vaultThrowFind) rides in the batch, so the undo is whole */
       if (opts.magic && typeof opts.magic === 'object' && !Array.isArray(opts.magic)) batch.magic = opts.magic;
+      /* REG-3073 (#153.13, GrokBot's vault sweep) - THE COPIES' RECORDS LEAVE WITH THE NAME, INTO THIS BATCH. An un-own (or any
+         removal of a name) left every copy record of it in d2r_vaultRecords: measured on the whole page in node, three hand-added
+         Shakos un-owned -> owned gone, 3 rows still stored (with their moves to the shared stash and a WAR mule) until some
+         later rebuild happened to drop them. They ride in the batch now - each copy's move, cell and entry - and leave the
+         store at once; vaultRestoreLast puts them back with the name, so the undo is as whole as the stale rows made it. A
+         records store that would not read writes nothing here (UNKNOWN). */
+      try {
+        var _rr = (typeof _vrRecLoadRaw === 'function') ? _vrRecLoadRaw() : undefined;
+        if (_rr && Array.isArray(_rr.records) && typeof _vrRecGuardedSet === 'function') {
+          var _rOut = _rr.records.filter(function(r){ return r && removed.indexOf(r.name) >= 0; });
+          if (_rOut.length) {
+            var _rSt = {}; for (var _rk in _rr) _rSt[_rk] = _rr[_rk];
+            _rSt.records = _rr.records.filter(function(r){ return !(r && removed.indexOf(r.name) >= 0); });
+            if (_vrRecGuardedSet(_rSt)) batch.records = JSON.parse(JSON.stringify(_rOut));
+          }
+        }
+      } catch (eRr) {}
       var log = _logRm; log.push(batch); _vrWrite(log);   /* REG-2520 — the journal this door read (and checked) above */
       /* round-5 review (MED) — the per-name record the ring never evicts (window._vaultRemovalNote, the owned door's rule) */
       try { if (typeof window._vaultRemovalNote === 'function') batch.noted = window._vaultRemovalNote(batch); } catch(e){}
@@ -50626,6 +50643,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       back.push(nm);
     });
+    /* REG-3073 - the copies' records the removal carried come back with their names: each copy's move, cell and entry */
+    if (Array.isArray(last.records) && last.records.length && back.length) {
+      try {
+        var _rb = _vrRecLoadRaw();
+        if (_rb && Array.isArray(_rb.records)) {
+          var _rbS = {}; for (var _rq in _rb) _rbS[_rq] = _rb[_rq];
+          _rbS.records = _rb.records.filter(function(r){ return !(r && back.indexOf(r.name) >= 0); })
+            .concat(last.records.filter(function(r){ return r && back.indexOf(r.name) >= 0; }));
+          _vrRecGuardedSet(_rbS);
+        }
+      } catch (eRb) {}
+    }
     /* REG-2883 - the last copy came back from a trade-out: its traded row goes, so the card stops counting it */
     if (last.lane === 'trade-out' && (last.names || []).length) {
       try {
@@ -50728,7 +50757,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var have = (typeof copyCount === 'function') ? (copyCount(nm) | 0) : 1;
     if (have <= 1 || mine.length <= 1) {
       var r1 = (typeof window.vaultRemove === 'function') ? window.vaultRemove([nm], { lane: _lane, exact: true, quiet: true, why: why }) : null;
-      /* measured: the removal door leaves the copy's record in the store, so the undo brings its own cell back with the name */
+      /* REG-3073 - the removal door takes the copy's record into its batch, so the undo brings its own cell back with the name */
       var gone = !!(r1 && r1.removed && r1.removed.indexOf(nm) >= 0);
       var _tKept = (kind !== 'trade-out');   /* REG-2849 - a hand removal keeps no traded row */
       if (gone && kind === 'trade-out') { try { var _r2 = _vrRecLoadRaw(); _tKept = !!(_r2 && Array.isArray(_r2.records) && (function(){ var st = {}; for (var x in _r2) st[x] = _r2[x]; st.tradedOut = _tWith(_r2); return _vrRecGuardedSet(st); })()); } catch (eTk) { _tKept = false; } }
