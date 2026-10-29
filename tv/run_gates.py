@@ -12777,6 +12777,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_lock_never_publishes_more_refusals_than_attempts.py")], 300,
          needs_app=False,
          why='REG-3074 a lock never publishes more refusals than attempts: bank and the ledger read both refuse k above n'),
+    Gate("test_on_a_phone_the_tray_is_one_bottom_bar",
+         [sys.executable, os.path.join(HERE, "test_on_a_phone_the_tray_is_one_bottom_bar.py")], 300,
+         needs_app=False,
+         why='REG-3090 on a phone the tray is one bottom bar that reserves its own height, and the desktop is unchanged'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
