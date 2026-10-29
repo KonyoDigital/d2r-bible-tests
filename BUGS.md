@@ -15,6 +15,42 @@ landed there it goes to ALL) and relies on the landing to come back. Routine I w
 v3839's grade. The hand guard now covers the crafts room's auto-land only. Law case
 test_a_sealed_chronicle_still_lands_on_completed (whole page in node: a sealed chronicle's empty ALL lands on Completed even
 after his chip); red-proof RED; REG-3056's crafts cases and proofs unchanged.
+### REG-3082 - A BLESS LEFT ONLY A MERGED FLOOR, AND A REFUSED ONE LEFT NOTHING (#2)
+`render_check.py --bless` writes tv/render_coverage.json, a merge in which a held count (lower than its floor), a raised
+one and a new width look alike afterwards. A refused bless wrote nothing, and its one line said "this run did not report
+every target" even when every target reported and one was red. On the machine that ran it the scrollback covers that. For
+a bless made on another venue (CI's render-bless job, REG-3081) it would leave a floor and no measurement under it, or a
+red job and no reason.
+The bless now writes .render_bless.json beside the floor (so a law's temporary floor keeps its record with it):
+- every count it measured;
+- what it raised, held and added;
+- or, refused, why: "it asked for N of M targets", "it stopped early at X", "N target(s) did not render cleanly (names)",
+  "N target(s) were UNKNOWN". main() hands that reason in, and the refusal prints it.
+The floor rules are untouched: it only rises, and a run that is not full and clean writes no floor. The record is
+gitignored, a local fact like .render_verdict.json. test_render_coverage's one case that blesses the real floor file now
+restores the record too, so its fixture bless never stands as the real one.
+Law test_a_bless_records_what_it_measured (the real _coverage_bless and main(), the browser and the renders stubbed,
+the floor in a temp file), 3 cases, 4 red-proofs RED, baseline green. Coverage neighbours green: test_render_coverage
+(re-proved, bad 0 of 5), test_the_ratchet_is_not_skipped_by_a_subset, test_a_coverage_drop_can_be_named.
+
+### REG-3042 - A SET PIECE OR A RUNEWORD IN THE MAGIC & RARE REGISTER WAS HOMED ON MAGIC & RARE (#163, GrokBot on Dean's shadow)
+Dean's saved records filed Aldur's Rhythm (a set piece) and Enigma (a runeword) on MAGIC & RARE. The file door has refused to treat
+a catalogue item as a keeper since REG-2854 (a grail unique, a set piece or a runeword draws from the catalogue on its own locker),
+but the live records derivation (REG-2853's keeper home), the dock, the keeper home every locker asks (_mfKeeperHome) and the
+MAGIC & RARE window's pack asked only "is it in magicFinds". Measured on the whole page in node: a set piece registered in
+magicFinds was homed on MAGIC & RARE. Now the door's three tests (the grail unique, set and runeword rosters by exact name, as
+REG-2854 uses them) are one answer, window._vaultCatalogueItem, and the ONE shared membership test (_inMagicRare, about eight
+callers) and the keeper home (_mfKeeperHome) ask it; a rolled name that merely contains a catalogue word ("Grief Mark",
+"Rhythm Visage") stays a keeper. Every caller was swept and asserted to give a catalogue item its own home: the owned pool
+carries a catalogue item the register holds, so the seam, the live records, a stored orphan row, FIND and the set locker's
+count all home it where the router does (Aldur's Rhythm -> SETS-REST), never MAGIC & RARE and never nowhere, a shadow included.
+v1251's self-heal moves every catalogue item - not only a runeword - out of the keeper track into owned, keeping its read's
+provenance ("Magic & Rare catalogue item migration"), and keeps the keeper row if the owned door refuses. The door still refuses
+to file a keeper elsewhere. What the current rule does with Dean's five: Aldur's Rhythm ->
+SETS-REST, Enigma -> SHARED STASH (war gear), Aldur's Deception -> SETS-REST, Alma Negra -> UNI-ARMOR, Bul-Kathos' Sacred Charge ->
+THROW OUT (his SETS-MAJOR stays his). Law tv/test_a_catalogue_item_is_never_a_magic_rare_keeper.py (node, the whole page), 7
+red-proofs, all RED; test_the_vault_finder_names_the_mule_and_the_cell [0] and test_magic_and_rare_draws_every_item_it_counts
+[3][4] re-aimed at the new lines (same sabotage, RED).
 
 ### REG-3080 - EVERY PROFILE UPLOAD WAS REFUSED: THE CONSOLE SENT TWO CHARACTERS FIELDS THE WORKER DID NOT LIST (LIVE, v3837 on)
 REG-2907 (#36, shipped in v3837) added `sessions` and `sessionsWhy` to the characters answer on the console side

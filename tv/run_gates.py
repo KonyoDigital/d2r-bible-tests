@@ -12557,6 +12557,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_no_tool_calls_an_installed_browser_absent.py")], 300,
          needs_app=False,
          why='#161 REG-3064 - a11y_check, coldread, crest_loudness and overlap_ratchet never call an installed Chrome that would not start absent; the two gates exit 3 (VENUE), a missing Chrome keeps its skip'),
+    Gate("test_a_bless_records_what_it_measured",
+         [sys.executable, os.path.join(HERE, "test_a_bless_records_what_it_measured.py")], 300,
+         needs_app=False,
+         why='#2 REG-3082 - render_check --bless writes .render_bless.json beside the floor: every count it measured, what it raised, held and added, or why it refused, naming the targets'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
