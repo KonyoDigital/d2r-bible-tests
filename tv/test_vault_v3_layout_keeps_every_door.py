@@ -159,7 +159,17 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
         b = board()
         b.t.send("Emulation.setDeviceMetricsOverride", width=1440, height=900, deviceScaleFactor=1, mobile=False)
         try:
-            o = b.run("function r(s){ var b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.top), Math.round(b.width), Math.round(b.height)]; }"
+            # v3840 CI (#161) - the vault is put on screen again IN THE SAME EVALUATE that measures it, and what hid the deck
+            # (if anything still does) is read there too. Run 40818454324 read a deck with no box at all ('1fr 1fr'
+            # unresolved, both cards 0x0) with the page loaded - 1 of the last 18 runs read; a hidden deck is not a twins
+            # verdict, so the premise names it.
+            o = b.run(WORLD + WAIT +
+                        "function r(s){ var b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.top), Math.round(b.width), Math.round(b.height)]; }"
+                        "var dk = document.querySelector('.vault-deck'); OUT.hidBy = '';"
+                        "for (var e = dk; e; e = e.parentElement){ if (getComputedStyle(e).display === 'none'){"
+                        " OUT.hidBy = e.id ? '#' + e.id : String(e.className || e.tagName); break; } }"
+                        "OUT.tab = ((document.querySelector('.tab-content.active') || {}).id) || '';"
+                        "OUT.collapsed = document.getElementById('mule-vault-card').classList.contains('collapsed');"
                         "OUT.a = r('.vault-tool-add'); OUT.f = r('.vault-tool-find');"
                         "var ha = getComputedStyle(document.querySelector('.vault-tool-add .vault-tool-h')),"
                         "    hf = getComputedStyle(document.querySelector('.vault-tool-find .vault-tool-h'));"
@@ -167,6 +177,9 @@ class VaultV3LayoutKeepsEveryDoor(unittest.TestCase):
                         "OUT.grid = getComputedStyle(document.querySelector('.vault-deck')).gridTemplateColumns;")
         finally:
             b.t.send("Emulation.clearDeviceMetricsOverride")
+        self.assertTrue(o["a"][1] or o["f"][1], "PREMISE: the vault deck had no box when measured (hidden by %r, active tab %r, "
+                        "card collapsed %r) - the cards were not on screen, so whether they are twins is UNMEASURED: %r"
+                        % (o.get("hidBy"), o.get("tab"), o.get("collapsed"), o))
         self.assertEqual(len(o["grid"].split()), 2, "the deck is not two columns at 1440: %r" % o)
         self.assertGreater(o["a"][1], 300, o)
         self.assertEqual(o["a"], o["f"], "the ADD and FIND cards are not twins: %r" % o)
