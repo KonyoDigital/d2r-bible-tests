@@ -47744,6 +47744,15 @@ class Handler(BaseHTTPRequestHandler):
             # #239 — asked by bible.html from inside this console's own window. Reads only.
             self._json(200, own_board_may_autoclaim())
             return
+        if path == "/api/changelog":
+            # v3843 - the footer's version history: tv/CHANGELOG.json as the bump commits wrote it, newest first.
+            try:
+                with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "CHANGELOG.json"), encoding="utf-8") as fh:
+                    _log = json.load(fh)
+            except (OSError, ValueError):
+                _log = []
+            self._json(200, {"versions": _log if isinstance(_log, list) else []})
+            return
         if path == "/api/heart":
             # v2443 — ♥ THE HEART. Derived per read (45 s memo), never stored. ?force=1 re-derives.
             # REG-1685 — ?fast=1 is the panel's read: the last census at once, a fresh one in the background.

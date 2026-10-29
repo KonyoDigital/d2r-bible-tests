@@ -43,7 +43,7 @@ from html.parser import HTMLParser
 BOARD = 268
 LADDER_BOARD = 271
 POST_BOARDS = (BOARD, LADDER_BOARD)
-QUOTE_BOARD = 243
+QUOTE_BOARD = 268
 COMPOSE_URL = "https://forums.d2jsp.org/post.php?mode=post&f=268"
 LOGIN_URL = "https://forums.d2jsp.org/login.php"
 _HOST = "forums.d2jsp.org"
@@ -769,12 +769,30 @@ def parse_public_quote(html, item, read_at, node_run=None):
     return _public_fields(parsed, item, read_at)
 
 
-def _search_keywords(item):
-    return re.sub(r"['’ʼ`]", "", str(item or ""))
+def _search_keywords(item, node_run=None):
+    """v3843 - the words the search asks with, from the quote block's lexicon (d2jspSearchWords): the slang form
+    traders write when there is one ("Harlequin Crest" -> "shako"), else the simplified name. With no node to run
+    it, the name without its apostrophes, as before."""
+    plain = re.sub(r"['’ʼ`]", "", str(item or ""))
+    node = shutil.which("node") if node_run is None else None
+    if node_run is None and not node:
+        return plain
+    try:
+        prog = _read_quote_parser() + "\nprocess.stdout.write(String(d2jspSearchWords(" + json.dumps(str(item or "")) + ").query || ''));\n"
+        if node_run is None:
+            proc = subprocess.run([node, "-e", prog], capture_output=True, timeout=20, text=True,
+                                  encoding="utf-8", errors="replace")
+        else:
+            proc = node_run(prog, "")
+        if getattr(proc, "returncode", 1) == 0 and (getattr(proc, "stdout", "") or "").strip():
+            return proc.stdout.strip()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    return plain
 
 
 def _search_url(item):
-    """The forum's own post search for the Switch Ladder board."""
+    """The forum's own post search for the Softcore non-ladder trading board (v3843; it was Switch Ladder)."""
     return "https://forums.d2jsp.org/search.php?c=7&f=%d&t=0" % QUOTE_BOARD
 
 

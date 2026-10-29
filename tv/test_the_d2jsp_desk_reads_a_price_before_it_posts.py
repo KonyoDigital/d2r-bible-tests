@@ -152,9 +152,10 @@ var page = 'Grief Phase Blade\nBump\n\nShako\n20 fg\n';
 var prices = d2jspPrices(page, 'Grief');
 var none = d2jspRead('Just a moment...', 'Grief', '2026-10-12T20:00:00.000Z');
 var empty = d2jspRead(page, 'Grief', '2026-10-12T20:00:00.000Z');
-var hit = d2jspRead('Grief Phase Blade 10 fg\n\nGrief 50 fg\n\nGrief 30 fg\n\nShako 200 fg', 'Grief', '2026-10-12T20:01:00.000Z');
-var one = d2jspRead('Grief 40 fg', 'Grief', '2026-10-12T20:02:00.000Z');
+var hit = d2jspRead('Oct 12, 2026\nGrief Phase Blade 10 fg\n\nGrief 50 fg\n\nGrief 30 fg\n\nShako 200 fg', 'Grief', '2026-10-12T20:01:00.000Z');
+var one = d2jspRead('Oct 12, 2026\nGrief 40 fg', 'Grief', '2026-10-12T20:02:00.000Z');
 var gheeds = d2jspRead([
+  "Oct 12, 2026",
   "Gheeds Fortune gc 106/35/13 - 20fg",
   "Gheeds Fortune gc 108/31/12 - 15fg",
   "Pcomb plain - 10fg x 1",
@@ -185,7 +186,7 @@ process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, h
         self.assertIsNone(out["empty"]["high"])
         self.assertIsNone(out["none"]["low"])
         self.assertIsNone(out["none"]["high"])
-        self.assertEqual(out["hit"]["board"], 243)
+        self.assertEqual(out["hit"]["board"], 268)
         self.assertEqual(out["gheeds"]["fg"], 15)
         self.assertEqual(out["gheeds"]["n"], 3)
         self.assertEqual(out["gheeds"]["low"], 10)
@@ -820,6 +821,7 @@ process.stdout.write(JSON.stringify({
             return None, "need-login"
 
         page = "\n".join([
+            "Oct 12, 2026",
             "Gheeds Fortune gc 106/35/13 - 20fg",
             "Gheeds Fortune gc 108/31/12 - 15fg",
             "Pcomb plain - 10fg x 1",
@@ -867,17 +869,18 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["low"], 10)
         self.assertEqual(out["high"], 20)
         self.assertEqual(out["n"], 3)
-        self.assertEqual(out["board"], 243)
+        self.assertEqual(out["board"], 268)
         self.assertEqual(len(calls["urls"]), 1)
         self.assertEqual(calls["urls"][0][0], "POST")
-        self.assertIn("search.php?c=7&f=243&t=0", calls["urls"][0][1])
-        self.assertIn(b"stext=Gheeds+Fortune", calls["urls"][0][2])
+        self.assertIn("search.php?c=7&f=268&t=0", calls["urls"][0][1])
+        self.assertIn(b"stext=gheeds", calls["urls"][0][2])
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
         self.assertNotIn("Gheeds Fortune gc", json.dumps(out))
 
     def test_a_challenge_page_is_read_through_a_scratch_chrome(self):
         import d2jsp_chrome as desk
         page = "\n".join([
+            "Oct 12, 2026",
             "Gheeds Fortune gc 106/35/13 - 20fg",
             "Gheeds Fortune gc 108/31/12 - 15fg",
             "Pcomb plain - 10fg x 1",
@@ -889,7 +892,7 @@ process.stdout.write(JSON.stringify({
 
         def transport(method, url, headers, data):
             self.assertEqual(method, "POST")
-            self.assertIn("search.php?c=7&f=243", url)
+            self.assertIn("search.php?c=7&f=268", url)
             return 403, {}, b"<title>Just a moment...</title>"
 
         def chrome_fetch(item_name, cookie):
@@ -910,7 +913,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["low"], 10)
         self.assertEqual(out["high"], 20)
         self.assertEqual(out["n"], 3)
-        self.assertEqual(out["board"], 243)
+        self.assertEqual(out["board"], 268)
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
 
     def test_chrome_posts_only_a_priced_board_268_draft_from_this_console(self):

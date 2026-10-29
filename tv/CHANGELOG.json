@@ -1,0 +1,11 @@
+[
+  {
+    "ver": "v3842",
+    "date": "2026-10-29",
+    "items": [
+      "shared gate ledger across worktrees",
+      "Mac-only test fixes",
+      "parallel full gates opt-in"
+    ]
+  }
+]

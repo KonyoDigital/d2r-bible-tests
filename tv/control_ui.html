@@ -6459,6 +6459,22 @@
      in census order, so every unwatched vessel sits in ONE contiguous arc. Scattered around the
      ring the same eight vessels read as "a few specks here and there"; gathered, they read as
      what they are — a quarter of the console with nothing watching it. */
+  /* v3843 - THE VERSION HISTORY: a small button beside the era name opens one card per shipped version */
+  #foot-hist {
+    appearance: none; background: none; border: 1px solid currentColor; border-radius: 3px; padding: 0 4px; margin: 0 0 0 4px;
+    font: inherit; font-size: .9em; color: inherit; cursor: pointer; opacity: .7; line-height: 1.2;
+  }
+  #foot-hist:hover, #foot-hist:focus-visible { opacity: 1; color: var(--gold, #d8a94a); }
+  #hist-ov { position: fixed; inset: 0; z-index: 9000; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; }
+  #hist-ov[hidden] { display: none; }
+  #hist-box { position: relative; width: min(560px, 92vw); max-height: 80vh; overflow: auto; background: #14161a; color: #ddd;
+    border: 1px solid #3a3f47; border-radius: 8px; padding: 18px 18px 12px; box-sizing: border-box; }
+  #hist-box h2 { margin: 0 0 12px; font-size: 15px; letter-spacing: .08em; text-align: center; }
+  #hist-x { position: absolute; top: 8px; right: 10px; appearance: none; background: none; border: 0; color: inherit; font-size: 18px; cursor: pointer; }
+  .hist-card { border: 1px solid #2c3037; border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; }
+  .hist-head { display: flex; justify-content: space-between; font-weight: 600; }
+  .hist-date { opacity: .7; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .hist-card ul { margin: 6px 0 0; padding-left: 18px; }
   #heart-chip {
     appearance: none; background: none; border: 0; padding: 0 2px; margin: 0;
     font: inherit; color: inherit; cursor: pointer; letter-spacing: inherit;
@@ -9063,6 +9079,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
            it when we hit version 2000.. i want to call it millenium 2027.. etc from there".
            The number tracks the ship, LAST TWO DIGITS: v2027 -> Millenium 27. -->
       <span id="foot-ver">Millenium</span>
+      <button id="foot-hist" type="button" aria-haspopup="dialog" aria-controls="hist-ov" title="Version history">history</button>
       <!-- v2443 — ♥ THE HEART WIDGET. Konyo: "i can click a widget HEART on the bottom of the
            console next to the version... thats where it should be located". The counts are
            DERIVED (/api/heart) and painted in only once an answer lands — before that it reads
@@ -33131,6 +33148,46 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
        first. [[unknown-stays-unknown]] */
     if (_sadv) window._advFill(_sadv, window.__advFillMissed ? 'deferred' : 'load');
   } catch (e) {}
+</script>
+<script>
+/* v3843 - THE VERSION HISTORY OVERLAY. One card per version, newest first, from /api/changelog (tv/CHANGELOG.json,
+   which every bump commit appends to). Closes on the top-right x, Esc, or a click outside the box. */
+(function(){
+  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function cardsHtml(list){
+    if (!list || !list.length) return '<div class="hist-card">No version history recorded.</div>';
+    return list.map(function(e){
+      return '<div class="hist-card" data-hist-ver="' + esc(e.ver) + '"><div class="hist-head"><span>' + esc(e.ver) + '</span>'
+        + '<span class="hist-date">' + esc(e.date) + ' IDT</span></div><ul>'
+        + (e.items || []).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>';
+    }).join('');
+  }
+  window._histCardsHtml = cardsHtml;
+  function ov(){
+    var o = document.getElementById('hist-ov');
+    if (o) return o;
+    o = document.createElement('div');
+    o.id = 'hist-ov'; o.hidden = true;
+    o.innerHTML = '<div id="hist-box" role="dialog" aria-modal="true" aria-label="Version history">'
+      + '<button id="hist-x" type="button" aria-label="Close">\u00d7</button><h2>VERSION HISTORY</h2><div id="hist-list"></div></div>';
+    o.addEventListener('click', function(ev){ if (ev.target === o || (ev.target && ev.target.id === 'hist-x')) close(); });
+    document.body.appendChild(o);
+    return o;
+  }
+  function close(){ var o = document.getElementById('hist-ov'); if (o) o.hidden = true; }
+  function open(){
+    var o = ov(), l = o.querySelector('#hist-list');
+    l.innerHTML = '<div class="hist-card">Reading the history.</div>';
+    o.hidden = false;
+    fetch('/api/changelog', { cache: 'no-store' }).then(function(r){ return r.json(); })
+      .then(function(j){ l.innerHTML = cardsHtml(j && j.versions); })
+      .catch(function(){ l.innerHTML = '<div class="hist-card">The history could not be read.</div>'; });
+  }
+  window._histOpen = open; window._histClose = close;
+  document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') close(); });
+  var b = document.getElementById('foot-hist');
+  if (b) b.addEventListener('click', function(ev){ ev.stopPropagation(); open(); });
+})();
 </script>
 </body>
 </html>

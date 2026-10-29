@@ -281,7 +281,7 @@ def _rewrite_head_stamps(html, ver, today, note):
 from stamp_leak import leak_problem, free_text_problem  # noqa: E402
 
 
-def bump(ver, name, note, repo=None):
+def bump(ver, name, note, repo=None, items=None):
     # ⚠⚠ v3330 (#72) — DO NOT BANK A VERSION INTO A TREE SOMEONE IS GRADING.
     #
     # His ruling from the #46 false alarm: "do not write while a gate runs" must be a REFUSAL, not
@@ -431,6 +431,18 @@ def bump(ver, name, note, repo=None):
     d["note"] = "%s: %s" % (ver, note)
     pending.append((p, json.dumps(d, indent=2, ensure_ascii=False) + "\n"))
 
+    # v3843 - THE VERSION HISTORY. Each ship's bump commit carries its own changelog entry (tv/CHANGELOG.json,
+    # newest first): the console's footer history overlay reads it, and test_the_bump_carries_its_changelog_entry
+    # holds VERSION == changelog[0].ver. Items are what literally shipped, one per change: explicit, or the note
+    # split on ", ". The date is the ship's day in Israel time.
+    p = os.path.join(repo, "tv", "CHANGELOG.json")
+    log = changelog_with(json.load(io.open(p, encoding="utf-8")) if os.path.exists(p) else [], ver, note, items)
+    for _it in log[0]["items"]:
+        _inert = free_text_problem(_it)
+        if _inert:
+            raise SystemExit("REFUSED to bump %s: a changelog item carries %s. Nothing has been written." % (ver, _inert))
+    pending.append((p, json.dumps(log, indent=2, ensure_ascii=False)))
+
     for path, text in pending:
         nl = "\n" if path.endswith(".json") else ""
         # ⚠⚠ v2712 — THIS LOOP WAS A TORN-READ GENERATOR, AND HIS CONSOLE IS THE READER.
@@ -457,6 +469,24 @@ def bump(ver, name, note, repo=None):
     _drop_stale_bytecode([p for p, _t in pending])
 
     print("%s -> %s  (%s)" % (cur, ver, name))
+
+
+def changelog_items(note, items=None):
+    """What literally shipped, one bullet per change: the explicit list, else the note split on ", "."""
+    src = items if items else str(note or "").split(", ")
+    return [t.strip() for t in src if str(t or "").strip()]
+
+
+def changelog_with(log, ver, note, items=None, date=None):
+    """`log` (newest first) with `ver`'s entry on top; an entry already there for `ver` is replaced, never doubled."""
+    if date is None:
+        try:
+            from zoneinfo import ZoneInfo
+            date = datetime.datetime.now(ZoneInfo("Asia/Jerusalem")).strftime("%Y-%m-%d")
+        except Exception:
+            date = datetime.date.today().isoformat()
+    rest = [e for e in (log or []) if isinstance(e, dict) and e.get("ver") != ver]
+    return [{"ver": ver, "date": date, "items": changelog_items(note, items)}] + rest
 
 
 def atomic_write(path, text, nl=""):
@@ -788,5 +818,11 @@ def _regen_blueprint():
 
 
 if __name__ == "__main__":
-    bump(sys.argv[1], sys.argv[2], " ".join(sys.argv[3:]))
+    _args = sys.argv[3:]
+    _items = None
+    if "--items" in _args:
+        _i = _args.index("--items")
+        _items = [t for t in _args[_i + 1:]]
+        _args = _args[:_i]
+    bump(sys.argv[1], sys.argv[2], " ".join(_args), items=_items)
     _regen_blueprint()

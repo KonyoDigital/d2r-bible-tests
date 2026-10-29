@@ -12026,8 +12026,9 @@ function d2jspPriceToSend(quoted, typed) {
   var q = Number(quoted);
   return (q > 0) ? q : null;
 }
-/* #113 — THE PUBLIC PRICE IS READ ON ANOTHER BOARD. A reading comes from board 243, D2:R Switch Ladder Trading
-   (d2jsp_chrome.py QUOTE_BOARD and functions/api/d2jsp_quote.js both search there), and a post goes to board 268 or 271.
+/* #113 — THE PUBLIC PRICE MAY BE READ ON ANOTHER BOARD. Since v3843 a reading comes from board 268, D2:R RotW Softcore
+   Trading (d2jsp_chrome.py QUOTE_BOARD and functions/api/d2jsp_quote.js both search there; before it was 243, Switch
+   Ladder), and a post goes to board 268 or 271 - so a ladder post (271) still waits for his own number.
    The quote function's own header calls them different economies. So a reading is the post price only when it was
    read on the board the post goes to; any other reading is shown under its own board's name and he types the price.
    d2jspPriceToSend keeps its own contract: it is handed this answer, never the raw reading. A reading that names no
@@ -12322,7 +12323,7 @@ function d2jspPriceLine(q) {
     var when = d2jspWhen(q.readAt) ? (', read ' + d2jspWhen(q.readAt)) : '';
     /* #113 - the line names the board the reading came from (243 is D2:R Switch Ladder Trading) */
     var on = Number(q.board) > 0 ? Number(q.board) : 0;
-    var head = on ? ('Board ' + on + (on === 243 ? ' (D2:R Switch Ladder Trading)' : '')) : 'Public';
+    var head = on ? ('Board ' + on + (on === 243 ? ' (D2:R Switch Ladder Trading)' : (on === 268 ? ' (D2:R RotW Softcore Trading)' : ''))) : 'Public';
     var low = Number(q.low);
     var high = Number(q.high);
     if (q.n > 1 && low > 0 && high > 0 && low !== high) {
@@ -12335,6 +12336,103 @@ function d2jspPriceLine(q) {
   if (q.reason === 'unanswered') return 'Public price unknown. No price reader answered this page.';
   if (d2jspWhen(q.readAt)) return 'Public price unknown. The reading at ' + d2jspWhen(q.readAt) + ' returned no fg number.';
   return 'Public price unknown.';
+}
+/* v3843 - THE AFFIX READ. Each typed mod line ("+312% Enhanced Damage") is matched against the game's own rows (the
+   builder database: the item's fixed lines when the name is one item, else every magic / rare affix row) and placed
+   within the roll range of the row that holds it: 0% is the row's floor, 100% its ceiling. Reimplemented from the
+   game's tables; it borrows no other planner's code. ADVISORY ONLY: a value above every row's ceiling (or below every
+   floor) is flagged "likely misread" with the raw read kept beside the legal bound, and nothing is ever refused. A line
+   that names no row, or still reads as a range, is not read. [[unknown-stays-unknown]] */
+var _d2jspTplRe = {};
+function d2jspTplRe(db, tid) {
+  if (Object.prototype.hasOwnProperty.call(_d2jspTplRe, tid)) return _d2jspTplRe[tid];
+  var tpl = db && db.T ? db.T[tid] : null, out = null;
+  if (typeof tpl === 'string' && /\{\+?\d+\}/.test(tpl)) {
+    var idx = [], src = '', last = 0, m, re = /\{(\+?)(\d+)\}/g;
+    while ((m = re.exec(tpl))) {
+      src += tpl.slice(last, m.index).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+      src += '\\+?(-?\\d+)';
+      idx.push(+m[2]); last = re.lastIndex;
+    }
+    src += tpl.slice(last).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    out = { re: new RegExp('^' + src + '$', 'i'), idx: idx };
+  }
+  _d2jspTplRe[tid] = out;
+  return out;
+}
+function d2jspAffixRows(db, itemName) {
+  if (!db) return [];
+  var it = itemName && db.byName ? db.byName[String(itemName).toLowerCase()] : null;
+  if (it && it[6] && it[6].length) return [it[6]];
+  /* a magic / rare name holds its base's name ("Stout Grand Charm of Dexterity"): only the rows that base may roll */
+  var nm = String(itemName || '').toLowerCase(), anc = null, blen = 0;
+  if (db.b && db.anc) Object.keys(db.b).forEach(function(code){
+    var bn = String((db.b[code] || [])[0] || '').toLowerCase();
+    if (bn && bn.length > blen && nm.indexOf(bn) >= 0) { blen = bn.length; anc = db.anc[db.b[code][1]] || null; }
+  });
+  return (db.af || []).filter(function(a){
+    if (!anc) return true;
+    return (a[9] || []).some(function(t){ return anc[t]; }) && !(a[10] || []).some(function(t){ return anc[t]; });
+  }).map(function(a){ return a[11] || []; });
+}
+function d2jspAffixRead(mods, db, itemName) {
+  var groups = d2jspAffixRows(db, itemName), out = [];
+  String(mods || '').split('\n').forEach(function(raw){
+    var t = d2jspPostLine(raw);
+    if (!t) return;
+    var lo = null, hi = null, best = null, any = false, v = null;
+    groups.forEach(function(lines){
+      (lines || []).forEach(function(l){
+        if (!l || l[2] === 4) return;
+        var tr = d2jspTplRe(db, l[0]);
+        if (!tr) return;
+        var m = tr.re.exec(t);
+        if (!m) return;
+        var r = (l[1] || [])[tr.idx[0]];
+        if (!r || typeof r[0] !== 'number' || typeof r[1] !== 'number') return;
+        var a = Math.min(r[0], r[1]), b = Math.max(r[0], r[1]), val = Number(m[1]);
+        any = true; v = val;
+        lo = lo == null ? a : Math.min(lo, a); hi = hi == null ? b : Math.max(hi, b);
+        if (val >= a && val <= b && (!best || b > best.hi)) best = { lo: a, hi: b };
+      });
+    });
+    if (!any) return;
+    if (best) {
+      var pct = best.hi === best.lo ? 100 : Math.round((v - best.lo) / (best.hi - best.lo) * 100);
+      out.push({ line: t, value: v, lo: best.lo, hi: best.hi, pct: pct, warn: '' });
+    } else {
+      var legal = v > hi ? hi : lo;
+      out.push({ line: t, value: v, lo: lo, hi: hi, pct: v > hi ? 100 : 0, legal: legal,
+        warn: t + ' is ' + (v > hi ? 'above every roll this mod has (most ' + hi + ')' : 'below every roll this mod has (least ' + lo + ')') + ', likely misread' });
+    }
+  });
+  return out;
+}
+function d2jspTierWord(pct) {
+  return pct >= 100 ? 'perfect' : (pct >= 85 ? 'near-perfect' : (pct >= 50 ? 'mid' : 'low'));
+}
+/* the roll-tier line: the mean place in the rolls of every mod that has a range, and each flag */
+function d2jspTierLine(reads) {
+  var ranged = (reads || []).filter(function(r){ return r.hi > r.lo && !r.warn; });
+  var warns = (reads || []).filter(function(r){ return r.warn; }).map(function(r){ return 'Check: ' + r.warn + '.'; });
+  if (!ranged.length) return warns.length ? warns.join(' ') : '';
+  var avg = Math.round(ranged.reduce(function(s, r){ return s + r.pct; }, 0) / ranged.length);
+  var line = 'Roll tier: ' + d2jspTierWord(avg) + ', ' + avg + '% up the rolls (' + ranged.length + ' ' + (ranged.length === 1 ? 'mod' : 'mods') + ' read).';
+  return warns.length ? (line + ' ' + warns.join(' ')) : line;
+}
+function d2jspTierAvg(reads) {
+  var ranged = (reads || []).filter(function(r){ return r.hi > r.lo && !r.warn; });
+  if (!ranged.length) return null;
+  return ranged.reduce(function(s, r){ return s + r.pct; }, 0) / ranged.length;
+}
+/* the price by roll tier: the low end of this year's range for a low roll, the high end for a top one. Advice under
+   the reading only - the post template and the post price are unchanged. */
+function d2jspTierPrice(q, avg) {
+  q = q || {};
+  var low = Number(q.low), high = Number(q.high);
+  if (q.reason !== 'read' || avg == null || !(low > 0) || !(high > low)) return '';
+  var at = Math.round(low + (high - low) * Math.max(0, Math.min(100, avg)) / 100);
+  return 'For a ' + d2jspTierWord(Math.round(avg)) + ' roll: about ' + at + ' fg of ' + low + '\u2013' + high + '.';
 }
 /* ⟦D2JSP DESK END⟧ */
 (function(){
@@ -12612,6 +12710,16 @@ function d2jspPriceLine(q) {
     if (reading) return 'Reading the public price.';
     return 'Public price unknown.';
   }
+  /* v3843 - the roll-tier line and the tier price, under the price line; nothing when no mod is read */
+  function tierHtml(n, mods){
+    var db = null;
+    try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
+    if (!db || !String(mods || '').trim()) return '';
+    var reads = d2jspAffixRead(mods, db, n), line = d2jspTierLine(reads);
+    if (!line) return '';
+    var tp = quoted[n] ? d2jspTierPrice(quoted[n], d2jspTierAvg(reads)) : '';
+    return '<div class="d2jsp-say" data-d2jsp-tier>' + esc(line + (tp ? (' ' + tp) : '')) + '</div>';
+  }
   function cardHtml(n){
     var art = d2jspArt(n);
     var base = baseOf(n);
@@ -12634,6 +12742,7 @@ function d2jspPriceLine(q) {
       + '<pre class="d2jsp-draft" data-d2jsp-draft' + (postText ? '' : ' hidden') + '>' + esc(postText) + '</pre>'
       + '<div class="d2jsp-say" data-d2jsp-wait' + (draft.ok ? ' hidden' : '') + '>The post waits for a price.</div>'
       + '<div class="d2jsp-say" data-d2jsp-price>' + esc(priceText(n)) + '</div>'
+      + tierHtml(n, mods)
       + '<div class="d2jsp-fields">'
       + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-options="' + esc(n) + '">Options</button>' + mark + remove + '</div>'
       + '<label class="d2jsp-say">Your fg<input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
@@ -66716,7 +66825,10 @@ function renderJournal(){
           /* #144.9 (REG-2760) - THE COPY READOUT RIDES THE SAME HAND-OVER, so a seat can read it from the console without
              touching his profile. At most every 5 min (it packs each locker once per name), and not on the 4 s boot
              beat, when the vault may not be up yet: the first one goes on the 60 s beat. */
-          try {
+          /* v3843 (second eye 3828a) - A SHADOW PAGE NEVER HANDS OVER A COPY READOUT. The console keeps one copy-audit
+             slot, and a shadow page is showing another owner's vault: its readout would replace his and answer for the
+             wrong vault. The shadow skips the hand-over; his own page fills the slot on its next beat. */
+          if (!window._tvdShadow) try {
             var _caNow = Date.now();
             if (window.__copyAuditAt == null) window.__copyAuditAt = _caNow - 240000;
             if (_caNow - window.__copyAuditAt >= 300000) {
