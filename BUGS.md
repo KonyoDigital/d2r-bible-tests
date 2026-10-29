@@ -222,6 +222,23 @@ REG-3087, 3088, 3089 and 3098). The rejuv and the two materials the door refuses
 GUARD: tv/test_a_sweep_apply_claims_possession_only_through_the_vault_door.py, 5 cases on a payload of the console's own
 shape (fixture names), his hand's two doors included. 3 red-proofs, RED. Re-aimed test_a_tv_stub_never_outranks_what_the_name_is:
 its chronicle rows carried no look and were owned by toggleOwned's ungated arm; they now carry two sessions' looks.
+### REG-3082 - A BLESS LEFT ONLY A MERGED FLOOR, AND A REFUSED ONE LEFT NOTHING (#2)
+`render_check.py --bless` writes tv/render_coverage.json, a merge in which a held count (lower than its floor), a raised
+one and a new width look alike afterwards. A refused bless wrote nothing, and its one line said "this run did not report
+every target" even when every target reported and one was red. On the machine that ran it the scrollback covers that. For
+a bless made on another venue (CI's render-bless job, REG-3081) it would leave a floor and no measurement under it, or a
+red job and no reason.
+The bless now writes .render_bless.json beside the floor (so a law's temporary floor keeps its record with it):
+- every count it measured;
+- what it raised, held and added;
+- or, refused, why: "it asked for N of M targets", "it stopped early at X", "N target(s) did not render cleanly (names)",
+  "N target(s) were UNKNOWN". main() hands that reason in, and the refusal prints it.
+The floor rules are untouched: it only rises, and a run that is not full and clean writes no floor. The record is
+gitignored, a local fact like .render_verdict.json. test_render_coverage's one case that blesses the real floor file now
+restores the record too, so its fixture bless never stands as the real one.
+Law test_a_bless_records_what_it_measured (the real _coverage_bless and main(), the browser and the renders stubbed,
+the floor in a temp file), 3 cases, 4 red-proofs RED, baseline green. Coverage neighbours green: test_render_coverage
+(re-proved, bad 0 of 5), test_the_ratchet_is_not_skipped_by_a_subset, test_a_coverage_drop_can_be_named.
 
 ### REG-3042 - A SET PIECE OR A RUNEWORD IN THE MAGIC & RARE REGISTER WAS HOMED ON MAGIC & RARE (#163, GrokBot on Dean's shadow)
 Dean's saved records filed Aldur's Rhythm (a set piece) and Enigma (a runeword) on MAGIC & RARE. The file door has refused to treat
