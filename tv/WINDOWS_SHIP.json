@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3840",
+  "ver": "v3841",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3840: Profiles upload again, carried proofs only from the ALT, a slow Chrome is no red, the Shelf stays open (#172 #186)",
+  "note": "v3841: The river names the reels its drain holds, and every D2JSP card finds its base again (#193 #83)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

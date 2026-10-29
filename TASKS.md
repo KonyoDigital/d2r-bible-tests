@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3840** | `(this commit)` | v3840 — Profiles upload again, carried proofs only from the ALT, a slow Chrome is no red, the Shelf stays open (#172 #186) |
+| **v3841** | `(this commit)` | v3841 — The river names the reels its drain holds, and every D2JSP card finds its base again (#193 #83) |
+| **v3840** | `245ad9cd` | v3840 — Profiles upload again, carried proofs only from the ALT, a slow Chrome is no red, the Shelf stays open (#172 #186) |
 | **v3839** | `3e0d8eac` | v3839 — Renewed sunders draw their own carving, Dean confirms unevidenced ticks, Windows sends key frames (#111 #163 #218) |
 | **v3838** | `014d4fc3` | v3838 — the deploy waits for the CI proof of changed browser laws, CI reuses proofs only on identical bytes (#161) |
 | **v3837** | `37ad646d` | v3837 — capture time and full looks, copies join by cell and mods, removed stays out, charms mule, keeper destination |
