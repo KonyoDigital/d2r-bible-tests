@@ -12781,6 +12781,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_on_a_phone_the_tray_is_one_bottom_bar.py")], 300,
          needs_app=False,
          why='REG-3090 on a phone the tray is one bottom bar that reserves its own height, and the desktop is unchanged'),
+    Gate("test_a_hand_add_moves_a_count_through_the_tools_door",
+         [sys.executable, os.path.join(HERE, "test_a_hand_add_moves_a_count_through_the_tools_door.py")], 300,
+         needs_app=False,
+         why="REG-3004 (his Q5) - A RUNE, GEM, MATERIAL OR REJUVENATION POTION TYPED BY HAND MOVES ITS TALLY UP OR DOWN THROUGH THE TOOLS TAB'S OWN DOOR (adjustRuneStash / adjustGemStash / adjustMaterialStash, chosen by _stashTallyOf), never below zero and never into his owned list; + Add an item lists a count as its tally row with -1 / +1; the TV read chip's +1 asks the same door (it wrote the stores itself - a second counter)."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

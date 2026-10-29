@@ -44121,6 +44121,50 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return String(n).trim() + ' is ' + what + ' \u2014 counted in ' + t.where + ', its own area of the shared stash; the vault gives it no mule cell';
   }
   try { window._stashTallySay = _stashTallySay; } catch (eTs) {}
+  /* REG-3004 (his Q5, 2026-10-29) - A COUNT TYPED BY HAND MOVES ITS TALLY, UP OR DOWN, THROUGH THE TOOLS TAB'S OWN DOOR. The Rune
+     Stash, Gem Stash and Materials cards on the Tools tab already move a tally one at a time - click +1, right-click or the
+     minus button -1, the control he uses when a read was wrong - through adjustRuneStash / adjustGemStash /
+     adjustMaterialStash, and the read funnel (tvToolsDelta) moves them through the same three. The hand door refused a
+     rune, a gem or a material instead ("counted in the Rune Stash ... nothing was added"). Now it moves that tally through
+     the same door: _stashTallyOf (REG-2899's one rule) says which tally, and the door is that tally's own adjust function.
+     There is no second counter, and his owned list is never touched (a count is never a vault item).
+     -> {ok, mode:'tallied', kind, name, key, was, now, delta, why} or {ok:false, refused, why} */
+  /* the tally's own door and its count: -> {t, key, door, count} | {t, why} (the tally is not on this page) | null (not a count) */
+  function _stashTallyDoor(n){
+    var t = _stashTallyOf(n);
+    if (!t) return null;
+    var key, door, count;
+    if (t.kind === 'rune'){
+      var ru = null;
+      try { ru = (typeof findRune === 'function') ? findRune(n) : null; } catch (eFr) { ru = null; }
+      key = ru && ru.n; door = window.adjustRuneStash; count = (typeof _runeCount === 'function') ? _runeCount : null;
+    } else if (t.kind === 'gem'){
+      key = t.name; door = window.adjustGemStash; count = (typeof _gemCount === 'function') ? _gemCount : null;
+    } else {
+      key = t.name; door = window.adjustMaterialStash; count = (typeof _materialCount === 'function') ? _materialCount : null;
+    }
+    if (!key || typeof door !== 'function' || !count) return { t: t, why: t.where + ' tally is not on this page' };
+    return { t: t, key: key, door: door, count: count };
+  }
+  try { window._stashTallyDoor = _stashTallyDoor; } catch (eTd) {}
+  function _stashTallyMove(n, delta, how){
+    var g = _stashTallyDoor(n);
+    if (!g) return { ok: false, refused: 'not-a-count', name: String(n == null ? '' : n).trim(), why: String(n) + ' is not a rune, a gem, a material or a rejuvenation potion \u2014 no tally moved' };
+    var t = g.t, d = Math.round(+delta) || 0;
+    if (!g.door) return { ok: false, refused: 'no-door', name: t.name, why: g.why + ' \u2014 ' + t.name + ' did not move' };
+    if (!d) return { ok: false, refused: 'no-change', name: t.name, why: 'a move of 0 \u2014 ' + t.name + ' stays as it is' };
+    var key = g.key, door = g.door, count = g.count;
+    var was = count(key);
+    if (was + d < 0)
+      return { ok: false, refused: 'below-zero', name: t.name, was: was,
+               why: t.where.charAt(0).toUpperCase() + t.where.slice(1) + ' holds ' + was + ' ' + t.name + ', so it cannot go down ' + (-d) + ' \u2014 nothing changed' };
+    door(key, d);
+    var now = count(key);
+    return { ok: now === was + d, mode: 'tallied', kind: t.kind, name: t.name, key: key, was: was, now: now, delta: d,
+             why: t.name + ' \u2014 ' + t.where + ' ' + was + ' \u2192 ' + now + (how ? ' (' + how + ')' : '')
+                  + (now === was + d ? '' : ' \u2014 the tally did not take the move') + '; the vault gives it no mule cell' };
+  }
+  try { window._stashTallyMove = _stashTallyMove; } catch (eTm) {}
   // v409 / REG-2241 — the three iconic charms (Annihilus, Hellfire Torch, Gheed's Fortune; the 6 Sunder
   // charms are caught by isSharedStash). His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets
   // muled." — so routing NO LONGER sends them to __keep (see suggestMule: Anni & Torch → the shared stash,
@@ -48160,6 +48204,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      opts  kind (the planner row's 'unique' | 'set' | 'runeword'), by / where (who is speaking for his hand) */
   window.vaultHandAdd = function(name, at, opts){
     var pre = _vhPrepare(name, at, opts || {});
+    /* REG-3004 (his Q5) - a rune, a gem, a material or a rejuvenation potion is a count: his hand moves its tally (opts.delta,
+       +1 when not said; -1 takes one off) through the Tools tab's own door, and owns nothing */
+    if (!pre.ok && pre.stash && typeof window._stashTallyMove === 'function')
+      return window._stashTallyMove(pre.name, (opts && opts.delta != null) ? opts.delta : 1, String((opts && opts.by) || 'by hand'));
     if (!pre.ok) return pre;
     /* L1 (Elad, live v3774: a 2nd Aldur's Deception he typed vanished - no row, no cell, no error). A name he
        already owns, typed again by HAND, is another physical copy: ×N the way a 2nd photo-read copy is (the
@@ -48319,6 +48367,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (e.key !== 'Enter') return;
     if (e.preventDefault) e.preventDefault();
     var first = document.querySelector('#vault-hand-list .vault-hand-opt');
+    /* REG-3004 - when the top match is a count, Enter is its +1 (the tally rows the last search drew) */
+    var firstTally = first ? null : (window._vhTal || [])[0];
+    if (firstTally) return window.vaultHandTally(firstTally.name, 1);
     if (!first){
       var say = document.getElementById('vault-hand-say');
       if (say){ say.textContent = 'nothing in the planner list matches — nothing was added'; say.setAttribute('data-state', 'refused'); }
@@ -48339,8 +48390,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var cache = _vhSeen;
     var keep = [], seen = {}, out = 0, unsettled = 0;
+    /* REG-3004 (his Q5) - a count he types or the list names (a rune, a gem, a material, a rejuvenation potion) is its tally's
+       own row: -1 / +1 move it through the Tools tab's door (_stashTallyMove), never a vault item */
+    var tal = [], talSeen = {};
+    var _talOf = function(n){
+      var g = (typeof window._stashTallyDoor === 'function') ? window._stashTallyDoor(n) : null;
+      if (!g || talSeen[g.t.name]) return !!g;
+      talSeen[g.t.name] = 1;
+      tal.push({ name: g.t.name, where: g.t.where, count: g.door ? g.count(g.key) : null });
+      return true;
+    };
+    if (String(q || '').trim()) _talOf(String(q).trim());
     cat.rows.forEach(function(r){
       if (!r || !r.id || !r.name) return;
+      if (_talOf(String(r.name))) return;
       var ck = String(r.q || '') + '|' + r.name;
       if (!cache[ck]){
         var res = _vhResolve(String(r.name), _VH_KIND[r.q] || null);
@@ -48355,7 +48418,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       keep.push({ id: r.id, name: r.name, as: c.name });
     });
     var h = '';
-    if (!keep.length) h = '<p class="vault-hand-say" data-state="empty">No item the vault draws matches.</p>';
+    if (!keep.length && !tal.length) h = '<p class="vault-hand-say" data-state="empty">No item the vault draws matches.</p>';
     keep.slice(0, VAULT_HAND_SHOWN).forEach(function(r){
       var mine = owned.has(r.as);
       h += '<button type="button" class="vault-hand-opt" data-id="' + _vhEsc(r.id) + '"' + (mine ? ' data-owned="1"' : '')
@@ -48364,6 +48427,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     if (keep.length > VAULT_HAND_SHOWN)
       h += '<p class="vault-hand-say" data-state="more">' + VAULT_HAND_SHOWN + ' of ' + keep.length + ' shown — type to narrow the list</p>';
+    tal.slice(0, VAULT_HAND_SHOWN).forEach(function(t){
+      var tb = function(d, label){ return '<button type="button" class="vault-btn vh-choice" onclick="window.vaultHandTally(this.parentNode.getAttribute(\'data-tally\'), ' + d + ')">' + label + '</button>'; };
+      h += '<p class="vault-hand-say" data-state="tally" data-tally="' + _vhEsc(t.name) + '">' + _vhEsc(t.name) + ' \u2014 a count, not a vault item: '
+        + _vhEsc(t.where) + (t.count == null ? ' (its tally is not on this page)' : ' holds ' + t.count) + ' ' + tb(-1, '\u22121') + ' ' + tb(1, '+1') + '</p>';
+    });
     if (out)
       h += '<p class="vault-hand-say" data-state="left-out">' + out + ' matching planner item' + (out === 1 ? ' is' : 's are')
         + ' not listed — the vault does not draw ' + (out === 1 ? 'it' : 'them') + ' (a white base, a crafted recipe, or a name it does not carry), so an add would show nowhere</p>';
@@ -48371,7 +48439,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       h += '<p class="vault-hand-say" data-state="unsettled">' + unsettled + ' matching planner item' + (unsettled === 1 ? ' is' : 's are')
         + ' not listed — which vault item ' + (unsettled === 1 ? 'it names' : 'each names') + ' could not be settled (a name several items share, or a check that could not be asked)</p>';
     list.innerHTML = h;
-    return { ok: true, n: keep.length, shown: Math.min(keep.length, VAULT_HAND_SHOWN), left: out, unsettled: unsettled };
+    window._vhTal = tal;
+    return { ok: true, n: keep.length, shown: Math.min(keep.length, VAULT_HAND_SHOWN), left: out, unsettled: unsettled, tallies: tal };
+  };
+  /* REG-3004 - a tally row's -1 / +1: the hand door's own count move, said in the box, and the list redrawn with the new count */
+  window.vaultHandTally = function(name, delta){
+    var res = window.vaultHandAdd(name, null, { delta: delta, by: '+ Add an item' });
+    var say = document.getElementById('vault-hand-say');
+    if (say){ say.textContent = (res && res.why) || ''; say.setAttribute('data-state', (res && res.ok) ? res.mode : 'refused'); }
+    var qi = document.getElementById('vault-hand-q');
+    try { window.vaultHandSearch(qi ? qi.value : ''); } catch (eS) {}
+    return res;
   };
   window.vaultHandTake = function(id){
     var cat = window._vhCat;
@@ -48425,6 +48503,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var host = document.getElementById('vault-hand-win');
     if (host){ host.hidden = true; host.innerHTML = ''; }
     window._vhCat = null;
+    window._vhTal = null;
     _vhSeen = {};
     return true;
   };
@@ -82292,8 +82371,9 @@ window.tvStashAutoIntake = async function(tab, opts){
 
   function apply(kind,key,chip){
     try {
-      if(kind==='rune'){ runeStash[key]=(parseInt(runeStash[key],10)||0)+1; persist(); if(typeof renderRuneStash==='function') renderRuneStash(); }
-      else if(kind==='gem'){ gemStash[key]=(parseInt(gemStash[key],10)||0)+1; persist(); if(typeof renderGemStash==='function') renderGemStash(); }
+      /* REG-3004 - the read chip's +1 is the Tools tab's own door, the one the funnel and his hand use: never a second counter */
+      if(kind==='rune'){ if(typeof window.adjustRuneStash==='function') window.adjustRuneStash(key, 1); else return; }
+      else if(kind==='gem'){ if(typeof window.adjustGemStash==='function') window.adjustGemStash(key, 1); else return; }
       else if(kind==='uni'){ if(typeof _gFound==='function'&&_gFound(key)) return; if(typeof window.toggleOwned==='function') window.toggleOwned(key, { source: 'hand', by: 'TV DIABLO read chip', where: 'a TV DIABLO read he applied' }); }
       else if(kind==='set'){ var hv=false; try{ hv=(typeof window._setHave==='function')&&window._setHave().has(key); }catch(e){} if(hv) return; if(typeof window.toggleSetPiece==='function') window.toggleSetPiece(key); }   /* v1539 REG-087 — window._setHave: the bare name is declared in a DIFFERENT IIFE, so this guard was always false and applying a read TOGGLED OFF a piece he already owned */
       else return;
