@@ -84,7 +84,7 @@ class TheBumpCarriesItsChangelogEntry(unittest.TestCase):
         ui = _read("tv", "control_ui.html")
         a = ui.index("function cardsHtml(list){")
         b = ui.index("window._histCardsHtml = cardsHtml;")
-        start = ui.rindex("function esc(t)", 0, a)
+        start = ui.rindex("function histEsc(t)", 0, a)
         prog = ui[start:b] + "\nprocess.stdout.write(cardsHtml(" + json.dumps(self.log) + "));"
         out = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
         self.assertEqual(out.returncode, 0, out.stderr)

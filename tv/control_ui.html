@@ -33151,40 +33151,40 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
 /* v3843 - THE VERSION HISTORY OVERLAY. One card per version, newest first, from /api/changelog (tv/CHANGELOG.json,
    which every bump commit appends to). Closes on the top-right x, Esc, or a click outside the box. */
 (function(){
-  function esc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function histEsc(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function cardsHtml(list){
     if (!list || !list.length) return '<div class="hist-card">No version history recorded.</div>';
     return list.map(function(e){
-      return '<div class="hist-card" data-hist-ver="' + esc(e.ver) + '"><div class="hist-head"><span>' + esc(e.ver) + '</span>'
-        + '<span class="hist-date">' + esc(e.date) + ' IDT</span></div><ul>'
-        + (e.items || []).map(function(t){ return '<li>' + esc(t) + '</li>'; }).join('') + '</ul></div>';
+      return '<div class="hist-card" data-hist-ver="' + histEsc(e.ver) + '"><div class="hist-head"><span>' + histEsc(e.ver) + '</span>'
+        + '<span class="hist-date">' + histEsc(e.date) + ' IDT</span></div><ul>'
+        + (e.items || []).map(function(t){ return '<li>' + histEsc(t) + '</li>'; }).join('') + '</ul></div>';
     }).join('');
   }
   window._histCardsHtml = cardsHtml;
-  function ov(){
+  function histOv(){
     var o = document.getElementById('hist-ov');
     if (o) return o;
     o = document.createElement('div');
     o.id = 'hist-ov'; o.hidden = true;
     o.innerHTML = '<div id="hist-box" role="dialog" aria-modal="true" aria-label="Version history">'
       + '<button id="hist-x" type="button" aria-label="Close">\u00d7</button><h2>VERSION HISTORY</h2><div id="hist-list"></div></div>';
-    o.addEventListener('click', function(ev){ if (ev.target === o || (ev.target && ev.target.id === 'hist-x')) close(); });
+    o.addEventListener('click', function(ev){ if (ev.target === o || (ev.target && ev.target.id === 'hist-x')) histClose(); });
     document.body.appendChild(o);
     return o;
   }
-  function close(){ var o = document.getElementById('hist-ov'); if (o) o.hidden = true; }
-  function open(){
-    var o = ov(), l = o.querySelector('#hist-list');
+  function histClose(){ var o = document.getElementById('hist-ov'); if (o) o.hidden = true; }
+  function histOpen(){
+    var o = histOv(), l = o.querySelector('#hist-list');
     l.innerHTML = '<div class="hist-card">Reading the history.</div>';
     o.hidden = false;
     fetch('/api/changelog', { cache: 'no-store' }).then(function(r){ if (!r.ok) throw new Error('changelog ' + r.status); return r.json(); })
       .then(function(j){ if (!j || !Array.isArray(j.versions)) throw new Error('no versions'); l.innerHTML = cardsHtml(j.versions); })
       .catch(function(){ l.innerHTML = '<div class="hist-card">The history could not be read.</div>'; });
   }
-  window._histOpen = open; window._histClose = close;
-  document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') close(); });
+  window._histOpen = histOpen; window._histClose = histClose;
+  document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') histClose(); });
   var b = document.getElementById('foot-hist');
-  if (b) b.addEventListener('click', function(ev){ ev.stopPropagation(); open(); });
+  if (b) b.addEventListener('click', function(ev){ ev.stopPropagation(); histOpen(); });
 })();
 </script>
 </body>
