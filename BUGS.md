@@ -14,6 +14,8 @@ STORED role, and REG-2968 seeds this law's war mules by role and number, so that
 changed nothing the law can see. The proof now breaks the property the law depends on: _vaultWarRole recognising a stored
 role (the seeded war1 then takes no overflow). The name regex's own behaviour stays pinned by REG-2804's law. Chrome law:
 proven by the push gate.
+
+
 ### REG-2969 - THREE LAWS STILL CARRIED THE WORLD FROM BEFORE THE CHARMS LOCKER AND THE CAPTURE-TIME MAP (integration, v3837)
 Measured on the v3837 tree (integration steps 1-4 on v3836), each red for a reason in the LAW, not the product:
 test_a_refused_map_write_never_drops_a_filing typed its 11 core lockers by hand, so after REG-2895 made CHARMS a core locker
