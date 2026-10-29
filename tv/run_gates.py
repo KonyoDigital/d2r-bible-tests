@@ -12529,6 +12529,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_unconfirmed_lane_asks_before_it_clears.py")], 300,
          needs_app=False,
          why="REG-3011 #163: the console inbox's Unconfirmed lane groups ticks by minute, confirms or clears each and each batch, asks before a batch clear, read only in a shadow"),
+    Gate("test_a_hidden_relaunch_says_its_reason_once",
+         [sys.executable, os.path.join(HERE, "test_a_hidden_relaunch_says_its_reason_once.py")], 300,
+         needs_app=False,
+         why='#230 REG-3022 - a hidden console that relaunches hidden says the reason it was hidden once, however many relaunches'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

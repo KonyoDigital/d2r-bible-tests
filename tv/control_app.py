@@ -7728,15 +7728,26 @@ def _bg_minimized(bg):
     return by == "minimized" or by.startswith("quiet relaunch:")
 
 
+#: the reason a hidden start records (see _control_window_kwargs), and the prefix hidden_relaunch_env strips off it
+_STARTED_HIDDEN = "started hidden: "
+
+
 def hidden_relaunch_env(background, env, argv):
     """Before an os.execv: a HIDDEN window relaunches hidden (TV_START_HIDDEN); a window he brought forward
     relaunches shown, even if this console was first started with --background - argv crosses os.execv, so the
     flag is dropped here (every exec site builds its argv from sys.argv AFTER _before_exec returns). A window HE
     minimized is not hidden and relaunches as the quiet path decides. Mutates `env` / `argv`; -> the hidden reason
-    or None."""
+    or None.
+
+    REG-3022 (GrokBot #230): a window BORN hidden and never shown is in the background as "started hidden: <why>", and
+    <why> is the reason it was hidden in the first place. Wrapping that whole again ("the console was hidden (started
+    hidden: the console was hidden (...") nested one more layer on every hidden relaunch; the ALT's reason read that way.
+    The root reason now crosses the exec as it is, so any number of hidden relaunches say it once."""
     bg = background or {}
     if bg.get("on") and not _bg_minimized(bg):
-        env["TV_START_HIDDEN"] = "the console was hidden (%s)" % (bg.get("by") or "?")
+        by = str(bg.get("by") or "?")
+        root = by[len(_STARTED_HIDDEN):].strip() if by.startswith(_STARTED_HIDDEN) else ""
+        env["TV_START_HIDDEN"] = root or "the console was hidden (%s)" % by
         return env["TV_START_HIDDEN"]
     env.pop("TV_START_HIDDEN", None)
     while "--background" in argv:
@@ -10351,7 +10362,7 @@ def _control_window_kwargs(url):
     if _hidden:
         kwargs.pop("minimized", None)
         kwargs.update(hidden=True, focus=False)
-        _mark_background("started hidden: %s" % str(_hidden)[:60], was_fullscreen=not _windowed)
+        _mark_background(_STARTED_HIDDEN + str(_hidden)[:60], was_fullscreen=not _windowed)
         print("   started HIDDEN (%s) - the service runs; the Desktop icon brings the window" % _hidden, flush=True)
     if not _windowed and not _quiet and not _hidden:
         kwargs["fullscreen"] = True

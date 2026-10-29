@@ -288,6 +288,17 @@ of claiming it has none. Law: test_a_windows_owner_sends_key_frames (5 cases, th
 old sips-only default is RED on a Mac too; 7 red-proofs, each RED). The ALT's next frames post (boot, or 3 h after its
 last) carries the pictures: NEEDS LIVE.
 
+### REG-3022 - A HIDDEN CONSOLE'S WINDOW REASON NESTED ONE LAYER DEEPER ON EVERY HIDDEN RELAUNCH (GrokBot #230, the ALT on v3836)
+GrokBot read the ALT's reason as "started hidden: the console was hidden (started hidden: the console was hidd...", and saw it
+again at 03:31. A hidden window relaunches hidden (REG-1430): hidden_relaunch_env set TV_START_HIDDEN to "the console was
+hidden (<by>)" and the boot recorded the background as "started hidden: <that>"; the next relaunch wrapped the whole of it
+again, so every hidden relaunch added a layer until the cuts at 60 and 80 characters lost the reason it was first hidden for.
+A window born hidden and never shown now carries its root reason across the exec as it is (the boot's prefix is one constant,
+_STARTED_HIDDEN, that the relaunch strips), and an empty carried reason still starts hidden. Law:
+tv/test_a_hidden_relaunch_says_its_reason_once.py - three relaunches through the real hidden_relaunch_env and the real boot
+(_control_window_kwargs) say one reason; 3 red-proofs RED. test_closing_the_window_keeps_the_console_running's proof re-aimed.
+
+
 ### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
 The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with
 its sabotage in. It broke the name regex in REG-2804's one-time legacy migration; since REG-2804 a WAR mule is one by its

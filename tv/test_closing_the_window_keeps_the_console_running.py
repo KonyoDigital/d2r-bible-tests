@@ -641,8 +641,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - an update relaunch of a hidden console opens its window (his 'keep it backgrounded')",
         "file": "tv/control_app.py",
-        "find": "        env[\"TV_START_HIDDEN\"] = \"the console was hidden (%s)\" % (bg.get(\"by\") or \"?\")\n",
-        "replace": "        env[\"TV_START_HIDDEN_X\"] = \"the console was hidden (%s)\" % (bg.get(\"by\") or \"?\")\n",
+        "find": "        env[\"TV_START_HIDDEN\"] = root or \"the console was hidden (%s)\" % by\n",
+        "replace": "        env[\"TV_START_HIDDEN_X\"] = root or \"the console was hidden (%s)\" % by\n",
         "matches": 1,
     },
     {
