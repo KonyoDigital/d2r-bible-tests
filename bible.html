@@ -70669,6 +70669,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbDb = _cbDb;
   function _cbBase(code){ var d = _cbDb(); return d && d.b[code] || null; }
+  /* REG-3093 (#83) - read as window._cbBase by _mpIsGenericCopy (a magic/rare still named its base), never exported, so
+     that test only ever matched the b: id path. Exported beside its definition, the way _cbDb is. */
+  window._cbBase = _cbBase;
   /* #174 v-B5 — AN ITEM'S SIZE IN AN INVENTORY, ONE SOURCE: its base's invwidth x invheight (the CB_DB block's b[15] x
      b[16], generated from the game's armor / weapons / misc tables) -> [w, h], or null when the base is not on record
      (UNKNOWN - never a guessed 1x1). The builder's inventory and the mule window's both ask this. [[copy-drift]] */
@@ -73588,6 +73591,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     (d.it || []).forEach(function(it){ if (it && it[1] === name) hits.push(it); });
     return hits;
   }
+  /* REG-3093 (#83, GrokBot 06:36) - the D2JSP desk's catalogBase reads window._cbItemsNamed, and this was never on window:
+     the fallback returned '' for every name, so every filed card said "Base not recorded" - Hellfire Torch (a Large
+     Charm) and Gheed's Fortune (a Grand Charm) included - and the draft post carried no base. */
+  window._cbItemsNamed = _cbItemsNamed;
   function _cbWitnessSay(b){
     var w = b && b.witness; if (!w) return '';
     if (w.state === 'unknown') return ' What the reels saw on this character is UNKNOWN — ' + (w.why || 'the gear ledger was not read') + '.';
