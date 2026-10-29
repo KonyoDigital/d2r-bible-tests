@@ -98,6 +98,8 @@ def _box_in_read_space():
 class TheCropIsCutFromTheReadsBox(unittest.TestCase):
 
     def setUp(self):
+        # REG-2995 - every listing below reads this run's own scratch (made after _fx.contain() at import), so it is
+        # list_own's: the same names, and heart2 can key the law (REG-2362) - os.listdir made it UNKEYABLE
         self.root = tempfile.mkdtemp(prefix="tip_crop_")
         self.addCleanup(shutil.rmtree, self.root, True)
         self.d = _reel(self.root)
@@ -118,7 +120,7 @@ class TheCropIsCutFromTheReadsBox(unittest.TestCase):
 
     def test_the_premise_frame_differencing_cannot_find_it(self):
         """As on his reels: what changed between two frames is most of the frame, so the difference box is no tooltip."""
-        fs = sorted(f for f in os.listdir(self.d) if f.endswith(".jpg"))
+        fs = sorted(f for f in _fx.list_own(self.d) if f.endswith(".jpg"))
         for a, b in zip(fs, fs[1:]):
             rect, why = tc.changed_rect(os.path.join(self.d, a), os.path.join(self.d, b))
             if rect is not None:
@@ -157,17 +159,17 @@ class TheCropIsCutFromTheReadsBox(unittest.TestCase):
             self.assertNotEqual(why.split("; ", 1)[1], "no reason", "the frame-difference crop's own reason was lost")
         self.assertTrue(any("larger than %d bytes" % v.CROP_MAX_BYTES in w for w in whys),
                         "PREMISE: the byte cap never refused a frame-difference box on this reel: %r" % whys[:3])
-        self.assertFalse(os.path.isdir(self.store) and [f for f in os.listdir(self.store) if f.endswith(".jpg")],
+        self.assertFalse(os.path.isdir(self.store) and [f for f in _fx.list_own(self.store) if f.endswith(".jpg")],
                          "a crop was written with no box")
 
     def test_a_box_too_big_to_be_a_tooltip_is_refused_never_a_full_frame_crop(self):
-        rel, why = v._crop_from_box(self.d, sorted(os.listdir(self.d))[0], [0, 0] + MAP["space"], dict(MAP), self.store)
+        rel, why = v._crop_from_box(self.d, sorted(_fx.list_own(self.d))[0], [0, 0] + MAP["space"], dict(MAP), self.store)
         self.assertIsNone(rel, "a whole-picture box was cut as a crop")
         self.assertIn("not a tooltip", why)
-        self.assertFalse(os.path.isdir(self.store) and [f for f in os.listdir(self.store) if f.endswith(".jpg")])
+        self.assertFalse(os.path.isdir(self.store) and [f for f in _fx.list_own(self.store) if f.endswith(".jpg")])
 
     def test_a_box_with_no_picture_map_is_unknown_never_assumed(self):
-        rel, why = v._crop_from_box(self.d, sorted(os.listdir(self.d))[0], _box_in_read_space(), None, self.store)
+        rel, why = v._crop_from_box(self.d, sorted(_fx.list_own(self.d))[0], _box_in_read_space(), None, self.store)
         self.assertIsNone(rel)
         self.assertIn("UNKNOWN", why)
 
