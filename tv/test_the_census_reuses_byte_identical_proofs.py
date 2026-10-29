@@ -221,7 +221,8 @@ class TheLaneReadsItsCensusCountBack(_Case):
             fh.write("  #186 CENSUS CACHE: 7 of 9 proof(s) reused from the cache · 2 proved and banked · ...\n")
             start = fh.tell()
             fh.write("\n".join(self.said) + "\n")
-        self.assertEqual(SP._log_reuse(log, start), {"served": 1, "of": 1, "banked": 0},
+        # REG-3046 - the prover's line now says how many of the served proofs were carried from another PC (0 here)
+        self.assertEqual(SP._log_reuse(log, start), {"served": 1, "of": 1, "carried": 0, "banked": 0},
                          "the lane misread THIS run's line (or read an older run's): %s" % line)
         with io.open(log, "a", encoding="utf-8") as fh:
             start = fh.tell()
