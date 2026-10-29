@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
+The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with
+its sabotage in. It broke the name regex in REG-2804's one-time legacy migration; since REG-2804 a WAR mule is one by its
+STORED role, and REG-2968 seeds this law's war mules by role and number, so that migration never touches them and breaking it
+changed nothing the law can see. The proof now breaks the property the law depends on: _vaultWarRole recognising a stored
+role (the seeded war1 then takes no overflow). The name regex's own behaviour stays pinned by REG-2804's law. Chrome law:
+proven by the push gate.
+
+
 ### REG-2968 - THE WAR STASH LAW SEEDED NAME-ONLY WAR MULES INTO A ROSTER REG-2804 HAD ALREADY STAMPED (CI on ci/claude-v3836, 4 cases)
 test_vault_l1_war_stash_overflow failed 4 cases on CI: overflow landed on WAR2/WAR3 instead of WAR1. The product was right.
 The law's roster_with copied the board's saved roster (its shared entry carrying REG-2804's one-time legacy stamp,
