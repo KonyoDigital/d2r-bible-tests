@@ -541,7 +541,7 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         old = dict(shown, t=now - 2 * RP.HOUR_MS - 1)
         stale = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [old]})
         self.assertIn("roster-stale", stale)
-        self.assertIn(" ago stale", stale)
+        self.assertIn("<p>roster row stored 2 hr ago</p>", stale)   # REG-3037 - the row's store, named; the class keeps stale
         self.assertIn("as of under 1 min ago", stale)
         self.assertNotIn("under 1 min ago stale", stale)
         self.assertNotIn(" stale", safe)
@@ -549,8 +549,8 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
                      "sections": {"vault": {"asOf": now - 2 * RP.HOUR_MS - 1, "counts": 2, "rows": []}}}
         vault_old = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [old_vault]})
         self.assertIn("as of 2 hr ago stale", vault_old)
-        self.assertIn("published under 1 min ago", vault_old)
-        self.assertNotIn("published under 1 min ago stale", vault_old)
+        self.assertIn("roster row stored under 1 min ago", vault_old)
+        self.assertNotIn("roster row stored under 1 min ago stale", vault_old)
         self.assertNotIn("0 min", vault_old)
         unknown = {"owner": OWNER, "published": True, "corrupt": False,
                    "sections": {"characters": {"counts": 1, "rows": [{"name": "Sorceress"}]}}}

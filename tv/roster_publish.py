@@ -1208,6 +1208,19 @@ def roster_html(payload):
 CORRUPT_SIGNATURE = "corrupt, so its signature cannot be read"
 
 
+def row_age_words(row, now_ms):
+    """REG-3037 (#218, GrokBot #230 6485639332) - what a roster row's age dates, named, from the row's own stamp.
+
+    The site STORES a row only when it changes (roster.js answers an unchanged post "unchanged" and writes nothing, and
+    a PC posts an unchanged row only at boot), so its `t` is the last change, not the last time its owner looked. The
+    panel said "<owner> · stale" from it: at 03:31 the Mac's row read 22:00:41 and Fleet said stale while the Mac was
+    online and its board snapshot was 02:18:54 - two records on two clocks (the board waits out its own 75 min gap,
+    console_snapshot.MIN_GAP_MS), each read as one age. Now every surface that dates the row says it is the row's store.
+    -> words (never None: a row whose clock is missing or ahead of now says its age is UNKNOWN)"""
+    _state, words = _ago(row.get("t") if isinstance(row, dict) else None, now_ms)
+    return ("roster row stored " + words) if words else "roster row stored, age UNKNOWN"
+
+
 def panel_words(payload):
     """#95 (REG-2517) - the words the console's roster panel and shadow bar draw, made by the same functions roster_html
     uses (signature_words, _me_line), so the buttons, the bar and the page cannot say different things. -> payload
@@ -1215,7 +1228,8 @@ def panel_words(payload):
     Adds payload["meLine"] = {"cls", "words"}: THIS PC's own last publish (signed, unsigned, refused, ... with why),
     whenever payload["me"] is there. Adds row["sig"] = {"cls", "words"} to every PUBLISHED row: signature verified
     (key ...), NOT signature-verified, signature UNKNOWN (published before signing), or, for a corrupt row, that its
-    signature cannot be read. An unpublished row gets none: nothing was published to be signed."""
+    signature cannot be read. An unpublished row gets none: nothing was published to be signed. REG-3037 - and
+    row["ageWords"], the row's own age named as the row's store (row_age_words)."""
     if not isinstance(payload, dict):
         return payload
     if "me" in payload:
@@ -1230,6 +1244,9 @@ def panel_words(payload):
             continue
         cls, words = signature_words(row)
         row["sig"] = {"cls": cls, "words": words}
+    for row in payload.get("owners") or []:
+        if isinstance(row, dict) and row.get("published") is True:
+            row["ageWords"] = row_age_words(row, payload.get("now"))   # REG-3037 - the panel and the bar print it as given
     return payload
 
 
@@ -1274,12 +1291,8 @@ def _owners_html(payload):
 
 def _published_html(owner, row, now_ms):
     who = html.escape(owner, quote=True)
-    state, words = _ago(row.get("t"), now_ms)
-    said = _age_words(state, words)
-    if said:
-        when = "published " + said
-    else:
-        when = "published, age unknown"
+    state, _words = _ago(row.get("t"), now_ms)
+    when = row_age_words(row, now_ms)   # REG-3037 - the row's store, named; "stale" no longer calls an unchanged row old
     klass = "roster-owner"
     if state == "stale":
         klass += " roster-stale"

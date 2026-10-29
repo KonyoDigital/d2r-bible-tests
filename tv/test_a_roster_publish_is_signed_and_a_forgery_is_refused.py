@@ -1175,9 +1175,14 @@ class TheSignatureReachesHisScreen(unittest.TestCase):
         self.assertIn("Konyo · GrokBot · not published</button>", by["Konyo · GrokBot"])
         self.assertNotIn("roster-sig", by["Konyo · GrokBot"], "a row nobody published was given a signature")
         bars = drawn["bars"]
+        # REG-3037 - the row's own age, named as the row's store (a corrupt row carries no clock: UNKNOWN)
+        ages = {o: "roster row stored 1 min ago" for o in ("Konyo · Mac", "Dean", "Wife PC")}
+        ages["Konyo · ALT"] = "roster row stored, age UNKNOWN"
+        self.assertEqual({r["owner"]: r.get("ageWords") for r in data["owners"] if r.get("published")}, ages)
         for owner, (_cls, words) in want.items():
-            self.assertEqual(bars[owner], "%s · published · %s · read only" % (owner, words),
+            self.assertEqual(bars[owner], "%s · %s · %s · read only" % (owner, ages[owner], words),
                              "the shadow bar inside %s's console does not say its signature" % owner)
+            self.assertIn("%s · %s<span" % (owner, ages[owner]), by[owner], "%s's button does not date its row" % owner)
         self.assertEqual(bars["Konyo · GrokBot"], "Konyo · GrokBot has not published a console · read only")
 
     def test_a_console_that_sent_no_words_reads_unknown_never_silent(self):
@@ -1193,7 +1198,8 @@ class TheSignatureReachesHisScreen(unittest.TestCase):
         self.assertEqual(panel.count('<span class="roster-sig roster-unknown">signature UNKNOWN: the console did not say'
                                      '</span>'), 2, panel)
         self.assertEqual(drawn["bars"]["Dean"],
-                         "Dean · published, stale · signature UNKNOWN: the console did not say · read only")
+                         "Dean · roster row stored, age UNKNOWN (the console did not say) · signature UNKNOWN: the "
+                         "console did not say · read only")
 
     def test_no_owners_still_leads_with_this_pcs_publish(self):
         _need_node(self)
@@ -1708,8 +1714,8 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-2517 (#95): the shadow bar says '<owner> · published · read only' again, whoever signed the row",
      "file": "control_ui.html",
-     "find": "      var say = owner + ' · published' + signed + ' · read only';\n",
-     "replace": "      var say = owner + ' · published · read only';\n",
+     "find": "      var say = owner + ' · ' + rowAge + signed + ' · read only';\n",
+     "replace": "      var say = owner + ' · ' + rowAge + ' · read only';\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-2517 (#95): this PC's own last publish no longer leads the panel, so a refused or unsigned publish is "
             "said only by the doctor",

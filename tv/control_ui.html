@@ -28748,7 +28748,11 @@ function escC(s) {
       if (!owners.length) body.innerHTML = lead + '<div class="roster-none">the roster answer had no owners</div>';
       else body.innerHTML = lead + owners.map(function (row) {
         var name = row && row.owner ? String(row.owner) : '';
-        var age = row && row.published === true ? (row.age === 'stale' ? 'stale' : 'published') : 'not published';
+        /* REG-3037 - the row's own age, named as the row's store (roster_publish.row_age_words). "stale" was the row's
+           last CHANGE plus 2 h: the Mac's unchanged 22:00 row read stale beside its 02:18 board while it was online. */
+        var age = row && row.published === true
+          ? ((typeof row.ageWords === 'string' && row.ageWords) ? row.ageWords : 'roster row stored, age UNKNOWN (the console did not say)')
+          : 'not published';
         var sig = _rosterSig(row);
         return '<button type="button" class="roster-person" data-owner="' + esc(name) + '">' + esc(name) + ' · ' + esc(age)
           + (sig ? '<span class="roster-sig ' + esc(sig.cls) + '">' + esc(sig.words) + '</span>' : '') + '</button>';
@@ -28968,9 +28972,11 @@ function escC(s) {
       // REG-2517 - whose signature this row carries, in the sentence he reads while he is inside it
       var sig = _rosterSig(row);
       var signed = sig ? ' · ' + sig.words : '';
-      var say = owner + ' · published' + signed + ' · read only';
+      /* REG-3037 - no board snapshot, so this bar dates the roster row it draws from: its store, by its own stamp */
+      var rowAge = (row && typeof row.ageWords === 'string' && row.ageWords) ? row.ageWords
+        : 'roster row stored, age UNKNOWN (the console did not say)';
+      var say = owner + ' · ' + rowAge + signed + ' · read only';
       if (!row || row.published !== true) say = owner + ' has not published a console · read only';
-      else if (row.age === 'stale') say = owner + ' · published, stale' + signed + ' · read only';
       var tail = ' · read only';
       var words = say.slice(-tail.length) === tail ? say.slice(0, -tail.length) : say;
       var built = null;

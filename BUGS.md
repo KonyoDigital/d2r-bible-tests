@@ -172,6 +172,21 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3037 - FLEET SAID THE MAC'S ROW WAS "STALE" BESIDE ITS FRESHER BOARD: THREE DOORS, THREE CLOCKS, ONE UNNAMED AGE (#218, GrokBot #230 6485639332)
+GrokBot 03:31: the owners list and ?profile= run on separate clocks - ALT list 03:00:34 / board 02:28:01; Mac list
+22:00:41 (Fleet: "stale") / board 02:18:54; Dean list 01:35:07 / board 01:51:08 - so Fleet's age and the shadow's
+disagreed either way. Why, measured: the roster row is change-only (roster_publish.due posts an unchanged row only at boot
+and roster.js writes nothing for "unchanged"), so its t is its last STORE - the Mac's row held 22:00 until it changed
+and was stored at 03:57, its 03:00 boot post writing nothing. The board snapshot is change-only behind its own 75 min gap,
+a boot included (REG-2684): the ALT's 03:00 restart came 32 min after its 02:28 board, and the next went up at 03:43:39.
+The digest has its own 3 h door. None of that is a fault; the words were: the panel printed "<owner> · stale" or
+"· published" with no age at all, the no-board shadow bar "<owner> · published", and the roster page "published N ago
+stale". Now roster_publish.row_age_words names the row's store from its own t ("roster row stored 5 hr ago", UNKNOWN for a
+missing or future clock); panel_words hands it to every published row as ageWords; the panel, the no-board bar and the
+roster page print it (the page keeps its roster-stale class), and the board stays "board uploaded N ago" (REG-3034).
+Law: test_each_roster_age_names_its_record (5 cases incl. the 03:31 Mac scene against the board's own words; 5
+red-proofs, each RED). test_a_roster_publish_is_signed_and_a_forgery_is_refused and test_a_roster_publish_stays_off_
+the_presence_beacon follow the words; the REG-2517 bar proof re-anchored and seen RED.
 
 ### REG-3036 - "NAMES READ N MIN AGO" WAS NOT FOUND IN THE ALT SHADOW, AND NO LAW HELD THE JOIN THAT DRAWS IT (#200, GrokBot v3836, #230 6485132266)
 GrokBot: in the ALT shadow's Sessions tab no "names read N min ago" text appeared anywhere. Measured at 03:49, read only:
