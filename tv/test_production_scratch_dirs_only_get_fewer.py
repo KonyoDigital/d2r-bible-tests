@@ -50,8 +50,12 @@ KNOWN_UNPAIRED = {
 
 #: A teardown this function-scoped scan cannot see, with the reason. Each is re-proven below.
 EXPLAINED = {
-    ("render_check.py", "_chrome_up"): "the Chrome profile is removed with the browser — in a "
-                                       "finally, AFTER the kill, keyed on _CHROME_PROFILE",
+    # REG-3060 moved the mkdtemp from _chrome_up into _chrome_start_once (one fresh profile per start, a retry included);
+    # caught by CI on v3841 as "render_check.py:_chrome_start_once (+1)". The teardown did not move: _chrome_up calls
+    # _chrome_down after every start that failed, and the profile of the start that answered goes with the browser.
+    ("render_check.py", "_chrome_start_once"): "the Chrome profile is removed with the browser — in a finally, AFTER "
+                                               "the kill, keyed on _CHROME_PROFILE; a failed start's profile goes in "
+                                               "_chrome_up's _chrome_down before the retry",
     ("disk_report_wilson.py", "_scratch"): "REG-1310 - a registry: every throwaway history is appended to _SCRATCH "
                                            "and prove() empties it in its finally (_clean_scratch)",
     ("heart2.py", "make_sandbox"): "REG-1309 - a registry: _track_sandbox records the sandbox with its owner pid; "
@@ -149,12 +153,15 @@ class ProductionScratchDirsOnlyGetFewer(unittest.TestCase):
                             for n in ast.walk(f))
                     and any(isinstance(c, ast.Call) and _call_name(c) == "rmtree" for c in ast.walk(f))]
         self.assertTrue(teardown, "render_check no longer removes _CHROME_PROFILE anywhere — the "
-                                  "EXPLAINED reason is false and _chrome_up is a real leak")
+                                  "EXPLAINED reason is false and _chrome_start_once is a real leak")
 
         def calls_in(fname, fn):
             t = ast.parse(io.open(os.path.join(HERE, fname), encoding="utf-8").read())
             fs = [f for f in ast.walk(t) if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef)) and f.name == fn]
             return {_call_name(c) for f in fs for c in ast.walk(f) if isinstance(c, ast.Call)}
+        self.assertIn("_chrome_down", calls_in("render_check.py", "_chrome_up"),
+                      "REG-3060 - _chrome_up no longer takes a failed start down before its retry: the first start's "
+                      "profile would outlive it, since _chrome_start_once overwrites _CHROME_PROFILE")
         self.assertIn("_clean_scratch", calls_in("disk_report_wilson.py", "prove"),
                       "disk_report_wilson.prove no longer empties its _SCRATCH registry - _scratch is a real leak")
         self.assertIn("_track_sandbox", calls_in("heart2.py", "make_sandbox"),
@@ -193,6 +200,13 @@ RED_PROOF = [
         "file": "test_production_scratch_dirs_only_get_fewer.py",
         "find": "            paired = any(x in CLEAN_CALLS or \"clean\" in x.lower() for x in names)\n",
         "replace": "            paired = True\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-3060 follow-up - a failed Chrome start is retried without being taken down, so its profile outlives it",
+        "file": "render_check.py",
+        "find": "        _chrome_down()                               # this start's browser (by its handle) and its profile go\n",
+        "replace": "        pass\n",
         "matches": 1,
     },
 ]

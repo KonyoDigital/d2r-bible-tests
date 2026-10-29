@@ -251,13 +251,21 @@ class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
                 # #225 (his ruling 2026-10-28) changed ONE line of the card - what a click opens. Everything else in it
                 # is still byte for byte; that line is pinned to its new words on its own.
                 cut = re.compile(r'<div class="ftt-click">[^<]*</div>')
-                self.assertEqual(cut.sub("", s[m]["ftt"]), cut.sub("", b[m]["ftt"]), "%s %s: the hover card changed" % (k, m))
+                # REG-3051 (GrokBot 6486545342) changed ONE clause of the river-stuck chip's tip - it now ends naming how
+                # long each station's oldest reel has waited. Caught by CI on v3841 as this case. That clause is cut from
+                # the ship side here and pinned on its own below; its words are REG-3051's law's to prove.
+                waited = re.compile(u' \u00b7 oldest reel waiting: [^"<]*')
+                self.assertEqual(waited.sub("", cut.sub("", s[m]["ftt"])), cut.sub("", b[m]["ftt"]),
+                                 "%s %s: the hover card changed" % (k, m))
+                if "river stuck" in b[m]["ftt"]:
+                    self.assertIn(u" \u00b7 oldest reel waiting: ", s[m]["ftt"],
+                                  "%s %s: the river-stuck chip no longer says what waited (REG-3051)" % (k, m))
                 self.assertIn('<div class="ftt-click">click: open the row \u00b7 click it again: how this PC films and drains, '
                               'and their set pieces against yours</div>', s[m]["ftt"],
                               "%s %s: the card does not say what each click opens" % (k, m))
                 # the row carries the card, so its #225 click line is cut from both (SNAP already strips the row's own
                 # click and key handlers; the two clicks are proven by test_the_first_click_opens_the_row_and_a_second_opens_the_compare)
-                self.assertEqual(cut.sub("", s[m]["row"]), cut.sub("", b[m]["row"]),
+                self.assertEqual(waited.sub("", cut.sub("", s[m]["row"])), cut.sub("", b[m]["row"]),
                                  "%s %s: the row changed beyond its eyes" % (k, m))
 
     def test_the_cross_reference_is_unchanged_but_for_the_folded_diagnostics(self):
@@ -356,6 +364,11 @@ class TheRouteIsWitnessedWithoutAWindow(unittest.TestCase):
         self.assertEqual(self.owner({"nickname": "someone"}), "")
 
 RED_PROOF = [
+    {"why": "REG-3051 follow-up - the river-stuck chip's tip stops naming what waited, and the byte-for-byte pin would not see it",
+     "file": "tv/control_ui.html",
+     "find": "      if (_waits.length) tip += ' · oldest reel waiting: ' + _waits.join(', ');",
+     "replace": "      if (false) tip += ' · oldest reel waiting: ' + _waits.join(', ');",
+     "matches": 1},
     {"why": "REG-2768 - the open row's eyes sit across its middle, so a second click enters the shadow",
      "file": "tv/control_ui.html",
      "find": "  .fleet-row.fleet-open > .fleet-open-eyes { display: flex; justify-content: flex-end; margin-right: 14px; }",

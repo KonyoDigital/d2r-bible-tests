@@ -72,6 +72,11 @@ missing Chrome keeps its declared skip. Laws: tv/test_no_tool_calls_an_installed
 the launcher stubbed, Chrome installed or absent - names Chrome, so CI proves it; 5 red-proofs declared) and
 tv/test_a_law_that_cannot_measure_is_unknown_never_red.py (gate_status for a script's exit 3, with and without the mark;
 9 red-proofs RED).
+Follow-up (agent tests on ci/claude-v3841): test_control's declared-skip case modelled 'no browser' by stubbing
+_chrome_up alone, so on a machine with Chrome installed (CI, his Mac) crest_loudness took this entry's VENUE branch and
+exited 3, not 77. The case now has no binary either (rc.CHROME absent -> 77, the declared SKIP), and a new case runs the
+installed-and-silent branch for real (rc.CHROME exists, _chrome_up refuses -> exit 3 with VENUE_MARK, gate_status VENUE).
+Both stubs measured on the Mac with the browser path stubbed out: exit 77 and exit 3.
 
 
 ### REG-3061 - A LAW WHOSE BROWSER WOULD NOT START READ AS A RED GATE SET (#161, CI on v3837 and v3838)
@@ -108,6 +113,10 @@ browser law's gate (120 s or more; a law holds the margin). Not changed: a11y_ch
 failure "no Chrome on :N" - a different message on a different path. Law:
 tv/test_a_slow_browser_start_is_retried_and_named.py (a fake Popen whose process lives, exits or never answers; no
 browser is started) - it names Chrome, so it is refused on his Mac: CI proves it; 9 red-proofs declared, not run here.
+Follow-up (agent tests on ci/claude-v3841): the scratch-dir ratchet named render_check:_chrome_start_once (+1) - this
+entry moved the profile's mkdtemp out of _chrome_up. Its teardown did not move (_chrome_down after every failed start, the
+answering start's profile with the browser), so EXPLAINED now names _chrome_start_once, and the law also asserts _chrome_up
+calls _chrome_down before its retry (+1 red-proof: a retry without the take-down).
 
 
 ### REG-3056 - ON A SEALED BOARD HIS CRAFTS CHIP SNAPPED BACK TO MAKE NOW (GrokBot #230 6486545342)
@@ -401,6 +410,10 @@ None with an UNKNOWN why, never an empty, flowing list. And the chip's tip ends 
 waited ("oldest reel waiting: ROUTED older 18 d, STATION 9 h"), so the row's age says what is old and by how much. Law:
 test_the_river_stuck_has_one_source (6 cases: the beacon's reading on the route with its time, UNKNOWN before and when
 unreadable, the route's line, the chip in node; 6 red-proofs, each RED).
+Follow-up (agent tests on ci/claude-v3841): test_a_roster_name_opens_its_row_with_the_eyes pins the fleet hover card
+byte for byte against an older base, and this entry's new clause (' · oldest reel waiting: ...') broke it. The clause is
+cut from the ship side the way the #225 click line already is, and pinned on its own: a card whose base said 'river stuck'
+must say what waited (+1 red-proof: the tip stops naming it).
 
 ### REG-3050 - A SLOW OR FAILED SESSIONS ASK CLOSED THE SHELF HE OPENED, AND A FAILED REFRESH CALLED HIS RUNS ABSENT (#86, folded #245)
 GrokBot's folded #245 tick: "the gallery self-closes 8-10 s after the Shelf button". thOpen's catch closed #theatre whenever

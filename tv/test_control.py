@@ -45139,6 +45139,11 @@ class TestADeclaredSkipCanActuallyFire(unittest.TestCase):
             sys.path.insert(0, %r)
             import render_check as rc
             rc._chrome_up = lambda *a, **k: False      # the venue with no browser, exactly
+            # REG-3064 split "no browser" in two: no Chrome BINARY here is the declared SKIP (77); an INSTALLED Chrome
+            # that would not start is VENUE (3). With only _chrome_up stubbed, a machine that has Chrome (CI, his Mac)
+            # took the VENUE branch and this case went red on v3841's CI - so the venue with NO browser now has no
+            # binary either. The installed-and-silent branch is test_an_installed_browser_that_will_not_start_is_venue.
+            rc.CHROME = "/nonexistent/no-chrome-on-this-venue"
             import crest_loudness
             sys.exit(crest_loudness.main())
         """) % HERE
@@ -45172,6 +45177,36 @@ class TestADeclaredSkipCanActuallyFire(unittest.TestCase):
             "does not cover it. The gate would skip and be counted as a FAILURE, for a reason its "
             "own registration claims to have declared. Something now prints after the skip line."
             % (reason, g.skip_ok))
+
+    def test_an_installed_browser_that_will_not_start_is_venue(self):
+        """REG-3064's branch, run for real: Chrome INSTALLED (any existing file stands in for its binary) and _chrome_up
+        refusing. The checker must exit VENUE_EXIT with VENUE_MARK in what it prints, and run_gates must read that as
+        VENUE - never the declared SKIP (a skip reads like a pass) and never FAIL (a red the venue caused)."""
+        import subprocess, tempfile, textwrap
+        rg = self._gates()
+        stub = textwrap.dedent("""
+            import sys
+            sys.path.insert(0, %r)
+            import render_check as rc
+            rc._chrome_up = lambda *a, **k: False
+            rc.CHROME = sys.executable                 # a binary that exists: Chrome is installed and would not start
+            import crest_loudness
+            sys.exit(crest_loudness.main())
+        """) % HERE
+        with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as fh:
+            fh.write(stub)
+            path = fh.name
+        try:
+            p = subprocess.run([sys.executable, path], capture_output=True, text=True, timeout=180)
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        self.assertEqual(p.returncode, rg.VENUE_EXIT, "an installed browser that would not start exited %d, not "
+                                                      "VENUE_EXIT %d" % (p.returncode, rg.VENUE_EXIT))
+        self.assertEqual(rg.gate_status(p.returncode, (p.stdout or "") + (p.stderr or "")), "VENUE",
+                         "run_gates does not read the checker's VENUE exit as VENUE: %r" % (p.stdout or "")[-300:])
 
     def test_an_undeclared_skip_is_still_a_failure(self):
         """The anti-vacuity half. If any skip were tolerated, this would be a mute button."""
@@ -46596,6 +46631,11 @@ TestV2078TheWatchdogLooksByItself.SHARD_ALONE = True     # the cheap subset's wa
 TestExitSafeguard.SHARD_ALONE = True                     # an exit must return in under 0.25 s
 
 RED_PROOF = [
+    {"why": "REG-3064 follow-up - an installed browser that would not start is called the declared 'no Chrome' skip again",
+     "file": "tv/crest_loudness.py",
+     "find": "            return rc.VENUE_EXIT\n",
+     "replace": "            return 77\n",
+     "matches": 1},
     {"why": "REG-1990 - the cheap budget is never widened again: a slow-core reading refuses the push (v3596/v3599/v3602)",
      "file": "tv/test_control.py",
      "find": "    scale = max(1.0, min(REF_CAP, (sum(good) / len(good)) / REF_FAST_MS))\n",
