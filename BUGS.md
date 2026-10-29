@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3080 - EVERY PROFILE UPLOAD WAS REFUSED: THE CONSOLE SENT TWO CHARACTERS FIELDS THE WORKER DID NOT LIST (LIVE, v3837 on)
+REG-2907 (#36, shipped in v3837) added `sessions` and `sessionsWhy` to the characters answer on the console side
+(tv/console_snapshot.API_FIELDS) but not on the worker's (functions/api/roster.js API_FIELDS). The worker's apiOk refuses any
+field outside its list, and the profile handler then refuses the WHOLE profile. MEASURED LIVE 2026-10-29 06:04: the Mac
+console on v3838 read "roster would not take this profile: d2r_api_chars_learned is not the console answer it names" - every
+profile upload carrying a characters answer was refused, so every shadow froze on its last profile. Found by agent-guide
+building REG-3079 (it ran console_snapshot.api_store on the real code and compared the worker's list). Why no law caught it:
+test_shadow_mode_reads_their_console held only the API NAMES equal, never each name's fields - and the CI shards could not
+see it either, because nothing ran the worker's check on the console's store. Fix: the worker lists both fields; apiOk is
+exported for its law. Law test_the_worker_takes_every_field_the_console_sends: each name's field list equal on both sides,
+and the worker's own apiOk run in node on the store the console's own api_store builds from a full answer (with a premise that
+the check refuses a stranger field). 2 red-proofs RED (the console gains a field the worker lacks; the worker drops the two).
+The old worker measured: apiOk('chars_learned', <a v3838 store>) -> false.
+
 ### REG-3078 - A WAR NUMBER 0 STORED BEFORE REG-3027 STILL READ AS WAR MULE 1 (the v3838 second eye, #231)
 REG-3027 stopped WAR0 from being STAMPED a war mule, but v3836 had already stamped a mule named WAR0 as role war with warN
 0 on any roster it saved, and _vaultWarRole's `+m.warN || 1` read that 0 as a missing number: a second war mule 1 beside

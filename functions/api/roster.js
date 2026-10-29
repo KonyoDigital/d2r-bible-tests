@@ -469,7 +469,11 @@ export const DENY_PREFIX = ["d2r_quarantine", "d2r_d2jsp_", "d2r_api_"];
 export const API_NAMES = ["chars_learned", "main_locks", "world"];
 // the fields each console answer may carry (console_snapshot.API_FIELDS) and the world's closed values (world_of)
 export const API_FIELDS = {
-  chars_learned: ["ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel", "surfaceWitnesses", "lobbyBySize"],
+  // REG-3080 - sessions/sessionsWhy (REG-2907) were added on the console side only, and apiOk refuses a field outside this
+  // list, so EVERY profile carrying the characters answer was refused whole ("d2r_api_chars_learned is not the console
+  // answer it names") from the v3837 console on: shadows froze on their last profile. A law now holds each name's FIELDS equal.
+  chars_learned: ["ok", "chars", "gear", "gearWhy", "minVisits", "tierBars", "cPanel", "surfaceWitnesses", "lobbyBySize",
+                  "sessions", "sessionsWhy"],
   main_locks: ["ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"],
   world: ["machine", "profile", "ledger", "os", "cousin"],
 };
@@ -511,7 +515,7 @@ export function worldOk(text) {
          !/[\x00-\x1f"<>\\]/.test(w.ledger);
 }
 
-function apiOk(name, text) {
+export function apiOk(name, text) {   // exported for its law (REG-3080): the field check a profile store must pass
   if (name === "world") return worldOk(text);
   let v;
   try { v = JSON.parse(text); } catch (e) { return false; }
