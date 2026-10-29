@@ -103,6 +103,24 @@ the first item Dean filed would have erased the other four; a persist now carrie
 cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
 (node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
 and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+### REG-2925 - THIS PC'S SAVE FOLDER NAMES ITS CHARACTERS, AND NOTHING READ IT (#251)
+Measured 2026-10-29 on his two PCs: neither holds a .d2s, because his characters are online and Battle.net keeps them.
+The D2R save folder holds one key-binding file per character played on that PC, <Name><id>.ctlo and/or .keyo, so it
+names this PC's characters with their exact spelling and nothing else (no class, no level). The id is an account id:
+the same character carries the same id on the Mac and the ALT, and a deleted and remade name gets a new one. On a Mac,
+D2R runs in a CrossOver bottle, and the bottles live where CrossOver.conf's BottlePath says; the default bottle folder
+was empty on his Mac. tv/d2s_read.py now reads it, read-only (listdir only; nothing opened but a .d2s; nothing
+written).
+- save_dirs: the Saved Games known folder on Windows; every bottle's drive_c/users/<user>/Saved Games on a Mac.
+- save_roster: names only, and for each name how many ids carry it, never the ids themselves. No file time leaves,
+  because a binding file's time is when its bindings were written, not when the character was played.
+- saves: "no-folder" is chars None (UNKNOWN), never an empty list. A folder that exists and will not list is counted
+  ("may be short", or UNKNOWN when nothing else was found), never read as empty. With no .d2s the answer says
+  "no .d2s on this PC; online characters live on Battle.net".
+Law test_this_pc_names_its_characters_from_its_saves (fixtures in the run's own scratch), 7 cases, 5 red-proofs RED
+(ids leave, no folder reads empty, BottlePath ignored, a digit taken into the name, an unlistable folder skipped
+silently), baseline green.
+
 ### REG-2924 - THE FIVE ROSTER LABELS WERE TYPED IN FOUR PLACES, AND THE SHADOW READER KEPT A COPY THAT COULD ONLY DISAGREE (#252)
 Found by the #252 per-PC audit. The owner labels (Konyo · Mac, Konyo · ALT, Konyo · GrokBot, Dean, Wife PC) decide whose
 profile a fleet row is, and they were typed four times: roster_publish.OWNERS (the console publishes under it, and
