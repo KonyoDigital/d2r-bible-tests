@@ -12773,6 +12773,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_unowned_item_takes_its_copy_records_with_it.py")], 300,
          needs_app=False,
          why='REG-3073 an un-owned item takes its copy records with it, and its undo brings them back'),
+    Gate("test_a_lock_never_publishes_more_refusals_than_attempts",
+         [sys.executable, os.path.join(HERE, "test_a_lock_never_publishes_more_refusals_than_attempts.py")], 300,
+         needs_app=False,
+         why='REG-3074 a lock never publishes more refusals than attempts: bank and the ledger read both refuse k above n'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

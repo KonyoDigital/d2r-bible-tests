@@ -1496,6 +1496,18 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-3074 - NOTHING HELD THE RULE THAT A LOCK NEVER EARNS MORE REFUSALS THAN ATTEMPTS (#84, GrokBot #230 2026-10-12)
+GrokBot read the Heart fan twice on v3679/v3680 as "printer.stream earned 138/135" (earned above its total). Measured:
+v3680's own self_arming over v3680's own ledger scores printer.stream k=135 n=135 (657 rows, 0 row faults; its folded
+rows are sabotage 126/126 and live 9/9, unchanged since 2026-09-22), and that build's caption printed L.k + '/' + L.n
+as served. GrokBot's next three ticks that day and its 10-16 answer read 135/135. So the 138 was a misread of the
+pixels, NOT A DEFECT in the count (the "earned" caption itself is gone since #180: the hover says "trial: k/n").
+What makes k above n impossible is two checks - bank() refuses k > n, and _row_fault fails the whole read CLOSED on a
+file row with k > n - and no law named either. Test-only: a law that holds both on an isolated ledger (a refused bank
+writes nothing; a forged 138/135 row reads UNKNOWN and may() stays LOCKED) and holds the shape over the tracked
+ledger (every lock and route: k <= n, attacksPassed <= attacks <= n). The fan-caption overlap half of #84 is NEEDS
+LIVE. Law: test_a_lock_never_publishes_more_refusals_than_attempts (python), 2 red-proofs, RED.
+
 ### REG-3073 - AN UN-OWNED ITEM LEFT ITS COPY RECORDS BEHIND (#153.13, GrokBot's vault sweep)
 GrokBot: "vaultUnown leaves d2r_vaultRecords behind (3 Shako copies -> 3 orphan records)". Measured on the whole page in
 node: three Harlequin Crest copies (an Ist and a Ber from the planner, one by hand) un-owned -> the name left owned and all
