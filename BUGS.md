@@ -225,6 +225,22 @@ of that shape the global heart rule reads "census current, 0 blind" and every lo
 law shuts no lock, and REG-2715's rule (a proof needing what this PC lacks is not served) stands. Law:
 tv/test_a_carried_proof_stands_only_where_it_was_earned.py (23 cases; with REG-3045..3047, 21 red-proofs, all RED).
 
+### REG-3102 - ONE RED-PROOF GREW A PROCESS CHAIN THAT RAN A HOSTED RUNNER OUT OF MEMORY, SO THE SITE COULD NOT DEPLOY
+Publish 40812615686's proof shard 7 died twice ("The runner has received a shutdown signal", exit 143, at 04:17:30 and
+05:18:15), so nothing after v3836 deployed. Every gate's clean run passed both times. The one gate that never finished was
+test_a_source_audit_runs_in_a_child, and both deaths came about 2 min (142 s, 125 s) after its lane printed "6 line(s)
+held", i.e. during RED_PROOF[6]. That proof makes audit_child.wanted() say yes in every process, and wanted() was the only
+thing stopping a child from spawning a child. The law's setUpClass spawned a lane_spans child; that child's own
+_lane_spans() found no cache and spawned the next, and so on. Measured on a bounded copy (its own process group, a depth
+cap, a fixture TV_HIST): a new level every ~0.19 s, each holding ~72 MB RSS, and nothing derived until audit_child's 180 s
+timeout. That is about 370 MB/s on his Mac, which fills a 16 GB runner well inside the timeout. heart2's
+subprocess.run(timeout=...) kills only the law, never its orphans. The same proof run on a tree without this fix (sab, a
+local prove) grows the same chain on that machine.
+Fixed: audit_child.run() itself refuses inside a child (TVD_AUDIT_CHILD=1), and the child derives in its own process.
+Re-probed with the same tamper: zero spawns, the cache written, rc 0. Law: test_a_source_audit_runs_in_a_child gains
+AChildNeverSpawnsAChild (a child asked to spawn derives itself; baseline: a console still spawns) and RED_PROOF[9] (the
+refusal removed). Still open: heart2 runs a law without its own process group, so a future runaway would still outlive
+its law.
 
 ### REG-3040 - #161'S HOOK EDIT DROPPED THE PUSH HOOK'S EXECUTABLE BIT, WHICH WOULD HAVE SWITCHED THE WHOLE LOCAL GATE OFF
 core.hooksPath=hooks, and git runs a hook only when it is executable: a 100644 hooks/pre-push is skipped with a one-line

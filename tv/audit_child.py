@@ -69,6 +69,12 @@ def run(name, timeout=TIMEOUT_S, _spawn=None):
     r = _row(name)
     if name not in AUDITS:
         return False, "no audit named %r" % (name,)
+    # REG-3102 - A CHILD NEVER SPAWNS A CHILD, AT THE SPAWN ITSELF. wanted() was the only thing holding it: with that one
+    # line gone, every child's own _lane_spans() saw no cache and spawned the next - measured 2026-10-29, one level every
+    # ~0.19 s at ~72 MB each, nothing derived until the 180 s timeout - and a red-proof doing exactly that ran a hosted
+    # runner out of memory twice (publish 40812615686, proof shard 7). Refused here, the child derives in its own process.
+    if os.environ.get(CHILD_ENV) == "1":
+        return False, "a child never spawns a child - it derives in its own process (REG-3102)"
     env = dict(os.environ)
     env[CHILD_ENV] = "1"
     t0 = time.time()

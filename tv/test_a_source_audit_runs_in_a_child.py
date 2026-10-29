@@ -20,6 +20,11 @@ routes were derived but their cache was not written". The three route keys (chro
 .tvd_roster.json) - files _routes_on_disk() has skipped since REG-1954 - so the key moved under the child's derivation.
 Reproduced: touching .tvd_roster.json 4 s into a child made it exit 3. And on the ALT (Python 3.12) the reason was buried
 under a SyntaxWarning from stderr; the child's own sentence now leads.
+
+REG-3102 (measured 2026-10-29): RED_PROOF[6] below - wanted() saying yes everywhere - turned into a chain. Each child's own
+_lane_spans() found no cache and spawned the next: a level every ~0.19 s at ~72 MB each, nothing derived until the 180 s
+timeout. A hosted runner proving this law ran out of memory twice (publish 40812615686, proof shard 7, ~2 min into that
+proof). The spawn itself now refuses inside a child, so that proof still goes red through the law with at most one child.
 RED_PROOF below.
 """
 import ast
@@ -222,6 +227,34 @@ class TheChildsOwnReasonLeads(unittest.TestCase):
         self.assertIn("MemoryError", AC.run("routes", _spawn=lambda *a, **k: _P())[1])
 
 
+class AChildNeverSpawnsAChild(unittest.TestCase):
+    """REG-3102 - the spawn ITSELF refuses inside a child, so a wanted() that says yes can never grow a chain."""
+
+    class _P(object):
+        returncode, stdout, stderr = 0, "{}", ""
+
+    def tearDown(self):
+        AC.STATE.clear()
+
+    def test_a_child_asked_to_spawn_derives_itself(self):
+        spawned = []
+        with mock.patch.dict(os.environ, {AC.CHILD_ENV: "1"}):
+            for name in AC.AUDITS:
+                ok, why = AC.run(name, _spawn=lambda *a, **k: spawned.append(a) or self._P())
+                self.assertFalse(ok, "a child reported a spawn of %s as done: %r" % (name, why))
+                self.assertIn("never spawns a child", why)
+        self.assertEqual(spawned, [], "a child spawned a child - each level would spawn the next (REG-3102)")
+
+    def test_without_the_marker_the_spawn_still_happens(self):
+        # BASELINE: the same call with no marker reaches the spawn, so the refusal above is the marker's doing
+        spawned = []
+        with mock.patch.dict(os.environ, {}):
+            os.environ.pop(AC.CHILD_ENV, None)
+            ok, why = AC.run("routes", _spawn=lambda *a, **k: spawned.append(a) or self._P())
+        self.assertEqual(len(spawned), 1, "PREMISE: a console's run() no longer reaches the spawn: %r" % why)
+        self.assertTrue(ok, why)
+
+
 RED_PROOF = [
     {"why": "REG-2733 - the chronicle route key stamps the hidden per-PC ledgers again (the child never caches)",
      "file": "tv/chronicle_routes.py",
@@ -253,7 +286,7 @@ RED_PROOF = [
      "find": "        if _ac.wanted():\n            _got = _lane_spans_disk(_key)\n",
      "replace": "        if False:\n            _got = _lane_spans_disk(_key)\n",
      "matches": 1},
-    {"why": "#172 phase B - every process spawns, a law and a child included",
+    {"why": "#172 phase B - wanted() says yes in every process, a law included (a child is still held at run(), REG-3102)",
      "file": "tv/audit_child.py",
      "find": "    if os.environ.get(CHILD_ENV) == \"1\":\n        return False\n",
      "replace": "    return True\n",
@@ -267,6 +300,11 @@ RED_PROOF = [
      "file": "tv/health_engine.py",
      "find": "        if blob.get(\"key\") != [int(key[0]), int(key[1])] or not isinstance(blob.get(\"val\"), dict):\n",
      "replace": "        if not isinstance(blob.get(\"val\"), dict):\n",
+     "matches": 1},
+    {"why": "REG-3102 - a child asked to spawn spawns again (with wanted() wrong too, each level spawns the next)",
+     "file": "tv/audit_child.py",
+     "find": "    if os.environ.get(CHILD_ENV) == \"1\":\n        return False, \"a child never spawns a child",
+     "replace": "    if False:\n        return False, \"a child never spawns a child",
      "matches": 1},
 ]
 
