@@ -43,6 +43,21 @@ eagle ledger, and it did not redirect it: run from his checkout it would have wr
 test_no_test_writes_his_eagle_ledgers could not see it (the pass runs inside a -c string, not an AST call). The law
 now calls fixture_ledgers.redirect() at import, so the process and its child write a temp ledger; measured: the
 worktree's ledger kept its mtime and size across a full run.
+### REG-3012 - THREE D2JSP LAWS HAND-ADDED A BARE "Shako", WHICH REG-2858 NOW ASKS ABOUT INSTEAD OF OWNING (integration int-10)
+Red on the chain from int-7: test_a_d2jsp_card_counts_traded_copies_from_the_vault, test_a_mark_traded_goes_through_the_vault_trade_door
+and test_a_confirmed_d2jsp_post_lists_its_copies_on_the_vault each hand-added "Shako" in their whole-page half. Since REG-2858
+(int-4), the hand door answers a bare Shako with a question: "Shako" is two things, Harlequin Crest (Shako) or a white Shako
+base. Nothing was owned, so the trade-out said "Shako is not in the vault". Each law now hand-adds "Harlequin Crest", which
+files as Harlequin Crest (Shako) (REG-2897; measured in node). REG-2858 is untouched, and the pane halves that fake the vault
+keep their 'Shako' keys. Red-proofs re-proven RED on green baselines: 12/12, 6/6, 10/10.
+
+
+### REG-2995 - REG-2915'S LAW LISTED ITS OWN SCRATCH WITH os.listdir, AND REG-2941'S CENSUS NAMED IT UNKEYABLE (integration, after int-9)
+On the integration chain, test_the_unkeyable_laws_only_get_fewer (REG-2941, int-9) named a new unkeyable law,
+test_the_tooltip_crop_comes_from_the_read_that_named_it (REG-2915, int-6). Neither branch saw the other. All five of its listings
+read the fixture reel and crop store it builds under its own mkdtemp, made after fixture_tmp.contain() at import. That is the
+REG-2362 case: list_own, the same names. The census passes on the chain (5); the law's seven red-proofs are RED against a
+green baseline.
 
 ### REG-2985 - THE CONSOLE STILL PARSED 118 MB OF ITS OWN SOURCE IN ITS OWN HEAP: THE GATE FILES TWICE AND THE CENSUS ONCE (#172 phase C)
 Measured 2026-10-29 on a scratch console of his Mac: his data, no .git, Python 3.9, 300 s, every ast.parse counted by
