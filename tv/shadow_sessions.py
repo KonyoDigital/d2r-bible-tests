@@ -11,7 +11,8 @@ dated by what it captured (replay.session_moments, REG-2736), its read count by 
 _is_a_live_read, passed in - one predicate, never a copy), the names its reads saw, and up to 3 key frames as the
 theatre's own 160 px thumbnails (tv/frames/hist/cache160/<frameId>.jpg, ~11 KB) - frames whose read named something
 first, else first / middle / last. A frame with no thumbnail is made by `sips` on a Mac (the theatre's own resizer, into
-the theatre's own cache); a PC with no resizer carries the session without pictures and says why, never a full frame.
+the theatre's own cache), else by Pillow (REG-3033: a Windows owner had sips alone to ask and sent no picture); a PC
+with no resizer carries the session without pictures and says why, never a full frame.
 
 Caps (the record is KV-bound): a thumbnail over 20 KB is left out and named, and the total stays under 600 KB by
 dropping the OLDEST sessions' pictures first, each drop counted. Phase 2 signs and publishes it as the owner's own
@@ -20,6 +21,7 @@ roster record; phase 3 draws it in the shadow's Shelf and TV·D. Never raises; w
 import base64
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -34,20 +36,71 @@ MAX_TOTAL = 600 * 1024
 MAX_NAMES = 8
 
 
+THUMB_PX = 160
+
+
 def _sips_thumb(src, dst):
     """The theatre's own 160 px derivative (control_app._prewarm_session_frames' sips call). -> bool"""
     if sys.platform != "darwin":
         return False
     try:
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "68", "--resampleHeightWidthMax", "160",
-                        src, "--out", dst], capture_output=True, timeout=8)
+        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "68", "--resampleHeightWidthMax",
+                        str(THUMB_PX), src, "--out", dst], capture_output=True, timeout=8)
     except (OSError, subprocess.SubprocessError):
         return False
     return os.path.isfile(dst)
 
 
-def thumb_bytes(hist_dir, frame_id, make=_sips_thumb):
+def _pil_thumb(src, dst):
+    """REG-3033 - the same 160 px JPEG on a PC with no sips. -> bool
+
+    The default resizer was sips alone, and sips is macOS: on GrokBot's v3836 glass pass every one of the ALT's 16
+    sessions said "no thumbnail resizer" and the site's ALT frames record held 0 pictures. Every Windows boot installs
+    Pillow (start_tvd_win.ps1, #227), so the resizer was there and never asked. Written beside and moved into place: a
+    half-written file in cache160 would be taken as the thumbnail from then on."""
+    try:
+        from PIL import Image
+    except Exception:
+        return False
+    tmp = dst + ".part"
+    try:
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        with Image.open(src) as im:
+            im.draft("RGB", (THUMB_PX, THUMB_PX))   # a JPEG decodes at 1/2..1/8 scale: no full-size decode per frame
+            small = im.convert("RGB")
+            small.thumbnail((THUMB_PX, THUMB_PX))  # never enlarges a small frame
+            small.save(tmp, "JPEG", quality=68)
+        with open(tmp, "rb") as fh:
+            if fh.read(3) != b"\xff\xd8\xff":
+                raise ValueError("not a JPEG")
+        os.replace(tmp, dst)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        return False
+    return os.path.isfile(dst)
+
+
+def resizers():
+    """-> the names of the thumbnail resizers this PC has: sips on a Mac, Pillow wherever it imports."""
+    out = ["sips"] if sys.platform == "darwin" and shutil.which("sips") else []
+    try:
+        import PIL.Image  # noqa: F401
+        out.append("Pillow")
+    except Exception:
+        pass
+    return out
+
+
+def _make_thumb(src, dst):
+    """sips first on a Mac (the theatre's own resizer), else Pillow. -> bool"""
+    return _sips_thumb(src, dst) or _pil_thumb(src, dst)
+
+
+def thumb_bytes(hist_dir, frame_id, make=_make_thumb):
     """The 160 px thumbnail of one read frame. -> (bytes | None, why | None)"""
     base = "%s.jpg" % frame_id
     cached = os.path.join(hist_dir, "cache160", base)
@@ -56,6 +109,9 @@ def thumb_bytes(hist_dir, frame_id, make=_sips_thumb):
         if not os.path.isfile(src):
             return None, "its picture is not on disk"
         if not (make and make(src, cached)):
+            if make is _make_thumb and resizers():
+                # REG-3033 - a resizer that failed on this frame is not a PC without one
+                return None, "its thumbnail could not be made (%s failed on it)" % " and ".join(resizers())
             return None, "this PC has no thumbnail resizer, so no picture rides (a full frame never does)"
     try:
         with open(cached, "rb") as fh:
@@ -87,7 +143,7 @@ def _key_frames(reads):
     return out
 
 
-def digest(rows, hist_dir, is_read, now_ms, make=_sips_thumb):
+def digest(rows, hist_dir, is_read, now_ms, make=_make_thumb):
     """rows: the journal's rows. is_read: the Shelf's read rule. -> {v, sessions: [...], bytes, dropped, left}
 
     ⚠ REG-2772 - NO BUILD TIME IN IT. The first cut carried `at`, so its hash moved on every build and the publish lane's

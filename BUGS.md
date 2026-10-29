@@ -108,6 +108,18 @@ hd-tf-date was written only on the paint path, after REG-2796's skip, and the da
 mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
 weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
 test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
+### REG-3033 - A WINDOWS OWNER SENT NO KEY FRAMES: THE DIGEST'S ONLY RESIZER WAS SIPS (#218, GrokBot v3836 glass pass, #230 6485132266)
+In the Mac's shadow of the ALT, 📚 Their sessions listed 16 sessions and every row said "no pictures - this PC has no
+thumbnail resizer". Measured on the site at 03:49: the ALT's frames record (t 03:00:36) held 16 sessions and 0 frames.
+shadow_sessions.digest made a missing 160 px thumbnail with sips alone, and sips is macOS, so a Windows owner never sent a
+picture, although every Windows boot installs Pillow (start_tvd_win.ps1, #227). The default resizer is now sips on a Mac,
+else Pillow: the same 160 px JPEG (quality 68) into the theatre's cache160, decoded in draft mode, never enlarged, written
+beside and moved into place so a half-written file is never taken as the thumbnail. The REG-2765 caps (20 KB a thumbnail,
+600 KB a record, oldest sessions' pictures dropped first) are unchanged. A PC with neither resizer still says "no thumbnail
+resizer"; a PC whose resizer failed on one frame now says "its thumbnail could not be made (Pillow failed on it)" instead
+of claiming it has none. Law: test_a_windows_owner_sends_key_frames (5 cases, the PC made a Windows PC for the call so the
+old sips-only default is RED on a Mac too; 7 red-proofs, each RED). The ALT's next frames post (boot, or 3 h after its
+last) carries the pictures: NEEDS LIVE.
 
 ### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
 The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with
