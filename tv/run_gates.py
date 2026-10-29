@@ -12725,6 +12725,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_scratch_console_never_addresses_his.py")], 300,
          needs_app=False,
          why='REG-2998 a scratch console reaches its own console and agent, never his, counted at the socket'),
+    Gate("test_two_small_charms_of_vita_are_two_copies",
+         [sys.executable, os.path.join(HERE, "test_two_small_charms_of_vita_are_two_copies.py")], 300,
+         needs_app=False,
+         why='#202 P3b (REG-2972): a keeper read with other mods is another copy with its own, never written over the first (checker and photo intake, one door)'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
