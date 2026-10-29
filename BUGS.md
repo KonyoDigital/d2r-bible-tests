@@ -349,17 +349,6 @@ test_every_builder_name_the_page_reads_is_exported (the sweep over comment-strip
 _mpIsGenericCopy run in node over the page's own export statements; 2 red-proofs, each RED). NEEDS LIVE: GrokBot sees a
 fixed base on a D2JSP card and in its draft.
 
-### REG-3097 - REG-3050'S UNKNOWN SHELF DROPPED THE OPEN'S EMPTY-FILTER CLEAR (v3840 CI, run 40818454324)
-test_the_shelf_tabs_are_the_real_sessions (test_a_filter_that_would_greet_him_EMPTY_is_cleared_on_OPEN) went red on v3840:
-"_reopenClear is reached from 1 place(s); it must be called on the cached-open path AND on both fetch outcomes". REG-3050
-replaced thShelf's failed-refresh branch - which painted the shelf empty and then ran _reopenClear() - with the UNKNOWN shelf,
-and took the clear out with the empty paint, so a station filter remembered from before a close could survive an open whose
-ask failed. The UNKNOWN path now runs _reopenClear() after painting UNKNOWN, as the old failure path did: the clear is
-reached on the cached open and on both fetch outcomes again. Reproduced on 6d69506ac (the same 2-of-3 failure) and green
-with the line restored (34 OK); the REG-3050 law's harness gained the filter state the restored call reads, its source
-check and red-proof [1] follow the line (5 of 5 RED). Anchors bad 0.
-
-
 ### REG-3053 - THE STUCK READER CALLED 12 HELD REELS THE DRAIN'S DEBT; THE DRAIN OWED NONE OF THEM (#193)
 After REG-3052 the Mac's river still showed 12 reels "older than the newest 16 - the drain owes them a tombstone". Measured
 read only on his Mac 2026-10-29: the drain's plan() owed nothing and HELD all 12 - 8 panels-never-banked (7 sealed by the
