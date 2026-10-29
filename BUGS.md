@@ -38,6 +38,11 @@ addresses: one every-tick doctor pass, the stage witness, the organ read and the
 every spawned command recorded and refused before it leaves the process. It sees none to his ports and some to its own. A
 literal scan is the second half: a his-port number outside console_port.DELIBERATE, or a his-port URL outside
 DELIBERATE_URL, fails. Re-aimed: test_the_eagle_is_asked_where_it_lives's red-proof follows organ_matrix's new sentence.
+Follow-up: the law's scratch-shaped process runs a real doctor pass, whose last step (unknown_age.attach) writes the
+eagle ledger, and it did not redirect it: run from his checkout it would have written HIS tv/.unknown_age.json.
+test_no_test_writes_his_eagle_ledgers could not see it (the pass runs inside a -c string, not an AST call). The law
+now calls fixture_ledgers.redirect() at import, so the process and its child write a temp ledger; measured: the
+worktree's ledger kept its mtime and size across a full run.
 
 ### REG-2985 - THE CONSOLE STILL PARSED 118 MB OF ITS OWN SOURCE IN ITS OWN HEAP: THE GATE FILES TWICE AND THE CENSUS ONCE (#172 phase C)
 Measured 2026-10-29 on a scratch console of his Mac: his data, no .git, Python 3.9, 300 s, every ast.parse counted by
