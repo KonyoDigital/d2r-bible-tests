@@ -122,7 +122,12 @@ class _CDP:
             if time.time() > deadline:
                 raise TimeoutError("cdp read")
             self.sock.settimeout(max(0.2, min(5, deadline - time.time())))
-            chunk = self.sock.recv(1 << 20)
+            try:
+                chunk = self.sock.recv(1 << 20)
+            except (TimeoutError, socket.timeout):
+                # A quiet 5 s slice is not the call's deadline: a long evaluate can be silent longer.
+                # socket.timeout is not TimeoutError on Python 3.9 (the Mac); the deadline still bounds it.
+                continue
             if not chunk:
                 raise ConnectionError("cdp closed")
             self._buf += chunk

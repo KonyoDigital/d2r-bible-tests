@@ -18,6 +18,7 @@ outside a heart2 sandbox.
 [[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]] [[regression-guard]]
 """
 import json
+import socket
 import math
 import os
 import re
@@ -788,7 +789,9 @@ def _connect(ws):
                 self.sock.settimeout(max(0.2, min(5, deadline - time.time())))
                 try:
                     chunk = self.sock.recv(1 << 20)
-                except TimeoutError:
+                except (TimeoutError, socket.timeout):
+                    # Python 3.9 (the Mac's CommandLineTools python) raises socket.timeout, which only
+                    # became TimeoutError in 3.10 - CI's runtime. The deadline above still bounds the wait.
                     continue
                 if not chunk:
                     raise ConnectionError("cdp closed")
