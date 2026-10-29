@@ -288,6 +288,15 @@ of claiming it has none. Law: test_a_windows_owner_sends_key_frames (5 cases, th
 old sips-only default is RED on a Mac too; 7 red-proofs, each RED). The ALT's next frames post (boot, or 3 h after its
 last) carries the pictures: NEEDS LIVE.
 
+### REG-3023 - THE PRESENCE BEACON'S HEADER SAID "TTL 10 MIN" FOR A KEY THAT LIVES 40 (GrokBot #230)
+functions/api/console.js's header described console:<machine> as "CURRENT state, TTL 10 min", while the code writes it at
+most every REFRESH_S (900 s) with PRESENCE_TTL 2400 s (v2283 widened both to keep KV under its write budget). Anyone reading
+the header would expect a dead machine to leave the roster four times sooner than it does. The header now names both
+constants with their minutes, and a case in tv/test_console_fleet.py reads its two figures against the constants, so a change
+to either without the header goes red. The same law's "10-minute presence TTL" failure message is corrected too. 2
+red-proofs RED (the old words; the constant moved without the header).
+
+
 ### REG-3022 - A HIDDEN CONSOLE'S WINDOW REASON NESTED ONE LAYER DEEPER ON EVERY HIDDEN RELAUNCH (GrokBot #230, the ALT on v3836)
 GrokBot read the ALT's reason as "started hidden: the console was hidden (started hidden: the console was hidd...", and saw it
 again at 03:31. A hidden window relaunches hidden (REG-1430): hidden_relaunch_env set TV_START_HIDDEN to "the console was

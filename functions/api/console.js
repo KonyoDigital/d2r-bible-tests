@@ -9,7 +9,9 @@
  *
  * The control app (Mac + Windows + cousins) POSTs here on boot, on ON AIR / OFF
  * transitions, and every ~4 min as a heartbeat. Storage reuses the TZ_HISTORY KV:
- *   console:<machine>         — CURRENT state, TTL 10 min → key alive ⇔ console online
+ *   console:<machine>         — CURRENT state, rewritten on a material change or every REFRESH_S (15 min),
+ *                               TTL PRESENCE_TTL (40 min) → key alive ⇔ console online (REG-3023: this
+ *                               line said "TTL 10 min" for a key that lives 40)
  *   consolelog:<ts>:<machine> — event log entries (boot/onair/off only, no heartbeats), TTL 30d
  *   lastseen:<machine>        — DURABLE last check-in, TTL 400d, written on EVERY beacon
  *                               INCLUDING heartbeats. One key per machine, so it can never

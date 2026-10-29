@@ -361,10 +361,23 @@ class TestConsoleLastSeen(unittest.TestCase):
                              % (ttl_p, ttl_p // 60))
         ls = next(p for p in v["puts"] if p["name"] == "lastseen:cousin-pc")
         ttl = (ls["opts"] or {}).get("expirationTtl")
-        self.assertIsNotNone(ttl, "lastseen must carry a long TTL, not the 10-minute presence TTL")
+        self.assertIsNotNone(ttl, "lastseen must carry a long TTL, not the presence TTL")
         self.assertGreaterEqual(ttl, 60 * 60 * 24 * 300,
                                 "lastseen TTL %r is too short to answer 'when was he last here'" % ttl)
         self.assertLessEqual(ttl, 60 * 60 * 24 * 400)
+
+    def test_the_header_states_the_presence_ttl_the_code_sets(self):
+        """REG-3023 (GrokBot #230) - the header said "TTL 10 min" while PRESENCE_TTL was 2400 s and REFRESH_S 900, so anyone
+        reading it would expect a dead machine to leave the roster four times sooner than it does. The header's two
+        figures are read against the constants, so a change to either without the header goes red."""
+        import re as _re
+        src = io.open(API_CONSOLE, encoding="utf-8").read()
+        head = _re.sub(r"\s*\n\s*\*\s*", " ", src[:src.index("*/")])
+        ttl = int(_re.search(r"const PRESENCE_TTL\s*=\s*(\d+)", src).group(1))
+        refresh = int(_re.search(r"const REFRESH_S\s*=\s*(\d+)", src).group(1))
+        line = head[head.index("console:<machine>"):head.index("consolelog:<ts>:<machine>")]
+        self.assertIn("every REFRESH_S (%d min)" % (refresh // 60), line, "the header's refresh is not the code's: %r" % line)
+        self.assertIn("TTL PRESENCE_TTL (%d min)" % (ttl // 60), line, "the header's presence TTL is not the code's: %r" % line)
 
     def test_lastseen_only_machine_appears_offline_with_its_timestamp(self):
         """No presence key, NO log history at all — the durable key alone must answer."""
@@ -814,6 +827,20 @@ class TheCutEndsAtAWordAndSaysSo(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-3023 - the header names a presence TTL the code does not set",
+        "file": "functions/api/console.js",
+        "find": " *                               TTL PRESENCE_TTL (40 min) → key alive",
+        "replace": " *                               TTL 10 min → key alive",
+        "matches": 1,
+    },
+    {
+        "why": "REG-3023 - the presence TTL moves and the header does not",
+        "file": "functions/api/console.js",
+        "find": "  const PRESENCE_TTL = 2400; ",
+        "replace": "  const PRESENCE_TTL = 2700; ",
+        "matches": 1,
+    },
     {
         'why': 'The fleet roster only sees every machine because listAll() FOLLOWS THE KV CURSOR — a single kv.list() page returns the OLDEST rows and made Konyo\'s cousin invisible. This line is the loop\'s continue/stop decision; replacing it with a bare `break` collapses listAll to page one, which is the pre-fix oldest-window bug restored. It is executable code, not a comment, not a message string, and not a constant read by both sides of an agreement law (PAGE_CAP/PAGE_SIZE are untouched, and the byte-identical twin in functions/console.js is a different file so no parity law masks it).  MEASURED: untampered python3 tv/test_console_fleet.py -> OK, "Ran 26 tests in 2.750s", 0 skipped (nod; tampered (all 1) python3 tv/test_console_fleet.py -> FAILED (failures=3): TestConsoleFleetWindow.; reddened law test_console_fleet.TestConsolePagination.test_cursor_is_followed_past_; ALONE python3 -m unittest test_console_fleet.TestConsolePagination.test_cursor_is_followed_past_page_one (.',
         'file': 'functions/api/console.js',
