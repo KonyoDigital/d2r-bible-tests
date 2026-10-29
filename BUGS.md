@@ -108,6 +108,22 @@ hd-tf-date was written only on the paint path, after REG-2796's skip, and the da
 mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
 weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
 test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
+### REG-3035 - MY HUNT SAT UNDER THE SHADOW BAR, AND THEIR FRAME'S TOP ROW TUCKED UNDER IT AT 860/700 (#200 + #218, GrokBot v3836, #230 6485132266)
+Two looks, one class: a box placed from a number while the bar it must clear moved or grew. (1) #200: in the ALT shadow's
+Sessions tab the top of the hub (MY HUNT) sat under the shadow bar. Sessions in a shadow is this console's own hub with
+shell-open off (showShadowSessions -> _shellRestoreConsole), so the header is back in the page and shorter than the fixed
+one the bar was last placed under, and nothing placed the bar again; the hub kept no room for it either. Driven in node
+on the old _shadowPlace: a header ending at 66 px left the bar at 100 px, over the hub's top, with no reserve. Now the bar
+sits on the header's real bottom in the hub, and the header keeps the bar's height free under itself (--shadow-bar-h,
+set by _shadowPlace, read by `body.shadow-hub:not(.shell-open) .topbar`). (2) #218 cosmetic: at 860 and 700 px the world
+band's top edge (their frame's top row) tucked under the bar. The frame sat at h + bar.offsetHeight, one rounded number
+read once: a 41.4 px bar put the frame at 141 under a 141.4 bottom, and any later growth or move of the bar was never
+seen. The exact trigger at 860/700 was NOT measured (no Chrome on his Mac; no containing-block, !important or fixed-height
+cause exists in the CSS). Now the frame starts at the bar's painted bottom rounded up, and a ResizeObserver on the bar and
+the header places both again on any size change. Law: test_nothing_sits_under_the_shadow_bar (6 cases on the real
+_shadowPlace and its observer in node over a mock DOM; 9 red-proofs, each RED); the #215 law's frame proof re-anchored
+and seen RED. NEEDS LIVE: GrokBot at 1600/860/700 - MY HUNT below the bar in Sessions, the band's top edge clear.
+
 ### REG-3034 - THE SHADOW SAID "LAST UPLOAD 44 MIN AGO" AND "UPLOADED 12 MIN AGO" IN ONE VIEW (#218, GrokBot v3836 glass pass, #230 6485132266)
 At 03:13 the Mac's shadow of the ALT read "last upload 44 min ago · snapshot Oct 29 02:28" on its bar while 📚 Their
 sessions read "uploaded 12 min ago", and the ALT's 03:00:27 publish was signed and stored. Which was true: both. Measured

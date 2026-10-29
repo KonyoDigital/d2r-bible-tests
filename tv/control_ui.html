@@ -6074,6 +6074,9 @@
     font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); }
   #shadow-bar[hidden] { display: none !important; }
   #shadow-bar button { margin-left: auto; }
+  /* REG-3035 - Sessions in a shadow is this console's hub under their bar: the header keeps the bar's height free below
+     itself, so MY HUNT starts under the bar, never behind it. _shadowPlace measures the bar and sets the variable. */
+  body.shadow-hub:not(.shell-open) .topbar { margin-bottom: var(--shadow-bar-h, 0px); }
   /* #218 phase 3b (REG-2810) - the owner's sessions, summarized, over their board: above their frame (945) and this bar (960).
      A child of <body>, never of the rail, so the shell's pointer-events rule cannot swallow its close. */
   #shadow-bar #shadow-leave { margin-left: 0; }
@@ -23156,14 +23159,44 @@ window._lockMark = function(isOpen, px, label){
      resize - and once more right after the shadow opens the shell. */
   function _shadowPlace(h){
     var bar = document.getElementById('shadow-bar'), sf = document.getElementById('shadow-eng');
-    if (bar && !bar.hidden) bar.style.top = h + 'px';
+    var shown = !!(bar && !bar.hidden);
+    /* REG-3035 (#200, GrokBot v3836) - SESSIONS IN A SHADOW HID MY HUNT UNDER THE BAR. That room is this console's own hub
+       with shell-open off, so the header is back in the page and shorter than the fixed one the bar was last placed under;
+       the bar kept the old height, over the hub's top. In the hub the bar sits on the header's real bottom, and the header
+       keeps the bar's height free under itself (--shadow-bar-h, the rule beside #shadow-bar). */
+    var cl = document.body && document.body.classList;
+    if (shown && cl && cl.contains('shadow-hub') && !cl.contains('shell-open')) {
+      try { var tb = document.querySelector('.topbar'); if (tb) h = Math.max(0, Math.ceil(tb.getBoundingClientRect().bottom)); } catch (eTb) {}
+    }
+    if (shown) bar.style.top = h + 'px';
+    /* REG-3035 (#218) - their frame starts under the bar's PAINTED bottom: offsetHeight rounds a fractional box to the
+       nearest pixel, and a frame placed from a number can sit under the edge it was placed from (GrokBot: the world band's
+       top edge tucked under the bar at 860 and 700). */
+    var barH = 0, barBottom = 0;
+    if (shown) {
+      try { var r = bar.getBoundingClientRect(); barH = Math.ceil(r.bottom - r.top); barBottom = Math.ceil(r.bottom); } catch (eR) { barH = 0; }
+      if (!(barH > 0)) barH = bar.offsetHeight || 0;
+    }
+    try { document.body.style.setProperty('--shadow-bar-h', barH + 'px'); } catch (eV) {}
     if (sf){
-      var below = h + ((bar && !bar.hidden && bar.offsetHeight) || 34);
+      var below = h + (barH || 34);
+      if (barBottom > below) below = barBottom;
       sf.style.top = below + 'px';
       sf.style.height = 'calc(100vh - ' + below + 'px)';
     }
   }
   window._shadowPlace = _shadowPlace;
+  /* REG-3035 - and placed again whenever the bar or the header changes size. The bar's height was read once, when it was
+     placed; its words, a wrap at a narrower window or a late font change it afterwards, and a frame (or the hub) placed
+     for the old height then sits under the new one. */
+  (function () {
+    if (typeof ResizeObserver !== 'function') return;
+    var bar = document.getElementById('shadow-bar'), tb = document.querySelector('.topbar');
+    if (!bar) return;
+    var ro = new ResizeObserver(function () { try { _shadowPlace(_shellHeadH()); } catch (eRo) {} });
+    ro.observe(bar);
+    if (tb) ro.observe(tb);
+  })();
   function _shellSizePane(){
     var f = document.getElementById('tvd-eng'); if (!f) return;
     var h = _shellHeadH();
@@ -23432,7 +23465,8 @@ window._lockMark = function(isOpen, px, label){
     _shellOpeningEnd();
     _shellDemotePane();
     _shellRestoreConsole();
-    _shellPaintAgain(function(){ _shellDemotePane(); _shellRestoreConsole(); });
+    try { _shadowPlace(_shellHeadH()); } catch (ePl) {}   /* REG-3035 - the header is back in the page: the bar goes under it */
+    _shellPaintAgain(function(){ _shellDemotePane(); _shellRestoreConsole(); try { _shadowPlace(_shellHeadH()); } catch (ePl2) {} });
   }
   function _hubRepaintOwn(){
     try { hubNextGrail(); } catch (e) {}
