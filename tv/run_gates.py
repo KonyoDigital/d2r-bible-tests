@@ -12493,6 +12493,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_the_console_says_which_ticks_it_has_seen.py")], 300,
          needs_app=False,
          why='REG-3010 #163: the console says which ticked names it has seen, reading each ledger once; an unreadable vault ledger is UNKNOWN'),
+    Gate("test_the_unconfirmed_lane_asks_before_it_clears",
+         [sys.executable, os.path.join(HERE, "test_the_unconfirmed_lane_asks_before_it_clears.py")], 300,
+         needs_app=False,
+         why="REG-3011 #163: the console inbox's Unconfirmed lane groups ticks by minute, confirms or clears each and each batch, asks before a batch clear, read only in a shadow"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

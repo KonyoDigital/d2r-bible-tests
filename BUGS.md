@@ -147,6 +147,16 @@ and held the other tab's save as "stale". Now a never-saved roster is skipped (t
 mule), and on a saved roster the stamp is saved with it whether or not a mule changed, so memory equals the store. Law:
 +1 case (a saved roster stamped at load still takes the other tab's save) and an assertion that a fresh board saves no
 roster at load; 2 red-proofs, both RED; REG-2804's own laws pass (8, 6, 4, 20 cases).
+### REG-3011 - THE CONSOLE'S CHRONICLE INBOX GAINS AN "UNCONFIRMED" LANE: ONE BATCH PER MINUTE, CONFIRM OR CLEAR (#163)
+His ruling: Dean confirms his unevidenced ticks IN THE CONSOLE. The Chronicle inbox (the review chassis with per-item and batch
+actions) now has a third lane, "⚠ Unconfirmed N": the board's list (REG-3009) minus every name the console's ledgers have seen
+(REG-3010), grouped by the minute each was stamped, biggest batch first, so Dean's 117 read as ONE batch "117 ticked in one
+minute". Each tick and each batch has ✓ Confirm and ✕ Clear, and a selection does the same; a clear of more than one asks first
+(and asks again if the list changed meanwhile). Another PC's shadow draws the list read only. A board that cannot answer is
+UNKNOWN; a console that cannot say what it has seen keeps every row and says so. The inbox button lights for the lane as well,
+re-read at most every two minutes. Law tv/test_the_unconfirmed_lane_asks_before_it_clears.py (node: the lane's own code against
+a stand-in board and console), 8 red-proofs, all RED.
+
 ### REG-3010 - THE CONSOLE COULD SAY WHAT IT SAW OF ONE NAME, NEVER OF A LIST (#163)
 The unconfirmed lane needs the console's half of "evidenced" for every tick the board lists (Dean: 230 names), and
 evidence_for answers one name, re-reading the chronicle books and the vault witness ledger each call. control_app.evidence_names

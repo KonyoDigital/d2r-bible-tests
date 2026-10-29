@@ -3396,6 +3396,10 @@
      than as decoration — a control that looks clickable but is not, and one that is clickable but
      does not look it, are the same defect. */
   .ch-ev { cursor: pointer; border-bottom: 1px dotted rgba(240,192,96,.5); }
+  /* #163 REG-3011 - the unconfirmed lane's sentence above its batches */
+  .ch-u-note { margin: 0 0 10px; color: var(--text); font-size: var(--fs-sm); }
+  .ch-u-warn { color: var(--gold-bright); }
+  .ch-u-ro { color: var(--mint); }
   .ch-ev:hover, .ch-ev:focus-visible { color: var(--gold-bright); outline: none; }
   .ch-ev-row > td { padding: 0 !important; background: rgba(0,0,0,.30); }
   .ch-ev-body {
@@ -9101,6 +9105,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
       <div class="ch-modebar">
         <button type="button" class="ch-pill on" id="ch-mode-pending" data-mode="pending" title="Action queue — only items not yet in chronicles">⏳ Pending</button>
         <button type="button" class="ch-pill" id="ch-mode-ledger" data-mode="ledger" title="Visual backend — every KAI read for debug">📚 Ledger (all reads)</button>
+        <button type="button" class="ch-pill" id="ch-mode-unconf" data-mode="unconf" title="#163 — ticks nothing vouches for: confirm or clear each">⚠ Unconfirmed <span id="ch-unconf-n"></span></button>
       </div>
       <div class="ch-tools">
         <input type="search" id="ch-search" placeholder="Search names…" autocomplete="off" />
@@ -9120,6 +9125,8 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
         <button type="button" class="ch-btn ok" id="ch-accept-sel">✓ Accept selected</button>
         <button type="button" class="ch-btn danger" id="ch-dismiss-sel">✕ Dismiss selected</button>
         <button type="button" class="ch-btn warn" id="ch-accept-all" title="Promote every pending item to found">Accept ALL pending…</button>
+        <button type="button" class="ch-btn ok" id="ch-u-confirm-sel" hidden>✓ Confirm selected</button>
+        <button type="button" class="ch-btn danger" id="ch-u-clear-sel" hidden>✕ Clear selected…</button>
       </div>
     </div>
   </div>
@@ -23649,11 +23656,16 @@ window._lockMark = function(isOpen, px, label){
     var nPend = (data.pending || []).length;
     var nLed = (data.ledger || []).length;
     // badge stays visible if either pending OR ledger has reads (visual backend always available)
-    btn.hidden = nPend < 1 && nLed < 1;
+    /* #163 REG-3011 - and while any tick waits on its owner. Re-read at most every two minutes; the read repaints. */
+    if (Date.now() - (CH.unconfAt || 0) > (CH.unconf === null ? 15000 : 120000)) { CH.unconfAt = Date.now(); chUnconfRefresh(function(){ paintChronicleInbox(); }); }
+    var nUnc = (CH.unconf && CH.unconf.length) || 0;
+    try { var _un0 = $('ch-unconf-n'); if (_un0) _un0.textContent = CH.unconf === null ? '?' : String(nUnc); } catch(e){}
+    btn.hidden = nPend < 1 && nLed < 1 && nUnc < 1;
     if (nEl) nEl.textContent = nPend > 0 ? String(nPend) : (nLed ? ('0/' + nLed) : '0');
-    btn.title = nPend
+    btn.title = (nPend
       ? ('Chronicle · ' + nPend + ' pending · ' + nLed + ' in ledger')
-      : ('Chronicle ledger · ' + nLed + ' reads (none pending)');
+      : ('Chronicle ledger · ' + nLed + ' reads (none pending)'))
+      + (nUnc ? ('\n\u26a0 ' + nUnc + ' tick' + (nUnc === 1 ? '' : 's') + ' with no evidence, waiting for you to confirm or clear') : '');
     var clr = $('ch-clear-all'); if (clr) clr.hidden = nPend < 1;   // v1256 — clear-all only when there's something pending to clear
     /* ══ v2763 — THE SWEEP LIVES IN THE INBOX NOW, AND ONLY WHEN IT NEEDS HIM ═══════════════
        Konyo: *"is this necesary cant it be"* — of the 354 banner on his gameplay home.
@@ -23791,13 +23803,14 @@ window._lockMark = function(isOpen, px, label){
     var data = chRefreshData();
     var nPend = (data.pending || []).length;
     var nLed = (data.ledger || []).length;
-    if (nPend < 1 && nLed < 1){
+    var nUnc = (CH.unconf && CH.unconf.length) || 0;   /* #163 REG-3011 */
+    if (nPend < 1 && nLed < 1 && nUnc < 1 && forceMode !== 'unconf'){
       toast('Chronicle empty — no pending and no ledger reads yet');
       paintChronicleInbox();
       return;
     }
     // default: pending if any, else ledger so you can always inspect history
-    CH.mode = forceMode || (nPend > 0 ? 'pending' : 'ledger');
+    CH.mode = forceMode || (nPend > 0 ? 'pending' : (nUnc > 0 ? 'unconf' : 'ledger'));
     CH.open = true; CH.selected = {};
     var ov = $('ch-modal'); if (ov) ov.hidden = false;
     chModalRender();
@@ -23931,9 +23944,175 @@ window._lockMark = function(isOpen, px, label){
         + '</td></tr>';
     }).join('');
   }
+  /* ══ #163 (REG-3011, his ruling 2026-10-29 Q6) — THE UNCONFIRMED LANE: A TICK WITH NO EVIDENCE ASKS ITS OWNER ══════════
+     Dean's board held 117 set pieces stamped in ONE minute (Aug 1, 2026 16:57) beside 98 of 99 runewords, and nothing could
+     ask him about them. His ruling: keep them until Dean confirms them HERE, in the console; confirm or clear, per tick and
+     per batch, and nothing clears one on its own. The board says which ticks nothing on it vouches for
+     (window._unconfirmedTicks: no found-by row, no banked sightings, no game date); the console then drops every name its
+     own ledgers have seen (/api/evidence_names). What is left is drawn here, grouped by the minute it was stamped, so one bulk
+     tick reads as ONE batch. ✓ Confirm writes his hand (_ticksConfirm); ✕ Clear presses each store's own un-tick
+     (_ticksClear), and a clear of more than one asks first. In another PC's shadow the list is read only. */
+  CH.unconf = null; CH.unconfWhy = 'not read yet'; CH.unconfEvWhy = ''; CH.unconfAt = 0; CH.uSel = {}; CH.uRO = false;
+  function chUnconfKey(r){ return String(r.store) + '\u0001' + String(r.name); }
+  function chUnconfReadOnly(){
+    var sh = false;
+    try { sh = typeof window._consoleShadowUp === 'function' && window._consoleShadowUp(); } catch (e) {}
+    return !!(sh || CH.uRO);
+  }
+  function chUnconfRefresh(then){
+    var done = function(){ CH.unconfAt = Date.now(); if (then) { try { then(); } catch (e) {} } };
+    var W = _engWin(), r = null;
+    if (!W || typeof W._unconfirmedTicks !== 'function'){ CH.unconf = null; CH.unconfWhy = 'the board is not loaded in this console'; done(); return; }
+    try { r = W._unconfirmedTicks(); } catch (e) { r = { ok: false, why: 'the board raised ' + ((e && e.name) || 'an error') }; }
+    if (!r || r.ok !== true){ CH.unconf = null; CH.unconfWhy = (r && r.why) || 'the board did not answer'; done(); return; }
+    CH.uRO = !!r.readOnly;
+    var rows = Array.isArray(r.rows) ? r.rows : [];
+    if (!rows.length){ CH.unconf = []; CH.unconfEvWhy = ''; done(); return; }
+    var names = rows.map(function(x){ return x.name; });
+    fetch('/api/evidence_names', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+                                   body: JSON.stringify({ names: names }) })
+      .then(function(res){ return res.json(); })
+      .then(function(j){
+        if (j && j.ok === true && j.has && typeof j.has === 'object'){
+          CH.unconf = rows.filter(function(x){ return j.has[x.name] !== true; });
+          CH.unconfEvWhy = j.vaultWhy ? ('the vault ledger would not read (' + j.vaultWhy + '), so a tick only it has seen is listed') : '';
+        } else {
+          CH.unconf = rows.slice();
+          CH.unconfEvWhy = 'the console could not say what its reels have seen (' + ((j && j.why) || 'no answer') + '), so this list may hold ticks they saw';
+        }
+      }, function(){
+        CH.unconf = rows.slice();
+        CH.unconfEvWhy = 'the console did not answer, so this list may hold ticks its reels have seen';
+      })
+      .then(done, done);
+  }
+  window._chUnconfRefresh = chUnconfRefresh;
+  /* the rows, grouped by the minute they were stamped, biggest batch first -> [{date, rows}] */
+  function chUnconfGroups(rows){
+    var by = {}, order = [];
+    rows.forEach(function(r){
+      var k = r.date || '';
+      if (!by[k]){ by[k] = []; order.push(k); }
+      by[k].push(r);
+    });
+    return order.map(function(k){ return { date: k, rows: by[k] }; })
+      .sort(function(a, b){ return (b.rows.length - a.rows.length) || String(a.date).localeCompare(String(b.date)); });
+  }
+  function chUnconfStoreSay(st){ return st === 'sets' ? 'set piece' : (st === 'runewords' ? 'runeword' : 'unique'); }
+  function chUnconfRender(body){
+    var ro = chUnconfReadOnly(), q = (CH.q || '').toLowerCase().trim();
+    if (CH.unconf === null){
+      body.innerHTML = '<div class="ch-empty" data-unconf="unknown">Which ticks have no evidence is UNKNOWN — ' + esc(CH.unconfWhy || 'not read yet') + '.</div>';
+      return 0;
+    }
+    var rows = CH.unconf.filter(function(r){ return !q || String(r.name).toLowerCase().indexOf(q) >= 0; });
+    if (!CH.unconf.length){
+      body.innerHTML = '<div class="ch-empty" data-unconf="none">Every tick on this board has evidence: a reel saw it, the game dated it, or a hand is on record.</div>';
+      return 0;
+    }
+    var html = '<div class="ch-u-note" data-unconf="listed">' + CH.unconf.length + ' tick' + (CH.unconf.length === 1 ? '' : 's')
+      + ' with no evidence: no reel saw ' + (CH.unconf.length === 1 ? 'it' : 'them') + ', the game never dated '
+      + (CH.unconf.length === 1 ? 'it' : 'them') + ', and no hand is on record. Each stays ticked until you confirm or clear it.'
+      + (CH.unconfEvWhy ? ' <span class="ch-u-warn">' + esc(CH.unconfEvWhy) + '.</span>' : '')
+      + (ro ? ' <b class="ch-u-ro" data-unconf="read-only">Read only: this is another PC’s console.</b>' : '') + '</div>';
+    chUnconfGroups(rows).forEach(function(g, gi){
+      var gid = 'u' + gi, n = g.rows.length;
+      var title = g.date ? (n > 1 ? (n + ' ticked in one minute · ' + g.date) : ('ticked ' + g.date)) : (n + ' with no date');
+      html += '<div class="ch-sess" data-ugroup="' + gid + '"><div class="ch-sess-h"><div class="ch-sess-title">' + esc(title)
+        + '<span class="ch-sess-sub">' + esc(['sets', 'uniques', 'runewords'].map(function(st){
+            var c = g.rows.filter(function(r){ return r.store === st; }).length;
+            return c ? (c + ' ' + chUnconfStoreSay(st) + (c === 1 ? '' : 's')) : '';
+          }).filter(Boolean).join(' · ')) + '</span></div>'
+        + (ro ? '' : ('<div class="ch-sess-acts">'
+          + '<button type="button" class="ch-btn ok ch-u-gok" data-ugroup="' + gid + '">✓ Confirm ' + (n > 1 ? 'all ' + n : '') + '</button>'
+          + '<button type="button" class="ch-btn danger ch-u-gno" data-ugroup="' + gid + '">✕ Clear ' + (n > 1 ? 'all ' + n + '…' : '') + '</button></div>'))
+        + '</div><div class="ch-sess-body"><table class="ch-table"><thead><tr><th></th><th></th><th>Name</th><th>Kind</th><th>Ticked</th>'
+        + (ro ? '' : '<th>Actions</th>') + '</tr></thead><tbody>'
+        + g.rows.map(function(r){
+            var k = chUnconfKey(r);
+            return '<tr data-ukey="' + esc(k) + '">'
+              + '<td>' + (ro ? '' : ('<input type="checkbox" class="ch-u-chk" data-ukey="' + esc(k) + '"' + (CH.uSel[k] ? ' checked' : '') + '>')) + '</td>'
+              + '<td>' + chArtHtml(r.name, 'ch-t-art') + '</td>'
+              + '<td>' + esc(r.name) + '</td><td>' + esc(chUnconfStoreSay(r.store)) + '</td><td>' + esc(r.date || 'no date') + '</td>'
+              + (ro ? '' : ('<td class="ch-t-acts"><button type="button" class="ch-btn ok ch-u-ok" data-ukey="' + esc(k) + '">✓ Confirm</button>'
+                + '<button type="button" class="ch-btn no ch-u-no" data-ukey="' + esc(k) + '">✕ Clear</button></td>'))
+              + '</tr>';
+          }).join('')
+        + '</tbody></table></div></div>';
+    });
+    body.innerHTML = html;
+    CH._uGroups = chUnconfGroups(rows);
+    return rows.length;
+  }
+  function chUnconfRowsOf(keys){
+    var want = {}; keys.forEach(function(k){ want[k] = 1; });
+    return (CH.unconf || []).filter(function(r){ return want[chUnconfKey(r)]; });
+  }
+  function chUnconfAct(kind, rows){
+    if (chUnconfReadOnly()){ toast('Read only: this is another PC’s console'); return; }
+    var W = _engWin(), fn = kind === 'confirm' ? '_ticksConfirm' : '_ticksClear';
+    if (!W || typeof W[fn] !== 'function'){ toast('The board is not loaded in this console'); return; }
+    if (!rows.length){ toast('Select one or more ticks first'); return; }
+    var res = null;
+    try { res = W[fn](rows.map(function(r){ return { name: r.name, store: r.store }; })); }
+    catch (e) { toast('That did not complete'); return; }
+    if (!res || res.ok !== true){ toast('⚠ ' + ((res && res.why) || 'the board did not answer')); return; }
+    var did = (kind === 'confirm' ? res.confirmed : res.cleared) || [], sk = res.skipped || [];
+    toast((kind === 'confirm' ? '✓ Confirmed ' : '✕ Cleared ') + did.length
+      + (sk.length ? (' · ' + sk.length + ' not changed: ' + sk[0].name + ' — ' + sk[0].why) : '')
+      + (kind === 'clear' && did.length === 1 ? ' · re-tick it on its card within 10 minutes to put it back exactly' : ''));
+    CH.uSel = {};
+    chUnconfRefresh(function(){ paintChronicleInbox(); if (CH.open) chModalRender(); });
+  }
+  function chUnconfClear(rows){
+    if (rows.length < 2){ chUnconfAct('clear', rows); return; }
+    var keys = rows.map(chUnconfKey).sort().join('\u0002');
+    chAsk('Clear ' + rows.length + ' unconfirmed ticks?\n\nEach is un-ticked through its own card’s door - set pieces, uniques and runewords alike - and nothing else is touched. Only ticks that still have no evidence are cleared.',
+      'Clear ' + rows.length, function(){
+        var now = chUnconfRowsOf(rows.map(chUnconfKey));
+        if (now.map(chUnconfKey).sort().join('\u0002') !== keys){ toast('The list changed while you were deciding - asking again'); chUnconfClear(now); return; }
+        chUnconfAct('clear', now);
+      });
+  }
+  function chUnconfSelected(){ return chUnconfRowsOf(Object.keys(CH.uSel).filter(function(k){ return CH.uSel[k]; })); }
+  /* the lane's clicks, inside the inbox body -> true when handled */
+  function chUnconfClick(t){
+    if (CH.mode !== 'unconf') return false;
+    if (t.classList && t.classList.contains('ch-u-chk')){ CH.uSel[t.getAttribute('data-ukey')] = !!t.checked; chModalRender(); return true; }
+    var ok = t.closest && t.closest('.ch-u-ok');
+    if (ok){ chUnconfAct('confirm', chUnconfRowsOf([ok.getAttribute('data-ukey')])); return true; }
+    var no = t.closest && t.closest('.ch-u-no');
+    if (no){ chUnconfClear(chUnconfRowsOf([no.getAttribute('data-ukey')])); return true; }
+    var gk = t.closest && (t.closest('.ch-u-gok') || t.closest('.ch-u-gno'));
+    if (gk){
+      var g = (CH._uGroups || [])[parseInt(String(gk.getAttribute('data-ugroup')).slice(1), 10)];
+      if (!g) return true;
+      if (gk.classList.contains('ch-u-gok')) chUnconfAct('confirm', g.rows); else chUnconfClear(g.rows);
+      return true;
+    }
+    return false;
+  }
   function chModalRender(){
     var body = $('ch-body'); if (!body) return;
     try { chRefreshData(); } catch(e){}
+    /* #163 REG-3011 - the unconfirmed lane draws its own body and footer */
+    try {
+      var _mu = $('ch-mode-unconf'); if (_mu) _mu.classList.toggle('on', CH.mode === 'unconf');
+      var _ro = chUnconfReadOnly();
+      ['ch-sel-all', 'ch-accept-sel', 'ch-dismiss-sel'].forEach(function(id){ var b = $(id); if (b) b.hidden = CH.mode === 'unconf'; });
+      var _uc = $('ch-u-confirm-sel'), _ux = $('ch-u-clear-sel');
+      if (_uc) _uc.hidden = CH.mode !== 'unconf' || _ro;
+      if (_ux) _ux.hidden = CH.mode !== 'unconf' || _ro;
+    } catch(e){}
+    if (CH.mode === 'unconf'){
+      try { var _mp0 = $('ch-mode-pending'), _ml0 = $('ch-mode-ledger'); if (_mp0) _mp0.classList.remove('on'); if (_ml0) _ml0.classList.remove('on');
+            var _aa0 = $('ch-accept-all'); if (_aa0) _aa0.style.display = 'none'; } catch(e){}
+      var _un = chUnconfRender(body), _cnt = $('ch-modal-count'), _hint = $('ch-foot-hint');
+      var _nu = chUnconfSelected().length;
+      if (_cnt) _cnt.textContent = '· unconfirmed ' + (CH.unconf ? CH.unconf.length : 'UNKNOWN') + ' · show ' + _un;
+      if (_hint) _hint.textContent = _nu ? (_nu + ' selected · ✓ confirm · ✕ clear') : 'Grouped by the minute each was ticked · nothing here is cleared on its own';
+      return;
+    }
     var shown = chFiltered();
     var nPend = (CH.items || []).length;
     var nLed = (CH.ledger || []).length;
@@ -24165,6 +24344,10 @@ window._lockMark = function(isOpen, px, label){
     var mp = $('ch-mode-pending'), ml = $('ch-mode-ledger');
     if (mp) mp.onclick = function(){ CH.mode = 'pending'; CH.filter = 'all'; CH.selected = {}; chModalRender(); };
     if (ml) ml.onclick = function(){ CH.mode = 'ledger'; CH.filter = 'all'; CH.selected = {}; chModalRender(); };
+    var mu = $('ch-mode-unconf');
+    if (mu) mu.onclick = function(){ CH.mode = 'unconf'; CH.uSel = {}; chModalRender(); chUnconfRefresh(function(){ if (CH.open) chModalRender(); }); };
+    var uc = $('ch-u-confirm-sel'); if (uc) uc.onclick = function(){ chUnconfAct('confirm', chUnconfSelected()); };
+    var ux = $('ch-u-clear-sel'); if (ux) ux.onclick = function(){ chUnconfClear(chUnconfSelected()); };
     var vg = $('ch-view-grid'), vt = $('ch-view-table');
     if (vg) vg.onclick = function(){ CH.view = 'grid'; chModalRender(); };
     if (vt) vt.onclick = function(){ CH.view = 'table'; chModalRender(); };
@@ -24172,6 +24355,7 @@ window._lockMark = function(isOpen, px, label){
     if (body) body.addEventListener('click', function(e){
       var t = e.target;
       if (!t) return;
+      if (chUnconfClick(t)) return;   /* #163 REG-3011 */
       if (t.classList && t.classList.contains('ch-row-chk')){
         var nm = t.getAttribute('data-name');
         if (nm){ CH.selected[nm] = !!t.checked; chModalRender(); }
