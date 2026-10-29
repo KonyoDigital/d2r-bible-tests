@@ -14,6 +14,15 @@ overwritten by the next paint. A landing now chooses the FIRST view only: forgeS
 (_forgeByHand.crafts / .forge), and both landings stand aside once he has picked. Measured on the whole page in node, every
 runeword made and one craft's rune and gem added through the Tools tab's tally doors: lands on MAKE NOW first; his ALL and
 COMPLETED survive a re-render. Law test_his_forge_chip_outranks_the_landing, 2 red-proofs RED.
+### REG-3058 - THE UNCONFIRMED LANE'S TWO HIDDEN FOOTER CHIPS HAD NO [hidden] GUARD (CI on ci/claude-v3839)
+test_a_hidden_element_is_actually_hidden read {'ch-btn': {'.ch-table .ch-t-acts .ch-btn'}} on c0f4f1e24. REG-3011 shipped
+#ch-u-confirm-sel and #ch-u-clear-sel with `hidden` (its JS shows them only in the Unconfirmed lane), and `.ch-btn`
+carries an author display (`.ch-table .ch-t-acts .ch-btn { display: inline-block }`). That rule's ancestors do not reach
+the footer today, but `hidden` is the user agent's rule and any author display that reaches a chip beats it: the
+v2443/v3271 class this law exists for. Fixed in the code, not the allowlist: `.ch-btn[hidden] { display: none
+!important; }` beside the v3397 guard block. Law: +1 red-proof (drop the guard) RED, 4 of 4, baseline green. Mine
+(REG-3011).
+
 ### REG-3057 - THE CHRONICLE INBOX LAW COUNTED THREE QUESTIONS AFTER REG-3011 ADDED A FOURTH (CI on ci/claude-v3839)
 test_the_chronicle_inbox_asks_on_the_page read "5 != 4: premise: chAsk is defined once and asked three times" on
 c0f4f1e24. REG-3011's unconfirmed lane asks before a batch clear (chUnconfClear, two or more ticks) through the same

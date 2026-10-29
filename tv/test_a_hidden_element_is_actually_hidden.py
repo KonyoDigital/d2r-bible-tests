@@ -61,6 +61,15 @@ RED_PROOF = [
         "replace": "    def _subject(part):\n        return part.strip()",
         "matches": 1,
     },
+    {
+        "why": "#163 (REG-3058) - without the chip guard the unconfirmed lane's two hidden footer chips sit under "
+               "`.ch-table .ch-t-acts .ch-btn { display: inline-block }`, and `hidden` is the UA's rule, which "
+               "any author display beats",
+        "file": "tv/control_ui.html",
+        "find": "  .ch-btn[hidden] { display: none !important; }\n",
+        "replace": "",
+        "matches": 1,
+    },
 ]
 
 

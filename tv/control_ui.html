@@ -914,6 +914,10 @@
      selector SUBJECT is what matters. [[sweep-dont-ask]] [[the-unjoined-end]] */
   .win-ctl[hidden], .chron-run[hidden], .chron-visits[hidden], .fb-eta[hidden],
   .kai-gate[hidden], .sh-stationbar[hidden], .signal .row[hidden] { display: none !important; }
+  /* #163 (REG-3058) - THE UNCONFIRMED LANE'S TWO FOOTER CHIPS SHIP `hidden` (#ch-u-confirm-sel, #ch-u-clear-sel), and its JS
+     shows them only in that lane. `.ch-btn` carries an author display in the inbox table (`.ch-table .ch-t-acts .ch-btn`), so
+     the chip class joins the guard: a later display rule that reaches a footer chip can never lay a hidden one out. */
+  .ch-btn[hidden] { display: none !important; }
   button.act {
     appearance: none;
     flex: 1;
