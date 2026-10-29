@@ -5278,6 +5278,12 @@ def saves_answer(platform=None, home=None, saved_games=None, _read=None):
     return ans
 
 
+def _profile_saves():
+    """#251 (REG-3079) - this PC's saves answer for the upload, so a shadow's Characters room says the owner's reason
+    (no .d2s here, no save folder). One door, so a law can stand a fixture in for it."""
+    return saves_answer()
+
+
 def _profile_api_path():
     return os.path.join(_log_root(), ".roster_profile_api.json")
 
@@ -5291,7 +5297,8 @@ def _profile_api_answers(now_ms=None, reads=None):
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)
     kept = _profile_json_load(_profile_api_path()) or {}
     answers, misses, changed = {}, {}, False
-    for name, read in (reads or (("chars_learned", _profile_chars_learned), ("main_locks", main_locks_view))):
+    for name, read in (reads or (("chars_learned", _profile_chars_learned), ("main_locks", main_locks_view),
+                                 ("saves", _profile_saves))):
         why = None
         try:
             got = read()

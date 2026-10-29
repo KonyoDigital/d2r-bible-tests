@@ -60,6 +60,9 @@ API_FIELDS = {
                       "sessions", "sessionsWhy"),
     "main_locks": ("ok", "locked", "tracked", "floor", "minSightings", "canEverLock", "blockedWhy"),
     "world": ("machine", "profile", "ledger", "os", "cousin"),
+    # #251 (REG-3079) - why this PC's saves name what they name (no .d2s here, no save folder): the shadow's Characters
+    # room says the owner's reason. The names ride in the roster's characters section (REG-2929), not here.
+    "saves": ("ok", "state", "d2sWhy", "why"),
 }
 # The world the owner's board drew in: which machine and profile its stores belong to, the ledger it keeps and the
 # OS it reported. The shadow frame takes these instead of the viewer's own, so a Mac viewing a Windows owner draws

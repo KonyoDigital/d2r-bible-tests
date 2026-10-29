@@ -69,6 +69,23 @@ eagle ledger, and it did not redirect it: run from his checkout it would have wr
 test_no_test_writes_his_eagle_ledgers could not see it (the pass runs inside a -c string, not an AST call). The law
 now calls fixture_ledgers.redirect() at import, so the process and its child write a temp ledger; measured: the
 worktree's ledger kept its mtime and size across a full run.
+### REG-3079 - THE CHARACTERS ROOM HID WHY THIS PC'S SAVES NAME WHAT THEY NAME (#251, his call via the lead)
+d2s_read.saves (REG-2925) says why its list is what it is: "no .d2s on this PC; online characters live on Battle.net",
+or why the list is UNKNOWN (no save folder; a platform with no place to look). Nothing drew it, and a hidden reason
+reads as nothing. The room now draws it under the in-game list ("This PC's saves: ...") and in the empty state, where
+nothing else is known.
+A shadow draws the OWNER's reason ("Their PC's saves: ..."). Their console uploads its saves answer:
+- control_app._profile_saves joins the upload's console answers;
+- console_snapshot.API_FIELDS "saves" keeps ok/state/d2sWhy/why only (the names ride in the roster section, REG-2929);
+- the worker's API_NAMES and API_FIELDS take it;
+- the shadow frame answers /api/saves from it.
+A shadow still never takes their names as this page's templates. A platform with no place to look is now an answered
+look (ok, chars UNKNOWN), so a Linux console's upload does not log a miss every hour.
+The two profile-publish laws stand a fixture in for _profile_saves, so no law reads a real save folder.
+Law test_the_characters_room_says_why_its_saves_name_what_they_name (the room on the whole page in node, the upload in
+Python), 8 cases, 8 red-proofs RED, baseline green. 24 neighbours ran green (6 node-only laws refused by safe_laws for a
+test import, read and run by hand); the signed-publish, presence-beacon, shadow and mule-window Chrome laws go to CI.
+
 ### REG-3042 - A SET PIECE OR A RUNEWORD IN THE MAGIC & RARE REGISTER WAS HOMED ON MAGIC & RARE (#163, GrokBot on Dean's shadow)
 Dean's saved records filed Aldur's Rhythm (a set piece) and Enigma (a runeword) on MAGIC & RARE. The file door has refused to treat
 a catalogue item as a keeper since REG-2854 (a grail unique, a set piece or a runeword draws from the catalogue on its own locker),
