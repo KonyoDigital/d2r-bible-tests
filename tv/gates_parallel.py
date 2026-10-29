@@ -47,12 +47,20 @@ def free_gb():
         return None
 
 
+# Gates that read machine-wide state (a fixed port lane, the cross-tree suite-run record) and so go
+# red when another tree's gates run at the same moment. Measured on v3842's first green-code run:
+# both red in a shard, both green alone. They run with the heavy gates, alone.
+SERIAL_ONLY = frozenset(["test_a_prove_lane_keeps_its_own_port",
+                         "test_a_suite_run_is_reused_only_on_identical_bytes"])
+
+
 def plan(gates, weigh, slices=SLICES, heavy_s=HEAVY_S):
     """Split gates into `slices` cost-balanced light slices and the heavy list. -> (list[list[name]], list[name])
 
     Every gate lands in exactly one place (pinned by test_the_parallel_full_runs_every_gate_once)."""
-    heavy = sorted(g.name for g in gates if weigh[g.name] >= heavy_s)
-    light = [g for g in gates if weigh[g.name] < heavy_s]
+    alone = lambda n: weigh[n] >= heavy_s or n in SERIAL_ONLY
+    heavy = sorted(g.name for g in gates if alone(g.name))
+    light = [g for g in gates if not alone(g.name)]
     bins = [[0.0, i, []] for i in range(slices)]
     for g in sorted(light, key=lambda g: (-weigh[g.name], g.name)):
         b = min(bins, key=lambda b: (b[0], b[1]))

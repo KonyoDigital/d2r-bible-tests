@@ -848,6 +848,17 @@
     "gotcha": "The ledger and the input map are gitignored and never a verdict of record. A missing or unreachable proven sha, a failed diff, or a gate whose inputs cannot be named runs the gate. A FAIL is not stored. GitHub CI does not consult it. CARRY is not a fresh pass and does not bank Wilson evidence.",
     "territory": "gates-proofs"
   },
+  "gates_parallel.py": {
+    "entryPoints": [
+      "plan",
+      "why_serial",
+      "run_light",
+      "free_gb"
+    ],
+    "gotcha": "Falls back to serial under 4 GB free, unknown memory, or a dirty tracked tree. Shards never carry D2R_GATE_LOCK_KEY (it leaks into tree_busy). A gate that reads machine-wide state belongs in SERIAL_ONLY.",
+    "purpose": "Runs a local --full's light gates as 3 cost-balanced shards, each in its own detached worktree, then leaves the heavy and SERIAL_ONLY gates to run alone.",
+    "territory": "gates-proofs"
+  },
   "git_quiet.py": {
     "entryPoints": [
       "run"

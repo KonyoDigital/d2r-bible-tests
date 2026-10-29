@@ -31,8 +31,10 @@ class TheParallelFullRunsEveryGateOnce(unittest.TestCase):
         for s in slices:
             for n in s:
                 self.assertLess(weigh[n], GP.HEAVY_S, "%s is heavy but would share the box" % n)
+                self.assertNotIn(n, GP.SERIAL_ONLY, "%s contends across trees but would share the box" % n)
         for n in heavy:
-            self.assertGreaterEqual(weigh[n], GP.HEAVY_S)
+            self.assertTrue(weigh[n] >= GP.HEAVY_S or n in GP.SERIAL_ONLY, "%s is cheap and safe yet runs alone" % n)
+        self.assertLessEqual(GP.SERIAL_ONLY, set(g.name for g in RG.GATES), "a SERIAL_ONLY name is not a gate")
         self.assertTrue(heavy, "the heavy pass is empty - run() would read [] as every gate")
         tot = [sum(weigh[n] for n in s) for s in slices]
         self.assertLess(max(tot) - min(tot), GP.HEAVY_S + 1, "the light slices are not balanced: %r" % tot)
@@ -46,6 +48,15 @@ class TheParallelFullRunsEveryGateOnce(unittest.TestCase):
         src = io.open(GP.__file__, encoding="utf-8").read()
         self.assertNotIn('env["D2R_GATE_LOCK_KEY"]', src)
         self.assertIn('env.pop("D2R_GATE_LOCK_KEY", None)', src)
+
+    def test_a_gate_that_contends_across_trees_runs_alone(self):
+        class G: pass
+        gs = []
+        for n in sorted(GP.SERIAL_ONLY) + ["cheap"]:
+            g = G(); g.name = n; gs.append(g)
+        slices, heavy = GP.plan(gs, {g.name: 1.0 for g in gs})
+        self.assertEqual(sorted(heavy), sorted(GP.SERIAL_ONLY))
+        self.assertEqual(sum(slices, []), ["cheap"])
 
     def test_a_dirty_tracked_tree_stays_serial(self):
         tmp = tempfile.mkdtemp(prefix="tvd-par-dirty-")
