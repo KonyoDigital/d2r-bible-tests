@@ -103,6 +103,23 @@ the first item Dean filed would have erased the other four; a persist now carrie
 cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
 (node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
 and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+### REG-2929 - ANOTHER PC'S SHADOW SAW ONLY THE CHARACTERS THIS PC'S REELS HAD LEARNED, IN THE OCR'S SPELLING (#251)
+The roster publish's characters section (control_app._roster_reads, the reels' path) carried what char_select had
+learned: names as the character-select OCR read them, and nothing for a character the reels had not seen twice. A shadow
+of this PC therefore missed characters its save folder names. roster_publish.with_save_names folds this PC's
+/api/saves answer (REG-2926) into that section:
+- a learned row whose name folds to a save name takes the save's spelling, and keeps its class and level;
+- a save name no row holds joins with its name only, and the section's count grows by it;
+- only names leave, never an account id or the id count;
+- saves that did not answer, or name nobody, leave the section exactly as it was;
+- a PC whose reels learned nothing publishes a section from its saves alone;
+- a builds book's section is builds, so it is left alone.
+The shadow's builder already takes a name-only row with its class UNKNOWN. Law test_the_roster_carries_this_pcs_save_names
+(Python, the answer handed in, so no law reads a real save folder), 6 cases, 5 red-proofs RED, baseline green. 10 roster
+neighbours ran green; the signed-publish and presence-beacon laws go to CI.
+NOT DONE: a PC whose console publishes a builds book (the book path) sends no save names; that section's rows are builds,
+and carrying names beside them needs a new field the worker and the snapshot do not take yet.
+
 ### REG-2928 - A VAULT MULE NEVER SAID WHETHER IT EXISTS IN GAME (#251)
 The vault names its mules (UNI-ARMOR, CHARMS, a renamed WAR mule, a mule he added), and nothing checked that a character
 of that name exists, or even could. window._vaultMuleSaveSay answers under each mule's plate. It is a check that is
