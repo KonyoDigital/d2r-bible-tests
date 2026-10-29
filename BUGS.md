@@ -319,6 +319,26 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3052 - THE MAC'S FLEET ROW CALLED 12 RELEASED REELS "STUCK": THE STUCK READER NEVER ASKED THE DRAIN WHICH REELS IT HAD FINISHED (#193)
+#193, "why the Mac's river doesn't drain", measured read only on his Mac 2026-10-29 (plan() run from his tree in a separate
+process, the fixture scan served from its existing cache, his state files read; nothing written). It is not a lock: the
+drain asks retention_may_act() only when plan() has candidates, and every pass in his disk_history (v3836..v3838) reads
+reels 29, eligible 0, owed 0 - plan() said it owes nothing. Of the 25 reels the Fleet row called "older than the newest 16 -
+the drain owes them a tombstone", 12 were EVIDENCE REMNANTS - reels the drain already released whose cited pictures stay by
+his §26 ruling (REG-2728's 12: each folder holds its kept frames and the derived index/report). plan() drops remnants
+before it plans (reel_retention.remnant_reels); the stuck reader (_river_stuck_for_wire) never asked that predicate, so it
+reported the drain's finished work as its debt, and its newest-16 window counted remnants where the drain's does not - the
+REG-1614 drift again, one reader leaving the drain's rule. It now asks the drain's own remnant_reels (UNKNOWN when it cannot
+be read), drops remnants before the window, and skips them in the walk - including a remnant whose last stamp sits at a
+lane's station, which would otherwise read as "inside the window, owed a move". Measured with the fix on his river, read
+only: 24 stuck reels (the warm fixture set hides the 25th) became 12 - exactly plan()'s held set: 8 panels-never-banked (7
+sealed by the current vault reader with 0 rows, 1 cooling after two barren tries on stash panels the cross-check cannot speak
+for) and 4 zero-pages. Those 12 are held by REG-1277/v3074's safety rule and the zero-pages rule, which wait with no end -
+against his "no station may hold a reel for ever"; that is HIS RULING to make, and nothing here releases them. Law:
+test_a_remnant_is_not_a_stuck_reel (4 cases on the reader's seams and its production path; 4 red-proofs, each RED);
+test_the_fleet_says_where_a_river_is_stuck's TheConsoleNamesItsStuckStations (20) passes, and its REG-1614 proofs [10] and
+[11] (the shelf test and the fixture test, each dropped from the skip line) are re-anchored to the new line, each RED.
+
 ### REG-3051 - FLEET SAID "RIVER STUCK" BESIDE /api/river "OK": ONE READING ONLY ONE SURFACE COULD SEE, AND NO AGE SAID WHAT WAITED (GrokBot #230 6486545342)
 GrokBot 04:30: the Mac's Fleet row said "river stuck" for the Mac and the ALT while /api/river "is OK on both (ALT 727 reels,
 0 moved; Mac shelf 40, 239 reels)". Which field: the row reads the beacon's system.river.stuck, built by

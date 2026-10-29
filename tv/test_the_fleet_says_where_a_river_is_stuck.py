@@ -1141,15 +1141,15 @@ RED_PROOF = [
     {
         "why": "REG-1614 - reels that left the shelf are counted again: his Mac's 17 deleted reels read as stuck",
         "file": "tv/control_app.py",
-        "find": "        if reel in _pinned or not _on(reel):\n            continue\n",
-        "replace": "        if reel in _pinned:\n            continue\n",
+        "find": "        if reel in _pinned or reel in _done or not _on(reel):\n            continue\n",
+        "replace": "        if reel in _pinned or reel in _done:\n            continue\n",
         "matches": 1,
     },
     {
         "why": "REG-1614 - the suite's fixture reels are counted again: reels that never move by design read as stuck",
         "file": "tv/control_app.py",
-        "find": "        if reel in _pinned or not _on(reel):\n            continue\n",
-        "replace": "        if not _on(reel):\n            continue\n",
+        "find": "        if reel in _pinned or reel in _done or not _on(reel):\n            continue\n",
+        "replace": "        if reel in _done or not _on(reel):\n            continue\n",
         "matches": 1,
     },
     {
