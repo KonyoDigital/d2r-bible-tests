@@ -319,6 +319,20 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3053 - THE STUCK READER CALLED 12 HELD REELS THE DRAIN'S DEBT; THE DRAIN OWED NONE OF THEM (#193)
+After REG-3052 the Mac's river still showed 12 reels "older than the newest 16 - the drain owes them a tombstone". Measured
+read only on his Mac 2026-10-29: the drain's plan() owed nothing and HELD all 12 - 8 panels-never-banked (7 sealed by the
+current vault reader with 0 rows, 1 cooling after two barren tries on stash panels the cross-check cannot speak for; REG-1277
+and v3074 hold a 0-row seal unless it was examined empty) and 4 zero-pages (held until the engine reopens them). The
+sentence named a debt the drain does not have; the honest one is the drain's own hold. The retention pass now keeps the
+drain's reason for every reel it holds (_retention_holds: plan()'s kept rows, the newest window aside, beside the pass's
+other words in _RETENTION), and the stuck reader names a held reel with that tag and reason and when the drain last said so
+("held by the drain, not owed: 5 panels-never-banked (...) - the drain's pass 7 min ago"); a row part held says both; with
+no pass on record the sentence is unchanged. Measured on his river, read only: all 12 now read as held, by tag. Wording only:
+nothing here releases a reel - whether these holds may ever end is his ruling (the options are with him). Law:
+test_a_held_reel_is_named_by_its_hold (5 cases; 7 red-proofs, each RED). test_the_fleet_says_where_a_river_is_stuck's
+REG-2098 [1] and REG-1987 [2] proofs re-anchored to the reshaped lines, each RED on its reader class.
+
 ### REG-3052 - THE MAC'S FLEET ROW CALLED 12 RELEASED REELS "STUCK": THE STUCK READER NEVER ASKED THE DRAIN WHICH REELS IT HAD FINISHED (#193)
 #193, "why the Mac's river doesn't drain", measured read only on his Mac 2026-10-29 (plan() run from his tree in a separate
 process, the fixture scan served from its existing cache, his state files read; nothing written). It is not a lock: the

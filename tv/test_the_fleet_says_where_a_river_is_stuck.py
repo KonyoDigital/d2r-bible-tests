@@ -1080,15 +1080,15 @@ RED_PROOF = [
     {
         "why": "REG-2098 - the older copy of a lane's reason is cut after its prefix again and ends at another word",
         "file": "tv/control_app.py",
-        "find": "        return \"older than the newest %s - %s\" % (keep, _word_cut(_river_stuck_why(station), 200))\n",
-        "replace": "        return \"older than the newest %s - %s\" % (keep, _river_stuck_why(station))\n",
+        "find": "        return \"older than the newest %s - %s\" % (keep, _word_cut(_river_stuck_why(station), 200)) + (\n",
+        "replace": "        return \"older than the newest %s - %s\" % (keep, _river_stuck_why(station)) + (\n",
         "matches": 1,
     },
     {
         "why": "REG-1987 - the stuck reason is a bare [:200] again and ends mid-word on every fleet tip",
         "file": "tv/control_app.py",
-        "find": "        e[\"why\"] = (_word_cut(_river_stuck_why(e[\"station\"]), 200) if e.get(\"window\") is not False\n                    else _word_cut(_river_owed_why(e[\"station\"], _keep), 280))\n",
-        "replace": "        e[\"why\"] = (_river_stuck_why(e[\"station\"])[:200] if e.get(\"window\") is not False\n                    else _river_owed_why(e[\"station\"], _keep)[:280])\n",
+        "find": "        e[\"why\"] = (_word_cut(_river_stuck_why(e[\"station\"]), 200) if e.get(\"window\") is not False\n                    else _word_cut(_river_owed_why(e[\"station\"], _keep, _rs), 320))\n",
+        "replace": "        e[\"why\"] = (_river_stuck_why(e[\"station\"])[:200] if e.get(\"window\") is not False\n                    else _river_owed_why(e[\"station\"], _keep, _rs)[:320])\n",
         "matches": 1,
     },
     {

@@ -17864,28 +17864,81 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None, 
                                              **({} if inside else {"window": False})))
         e["n"] += 1
         e["oldestS"] = max(e["oldestS"], int(age))
+        e.setdefault("_reels", []).append(reel)   # REG-3053 - which reels, so the drain's own hold can be named
     out = sorted(by.values(), key=lambda e: -e["oldestS"])[:6]
     for e in out:
+        _rs = e.pop("_reels", [])
         # REG-1987 - GrokBot tick 388: the tips ended "...the heart census is S" and "...the lane could not be". A bare
         # [:200] cut the lane's own sentence mid-word; _word_cut ends at a word and says it was cut (REG-1839's helper).
         # REG-2098 (GrokBot tick 427) - the owed sentence cuts its OWN lane reason before it adds the window prefix, so a
         # station past the window and the same station inside it carry the same reason, and the fleet tip says it once.
         e["why"] = (_word_cut(_river_stuck_why(e["station"]), 200) if e.get("window") is not False
-                    else _word_cut(_river_owed_why(e["station"], _keep), 280))
+                    else _word_cut(_river_owed_why(e["station"], _keep, _rs), 320))
     return out
 
 
-def _river_owed_why(station, keep):
+def _retention_holds(p):
+    """REG-3053 (#193) - the drain's own reason for every reel it HOLDS (plan()'s kept rows, the newest window aside):
+    {reel: {"tag", "why"}}, kept beside the pass's other words so the stuck reader can name the hold instead of calling
+    the reel owed. Capped; never raises."""
+    out = {}
+    try:
+        for k in (p.get("kept") or [])[:400]:
+            if isinstance(k, dict) and k.get("reel") and k.get("tag") not in (None, "recent"):
+                out[str(k["reel"])] = {"tag": str(k.get("tag"))[:40], "why": _word_cut(str(k.get("why") or ""), 120)}
+    except Exception:
+        return {}
+    return out
+
+
+def _river_held_say(reels):
+    """REG-3053 - how many of `reels` the drain HOLDS, by its own tag and reason, and when it said so.
+    -> (sentence | None, held count). No pass on record, or none of these reels held: (None, 0)."""
+    try:
+        r = dict(_RETENTION)
+        holds = r.get("holds") if isinstance(r.get("holds"), dict) else None
+        checked = r.get("checked")
+    except Exception:
+        return None, 0
+    if not holds or not reels:
+        return None, 0
+    by = {}
+    for reel in reels:
+        h = holds.get(str(reel))
+        if isinstance(h, dict) and h.get("tag"):
+            by.setdefault(h["tag"], [0, h.get("why") or ""])[0] += 1
+    if not by:
+        return None, 0
+    parts = ["%d %s (%s)" % (n, tag, _word_cut(why, 90)) for tag, (n, why) in sorted(by.items(), key=lambda kv: -kv[1][0])]
+    when = ""
+    if isinstance(checked, int) and not isinstance(checked, bool):
+        mins = max(0, int(time.time() * 1000) - checked) // 60000
+        when = " - the drain's pass %s ago" % ("under 1 min" if mins < 1 else "%d min" % mins if mins < 120 else
+                                                  "%d hr" % (mins // 60))
+    return "held by the drain, not owed: " + "; ".join(parts) + when, sum(n for n, _w in by.values())
+
+
+def _river_owed_why(station, keep, reels=None):
     """REG-1812 - why a reel OLDER than the newest window still sits at `station`. -> str (never raises)
 
     A lane's station keeps the owning lane's own word (the drain's blocked-upstream reading says the same:
     it waits behind that lane). Any other station - ROUTED, CAPTURE, TOMBSTONE - is the deleter's to clear,
     so the sentence is the debt and the retention pass's own last word on why it did not pay it."""
+    # REG-3053 (#193) - THE HOLD THE DRAIN GIVES, NOT A DEBT IT DOES NOT HAVE. On his Mac the drain's plan held all 13 of
+    # the reels this sentence called owed (8 panels-never-banked, 4 zero-pages, 1 test fixture) and owed nothing; the row
+    # said "the drain owes them a tombstone". A reel the drain holds is named with the drain's own tag and reason, and when
+    # the drain last said so. Wording only: nothing here releases a reel.
+    held, n_held = _river_held_say(reels)
+    if held and n_held >= len(reels or ()):
+        return "older than the newest %s - %s" % (keep, held)
     if station in _RIVER_OWNER:
-        return "older than the newest %s - %s" % (keep, _word_cut(_river_stuck_why(station), 200))
+        return "older than the newest %s - %s" % (keep, _word_cut(_river_stuck_why(station), 200)) + (
+            " · " + held if held else "")
     # REG-2098 - the station is the row's own label, so the sentence no longer repeats it: ROUTED and CAPTURE owing the
     # same tombstone read word for word alike, and the tip names them together once ('still at ROUTED' kept them apart)
     why = "older than the newest %s - the drain owes them a tombstone" % keep
+    if held:
+        why += " (%d of them; the rest %s)" % (len(reels) - n_held, held)
     try:
         r = dict(_RETENTION)
         say = str(r.get("say") or "") if r.get("checked") is not None else ""
@@ -29430,6 +29483,7 @@ def _retention_once():
     # can no longer disagree. [[stale-reading]]
     base = {"checked": int(time.time() * 1000), "error": None, "freeGb": round(free_gb, 1),
             "floorGb": ON_AIR_FLOOR_GB,
+            "holds": _retention_holds(p),   # REG-3053 - the drain's own reason for each reel it holds
             # 2026-09-27 — pressure's own measurement, published now that it no longer caps the
             # pass: how many MB short of floor+headroom this disk is. 0.0 is a measured "not short".
             "needMb": round(need_mb, 1),
