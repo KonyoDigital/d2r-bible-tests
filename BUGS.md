@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3014 - THE FIRST-SIGHTING DRAIN CASE SENT A FRAME THAT NEVER SAID IT READ THE STASH WHOLE (CI on ci/claude-chain-1)
+test_vault_l1_throw_out_rows_drain's first-sighting case (REG-2843's) drained its throw-out row with an inline frame that carries
+no `complete: true`. REG-2861 counts an item gone only from a frame that read its container whole, and its own change taught the
+law's frame() helper to say so, but not this inline frame. So on the chain the row read "→ NOWHERE" and never "gone 1/5"
+(CI on slice 1). The frame now says complete: true, as frame() does. Measured in node on the slice's page: without it,
+"not counted - the frame does not say it read its container whole"; with it, gone 1. Chrome law: CI proves it.
+
+
 ### REG-3013 - THE HAND-ADD LAW LOOKED FOR THE RAW "stash:c0r0" IN FIND, WHICH REG-2884 NOW SAYS IN ITS OWN WORDS (CI on ci/claude-chain-1)
 test_vault_l1_a_hand_add_routes_by_type's FIND case asserted the move target's raw cell ("stash:c0r0") in FIND's text. Since
 REG-2884 (#137) FIND names a hand add's target as "Mule 1 · Personal stash · col 1 · row 1 · target", and the case went red on
