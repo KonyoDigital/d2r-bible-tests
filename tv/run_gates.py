@@ -13617,7 +13617,8 @@ def main(argv):
                     help="run every gate; a PASS is recorded and a FAIL is dropped")
     ap.add_argument("--parallel", choices=("auto", "off"), default=None,
                     help="v3842 GATE-TRIM A: with --full, the light gates as 3 shards in their own worktrees at once, "
-                         "then the heavy gates alone (tv/gates_parallel.py). Default auto for a local --full, off on CI")
+                         "then the heavy gates alone (tv/gates_parallel.py). Default OFF: three v3842 runs each found a new "
+                         "cross-tree contention red (ports, reload state) and the shards took 25-34 min, so opt in")
     a = ap.parse_args(argv[1:])
     only = a.only
     if a.shard:
@@ -13834,7 +13835,9 @@ def _parallel_light(a, only):
     The last element of the first list is the heavy gate list the caller runs next; everything before it names a light
     slice that came back red. Serial whenever --full is off, a selection (--only/--shard) was given, CI is running it,
     --parallel off was asked, or gates_parallel.why_serial says so (memory floor, dirty tree)."""
-    mode = a.parallel or ("off" if os.environ.get("CI") else "auto")
+    # Opt-in since v3842: three measured runs each hit a fresh cross-tree red and the light shards took
+    # 1500-2048 s against ~72 min serial, so the default stays the serial run the verdict was built on.
+    mode = a.parallel or "off"
     if not a.full or only or mode == "off":
         return None, None
     import gates_parallel as GP

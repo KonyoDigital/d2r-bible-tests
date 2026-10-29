@@ -58,6 +58,12 @@ class TheParallelFullRunsEveryGateOnce(unittest.TestCase):
         self.assertEqual(sorted(heavy), sorted(GP.SERIAL_ONLY))
         self.assertEqual(sum(slices, []), ["cheap"])
 
+    def test_a_local_full_is_serial_unless_asked(self):
+        # v3842: parallel is opt-in; a --full with no --parallel must not shard (no worktree is made).
+        import argparse
+        a = argparse.Namespace(full=True, parallel=None)
+        self.assertEqual(RG._parallel_light(a, None), (None, None))
+
     def test_a_dirty_tracked_tree_stays_serial(self):
         tmp = tempfile.mkdtemp(prefix="tvd-par-dirty-")
         self.addCleanup(shutil.rmtree, tmp, True)
