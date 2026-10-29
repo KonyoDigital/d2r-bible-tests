@@ -36,7 +36,15 @@ from test_v3769_vault_move_list_visual import (  # noqa: E402
 NO_BROWSER = "no Chrome/Chromium on this machine"
 
 SHOTS = os.path.join(HERE, ".render_shots")
-ART = "/opt/cursor/artifacts/v3771"
+# /opt/cursor/artifacts is the CI artifact drop. A Mac has no such directory and cannot make one, so
+# the shots go to a writable drop there instead; the law is the assertions, not where the copy lands.
+def _art_dir(tag):
+    import os as _o, tempfile as _t
+    ci = "/opt/cursor/artifacts"
+    if _o.path.isdir(ci) and _o.access(ci, _o.W_OK):
+        return _o.path.join(ci, tag)
+    return _o.path.join(_t.gettempdir(), "tvd-artifacts", tag)
+ART = _art_dir("v3771")
 # was pinned 17981/17982 - shard_suite.PORT_BASE, shard 0's agent port in the same CI job; the OS hands out free ones
 HTTP_PORT, CDP_PORT = _free_ports(2)
 PAGE = "http://127.0.0.1:%d/bible.html" % HTTP_PORT

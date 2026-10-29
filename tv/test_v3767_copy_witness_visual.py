@@ -27,7 +27,15 @@ except Exception:
 import test_v3767_copy_witness as CW  # noqa: E402
 
 SHOTS = os.path.join(HERE, ".render_shots")
-ART = "/opt/cursor/artifacts/v3767"
+# /opt/cursor/artifacts is the CI artifact drop. A Mac has no such directory and cannot make one, so
+# the shots go to a writable drop there instead; the law is the assertions, not where the copy lands.
+def _art_dir(tag):
+    import os as _o, tempfile as _t
+    ci = "/opt/cursor/artifacts"
+    if _o.path.isdir(ci) and _o.access(ci, _o.W_OK):
+        return _o.path.join(ci, tag)
+    return _o.path.join(_t.gettempdir(), "tvd-artifacts", tag)
+ART = _art_dir("v3767")
 NO_BROWSER = "no Chrome/Chromium on this machine"
 
 
