@@ -3398,15 +3398,121 @@ def _err_place(text, details=None):
     return lines[0][:200] + ("  " + at[:160] if at else "")
 
 
-def _chrome_up():
-    """A scratch Chrome on 9224+, per chrome-cdp-mac. Returns True when CDP answers."""
+#: REG-3060 (#161) - what the last _chrome_up() did, one row per start it made: {port, cause, aliveS}; `why` says it all
+_CHROME_START = {"attempts": [], "why": None}
+#: REG-3060 - seconds a start may take to answer /json/version: the first try; the grace a first try that is ALIVE and
+#: silent gets before it is called failed (MEASURED: CI's slow starts came up - the law's later cases used them); and the
+#: one retry on a fresh port and a fresh profile. 60 s at worst, inside every browser law's gate timeout (120 s+).
+CHROME_START_WAIT_S, CHROME_START_GRACE_S, CHROME_RETRY_WAIT_S = 20.0, 20.0, 20.0
+#: REG-3061 - the words tv/run_gates.py reads as "this venue could not measure" (VENUE), never as a red law
+VENUE_MARK = "VENUE FAULT"
+
+
+class VenueFault(AssertionError):
+    """REG-3061 (#161) - the browser this law needs would not start here: the law could not MEASURE, which is UNKNOWN,
+    never a red verdict on what it guards. run_gates reads a gate whose every failure is one of these as VENUE."""
+
+
+def _cdp_answers(port):
+    """Does a DevTools endpoint answer on `port`? -> bool"""
     import urllib.request
     try:
-        urllib.request.urlopen("http://127.0.0.1:%d/json/version" % PORT, timeout=2).read()
+        urllib.request.urlopen("http://127.0.0.1:%d/json/version" % port, timeout=2).read()
         return True
     except Exception:
-        pass
+        return False
+
+
+def _free_port():
+    """REG-3060 - a port nothing listens on now (bound, read, released). -> int"""
+    import socket
+    s = socket.socket()
+    try:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+    finally:
+        s.close()
+
+
+def _start_log_tail(path):
+    """REG-3060 - what Chrome said on stderr while it started, cut to the lines that can name a cause. -> " - ..." or "" """
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, 2)
+            fh.seek(max(0, fh.tell() - 4096))
+            text = fh.read().decode("utf-8", "replace")
+    except Exception as e:
+        return " - what it printed could not be read (%s)" % type(e).__name__   # UNKNOWN, never "it said nothing"
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    keep = [l for l in lines if any(w in l.lower() for w in ("error", "fail", "bind", "devtools", "address", "denied"))]
+    said = (keep or lines)[-2:]
+    return (" - it said: " + " | ".join(x[:160] for x in said)) if said else ""
+
+
+def _chrome_start_once(popen, answers, sleep, wait_s, grace_s=0.0):
+    """REG-3060 - one start of this file's Chrome on PORT with a fresh profile, its stderr kept in that profile.
+    -> (answered, cause, launched). A start that is ALIVE when `wait_s` ends gets `grace_s` more before it is called
+    failed; one that EXITED is failed at once."""
+    global _CHROME_PROFILE, _CHROME_PROC
+    _sweep_dead_profiles()
+    _CHROME_PROFILE = tempfile.mkdtemp(prefix="render_check-profile-")
+    prof = _CHROME_PROFILE
+    log = os.path.join(prof, "chrome-start.log")
+    try:
+        fh = open(log, "wb")
+    except Exception:
+        fh = subprocess.DEVNULL
+    try:
+        _CHROME_PROC = popen(
+            [CHROME, "--headless=new", "--remote-debugging-port=%d" % PORT,
+             "--user-data-dir=" + prof, "--no-first-run", "--no-default-browser-check",
+             "--disable-gpu", "--window-size=1440,1300",
+             # ⚠ WITHOUT THIS the WebSocket upgrade is refused 403 and nothing suggests a launch flag
+             "--remote-allow-origins=*", "about:blank"],
+            stdout=subprocess.DEVNULL, stderr=fh)
+    except Exception as e:
+        return False, "could not be launched (%s: %s)" % (type(e).__name__, str(e)[:120]), False
+    finally:
+        if fh is not subprocess.DEVNULL:
+            try:
+                fh.close()
+            except Exception:
+                pass
+    waited, step = 0.0, 0.5
+    while waited < wait_s + grace_s:
+        sleep(step)
+        waited += step
+        if answers(PORT):
+            return True, ("answered after %.0f s - a slow start, given its grace" % waited if waited > wait_s
+                          else "answered"), True
+        rc = _CHROME_PROC.poll() if _CHROME_PROC is not None else None
+        if rc is not None:
+            return False, "exited with code %s after %.0f s without answering%s" % (rc, waited, _start_log_tail(log)), True
+    return False, "was alive and never answered /json/version in %.0f s%s" % (waited, _start_log_tail(log)), True
+
+
+def _chrome_up(popen=None, answers=None, sleep=None, free_port=None):
+    """A scratch Chrome on 9224+, per chrome-cdp-mac. Returns True when CDP answers.
+
+    ⚠⚠ REG-3060 (#161) - A SLOW START WAS CALLED A FAILED ONE, AND NOTHING SAID WHY. MEASURED on CI 2026-10-29:
+    test_found_ever_never_files_to_a_mule went red twice ("would not start on :51565", then ":59361") with
+    FAILED (failures=1) - only its FIRST case failed; the five after it found the same Chrome answering and passed. So
+    the browser was ALIVE and slow under the shard's load, the 20 s poll gave up on it, and Chrome's own output went to
+    DEVNULL. Now a start that is alive and silent gets a grace before it is called failed; a start that exited, or is
+    still silent after its grace, is killed (by its handle) and tried ONCE more on a fresh port and a fresh profile; a
+    Popen that raises is not retried (a new port cannot fix a missing binary). Chrome's stderr is kept in the profile,
+    and what each start saw is recorded (_CHROME_START) and said by chrome_start_why(). popen / answers / sleep /
+    free_port are a law's seams; every caller passes none."""
+    global PORT
+    popen = popen or subprocess.Popen
+    answers = answers or _cdp_answers
+    sleep = sleep or time.sleep
+    free_port = free_port or _free_port
+    if answers(PORT):
+        return True
+    _CHROME_START.update(attempts=[], why=None)
     if not os.path.exists(CHROME):
+        _CHROME_START["why"] = "there is no Chrome at %s" % CHROME
         return False
     # ⚠⚠ A TEMPORARY PROFILE, NOT A PERSISTENT ONE — IT REACHED 1.4 GB AND ENOSPC'D HIS MAC.
     # This used to be `os.path.join(SHOTS, "chrome-profile")`, which Chrome fills with caches,
@@ -3416,26 +3522,34 @@ def _chrome_up():
     # copying `tv/` — which review agents were told to do — carried it three times over.
     # A fresh profile per run also removes a whole class of "it passed because of state left by
     # the last run" that this file has no other defence against. [[process-port-discipline]]
-    global _CHROME_PROFILE
-    _sweep_dead_profiles()
-    _CHROME_PROFILE = tempfile.mkdtemp(prefix="render_check-profile-")
-    prof = _CHROME_PROFILE
-    global _CHROME_PROC
-    _CHROME_PROC = subprocess.Popen(
-        [CHROME, "--headless=new", "--remote-debugging-port=%d" % PORT,
-         "--user-data-dir=" + prof, "--no-first-run", "--no-default-browser-check",
-         "--disable-gpu", "--window-size=1440,1300",
-         # ⚠ WITHOUT THIS the WebSocket upgrade is refused 403 and nothing suggests a launch flag
-         "--remote-allow-origins=*", "about:blank"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(40):
-        time.sleep(0.5)
-        try:
-            urllib.request.urlopen("http://127.0.0.1:%d/json/version" % PORT, timeout=2).read()
+    for n, (wait_s, grace_s) in enumerate(((CHROME_START_WAIT_S, CHROME_START_GRACE_S), (CHROME_RETRY_WAIT_S, 0.0))):
+        if n:
+            PORT = free_port()                       # REG-3060 - the retry's own port; a child reads the same one
+            os.environ["TV_RENDER_PORT"] = str(PORT)
+        ok, cause, launched = _chrome_start_once(popen, answers, sleep, wait_s, grace_s)
+        _CHROME_START["attempts"].append({"port": PORT, "cause": cause})
+        if ok:
             return True
-        except Exception:
-            continue
+        _chrome_down()                               # this start's browser (by its handle) and its profile go
+        if not launched:
+            break
+    _CHROME_START["why"] = "; ".join(":%d %s" % (a["port"], a["cause"]) for a in _CHROME_START["attempts"])
     return False
+
+
+def chrome_start_why():
+    """REG-3060 - what the last _chrome_up() saw when it did not get a browser, start by start. -> str | None"""
+    return _CHROME_START.get("why")
+
+
+def require_chrome():
+    """REG-3061 (#161) - this law's browser, or a VenueFault that names why it would not start (after REG-3060's retry).
+    -> True. A law calls this where it used to raise a plain AssertionError, so a browser that will not start reads as
+    UNKNOWN for that law on this venue, never as a red verdict on what the law guards."""
+    if _chrome_up():
+        return True
+    raise VenueFault("\u26aa %s - Chrome is INSTALLED at %s and would not start (%s). This law could not measure on "
+                     "this venue: UNKNOWN, not a red." % (VENUE_MARK, CHROME, chrome_start_why() or "no cause recorded"))
 
 
 class _Tab(object):

@@ -108,9 +108,7 @@ class Board(object):
         self.t = None
 
     def open(self):
-        if not RC._chrome_up():
-            raise AssertionError("Chrome is INSTALLED at %s and would not start on :%d — a failure on a venue "
-                                 "that is supposed to measure" % (RC.CHROME, RC.PORT))
+        RC.require_chrome()   # REG-3061 - a browser that will not start is UNKNOWN for this law (a VenueFault), never a red
         self.t = RC._Tab("about:blank")
         self.t.send("Page.enable")
         self.t.send("Runtime.enable")

@@ -235,8 +235,12 @@ jobs:
           # Folding 2 into `red=true` publishes a verdict nobody reached: the lock refusal means
           # the gate set never graded anything. Three states, and UNKNOWN is one of them.
           # [[unknown-stays-unknown]]
+          # REG-3061 (#161) - EXIT 3 IS *A GATE COULD NOT MEASURE HERE*: the set reached its end, no gate was red, and a
+          #   browser law's Chrome would not start even after a retry on a fresh port and profile. UNKNOWN, not red.
           if [ "$_rc" -eq 2 ]; then
             _reached=false; _red=unknown
+          elif [ "$_rc" -eq 3 ]; then
+            _reached=true; _red=unknown
           else
             _reached=true
             if [ "$_rc" -eq 0 ]; then _red=false; else _red=true; fi

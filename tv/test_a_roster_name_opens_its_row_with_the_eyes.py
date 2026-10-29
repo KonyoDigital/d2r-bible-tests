@@ -162,9 +162,11 @@ def _render():
         return _CACHE["r"]
     base = _base_ui()
     res = {"base": {}, "ship": {}}
-    if not RC._chrome_up():
+    try:
+        RC.require_chrome()   # REG-3061 - a browser that will not start is UNKNOWN for this law (a VenueFault), never a red
+    except RC.VenueFault:
         os.unlink(base)
-        raise AssertionError("Chrome is INSTALLED at %s and would not start on :%d" % (RC.CHROME, RC.PORT))
+        raise
     try:
         t = RC._Tab("about:blank")
         t.send("Page.enable")

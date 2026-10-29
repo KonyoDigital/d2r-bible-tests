@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3061 - A LAW WHOSE BROWSER WOULD NOT START READ AS A RED GATE SET (#161, CI on v3837 and v3838)
+Both times test_found_ever_never_files_to_a_mule was the only red, and both times what failed was its browser's start,
+not the vault it guards: the gate set published red=true, a red verdict nobody reached. Now the nine browser laws that
+raised a plain AssertionError ask render_check.require_chrome(), which - once REG-3060's launcher has given up - raises a
+VenueFault (an AssertionError carrying VENUE_MARK and the launcher's cause). run_gates reads a gate whose EVERY unittest
+failure ends in a VenueFault as VENUE: shown with ⚪ and named apart from any red, never recorded in the ledger, and the
+set exits VENUE_EXIT (3) when nothing was red (a red still exits 1). The CI gate-set step publishes 3 as reached=true,
+red=unknown, which the verdict job already reads as NO VERDICT ("UNKNOWN is not a red") - not a pass, not a red: read
+end to end on the workflow's own scripts, exit 3 fails the gate-set step (no continue-on-error), so agent-suite is
+`failure`; the aggregator gives reached=true, red=unknown; the conclusion step prints title=NO VERDICT and exits 1 - the
+workflow can never conclude success on it (a law case runs those three scripts in bash). The one reader that took the
+pass line alone, ship_audit's gate receipt, now also needs exit 0, since the pass line prints before a VENUE ending. Only
+the exception itself counts: an assertEqual whose text holds the words is still a red (a law caught that in the first
+cut). Laws: tv/test_a_law_that_cannot_measure_is_unknown_never_red.py (real unittest output for each shape, the exit
+rule, the CI step's own block run in bash for 0-3, exit 3 through the verdict job, ship_audit's receipt), 7 red-proofs
+RED; and the CI-only law below.
+
+
+### REG-3060 - THE BROWSER LAUNCHER GAVE UP ON A SLOW START AT 20 S AND THREW AWAY WHY (#161, CI on v3837 and v3838)
+MEASURED in both CI logs: test_found_ever_never_files_to_a_mule failed "would not start on :51565" and ":59361" with
+FAILED (failures=1) - only its FIRST case; the five after it found that same browser answering and passed. So Chrome was
+alive and slow under the shard's load: render_check._chrome_up() polled 20 s, returned False with the browser still
+running, and had sent its output to DEVNULL. (test_the_rails_fold_is_a_chevron_not_a_dot, :37209, the same.) Now a start
+that is ALIVE and silent gets a 20 s grace; one that exited, or is still silent after it, is killed through its handle and
+tried ONCE more on a fresh port (TV_RENDER_PORT follows it) and a fresh profile; a Popen that raises is said and not
+retried. Chrome's stderr is kept in the profile and its telling lines join the cause; every start is recorded and
+chrome_start_why() says it (overlap_ratchet's "would not start" reason carries it too). 60 s at worst, inside every
+browser law's gate (120 s or more; a law holds the margin). Not changed: a11y_check and coldread still call a start
+failure "no Chrome on :N" - a different message on a different path. Law:
+tv/test_a_slow_browser_start_is_retried_and_named.py (a fake Popen whose process lives, exits or never answers; no
+browser is started) - it names Chrome, so it is refused on his Mac: CI proves it; 9 red-proofs declared, not run here.
+
+
 ### REG-3056 - ON A SEALED BOARD HIS CRAFTS CHIP SNAPPED BACK TO MAKE NOW (GrokBot #230 6486545342)
 GrokBot, a shadow of the Mac (every runeword made) -> Runewords -> Crafts: ALL 40 and COMPLETED snapped back to MAKE NOW 4.
 renderForge's v1411 crafts auto-land (and the chronicle's v2094 sealed landing) ran on EVERY render, so his chip was

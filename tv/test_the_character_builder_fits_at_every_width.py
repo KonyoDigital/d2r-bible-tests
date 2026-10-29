@@ -574,8 +574,7 @@ def _set_size(t, w, h):
 def _measure():
     if "r" in _CACHE:
         return _CACHE["r"]
-    if not RC._chrome_up():
-        raise AssertionError("Chrome is INSTALLED at %s and would not start on :%d" % (RC.CHROME, RC.PORT))
+    RC.require_chrome()   # REG-3061 - a browser that will not start is UNKNOWN for this law (a VenueFault), never a red
     res = {"input": []}
     try:
         t = RC._Tab("about:blank")

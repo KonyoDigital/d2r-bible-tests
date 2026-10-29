@@ -12537,9 +12537,43 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_carried_proof_stands_only_where_it_was_earned.py")], 300,
          needs_app=False,
          why='#186 REG-3044..3047 - a proof another PC earned stands here only over these bytes, on this OS, under this runtime, from the PC his ruling names, and says it was carried'),
+    Gate("test_a_law_that_cannot_measure_is_unknown_never_red",
+         [sys.executable, os.path.join(HERE, "test_a_law_that_cannot_measure_is_unknown_never_red.py")], 300,
+         needs_app=False,
+         why='#161 REG-3061 - a gate whose every failure is a venue fault (its browser would not start) is VENUE: named apart, the set exits 3, CI publishes red=unknown - never a red'),
+    Gate("test_a_slow_browser_start_is_retried_and_named",
+         [sys.executable, os.path.join(HERE, "test_a_slow_browser_start_is_retried_and_named.py")], 300,
+         needs_app=False,
+         why='#161 REG-3060 - a slow browser start gets its grace, a failed one is retried once on a fresh port and profile, and the launcher names why; every browser law asks through require_chrome'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
+#: REG-3061 (#161) - the words a law's failure carries when the BROWSER it needs would not start here (must match
+#: tv/render_check.py VENUE_MARK). A gate whose every failure carries them could not MEASURE on this venue: VENUE.
+VENUE_MARK = "VENUE FAULT"
+#: REG-3061 - main()'s exit when the gate set reached its end, no gate was red, and a gate could not measure here:
+#: UNKNOWN - not a pass (0) and not a red (1). The CI gate-set step publishes it as reached=true, red=unknown.
+VENUE_EXIT = 3
+
+
+def venue_only(blob):
+    """REG-3061 - is every failure in this unittest output a venue fault (VENUE_MARK on its exception line)? -> bool
+
+    MEASURED 2026-10-29: test_found_ever_never_files_to_a_mule read RED twice on CI (FAILED (failures=1)) because its
+    first case's browser was slow to start; the law had nothing to say about the vault it guards. Each unittest failure
+    block ends in the exception that failed it; when every such line is a VenueFault carrying VENUE_MARK, the gate
+    measured nothing and is VENUE, not FAIL. One failure of any other kind keeps the whole gate FAIL."""
+    blocks = re.split(r"(?m)^={20,}\s*$", blob or "")[1:]
+    heads = [b for b in blocks if re.match(r"\s*(FAIL|ERROR): ", b)]
+    if not heads:
+        return False
+    for b in heads:
+        exc = [ln for ln in b.splitlines() if re.match(r"^[A-Za-z_][\w.]*: ", ln)]
+        # the failure's own exception must BE the venue fault - not any exception whose text happens to hold the words
+        # (an assertEqual on the string prints it in its message)
+        if not exc or not re.match(r"^(?:[\w.]+\.)?VenueFault: ", exc[-1]) or VENUE_MARK not in exc[-1]:
+            return False
+    return True
 
 _OK = re.compile(r"^(OK|✅|Ran \d+ tests)", re.M)
 
@@ -12893,6 +12927,8 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                     status = "SKIP"
                 else:
                     status = "PASS" if p.returncode == 0 else "FAIL"
+                if status == "FAIL" and venue_only((p.stdout or "") + (p.stderr or "")):
+                    status = "VENUE"            # REG-3061 - its browser would not start: UNKNOWN here, never a red
                 # ⚠⚠ THE STDOUT PREFERENCE IS FOR THE **SKIP** CASE ONLY — and the first cut applied it
                 # to every status, which traded one hidden reason for another. TWO INDEPENDENT
                 # REVIEWERS REACHED THIS FROM DIFFERENT DIRECTIONS, which is why it is taken rather
@@ -12911,6 +12947,8 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                 # [[feedback-contradiction-is-the-finding]] — two checks disagreeing WAS the finding.
                 if status == "SKIP":
                     tail = (_out or _err)[-1:] or [""]
+                elif status == "VENUE":         # REG-3061 - the line that names why the browser would not start
+                    tail = [ln for ln in blob.split("\n") if VENUE_MARK in ln][-1:] or [""]
                 else:
                     _both = [ln for ln in blob.strip().split("\n") if ln.strip()]
                     tail = _both[-1:] or [""]
@@ -12934,7 +12972,7 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                         _detail = re.sub(r"skipped=(\d+)",
                                          lambda m: "skipped=%s of %s" % (m.group(1), _ran.group(1)),
                                          _detail)[:170]
-                results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
+                results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP", "VENUE") else ""))
                 if _capped and status == "FAIL":
                     _detail = ("still red, carried, unchanged (%s) - " % _capped + _detail)[:220]
                     results[-1] = (g, status, dt, _detail, results[-1][4])
@@ -13591,12 +13629,13 @@ def main(argv):
     _undeclared = {g.name for g, s, _, d, _ in results
                    if s == "SKIP" and not _skip_allowed(g, d)}
     for g, status, dt, detail, _blob in results:
-        mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠", "CARRY": "↩"}[status]
+        mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠", "CARRY": "↩", "VENUE": "⚪"}[status]
         if status == "SKIP" and g.name in _undeclared:
             mark = "⛔"
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
 
     failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
+    _venue = [(g.name, d) for g, s, _, d, _ in results if s == "VENUE"]     # REG-3061 - could not measure here
     if _live_moved and not _console_live and not _sweep_live:
         # not a warning: a suite that writes his console's state has already done the damage
         failed.append("live-state-untouched")
@@ -13665,6 +13704,7 @@ def main(argv):
             if len(names) > 12:
                 print("   … and %d more" % (len(names) - 12))
         print("\n❌ %d gate(s) FAILED: %s" % (len(failed), ", ".join(failed)))
+        _say_venue(_venue)
         return 1
     # ── v2049 — COUNT THE CASES THAT DID NOT RUN INSIDE THE GATES THAT PASSED ────────────────
     # This file's own docstring already says it: "Silence about a check that did not happen is the
@@ -13720,7 +13760,24 @@ def main(argv):
                   % (len(_gs), _r[:96], ", ".join(_u[:3]) + (", +%d" % (len(_u) - 3) if len(_u) > 3 else "")))
         if len(_hist) > 12:
             print("     (+%d more distinct reason(s) not listed)" % (len(_hist) - 12))
-    return 0
+    _say_venue(_venue)
+    return gate_set_exit(failed, _venue)
+
+
+def gate_set_exit(failed, venue):
+    """REG-3061 - the gate set's exit: 1 when a gate was red, else VENUE_EXIT when a gate could not measure here, else
+    0. A VENUE never turns a red green, and never turns a green run into a red one. -> int"""
+    return 1 if failed else (VENUE_EXIT if venue else 0)
+
+
+def _say_venue(venue):
+    """REG-3061 - the gates whose browser would not start, named apart from any red, with what the launcher saw."""
+    if not venue:
+        return
+    print("\n\u26aa %d gate(s) could NOT MEASURE on this venue - their browser would not start, even after a retry on a "
+          "fresh port and profile. UNKNOWN for these laws here: not a pass, not a red." % len(venue))
+    for n, d in venue:
+        print("   \u26aa %s - %s" % (n, (d or "")[:220]))
 
 
 if __name__ == "__main__":

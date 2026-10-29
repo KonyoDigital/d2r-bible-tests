@@ -242,8 +242,8 @@ def measure(page=None, widths=WIDTHS):
         if not os.path.exists(RC.CHROME):
             return None, NO_BROWSER
         return None, ("chrome is INSTALLED at %s and would not start — that is a fault on a venue "
-                      "that is supposed to measure, not a venue without a browser"
-                      % os.path.basename(RC.CHROME))
+                      "that is supposed to measure, not a venue without a browser (REG-3060: %s)"
+                      % (os.path.basename(RC.CHROME), RC.chrome_start_why() or "no cause recorded"))
     # ⚠⚠ SERVED, NOT file:// — AND THE FIRST CUT OF THE PANEL WORK PROVED WHY. Under file:// the
     # console's panels cannot reach /api/…, so they render almost nothing: measured, forensics came
     # back with FIVE text leaves where a served page gives THIRTY-NINE, and every panel reported a

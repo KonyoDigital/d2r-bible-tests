@@ -110,7 +110,11 @@ def record_gates():
     out = (p.stdout or "") + (p.stderr or "")
     print(out[-2500:])
     m = re.search(r"✅ (\d+) gate\(s\) passed", out)
-    passed = bool(m)
+    # REG-3061 - the pass line prints before a VENUE ending too (exit 3: no gate red, a law could not measure here), so the
+    # line alone is not a pass: the exit says it. UNKNOWN is not a pass.
+    passed = bool(m) and p.returncode == 0
+    if p.returncode == 3:
+        print("\n▶ the gate set could not measure every law here (VENUE, exit 3) - recorded as NOT passed: UNKNOWN")
     n_gates = int(m.group(1)) if m else None
     ms = re.search(r"(\d+) CASE\(S\) DID NOT RUN", out)
     skips = int(ms.group(1)) if ms else (0 if passed else None)

@@ -703,9 +703,7 @@ def _measure():
     if "r" in _CACHE:
         return _CACHE["r"]
     bible = os.path.join(ROOT, "bible.html")
-    if not RC._chrome_up():
-        raise AssertionError("Chrome is INSTALLED at %s and would not start on :%d — that is a failure on a venue "
-                             "that is supposed to measure, not a venue without a browser" % (RC.CHROME, RC.PORT))
+    RC.require_chrome()   # REG-3061 - a browser that will not start is UNKNOWN for this law (a VenueFault), never a red
     res = {}
     try:
         t = RC._Tab("about:blank")
