@@ -38,6 +38,8 @@ import heart2  # noqa: E402
 import proof_shard as PS  # noqa: E402
 
 WF = os.path.join(ROOT, ".github", "workflows", "proof-keys-shards.yml")
+#: REG-3085 - the shard's prove steps, shared by `shard` and `shard-again`
+ACT = os.path.join(ROOT, ".github", "actions", "prove-shard", "action.yml")
 T0 = 1790000000000
 PR = {"why": "fixture", "file": "subj.txt", "find": "one", "replace": "two", "matches": 1}
 
@@ -175,13 +177,17 @@ class TheWorkflowSeedsEachShardAndSavesFromMainOnly(unittest.TestCase):
         self.code = "\n".join(l for l in self.text.split("\n") if not l.lstrip().startswith("#"))
 
     def test_each_shard_restores_the_seed_before_it_proves(self):
-        r = self.code.find("uses: actions/cache/restore@v4")
-        p = self.code.find("python3 -u tv/heart2.py --prove --push --proof-shard")
+        # REG-3085 - the prove steps are the shared composite action's, used by `shard` and `shard-again` alike
+        with io.open(ACT, encoding="utf-8") as fh:
+            code = "\n".join(l for l in fh.read().split("\n") if not l.lstrip().startswith("#"))
+        self.assertIn("uses: ./.github/actions/prove-shard", self.code, "the shard does not prove through the action")
+        r = code.find("uses: actions/cache/restore@v4")
+        p = code.find("python3 -u tv/heart2.py --prove --push --proof-shard")
         self.assertTrue(0 < r < p, "the seed is not restored before the shard proves")
-        step = self.code[r:self.code.find("\n      - ", r)]
+        step = code[r:code.find("\n    - ", r)]
         self.assertIn("path: ${{ runner.temp }}/heart2-seed", step)
         self.assertIn("restore-keys: heart2-proofs-", step)
-        prove = self.code[self.code.rfind("\n      - ", 0, p):p]
+        prove = code[code.rfind("\n    - ", 0, p):p]
         self.assertIn('export HEART2_SHARD_SEED="$RUNNER_TEMP/heart2-seed/.heart2_cache.json"', prove)
         self.assertIn('export HEART2_CACHE_PATH="$D/.heart2_cache.json"', prove, "the shard's own file is no longer fresh")
         self.assertIn("unset HEART2_SHARD_SEED", prove, "a missed restore hands heart2 a path that is not there")
@@ -231,8 +237,8 @@ RED_PROOF = [
      "replace": "      - name: Save the seed (REG-2961, main only)\n        if: ${{ always() }}\n",
      "matches": 1},
     {"why": "REG-2961 - the shard never hands heart2 its seed",
-     "file": ".github/workflows/proof-keys-shards.yml",
-     "find": "          export HEART2_SHARD_SEED=\"$RUNNER_TEMP/heart2-seed/.heart2_cache.json\"\n",
+     "file": ".github/actions/prove-shard/action.yml",
+     "find": "        export HEART2_SHARD_SEED=\"$RUNNER_TEMP/heart2-seed/.heart2_cache.json\"\n",
      "replace": "",
      "matches": 1},
 ]

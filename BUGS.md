@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3085 - A RUNNER GITHUB TOOK AWAY READ AS A LAW RED, AND THE DEPLOY WAS SKIPPED (Publish 40812615686)
+Publish 40812615686 attempt 1 (v3838): proof shard 7's prove step ended "Process completed with exit code 143", and its
+own log reads "##[error]The runner has received a shutdown signal. This can happen when the runner service is stopped, or
+a manually started runner is canceled." Its upload step was skipped, so no manifest reached the fan-in. The fan-in
+refused the set (exit 2), the deploy was skipped, and the site stayed on v3836 over a runner, not a law. Two easier
+fixes cannot work. A retry inside the shard job dies with the runner it runs on. The fan-in cannot re-run a job of its
+own run while that run is in progress (GitHub re-runs only completed runs, with actions: write).
+FIX, inside proof-keys-shards.yml (contents: read and actions: read; no write scope anywhere):
+- The prove steps move into ONE composite action, .github/actions/prove-shard. Step timeouts become `timeout`, since a
+  composite step takes no timeout-minutes or continue-on-error. A prove past 160 minutes still fails its shard in every
+  mode. The upload carries overwrite: true.
+- NEW `triage` job (needs shard, always) runs tv/proof_triage.py on the run attempt's job list and each failed shard's
+  own log. A shard is proved again ONLY when its job failed or was cancelled, its own log carries a runner-loss line
+  ("The runner has received a shutdown signal." or "lost communication with the server."), and no finished manifest
+  of it arrived. Every other case is refused, with its reason in the job summary: a success, a red, a crash or a
+  timeout (no runner-loss line), a job list or log that will not read (UNKNOWN is never a kill), two jobs of one name,
+  and a shard already proved again.
+- NEW `shard-again` matrix job proves exactly that list once, through the same action with the same inputs, so it
+  writes the same manifest. Nothing triages it, so a retry that is itself killed or red leaves its shard missing.
+- The fan-in needs [shard, triage, shard-again] and refuses an incomplete set exactly as before.
+In Publish's deploy gate a law red never fails its job (it is named in the manifest), so a red never meets the retry
+rule.
+Re-aimed to read the action where the steps now live: test_the_shard_workflow_proves_every_proof_once,
+test_ci_reuses_a_proof_only_for_identical_bytes and test_the_deploy_waits_for_the_proof_of_its_laws, each re-proved
+with bad 0. test_a_proven_verdict_is_reused_only_on_identical_bytes's push-cache rule now reads every
+.github/actions/*/action.yml too; prove-shard is the one shard exception, and +1 red-proof RED (bad 0 of 28).
+Law test_a_runner_kill_is_proved_again_once: triage's decision on job-API JSON shaped as 40812615686 recorded it, the
+workflow's shape, and the fan-in refusing a set the retry did not complete. 13 cases, 8 red-proofs RED, baseline green.
+LIMIT, stated: the retry cuts its plan from the same checkout and the same restored seed. If a newer main seed lands
+between the shard and its retry, the plans differ and the fan-in refuses ("different plans"), which is the safe
+direction.
+
 ### REG-3040 - #161'S HOOK EDIT DROPPED THE PUSH HOOK'S EXECUTABLE BIT, WHICH WOULD HAVE SWITCHED THE WHOLE LOCAL GATE OFF
 core.hooksPath=hooks, and git runs a hook only when it is executable: a 100644 hooks/pre-push is skipped with a one-line
 hint while every push still "succeeds". REG-2963's commit (#161 stage 2, 38399892d) changed hooks/pre-push 100755 -> 100644

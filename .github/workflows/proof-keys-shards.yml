@@ -49,79 +49,78 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 200
-      - name: Fetch the commits test_a_version_stamp_is_not_a_page_change grades
-        # RoutineIOnRealHistory.PINNED (debc96a5, f5919534, a8246cdf and its parent) sit deeper than 200 commits, so a
-        # shallow shard reads that class UNMEASURED. depth=2 brings each pinned commit and its parent, not the history.
-        timeout-minutes: 2
+      # REG-3085 - ONE prove, shared with `shard-again`: the same steps, the same manifest the fan-in reads
+      - name: Prove shard ${{ matrix.shard }}
+        uses: ./.github/actions/prove-shard
+        with:
+          shard: ${{ matrix.shard }}
+          shards: ${{ env.PROOF_SHARDS }}
+          gate: ${{ inputs.gate }}
+
+  # REG-3085 - A SHARD THE RUNNER KILLED IS PROVED AGAIN ONCE (Publish 40812615686: shard 7, "The runner has received a
+  # shutdown signal", exit 143, no manifest - the deploy was skipped over a runner, not a law). tv/proof_triage.py
+  # re-proves a shard only when its job failed, its OWN log carries a runner-loss line AND no finished manifest of it
+  # arrived. A red, a crash, a timeout, an unreadable job or log, or a second kill is never proved again: the fan-in then
+  # refuses the set as before. Reads only: the job list and the job logs (actions: read).
+  triage:
+    name: triage - which shards did a runner kill
+    needs: [shard]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      dead: ${{ steps.triage.outputs.dead }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch every shard's cache
         continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          pattern: proof-shard-*
+          path: shards
+      - name: Name the shards a runner killed - from evidence, never a second try at a red
+        id: triage
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
-          git fetch --no-tags --depth=2 origin
-          debc96a5420bd6e03c983cc7bbbe90526c213739
-          f591953451f7a0aff8db3f22938c6f1ded12ce88
-          a8246cdf6340575ba3a50f163d93ce3a0be186a4
-      - name: Install Pillow + numpy + websocket-client (as tv-tests)
-        run: python3 -m pip install --quiet pillow numpy websocket-client
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
+          python3 tv/proof_triage.py --shards "$PROOF_SHARDS" --repo "$GITHUB_REPOSITORY" --run "$GITHUB_RUN_ID"
+          --attempt "$GITHUB_RUN_ATTEMPT" --root shards --out "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+
+  # REG-3085 - exactly once: nothing triages this job, and a shard proved again that fails or is killed leaves the fan-in
+  # without its manifest, so the set is refused
+  shard-again:
+    name: shard ${{ matrix.shard }} again
+    needs: [triage]
+    if: ${{ always() && needs.triage.outputs.dead != '' && needs.triage.outputs.dead != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.triage.outputs.dead) }}
+    env:
+      D2R_NO_CLAUDE: "1"
+      HEART2_PROVE_WORKERS: "2"
+    steps:
+      - name: Mark start
+        run: echo "T0=$(date +%s)" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
         with:
-          path: ~/.cache/ms-playwright
-          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: pw-${{ runner.os }}-
-      - name: Install Chromium
-        timeout-minutes: 6
-        run: npx playwright install chromium
-      - name: OS deps for Chromium (best effort)
-        timeout-minutes: 5
-        continue-on-error: true
-        run: npx playwright install-deps chromium
-      - name: Restore the proofs the last main run banked (REG-2961)
-        # a miss is a cold run, never a failure: every proof of this shard then runs, as before the seed
-        uses: actions/cache/restore@v4
+          fetch-depth: 200
+      - name: Prove shard ${{ matrix.shard }} again
+        uses: ./.github/actions/prove-shard
         with:
-          path: ${{ runner.temp }}/heart2-seed
-          key: heart2-proofs-${{ github.sha }}
-          restore-keys: heart2-proofs-
-      - name: A claude that refuses
-        run: |
-          mkdir -p "$RUNNER_TEMP/noclaude"
-          printf '#!/bin/sh\necho "claude is not called on CI (proof-keys shards)" >&2\nexit 97\n' > "$RUNNER_TEMP/noclaude/claude"
-          chmod +x "$RUNNER_TEMP/noclaude/claude"
-          echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"
-      - name: Prove this shard
-        timeout-minutes: 160
-        run: |
-          echo "setup_seconds=$(( $(date +%s) - T0 ))"
-          D="$RUNNER_TEMP/shard-${{ matrix.shard }}"
-          mkdir -p "$D"
-          export HEART2_CACHE_PATH="$D/.heart2_cache.json"
-          export HEART2_SHARD_SEED="$RUNNER_TEMP/heart2-seed/.heart2_cache.json"
-          if [ -f "$HEART2_SHARD_SEED" ]; then echo "REG-2961: seeded from the last main run's proofs"; else
-            unset HEART2_SHARD_SEED; echo "REG-2961: no seed restored - every proof of this shard runs"; fi
-          S=$(date +%s)
-          set +e
-          python3 -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${PROOF_SHARDS}" 2>&1 | tee "$D/prove.log"
-          rc=${PIPESTATUS[0]}
-          echo "prove_seconds=$(( $(date +%s) - S )) rc=$rc" | tee -a "$D/prove.log"
-          if [ "${{ inputs.gate }}" = "deploy" ]; then
-            # REG-2962 - Publish's gate: a failure is named in this shard's manifest (owed), and the fan-in's verdict holds
-            # the deploy when it is one of THIS push's laws. A shard that never finishes leaves no manifest: refused there.
-            echo "deploy gate: rc=$rc is the fan-in verdict's to judge"
-            exit 0
-          fi
-          exit $rc
-      - name: Upload this shard's cache
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: proof-shard-${{ matrix.shard }}
-          path: ${{ runner.temp }}/shard-${{ matrix.shard }}/
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 7
+          shard: ${{ matrix.shard }}
+          shards: ${{ env.PROOF_SHARDS }}
+          gate: ${{ inputs.gate }}
 
   fan-in:
     name: fan-in - one whole set of this commit, or none
-    needs: [shard]
+    # REG-3085 - it waits for the one retry too: the killed shard's absence is never read once shard-again ran
+    needs: [shard, triage, shard-again]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -531,6 +531,25 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
                 continue
             self.assertNotIn(".heart2_cache", text, "workflow %s names the cache" % n)
             self.assertNotIn("--push", text, "workflow %s runs a push-time prove - CI must run every proof" % n)
+        # REG-3085 - a composite action runs inside a workflow, so it may not reach the cache either. The ONE exception is
+        # the prove-shard action the proof shards share: its --push is a shard's, into the shard's own fresh path.
+        acts = os.path.join(ROOT, ".github", "actions")
+        for n in (sorted(os.listdir(acts)) if os.path.isdir(acts) else []):
+            ap = os.path.join(acts, n, "action.yml")
+            if not os.path.isfile(ap):
+                continue
+            with io.open(ap, encoding="utf-8", errors="replace") as fh:
+                lines = fh.read().splitlines()
+            if n == "prove-shard":
+                self.assertTrue(all("--proof-shard" in l for l in lines if "--push" in l),
+                                "action %s runs a push-time prove that is not a proof shard" % n)
+                self.assertTrue(all(("HEART2_CACHE_PATH=" in l or "HEART2_SHARD_SEED=" in l) for l in lines
+                                    if ".heart2_cache" in l), "action %s names the cache other than as a shard's own" % n)
+                self.assertTrue(all("heart2-seed/" in l for l in lines if "HEART2_SHARD_SEED=" in l),
+                                "action %s seeds a shard from somewhere other than the restored seed dir" % n)
+                continue
+            self.assertFalse(any(".heart2_cache" in l or "--push" in l for l in lines),
+                             "action %s reaches the push-time cache - CI must run every proof" % n)
         with io.open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as fh:
             ignored = [l.strip() for l in fh if l.strip() and not l.startswith("#")]
         self.assertIn("tv/.heart2_cache.json", ignored, "the cache is not gitignored - one Mac's proofs would travel")
@@ -931,6 +950,13 @@ RED_PROOF = [
         "file": "heart2.py",
         "find": "        if not (isinstance(e, dict) and isinstance(e.get(\"provedAt\"), (int, float))\n                and not isinstance(e.get(\"provedAt\"), bool)):\n            return None\n",
         "replace": "        if False:\n            return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-3085 - the proof shards' shared action runs a push-time prove that is not a shard's, and nothing reads it",
+        "file": ".github/actions/prove-shard/action.yml",
+        "find": "--prove --push --proof-shard \"${{ inputs.shard }}/${{ inputs.shards }}\"",
+        "replace": "--prove --push \"${{ inputs.shard }}/${{ inputs.shards }}\"",
         "matches": 1,
     },
 ]

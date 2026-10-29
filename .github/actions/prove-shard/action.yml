@@ -1,0 +1,97 @@
+name: Prove one shard
+description: >-
+  REG-3085 - ONE prove, used by proof-keys-shards.yml's `shard` matrix AND its `shard-again` retry, so a shard proved again
+  is proved by the same steps and writes the same manifest the fan-in reads. The job checks the repo out first (this file
+  lives in it). Step timeouts are `timeout` here: a composite step takes no timeout-minutes and no continue-on-error.
+inputs:
+  shard:
+    description: "k of the PROOF_SHARDS slices this job proves"
+    required: true
+  shards:
+    description: "N - PROOF_SHARDS"
+    required: true
+  gate:
+    description: "deploy - Publish's gate: a law red is named in the manifest and the job ends green"
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Fetch the commits test_a_version_stamp_is_not_a_page_change grades
+      # RoutineIOnRealHistory.PINNED (debc96a5, f5919534, a8246cdf and its parent) sit deeper than 200 commits, so a
+      # shallow shard reads that class UNMEASURED. depth=2 brings each pinned commit and its parent, not the history.
+      # Best effort (2 minutes): a fetch that fails leaves that class UNMEASURED, it never fails the shard.
+      shell: bash
+      run: >-
+        timeout 2m git fetch --no-tags --depth=2 origin
+        debc96a5420bd6e03c983cc7bbbe90526c213739
+        f591953451f7a0aff8db3f22938c6f1ded12ce88
+        a8246cdf6340575ba3a50f163d93ce3a0be186a4
+        || echo "the pinned commits could not be fetched - that class reads UNMEASURED"
+    - name: Install Pillow + numpy + websocket-client (as tv-tests)
+      shell: bash
+      run: python3 -m pip install --quiet pillow numpy websocket-client
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: pw-${{ runner.os }}-
+    - name: Install Chromium
+      shell: bash
+      run: timeout 6m npx playwright install chromium
+    - name: OS deps for Chromium (best effort)
+      shell: bash
+      run: timeout 5m npx playwright install-deps chromium || echo "OS deps for Chromium did not finish - best effort"
+    - name: Restore the proofs the last main run banked (REG-2961)
+      # a miss is a cold run, never a failure: every proof of this shard then runs, as before the seed
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.temp }}/heart2-seed
+        key: heart2-proofs-${{ github.sha }}
+        restore-keys: heart2-proofs-
+    - name: A claude that refuses
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/noclaude"
+        printf '#!/bin/sh\necho "claude is not called on CI (proof-keys shards)" >&2\nexit 97\n' > "$RUNNER_TEMP/noclaude/claude"
+        chmod +x "$RUNNER_TEMP/noclaude/claude"
+        echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"
+    - name: Prove this shard
+      shell: bash
+      run: |
+        echo "setup_seconds=$(( $(date +%s) - T0 ))"
+        D="$RUNNER_TEMP/shard-${{ inputs.shard }}"
+        mkdir -p "$D"
+        export HEART2_CACHE_PATH="$D/.heart2_cache.json"
+        export HEART2_SHARD_SEED="$RUNNER_TEMP/heart2-seed/.heart2_cache.json"
+        if [ -f "$HEART2_SHARD_SEED" ]; then echo "REG-2961: seeded from the last main run's proofs"; else
+          unset HEART2_SHARD_SEED; echo "REG-2961: no seed restored - every proof of this shard runs"; fi
+        S=$(date +%s)
+        set +e
+        timeout 160m python3 -u tv/heart2.py --prove --push --proof-shard "${{ inputs.shard }}/${{ inputs.shards }}" 2>&1 | tee "$D/prove.log"
+        rc=${PIPESTATUS[0]}
+        echo "prove_seconds=$(( $(date +%s) - S )) rc=$rc" | tee -a "$D/prove.log"
+        if [ "$rc" = "124" ]; then
+          # the 160-minute cap: a timeout fails the shard in every mode - it is not a red to name, and not a kill to retry
+          echo "the prove ran past 160 minutes and was stopped"
+          exit 124
+        fi
+        if [ "${{ inputs.gate }}" = "deploy" ]; then
+          # REG-2962 - Publish's gate: a failure is named in this shard's manifest (owed), and the fan-in's verdict holds
+          # the deploy when it is one of THIS push's laws. A shard that never finishes leaves no manifest: refused there.
+          echo "deploy gate: rc=$rc is the fan-in verdict's to judge"
+          exit 0
+        fi
+        exit $rc
+    - name: Upload this shard's cache
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: proof-shard-${{ inputs.shard }}
+        path: ${{ runner.temp }}/shard-${{ inputs.shard }}/
+        include-hidden-files: true
+        if-no-files-found: warn
+        retention-days: 7
+        # REG-3085 - shard-again writes the name the killed shard never uploaded; never a finished shard's (triage)
+        overwrite: true

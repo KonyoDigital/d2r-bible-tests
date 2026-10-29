@@ -36,6 +36,8 @@ import proof_shard as PS  # noqa: E402
 
 PUB = os.path.join(ROOT, ".github", "workflows", "publish.yml")
 WF = os.path.join(ROOT, ".github", "workflows", "proof-keys-shards.yml")
+#: REG-3085 - the shard's prove steps, shared by `shard` and `shard-again`
+ACT = os.path.join(ROOT, ".github", "actions", "prove-shard", "action.yml")
 HEAD, BASE = "a" * 40, "b" * 40
 
 
@@ -135,9 +137,11 @@ class PublishWaitsForIt(unittest.TestCase):
         self.assertIn("\n  workflow_call:\n", _code(_read(WF)), "the shard workflow cannot be called")
 
     def test_in_the_deploy_gate_a_shard_leaves_the_verdict_to_the_fan_in(self):
-        code = _code(_read(WF))
+        # REG-3085 - the prove step is the shared action's; the shard job hands it the workflow's own gate input
+        self.assertIn("gate: ${{ inputs.gate }}", _code(_read(WF)), "the shard does not hand Publish's gate to its prove")
+        code = _code(_read(ACT))
         prove = code[code.find("python3 -u tv/heart2.py --prove --push --proof-shard"):]
-        prove = prove[:prove.find("\n      - ")]
+        prove = prove[:prove.find("\n    - ")]
         g = prove.find('if [ "${{ inputs.gate }}" = "deploy" ]; then')
         self.assertGreater(g, 0, "a shard fails Publish's run on any law, changed by this push or not")
         self.assertLess(g, prove.find("exit $rc"), "the deploy-gate exit comes after the shard's own")
@@ -187,9 +191,9 @@ RED_PROOF = [
      "replace": "    needs: [smoke, suites, review]\n",
      "matches": 1},
     {"why": "REG-2962 - in Publish's gate a shard fails the run on any law, so a red standing on CI stops every deploy",
-     "file": ".github/workflows/proof-keys-shards.yml",
-     "find": "            echo \"deploy gate: rc=$rc is the fan-in verdict's to judge\"\n            exit 0\n",
-     "replace": "            echo \"deploy gate: rc=$rc is the fan-in verdict's to judge\"\n            exit $rc\n",
+     "file": ".github/actions/prove-shard/action.yml",
+     "find": "          echo \"deploy gate: rc=$rc is the fan-in verdict's to judge\"\n          exit 0\n",
+     "replace": "          echo \"deploy gate: rc=$rc is the fan-in verdict's to judge\"\n          exit $rc\n",
      "matches": 1},
 ]
 

@@ -32,6 +32,15 @@ HEAD = "c" * 40
 FREE_PLAN_JOBS = 20
 
 
+#: REG-3085 - the prove steps live in ONE composite action, shared by `shard` and `shard-again`
+ACT = os.path.join(ROOT, ".github", "actions", "prove-shard", "action.yml")
+
+
+def _act():
+    with io.open(ACT, encoding="utf-8") as fh:
+        return fh.read()
+
+
 def _wf():
     with io.open(WF, encoding="utf-8") as fh:
         return fh.read()
@@ -62,24 +71,29 @@ class TheWorkflowRunsEveryShardOnce(unittest.TestCase):
 
     def test_each_shard_proves_its_own_slice_into_its_own_fresh_cache(self):
         job = _job(_wf(), "shard")
-        self.assertIn('python3 -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${PROOF_SHARDS}"', job,
+        # REG-3085 - the shard job hands its own k and N to the one prove action
+        self.assertIn("uses: ./.github/actions/prove-shard", job, "the shard no longer proves through the shared action")
+        self.assertIn("shard: ${{ matrix.shard }}", job)
+        self.assertIn("shards: ${{ env.PROOF_SHARDS }}", job)
+        act = _act()
+        self.assertIn('python3 -u tv/heart2.py --prove --push --proof-shard "${{ inputs.shard }}/${{ inputs.shards }}"', act,
                       "a shard no longer proves ITS slice of N")
-        self.assertIn('D="$RUNNER_TEMP/shard-${{ matrix.shard }}"', job, "the shard's cache dir is not its own")
-        self.assertIn('export HEART2_CACHE_PATH="$D/.heart2_cache.json"', job,
+        self.assertIn('D="$RUNNER_TEMP/shard-${{ inputs.shard }}"', act, "the shard's cache dir is not its own")
+        self.assertIn('export HEART2_CACHE_PATH="$D/.heart2_cache.json"', act,
                       "the shard's cache is not named as heart2's store writer requires (.heart2_cache.json)")
         self.assertEqual(os.path.basename("x/" + PS.STORE_NAME), ".heart2_cache.json")
-        self.assertIn("exit $rc", job, "a shard that failed reads as green")
-        up = job[job.find("actions/upload-artifact"):]
-        self.assertIn("if: always()", job[job.find("Upload this shard"):], "a failed shard's cache is never uploaded")
-        self.assertIn("name: proof-shard-${{ matrix.shard }}", up)
-        self.assertIn("path: ${{ runner.temp }}/shard-${{ matrix.shard }}/", up)
+        self.assertIn("exit $rc", act, "a shard that failed reads as green")
+        up = act[act.find("actions/upload-artifact"):]
+        self.assertIn("if: always()", act[act.find("Upload this shard"):], "a failed shard's cache is never uploaded")
+        self.assertIn("name: proof-shard-${{ inputs.shard }}", up)
+        self.assertIn("path: ${{ runner.temp }}/shard-${{ inputs.shard }}/", up)
         self.assertIn("include-hidden-files: true", up,
                       "upload-artifact drops dot-files by default: .heart2_cache.json would never leave the runner")
 
     def test_the_fan_in_needs_every_shard_and_checks_the_set_as_the_import_does(self):
         job = _job(_wf(), "fan-in")
         self.assertTrue(job, "the fan-in job is gone")
-        self.assertIn("needs: [shard]", job)
+        self.assertIn("needs: [shard, triage, shard-again]", job, "the fan-in no longer waits for the one retry (REG-3085)")
         head = job[:job.find("\n    steps:")]   # REG-2603 - the JOB's own if: the census steps carry always() too
         self.assertIn("\n    if: ${{ always() }}\n", head, "a failed shard skips the fan-in, and nothing says the set is broken")
         self.assertIn("pattern: proof-shard-*", job)
@@ -95,16 +109,16 @@ class TheWorkflowRunsEveryShardOnce(unittest.TestCase):
         self.assertEqual(re.findall(r"- '([^']+)'", on), ["ci/proof-keys-*"], "the shard run triggers off its branches")
         self.assertNotIn("main", on)
         self.assertIn('D2R_NO_CLAUDE: "1"', text)
-        self.assertIn("exit 97", text, "the runner's `claude` no longer refuses")
-        self.assertIn('echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"', text)
+        self.assertIn("exit 97", _act(), "the runner's `claude` no longer refuses")
+        self.assertIn('echo "$RUNNER_TEMP/noclaude" >> "$GITHUB_PATH"', _act())
         self.assertIn("contents: read", text)
 
     def test_each_shard_fetches_the_commits_the_stamp_law_grades(self):
         # A 200-commit checkout does not hold RoutineIOnRealHistory.PINNED, so that class read UNMEASURED on a shard.
         import test_a_version_stamp_is_not_a_page_change as STAMP
-        job = _job(_wf(), "shard")
-        step = job[job.find("Fetch the commits test_a_version_stamp_is_not_a_page_change grades"):]
-        step = step[:step.find("\n      - ", 1)]
+        act = _act()                     # REG-3085 - the fetch is a step of the shared prove action
+        step = act[act.find("Fetch the commits test_a_version_stamp_is_not_a_page_change grades"):]
+        step = step[:step.find("\n    - ", 1)]
         self.assertIn("git fetch --no-tags --depth=2 origin", step, "the shard no longer fetches the pinned commits")
         got = re.findall(r"\b[0-9a-f]{40}\b", step)
         for c in STAMP.RoutineIOnRealHistory.PINNED:
@@ -183,12 +197,12 @@ class TheFanInPassesOnlyAWholeSet(unittest.TestCase):
 
 RED_PROOF = [
     {"why": "shard 16 census - the pinned-commit fetch drops one, so RoutineIOnRealHistory reads UNMEASURED again",
-     "file": ".github/workflows/proof-keys-shards.yml",
-     "find": "          f591953451f7a0aff8db3f22938c6f1ded12ce88\n",
+     "file": ".github/actions/prove-shard/action.yml",
+     "find": "        f591953451f7a0aff8db3f22938c6f1ded12ce88\n",
      "replace": "",
      "matches": 1},
     {"why": "shard 16 census - the fetch is shallow-by-one, so a8246cdf^ is missing and the class skips",
-     "file": ".github/workflows/proof-keys-shards.yml",
+     "file": ".github/actions/prove-shard/action.yml",
      "find": "git fetch --no-tags --depth=2 origin",
      "replace": "git fetch --no-tags --depth=1 origin",
      "matches": 1},
@@ -198,14 +212,14 @@ RED_PROOF = [
      "replace": "        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]\n",
      "matches": 1},
     {"why": "REG-2588 - the cache upload drops dot-files, so .heart2_cache.json never leaves the runner",
-     "file": ".github/workflows/proof-keys-shards.yml",
-     "find": "          path: ${{ runner.temp }}/shard-${{ matrix.shard }}/\n          include-hidden-files: true\n",
-     "replace": "          path: ${{ runner.temp }}/shard-${{ matrix.shard }}/\n",
+     "file": ".github/actions/prove-shard/action.yml",
+     "find": "        path: ${{ runner.temp }}/shard-${{ inputs.shard }}/\n        include-hidden-files: true\n",
+     "replace": "        path: ${{ runner.temp }}/shard-${{ inputs.shard }}/\n",
      "matches": 1},
     {"why": "REG-2588 - the fan-in is skipped when a shard fails, so a broken set is never named",
      "file": ".github/workflows/proof-keys-shards.yml",
-     "find": "    needs: [shard]\n    if: ${{ always() }}\n",
-     "replace": "    needs: [shard]\n",
+     "find": "    needs: [shard, triage, shard-again]\n    if: ${{ always() }}\n",
+     "replace": "    needs: [shard, triage, shard-again]\n",
      "matches": 1},
     {"why": "REG-2588 - the fan-in passes a set whose files name another N than the workflow runs",
      "file": "proof_shard.py",
