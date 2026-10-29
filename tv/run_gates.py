@@ -12885,6 +12885,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_ci_blesses_coverage_on_a_full_cold_run.py")], 300,
          needs_app=False,
          why="#2 REG-3081 - the render-bless workflow blesses the full set on a cold checkout, uploads the floor, diff, log and record even on a refusal, never commits, and its verdict is render_check's"),
+    Gate("test_a_yielding_orb_leaves_a_door",
+         [sys.executable, os.path.join(HERE, "test_a_yielding_orb_leaves_a_door.py")], 300,
+         needs_app=False,
+         why='REG-3092 an orb yields on a short screen only if its feature has another door there: every hidden orb names its door, and the door opens the feature'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

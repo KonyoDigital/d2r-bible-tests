@@ -281,6 +281,23 @@ restores the record too, so its fixture bless never stands as the real one.
 Law test_a_bless_records_what_it_measured (the real _coverage_bless and main(), the browser and the renders stubbed,
 the floor in a temp file), 3 cases, 4 red-proofs RED, baseline green. Coverage neighbours green: test_render_coverage
 (re-proved, bad 0 of 5), test_the_ratchet_is_not_skipped_by_a_subset, test_a_coverage_drop_can_be_named.
+### REG-3092 - ON A SHORT SCREEN FOUR FEATURES HAD NO DOOR LEFT: THE TOOLS MAP, THE VAULT GUIDE, THE FORGE LEGEND, THE HELP (CI chain slice 1, his rule via the team lead)
+CI found two laws contradicting each other: REG-2862 hides all seven tray orbs at 480px tall and under (they ride into the
+tab strip there), and tests/v1800_tray_popovers_reachable asked the Tools map and inbox orbs to open their popovers at
+640x400 - 4 cases red. REG-2862 named a second door for two orbs (the inbox's sticky panel on Sessions, MOVE TASKS'
+toolbar chip) and none for the rest, so on a short screen the Tools map, the Vault guide, the Forge legend and the help
+could not be opened at all. His rule: an orb yields only if its feature has another door on that screen. They do not come
+back as floating orbs - at these heights even the lowest slot rode into the strip, so no fixed spot is clear (v1810,
+REG-2862) - each gets an IN-FLOW door where it lives, MOVE TASKS' pattern, shown only where its orb yields: help at the
+end of the tab strip (#tabs-help), the Tools map in the Tools index (#ti-chip-map), the Vault guide in the vault toolbar
+(#vault-chip-guide), the Forge legend in the Runewords chip row (#forge-legend-door, never the Crafts room). The compass
+needs none (its chips are the strip's tabs). v1800 re-aimed: on a screen 480px tall or less the Tools map and Vault guide
+cases open through their doors (asserting the orb really yielded), and the inbox case measures its door, the sticky panel
+on Sessions (shown, heading on screen, first answer hit); the Vault guide's 640x400 case is back (it was minH 481 while the
+guide had no way in). Law: test_a_yielding_orb_leaves_a_door - every orb the short-screen block hides has a named door
+(a yield with no door fails by name), each door exists once, a button door runs its orb's opener and opens the feature on
+the whole page in node, each is shown only where its orb yields, none is a fixed overlay; 6 red-proofs, RED. Pixels at
+640x400: v1800 on CI.
 
 ### REG-3042 - A SET PIECE OR A RUNEWORD IN THE MAGIC & RARE REGISTER WAS HOMED ON MAGIC & RARE (#163, GrokBot on Dean's shadow)
 Dean's saved records filed Aldur's Rhythm (a set piece) and Enigma (a runeword) on MAGIC & RARE. The file door has refused to treat
