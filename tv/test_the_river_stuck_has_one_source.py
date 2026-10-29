@@ -113,6 +113,20 @@ class TheRouteServesTheBeaconsReading(unittest.TestCase):
         if "stuckKeep" in sent:
             self.assertEqual(v["keep"], sent["stuckKeep"])
 
+    def test_a_write_between_reads_never_pairs_one_readings_time_with_anothers_rows(self):
+        # REG-3120 (the second eye on v3840): the beacon thread writes while a request thread reads. The store below
+        # lands a NEW reading the moment anyone asks it a field with .get() - what a write between two reads does.
+        class Racing(dict):
+            def get(self, k, d=None):
+                v = dict.get(self, k, d)
+                dict.update(self, ts=NOW, stuck=[{"station": "NEW", "n": 9}], keep=16)
+                return v
+        old = [{"station": "OLD", "n": 1}]
+        with mock.patch.object(CA, "_RIVER_STUCK_LAST", Racing(ts=NOW - 600000, stuck=old, keep=16)):
+            got = CA._river_stuck_view(NOW)
+        self.assertEqual((got["asOf"], got["rows"]), (NOW - 600000, old),
+                         "one reading's time was served with another reading's rows: %r" % (got,))
+
     def test_an_unreadable_reading_stays_unknown(self):
         self._beacon(None)
         v = CA._river_stuck_view(NOW + 1000)
@@ -139,6 +153,11 @@ class TheChipNamesWhatWaited(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-3120 - the route reads the stuck reading field by field, so a write between reads mixes two readings",
+     "file": "tv/control_app.py",
+     "find": "    snap = dict(_RIVER_STUCK_LAST)\n",
+     "replace": "    snap = _RIVER_STUCK_LAST\n",
+     "matches": 1},
     {"why": "REG-3051 - the beacon's stuck reading is not kept for the route",
      "file": "tv/control_app.py",
      "find": "        _RIVER_STUCK_LAST.update(ts=now, stuck=out[\"stuck\"], keep=out.get(\"stuckKeep\"))\n",
@@ -156,8 +175,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-3051 - the route's stuck reading drops its own age",
      "file": "tv/control_app.py",
-     "find": "            \"ageS\": round(max(0, now - ts) / 1000.0, 1), \"keep\": _RIVER_STUCK_LAST.get(\"keep\"),\n",
-     "replace": "            \"ageS\": None, \"keep\": _RIVER_STUCK_LAST.get(\"keep\"),\n",
+     "find": "            \"ageS\": round(max(0, now - ts) / 1000.0, 1), \"keep\": snap.get(\"keep\"),\n",
+     "replace": "            \"ageS\": None, \"keep\": snap.get(\"keep\"),\n",
      "matches": 1},
     {"why": "REG-3051 - the chip names no wait",
      "file": "tv/control_ui.html",

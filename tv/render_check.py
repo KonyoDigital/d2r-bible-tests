@@ -3563,8 +3563,14 @@ def require_chrome():
     UNKNOWN for that law on this venue, never as a red verdict on what the law guards."""
     if _chrome_up():
         return True
-    raise VenueFault("\u26aa %s - Chrome is INSTALLED at %s and would not start (%s). This law could not measure on "
-                     "this venue: UNKNOWN, not a red." % (VENUE_MARK, CHROME, chrome_start_why() or "no cause recorded"))
+    # REG-3119 (the second eye on v3840) - THE ONE RULE, HERE TOO. This raised the INSTALLED VenueFault for every start that
+    # failed, a machine with no Chrome binary included, so a runner that should measure and had no browser read its
+    # browser laws as VENUE (UNKNOWN) under words that said "INSTALLED". no_browser_say() is the rule every tool uses:
+    # an absent binary is a red, as it was before REG-3061 - a setup fact this venue must fix, never an UNKNOWN to hide in.
+    chrome_absent, words = no_browser_say()
+    if chrome_absent:
+        raise AssertionError("\u26aa %s - a browser law cannot run without one: a red, never UNKNOWN." % words)
+    raise VenueFault("\u26aa %s. This law could not measure on this venue: UNKNOWN, not a red." % words)
 
 
 class _Tab(object):

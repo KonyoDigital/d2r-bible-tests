@@ -17320,13 +17320,18 @@ def _river_stuck_view(now_ms=None):
     computed (asOf, ageS), never a second reckoning (a cold one took 10 s on his Mac). Not yet computed is UNKNOWN with
     why, never an empty "flowing" list. -> {rows, asOf, ageS, keep, why}"""
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)
-    ts = _RIVER_STUCK_LAST.get("ts")
+    # REG-3120 (the second eye on v3840) - ONE READING, TAKEN ONCE. The beacon thread writes ts, stuck and keep in one
+    # dict.update; this request thread read them with three .get()s, so a write landing between them paired the NEW time
+    # with the OLD rows (ageS ~0 for a list not just computed). One dict() copy is one C call under the GIL - the same
+    # all-or-nothing the writer's update already is - and every field below comes from that one copy.
+    snap = dict(_RIVER_STUCK_LAST)
+    ts = snap.get("ts")
     if not isinstance(ts, int) or isinstance(ts, bool):
         return {"rows": None, "asOf": None, "ageS": None, "keep": None,
                 "why": "the beacon has not read this PC's stuck reels since the console started - UNKNOWN"}
-    rows = _RIVER_STUCK_LAST.get("stuck")
+    rows = snap.get("stuck")
     return {"rows": rows if isinstance(rows, list) else None, "asOf": ts,
-            "ageS": round(max(0, now - ts) / 1000.0, 1), "keep": _RIVER_STUCK_LAST.get("keep"),
+            "ageS": round(max(0, now - ts) / 1000.0, 1), "keep": snap.get("keep"),
             "why": None if isinstance(rows, list) else
             "the stamp log or the shelf window could not be read when the beacon last asked - UNKNOWN, never flowing"}
 
@@ -17883,12 +17888,22 @@ def _retention_holds(p):
     the reel owed. Capped; never raises."""
     out = {}
     try:
-        for k in (p.get("kept") or [])[:400]:
+        # REG-3121 (the second eye on v3841) - EVERY KEPT ROW IS READ, AND A CAP NEVER BECOMES A DEBT. This sliced the plan's
+        # kept rows to the first 400 BEFORE the tag filter, so a held reel past that index (and 'recent' rows spent slots)
+        # was missing from the map, and the stuck reader called a reel the same pass held "owed". The filter runs over every
+        # row; only the map is bounded, and a map that would pass RETENTION_HOLDS_CAP is UNREAD (None) - UNKNOWN for all.
+        for k in (p.get("kept") or []):
             if isinstance(k, dict) and k.get("reel") and k.get("tag") not in (None, "recent"):
                 out[str(k["reel"])] = {"tag": str(k.get("tag"))[:40], "why": _word_cut(str(k.get("why") or ""), 120)}
+                if len(out) > RETENTION_HOLDS_CAP:
+                    return None
     except Exception:
         return None     # UNREAD, never "holds nothing" - {} would call every reel the drain holds its debt again
     return out
+
+
+#: REG-3121 - the most holds the retention pass carries beside its words; past it the holds read UNKNOWN, never partial
+RETENTION_HOLDS_CAP = 2000
 
 
 def _river_held_say(reels):

@@ -92,6 +92,15 @@ class AHeldReelIsNamedByItsHold(unittest.TestCase):
         once = once[:once.index("\ndef ", 10)]
         self.assertIn('"holds": _retention_holds(p),', once, "the retention pass does not keep the drain's holds")
 
+    def test_a_hold_past_any_index_is_a_hold_and_too_many_is_unknown(self):
+        # REG-3121 (the second eye on v3841): the map was cut at the first 400 kept rows, 'recent' ones included, so a
+        # held reel at row 400+ read as owed. Every row is read; a map past RETENTION_HOLDS_CAP is UNREAD, never partial.
+        rows = [{"reel": "reel_s_%d_r" % i, "tag": "recent", "why": "x"} for i in range(450)]
+        rows.append({"reel": A, "tag": "zero-pages", "why": ZERO})
+        self.assertIn(A, CA._retention_holds({"kept": rows}), "a hold after 450 recent rows was dropped")
+        many = [{"reel": "reel_s_%d_h" % i, "tag": "zero-pages", "why": ZERO} for i in range(CA.RETENTION_HOLDS_CAP + 1)]
+        self.assertIsNone(CA._retention_holds({"kept": many}), "a map past its cap was served partial")
+
     def test_an_unread_pass_says_unknown_never_owed(self):
         # REG-3053 follow-up (Routine M on v3841): a pass whose kept rows did not read keeps holds None - UNREAD - and the
         # sentence says the drain's holds are UNKNOWN; "holds nothing" ({}) would call every held reel its debt again.
@@ -105,6 +114,16 @@ class AHeldReelIsNamedByItsHold(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-3121 - the hold map reads only the first 400 kept rows again",
+     "file": "tv/control_app.py",
+     "find": "        for k in (p.get(\"kept\") or []):\n            if isinstance(k, dict) and k.get(\"reel\") and k.get(\"tag\") not in (None, \"recent\"):\n",
+     "replace": "        for k in (p.get(\"kept\") or [])[:400]:\n            if isinstance(k, dict) and k.get(\"reel\") and k.get(\"tag\") not in (None, \"recent\"):\n",
+     "matches": 1},
+    {"why": "REG-3121 - a hold map past its cap is served partial instead of UNREAD",
+     "file": "tv/control_app.py",
+     "find": "                if len(out) > RETENTION_HOLDS_CAP:\n                    return None\n",
+     "replace": "                if len(out) > RETENTION_HOLDS_CAP:\n                    break\n",
+     "matches": 1},
     {"why": "REG-3053 - a reel the drain holds is called its debt again",
      "file": "tv/control_app.py",
      "find": "    if held and (n_held is None or n_held >= len(reels or ())):\n",

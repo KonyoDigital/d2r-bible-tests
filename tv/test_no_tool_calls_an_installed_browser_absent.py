@@ -79,6 +79,21 @@ class TheReasonNeverCallsAnInstalledBrowserAbsent(_Fixture):
         self.assertTrue(absent)
         self.assertNotIn(RC.VENUE_MARK, why)
 
+    def test_a_law_follows_the_one_rule_too(self):
+        # REG-3119 (the second eye on v3840): require_chrome raised the INSTALLED VenueFault with no binary at all.
+        self.chrome_at(self.installed)
+        with self.assertRaises(RC.VenueFault) as cm:
+            RC.require_chrome()
+        self.assertIn(RC.VENUE_MARK, str(cm.exception))
+        self.assertIn("INSTALLED", str(cm.exception))
+        self.chrome_at(self.absent)
+        with self.assertRaises(AssertionError) as cm:
+            RC.require_chrome()
+        self.assertNotIsInstance(cm.exception, RC.VenueFault, "an absent Chrome was called a venue that would not start")
+        self.assertNotIn(RC.VENUE_MARK, str(cm.exception))
+        self.assertNotIn("INSTALLED", str(cm.exception))
+        self.assertIn(self.absent, str(cm.exception))
+
     def test_the_exits_agree(self):
         import overlap_ratchet as OR
         self.assertEqual((RC.VENUE_EXIT, OR.VENUE_EXIT), (RG.VENUE_EXIT, RG.VENUE_EXIT))
@@ -128,6 +143,11 @@ class EachToolSaysWhichItWas(_Fixture):
 
 
 RED_PROOF = [
+    {"why": "REG-3119 - a law with no Chrome binary at all is called a venue whose INSTALLED Chrome would not start",
+     "file": "render_check.py",
+     "find": "    if chrome_absent:\n        raise AssertionError(",
+     "replace": "    if False:\n        raise AssertionError(",
+     "matches": 1},
     {"why": "REG-3064 - an installed Chrome that would not start is called absent again",
      "file": "render_check.py",
      "find": "    if not os.path.exists(CHROME):\n        return True, \"no Chrome on this machine (looked for %s)\" % CHROME\n",

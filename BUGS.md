@@ -7,6 +7,39 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3121 - THE DRAIN'S HOLD MAP READ ONLY ITS FIRST 400 KEPT ROWS, SO A LATER HOLD WAS CALLED A DEBT (second eye on v3841)
+_retention_holds sliced plan()'s kept rows to the first 400 BEFORE its tag filter ('recent' rows spent slots too), so a reel held
+at row 400 or later was missing from _RETENTION["holds"] and the stuck reader said "the drain owes them a tombstone" for a reel
+the same pass held. Every kept row is read now; only the map is bounded, and a map past RETENTION_HOLDS_CAP (2000) is UNREAD
+(None) - the sentence says the drain's holds are UNKNOWN, never a partial map read as complete. Found by the Grok CLI's pre-ship
+look at v3841 (LOOKED, 2 findings; the other was what it was not shown). Law test_a_held_reel_is_named_by_its_hold +1 case
+(a hold after 450 recent rows; a map past its cap), 2 red-proofs; 11 of 11 RED.
+
+### REG-3120 - /api/river COULD SERVE ONE READING'S TIME WITH ANOTHER READING'S STUCK ROWS (second eye on v3840)
+_river_for_wire (the beacon thread) writes ts, stuck and keep in one dict.update; _river_stuck_view (a request thread) read
+them with three separate .get() calls, so a write landing between them paired the NEW time with the OLD rows - an ageS near 0
+for a list that was not just computed. The view now takes one dict() copy (one C call under the GIL, all-or-nothing like the
+writer's update) and reads every field from it. Law test_the_river_stuck_has_one_source +1 case: a store that lands a new
+reading the moment a field is asked; red on the shipped view (1 failed), 7 of 7 red-proofs RED.
+
+### REG-3119 - require_chrome CALLED A MACHINE WITH NO CHROME AT ALL A VENUE WHOSE INSTALLED CHROME WOULD NOT START (second eye on v3840)
+REG-3061's require_chrome raised the "Chrome is INSTALLED ... would not start" VenueFault for every failed start, a missing
+binary included, so a runner that should measure and had no browser read its browser laws as VENUE (UNKNOWN) under words that
+said INSTALLED - while crest_loudness / overlap_ratchet already told the two apart through no_browser_say() (REG-3064). It
+asks that one rule now: an absent binary is a red AssertionError naming the path it looked for (as before REG-3061), an
+installed one that would not start stays the VenueFault. Measured with the browser stubbed out: absent -> AssertionError, not a
+VenueFault; installed -> VenueFault with VENUE_MARK. Law test_no_tool_calls_an_installed_browser_absent +1 case, +1 red-proof;
+REG-3061's case pins CHROME to an existing file (it is the installed branch's case) and its red-proof follows the new raise.
+
+### REG-3118 - A PUSH SERVED A CARRIED PROOF TO A PC THAT CANNOT RUN IT (second eye on v3840, #186)
+REG-3044..3047 let Dean's cache take proofs the ALT earned. _census_one refused to SERVE a proof whose declared need (node,
+bash, numpy, dir-link) this PC lacks, but _prove_push_one asked _cache_serve first and returned any hit as PROVEN - so a node
+law the ALT proved and carried could read PROVEN on Dean's push, a PC with no node that never judged it, and the closing clean
+run (its cases skip without node) would keep it. The rule now lives in _cache_serve, the ONE serve both callers ask: a declared
+need this PC lacks, or cannot probe, is never served and banks nothing (no key); the census's own copy is gone. Law
+test_a_carried_proof_stands_only_where_it_was_earned +1 case through _prove_push_one (lacks True / probe failed -> run here;
+has it -> served), red on the shipped heart2 (1 failed), its red-proof RED; the census law's red-proof follows the moved guard.
+
 ### REG-3100 - THE VAULT TWINS CASE MEASURED A DECK WITH NO BOX AND CALLED IT A LAYOUT VERDICT (v3840 CI, run on 5a7442ecb)
 test_vault_v3_layout_keeps_every_door / test_the_two_cards_are_twins_on_one_grid went red on 5a7442ecb with both cards 0x0
 and the deck's gridTemplateColumns unresolved ('1fr 1fr'): the page had loaded (both cards found, their font sizes read), but

@@ -169,7 +169,9 @@ class ASlowStartIsGivenItsGrace(_Fixture):
 class ALawThatCannotGetItsBrowserIsAVenueFault(_Fixture):
 
     def test_require_chrome_names_the_cause_as_a_venue_fault(self):
-        with mock.patch.object(RC, "_chrome_up", lambda: False):
+        # REG-3119: a VenueFault is for an INSTALLED Chrome that would not start - any existing file stands in for its
+        # binary here, so the case holds on a machine with no Chrome too (an absent one is a red, its own law's case)
+        with mock.patch.object(RC, "_chrome_up", lambda: False), mock.patch.object(RC, "CHROME", sys.executable):
             RC._CHROME_START.update(attempts=[], why=":41001 was alive and never answered /json/version in 40 s")
             with self.assertRaises(RC.VenueFault) as cm:
                 RC.require_chrome()
@@ -241,8 +243,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-3061 - require_chrome fails as a plain assertion, read as a red",
      "file": "render_check.py",
-     "find": "    raise VenueFault(\"\\u26aa %s - Chrome is INSTALLED at %s and would not start (%s).",
-     "replace": "    raise AssertionError(\"\\u26aa %s - Chrome is INSTALLED at %s and would not start (%s).",
+     "find": "    raise VenueFault(\"\\u26aa %s. This law could not measure on this venue: UNKNOWN, not a red.\" % words)",
+     "replace": "    raise AssertionError(\"\\u26aa %s. This law could not measure on this venue: UNKNOWN, not a red.\" % words)",
      "matches": 1},
     {"why": "REG-3061 - a browser law reads a browser that will not start as a red again",
      "file": "test_found_ever_never_files_to_a_mule.py",
