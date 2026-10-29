@@ -108,6 +108,20 @@ hd-tf-date was written only on the paint path, after REG-2796's skip, and the da
 mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
 weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
 test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
+### REG-3036 - "NAMES READ N MIN AGO" WAS NOT FOUND IN THE ALT SHADOW, AND NO LAW HELD THE JOIN THAT DRAWS IT (#200, GrokBot v3836, #230 6485132266)
+GrokBot: in the ALT shadow's Sessions tab no "names read N min ago" text appeared anywhere. Measured at 03:49, read only:
+the site's ALT row carried chronicle.rowsAsOf (03:00:26); the Mac's roster cache kept it; and the real join run in node -
+_shadowRosterStores -> _shadowMergeStores -> _paintChronicle, on the site's real ALT profile stores and that cached row -
+painted "Runewords 0/99 · Sets 4/135 · Uniques 56/403 · names read 51 min ago" into #hd-chron-counts. So it is published,
+stored and drawn; no code defect was found. That span sits in the FORGE QUESTS head, which is text-transform: uppercase,
+so on glass and in innerText it reads "NAMES READ ..." and a case-sensitive search finds nothing. (The Mac's journal has no
+row after 21:00, so it was not ON AIR, which hides #hd-forge; "newest N of M" is correctly absent - the ALT sent 69 of
+69 unique names; BELOW-FOLD/OFF-VIEW are heartbeat panel states, never page text.) What WAS missing is a law over the
+join: REG-2745's law drove the shapers and _chronicleCounts on a hand-built progress, and with the stamp removed from
+_shadowRosterStores both it and test_shadow_mode_reads_their_console stayed green. Law: test_the_names_age_reaches_the_
+shadow_hub (4 cases: a snapshot holding the names, one without, a row from before the stamp - no clause, never a guessed
+age - and the uppercase head; 4 red-proofs, each RED). NEEDS LIVE: GrokBot reads #hd-chron-counts case-blind.
+
 ### REG-3035 - MY HUNT SAT UNDER THE SHADOW BAR, AND THEIR FRAME'S TOP ROW TUCKED UNDER IT AT 860/700 (#200 + #218, GrokBot v3836, #230 6485132266)
 Two looks, one class: a box placed from a number while the bar it must clear moved or grew. (1) #200: in the ALT shadow's
 Sessions tab the top of the hub (MY HUNT) sat under the shadow bar. Sessions in a shadow is this console's own hub with
