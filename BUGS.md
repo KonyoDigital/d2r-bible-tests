@@ -103,6 +103,20 @@ the first item Dean filed would have erased the other four; a persist now carrie
 cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
 (node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
 and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+### REG-2924 - THE FIVE ROSTER LABELS WERE TYPED IN FOUR PLACES, AND THE SHADOW READER KEPT A COPY THAT COULD ONLY DISAGREE (#252)
+Found by the #252 per-PC audit. The owner labels (Konyo · Mac, Konyo · ALT, Konyo · GrokBot, Dean, Wife PC) decide whose
+profile a fleet row is, and they were typed four times: roster_publish.OWNERS (the console publishes under it, and
+console_snapshot imports it), the worker's `export const OWNERS` (functions/api/roster.js refuses any other key), the
+console page's _FLEET_ROSTER_OWNERS beside _fleetRosterOwner, and a second page copy inside _shadowRosterStores. That copy
+was a fallback that answered only when the rule had said "no profile", so it could only ever disagree with the rule. The
+shadow reader now asks the one rule, and the page holds one list. Python and the page cannot share a source without a
+new served-constant path, so a law holds the three lists to one value and the two rules to one answer for every fleet
+row a reader can be handed (5 labels and 6 off-roster nicknames x 4 platforms). Measured on the way: Python read a
+nickname untrimmed and the page trimmed it, so " Dean " was Dean's row to the eyes and nobody's to the snapshot's
+online check. owner_of now trims as the page does. Law test_the_roster_labels_are_one_list (Python + node, the page's
+own rule and shadow reader run as written), 5 red-proofs RED (the shadow copy, the untrimmed read, a page list drift, a
+worker list drift, a platform rule drift), baseline green. The 10 safe roster neighbours ran green; 5 Chrome or console
+laws were left to CI.
 
 ### REG-3012 - THREE D2JSP LAWS HAND-ADDED A BARE "Shako", WHICH REG-2858 NOW ASKS ABOUT INSTEAD OF OWNING (integration int-10)
 Red on the chain from int-7: test_a_d2jsp_card_counts_traded_copies_from_the_vault, test_a_mark_traded_goes_through_the_vault_trade_door
