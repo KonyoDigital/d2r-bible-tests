@@ -426,7 +426,7 @@ def _common_ledger_dir():
     """<git common dir>/tvd-gate-ledger for this checkout, or None when git cannot say. -> path | None"""
     try:
         p = subprocess.run(["git", "-C", HERE, "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                           capture_output=True, text=True, timeout=20, env=_git_free_env())
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, env=_git_free_env())
     except Exception:
         return None
     out = (p.stdout or "").strip() if p and p.returncode == 0 else ""

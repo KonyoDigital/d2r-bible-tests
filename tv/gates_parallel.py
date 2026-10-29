@@ -33,7 +33,7 @@ def free_gb():
     """Free + inactive + purgeable memory in GB on a Mac (vm_stat), MemAvailable on Linux. -> float | None"""
     try:
         if sys.platform == "darwin":
-            out = subprocess.run(["vm_stat"], capture_output=True, text=True, timeout=10).stdout
+            out = subprocess.run(["vm_stat"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout
             page = int((re.search(r"page size of (\d+)", out) or [0, 4096])[1])
             pages = 0
             for key in ("Pages free", "Pages inactive", "Pages purgeable", "Pages speculative"):
@@ -68,7 +68,7 @@ def why_serial(repo=REPO, floor=FLOOR_GB, mem=None):
         return "free memory is UNKNOWN here, so the light shards would run blind - serial"
     if mem < floor:
         return "only %.1f GB free (floor %.1f GB) - serial" % (mem, floor)
-    st = subprocess.run(["git", "-C", repo, "status", "--porcelain", "-uno"], capture_output=True, text=True)
+    st = subprocess.run(["git", "-C", repo, "status", "--porcelain", "-uno"], capture_output=True, text=True, encoding="utf-8", errors="replace")
     if st.returncode != 0:
         return "git status failed here - serial"
     if st.stdout.strip():
@@ -80,7 +80,7 @@ def run_light(slices, env_extra=None):
     """Run each slice as `run_gates.py --full --only ...` in its own detached worktree at HEAD, all at once.
 
     -> (ok: bool, [(slice index, exit code, log path)], wall seconds)"""
-    head = subprocess.run(["git", "-C", REPO, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    head = subprocess.run(["git", "-C", REPO, "rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout.strip()
     base = tempfile.mkdtemp(prefix="tvd-gates-par-")
     trees, procs, out = [], [], []
     t0 = time.time()
@@ -90,13 +90,15 @@ def run_light(slices, env_extra=None):
                 continue
             wt = os.path.join(base, "s%d" % (i + 1))
             mk = subprocess.run(["git", "-C", REPO, "worktree", "add", "--detach", "-q", wt, head],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, encoding="utf-8", errors="replace")
             if mk.returncode != 0:
                 raise RuntimeError("worktree add failed: %s" % mk.stderr.strip()[:200])
             trees.append(wt)
             log = os.path.join(base, "s%d.log" % (i + 1))
             env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-            env["D2R_GATE_LOCK_KEY"] = "par-%s-%d" % (head[:12], i + 1)
+            # No D2R_GATE_LOCK_KEY: each shard's lock keys on its own worktree path, and a key in the
+            # env leaks into tree_busy for every tree the shard's tests touch (the bump law went red).
+            env.pop("D2R_GATE_LOCK_KEY", None)
             env.update(env_extra or {})
             fh = open(log, "w")
             p = subprocess.Popen([sys.executable, os.path.join(wt, "tv", "run_gates.py"), "--full", "--only"] + names,

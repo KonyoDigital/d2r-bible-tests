@@ -6,7 +6,9 @@ their union is every gate, nothing at or over HEAVY_S lands in a light slice, an
 refuses under the memory floor, on an unknown reading, and on a dirty tracked tree. And run_gates hands the heavy list
 to the serial pass only when it is non-empty (an empty `only` would mean every gate).
 """
+import io
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -39,8 +41,15 @@ class TheParallelFullRunsEveryGateOnce(unittest.TestCase):
         self.assertIn("serial", GP.why_serial(mem=GP.FLOOR_GB - 0.5) or "")
         self.assertIn("UNKNOWN", GP.why_serial(mem=None) if GP.free_gb() is None else "UNKNOWN")
 
+    def test_a_shard_never_carries_a_lock_key_into_its_tests(self):
+        # The key leaked into tree_busy, so the bump law in a shard saw its own run as a holder.
+        src = io.open(GP.__file__, encoding="utf-8").read()
+        self.assertNotIn('env["D2R_GATE_LOCK_KEY"]', src)
+        self.assertIn('env.pop("D2R_GATE_LOCK_KEY", None)', src)
+
     def test_a_dirty_tracked_tree_stays_serial(self):
         tmp = tempfile.mkdtemp(prefix="tvd-par-dirty-")
+        self.addCleanup(shutil.rmtree, tmp, True)
         env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
         g = lambda *a: subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t"] + list(a), cwd=tmp,
                                       env=env, capture_output=True, check=True)
