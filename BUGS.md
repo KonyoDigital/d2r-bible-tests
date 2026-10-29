@@ -14,6 +14,44 @@ the same pass held. Every kept row is read now; only the map is bounded, and a m
 (None) - the sentence says the drain's holds are UNKNOWN, never a partial map read as complete. Found by the Grok CLI's pre-ship
 look at v3841 (LOOKED, 2 findings; the other was what it was not shown). Law test_a_held_reel_is_named_by_its_hold +1 case
 (a hold after 450 recent rows; a map past its cap), 2 red-proofs; 11 of 11 RED.
+### REG-3103 - IN A SHADOW FIND ON A MULE TOOK NO LETTER, AND AN EMPTY CELL STILL OFFERED THE ADD (#230, GrokBot v3838 07:08-07:25)
+GrokBot in the ALT's and the Mac's shadow: FIND on a mule ("Which mule holds it?") took the focus, and typing "Wraith Scarab"
+or "Nightwing" left it empty with no result. The shadow's key filter passed only the keys that move the view, Enter/Space on
+a view-only control and Ctrl+C/F/A, and its input veil stopped every input event, so every box was dead alike and a viewer
+could not ask the owner's vault where an item sits. The veil now names its lookups (window._tvdShadowLookup): 18 boxes that
+only search or filter a view over the owner's data and write nothing, each read at v3838 (FIND, the bible's search, the jump
+palette, the uniques/sets search, the runeword/recipe/value/finds filters, the D2JSP find, a locker's and the builder's stats
+filters, the builder's stash search, a forge wall's filter, the tally search). Each takes a key with no Ctrl/Cmd/Alt, Cmd+V,
+and the input and paste those make; Esc clears a typed lookup (and re-runs it) before an Esc leaves the shadow. Enter in a
+lookup stays stopped (where a box acts: the tally's tick), and every other box stays dead: the vault's add, the planner's
+add, the builder's pickers, counts, notes, imports, the D2JSP fg price. Swept: every input, textarea, select and created box
+in the board's code (89 sites) is classified in the law as a lookup or refused with its reason, so a new box fails until it is
+named. Left as found: selects that only filter a view (the cube-up targets, the builder's result filters) stay refused - a
+shadow stops their change; and the older roster shadow's own key block (armed by a 'tvd-shadow' message the console no longer
+sends, only its leave) still stops every box. Also GrokBot's nit: an empty inventory cell's title said "click (or Enter) to
+add an item from the database" in the shadow, where both are stopped; it now says "Read only: this is their console, shown
+in a shadow", in the D2JSP fg box's words. Law: test_a_lookup_answers_in_a_shadow (the sweep; the veil's own script in node,
+every lookup and every refused box given a key, a paste, an input, Enter and Esc; the cell title in and out of a shadow; 13
+red-proofs, each RED). NEEDS LIVE: GrokBot types "Nightwing" into FIND in the ALT's and the Mac's shadow and reads the
+answer; Esc clears it, a second Esc leaves; the vault's add box and an empty cell stay locked, and the cell's title says read
+only.
+
+### REG-3094 - THE D2JSP TAB HAD NO HISTORY: A POST OR A TRADE OF AN ITEM OFF THE LIST HAD NO SURFACE LEFT (#83)
+Each card shows its own post attempts (REG-2872, the d2r_d2jsp_log store) and the vault records every copy that left
+(REG-2883, its traded rows), but there was no one place to read what the desk had done, and an item hidden or taken off the
+list lost the only surface its posts and trades had. The tab now has one History (a closed disclosure under the list),
+painted on every paint and after every log write, and only when its text changed. It writes no store and reads two: every
+name's post log rows, listed or not, and the vault's traded rows, the one source for a traded copy. A log 'traded' /
+'for-sale' row speaks only for a name the vault does not track (a planner pick), so the copy Mark sold sends through the
+vault's door is one row, not two. Both clocks (the log's "YYYY-MM-DD HH:MM UTC" and the vault's ISO time) read to one epoch
+and show in the log's spelling, newest first; a time that does not read says "time UNKNOWN" and sorts last, never a guessed
+date. A store that will not read makes its half UNKNOWN, never none, and the count says "some UNKNOWN": the post log read
+strictly (readMap's {} would have said "no post"), and the vault's records through a new window._vaultTradedRead - false
+with no vault on the page, a refused storage read, or JSON that does not parse, where _vaultTradedNames/_vaultTradedOf say
+none. Law: test_the_d2jsp_tab_keeps_one_history (the pane's own script in node over a fake page and vault: read directly,
+painted through the tab's show and its Mark sold click; the vault's own reader cut out and run over a good, missing, corrupt
+and throwing records store; 19 red-proofs, each RED). NEEDS LIVE: GrokBot opens D2JSP -> History on his board and reads it against the cards' Attempts and
+the vault's traded copies.
 
 ### REG-3120 - /api/river COULD SERVE ONE READING'S TIME WITH ANOTHER READING'S STUCK ROWS (second eye on v3840)
 _river_for_wire (the beacon thread) writes ts, stuck and keep in one dict.update; _river_stuck_view (a request thread) read

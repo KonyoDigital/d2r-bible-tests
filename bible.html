@@ -3991,6 +3991,22 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       for (var i = 0; i < VIEW.length; i++) if (code.indexOf(VIEW[i] + '(') !== -1) return true;
       return false;
     }
+    // REG-3103 (#230, GrokBot v3838) - A LOOKUP TAKES WHAT IS TYPED. FIND on a mule ("Which mule holds it?") took the focus
+    // and no letter: the key filter and the input veil below stopped every box alike, so a viewer could not ask the owner's
+    // vault where an item sits. Each box named here only searches or filters a view over the owner's data and writes
+    // nothing (each read at v3838; the law test_a_lookup_answers_in_a_shadow classifies every box on the board, so a new
+    // one must be named a lookup or stay refused). It takes a key with no Ctrl / Cmd / Alt, Ctrl / Cmd + V, the input and
+    // paste those make, and Esc clears it before an Esc leaves. Enter stays stopped (a box's Enter is where it acts: the
+    // tally's tick, the vault's add), and every box not named - the vault's add, a count, a note - stays dead.
+    var LOOKUP = ['#vault-find-input', '#gsearch-input', '#v42-palette-input', '#item-search', '#rwc-search', '#all-rw-filter',
+                  '#iv-filter', '#rw-bases-filter', '#horadric-filter', '#hvf-filter', '#d2jsp-find', '#gf-found-q', '#gs-found-q',
+                  'input[aria-label="filter the stats"]', 'input[aria-label="filter this wall"]',
+                  'input[aria-label="search this list and tick items off"]', 'input[aria-label="search the stats"]',
+                  'input[aria-label="search the stash"]'].join(', ');
+    function lookupBox(el) {
+      try { return !!(el && el.matches && el.matches(LOOKUP)); } catch (e) { return false; }
+    }
+    window._tvdShadowLookup = LOOKUP;
     window._tvdShadowStopped = 0;
     document.addEventListener('click', function (ev) {
       var t = ev.target;
@@ -4014,13 +4030,18 @@ tr.owned-row{background:rgba(102,255,136,.03)}
       }, true);
     });
     ['change', 'input', 'submit', 'drop', 'paste', 'dragstart', 'contextmenu'].forEach(function (type) {
-      document.addEventListener(type, function (ev) { window._tvdShadowStopped++; ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
+      document.addEventListener(type, function (ev) {
+        if ((type === 'input' || type === 'paste') && lookupBox(ev.target)) return;   // REG-3103 - a lookup takes it
+        window._tvdShadowStopped++; ev.preventDefault(); ev.stopImmediatePropagation(); }, true);
     });
     // Keys move the view and nothing else: the board's own shortcuts (delete, undo, a letter that opens an editor)
     // never see a key press here. Copy and find stay the browser's.
     var NAV = /^(Tab|Shift|Control|Alt|Meta|CapsLock|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|PageUp|PageDown|Home|End|Escape)$/;
     window._tvdShadowKeyOk = function (ev) {
       if (NAV.test(String(ev.key || ''))) return true;
+      // REG-3103 - a lookup box takes a typed key (no Ctrl / Cmd / Alt) and a paste; never its Enter
+      if (lookupBox(ev.target) && ev.key !== 'Enter' && !ev.altKey
+          && (!(ev.ctrlKey || ev.metaKey) || /^v$/i.test(String(ev.key || '')))) return true;
       // REG-2758 - Enter or Space on the focused control that only moves the view does what a click on it does; on
       // anything else, or with a modifier, the key stays the board's and is stopped
       if ((ev.key === 'Enter' || ev.key === ' ') && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
@@ -4042,6 +4063,11 @@ tr.owned-row{background:rgba(102,255,136,.03)}
     // opened this frame to leave. Tab still only moves the view. `parent` stays sealed.
     document.addEventListener('keydown', function (ev) {
       if (ev.key !== 'Escape' || !host || host === window) return;
+      if (lookupBox(ev.target) && ev.target.value) {   // REG-3103 - Esc clears a typed lookup first; the next Esc leaves
+        ev.target.value = '';
+        try { ev.target.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+        return;
+      }
       ev.preventDefault();
       try { host.postMessage({ type: 'tvd-shadow-leave' }, window.location.origin); } catch (e) {}
     }, true);
@@ -53051,6 +53077,15 @@ window.vaultAutoAssign = function(){
     return { cap: cap, used: used, oob: oob, over: over,
              fault: (used > cap) || !!oob || !!over };
   };
+  /* REG-3103 (#230, GrokBot v3838) - an empty inventory cell's title, which said "click (or Enter) to add an item from the
+     database" inside a read-only shadow, where the click and the Enter are stopped. In a shadow (the veil's handle
+     window._tvdShadow, else the shadow class) it says the console is theirs, in the D2JSP fg box's words (REG-3095). */
+  function gridCellSay(label, cx, cy){
+    var ro = !!window._tvdShadow;
+    try { ro = ro || document.documentElement.classList.contains('tvd-shadow'); } catch (eRo) {}
+    return (label || 'Inventory') + ' · col ' + (cx + 1) + ' · row ' + (cy + 1)
+      + (ro ? ' — empty. Read only: this is their console, shown in a shadow' : ' — empty: click (or Enter) to add an item from the database');
+  }
   function gridHtml(placed, gw, gh, cell, opt){
     /* ⚠ v2240 — AN OVER-FULL GRID MUST SAY SO, NOT BE SQUINTED AT. Konyo, on a mule card: "those
        items that were squezed in here are 8 slots.. and there isnt enough room in this mule for
@@ -53084,7 +53119,7 @@ window.vaultAutoAssign = function(){
         var cx = ci % gw, cy = Math.floor(ci / gw);
         if (_occ[cx + ',' + cy]){ cells += '<div class="vd-cell"></div>'; continue; }
         var _on = !!(_add.at && _add.at[0] === cx && _add.at[1] === cy);
-        var _csay = (opt.label || 'Inventory') + ' · col ' + (cx + 1) + ' · row ' + (cy + 1) + ' — empty: click (or Enter) to add an item from the database';
+        var _csay = gridCellSay(opt.label, cx, cy);   /* REG-3103 */
         cells += '<div class="vd-cell" data-cx="' + cx + '" data-cy="' + cy + '" data-fk="cell-' + opt.area + '-' + cx + '-' + cy + '" role="button" tabindex="0"'
           + (_on ? ' data-on="1" aria-pressed="true"' : '') + ' title="' + esc(_csay) + '" aria-label="' + esc(_csay) + '"'
           + ' onclick="window._mpInvCell(' + cx + ',' + cy + ')" onkeydown="window._mpInvCellKey(event,' + cx + ',' + cy + ')"></div>';
