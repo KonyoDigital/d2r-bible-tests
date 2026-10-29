@@ -14,6 +14,14 @@ overwritten by the next paint. A landing now chooses the FIRST view only: forgeS
 (_forgeByHand.crafts / .forge), and both landings stand aside once he has picked. Measured on the whole page in node, every
 runeword made and one craft's rune and gem added through the Tools tab's tally doors: lands on MAKE NOW first; his ALL and
 COMPLETED survive a re-render. Law test_his_forge_chip_outranks_the_landing, 2 red-proofs RED.
+### REG-3057 - THE CHRONICLE INBOX LAW COUNTED THREE QUESTIONS AFTER REG-3011 ADDED A FOURTH (CI on ci/claude-v3839)
+test_the_chronicle_inbox_asks_on_the_page read "5 != 4: premise: chAsk is defined once and asked three times" on
+c0f4f1e24. REG-3011's unconfirmed lane asks before a batch clear (chUnconfClear, two or more ticks) through the same
+on-page chAsk, so the law's premise had fallen behind the product; nothing regressed. Re-aimed: the premise counts four
+questions, the native-dialog check names the unconfirmed clear too, and chUnconfClear joins the callers that must sit in
+chAsk's own script block (it does). New red-proof [3] turns that ask into window.confirm: RED, with the count and the
+native-dialog check both biting. Proofs [0]-[2] still RED: 4 of 4, baseline green. Mine: REG-3011 shipped the fourth
+ask without counting it.
 
 ### REG-3040 - #161'S HOOK EDIT DROPPED THE PUSH HOOK'S EXECUTABLE BIT, WHICH WOULD HAVE SWITCHED THE WHOLE LOCAL GATE OFF
 core.hooksPath=hooks, and git runs a hook only when it is executable: a 100644 hooks/pre-push is skipped with a one-line
