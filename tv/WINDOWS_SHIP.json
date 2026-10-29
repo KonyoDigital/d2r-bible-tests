@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3839",
+  "ver": "v3840",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3839: Renewed sunders draw their own carving, Dean confirms unevidenced ticks, Windows sends key frames (#111 #163 #218)",
+  "note": "v3840: Profiles upload again, carried proofs only from the ALT, a slow Chrome is no red, the Shelf stays open (#172 #186)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
