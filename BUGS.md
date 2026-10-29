@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2992 - THE FINDER LAW STILL WANTED HIS MAGIC-FIND CHARM ON MAGIC & RARE, WHICH HOLDS NO CHARMS SINCE HIS 10-28 RULING (CI on ci/claude-v3837)
+test_the_vault_finder_names_the_mule_and_the_cell read 'charms' != 'magic-rare' for Harpoonist's Grand Charm. The FINDER is
+right: Harpoonist's is a skiller grand charm (the page's _charmKind: grand, skiller, read), and his 2026-10-28 ruling
+(REG-2895) homes skillers on the dedicated CHARMS mule. Measured in node on v3837's page: _vaultWhereIs answers
+{kind: filed, mule: charms}. The law now pins both halves. REG-2020's proof (a magic find read as loose) leaves the mule
+"charms" and flips only the kind to "would" (measured on a sabotaged copy), so a mule-only check would have been blind to it.
+Chrome law: CI proves it.
+
+
 ### REG-2991 - REG-2912'S LAW LISTED ITS OWN SYNTHETIC REEL WITH os.listdir, SO HEART2 COULD NEVER KEY IT (CI on ci/claude-v3837)
 test_the_unkeyable_laws_only_get_fewer named a new unkeyable law: test_a_simulation_leaves_no_worker_behind took "the first .jpg"
 of a reel it had just built in its own scratch (cls.root, made after fixture_tmp.contain() at import). That is the REG-2362 case:

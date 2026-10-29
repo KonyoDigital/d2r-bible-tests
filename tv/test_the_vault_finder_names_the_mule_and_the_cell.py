@@ -95,8 +95,12 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
                       "the finder and the shared stash window name different cells for Grief")
 
     def test_magic_and_rare_and_his_main_and_a_discard_each_say_their_own_answer(self):
+        # REG-2992 - his 2026-10-28 charm ruling (REG-2895) homes a skiller grand charm on the CHARMS mule, and MAGIC & RARE holds
+        # no charms: his magic find is FILED there, never loose. Both halves: REG-2020's proof leaves the mule "charms" and
+        # flips only the kind to "would" (measured in node on the shipped page), so a mule-only check would be blind to it.
         h = self.after["Harpoonist's Grand Charm"]
-        self.assertEqual((h or {}).get("mule"), "magic-rare", "a Magic & Rare charm read as loose in the finder: %r" % h)
+        self.assertEqual(((h or {}).get("kind"), (h or {}).get("mule")), ("filed", "charms"),
+                         "his magic-find charm read as loose, or off its charm-rule home, in the finder: %r" % h)
         e = self.after["Enigma"]
         self.assertEqual((e or {}).get("kind"), "main", "armour his MAIN wore when last seen was offered a mule: %r" % e)
         i = self.after["Isenhart's Case (armor)"]
@@ -111,7 +115,7 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2020 - a Magic & Rare charm reads as loose in the finder again",
+    {"why": "REG-2020 - his magic-find charm reads as loose in the finder again (kind would, not filed on its CHARMS home)",
      "file": "bible.html",
      "find": "    try { return typeof magicFinds === 'object' && !!magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n); }\n",
      "replace": "    try { return false; }\n",
