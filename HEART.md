@@ -40,7 +40,7 @@ all, so its surfaces could be neither watched nor unwatched — only unsaid.
 
 | | |
 |---|---|
-| surfaces the board paints | **580** |
+| surfaces the board paints | **582** |
 | of those, watched | **2** |
 | coverage | **0.3%** |
 
