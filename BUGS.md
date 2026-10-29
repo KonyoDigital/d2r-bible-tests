@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2995 - REG-2915'S LAW LISTED ITS OWN SCRATCH WITH os.listdir, AND REG-2941'S CENSUS NAMED IT UNKEYABLE (integration, after int-9)
+On the integration chain, test_the_unkeyable_laws_only_get_fewer (REG-2941, int-9) named a new unkeyable law,
+test_the_tooltip_crop_comes_from_the_read_that_named_it (REG-2915, int-6). Neither branch saw the other. All five of its listings
+read the fixture reel and crop store it builds under its own mkdtemp, made after fixture_tmp.contain() at import. That is the
+REG-2362 case: list_own, the same names. The census passes on the chain (5); the law's seven red-proofs are RED against a
+green baseline.
+
+
 ### REG-2994 - THE SHADOW MOVE-ROW CASE DROVE THE CHARMS "CREATE MULE" LINE INSTEAD OF A MOVE ROW (CI on ci/claude-v3837)
 test_shadow_mode_draws_their_console (REG-2758's Chrome half) read "a move row does not take the focus in the shadow" with
 rows 3, Enter stopped, a click opening nothing. It took rows[0] of every li.vtk-line, and since REG-2895 that is the "Create
