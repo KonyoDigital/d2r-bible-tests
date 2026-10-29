@@ -2950,5 +2950,14 @@
     "gotcha": "It never truncates a WAL while any process holds it: TRUNCATE holds the writer lock while waiting on WebKit's readers and a WebKit write that hits busy is a lost localStorage write, so the live 30-min look is PASSIVE only and the shrink happens at the next --open startup. Holders that lsof cannot read are UNKNOWN and skipped. A holder found at startup is a leftover from an earlier console (no WebView exists yet) and is reported, never killed.",
     "purpose": "Automatic pruning of the Mac native console's WebKit LocalStorage write-ahead log (localstorage.sqlite3-wal, which reached 26 GB): wal_checkpoint(TRUNCATE) + integrity_check at startup before the WebView, and a 30-minute size watch that publishes lsWal on /api/status.",
     "territory": "console"
+  },
+  "console_port.py": {
+    "entryPoints": [
+      "port",
+      "url"
+    ],
+    "gotcha": "A value of TV_CONTROL_PORT that will not read names NO console (None), never his :17772; his console is the default only when nothing in the environment names one. DELIBERATE lists the files that name his ports on purpose - test_a_scratch_console_never_addresses_his fails on a his-port number anywhere else in tv/*.py.",
+    "purpose": "REG-2998 - the one helper through which a process addresses its OWN console (TV_CONTROL_PORT), so a scratch console a law spawns never reads or drives his live console or agent port by name.",
+    "territory": "console-ui"
   }
 }
