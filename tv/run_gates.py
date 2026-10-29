@@ -11617,6 +11617,13 @@ GATES = [
              "gives it a private git clone --shared of that checkout (HEAD = the worktree's, GIT_*-free, push "
              "shut). Driven on a fixture worktree under a leaked GIT_DIR: the sandbox reads the worktree's HEAD and "
              "an old commit, and building it or writing in it leaves the real repo byte-identical."),
+    Gate("test_every_worktree_banks_into_one_ledger",
+         [sys.executable, os.path.join(HERE, "test_every_worktree_banks_into_one_ledger.py")], 120,
+         needs_app=False,
+         why="v3842 GATE-TRIM B - the gate ledger lived in each checkout's tv/, so a ship worktree's --full PASSes "
+             "never reached the push from the main checkout and the hook re-ran gates that SHA had just passed. "
+             "Driven on a fixture repo with a linked worktree: both resolve one ledger under the git common dir, "
+             "TV_GATE_LEDGER still wins, and a non-git directory keeps its own file. The carry rule is unchanged."),
     Gate("test_a_sandbox_never_carries_a_run_record",
          [sys.executable, os.path.join(HERE, "test_a_sandbox_never_carries_a_run_record.py")], 300,
          needs_app=False,

@@ -407,8 +407,32 @@ def coherent_bump(per_file):
 
 
 def ledger_path():
-    """This checkout's ledger, unless TV_GATE_LEDGER names another file. -> path"""
-    return os.environ.get("TV_GATE_LEDGER") or os.path.join(HERE, LEDGER_NAME)
+    """The repo's ONE ledger, shared by every worktree, unless TV_GATE_LEDGER names another file. -> path
+
+    v3842 (GATE-TRIM B) - the ledger lived in each checkout's tv/, so a ship worktree's --full PASSes were
+    invisible to the push from the main checkout and every fresh worktree started with an empty bank: the hook
+    re-ran gates the same SHA had just passed. It now lives in the git COMMON dir (one per repo, shared by all
+    worktrees). The carry rule is unchanged - a PASS carries only while its own commit is an ancestor of HEAD
+    and none of its traced inputs moved, with inputs resolved against the tree the gate runs in - so sharing
+    the bank widens no proof. No git, or no common dir: this checkout's tv/, as before."""
+    env = os.environ.get("TV_GATE_LEDGER")
+    if env:
+        return env
+    common = _common_ledger_dir()
+    return os.path.join(common, LEDGER_NAME) if common else os.path.join(HERE, LEDGER_NAME)
+
+
+def _common_ledger_dir():
+    """<git common dir>/tvd-gate-ledger for this checkout, or None when git cannot say. -> path | None"""
+    try:
+        p = subprocess.run(["git", "-C", HERE, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                           capture_output=True, text=True, timeout=20, env=_git_free_env())
+    except Exception:
+        return None
+    out = (p.stdout or "").strip() if p and p.returncode == 0 else ""
+    if not out or not os.path.isdir(out):
+        return None
+    return os.path.join(out, "tvd-gate-ledger")
 
 
 def ci_blocks():
