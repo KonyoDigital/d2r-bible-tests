@@ -12545,6 +12545,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_slow_browser_start_is_retried_and_named.py")], 300,
          needs_app=False,
          why='#161 REG-3060 - a slow browser start gets its grace, a failed one is retried once on a fresh port and profile, and the launcher names why; every browser law asks through require_chrome'),
+    Gate("test_no_tool_calls_an_installed_browser_absent",
+         [sys.executable, os.path.join(HERE, "test_no_tool_calls_an_installed_browser_absent.py")], 300,
+         needs_app=False,
+         why='#161 REG-3064 - a11y_check, coldread, crest_loudness and overlap_ratchet never call an installed Chrome that would not start absent; the two gates exit 3 (VENUE), a missing Chrome keeps its skip'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
@@ -12554,6 +12558,23 @@ VENUE_MARK = "VENUE FAULT"
 #: REG-3061 - main()'s exit when the gate set reached its end, no gate was red, and a gate could not measure here:
 #: UNKNOWN - not a pass (0) and not a red (1). The CI gate-set step publishes it as reached=true, red=unknown.
 VENUE_EXIT = 3
+
+
+def gate_status(returncode, out):
+    """A gate's status from its exit and its output. -> "PASS" | "SKIP" | "FAIL" | "VENUE"
+
+    v1601: exit 77 means "I could not run", not "I passed". REG-3061: a unittest law whose every failure is a VenueFault
+    could not measure here (VENUE). REG-3064: so could a gate SCRIPT that exits VENUE_EXIT with VENUE_MARK in its output
+    (crest_loudness, overlap_ratchet - an INSTALLED browser that would not start). Any other non-zero exit is FAIL."""
+    if returncode == SKIP_EXIT:
+        return "SKIP"
+    if returncode == 0:
+        return "PASS"
+    if venue_only(out):
+        return "VENUE"
+    if returncode == VENUE_EXIT and VENUE_MARK in (out or ""):
+        return "VENUE"
+    return "FAIL"
 
 
 def venue_only(blob):
@@ -12923,12 +12944,7 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                 # self-skipped printed its own ⚠ SKIPPED line and still got counted green, which is the
                 # lie this file's docstring opens by forbidding. js-syntax skips on every local run on
                 # Konyo's Mac, so the surface least protected was the one showing a tick.
-                if p.returncode == SKIP_EXIT:
-                    status = "SKIP"
-                else:
-                    status = "PASS" if p.returncode == 0 else "FAIL"
-                if status == "FAIL" and venue_only((p.stdout or "") + (p.stderr or "")):
-                    status = "VENUE"            # REG-3061 - its browser would not start: UNKNOWN here, never a red
+                status = gate_status(p.returncode, (p.stdout or "") + (p.stderr or ""))   # REG-3061 / REG-3064
                 # ⚠⚠ THE STDOUT PREFERENCE IS FOR THE **SKIP** CASE ONLY — and the first cut applied it
                 # to every status, which traded one hidden reason for another. TWO INDEPENDENT
                 # REVIEWERS REACHED THIS FROM DIFFERENT DIRECTIONS, which is why it is taken rather

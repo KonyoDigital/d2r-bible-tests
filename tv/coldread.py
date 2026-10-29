@@ -394,7 +394,8 @@ def main(argv):
     out_dir = argv[2] if len(argv) > 2 else os.path.join(ROOT, "tv", ".render_shots")
     os.makedirs(out_dir, exist_ok=True)
     if not rc._chrome_up():
-        print("⚪ UNKNOWN — no Chrome on :%d. A skip is not a pass." % rc.PORT)
+        # REG-3064 - an installed Chrome that would not start is never "no Chrome": the launcher says which it was
+        print("⚪ UNKNOWN — %s. A skip is not a pass." % rc.no_browser_say()[1])
         return 2
     if not _stage(ref):
         print("⚪ UNKNOWN — could not read bible.html at %r" % ref)

@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3064 - FOUR TOOLS STILL CALLED AN INSTALLED CHROME THAT WOULD NOT START "NO CHROME" (#161, finishing REG-3060/3061)
+a11y_check and coldread printed "no Chrome on :N" when the launcher said no; crest_loudness printed the same and exited 77,
+the skip its gate DECLARES for a venue with no browser - so an installed, failing Chrome read like a declared skip, a pass
+in all but name; overlap_ratchet exited 1, a red, for the same fault. They all start Chrome through render_check's
+launcher, so they already get REG-3060's grace and retry; now each asks render_check.no_browser_say(), which calls a
+MISSING binary absent and an INSTALLED one a VENUE FAULT with the launcher's cause. crest_loudness and overlap_ratchet
+(gates) exit VENUE_EXIT (3) for it, and run_gates' one gate_status() reads a script's exit 3 WITH the mark as VENUE (an
+exit 3 without it is still FAIL); a11y_check and coldread (tools) keep their UNKNOWN exit 2 with the true sentence. A
+missing Chrome keeps its declared skip. Laws: tv/test_no_tool_calls_an_installed_browser_absent.py (each tool's own entry,
+the launcher stubbed, Chrome installed or absent - names Chrome, so CI proves it; 5 red-proofs declared) and
+tv/test_a_law_that_cannot_measure_is_unknown_never_red.py (gate_status for a script's exit 3, with and without the mark;
+9 red-proofs RED).
+
+
 ### REG-3061 - A LAW WHOSE BROWSER WOULD NOT START READ AS A RED GATE SET (#161, CI on v3837 and v3838)
 Both times test_found_ever_never_files_to_a_mule was the only red, and both times what failed was its browser's start,
 not the vault it guards: the gate set published red=true, a red verdict nobody reached. Now the nine browser laws that

@@ -85,6 +85,12 @@ def main():
         # it apart from both PASS and FAIL, and — since v1925 — treats an UNDECLARED skip as a
         # failure, so the Gate has to name this reason in skip_ok= before it is tolerated. The
         # absence stays visible; it just stops being called a break. [[unknown-stays-unknown]]
+        _absent, _why = rc.no_browser_say()
+        if not _absent:
+            # REG-3064 - INSTALLED and would not start: the venue could not measure. Not the declared "no Chrome" skip (a
+            # skip reads like a pass) and not a red - VENUE, which run_gates reads from this exit and the mark.
+            print("⚪ UNKNOWN — %s, so the crest was never measured here." % _why)
+            return rc.VENUE_EXIT
         print("⚪ SKIPPED — no Chrome on :%d, so the crest was never measured here. "
               "That is not a pass: this gate has asserted NOTHING about loudness on this venue."
               % rc.PORT)

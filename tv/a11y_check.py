@@ -81,7 +81,8 @@ ACTIVE = ("(function(){var a=document.querySelector('button.tab.active[data-tab]
 
 def main():
     if not rc._chrome_up():
-        print("⚪ UNKNOWN — no Chrome on :%d. A skip is not a pass." % rc.PORT)
+        # REG-3064 - an installed Chrome that would not start is never "no Chrome": the launcher says which it was
+        print("⚪ UNKNOWN — %s. A skip is not a pass." % rc.no_browser_say()[1])
         return 2
     page = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
     tab = rc._Tab("file://" + page)

@@ -146,6 +146,22 @@ class AFailureThatCouldNotMeasureIsVenue(unittest.TestCase):
         self.assertFalse(RG.venue_only(""))
 
 
+class AGateScriptThatCannotMeasureIsVenueToo(unittest.TestCase):
+    """REG-3064 - a gate SCRIPT (not a unittest law) whose browser would not start exits VENUE_EXIT with the mark."""
+
+    def test_the_status(self):
+        st = RG.gate_status
+        self.assertEqual(st(0, "ok"), "PASS")
+        self.assertEqual(st(RG.SKIP_EXIT, "no browser here"), "SKIP")
+        self.assertEqual(st(RG.VENUE_EXIT, "\u26aa UNKNOWN \u2014 %s - installed and would not start" % RG.VENUE_MARK), "VENUE")
+        self.assertEqual(st(RG.VENUE_EXIT, "a script that happened to exit 3"), "FAIL",
+                         "an exit 3 that does not say why was read as a venue fault")
+        self.assertEqual(st(1, "%s in a script's ordinary failure" % RG.VENUE_MARK), "FAIL",
+                         "a script's exit 1 was read as a venue fault")
+        self.assertEqual(st(1, _o()["all_venue"][1]), "VENUE")
+        self.assertEqual(st(1, _o()["mixed"][1]), "FAIL")
+
+
 class TheGateSetExitsUnknownNotRed(unittest.TestCase):
 
     def test_the_exit(self):
@@ -158,8 +174,7 @@ class TheGateSetExitsUnknownNotRed(unittest.TestCase):
     def test_main_classifies_by_it_and_exits_by_it(self):
         with io.open(RUN_GATES, encoding="utf-8") as fh:
             src = fh.read()
-        self.assertEqual(src.count('if status == "FAIL" and venue_only((p.stdout or "") + (p.stderr or "")):\n'
-                                   '                    status = "VENUE"'), 1,
+        self.assertEqual(src.count('                status = gate_status(p.returncode, (p.stdout or "") + (p.stderr or ""))'), 1,
                          "a gate's result is no longer asked whether it measured")
         self.assertEqual(src.count("    return gate_set_exit(failed, _venue)\n"), 1,
                          "the gate set's verdict no longer takes the venue faults into account")
@@ -274,8 +289,18 @@ class AVenueEndingNeverConcludesGreen(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-3061 - a gate whose browser would not start reads RED again (never asked whether it measured)",
      "file": "run_gates.py",
-     "find": "                if status == \"FAIL\" and venue_only((p.stdout or \"\") + (p.stderr or \"\")):\n",
-     "replace": "                if False:\n",
+     "find": "                status = gate_status(p.returncode, (p.stdout or \"\") + (p.stderr or \"\"))   # REG-3061 / REG-3064\n",
+     "replace": "                status = \"PASS\" if p.returncode == 0 else (\"SKIP\" if p.returncode == SKIP_EXIT else \"FAIL\")\n",
+     "matches": 1},
+    {"why": "REG-3064 - a gate script whose installed browser would not start (exit 3 + the mark) reads RED",
+     "file": "run_gates.py",
+     "find": "    if returncode == VENUE_EXIT and VENUE_MARK in (out or \"\"):\n        return \"VENUE\"\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-3064 - any script that exits 3 is read as a venue fault, mark or not",
+     "file": "run_gates.py",
+     "find": "    if returncode == VENUE_EXIT and VENUE_MARK in (out or \"\"):\n",
+     "replace": "    if returncode == VENUE_EXIT:\n",
      "matches": 1},
     {"why": "REG-3061 - a gate with one real red and one venue fault is called VENUE, hiding the red",
      "file": "run_gates.py",

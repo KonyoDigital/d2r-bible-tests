@@ -3537,6 +3537,21 @@ def _chrome_up(popen=None, answers=None, sleep=None, free_port=None):
     return False
 
 
+#: REG-3064 (#161) - the exit a gate SCRIPT (not a unittest law) takes when its browser would not start here: run_gates
+#: reads it, with VENUE_MARK in the output, as VENUE (must match tv/run_gates.py VENUE_EXIT)
+VENUE_EXIT = 3
+
+
+def no_browser_say():
+    """REG-3064 (#161) - why a tool has no browser, in words that never call an INSTALLED Chrome absent. Asked after
+    _chrome_up() said no. -> (absent, words): absent=True only when no Chrome binary is here; otherwise the words carry
+    VENUE_MARK and what the launcher saw (chrome_start_why)."""
+    if not os.path.exists(CHROME):
+        return True, "no Chrome on this machine (looked for %s)" % CHROME
+    return False, ("%s - Chrome is INSTALLED at %s and would not start (%s)"
+                   % (VENUE_MARK, CHROME, chrome_start_why() or "no cause recorded"))
+
+
 def chrome_start_why():
     """REG-3060 - what the last _chrome_up() saw when it did not get a browser, start by start. -> str | None"""
     return _CHROME_START.get("why")

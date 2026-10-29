@@ -96,6 +96,17 @@ NO_BROWSER = "headless chrome would not start, so no width was measured"
 #: v1601's contract, shared with tv/js_syntax_gate.py and run_gates.SKIP_EXIT: "I could not run",
 #: which is not "I passed" and not "I failed".
 SKIP_EXIT = 77
+#: REG-3064 - a browser INSTALLED that would not start: the venue could not measure (must match render_check.VENUE_EXIT
+#: and run_gates.VENUE_EXIT; run_gates reads it with the mark as VENUE)
+VENUE_EXIT, VENUE_MARK = 3, "VENUE FAULT"
+
+
+def _unmeasured_exit(why):
+    """REG-3064 - the exit for a run that measured nothing, by WHY. -> SKIP_EXIT (no browser here, declared), VENUE_EXIT
+    (installed and would not start: UNKNOWN, never a red), or 1 (the browser answered and the run still failed)"""
+    if why is NO_BROWSER:
+        return SKIP_EXIT
+    return VENUE_EXIT if VENUE_MARK in str(why or "") else 1
 
 #: panels that exist and cannot be opened from here, so their overlap count is UNKNOWN and must
 #: never be folded into a total as a zero.
@@ -241,9 +252,8 @@ def measure(page=None, widths=WIDTHS):
         # so the message that reaches it must be true of the absent case ONLY.
         if not os.path.exists(RC.CHROME):
             return None, NO_BROWSER
-        return None, ("chrome is INSTALLED at %s and would not start — that is a fault on a venue "
-                      "that is supposed to measure, not a venue without a browser (REG-3060: %s)"
-                      % (os.path.basename(RC.CHROME), RC.chrome_start_why() or "no cause recorded"))
+        return None, ("%s — a venue that is supposed to measure could not, which is not a venue without a browser "
+                      "(REG-3064)" % RC.no_browser_say()[1])
     # ⚠⚠ SERVED, NOT file:// — AND THE FIRST CUT OF THE PANEL WORK PROVED WHY. Under file:// the
     # console's panels cannot reach /api/…, so they render almost nothing: measured, forensics came
     # back with FIVE text leaves where a served page gives THIRTY-NINE, and every panel reported a
@@ -553,7 +563,7 @@ def check():
         #   · the venue has no browser  -> the gate COULD NOT RUN -> 77, a declared skip
         #   · anything else             -> the browser answered and the run still failed -> 1
         # Identity, not substring — see NO_BROWSER.
-        return SKIP_EXIT if mwhy is NO_BROWSER else 1
+        return _unmeasured_exit(mwhy)
     old = was.get("counts") or {}
     print("text-on-text overlap ratchet")
     bad = []
@@ -608,7 +618,7 @@ def main(argv):
     got, why = measure()
     if got is None:
         print("⚪ UNKNOWN — %s" % why)
-        return 1
+        return _unmeasured_exit(why)
     print("\nTEXT-ON-TEXT OVERLAPS — the class a clipping check cannot see\n")
     for k, v in sorted(got.items()):
         print("  %-10s %3d overlap(s)   across %d text leaf/leaves" % (k, v["count"], v["leaves"]))
