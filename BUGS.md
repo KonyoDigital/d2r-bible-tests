@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3097 - REG-3050'S UNKNOWN SHELF DROPPED THE OPEN'S EMPTY-FILTER CLEAR (v3840 CI, run 40818454324)
+test_the_shelf_tabs_are_the_real_sessions (test_a_filter_that_would_greet_him_EMPTY_is_cleared_on_OPEN) went red on v3840:
+"_reopenClear is reached from 1 place(s); it must be called on the cached-open path AND on both fetch outcomes". REG-3050
+replaced thShelf's failed-refresh branch - which painted the shelf empty and then ran _reopenClear() - with the UNKNOWN shelf,
+and took the clear out with the empty paint, so a station filter remembered from before a close could survive an open whose
+ask failed. The UNKNOWN path now runs _reopenClear() after painting UNKNOWN, as the old failure path did: the clear is
+reached on the cached open and on both fetch outcomes again. Reproduced on 6d69506ac (the same 2-of-3 failure) and green
+with the line restored (34 OK); the REG-3050 law's harness gained the filter state the restored call reads, its source
+check and red-proof [1] follow the line (5 of 5 RED). Anchors bad 0.
+
 ### REG-3084 - REG-3056 ALSO STOOD THE SEALED CHRONICLE'S LANDING ASIDE, SO v1630'S SEALED-CARD SPECS WENT RED (v3839's CI)
 REG-3056 made his chip outrank BOTH auto-landings. GrokBot's report was only about the Crafts room (ALL snapping back to MAKE
 NOW). The Chronicle's v2094 landing - an ALL that holds no runeword work on a sealed chronicle lands on Completed, where the

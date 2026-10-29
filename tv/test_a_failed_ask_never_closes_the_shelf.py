@@ -79,16 +79,17 @@ async function scene(opts) {
   const window = { _sessionsJson: () => Promise.reject(new Error('AbortError: the console did not answer')) };
   const $ = (id) => els[id] || null;
   const stubs = {
-    thArtInit() {}, thRibbon() {}, thCoachOnce() {}, thLit() {},
+    thArtInit() {}, thRibbon() {}, thCoachOnce() {}, thLit() {}, _shFilter() {},
     thSessionsWait() { return Promise.reject(new Error('AbortError: the console did not answer')); },
     thClose() { closed.push(1); TH.open = false; els.theatre.hidden = true; },
     _thShelfWasTheDoor() { return !!TH.shelfIsDoor; },
     fetch(url, init) { faults.push(JSON.parse((init && init.body) || '{}')); return Promise.resolve({}); },
   };
   const names = Object.keys(stubs);
-  const make = new Function('document', 'window', '$', 'TH', ...names,
+  const SHELF_F = { station: null };   /* REG-3097 - the remembered filter _reopenClear reads */
+  const make = new Function('document', 'window', '$', 'TH', 'SHELF_F', ...names,
     C.code + '\nreturn { thOpen: thOpen, thShelf: thShelf, stale: _shelfStaleNote };');
-  const f = make(document, window, $, TH, ...names.map((n) => stubs[n]));
+  const f = make(document, window, $, TH, SHELF_F, ...names.map((n) => stubs[n]));
   const out = {};
   if (opts.open) {
     await f.thOpen();
@@ -200,7 +201,7 @@ class AFailedAskNeverClosesTheShelf(unittest.TestCase):
     def test_a_failed_refresh_with_runs_in_hand_notes_their_age(self):
         catch = UI[UI.index("    }).catch(function(e){\n      /* REG-3050 - NO ANSWER IS NOT AN EMPTY SHELF."):]
         catch = catch[:catch.index("    });\n")]
-        self.assertIn("if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); return; }", catch)
+        self.assertIn("if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); _reopenClear(); return; }", catch)
         self.assertIn("_shelfStaleNote(ov, TH.sessionsFailWhy);", catch)
 
 
@@ -212,7 +213,7 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-3050 - a failed refresh with no runs paints 'No runs recorded yet'",
      "file": "tv/control_ui.html",
-     "find": "      if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); return; }\n",
+     "find": "      if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); _reopenClear(); return; }\n",
      "replace": "      if (!_had) { _paintShelf(); _reopenClear(); return; }\n",
      "matches": 1, "needs": "node"},
     {"why": "REG-3050 - the UNKNOWN shelf has no ✕",

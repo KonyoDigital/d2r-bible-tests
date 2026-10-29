@@ -19587,7 +19587,9 @@ window._lockMark = function(isOpen, px, label){
          runs in hand, the cards stay and a line says they are the console's LAST answer, and how old. */
       TH.sessionsFailWhy = String(e).slice(0, 120);
       if (ov.hidden) return;
-      if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); return; }
+      /* REG-3097 (v3840 CI) - and the open still clears a remembered station filter that would greet him with an empty
+         shelf, on this path as on the other two (REG-3050 had dropped it with the empty paint it replaced) */
+      if (!_had) { _shelfUnknownPaint(ov, TH.sessionsFailWhy); _reopenClear(); return; }
       _shelfStaleNote(ov, TH.sessionsFailWhy);
     });
   }
