@@ -155,7 +155,9 @@ class ASimulationLeavesNoWorkerBehind(_Reels):
     def test_a_worker_warm_before_the_run_is_left_alone(self):
         import tv_diablo as TD
         built, scn = self._scenario()
-        frame = sorted(f for f in os.listdir(os.path.join(self.hist, scn["reels"][0])) if f.endswith(".jpg"))[0]
+        # REG-2991 - the synthetic reel sits in this run's own scratch (cls.root, made after contain()), so the listing is
+        # list_own's: the same names, and heart2 can key the law (REG-2362) - os.listdir here made it UNKEYABLE
+        frame = sorted(f for f in _fx_tmp.list_own(os.path.join(self.hist, scn["reels"][0])) if f.endswith(".jpg"))[0]
         TD._OCR.read(os.path.join(self.hist, scn["reels"][0], frame), timeout=10)   # someone else's warm worker
         before = [id(o) for _m, _n, o in EH.warm_workers()]
         self.assertTrue(before, "PREMISE: the sweep's gate did not warm a worker, so this case would be about nothing")

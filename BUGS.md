@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2991 - REG-2912'S LAW LISTED ITS OWN SYNTHETIC REEL WITH os.listdir, SO HEART2 COULD NEVER KEY IT (CI on ci/claude-v3837)
+test_the_unkeyable_laws_only_get_fewer named a new unkeyable law: test_a_simulation_leaves_no_worker_behind took "the first .jpg"
+of a reel it had just built in its own scratch (cls.root, made after fixture_tmp.contain() at import). That is the REG-2362 case:
+the listing is fixture_tmp.list_own, the same names, and it refuses any path outside this run's scratch. The census passes
+on v3837 (5 cases, nothing new unkeyable); the law passes (4) and its two red-proofs are RED against a green baseline.
+
+
 ### REG-2990 - THE TASKS PANEL LAW RAISED ON THE CHARMS MULE'S "CREATE MULE" LINE, WHICH CARRIES A MULE, NOT A NAME (CI on ci/claude-v3837)
 test_vault_l1_tasks_panel ERRORED in test_one_numbered_line_per_task_moves_then_throw_outs with no trace in the log. Since
 REG-2895 the list opens with "Make in the game · 1 - Create mule CHARMS in the game" (replayed in node on v3837's page with the
