@@ -45,6 +45,33 @@ Follow-up: test_v3766_grokbot_retest slices _sharedOverflowNote out of the page,
 law raised ReferenceError (8 errors) until its slice carried _vaultLetters and _vaultWarName. The first sweep listed laws that
 NAME the war mules, not laws that SLICE a function this fix edited; the second sweep (every law quoting a touched function's
 name) found only this one.
+### REG-3004 - A RUNE, GEM OR MATERIAL TYPED BY HAND NOW MOVES ITS TALLY UP OR DOWN THROUGH THE TOOLS TAB'S OWN DOOR (his Q5, #144)
+His ask: a rune, gem or material added by hand may move its tally up or down, and the tools section already has a
+tally up/down control for a misread.
+WHAT EXISTED:
+- The Tools tab's Rune Stash, Gem Stash and Materials cards move a count one at a time through adjustRuneStash,
+  adjustGemStash and adjustMaterialStash: click +1, right-click or the minus button -1. That is the control he meant.
+- The read funnel (tvToolsDelta) moves the counts through the same three functions.
+- The hand door refused a count instead ("counted in the Rune Stash ... nothing was added", REG-2857 / REG-2899).
+- The TV read chip's +1 wrote runeStash and gemStash itself: a second counter beside the door.
+FIX:
+- _stashTallyMove(name, delta) uses _stashTallyOf (REG-2899's one rule) to pick the tally, and moves it through that
+  tally's own adjust function. It reads the count before and after and says "Ber Rune - the Rune Stash 0 -> 1". It
+  refuses a -1 at zero and never touches the owned list.
+- vaultHandAdd sends a count there: +1 when not said; {delta:-1} takes one off.
+- + Add an item lists a typed count, or one the planner list names, as its tally's row with -1 / +1. Enter on that
+  row is its +1.
+- The read chip's +1 now asks the same door.
+- The REG-2857 and REG-2899 laws are re-aimed: the hand door still owns no count, and now it moves that count's tally.
+Left alone, because they are a different door: the ledger restore's merge-max apply and the photo intakes. Both SET a
+count to a measured figure; neither steps it.
+GUARD: tv/test_a_hand_add_moves_a_count_through_the_tools_door.py, 5 cases. It puts a spy on each door and checks:
+- up and down by hand;
+- never below zero;
+- the add box's row and Enter;
+- the read chip asks the door;
+- no store is stepped by one outside its door.
+5 red-proofs, all RED.
 
 ### REG-2995 - REG-2915'S LAW LISTED ITS OWN SCRATCH WITH os.listdir, AND REG-2941'S CENSUS NAMED IT UNKEYABLE (integration, after int-9)
 On the integration chain, test_the_unkeyable_laws_only_get_fewer (REG-2941, int-9) named a new unkeyable law,

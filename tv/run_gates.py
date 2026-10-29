@@ -12657,6 +12657,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_war_mule_he_took_back_makes_the_board_offer_the_next_one.py")], 300,
          needs_app=False,
          why='REG-2997 a war mule he took back makes the board offer the next one, with its make task'),
+    Gate("test_a_hand_add_moves_a_count_through_the_tools_door",
+         [sys.executable, os.path.join(HERE, "test_a_hand_add_moves_a_count_through_the_tools_door.py")], 300,
+         needs_app=False,
+         why="REG-3004 (his Q5) - A RUNE, GEM, MATERIAL OR REJUVENATION POTION TYPED BY HAND MOVES ITS TALLY UP OR DOWN THROUGH THE TOOLS TAB'S OWN DOOR (adjustRuneStash / adjustGemStash / adjustMaterialStash, chosen by _stashTallyOf), never below zero and never into his owned list; + Add an item lists a count as its tally row with -1 / +1; the TV read chip's +1 asks the same door (it wrote the stores itself - a second counter)."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
