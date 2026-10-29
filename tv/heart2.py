@@ -5123,6 +5123,17 @@ def _cache_serve(cache, sandbox, name, filename, pr, idx, say):
     """#42 P3 (and #186's census) - proof `idx` served from the verdict cache when every keyed byte is identical.
     -> (PROVEN | None, key | None, [repo-relative inputs]); None = not served: run it, then hand the key to _cache_bank"""
     key, rels = None, []
+    # REG-3118 (#186, the second eye on v3840) - A PROOF THIS PC CANNOT RUN IS NEVER SERVED, AT PUSH TIME EITHER. Only the
+    # census held this (it dropped its cache for the proof); _prove_push_one served any hit first, so a node law the ALT
+    # proved and carried could read PROVEN on Dean's push - a PC with no node that never judged it. Held here, in the ONE
+    # serve both callers ask: a declared need this PC lacks, or cannot probe, is judged here, never served, banks nothing.
+    if cache is not None and isinstance(pr, dict) and pr.get("needs"):
+        try:
+            _lacks = host_lacks(pr.get("needs"))[0]
+        except Exception:
+            _lacks = None
+        if _lacks is not False:
+            return None, None, []
     if cache is not None:
         label = "%s[%d]" % (name, idx)
         # ⚠ THE CACHE MAY COST A RE-PROVE, NEVER A VERDICT. key_for raising here (a RecursionError from ast.parse on a
@@ -5970,14 +5981,7 @@ def _census_one(sandbox, name, filename, pr, idx, say):
     has kept it PROVEN. A proof that declares a need this PC lacks - or whose need cannot be probed - is never served:
     it is judged here exactly as before, whatever another PC banked. -> verdict"""
     cache = _CENSUS.get("cache")
-    _need = pr.get("needs") if isinstance(pr, dict) else None
-    if cache is not None and _need:
-        try:
-            _lacks = host_lacks(_need)[0]
-        except Exception:
-            _lacks = None
-        if _lacks is not False:
-            cache = None
+    # a proof whose declared need this PC lacks is never served: _cache_serve holds that for both callers (REG-3118)
     if cache is None:
         return _prove_one(sandbox, name, filename, pr, idx, say)
     try:

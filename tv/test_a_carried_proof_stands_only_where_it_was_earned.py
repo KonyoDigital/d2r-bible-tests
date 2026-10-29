@@ -255,6 +255,29 @@ class DeansStatusSaysWhatTheALTCarried(unittest.TestCase):
         self.assertIn("1 of 3 proof(s) reused", line)
         self.assertIn("not re-run; 1 of them carried from another PC (Konyo · ALT 1))", line)
 
+    def test_a_push_never_serves_a_proof_this_pc_cannot_run(self):
+        # REG-3118 (the second eye on v3840): _prove_push_one served any cache hit before asking whether this PC can run
+        # the proof, so a carried node law read PROVEN on a PC with no node. Lacking, or unprobeable: judged here.
+        d = tempfile.mkdtemp(prefix="carried-push-")
+        self.addCleanup(shutil.rmtree, d, True)
+        cache = heart2._VerdictCache(path=os.path.join(d, os.path.basename(heart2.CACHE)), say=lambda *a, **k: None)
+        cache.key_for = lambda *a, **k: ("k1", ["tv/x.py"], None)
+        cache.lookup = lambda key: _e("g1", 0, carried={"by": "Konyo · ALT"}) if key == "k1" else None
+        cache.reused_at = lambda *a, **k: None
+        pr = {"file": "x.py", "needs": "node"}
+        ran = []
+        with mock.patch.object(heart2, "_PUSH", mock.Mock(cache=cache)), \
+                mock.patch.object(heart2, "_prove_push_one_run", lambda *a, **k: ran.append(1) or "ELSEWHERE"), \
+                mock.patch.object(heart2, "_cache_bank", lambda *a, **k: None):
+            for lacks in (True, None):
+                with mock.patch.object(heart2, "host_lacks", lambda need, _l=lacks: (_l, "fixture")):
+                    got = heart2._prove_push_one("/sb/tv", "g1", "test_g1.py", pr, 0, lambda *a, **k: None, "w")
+                self.assertEqual(got, "ELSEWHERE", "lacks=%r: a carried PROVEN was served to a PC that cannot run it" % lacks)
+            with mock.patch.object(heart2, "host_lacks", lambda need: (False, "fixture")):
+                got = heart2._prove_push_one("/sb/tv", "g1", "test_g1.py", pr, 0, lambda *a, **k: None, "w")
+            self.assertEqual(got, heart2.PROVEN, "a PC that has the tool no longer reuses the carried proof")
+        self.assertEqual(len(ran), 2, ran)
+
     def test_the_lane_reads_the_count_and_an_older_line_is_unknown(self):
         import self_prove as SP
         d = tempfile.mkdtemp(prefix="carried-log-")
@@ -341,6 +364,11 @@ class TheCarrierTakesFromThePCHisRulingNames(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-3118 - a push serves a carried proof to a PC that lacks the tool it needs",
+     "file": "tv/heart2.py",
+     "find": "        if _lacks is not False:\n            return None, None, []\n",
+     "replace": "        if False:\n            return None, None, []\n",
+     "matches": 1},
     {"why": "REG-3044 - a proof of the other PC's venue (its game install, its live console...) is carried",
      "file": "proof_shard.py",
      "find": "    if need in CARRY_VENUE:\n        return \"it needs %s, which it measured",
