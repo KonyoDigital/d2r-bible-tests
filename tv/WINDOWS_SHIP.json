@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3837",
+  "ver": "v3838",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3837: capture time and full looks, copies join by cell and mods, removed stays out, charms mule, keeper destination",
+  "note": "v3838: the deploy waits for the CI proof of changed browser laws, CI reuses proofs only on identical bytes (#161)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3837** | `(this commit)` | v3837 — capture time and full looks, copies join by cell and mods, removed stays out, charms mule, keeper destination |
+| **v3838** | `(this commit)` | v3838 — the deploy waits for the CI proof of changed browser laws, CI reuses proofs only on identical bytes (#161) |
+| **v3837** | `37ad646d` | v3837 — capture time and full looks, copies join by cell and mods, removed stays out, charms mule, keeper destination |
 | **v3836** | `9a3f2f39` | v3836 — framed Windows search clears the band and badge, a war mule by its role, saved targets stay, the task force paints once |
 | **v3835** | `cf3e5a72` | v3835 — REC-03 reads proven warm, profile question counts only counts, a digest past 200 KB stores, a held start keeps boot |
 | **v3834** | `73bc9c8c` | v3834 — board makes WAR mules and tasks him, integrity never rescues a router throw, circlet needs a look, a cap is a refusal |
