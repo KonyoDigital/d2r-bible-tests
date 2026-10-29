@@ -7376,6 +7376,96 @@ def _mac_set_dock_icon(show):
         return False
 
 
+
+# v3844 - THE SKULL TV AND THE DOCK CLICK (Elad 2026-10-29 21:22/21:25). The console runs as a plain python
+# process, so macOS showed Python's rocket in the Dock and a click on it did not bring the console forward. The
+# Dock now wears tv/appicon.icns (the CRT skull TV, the same art as the Windows appicon.ico), and a Dock click
+# (the Apple "reopen" event, sent whether or not the app is already active) raises the console above every app.
+APP_ICON_ICNS = os.path.join(HERE, "appicon.icns")
+
+
+def _mac_raise_windows(app):
+    """Bring every console window above every other app. `app` is NSApplication (a fake in the tests).
+    -> list of what was done. A window in the background service goes through console_to_front instead."""
+    did = []
+    try:
+        app.activateIgnoringOtherApps_(True)
+        did.append("activated")
+    except Exception:
+        pass
+    for w in list(app.windows() or []):
+        try:
+            if not (w.isVisible() or w.isMiniaturized()):
+                continue
+            if w.isMiniaturized():
+                w.deminiaturize_(None)
+                did.append("deminiaturized")
+            w.makeKeyAndOrderFront_(None)
+            w.orderFrontRegardless()
+            did.append("raised")
+        except Exception:
+            continue
+    return did
+
+
+def _mac_on_dock_click():
+    """The reopen event's work, on the main thread. -> receipt list."""
+    try:
+        if _BACKGROUND.get("on"):
+            threading.Thread(target=console_to_front, kwargs={"by": "dock"}, daemon=True).start()
+            return ["front"]
+    except Exception:
+        pass
+    import AppKit
+    return _mac_raise_windows(AppKit.NSApplication.sharedApplication())
+
+
+def _mac_wear_icon_and_take_dock_clicks():
+    """Queued on the main thread before webview.start(): set the Dock icon and install the reopen handler.
+    -> True when it was queued. Never raises; a missing PyObjC only costs the cosmetics."""
+    if sys.platform != "darwin":
+        return False
+    try:
+        import AppKit
+        import Foundation
+        import objc
+        from PyObjCTools import AppHelper
+    except Exception:
+        return False
+
+    def _install():
+        app = AppKit.NSApplication.sharedApplication()
+        try:
+            if os.path.isfile(APP_ICON_ICNS):
+                img = AppKit.NSImage.alloc().initWithContentsOfFile_(APP_ICON_ICNS)
+                if img is not None:
+                    app.setApplicationIconImage_(img)
+        except Exception:
+            pass
+        try:
+            cls = globals().get("_TVD_REOPEN_CLS")
+            if cls is None:
+                class TVDReopenHandler(Foundation.NSObject):
+                    def handleReopen_withReply_(self, event, reply):
+                        try:
+                            _mac_on_dock_click()
+                        except Exception:
+                            pass
+                    handleReopen_withReply_ = objc.selector(handleReopen_withReply_, signature=b"v@:@@")
+                cls = globals()["_TVD_REOPEN_CLS"] = TVDReopenHandler
+            h = globals()["_TVD_REOPEN"] = cls.alloc().init()
+            # kCoreEventClass 'aevt', kAEReopenApplication 'rapp'
+            Foundation.NSAppleEventManager.sharedAppleEventManager().setEventHandler_andSelector_forEventClass_andEventID_(
+                h, b"handleReopen:withReply:", 0x61657674, 0x72617070)
+        except Exception as e:
+            print("\u26a0 Dock click handler not installed: %s" % str(e)[:120], flush=True)
+
+    try:
+        AppHelper.callAfter(_install)
+        return True
+    except Exception:
+        return False
+
 def _win_is_fullscreen(win, screens=None):
     """Is the window fullscreen RIGHT NOW? -> True / False / None (UNKNOWN). Never raises.
 
@@ -7610,6 +7700,13 @@ def console_to_front(by="launcher", sleep=time.sleep):
             _win_focus_existing_console()
         else:
             win.restore()                          # deminiaturize - harmless on a window that was not minimized
+            try:                                   # v3844: and the app comes above every other app
+                import AppKit
+                from PyObjCTools import AppHelper
+                AppHelper.callAfter(AppKit.NSApplication.sharedApplication().activateIgnoringOtherApps_, True)
+                did.append("activated")
+            except Exception:
+                pass
         _BACKGROUND.update(on=False, since=None, by=None)
         _refullscreen_after_restore(win, was_fs, sleep=sleep, did=did)
     except Exception as e:
@@ -10574,6 +10671,8 @@ def open_control_window():
     # main thread; it runs as soon as the app's run loop does.
     if globals().get("_HIDDEN_BOOT"):
         _mac_set_dock_icon(False)
+    # v3844 - the skull TV in the Dock, and a Dock click raises the console (see _mac_wear_icon_and_take_dock_clicks)
+    _mac_wear_icon_and_take_dock_clicks()
 
     # v935.8 / v1410 / v1420 — window ✕ UX:
     #   v1410: mark gone FIRST + async stop (no UI-thread stop_agent → hang reports)
