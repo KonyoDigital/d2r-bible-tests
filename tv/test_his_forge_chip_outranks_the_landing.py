@@ -36,6 +36,8 @@ W.renderCrafts(); H.flush(60, 2); OUT.first = W._FORGE_VIEW;
 W.forgeSetFilter('all', 'crafts'); H.flush(60, 2); OUT.all = W._FORGE_VIEW;
 W.renderCrafts(); H.flush(60, 2); OUT.allAgain = W._FORGE_VIEW;
 W.forgeSetFilter('completed', 'crafts'); H.flush(60, 2); W.renderCrafts(); H.flush(60, 2); OUT.completed = W._FORGE_VIEW;
+W.renderForge(); H.flush(60, 2); OUT.chronFirst = W._FORGE_VIEW;
+W.forgeSetFilter('all'); H.flush(60, 2); W.renderForge(); H.flush(60, 2); OUT.chronAfterAll = W._FORGE_VIEW;
 """
 
 
@@ -58,7 +60,20 @@ class HisForgeChipOutranksTheLanding(unittest.TestCase):
         self.assertEqual(r["completed"], "completed", "his COMPLETED in Crafts snapped back: %r" % r)
 
 
+    def test_a_sealed_chronicle_still_lands_on_completed(self):
+        """REG-3084 - REG-3056 stood the chronicle's v2094 landing aside too: v1630's sealed-card specs went red on CI (a click
+        on Completed toggles to ALL, and the empty ALL of a sealed chronicle no longer landed back on Completed)."""
+        r = self.r
+        self.assertEqual(r["chronFirst"], "completed", "PREMISE: a sealed chronicle does not land on Completed: %r" % r)
+        self.assertEqual(r["chronAfterAll"], "completed", "a sealed chronicle's empty ALL stayed ALL after his chip: %r" % r)
+
+
 RED_PROOF = [
+    {"why": "REG-3084 - his chip stands the CHRONICLE's sealed landing aside too, so a sealed chronicle's empty ALL never lands on Completed",
+     "file": "bible.html",
+     "find": "    if (!_isCrafts && _F==='all' && !total",
+     "replace": "    if (!_forgeByHand.forge && !_isCrafts && _F==='all' && !total",
+     "matches": 1, "needs": "node"},
     {"why": "REG-3056 - the crafts auto-land ignores his chip again, so ALL snaps back to MAKE NOW on a sealed board",
      "file": "bible.html",
      "find": "    if (!_byHand && (s.crafts||[]).length > 0 && _sealed691 && (_F==='all' || _F==='completed')){",

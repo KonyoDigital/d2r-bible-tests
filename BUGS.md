@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3084 - REG-3056 ALSO STOOD THE SEALED CHRONICLE'S LANDING ASIDE, SO v1630'S SEALED-CARD SPECS WENT RED (v3839's CI)
+REG-3056 made his chip outrank BOTH auto-landings. GrokBot's report was only about the Crafts room (ALL snapping back to MAKE
+NOW). The Chronicle's v2094 landing - an ALL that holds no runeword work on a sealed chronicle lands on Completed, where the
+sealed card lives - is not a snap-back: tests/v1630_sealed_stamp.spec.ts clicks Completed (a toggle, so on a board already
+landed there it goes to ALL) and relies on the landing to come back. Routine I went red on 5 of its cases on both attempts of
+v3839's grade. The hand guard now covers the crafts room's auto-land only. Law case
+test_a_sealed_chronicle_still_lands_on_completed (whole page in node: a sealed chronicle's empty ALL lands on Completed even
+after his chip); red-proof RED; REG-3056's crafts cases and proofs unchanged.
+
 ### REG-3080 - EVERY PROFILE UPLOAD WAS REFUSED: THE CONSOLE SENT TWO CHARACTERS FIELDS THE WORKER DID NOT LIST (LIVE, v3837 on)
 REG-2907 (#36, shipped in v3837) added `sessions` and `sessionsWhy` to the characters answer on the console side
 (tv/console_snapshot.API_FIELDS) but not on the worker's (functions/api/roster.js API_FIELDS). The worker's apiOk refuses any

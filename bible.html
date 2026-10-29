@@ -63447,8 +63447,11 @@ function renderJournal(){
        CONSTRUCTION, so it auto-selected Completed on every render, drew the (empty) runeword
        Completed list and returned — measured: crafts-body 0 chars while Forge drew 140,911. The
        room that owns the question is the one that may answer it. */
-    var _byHand = !!_forgeByHand[_isCrafts ? 'crafts' : 'forge'];   /* REG-3056 his chip outranks every landing */
-    if (!_byHand && !_isCrafts && _F==='all' && !total && !(s.farm||[]).length && nowCount===0){
+    /* REG-3056 his Crafts chip outranks the crafts auto-land. REG-3084 (v3840): the CHRONICLE's v2094 landing is NOT his
+       chip's to override - an ALL that holds no runeword work on a sealed chronicle lands on Completed, where the sealed card
+       lives (v1630's laws); REG-3056 had stood it aside too and left an empty ALL. */
+    var _byHand = !!(_isCrafts && _forgeByHand.crafts);
+    if (!_isCrafts && _F==='all' && !total && !(s.farm||[]).length && nowCount===0){
       if (_sealed691) _F='completed';
     }
     // v1411 — Ready crafts are Make-now work, but ONLY auto-land on ⚒ Make now when the
