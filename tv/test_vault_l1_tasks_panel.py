@@ -106,11 +106,13 @@ class TheTasksPanel(unittest.TestCase):
     def test_one_numbered_line_per_task_moves_then_throw_outs(self):
         world()
         o = board().run(READ + "var ls = [].slice.call(L().querySelectorAll('.vtk-line'));"
-                        "OUT.lines = ls.map(function(e){ return { n: e.getAttribute('data-name'), kind: e.getAttribute('data-kind'),"
+                        "OUT.lines = ls.map(function(e){ return { n: e.getAttribute('data-name') || ('make ' + e.getAttribute('data-mule')), kind: e.getAttribute('data-kind'),"
                         "  ticks: e.querySelectorAll('input[type=checkbox].vtk-tick').length, say: (e.querySelector('.vtk-say') || {}).textContent || '',"
                         "  num: getComputedStyle(e, '::before').content }; });"
                         "var secs = [].map.call(L().querySelectorAll('.vtk-sec'), function(e){ return e.getAttribute('data-sec'); }); OUT.secs = secs;"
                         "OUT.grids = L().querySelectorAll('.vmv-grid').length;")
+        # REG-2990 - a "Create mule <X> in the game" row (REG-2895's CHARMS mule, a WAR mule) is a task line too: it carries the
+        # mule's id, not an item name, so it is keyed "make <id>" (a None name raised here on v3837's CI)
         names = [l["n"] for l in o["lines"]]
         self.assertEqual(len(names), len(set(names)), "a task has more than one line: %r" % names)
         self.assertTrue(all(l["ticks"] == 1 for l in o["lines"]), "every line needs exactly one tick box: %r" % o["lines"])

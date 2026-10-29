@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2990 - THE TASKS PANEL LAW RAISED ON THE CHARMS MULE'S "CREATE MULE" LINE, WHICH CARRIES A MULE, NOT A NAME (CI on ci/claude-v3837)
+test_vault_l1_tasks_panel ERRORED in test_one_numbered_line_per_task_moves_then_throw_outs with no trace in the log. Since
+REG-2895 the list opens with "Make in the game · 1 - Create mule CHARMS in the game" (replayed in node on v3837's page with the
+law's own world: one make line, two moves, one throw-out). That line is a task, but it carries data-mule, not data-name, so
+the law read a None name and None.startswith raised. The make line is keyed "make <id>" now; every per-line check (one line
+per task, one tick box, numbered) holds it too. Chrome law: CI proves it.
+
+
 ### REG-2989 - REG-2842'S LAW READ A KEEPER TARGET AS A NUMBER AFTER REG-2900 MADE IT {want, dest} (CI on ci/claude-v3837)
 test_a_cleared_pick_puts_back_its_keeper_target compared multiKeep[name] with 2 and CI read (2, {'want': 2, 'dest': 'auto'})
 != (2, 2). REG-2900 stores a multi-copy keeper as {want, dest}, and every reader asks _mkWant; the law's mk() now does too, so
