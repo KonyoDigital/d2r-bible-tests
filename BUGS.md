@@ -172,6 +172,17 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3039 - REG-3038 NEARLY SERVED A FAILED SIPS AS THE MAC'S SCRUB FRAME: THE SHARED CALL DROPPED THE EXIT CODE (found reviewing REG-3038)
+Before REG-3038, _serve_hist ran sips itself and served the full frame when `r.returncode != 0 or not os.path.isfile(cached)`.
+REG-3038 moved that call into shadow_sessions.make_derivative, whose _sips_thumb judged only that the output file existed
+(`return os.path.isfile(dst)`) - the digest's rule, which never needed more. On a Mac, a sips that exits non-zero after
+leaving a broken file would then count as a made derivative, be kept in cache160/cache1280, and be served to the Shelf scrub
+and the theatre from then on - a regression REG-3038 would have shipped on his own console, caught reading its diff
+before it landed in a version. _sips_thumb now returns `r.returncode == 0 and os.path.isfile(dst)`, so a failed sips makes
+nothing and the next resizer (Pillow, written beside and moved over the broken file) or the full frame answers, as before.
+Law: test_a_windows_theatre_serves_small_frames gains AFailedSipsIsNoDerivative (a Mac console whose sips writes junk and
+exits 1 still serves a 160 px frame; 1 red-proof, RED).
+
 ### REG-3038 - A WINDOWS CONSOLE SERVED THE SHELF SCRUB AND THE THEATRE EVERY FRAME AT FULL SIZE (#218, after REG-3033)
 The theatre's derivatives - cache160 for the Shelf scrub, cache1280 for play - were made by sips, so control_app gated them
 off Windows: _serve_hist's ?w=160/1280 branch carried `and not IS_WIN`, and _prewarm_session_frames returned at once on

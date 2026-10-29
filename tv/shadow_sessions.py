@@ -46,12 +46,13 @@ def _sips_thumb(src, dst, max_px=THUMB_PX, quality=68, timeout=8):
         return False
     try:
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(int(quality)),
-                        "--resampleHeightWidthMax", str(int(max_px)), src, "--out", dst], capture_output=True,
-                       timeout=timeout)
+        r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(int(quality)),
+                            "--resampleHeightWidthMax", str(int(max_px)), src, "--out", dst], capture_output=True,
+                           timeout=timeout)
     except (OSError, subprocess.SubprocessError):
         return False
-    return os.path.isfile(dst)
+    # REG-3039 - _serve_hist judged sips by its exit code before REG-3038 shared this call; a failed sips is no derivative
+    return r.returncode == 0 and os.path.isfile(dst)
 
 
 def _pil_thumb(src, dst, max_px=THUMB_PX, quality=68):

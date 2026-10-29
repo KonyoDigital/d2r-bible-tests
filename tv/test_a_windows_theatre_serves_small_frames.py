@@ -136,6 +136,39 @@ class AWindowsTheatreServesSmallFrames(unittest.TestCase):
         self.assertNotEqual(names[0], names[1], "two writers of one derivative wrote the same part file")
 
 
+class AFailedSipsIsNoDerivative(unittest.TestCase):
+    """REG-3039 - the Mac half of the shared call: _serve_hist judged sips by its exit code before REG-3038 shared
+    make_derivative, whose sips call judged only the file. A sips that exits non-zero after leaving a broken file must not
+    be served as the frame - the next resizer makes it."""
+
+    def setUp(self):
+        self.hist = tempfile.mkdtemp(prefix="mac_theatre_")
+        _jpeg(os.path.join(self.hist, "10_1793000000000.jpg"), (2560, 1440))
+
+    def tearDown(self):
+        shutil.rmtree(self.hist, True)
+
+    def test_a_sips_that_failed_is_not_served(self):
+        def broken_sips(cmd, **kw):
+            with open(cmd[-1], "wb") as fh:
+                fh.write(b"\xff\xd8 half a picture")
+            return mock.Mock(returncode=1)
+        h = CA.Handler.__new__(CA.Handler)
+        got = {}
+        h.path = "/hist/10_1793000000000.jpg?w=160"
+        h._json = lambda code, obj: got.update(code=code, body=obj)
+        h.send_response = lambda code: got.update(code=code)
+        h.send_header = lambda k, v: None
+        h.end_headers = lambda: None
+        h.wfile = io.BytesIO()
+        with mock.patch.object(CA, "HIST_DIR", self.hist), mock.patch.object(CA, "IS_WIN", False), \
+                mock.patch.object(SS.sys, "platform", "darwin"), mock.patch.object(SS.subprocess, "run", broken_sips):
+            h._serve_hist("10_1793000000000.jpg")
+        self.assertEqual(got.get("code"), 200, got)
+        with Image.open(io.BytesIO(h.wfile.getvalue())) as im:
+            self.assertEqual(max(im.size), 160, "a sips that failed was served as the scrub's frame")
+
+
 RED_PROOF = [
     {"why": "REG-3038 - the ?w= branch is gated off Windows again (the scrub gets full frames)",
      "file": "tv/control_app.py",
@@ -161,6 +194,11 @@ RED_PROOF = [
      "file": "tv/shadow_sessions.py",
      "find": "    return _sips_thumb(src, dst, max_px, quality, timeout) or _pil_thumb(src, dst, max_px, quality)\n",
      "replace": "    return _sips_thumb(src, dst, max_px, quality, timeout) or _pil_thumb(src, dst)\n",
+     "matches": 1},
+    {"why": "REG-3039 - a sips that exited non-zero counts as a derivative",
+     "file": "tv/shadow_sessions.py",
+     "find": "    return r.returncode == 0 and os.path.isfile(dst)\n",
+     "replace": "    return os.path.isfile(dst)\n",
      "matches": 1},
     {"why": "REG-3038 - two writers share one part file",
      "file": "tv/shadow_sessions.py",
