@@ -147,6 +147,15 @@ and held the other tab's save as "stale". Now a never-saved roster is skipped (t
 mule), and on a saved roster the stamp is saved with it whether or not a mule changed, so memory equals the store. Law:
 +1 case (a saved roster stamped at load still takes the other tab's save) and an assertion that a fresh board saves no
 roster at load; 2 red-proofs, both RED; REG-2804's own laws pass (8, 6, 4, 20 cases).
+### REG-3010 - THE CONSOLE COULD SAY WHAT IT SAW OF ONE NAME, NEVER OF A LIST (#163)
+The unconfirmed lane needs the console's half of "evidenced" for every tick the board lists (Dean: 230 names), and
+evidence_for answers one name, re-reading the chronicle books and the vault witness ledger each call. control_app.evidence_names
+asks the same walk (_evidence_sources) for a whole list, reading each ledger ONCE (_vault_evidence_for takes the read it is
+handed); POST /api/evidence_names serves it. A name nobody saw is False; a vault ledger that exists and will not read makes a
+name the books do not hold None (UNKNOWN, never False, so no tick is called unconfirmed on a ledger nobody could open); books
+that will not read answer ok False. Law tv/test_the_console_says_which_ticks_it_has_seen.py (python, fixture ledgers in a temp
+dir), 4 red-proofs, all RED.
+
 ### REG-3009 - A TICK WITH NO EVIDENCE COULD NOT BE ASKED ABOUT: DEAN'S 117 SAME-MINUTE SET PIECES (#163, his ruling 2026-10-29 Q6)
 Measured on Dean's board (#169): his found log holds 132 rows, 117 of them set pieces, every one stamped Aug 1, 2026 16:57 (one
 minute, a bulk tick, not the seed's dates), beside 98 of 99 runewords. The un-seed removes only seed-matched rows, so it does

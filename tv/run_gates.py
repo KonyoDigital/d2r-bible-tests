@@ -12489,6 +12489,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_tick_with_no_evidence_asks_its_owner.py")], 300,
          needs_app=False,
          why="REG-3009 #163: a tick with no evidence asks its owner; confirm writes his hand, clear presses each store's own un-tick, a shadow does neither"),
+    Gate("test_the_console_says_which_ticks_it_has_seen",
+         [sys.executable, os.path.join(HERE, "test_the_console_says_which_ticks_it_has_seen.py")], 300,
+         needs_app=False,
+         why='REG-3010 #163: the console says which ticked names it has seen, reading each ledger once; an unreadable vault ledger is UNKNOWN'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -40242,7 +40242,45 @@ def _ve_rarity_say():
         return None
 
 
-def _evidence_sources(name, prop, ledger=None):
+def evidence_names(names):
+    """#163 (REG-3010) - which of these names the console holds banked evidence for, in ONE read. -> dict
+
+    His ruling 2026-10-29 (Q6): a tick with no evidence asks its owner to confirm or clear it. The board lists the ticks
+    nothing on IT vouches for (window._unconfirmedTicks); this is the console's half of "evidenced": any sighting in the
+    chronicle books or the vault witness ledger, the same walk evidence_for takes (_evidence_sources). Both ledgers are read
+    once for the whole list, never per name. has[name] is True / False, or None when the vault ledger exists and would not
+    read and the books hold nothing for it - UNKNOWN, so no tick is ever called unconfirmed on a ledger nobody could open.
+    ok False, with the reason, when the chronicle books will not read. [[unknown-stays-unknown]]"""
+    if not isinstance(names, list):
+        return {"ok": False, "why": "names must be a list"}
+    try:
+        prop = _chron_evidence_load() or {}
+    except Exception as e:
+        return {"ok": False, "why": "the evidence ledger could not be read: %s" % str(e)[:80]}
+    if not isinstance(prop, dict):
+        prop = {}
+    vread = _vault_store_read(VAULT_LEDGER_PATH)
+    has, vault_why = {}, None
+    for n in names[:2000]:
+        if not isinstance(n, str) or not n.strip() or n in has:
+            continue
+        got, unread = False, None
+        for led, sightings, extra in _evidence_sources(n, prop, None, vread):
+            if led == "vault" and sightings is None:
+                unread = extra
+                continue
+            if sightings:
+                got = True
+                break
+        has[n] = True if got else (None if unread else False)
+        vault_why = vault_why or unread
+    out = {"ok": True, "has": has}
+    if vault_why:
+        out["vaultWhy"] = vault_why
+    return out
+
+
+def _evidence_sources(name, prop, ledger=None, _vault_read=None):
     """#51 — every store that can witness `name`, in the ONE shape evidence_for speaks.
 
     Yields (ledger, sightings, extra): the chronicle books ("uniques", "sets" — the lookup that
@@ -40296,12 +40334,12 @@ def _evidence_sources(name, prop, ledger=None):
         yield led, sightings, None
     if ledger in ("uniques", "sets"):
         return
-    got = _vault_evidence_for(n)
+    got = _vault_evidence_for(n, _vault_read)
     if got is not None:
         yield got
 
 
-def _vault_evidence_for(name):
+def _vault_evidence_for(name, _read=None):
     """#51 — the vault witness ledger's looks at `name`. -> ("vault", sightings, extra) | ("vault", None, why) | None.
 
     None means the ledger is absent or holds no row for this name — nothing to say, and the
@@ -40314,7 +40352,8 @@ def _vault_evidence_for(name):
     `cell`, `saw` / `hit` — so a miss and a crop are never lost in the re-spelling. `extra` is
     vault_evidence.stand(name, rows): tier, bound, successes, trials, rarity, rarityBy.
     """
-    doc, state, _mt = _vault_store_read(VAULT_LEDGER_PATH)
+    # #163 (REG-3010) - a caller asking about many names hands in the one read it already made
+    doc, state, _mt = _read if _read is not None else _vault_store_read(VAULT_LEDGER_PATH)
     if state == "absent":
         return None
     if state != "ok" or not isinstance(doc, dict):
@@ -48899,6 +48938,10 @@ class Handler(BaseHTTPRequestHandler):
             # v3213 — the runeword half of a restore. `confirm` is required for the same reason
             # ledger_restore_apply requires it: putting a ledger back is a deliberate act.
             self._json(200, rw_restore(body.get("entries"), confirm=_confirmed(body.get("confirm"))))
+            return
+        if path == "/api/evidence_names":
+            # #163 (REG-3010) - reads only: which ticked names the console has banked evidence for
+            self._json(200, evidence_names(body.get("names")))
             return
         if path == "/api/board_tick":
             # HIS ruling, HIS door. The console never writes the ledger.

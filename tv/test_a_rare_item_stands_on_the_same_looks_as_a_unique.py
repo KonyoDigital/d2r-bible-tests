@@ -404,7 +404,7 @@ RED_PROOF = [
     {
         "why": "#51 - /api/evidence stops asking the vault witness ledger, so a rare's looks read as nothing banked again",
         "file": "control_app.py",
-        "find": "    got = _vault_evidence_for(n)\n    if got is not None:\n        yield got\n",
+        "find": "    got = _vault_evidence_for(n, _vault_read)\n    if got is not None:\n        yield got\n",
         "replace": "    got = None\n    if got is not None:\n        yield got\n",
         "matches": 1,
     },
