@@ -19896,7 +19896,7 @@ class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
         return open(os.path.join(here, "run_gates.py"), encoding="utf-8").read()
 
     def test_the_verdict_counts_cases_that_skipped_inside_passing_gates(self):
-        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
+        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return gate_set_exit(failed, _venue)",
                        what="the case-skip accounting")
         # REG-1819 - BEHAVIOUR, not the regex text: the census parses through run_gates.case_skips (one parser, shared with
         # what shard_suite prints). Drive it with the two forms a gate prints, and require the census to CALL it.
@@ -19919,7 +19919,7 @@ class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
     def test_it_does_not_double_count_a_gate_that_skipped_entirely(self):
         """A whole-gate SKIP is already reported and already counted; counting its cases again
         would inflate the number and make the honest one look wrong."""
-        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
+        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return gate_set_exit(failed, _venue)",
                        what="the case-skip accounting")
         live = [ln for ln in blk.splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
         self.assertTrue(any("counts_as_ran(_st)" in ln for ln in live),
@@ -19933,7 +19933,7 @@ class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
 
     def test_the_gate_still_passes_when_nothing_skipped(self):
         """The warning must be conditional. A line that always prints is furniture."""
-        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
+        blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return gate_set_exit(failed, _venue)",
                        what="the case-skip accounting")
         self.assertTrue("if _cases:" in blk,
                         "the warning prints unconditionally — it would appear on a clean run and "
