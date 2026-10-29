@@ -7,6 +7,13 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2988 - THE GATE COST TABLE COVERED 94.5% OF THE GATE SET, UNDER ITS 95% FLOOR (CI on ci/claude-v3837)
+test_the_gate_set_shards_cleanly refused v3837: tv/gate_costs.json was measured on 1,207 gates and the registry had grown to
+1,277, so 5.5% of the set would have been sharded on the median guess. Refreshed with tv/gate_costs.py from that run's own job
+logs (run 40786675962, all five agent-suite shards, read with gh run view --log): 1,277 gates, 4,153 s, every registered gate
+measured. The law passes against the new table (15 cases). No gate code changed.
+
+
 ### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
 The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with
 its sabotage in. It broke the name regex in REG-2804's one-time legacy migration; since REG-2804 a WAR mule is one by its
