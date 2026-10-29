@@ -396,8 +396,10 @@ def _log_says_no_sandbox(log_path, start=None):
     return bool(lines) and NO_SANDBOX_MARK in lines[-1]
 
 
-#: #186 - the census's own summary line (heart2.prove, --reuse): served of asked, and what it banked
-_REUSE_LINE = re.compile(r"#186 CENSUS CACHE: (\d+) of (\d+) proof\(s\) reused.*?· (\d+) proved and banked")
+#: #186 - the census's own summary line (heart2.prove, --reuse): served of asked, and what it banked; REG-3046 - and how
+#: many of the served another PC carried (a prover before REG-3046 does not say, and that reads UNKNOWN, never 0)
+_REUSE_LINE = re.compile(r"#186 CENSUS CACHE: (\d+) of (\d+) proof\(s\) reused"
+                         r"(?:[^·\n]*?not re-run; (\d+) of them carried from another PC)?.*?· (\d+) proved and banked")
 
 
 def _log_reuse(log_path, start=None):
@@ -418,8 +420,11 @@ def _log_reuse(log_path, start=None):
     got = _REUSE_LINE.findall(text)
     if not got:
         return None
-    a, b, c = got[-1]
-    return {"served": int(a), "of": int(b), "banked": int(c)}
+    a, b, k, c = got[-1]
+    out = {"served": int(a), "of": int(b), "banked": int(c)}
+    if k != "":
+        out["carried"] = int(k)                     # REG-3046 - absent: this prover did not say (UNKNOWN)
+    return out
 
 
 def _memory_stall(mem, census, playing):

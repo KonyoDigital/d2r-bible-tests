@@ -4317,6 +4317,7 @@ class _VerdictCache(object):
         self.tracked = _tracked_files()  # #242 (2026-10-08) - the named files a key may count: tracked ones only
         self.closures = {}               # (sandbox, filename) -> (inputs, why): one closure walk per law per lane
         self.hits = self.misses = self.stores = self.unkeyable = self.moved = 0
+        self.carried, self.carried_by = 0, {}       # REG-3046 - hits whose PROVEN another PC earned (carried)
         self.dirty = False               # stores since the last flush - written per GATE, not per proof
         self._said = set()               # (gate, why): an unkeyable law's reason is said once, not once per proof
         self.reused = {}                 # (gate, proof) -> provedAt ms of the entry a hit served, this run
@@ -4602,9 +4603,19 @@ class _VerdictCache(object):
             return False
 
     def summary(self, n_total):
-        return ("#42 P3 CACHE: %d of %d proof(s) reused from the cache (byte-identical inputs, not re-run) · %d proved "
-                "and banked · %d missed and re-proved · %d not cacheable (ran, never banked) · %d moved under their "
-                "proof (not banked)" % (self.hits, n_total, self.stores, self.misses, self.unkeyable, self.moved))
+        _by = ", ".join("%s %d" % kv for kv in sorted(self.carried_by.items()))
+        return ("#42 P3 CACHE: %d of %d proof(s) reused from the cache (byte-identical inputs, not re-run; %d of them "
+                "carried from another PC%s) · %d proved and banked · %d missed and re-proved · %d not cacheable (ran, "
+                "never banked) · %d moved under their proof (not banked)"
+                % (self.hits, n_total, self.carried, (" (%s)" % _by) if _by else "", self.stores, self.misses,
+                   self.unkeyable, self.moved))
+
+    def count_carried(self, by):
+        """REG-3046 - one served hit another PC earned, by who carried it."""
+        with self.lock:
+            self.carried += 1
+            _b = str(by or "another PC")
+            self.carried_by[_b] = self.carried_by.get(_b, 0) + 1
 
 
 def _prove_cache_off():
@@ -5131,6 +5142,8 @@ def _cache_serve(cache, sandbox, name, filename, pr, idx, say):
             hit = cache.lookup(key)
             if hit is not None:
                 cache.count("hits")
+                if isinstance(hit.get("carried"), dict):
+                    cache.count_carried(hit["carried"].get("by"))     # REG-3046 - served, and another PC earned it
                 _srv = getattr(_CLEAN, "served", None)
                 if isinstance(_srv, list):
                     _srv.append((idx, hit.get("tree"), key, hit))  # REG-2587 - which tree proved what this gate reuses
@@ -7350,6 +7363,47 @@ def import_shards(paths, say=print, target=None):
     return 0
 
 
+def export_runtime(which=None, run=None):
+    """REG-3045 (#186, D3) - the runtime this PC proves under, as an export records it and a carried import compares it
+    (proof_shard.runtime_refusal). -> {"platform", "python": "3.12", "node": "22" | "none" (no node on PATH, measured) |
+    None (node is there and its version could not be read: UNKNOWN, which refuses a carried import)}"""
+    which = which or shutil.which
+    run = run or subprocess.run
+    out = {"platform": sys.platform, "python": "%d.%d" % tuple(sys.version_info[:2]), "node": None}
+    node = which("node")
+    if node is None:
+        out["node"] = "none"
+        return out
+    try:
+        p = run([node, "--version"], capture_output=True, text=True, timeout=20,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        m = re.match(r"\s*v?(\d+)\.", str(p.stdout or ""))
+        if p.returncode == 0 and m:
+            out["node"] = m.group(1)
+    except Exception:
+        pass
+    return out
+
+
+def _shard_decls():
+    """REG-3044 - (gate, proof index) -> THIS checkout's declaration of that proof (its RED_PROOF dict), or None. The carry
+    rule reads a proof's `needs` here, never from the file that carried it."""
+    st = {}
+
+    def decl(gate, idx):
+        if "files" not in st:
+            st["files"] = dict(gate_files(say=lambda *a, **k: None))
+            st["proofs"] = {}
+        fn = st["files"].get(gate)
+        if not fn or isinstance(idx, bool) or not isinstance(idx, int):
+            return None
+        if gate not in st["proofs"]:
+            st["proofs"][gate] = red_proofs_in(fn) or []
+        proofs = st["proofs"][gate]
+        return proofs[idx] if 0 <= idx < len(proofs) and isinstance(proofs[idx], dict) else None
+    return decl
+
+
 def export_proved(out_dir, say=print, source=None):
     """REG-2630 - `heart2.py --export-proved DIR`: this machine's banked PROVENs that THIS checkout's bytes still key, into
     DIR/.heart2_cache.json with an `export` manifest (HEAD, clean), for another machine's `--import-proved`. The box
@@ -7390,7 +7444,7 @@ def export_proved(out_dir, say=print, source=None):
         take[key] = e
     if not os.path.isdir(os.path.dirname(out)):
         os.makedirs(os.path.dirname(out))
-    m = _PS.export_manifest(head, False, len(take), int(time.time() * 1000))
+    m = _PS.export_manifest(head, False, len(take), int(time.time() * 1000), runtime=export_runtime())   # REG-3045
     w_ok, w_why = _StoreFile(out, say).commit(lambda _disk: {"format": 2, "entries": take, "export": m})
     if not w_ok:
         say("  ✗ REG-2630 EXPORT REFUSED: %s could not be written (%s)." % (out, w_why))
@@ -7401,7 +7455,7 @@ def export_proved(out_dir, say=print, source=None):
     return 0
 
 
-def import_proved(paths, say=print, target=None):
+def import_proved(paths, say=print, target=None, carried=None, platform=None):
     """REG-2630 - `heart2.py --import-proved FILE...`: PROVENs proved ELSEWHERE (a box export, or census shard files -
     a partial set too) into this machine's verdict cache, served by the next push exactly like its own.
 
@@ -7410,9 +7464,16 @@ def import_proved(paths, say=print, target=None):
     entry filed under any other key (other bytes, another commit, a tampered file) is DROPPED and named; a file of
     another HEAD, from a dirty tree, with no manifest, or into a dirty checkout is REFUSED whole. Each entry keeps the
     tree it was proved in, so REG-2599 still owes a clean run HERE to every gate whose law file the push changes.
+
+    REG-3044 (#186): an entry whose proof - as THIS tree declares it - measured the other PC's venue, or an OS this one
+    is not, is left out and named (proof_shard.carry_refusal), for every import. REG-3045: `carried` ({by, key}, from the
+    proof carrier) marks a CARRIED import: its export must record the runtime it was proved under and match this PC's
+    (proof_shard.runtime_refusal) or the whole file is refused, and every entry it banks says who carried it. `platform`
+    is this PC's (sys.platform; a law's seam).
     -> exit code: 0 imported, 2 refused (nothing written)"""
     import proof_shard as _PS
     target = target or CACHE
+    platform = platform or sys.platform
     ok_h, head = _git("rev-parse", "HEAD")
     head = head.strip() if ok_h else ""
     bodies = []
@@ -7420,13 +7481,39 @@ def import_proved(paths, say=print, target=None):
         body, why = _read_store(p, _entries_shape)
         bodies.append((os.path.basename(os.path.dirname(os.path.abspath(p))) + "/" + os.path.basename(p), body, why))
     ok, why, sets = _PS.check_proved(bodies, head)
+    _man = {}                                # REG-3044 - file index -> its manifest (export or shard)
+    for _i, (_lb, _bd, _w) in enumerate(bodies, 1):
+        _m = ((_bd.get("export") or _bd.get("shard")) if isinstance(_bd, dict) else None)
+        _man[_i] = _m if isinstance(_m, dict) else {}
+    if ok and carried is not None:
+        _rt = export_runtime()               # REG-3045 (D3) - a carried export is refused whole on its runtime
+        for _i, (_lb, _bd, _w) in enumerate(bodies, 1):
+            _rw = (_PS.runtime_refusal(_man[_i], _rt) if isinstance((_bd or {}).get("export"), dict)
+                   else "it is not an export - only an export is carried")
+            if _rw:
+                ok, why = False, "%s was carried by %s and %s" % (_lb, carried.get("by") or "another PC", _rw)
+                break
     if ok:
         ok_d, dirty = _git("status", "--porcelain", "--untracked-files=no")
         if not ok_d or dirty.strip():       # REG-2630 - the importing checkout must BE its HEAD, or its keys are not
             ok, why = False, "this checkout's tracked files differ from its HEAD (or git could not say), so its keys are not HEAD's"
-    _gone = []
+    _gone, _no, _src = [], [], {}
     if ok:
-        ok, why, take, skipped = _PS.select(sets, keyer=_shard_keyer(target), dropped=_gone, here=TREE_ID)
+        _decl = _shard_decls()
+
+        def _carry(i, e):                    # REG-3044 - THIS tree's declaration of the proof, never the file's
+            _src[id(e)] = i
+            pr = _decl(str(e.get("gate")), e.get("proof"))
+            return _PS.carry_refusal(pr.get("needs") if isinstance(pr, dict) else None,
+                                     _man.get(i, {}).get("platform"), platform)
+        ok, why, take, skipped = _PS.select(sets, keyer=_shard_keyer(target), dropped=_gone, here=TREE_ID,
+                                            refuse=_carry, refused=_no)
+    if ok and carried is not None:           # REG-3045 - a carried entry says who carried it, under which key, from where
+        _now = int(time.time() * 1000)
+        for _e in take.values():
+            _m = _man.get(_src.get(id(_e)), {})
+            _e["carried"] = {"by": str(carried.get("by") or ""), "key": str(carried.get("key") or ""), "head": head,
+                             "platform": _m.get("platform"), "at": _m.get("at"), "importedAt": _now}
     if not ok:
         say("  ✗ REG-2630 IMPORT REFUSED: %s. Nothing was written to %s." % (why, os.path.basename(target)))
         return 2
@@ -7454,6 +7541,17 @@ def import_proved(paths, say=print, target=None):
         say("    ⚠ REG-2630 DROPPED, never banked - this checkout's bytes key them differently, so a push proves them: %s"
             % "; ".join("%s %s" % (g, sorted(v, key=str)[:6]) for g, v in sorted(
                 _dg.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:12]))
+    if _no:
+        _dw = {}
+        for _s, _g, _i, _w in _no:
+            _dw.setdefault(_w, []).append("%s[%s]" % (_g, _i))
+        say("    ⚠ REG-3044 %d PROVEN entr(ies) NOT CARRIED - each measured something of the PC or the OS that proved it, "
+            "so this PC judges it itself: %s" % (len(_no), "; ".join("%s (%s)" % (w, ", ".join(sorted(v)[:4]))
+                                                               for w, v in sorted(_dw.items()))))
+    if carried is not None:                  # REG-3045 - the carrier's one line, read back as the take's `banked`
+        say("  REG-3045 CARRIED from %s: %d banked · %d already here · %d dropped · %d not carried"
+            % (carried.get("by") or "another PC", out.get("added", 0), len(take) - out.get("added", 0), len(_gone),
+               len(_no)))
     return 0
 
 
@@ -7529,13 +7627,19 @@ def main(argv):
     ap.add_argument("--import-proved", nargs="+", default=None, metavar="FILE",
                     help="REG-2630 bank PROVENs proved elsewhere (a box export or census shard files, partial allowed) "
                          "of THIS HEAD, each only under the key this checkout's bytes give it; exits 2 on a refusal")
+    ap.add_argument("--carried-by", default=None, metavar="OWNER",
+                    help="REG-3045 with --import-proved: the file was CARRIED from this roster owner's PC (proof_carrier) - "
+                         "its runtime must match this PC's and every banked entry says who carried it")
+    ap.add_argument("--carried-key", default=None, metavar="KEYID",
+                    help="REG-3045 with --carried-by: the roster key the carrier verified the export under")
     a = ap.parse_args(argv)
     if a.import_shards is not None:
         return import_shards(a.import_shards)
     if a.export_proved is not None:
         return export_proved(a.export_proved)
     if a.import_proved is not None:
-        return import_proved(a.import_proved)
+        return import_proved(a.import_proved, carried=({"by": a.carried_by, "key": a.carried_key}
+                                                       if a.carried_by else None))
     _SHARD["spec"] = None
     if a.proof_shard is not None:
         import proof_shard as _PS

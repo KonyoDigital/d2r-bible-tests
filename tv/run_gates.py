@@ -12533,6 +12533,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_hidden_relaunch_says_its_reason_once.py")], 300,
          needs_app=False,
          why='#230 REG-3022 - a hidden console that relaunches hidden says the reason it was hidden once, however many relaunches'),
+    Gate("test_a_carried_proof_stands_only_where_it_was_earned",
+         [sys.executable, os.path.join(HERE, "test_a_carried_proof_stands_only_where_it_was_earned.py")], 300,
+         needs_app=False,
+         why='#186 REG-3044..3047 - a proof another PC earned stands here only over these bytes, on this OS, under this runtime, from the PC his ruling names, and says it was carried'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

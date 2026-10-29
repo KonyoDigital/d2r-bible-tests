@@ -310,10 +310,72 @@ def check_shards(bodies, head):
 EXPORT_V = 1                               # REG-2630 - the manifest `heart2 --export-proved` writes beside its entries
 
 
-def export_manifest(head, dirty, n, at_ms):
+def export_manifest(head, dirty, n, at_ms, runtime=None):
     """REG-2630 - what an export of one machine's banked PROVENs carries: the HEAD it was keyed at, whether that tree's
-    tracked files differed from it, how many entries it holds, when it was written."""
-    return {"v": EXPORT_V, "head": str(head or ""), "dirty": bool(dirty), "entries": int(n), "at": int(at_ms)}
+    tracked files differed from it, how many entries it holds, when it was written. REG-3044/3045 (#186): and the
+    runtime it was proved under (platform, python major.minor, node major or "none"), as heart2.export_runtime()
+    measured it - a field an older export lacks, which then reads UNKNOWN (EXPORT_V stays 1)."""
+    m = {"v": EXPORT_V, "head": str(head or ""), "dirty": bool(dirty), "entries": int(n), "at": int(at_ms)}
+    if isinstance(runtime, dict):
+        for k in ("platform", "python", "node"):
+            if runtime.get(k) is not None:
+                m[k] = str(runtime[k])
+    return m
+
+
+# ══ #186 (REG-3044) - WHAT A PROOF ONE PC EARNED MAY SAY ON ANOTHER PC ═══════════════════════════════════════════════════
+# A proof's key digests tracked bytes (heart2.key_for), so a PROVEN carried to another PC is re-keyed there and banked only
+# over byte-identical inputs. But some proofs measure the PC, not the bytes: the capability a proof declares (heart2
+# PROOF_NEEDS_HOST) says which. VENUE: the verdict read data no key holds - the game's install, his live console, his
+# ledger, his reel shelf, one platform's font metrics - so another PC's proof of it is that PC's venue, never carried. OS:
+# the verdict depends on the operating system - carried only when both platforms satisfy the need. TOOL: the verdict is a
+# fact about the bytes wherever the tool runs - carried as any proof is, and served only where the tool is (REG-2715). A
+# law holds every PROOF_NEEDS_HOST name in exactly one of the three, so a new capability cannot cross unclassified.
+CARRY_VENUE = frozenset(("d2r-install", "live-console", "human-eyes-ledger", "reel-shelf", "overlap-venue"))
+CARRY_OS = {
+    "macos": lambda p: p == "darwin",
+    "posix": lambda p: bool(p) and not p.startswith("win"),
+    "posix-signals": lambda p: bool(p) and not p.startswith("win"),
+}
+CARRY_TOOL = frozenset(("node", "bash", "numpy", "dir-link"))
+
+
+def carry_refusal(need, src_platform, here_platform):
+    """REG-3044 - may a PROVEN proved on `src_platform` be banked on `here_platform`, given the capability its proof
+    declares? `need` is THIS tree's declaration of that proof, never the file's word. -> None (it may) | why (it may not)"""
+    if need is None or need == "":
+        return None
+    need = str(need)
+    if need in CARRY_VENUE:
+        return "it needs %s, which it measured on the PC that proved it, not on this one" % need
+    if need in CARRY_OS:
+        if not src_platform:
+            return "it needs %s and the file does not say which platform proved it" % need
+        if not (CARRY_OS[need](str(src_platform)) and CARRY_OS[need](str(here_platform or ""))):
+            return "it needs %s: proved on %s, this PC is %s" % (need, src_platform, here_platform)
+        return None
+    if need in CARRY_TOOL:
+        return None
+    return "it declares %r, a capability the carry rule does not know" % need
+
+
+def runtime_refusal(theirs, here):
+    """REG-3045 (#186, D3) - may a CARRIED export be imported here at all, given the runtime each side proved under?
+    -> None | why. Python major.minor must be recorded on both sides and equal; node is a major, "none" (measured absent)
+    or unrecorded: unrecorded on either side refuses, two different majors refuse, and "none" on one side is an absence,
+    not a version (a node proof is then ELSEWHERE wherever node is absent). UNKNOWN never passes."""
+    t = theirs if isinstance(theirs, dict) else {}
+    h = here if isinstance(here, dict) else {}
+    for k, words in (("python", "Python"), ("node", "node")):
+        if not t.get(k):
+            return "the export does not record its %s, so whether it was proved under this PC's is UNKNOWN" % words
+        if not h.get(k):
+            return "this PC's %s could not be read, so whether the export matches it is UNKNOWN" % words
+    if str(t["python"]) != str(h["python"]):
+        return "it was proved under Python %s, this PC runs Python %s" % (t["python"], h["python"])
+    if "none" not in (str(t["node"]), str(h["node"])) and str(t["node"]) != str(h["node"]):
+        return "it was proved under node %s, this PC runs node %s" % (t["node"], h["node"])
+    return None
 
 
 def check_proved(bodies, head):
@@ -362,7 +424,7 @@ def check_proved(bodies, head):
 FOREIGN_TREE = "imported:claimed-this-tree"
 
 
-def select(shards, keyer=None, dropped=None, here=None):
+def select(shards, keyer=None, dropped=None, here=None, refuse=None, refused=None):
     """The entries an import may bank. -> (ok, why | None, {key: entry}, skipped count)
 
     An entry outside its shard's plan refuses the whole import; one that is not servable is skipped (counted).
@@ -373,7 +435,9 @@ def select(shards, keyer=None, dropped=None, here=None):
             bytes differ on a runner no longer throws away the other 2,700 proofs. None -> the strict refusal.
     here    REG-2630 - THIS checkout's tree id. A file that claims an entry was proved HERE is not believed: the entry is
             banked under FOREIGN_TREE, so REG-2599 still owes this tree its clean run. None -> trees kept as written.
-    A proof index that is not a whole number (a list, a dict, a bool, text) refuses the whole file: it names no proof."""
+    A proof index that is not a whole number (a list, a dict, a bool, text) refuses the whole file: it names no proof.
+    refuse  REG-3044: (file k, entry) -> why | None, asked of an entry that is servable and keyed here; a why leaves it
+            out (appended to `refused` as (k, gate, proof, why)) - a proof of the other PC's venue, or of another OS."""
     take, skipped = {}, 0
     for k, ent, assigned in shards:
         for key, e in ent.items():
@@ -395,6 +459,12 @@ def select(shards, keyer=None, dropped=None, here=None):
                     continue
                 return False, "shard %d files %s[%s] under a key this checkout's bytes do not give it" % (
                     k, e.get("gate"), e.get("proof")), {}, 0
+            if refuse is not None:
+                _no = refuse(k, e)
+                if _no:
+                    if refused is not None:
+                        refused.append((k, str(e.get("gate")), e.get("proof"), str(_no)))
+                    continue
             if here is not None and e.get("tree") == here:
                 e["tree"] = FOREIGN_TREE           # REG-2630 - "proved here" is this tree's word, never a file's (same dict: unbanked() asks `is`)
             take[key] = e                   # KEPT as the shard wrote it - its tree above all

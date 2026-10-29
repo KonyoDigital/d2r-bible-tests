@@ -21472,10 +21472,53 @@ PROOF_CARRIER_TAKE_EVERY_S = 1800
 PROOF_CARRIER_PUBLISH_EVERY_S = 3 * 3600
 #: the platforms whose PCs carry proofs to each other - his ruling names the Windows ALT and Dean; the Mac has no peer
 PROOF_CARRIER_PLATFORMS = ("win32",)
+#: REG-3047 (#186) - which PC takes which PC's proofs. His ruling (2026-10-28) names ONE direction: Dean takes the Windows
+#: ALT's. REG-2737 carried both ways and from every other roster label; a PC not named here takes from nobody, and a PC
+#: nobody takes from posts nothing. His own PC's gates do not stand on a friend's machine without his word.
+PROOF_CARRIER_ACCEPTS = {"Dean": ("Konyo · ALT",)}
+
+
+def _proof_carrier_peers(owner):
+    """REG-3047 - the PCs whose proofs `owner` may take. -> tuple (empty: none named)"""
+    return tuple(PROOF_CARRIER_ACCEPTS.get(owner, ())) if owner else ()
+
+
+def _proof_carrier_source(owner):
+    """REG-3047 - does any PC take `owner`'s proofs? -> bool (no: there is nobody to post them for)"""
+    return bool(owner) and any(owner in v for v in PROOF_CARRIER_ACCEPTS.values())
+
+
+def _proof_carrier_doctor(last, reuse):
+    """REG-3046 (#186, heart-first) - did what the carrier brought ever serve? -> a sentence, or None when nothing was
+    carried. Pure. `last` is the carrier's last run, `reuse` the census's own reuse line (selfProve.reuse): banked carried
+    proofs that a later census - one that had proofs to prove - served none of are UNJOINED, said with both numbers."""
+    if not (isinstance(last, dict) and last.get("action") == "take" and last.get("ok")):
+        return None
+    rows = [r for r in ((last.get("said") or {}).get("imported") or []) if isinstance(r, dict)]
+    if not rows:
+        return None
+    if any(not isinstance(r.get("banked"), int) or isinstance(r.get("banked"), bool) for r in rows):
+        return "carried from %s, but how many proofs the import banked was not said (UNKNOWN)" % ", ".join(
+            str(r.get("owner")) for r in rows)
+    banked = sum(r["banked"] for r in rows)
+    who = ", ".join(sorted(set(str(r.get("owner")) for r in rows)))
+    if banked == 0:
+        return "carried from %s: nothing new banked (this PC already had them, or none keyed alike)" % who
+    at = last.get("at")
+    if not (isinstance(reuse, dict) and isinstance(reuse.get("at"), (int, float)) and isinstance(at, (int, float))
+            and reuse["at"] >= at):
+        return "carried %d proof(s) from %s; no census has ended since, so whether they serve is not known yet" % (banked, who)
+    if "carried" not in reuse:
+        return "carried %d proof(s) from %s; the census since did not say how many it served (UNKNOWN)" % (banked, who)
+    k, served, of = reuse.get("carried"), reuse.get("served"), reuse.get("of")
+    if k == 0 and isinstance(served, int) and isinstance(of, int) and served < of:
+        return ("UNJOINED: carried %d proof(s) from %s; the census since proved %d itself and served none of them"
+                % (banked, who, of - served))
+    return "carried %d proof(s) from %s; the census since served %s of them" % (banked, who, k)
 _PROOF_CARRIER = {"running": False, "take": {}, "publish": {}, "last": None, "lastTs": None, "worked": 0}
 
 
-def _proof_carrier_due(sp, state, head, now_s, platform):
+def _proof_carrier_due(sp, state, head, now_s, platform, can_take=True, can_publish=True):
     """#186 step 3 (his ruling 2026-10-28: "identical bytes saved from the windows alt pc that has already been proved.
     he doesnt need to reprove it all") - after a self-prove tick, what the proof carrier may do now. Pure.
     -> (None | "take" | "publish", why)
@@ -21483,9 +21526,13 @@ def _proof_carrier_due(sp, state, head, now_s, platform):
     Only on a platform with peers, at a known HEAD, one run at a time, and only where the prover itself could start:
     he is measured NOT playing (an UNKNOWN play state is not permission) and free memory is at least the prover's small
     start floor - an import parses the verdict cache, and the ALT has crashed its desktop under memory before. Take
-    first while laws are owed (what a peer proved is a law this PC need not run), then post this PC's own."""
+    first while laws are owed (what a peer proved is a law this PC need not run), then post this PC's own. REG-3047: only
+    from a PC this one is named to take from (`can_take`), and only posted when some PC takes this one's (`can_publish`)."""
     if platform not in PROOF_CARRIER_PLATFORMS:
         return None, "no peer shares this platform (%s)" % platform
+    if not can_take and not can_publish:
+        return None, ("this PC takes no PC's proofs and no PC takes its own - his ruling names one direction, Dean "
+                      "takes the Windows ALT's")
     if not head:
         return None, "this checkout's HEAD is UNKNOWN"
     if state.get("running"):
@@ -21503,11 +21550,11 @@ def _proof_carrier_due(sp, state, head, now_s, platform):
         return None, "free memory %s MB is under the prover's start floor (%d MB)" % (free, floor)
     owed = sp.get("owed")
     last_take = (state.get("take") or {}).get(head)
-    if isinstance(owed, int) and not isinstance(owed, bool) and owed > 0 \
+    if can_take and isinstance(owed, int) and not isinstance(owed, bool) and owed > 0 \
             and (last_take is None or now_s - last_take >= PROOF_CARRIER_TAKE_EVERY_S):
         return "take", "%d law(s) owed here - a peer may already have proved them at this HEAD" % owed
     last_pub = (state.get("publish") or {}).get(head)
-    if last_pub is None or now_s - last_pub >= PROOF_CARRIER_PUBLISH_EVERY_S:
+    if can_publish and (last_pub is None or now_s - last_pub >= PROOF_CARRIER_PUBLISH_EVERY_S):
         return "publish", "this PC's proofs at this HEAD have not been carried in %d h" % (PROOF_CARRIER_PUBLISH_EVERY_S // 3600)
     return None, "taken and carried at this HEAD recently"
 
@@ -21542,16 +21589,25 @@ def _proof_carrier_kick(sp, now_s=None):
         head = _pc.head_of()
     except Exception:
         head = None
-    action, why = _proof_carrier_due(sp, _PROOF_CARRIER, head, now_s, sys.platform)
+    owner = None
+    if sys.platform in PROOF_CARRIER_PLATFORMS:
+        try:
+            import roster_publish as _rpo
+            owner = _rpo.owner_of(_roster_claimed_name(), platform)
+        except Exception:
+            owner = None
+    peers = _proof_carrier_peers(owner)                  # REG-3047 - only the PCs his ruling names
+    action, why = _proof_carrier_due(sp, _PROOF_CARRIER, head, now_s, sys.platform,
+                                     can_take=bool(peers), can_publish=_proof_carrier_source(owner))
     status = {"on": sys.platform in PROOF_CARRIER_PLATFORMS, "worked": _PROOF_CARRIER.get("worked"),
-              "lastTs": _PROOF_CARRIER.get("lastTs"), "last": _PROOF_CARRIER.get("last"), "say": why}
+              "lastTs": _PROOF_CARRIER.get("lastTs"), "last": _PROOF_CARRIER.get("last"), "say": why,
+              "takesFrom": list(peers),
+              "doctor": _proof_carrier_doctor(_PROOF_CARRIER.get("last"),
+                                              (sp or {}).get("reuse") if isinstance(sp, dict) else None)}
+    if sys.platform in PROOF_CARRIER_PLATFORMS and not owner:
+        return dict(status, say="this PC has no roster label, so it has no key to carry proofs under")
     if action is None:
         return status
-    import roster_publish as _rpo
-    owner = _rpo.owner_of(_roster_claimed_name(), platform)
-    if not owner:
-        return dict(status, say="this PC has no roster label, so it has no key to carry proofs under")
-    peers = [o for o in _rpo.OWNERS if o != owner]
     _PROOF_CARRIER[action][head] = now_s
     _PROOF_CARRIER["running"] = True
     threading.Thread(target=_proof_carrier_run, args=(action, head, owner, peers), daemon=True,

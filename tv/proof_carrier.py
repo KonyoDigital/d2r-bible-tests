@@ -18,6 +18,7 @@ his verdict cache or his checkout. Nothing here deletes or rewrites a proof he b
 import base64
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -164,9 +165,16 @@ def take(peers, head, platform=PLATFORM, get=http_get, run=run_heart2):
             path = os.path.join(d, ".heart2_cache.json")
             with open(path, "w", encoding="utf-8") as fh:
                 json.dump(ex, fh)
-            rc, said = run(["--import-proved", path], IMPORT_TIMEOUT_S)
+            # REG-3045 - a CARRIED import: heart2 refuses it whole unless its runtime matches this PC's, and marks every
+            # entry it banks with who carried it, under which key
+            args = ["--import-proved", path, "--carried-by", owner]
+            if meta.get("keyId"):
+                args += ["--carried-key", str(meta.get("keyId"))]
+            rc, said = run(args, IMPORT_TIMEOUT_S)
         finally:
             shutil.rmtree(d, ignore_errors=True)
-        row = {"owner": owner, "count": meta.get("count"), "at": meta.get("at"), "rc": rc, "said": said}
+        _b = re.search(r"REG-3045 CARRIED from .*?: (\d+) banked", str(said or ""))
+        row = {"owner": owner, "count": meta.get("count"), "at": meta.get("at"), "rc": rc, "said": said,
+               "banked": int(_b.group(1)) if _b else None}      # None: heart2 did not say (UNKNOWN, never 0)
         (out["imported"] if rc == 0 else out["skipped"]).append(row if rc == 0 else dict(row, why="the import refused it"))
     return out

@@ -52,6 +52,53 @@ questions, the native-dialog check names the unconfirmed clear too, and chUnconf
 chAsk's own script block (it does). New red-proof [3] turns that ask into window.confirm: RED, with the count and the
 native-dialog check both biting. Proofs [0]-[2] still RED: 4 of 4, baseline green. Mine: REG-3011 shipped the fourth
 ask without counting it.
+### REG-3047 - DEAN TAKES THE WINDOWS ALT'S PROOFS AND NO OTHER PC TAKES ANY (#186, his ruling; a narrowing of REG-2737)
+REG-2737's carrier took every other roster label's export as a source (`peers = every OWNER but me`): the ALT took Dean's,
+and "Wife PC" (win32) or any later label would have been taken too. His ruling (2026-10-28) names ONE direction - Dean
+takes the Windows ALT's - so control_app's PROOF_CARRIER_ACCEPTS = {"Dean": ("Konyo · ALT",)}: a PC not named takes from
+nobody, a PC nobody takes from posts nothing (_proof_carrier_due's can_take / can_publish), and the status names
+`takesFrom`. His own PC's gates do not stand on a friend's machine without his word; whether the ALT may take Dean's is a
+question put to him. Law: tv/test_a_carried_proof_stands_only_where_it_was_earned.py; red-proofs RED.
+
+
+### REG-3046 - DEAN'S STATUS SAYS HOW MANY OF HIS SERVED PROOFS THE ALT CARRIED, AND WHEN CARRIED PROOFS NEVER SERVE (#186)
+Nothing on Dean's PC could say whether the ruling worked: the census line said "N reused" with no split. The verdict cache
+now counts a served hit whose entry was carried, by who carried it ("· K of them carried from another PC (Konyo · ALT K)"),
+the self-prove lane reads K back into selfProve.reuse.carried (a line that does not say reads UNKNOWN, never 0), and the
+carrier's status carries a doctor line: carried proofs banked and a later census that proved proofs itself served none of
+them reads UNJOINED with both numbers; a census not yet ended since reads "not known yet". The carrier's take reads how
+many the import banked from heart2's own line (None when it did not say). Law: as REG-3047; red-proofs RED.
+
+
+### REG-3045 - A CARRIED EXPORT IS TIED TO THE RUNTIME IT WAS PROVED UNDER, AND EVERY ENTRY IT BANKS SAYS WHO CARRIED IT (#186)
+A carried export was tied to bytes, a HEAD and a platform word, but not to the interpreter: same bytes on the same OS under
+another Python minor can prove differently. An export now records platform, Python major.minor and node (its major, or
+"none" when no node is on PATH - measured absent; a node whose version cannot be read is unrecorded). A CARRIED import
+(heart2 --import-proved --carried-by, what proof_carrier.take now runs) is refused whole unless: Python is recorded on both
+sides and equal; node is recorded on both sides (unrecorded = UNKNOWN, refused) and, when both have one, the same major.
+"none" on one side is an ABSENCE, not a mismatch: Dean has no node (REG-2354) and the ALT does, so refusing on it would
+carry nothing, and the ALT's node proofs banked on Dean follow REG-2715's serve rule (not served where node is absent;
+D2 below measured that this shuts no lock). The box/shard path into the Mac's push records the runtime and does not
+enforce it, so CI's Linux shards stay importable. Each entry a carried import banks carries {by, key, head, platform, at,
+importedAt}; a proof this PC already serves keeps its own. Law: as REG-3047; red-proofs RED.
+
+
+### REG-3044 - A PROOF OF ANOTHER PC'S VENUE, OR OF AN OS THIS ONE IS NOT, IS NEVER BANKED FROM ANOTHER PC (#186)
+A proof's key digests tracked bytes, so an imported PROVEN re-keyed on this PC's bytes is a proof of those bytes - except
+where the proof measured the PC. Five capabilities are venue, not code (heart2 PROOF_NEEDS_HOST): d2r-install, live-console,
+human-eyes-ledger, reel-shelf, overlap-venue; an ALT PROVEN for one re-keyed identically on Dean and was banked, then served
+wherever Dean had the capability. And an OS-bound proof (macos, posix, posix-signals) was checked only by the carrier's one
+platform word, never per entry, and not at all on the box path. proof_shard.carry_refusal is now the one rule, asked of
+every entry of every import with THIS tree's declaration of that proof (never the file's): venue -> never carried; OS ->
+only when both platforms satisfy the need (an export that does not record its platform carries none); tool needs (node,
+bash, numpy, dir-link) and no need -> carried as before. Every PROOF_NEEDS_HOST name is in exactly one class (a law holds
+it). D2, MEASURED for his question on a fixture census shaped like Dean's (no node; temp census, cache and red memory):
+118 gates declare a node proof (628 proofs), 2-16 of each lock's guard laws among them; proved with node absent, an
+all-node law files UNPROVABLE and a mixed one PROVEN, both with their gate digest banked and blind empty; on a stamped census
+of that shape the global heart rule reads "census current, 0 blind" and every lock takes that answer. So an ELSEWHERE node
+law shuts no lock, and REG-2715's rule (a proof needing what this PC lacks is not served) stands. Law:
+tv/test_a_carried_proof_stands_only_where_it_was_earned.py (23 cases; with REG-3045..3047, 21 red-proofs, all RED).
+
 
 ### REG-3040 - #161'S HOOK EDIT DROPPED THE PUSH HOOK'S EXECUTABLE BIT, WHICH WOULD HAVE SWITCHED THE WHOLE LOCAL GATE OFF
 core.hooksPath=hooks, and git runs a hook only when it is executable: a 100644 hooks/pre-push is skipped with a one-line
