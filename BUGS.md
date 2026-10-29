@@ -41,6 +41,10 @@ mule the BOARD made under the old WAR<n> name takes its letter name once and kee
 is never undone; a war mule he named keeps his name. Names are stored uppercase ("WAR-A"), as _vmNameOk stores every mule name.
 Law: test_the_board_names_a_war_mule_by_a_name_the_game_accepts (5 tests, 6 red-proofs RED). The REG-2803, REG-2804,
 REG-2889, saved-target, shared-stash-pages and v3769 laws now read the name from _vaultWarName instead of pinning "WAR1".
+Follow-up: test_v3766_grokbot_retest slices _sharedOverflowNote out of the page, and the note now calls _vaultWarName, so the
+law raised ReferenceError (8 errors) until its slice carried _vaultLetters and _vaultWarName. The first sweep listed laws that
+NAME the war mules, not laws that SLICE a function this fix edited; the second sweep (every law quoting a touched function's
+name) found only this one.
 
 ### REG-2995 - REG-2915'S LAW LISTED ITS OWN SCRATCH WITH os.listdir, AND REG-2941'S CENSUS NAMED IT UNKEYABLE (integration, after int-9)
 On the integration chain, test_the_unkeyable_laws_only_get_fewer (REG-2941, int-9) named a new unkeyable law,
