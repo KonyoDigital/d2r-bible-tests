@@ -20963,6 +20963,24 @@ function artUrl(name){
       if (_artTier(D2IO_ART[_flip]) > _artTier(direct)) return D2IO_ART[_flip];
     }
   } catch(e){}
+  /* REG-3029 (v3837's render gate) - FOLD THE CASE, A LOOKUP FALLBACK LIKE THE APOSTROPHE FOLD ABOVE. The vault files a
+     base by the game's spelling "Silver-edged Axe" while the art table keys "Silver-Edged Axe", so artUrl missed, and once
+     REG-2904 made a vault cell draw artOr's answer the card drew the missing-art mark where v3836 drew the axe. Exact
+     spelling first; the fold answers only when it names ONE key - two keys that differ only by case are ambiguous, and an
+     ambiguous fold draws no picture. Never a rewrite: the caller's name is untouched. */
+  if (!direct) try {
+    var _lc = String(name || '').toLowerCase();
+    if (_lc){
+      var _ks = Object.keys(D2IO_ART);
+      if (!artUrl._ci || artUrl._ci.n !== _ks.length){
+        var _m = Object.create(null);
+        _ks.forEach(function(k){ var l = k.toLowerCase(); _m[l] = (l in _m) ? null : k; });
+        artUrl._ci = { n: _ks.length, m: _m };
+      }
+      var _hit = artUrl._ci.m[_lc];
+      if (_hit) return D2IO_ART[_hit];
+    }
+  } catch(e){}
   /* ⚠ "The Scourge" IS LEFT WITHOUT ART, DELIBERATELY. The task note said its art was "keyed as
      the bare Scourge (hd_flail.png)" and I wrote a one-off alias for it. MEASURED against the real
      table before shipping: NEITHER "Scourge" NOR "The Scourge" is an art key at all — the strings

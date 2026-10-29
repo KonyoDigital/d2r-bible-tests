@@ -63,6 +63,17 @@ logs (run 40786675962, all five agent-suite shards, read with gh run view --log)
 measured. The law passes against the new table (15 cases). No gate code changed.
 
 
+### REG-3029 - A BASE SPELLED THE GAME'S WAY LOST ITS VAULT PICTURE: artUrl MATCHED CASE EXACTLY (v3837's render gate)
+v3837's push gate BLOCKED at the render gate: a missing-art mark (d2art-fallback) cut inside the UNI-WEAPONS card at every
+width, on the vault, vault-copies and vault-full targets. Traced in node on the whole page: the render seed's hand-added
+"Silver-Edged Axe" is filed under the game's spelling "Silver-edged Axe", and the art table keys "Silver-Edged Axe".
+artUrl matched exactly, so it missed; v3836's cell had drawn the keyword sprite, but since REG-2904 a vault cell draws
+artOr's one answer, so the axe became the mark - a picture lost, on his board too, for any base whose stored spelling
+differs only by case. artUrl now folds case as a lookup fallback, like the v2762 apostrophe fold: exact spelling first, and
+a fold answers only when it names ONE key - two keys that differ only by case are ambiguous and draw nothing. Never a
+rewrite: the caller's name is untouched. CI could not see this: the render gate runs only in the Mac hook. Law
+test_an_art_name_folds_its_case (node, whole page; 3 cases), 2 red-proofs RED.
+
 ### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
 The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with
 its sabotage in. It broke the name regex in REG-2804's one-time legacy migration; since REG-2804 a WAR mule is one by its
