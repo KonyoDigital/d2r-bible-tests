@@ -426,7 +426,9 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
         # write) by a click and by Enter or Space on the focused row; Enter or a click on the row's tick box (a write) is
         # stopped. Inside the storage watch above, so an open that wrote anywhere fails test_the_viewers_own_storage_is_untouched.
         cls.taskrow = _ev(cdp, """(function(){ var w=%s, d=w.document; w.switchTab('vault'); w.renderVault(); w.vaultTasksTog(true, true);
-          var rows = d.querySelectorAll('#vault-move-list li.vtk-line'), row = rows[0], out = { rows: rows.length };
+          /* REG-2994 - a MOVE row (.vmv-row): since REG-2895 the list can open with a "Create mule CHARMS" make row, which
+             neither opens nor takes the focus, and rows[0] of every li.vtk-line was that row on CI (v3837) */
+          var rows = d.querySelectorAll('#vault-move-list li.vtk-line.vmv-row'), row = rows[0], out = { rows: rows.length };
           if (!row) return out;
           function opened(){ var n = row.nextElementSibling; return !!(n && n.classList.contains('vtk-expand-li')); }
           function key(el, k){ var s0 = w._tvdShadowStopped;
@@ -441,7 +443,7 @@ class ShadowDrawsTheirConsole(unittest.TestCase):
           out.tickFound = !!tick;
           if (tick){ tick.focus(); out.tickEnter = key(tick, 'Enter');
                      var s1 = w._tvdShadowStopped; tick.click(); out.tickClick = w._tvdShadowStopped - s1; out.ticked = tick.checked; }
-          var again = Array.prototype.filter.call(d.querySelectorAll('#vault-move-list li.vtk-line'), function(r){
+          var again = Array.prototype.filter.call(d.querySelectorAll('#vault-move-list li.vtk-line.vmv-row'), function(r){
             return r.getAttribute('data-name') === name; })[0];
           out.statusSame = !!again && again.getAttribute('data-status') === st0;
           w.vaultTasksTog(false, true);
