@@ -110,6 +110,12 @@ OUT.card = ((card('shared') || {}).html || '').indexOf('SHARED STASH') >= 0;
 OUT.oldName = ((card('shared') || {}).html || '').indexOf('BIG STASH') >= 0;
 """
 
+BODY_ZERO = READ + r"""
+OUT.read = W._vaultWarRole(byId('war-law-stamped0'));
+OUT.inWars = W._vaultWarMules().some(function(w){ return w.id === 'war-law-stamped0'; });
+OUT.legacyWar = W._vaultWarRole(byId('war-law-bare'));
+"""
+
 BODY_CORE = READ + r"""
 OUT.read = W._vaultWarRole(byId('uni-armor')); OUT.inWars = W._vaultWarMules().some(function(w){ return w.id === 'uni-armor'; });
 OUT.stored = byId('uni-armor');
@@ -156,6 +162,10 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
         cls.t = VPN.run(BODY_TAKEN, prelude=CLAIM, timeout=300)
         renamed = [dict(m, **({"name": "BIG STASH", "warRoleV": 1} if m.get("id") == "shared" else {})) for m in base]
         cls.s = VPN.run(BODY_SHARED, prelude=_seed(renamed), timeout=300)
+        stamped0 = [dict(m, **({"warRoleV": 1} if m.get("id") == "shared" else {})) for m in base]
+        stamped0 += [{"id": "war-law-stamped0", "name": "WAR0", "role": "war", "warN": 0, "added": True},
+                     {"id": "war-law-bare", "name": "WAR", "role": "war", "added": True}]
+        cls.z = VPN.run(BODY_ZERO, prelude=_seed(stamped0), timeout=300)
 
     def test_a_renamed_war1_keeps_its_role_and_the_shared_familys_look_everywhere(self):
         r = self.r
@@ -207,6 +217,16 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
         self.assertEqual(z["read"], 0, z)
         self.assertNotIn("war-law-z", z["wars"], "WAR0 counts among the war mules: %r" % z)
 
+    def test_a_war_number_0_stored_before_the_fix_reads_as_no_war_mule(self):
+        """REG-3078 (the v3838 second eye, #231) - v3836 stamped a mule named WAR0 as role war with warN 0, and the reader's
+        `+m.warN || 1` read that 0 as missing: a second war mule 1 beside WAR1. REG-3027 stopped new stamps, not stored ones,
+        and the one-time stamp never revisits a stamped roster. A stored warN 0 is now no war number; a role with no number
+        (the legacy bare WAR) is still war mule 1."""
+        z = self.z
+        self.assertEqual(z["__boot"]["errors"], [], z["__boot"])
+        self.assertEqual((z["read"], z["inWars"]), (0, False), "a stored warN 0 still reads as a war mule: %r" % z)
+        self.assertEqual(z["legacyWar"], 1, "PREMISE: a war role with no number no longer reads as war mule 1: %r" % z)
+
     def test_a_mule_he_creates_as_war5_is_a_war_mule(self):
         self.assertEqual(self.r["war5"], {"role": "war", "warN": 5}, "creating WAR5 by hand stored no war role: %r" % self.r["war5"])
 
@@ -238,6 +258,11 @@ class AMuleIsAWarMuleByItsRoleNeverItsName(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-3078 - a stored war number 0 reads as war mule 1 again",
+     "file": "bible.html",
+     "find": "    if (m.role === 'war' && m.warN != null && m.warN !== '' && !(+m.warN >= 1)) return 0;",
+     "replace": "    if (false) return 0;",
+     "matches": 1, "needs": "node"},
     {"why": "REG-3026 - a shared stash renamed before REG-2804 keeps its old name",
      "file": "bible.html",
      "find": "    if (!sh || sh.name === 'SHARED STASH') return;\n",

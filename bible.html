@@ -53941,6 +53941,7 @@ window.vaultAutoAssign = function(){
      it back kept it (measured); a core locker is never one. */
   function _vaultWarRole(m){
     if (!m || (typeof _WAR_CORE === 'object' && _WAR_CORE[m.id])) return 0;   /* typeof: the move-list law slices this alone */
+    if (m.role === 'war' && m.warN != null && m.warN !== '' && !(+m.warN >= 1)) return 0;   /* REG-3078 a stored war number 0 (v3836 stamped WAR0 so) is no war number, never WAR1 */
     if (m.role === 'war') return +m.warN || 1;
     return 0;
   }

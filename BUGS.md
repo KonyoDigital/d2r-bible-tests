@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3078 - A WAR NUMBER 0 STORED BEFORE REG-3027 STILL READ AS WAR MULE 1 (the v3838 second eye, #231)
+REG-3027 stopped WAR0 from being STAMPED a war mule, but v3836 had already stamped a mule named WAR0 as role war with warN
+0 on any roster it saved, and _vaultWarRole's `+m.warN || 1` read that 0 as a missing number: a second war mule 1 beside
+WAR1. The one-time stamp never revisits a stamped roster, so nothing cleared it. The reader now treats a stored war number
+that is not >= 1 as no war number (0); a war role with NO number (the legacy bare WAR) is still war mule 1. Every war read
+goes through _vaultWarRole (the only other role read is the core-locker cleanup), so the one guard covers them all. Law case
+test_a_war_number_0_stored_before_the_fix_reads_as_no_war_mule (a stamped roster carrying role war/warN 0 and a bare WAR);
+red-proof RED.
+
 ### REG-3064 - FOUR TOOLS STILL CALLED AN INSTALLED CHROME THAT WOULD NOT START "NO CHROME" (#161, finishing REG-3060/3061)
 a11y_check and coldread printed "no Chrome on :N" when the launcher said no; crest_loudness printed the same and exited 77,
 the skip its gate DECLARES for a venue with no browser - so an installed, failing Chrome read like a declared skip, a pass
