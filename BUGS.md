@@ -103,6 +103,15 @@ the first item Dean filed would have erased the other four; a persist now carrie
 cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
 (node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
 and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+### REG-2926 - THE CONSOLE HAD NO DOOR FOR THIS PC'S SAVE NAMES (#251)
+REG-2925's reader had no route, so neither the Characters room nor the vault could ask what this PC's save folder names.
+GET /api/saves answers control_app.saves_answer(), which is d2s_read.saves() behind one door. The answer is kept while
+nothing in the save folders changes: each folder's mtime, and every .d2s's size and mtime, because a .d2s is read
+whole. A folder that will not stat or list is never kept, and a failed look is UNKNOWN (chars None), never an empty
+roster. Law test_the_console_answers_this_pcs_save_names (fixture folders passed in; the route passes none, so the
+console reads its own PC), 6 cases, 3 red-proofs RED (the kept copy never used, a changed folder answered from the
+kept copy, a failure read as no characters), baseline green.
+
 ### REG-2925 - THIS PC'S SAVE FOLDER NAMES ITS CHARACTERS, AND NOTHING READ IT (#251)
 Measured 2026-10-29 on his two PCs: neither holds a .d2s, because his characters are online and Battle.net keeps them.
 The D2R save folder holds one key-binding file per character played on that PC, <Name><id>.ctlo and/or .keyo, so it
