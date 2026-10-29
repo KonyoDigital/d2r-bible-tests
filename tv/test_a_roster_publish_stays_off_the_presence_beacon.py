@@ -501,7 +501,14 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIn("switchTab('chars')", board)
         self.assertIn("window._LP_FORKED.has(k)", board)
         self.assertIn("their reels stay on their console, so in-game characters are not read here", board)
-        self.assertEqual(board.count("document.documentElement.classList.contains('tvd-shadow')"), 3)
+        # REG-3049 - each shadow guard by its own line, never a running total: the total went 2 -> 3 with the reels refusal
+        # (9daa388fe), and REG-3009's read-only guard (v3839) made it 4, red as "4 != 3", a number that named nothing.
+        for site in ("    if (document.documentElement.classList.contains('tvd-shadow')) return;\n",
+                     "    if (document.documentElement.classList.contains('tvd-shadow')) {\n",
+                     "    if (document.documentElement.classList.contains('tvd-shadow')) return { ok: false, why: "
+                     "'their reels stay on their console' };\n",
+                     "  try { return document.documentElement.classList.contains('tvd-shadow'); } catch (e) { return false; }\n"):
+            self.assertEqual(board.count(site), 1, "a shadow guard in the board went missing or doubled: %r" % site.strip())
         self.assertIn("shadowMap[k] = null", board)
         # A missing snapshot used to post pending:true into THIS browser's board, which is the claim trap.
         # The visit now opens their frame and never arms this board.

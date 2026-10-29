@@ -116,6 +116,17 @@ hd-tf-date was written only on the paint path, after REG-2796's skip, and the da
 mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
 weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
 test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
+### REG-3049 - THE BEACON LAW COUNTED THE BOARD'S SHADOW GUARDS AS ONE TOTAL, SO A NEW LEGITIMATE GUARD READ "4 != 3" (CI on v3839, run 40806324578)
+test_a_roster_publish_stays_off_the_presence_beacon's test_the_roster_panel_is_not_a_tenth_header_door pinned
+board.count("document.documentElement.classList.contains('tvd-shadow')") == 3 - a running total, moved 2 -> 3 when the reels
+refusal was added (9daa388fe). v3839's REG-3009 integration (c71add095) added a fourth, legitimate guard (_unconfReadOnly: a
+shadow refuses confirm and clear), and the law went red with a number that named no site and no fault. The law's own later
+note already says this count pin "stayed green with every write leaking". It now pins each of the four guards by its own
+line, exactly once, so a missing or doubled guard names itself and a new one is added by name. The edited block, executed
+against bible.html: the real file GREEN, the reels refusal removed RED (0 != 1), REG-3009's guard doubled RED (2 != 1); the
+old total RED (4 != 3) on the same file. The whole law runs here (its one "chrome" is the d2jsp_chrome module named in a
+proof's find string; it launches node only): 32 OK, including the case's later assertions CI never reached on v3839.
+
 ### REG-3043 - MY NEW WINDOWS KEY-FRAMES LAW LISTED ITS OWN SCRATCH WITH os.listdir, SO HEART2 COULD NEVER KEY IT (CI on v3839, run 40806324578)
 test_the_unkeyable_laws_only_get_fewer went red on v3839 naming test_a_windows_owner_sends_key_frames (REG-3033): it read
 its fixture's cache160 with os.listdir at three sites, so heart2.law_inputs called it unkeyable ("what it reads is decided at
