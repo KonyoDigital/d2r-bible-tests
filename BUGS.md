@@ -15,6 +15,24 @@ landed there it goes to ALL) and relies on the landing to come back. Routine I w
 v3839's grade. The hand guard now covers the crafts room's auto-land only. Law case
 test_a_sealed_chronicle_still_lands_on_completed (whole page in node: a sealed chronicle's empty ALL lands on Completed even
 after his chip); red-proof RED; REG-3056's crafts cases and proofs unchanged.
+### REG-3083 - A FLOOR BLESSED ON CI COULD OUTRUN THE PUSH GATE THAT ENFORCES IT (#2)
+CI's render-bless job (REG-3081) measures from a cold sandbox on a Linux Chromium. The floor it writes is enforced by the
+push gate on his Mac. A CI count above what the Mac measures would refuse his next push ("measured X, was Y") over a node
+that was never gone, at ~25 minutes a push. Its diff is a measurement, and not yet a floor this tree can carry.
+NEW tv/render_bless.py, no browser:
+- `report <record>` is the CI job's summary: complete or why it refused, every raise, hold and add.
+- `apply <record> [--verdict PATH] [--write]` raises each floor to min(CI's count, the push gate's count), only where the
+  push gate measured above the floor too. The push gate's count comes from this machine's tv/.render_verdict.json; its
+  coverageStale rows are the widths its last full run measured above the floor.
+- Both numbers are measurements, so nothing is invented and nothing is lowered.
+- Refused whole: a CI record that is not complete, and a verdict that is not a full, clean, unaborted run with a known
+  floor and no coverage refusal.
+- A LIVE population (COVERAGE_VOLATILE) is never raised.
+- --write changes only the floors it raises; the node signatures are diagnostics and stay.
+Law test_a_ci_bless_never_outruns_the_push_gate (Python, fixtures only), 8 cases, 6 red-proofs RED (CI's count goes in
+whole, a width the gate never measured above its floor is raised, a live population is raised, an unclean verdict speaks
+for the gate, a raise lowers a floor, an incomplete record is applied), baseline green.
+
 ### REG-3082 - A BLESS LEFT ONLY A MERGED FLOOR, AND A REFUSED ONE LEFT NOTHING (#2)
 `render_check.py --bless` writes tv/render_coverage.json, a merge in which a held count (lower than its floor), a raised
 one and a new width look alike afterwards. A refused bless wrote nothing, and its one line said "this run did not report
