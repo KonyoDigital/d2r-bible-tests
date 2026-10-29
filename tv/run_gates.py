@@ -12709,6 +12709,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_war_mule_he_took_back_stays_back_by_its_number.py")], 300,
          needs_app=False,
          why='REG-2889 (v3834 second eye) - executing his rename and delete doors: a WAR mule he takes back is kept by its war number, so a WAR1 renamed to a character and deleted is not minted again, and a deleted WAR1 stays gone after a reload'),
+    Gate("test_a_listing_law_is_keyed_by_what_it_listed",
+         [sys.executable, os.path.join(HERE, "test_a_listing_law_is_keyed_by_what_it_listed.py")], 300,
+         needs_app=False,
+         why='REG-2944 (REG-2296 for proofs) - a law that lists a directory itself is banked under a v3 key holding the names and bytes of every directory its traced run listed: a new, removed, changed or unignored file there re-keys, a file elsewhere does not, a gitignored newcomer does not (#242) and a run that read one never banks, a listing outside the tree or an incomplete trace never banks, and a law that lists nothing keeps its v1 key'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
