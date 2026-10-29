@@ -1466,6 +1466,22 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2973 - A KEEPER PICKED AGAIN IN THE PLANNER WAS DROPPED, AND THE CARD DREW EVERY KEEPER ONCE (#202 P3b)
+A Magic & Rare keeper is homed by the keeper rule, never in the mule map, so the planner's copy count never reached it.
+Measured on the whole page in node: Small Charm of Vita +17, then +20 from the planner -> one copy reading +17. The join
+question compared affix ids on the pick with read lines on each copy, so they always differed and the same +17 typed again
+was "another copy" too - dropped the same way. Now:
+- a pick's affix lines are its mods (_vpMods), on its record (_vrEntryOf) and in the question;
+- mods that differ from every copy here file another copy, counted, carrying its own entry (REG-2844, magic too);
+- the same lines are asked; "the same item" completes THAT copy (vaultHandJoin, magic too) and never writes over what a
+  read gave it; a copy 0 read with no mods takes his lines on its record and on the name's record;
+- "another copy", and "the same as copy 2" (_vpCompleteSame now takes the copy), never give their mods to copy 0.
+The shelf card draws a keeper cell per copy, titled with that copy's mods. A cell held more than once takes out THAT copy
+(vaultRemoveCopy); the last copy's ✕ throws the keeper out of Magic & Rare as before. The card says "1 item in 2 copies",
+as the locker window counts. Two red-proofs whose lines changed are re-aimed (REG-2185, REG-2844). Laws:
+test_a_magic_copy_is_asked_or_filed_by_its_mods (8 red-proofs) and test_a_magic_keeper_is_a_record_on_every_surface
+(2 red-proofs), RED.
+
 ### REG-2972 - A SECOND READ OF A KEEPER WROTE OVER THE FIRST: TWO SMALL CHARMS OF VITA WERE ONE (#202 P3b)
 A keeper is kept by NAME (d2r_magicFinds), so the AI checker's keep wrote each read over the last. Measured on the whole
 page in node: +17 to Life, then +20 to Life -> one copy reading +20, the +17 charm gone. The photo intake filled the first
