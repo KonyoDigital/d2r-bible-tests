@@ -929,6 +929,22 @@ decided "a store of counts" by SHAPE (every value a number), and d2r_stashMeta i
 here and {} in the file compared unequal. A store of counts is now named (runes, gems, materials, copies, multi-keep) and
 every other store is counted by its entries; null, '', {} and [] are one fact, so a store empty on both sides is not a
 change. Law: test_a_profile_carries_what_its_vault_reads (3 cases, 2 red-proofs, 1 re-aimed; 7 of 7 RED).
+### REG-2975 - HIS HAND TOOK OUT ONE KEEPER COPY AND THE NAME'S RECORD STILL READ THE COPY THAT LEFT (#202 P3b)
+Copy 0 of a Magic & Rare keeper reads its mods off the name's record (d2r_magicFinds). Measured on the whole page in node:
+two Small Charms of Vita (+17 and +20 to Life), the +17 one removed through vaultRemoveCopy (REG-2849) - the +20 copy stayed
+and the name's record still said +17. Now the copy that leaves carries copy 0's mods on its own row, so the removal journal
+holds it whole; the name's record takes the copy that is copy 0 now; and vaultRestoreLast puts the +17 copy back as copy 0
+with the name's record reading it again. The profile carries both copies' mods. Law:
+test_a_keeper_copy_leaves_alone_and_comes_back_whole (node, the whole page; with REG-2974), 3 red-proofs, RED.
+
+### REG-2974 - ONE LOOK AT A KEEPER COPY DROPPED THE OTHER COPY'S RECORD (#202 P3b)
+Once a look named a cell, the copy count was the cells (v3767). Measured on the whole page in node: two kept Small Charms of
+Vita, one read at a stash cell -> the keeper counted 1 and the +20 copy's record was dropped on the next rebuild. A keeper's
+count only rises where a read or a pick plainly differs from every copy here (REG-2972, REG-2973), so each is a real item,
+and the cells never count it below that. Keepers have no MOVE task (Magic & Rare has its own locker, REG-2830), so a
+sighting's cell does not choose a keeper's copy; the read doors choose it by its mods. Law:
+test_a_keeper_copy_leaves_alone_and_comes_back_whole, 1 red-proof, RED.
+
 ### REG-2973 - A KEEPER PICKED AGAIN IN THE PLANNER WAS DROPPED, AND THE CARD DREW EVERY KEEPER ONCE (#202 P3b)
 A Magic & Rare keeper is homed by the keeper rule, never in the mule map, so the planner's copy count never reached it.
 Measured on the whole page in node: Small Charm of Vita +17, then +20 from the planner -> one copy reading +17. The join
