@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3100 - THE VAULT TWINS CASE MEASURED A DECK WITH NO BOX AND CALLED IT A LAYOUT VERDICT (v3840 CI, run on 5a7442ecb)
+test_vault_v3_layout_keeps_every_door / test_the_two_cards_are_twins_on_one_grid went red on 5a7442ecb with both cards 0x0
+and the deck's gridTemplateColumns unresolved ('1fr 1fr'): the page had loaded (both cards found, their font sizes read), but
+something above the deck was display:none at that moment. 1 red in the last 18 runs of the law (green on 3e0d8eac2, main
+014d4fc3d and both ci/claude-pins-1 commits), so it is not REG-3060's launcher: that path ends in an answered Chrome, a
+VenueFault or a transport error, and a retry's port is read at call time. The case now re-runs the vault's activation and waits
+in the SAME evaluate as the measurement, and reads the first display:none ancestor, the active tab and the card's collapsed
+class; a deck that still has no box fails as a PREMISE naming those three - UNMEASURED, never a twins verdict. The cause (an
+async tab switch or collapse after setUp is the guess) stays UNMEASURED until the premise names it. Chrome law: CI proves it
+(agent-86, 924f614e2).
+
 ### REG-3097 - REG-3050'S UNKNOWN SHELF DROPPED THE OPEN'S EMPTY-FILTER CLEAR (v3840 CI, run 40818454324)
 test_the_shelf_tabs_are_the_real_sessions (test_a_filter_that_would_greet_him_EMPTY_is_cleared_on_OPEN) went red on v3840:
 "_reopenClear is reached from 1 place(s); it must be called on the cached-open path AND on both fetch outcomes". REG-3050
@@ -80,6 +91,9 @@ cut). Laws: tv/test_a_law_that_cannot_measure_is_unknown_never_red.py (real unit
 rule, the CI step's own block run in bash for 0-3, exit 3 through the verdict job, ship_audit's receipt), 7 red-proofs
 RED; and the CI-only law below.
 
+
+Follow-up (v3840 CI): test_control TestV2049's case-skip slice ended at main()'s old 'return 0'; it now ends at
+'return gate_set_exit(failed, _venue)', and the 3,373-char slice still holds every needle its 3 cases assert (agent-86, d226a7445).
 
 ### REG-3060 - THE BROWSER LAUNCHER GAVE UP ON A SLOW START AT 20 S AND THREW AWAY WHY (#161, CI on v3837 and v3838)
 MEASURED in both CI logs: test_found_ever_never_files_to_a_mule failed "would not start on :51565" and ":59361" with
@@ -169,6 +183,9 @@ carrier's status carries a doctor line: carried proofs banked and a later census
 them reads UNJOINED with both numbers; a census not yet ended since reads "not known yet". The carrier's take reads how
 many the import banked from heart2's own line (None when it did not say). Law: as REG-3047; red-proofs RED.
 
+
+Follow-up (v3840 CI): test_the_census_reuses_byte_identical_proofs still expected {served, of, banked}; the prover's census
+line now always names the carried count, so the lane's expected dict gains carried 0 (agent-86, ac5d5aff2).
 
 ### REG-3045 - A CARRIED EXPORT IS TIED TO THE RUNTIME IT WAS PROVED UNDER, AND EVERY ENTRY IT BANKS SAYS WHO CARRIED IT (#186)
 A carried export was tied to bytes, a HEAD and a platform word, but not to the interpreter: same bytes on the same OS under
