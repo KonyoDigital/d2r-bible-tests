@@ -11617,6 +11617,12 @@ GATES = [
              "gives it a private git clone --shared of that checkout (HEAD = the worktree's, GIT_*-free, push "
              "shut). Driven on a fixture worktree under a leaked GIT_DIR: the sandbox reads the worktree's HEAD and "
              "an old commit, and building it or writing in it leaves the real repo byte-identical."),
+    Gate("test_a_throwing_host_probe_is_never_served_as_proven",
+         [sys.executable, os.path.join(HERE, "test_a_throwing_host_probe_is_never_served_as_proven.py")], 60,
+         needs_app=False,
+         why="v3842 (the v3841 second eye) - heart2.host_lacks returned False when its probe raised, so _cache_serve "
+             "served a carried PROVEN over a need this PC could not probe. It returns None, as its docstring said: "
+             "a throwing probe reads UNKNOWN and the one serve never hands back PROVEN for it."),
     Gate("test_the_parallel_full_runs_every_gate_once",
          [sys.executable, os.path.join(HERE, "test_the_parallel_full_runs_every_gate_once.py")], 120,
          needs_app=False,

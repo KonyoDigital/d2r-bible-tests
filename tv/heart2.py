@@ -214,7 +214,9 @@ def host_lacks(need):
         import importlib
         return (not bool(getattr(importlib.import_module(mod), fn)())), words
     except Exception as e:
-        return False, "%s (its probe failed: %s - judged as usual)" % (words, type(e).__name__)
+        # v3842 (v3841 second eye) - None, as the docstring says: False here let _cache_serve serve a carried PROVEN
+        # over a probe that never answered. None is judged as usual by _prove_one and never served by _cache_serve.
+        return None, "%s (its probe failed: %s - judged as usual)" % (words, type(e).__name__)
 
 
 # ── finding the gates ────────────────────────────────────────────────────────────────────────
