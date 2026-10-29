@@ -15,6 +15,57 @@ landed there it goes to ALL) and relies on the landing to come back. Routine I w
 v3839's grade. The hand guard now covers the crafts room's auto-land only. Law case
 test_a_sealed_chronicle_still_lands_on_completed (whole page in node: a sealed chronicle's empty ALL lands on Completed even
 after his chip); red-proof RED; REG-3056's crafts cases and proofs unchanged.
+### REG-2998 - A SCRATCH CONSOLE ADDRESSED HIS LIVE CONSOLE AND HIS AGENT BY THEIR PORTS (#172, agent-144's own disclosure)
+console_doctor.CONSOLE was the constant http://127.0.0.1:<his port>. While profiling REG-2985, a scratch console on :17991
+ran its eagle, and its doctor sent its reads to HIS live console: GETs, /api/board_ownership (which runs JavaScript in the
+window he is looking at), /api/window {do: frame}. Every console a law spawns on his Mac did the same. The sweep of the class:
+  - stage_witness asked his console for the room (STATUS_URL) and looked up the pid on his port to read his window's pixels;
+  - organ_matrix asked his console by its port; shelf_corroborate, paint_witness and coldread read TV_CONTROL_PORT with a
+    his-port fallback of their own; journal_retention read TV_PORT (the AGENT's variable) with his console's port;
+  - the engine loop asked the agent bridge at his agent's port by name instead of AGENT_PORT;
+  - control_app.AGENT_PORT defaulted to his agent's port even on a console that named another control port. The new law
+    measured it: two `lsof -tiTCP:<his agent>` probes from one every-tick pass, and that path can kill the pid listening there.
+Now one helper, tv/console_port.py, answers "which console is mine": TV_CONTROL_PORT (control_app.CONTROL_PORT reads the same
+variable, and a child inherits it). It answers his console only when nothing names one (a CLI he runs), and an unreadable
+value is NO console, never his. Every door above goes through it. A console's agent is TV_PORT, else the port below its own
+control port, so his console still gets his agent and a scratch console gets its own. The tools that read his live console
+ON PURPOSE (the launchers, the keepalive, the push hook's settle, the run gate's console probes, the live panel gate, the
+wilson banking CLIs, his intake prover) keep their words, and console_port.DELIBERATE names each with its reason.
+Not changed, on reading: corroborate's _PRIMARY_PORT judges WHO WROTE the eagle record (a file read, never an address), and its
+docstring forbids a scratch reading its own record ("re-create the very self-agreement v2411 removed").
+Law: test_a_scratch_console_never_addresses_his (4 tests, 9 red-proofs RED; 29 sibling laws green). It COUNTS what a scratch-shaped process on :17993
+addresses: one every-tick doctor pass, the stage witness, the organ read and the pid probes, with every socket connect and
+every spawned command recorded and refused before it leaves the process. It sees none to his ports and some to its own. A
+literal scan is the second half: a his-port number outside console_port.DELIBERATE, or a his-port URL outside
+DELIBERATE_URL, fails. Re-aimed: test_the_eagle_is_asked_where_it_lives's red-proof follows organ_matrix's new sentence.
+
+### REG-2985 - THE CONSOLE STILL PARSED 118 MB OF ITS OWN SOURCE IN ITS OWN HEAP: THE GATE FILES TWICE AND THE CENSUS ONCE (#172 phase C)
+Measured 2026-10-29 on a scratch console of his Mac: his data, no .git, Python 3.9, 300 s, every ast.parse counted by
+caller. After phase B the console still called ast.parse 4,508 times over 118 MB of source in its own process:
+- swallow_census._file_rows: 1,488 files (the doctor's swallowed-reads row);
+- heart2.red_proofs_in: 2,473 parses of 1,237 gate files, read once by slice_owed (the self-arming owed list, no memo)
+  and again by health_engine's attack tally (its own memo);
+- lane_liveness.stamping_functions: the whole 50k-line control_app.py on every health pass.
+RSS rose in spikes to 550-1,028 MB, which macOS hands back within seconds. The ALT's console (Python 3.12, 7.9 GB, read
+over SSH with Get-Process) held 1,118 MB working set and 1,565 MB private, with 114 modules loaded, .NET/WinForms among
+them. Now:
+- audit_child derives every gate file's RED_PROOF list ("red_proofs") and every file's census rows under a root
+  ("swallow") in a short-lived child. It keeps each per file on that file's stamp (mtime_ns, size), beside the route
+  census's own cache. A console reads them through audit_child.red_proofs_for / swallow_rows_for, asks the child at
+  most once per 10 minutes on a miss, and derives itself only what is still missing. A stale entry is never served.
+- heart2.red_proofs_in keeps one memo per file stamp for every caller in a process.
+- lane_liveness parses control_app.py once per stamp.
+- A law, the gate, CI and a CLI spawn nothing and parse as before.
+After, same console, same data: 653 parses (37.6 MB). The rest is the worker-deadline doctor row (267 files),
+lane_census (267 files), code_identity (5), and 54 gate files whose RED_PROOF binding does not read (they are re-asked by
+rule). Peak RSS did NOT move with it: 1,091 MB in one run and 584 MB in another, against 550-1,028 MB before. A
+spike-stack profile names the eagle's in-process doctor run (corroborate, ask-an-eye, what-runs-without-him) at every
+spike over 450 MB. That is the next lever, and it is not this fix. Law:
+tv/test_a_console_reads_gate_proofs_and_census_rows_from_a_child.py, 5 red-proofs. It records before and after in the
+asking process (3 to 0 for the gate files, 3 to 0 for the census), checks that an edited file is never answered from
+the old parse, that a law spawns nothing, that a failed child fails open, and that the lane stamps parse once per stamp.
+LEFT: the ALT itself. alt_job.sh refused ("he is playing (Boosteroid)") and the ALT had 391 MB free, so this is
+measured on his Mac's console, not on the PC that holds the memory.
 
 ### REG-3080 - EVERY PROFILE UPLOAD WAS REFUSED: THE CONSOLE SENT TWO CHARACTERS FIELDS THE WORKER DID NOT LIST (LIVE, v3837 on)
 REG-2907 (#36, shipped in v3837) added `sessions` and `sessionsWhy` to the characters answer on the console side
