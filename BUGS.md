@@ -116,6 +116,14 @@ hd-tf-date was written only on the paint path, after REG-2796's skip, and the da
 mark, so with the roster unchanged across midnight every 1.5 s poll returned early and the header kept Monday's name. The
 weekday is now written before the skip on every poll, and only when its text changed (no repaint, no flicker). Law case
 test_the_weekday_is_written_on_every_poll_not_only_on_a_repaint; its red-proof puts the skip back above the write, RED.
+### REG-3043 - MY NEW WINDOWS KEY-FRAMES LAW LISTED ITS OWN SCRATCH WITH os.listdir, SO HEART2 COULD NEVER KEY IT (CI on v3839, run 40806324578)
+test_the_unkeyable_laws_only_get_fewer went red on v3839 naming test_a_windows_owner_sends_key_frames (REG-3033): it read
+its fixture's cache160 with os.listdir at three sites, so heart2.law_inputs called it unkeyable ("what it reads is decided at
+run time") and every push it is in would re-prove it from nothing. It now lists through fixture_tmp.list_own - the same
+names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
+or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
+keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+
 ### REG-3036 - "NAMES READ N MIN AGO" WAS NOT FOUND IN THE ALT SHADOW, AND NO LAW HELD THE JOIN THAT DRAWS IT (#200, GrokBot v3836, #230 6485132266)
 GrokBot: in the ALT shadow's Sessions tab no "names read N min ago" text appeared anywhere. Measured at 03:49, read only:
 the site's ALT row carried chronicle.rowsAsOf (03:00:26); the Mac's roster cache kept it; and the real join run in node -

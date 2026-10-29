@@ -98,7 +98,7 @@ class AWindowsOwnerSendsItsKeyFrames(unittest.TestCase):
                                  % (SS.THUMB_PX, im.size))
             self.assertTrue(os.path.isfile(os.path.join(self.d, "cache160", f["id"] + ".jpg")),
                             "the thumbnail was not kept in the theatre's cache")
-        self.assertEqual([x for x in os.listdir(os.path.join(self.d, "cache160")) if x.endswith(".part")], [])
+        self.assertEqual([x for x in _fx.list_own(os.path.join(self.d, "cache160")) if x.endswith(".part")], [])
 
     def test_a_small_frame_is_never_enlarged(self):
         rows = _rows(1)
@@ -126,7 +126,7 @@ class AWindowsOwnerSendsItsKeyFrames(unittest.TestCase):
         self.assertEqual(s["frames"], [])
         self.assertIn("could not be made (Pillow failed on it)", s["why"] or "",
                       "a failed resize read as a PC with no resizer: %r" % s["why"])
-        self.assertEqual(os.listdir(os.path.join(self.d, "cache160")), [],
+        self.assertEqual(_fx.list_own(os.path.join(self.d, "cache160")), [],
                          "a failed resize left a file the next pass would take as the thumbnail")
 
     def test_a_write_that_fails_leaves_no_half_file(self):
@@ -134,7 +134,7 @@ class AWindowsOwnerSendsItsKeyFrames(unittest.TestCase):
         with mock.patch.object(SS.os, "replace", side_effect=OSError("disk full")):
             o = self._digest_as_windows(rows)
         self.assertEqual(o["sessions"][0]["frames"], [])
-        self.assertEqual(os.listdir(os.path.join(self.d, "cache160")), [],
+        self.assertEqual(_fx.list_own(os.path.join(self.d, "cache160")), [],
                          "a resize that failed after writing left its part file behind")
 
 
