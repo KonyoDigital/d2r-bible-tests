@@ -17743,7 +17743,7 @@ def _river_stuck_why(station):
     return "no lane has moved these on"
 
 
-def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
+def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None, _remnants=None):
     """#74 (REG-1461) — WHICH STATIONS ARE NOT DRAINING ON THIS PC, AND WHY. -> list | None
 
     His ask 2026-09-29, after the ALT was found with 76 reels at EMPTY and 25 at PRINTER for two days and
@@ -17805,9 +17805,26 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     _pinned = set(str(x) for x in _fixtures)
     # The window is the newest KEEP_RECENT parseable reels on the shelf - the same shield the deleter
     # uses - and the moment each older reel left it. It could not be built: None, never "nothing is stuck".
+    # REG-3052 (#193, measured on his Mac 2026-10-29) - AN EVIDENCE REMNANT IS THE DRAIN'S FINISHED WORK, NOT ITS DEBT. A reel
+    # the drain released with its cited pictures kept (his §26; reel_retention.remnant_reels) holds only those pictures and
+    # its derived index/report. plan() drops remnants before it plans; this reader did not, so 12 of the 25 reels the Mac's
+    # Fleet row called "the drain owes them a tombstone" were remnants - REG-2728's 12 - and its newest-16 window counted
+    # them where the drain's does not. The drain's own predicate now answers here too, before the window is built. A law
+    # that hands in its own shelf (`_shelf`) hands in its own remnants as well; without them it has none.
+    if _remnants is None:
+        if _shelf is not None:
+            _remnants = ()
+        else:
+            try:
+                import reel_retention as _rr_rem
+                _remnants = _rr_rem.remnant_reels(HIST_DIR)
+            except Exception:
+                return None          # cannot tell finished from owed: UNKNOWN, never flowing
+    _done = set(str(x) for x in (_remnants or ()))
     try:
         import reel_retention as _rr_win
         _names = list(_ids) if _shelf is not None else _shelf_reel_names()
+        _names = [n for n in _names if str(n) not in _done]
         _keep = int(_rr_win.KEEP_RECENT)
         _left = _rr_win.shield_exits(_names, _keep)
     except Exception:
@@ -17826,7 +17843,7 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     by = {}
     for reel, r in last.items():
         st = str(r.get("station"))
-        if reel in _pinned or not _on(reel):
+        if reel in _pinned or reel in _done or not _on(reel):
             continue
         # REG-1812 - THE ONE RULE. Inside the window a reel owes a move only from a station a lane owns.
         # Past it, every station owes the drain a tombstone. A name that will not parse has no exit
