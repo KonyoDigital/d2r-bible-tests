@@ -48351,7 +48351,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _vhSeen = {};
     host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item you have, from the planner list. It is yours at once. A name the router already knows is homed on its mule; a name with no home waits in Unsorted, and you choose that mule.</p>'
       + '<button type="button" onclick="window.vaultHandClose()">Close</button></div>'
-      + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" placeholder="Type a name — Enter adds the top match" autocomplete="off" spellcheck="false" oninput="window.vaultHandSearch(this.value)" onkeydown="window._vaultHandKey(event)">'
+      + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" placeholder="Type a name — Enter adds the exact name" autocomplete="off" spellcheck="false" oninput="window.vaultHandSearch(this.value)" onkeydown="window._vaultHandKey(event)">'
       + '<p id="vault-hand-say" class="vault-hand-say" role="status"></p>'
       + '<div id="vault-hand-list"></div></div>';
     /* Vault v3 B2 (Elad t642u) — one add door at a time, and the box takes the keys the moment it opens */
@@ -48366,17 +48366,38 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (e.key === 'Escape'){ if (e.preventDefault) e.preventDefault(); if (e.stopPropagation) e.stopPropagation(); window.vaultHandClose(); return; } /* r2 Low: one Esc closes this box only, never an open mule card too */
     if (e.key !== 'Enter') return;
     if (e.preventDefault) e.preventDefault();
-    var first = document.querySelector('#vault-hand-list .vault-hand-opt');
-    /* REG-3004 - when the top match is a count, Enter is its +1 (the tally rows the last search drew) */
-    var firstTally = first ? null : (window._vhTal || [])[0];
-    if (firstTally) return window.vaultHandTally(firstTally.name, 1);
-    if (!first){
-      var say = document.getElementById('vault-hand-say');
-      if (say){ say.textContent = 'nothing in the planner list matches — nothing was added'; say.setAttribute('data-state', 'refused'); }
-      return { ok: false, refused: 'no-match' };
+    /* REG-3068 (GrokBot 05:07) - ENTER TAKES THE EXACT NAME, NEVER THE TOP ROW BY GUESS. "Spirit" listed [Cerebus' Bite,
+       Ravenlore, Spirit, Spirit Forge] and Enter added Cerebus' Bite; "Oath" would have taken Bane's Oathmaker. Now Enter takes
+       the row whose name IS what he typed (case-insensitive; a trailing "(alias)" aside) - a count he named is its tally's +1
+       (REG-3004) - asks when the name is two items, and takes nothing until he picks a row when no name is exact. */
+    var _q = String((document.getElementById('vault-hand-q') || {}).value || '').trim();
+    var _ex = _vhExact(_q);
+    var say = document.getElementById('vault-hand-say');
+    var _say = function(t, st){ if (say){ say.textContent = t; say.setAttribute('data-state', st); } };
+    if (_ex.length === 1) return _ex[0].tally ? window.vaultHandTally(_ex[0].name, 1) : window.vaultHandTake(_ex[0].id);
+    if (_ex.length > 1){
+      _say('"' + _q + '" is ' + _ex.length + ' items here: ' + _ex.map(function(x){ return x.name; }).join(' or ') + ' \u2014 pick one from the list; nothing was added', 'ask');
+      return { ok: false, refused: 'ambiguous', among: _ex.map(function(x){ return x.name; }) };
     }
-    return window.vaultHandTake(first.getAttribute('data-id'));
+    var _any = !!(window._vhKeep || []).length || !!(window._vhTal || []).length;   /* the rows the last search drew */
+    _say(_any ? ('no item is named exactly "' + _q + '" \u2014 pick one from the list (Enter takes only an exact name); nothing was added')
+              : 'nothing in the planner list matches \u2014 nothing was added', 'refused');
+    return { ok: false, refused: _any ? 'no-exact' : 'no-match' };
   };
+  /* REG-3068 - the rows the last search drew whose name IS q: [{id, name} | {tally:true, name}] (one per item) */
+  function _vhExact(q){
+    var fold = function(s){ return String(s == null ? '' : s).replace(/[\u2018\u2019\u02bc`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim(); };
+    var bare = function(s){ return fold(s).replace(/\s*\([^()]*\)$/, ''); };
+    var fq = fold(q), out = [], seen = {};
+    if (!fq) return out;
+    (window._vhKeep || []).forEach(function(r){
+      if (seen[r.as]) return;
+      if ([r.as, r.name].some(function(n){ return fold(n) === fq || bare(n) === fq; })){ seen[r.as] = 1; out.push({ id: r.id, name: r.as }); }
+    });
+    (window._vhTal || []).forEach(function(t){ if (t.exact && !seen['\u0000' + t.name]){ seen['\u0000' + t.name] = 1; out.push({ tally: true, name: t.name }); } });
+    return out;
+  }
+  try { window._vhExact = _vhExact; } catch (eVx) {}
   window.vaultHandSearch = function(q){
     var list = document.getElementById('vault-hand-list');
     if (!list) return { ok: false, why: 'the add door is not open' };
@@ -48393,14 +48414,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* REG-3004 (his Q5) - a count he types or the list names (a rune, a gem, a material, a rejuvenation potion) is its tally's
        own row: -1 / +1 move it through the Tools tab's door (_stashTallyMove), never a vault item */
     var tal = [], talSeen = {};
-    var _talOf = function(n){
+    var _talOf = function(n, exact){
       var g = (typeof window._stashTallyDoor === 'function') ? window._stashTallyDoor(n) : null;
       if (!g || talSeen[g.t.name]) return !!g;
       talSeen[g.t.name] = 1;
-      tal.push({ name: g.t.name, where: g.t.where, count: g.door ? g.count(g.key) : null });
+      tal.push({ name: g.t.name, where: g.t.where, count: g.door ? g.count(g.key) : null, exact: !!exact });   /* REG-3068 the typed name itself */
       return true;
     };
-    if (String(q || '').trim()) _talOf(String(q).trim());
+    if (String(q || '').trim()) _talOf(String(q).trim(), true);
     cat.rows.forEach(function(r){
       if (!r || !r.id || !r.name) return;
       if (_talOf(String(r.name))) return;
@@ -48440,6 +48461,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + ' not listed — which vault item ' + (unsettled === 1 ? 'it names' : 'each names') + ' could not be settled (a name several items share, or a check that could not be asked)</p>';
     list.innerHTML = h;
     window._vhTal = tal;
+    window._vhKeep = keep;   /* REG-3068 - what Enter may take, by exact name only */
     return { ok: true, n: keep.length, shown: Math.min(keep.length, VAULT_HAND_SHOWN), left: out, unsettled: unsettled, tallies: tal };
   };
   /* REG-3004 - a tally row's -1 / +1: the hand door's own count move, said in the box, and the list redrawn with the new count */
@@ -48504,6 +48526,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (host){ host.hidden = true; host.innerHTML = ''; }
     window._vhCat = null;
     window._vhTal = null;
+    window._vhKeep = null;
     _vhSeen = {};
     return true;
   };
@@ -67055,8 +67078,20 @@ function renderJournal(){
       if (ev.key !== 'Enter') return;
       ev.preventDefault();
       var box = input.closest('.tsrch');
-      var first = box && box.querySelector('.tsrch-go');
-      if (first) first.click();          // Enter tallies the top hit — the one-handed path
+      if (!box) return;
+      /* REG-3068 (GrokBot 05:07, swept from the vault's add box) - Enter tallied the TOP hit, so "Spirit" would tick
+         whichever name sorted first. Now it ticks the row whose name IS what he typed (case-insensitive), asks when two
+         rows carry that name, and ticks nothing until he picks a row when no name is exact. */
+      var fold = function(s){ return String(s == null ? '' : s).replace(/[\u2018\u2019\u02bc`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim(); };
+      var fq = fold(input.value), ex = [];
+      [].forEach.call(box.querySelectorAll('.tsrch-row'), function(r){
+        var nm = r.querySelector('.tsrch-nm');
+        if (fq && nm && fold(nm.textContent) === fq) ex.push(r);
+      });
+      var nEl = box.querySelector('.tsrch-n');
+      if (ex.length === 1){ var go = ex[0].querySelector('.tsrch-go'); if (go) go.click(); return; }
+      if (nEl) nEl.textContent = ex.length > 1 ? ('two rows are named "' + String(input.value).trim() + '" \u2014 pick one; nothing was ticked')
+                                               : ('no row is named exactly "' + String(input.value).trim() + '" \u2014 pick one; Enter ticks only an exact name');
     } catch(e){}
   };
   window._tallySearchTick = function(btn, name){

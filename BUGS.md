@@ -107,6 +107,30 @@ Follow-up: test_v3766_grokbot_retest slices _sharedOverflowNote out of the page,
 law raised ReferenceError (8 errors) until its slice carried _vaultLetters and _vaultWarName. The first sweep listed laws that
 NAME the war mules, not laws that SLICE a function this fix edited; the second sweep (every law quoting a touched function's
 name) found only this one.
+### REG-3068 - ENTER IN THE ADD BOX TOOK THE TOP ROW BY GUESS: "Spirit" ADDED CEREBUS' BITE (GrokBot 05:07, #230)
+GrokBot on his board: Vault → "or add by name only" → type "Spirit". The list was [Cerebus' Bite, Ravenlore, Spirit,
+Spirit Forge, ...] and Enter added Cerebus' Bite, the top row. "Oath" lists [Bane's Oathmaker (sword), Oath], so Enter
+would have taken the sword. Reproduced on the whole page in node: same lists, same rows.
+FIX:
+- Enter takes the row whose name IS what he typed: case-insensitive, with a trailing "(alias)" set aside. _vhExact reads
+  the rows the last search drew.
+- A name that is two items is asked, and nothing is added.
+- With no exact name, Enter takes nothing and says so until he picks a row.
+- A count he names exactly is its tally's +1, so REG-3004 is kept: "Ber" is the Rune Stash's Ber Rune row.
+- The placeholder now says "Enter adds the exact name".
+SWEPT every typeahead's Enter in bible.html:
+- Fixed: the Tools tab's tally search ticked its top hit on Enter ("the one-handed path"), the same guess. It now ticks
+  only an exact name, and asks or says otherwise.
+- Already right: the Keepers box (REG-3000), and the builder's mod picker, which takes the marked option.
+- No Enter that picks a row: FIND's box answers Escape only, the planner opens on input, and the d2jsp find box filters.
+- Named, not changed: the global search and the command palette open their highlighted row on Enter. That is
+  navigation shown on screen, not an add.
+GUARD: tv/test_enter_takes_the_exact_name_never_the_top_row.py, 6 cases: Spirit, Oath, a partial name, a two-item name,
+an exact count, and the tally search's Enter. 5 red-proofs, all RED. Re-aimed:
+- test_vault_add_and_find_doors_work (browser, CI): it typed "stone of" and expected Enter to add the Stone of Jordan.
+  Now a partial name adds nothing and the exact name adds it.
+- test_a_hand_add_moves_a_count_through_the_tools_door: one red-proof re-anchored.
+
 ### REG-3062 - ONE MULE CELL, ONE SPELLING: "[Mule 2 · ]Personal stash · col 3 · row 1" ON EVERY SURFACE (#144(a)'s sibling)
 After REG-3005 gave the shared stash one spelling, a mule's own cell was still spelled five ways:
 - the MOVE row: "UNI-ARMOR (3,1)" / "UNI-ARMOR · Mule 2 (9,3)"

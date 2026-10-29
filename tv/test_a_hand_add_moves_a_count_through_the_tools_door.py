@@ -150,7 +150,7 @@ RED_PROOF = [
      "matches": 1, "needs": "node"},
     {"why": "REG-3004 - + Add an item lists no tally row for a typed count",
      "file": "bible.html",
-     "find": "    if (String(q || '').trim()) _talOf(String(q).trim());\n",
+     "find": "    if (String(q || '').trim()) _talOf(String(q).trim(), true);\n",
      "replace": "",
      "matches": 1, "needs": "node"},
     {"why": "REG-3004 - the read chip's +1 writes the gem store itself again (a second counter)",
