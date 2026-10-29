@@ -107,6 +107,35 @@ Follow-up: test_v3766_grokbot_retest slices _sharedOverflowNote out of the page,
 law raised ReferenceError (8 errors) until its slice carried _vaultLetters and _vaultWarName. The first sweep listed laws that
 NAME the war mules, not laws that SLICE a function this fix edited; the second sweep (every law quoting a touched function's
 name) found only this one.
+### REG-3062 - ONE MULE CELL, ONE SPELLING: "[Mule 2 · ]Personal stash · col 3 · row 1" ON EVERY SURFACE (#144(a)'s sibling)
+After REG-3005 gave the shared stash one spelling, a mule's own cell was still spelled five ways:
+- the MOVE row: "UNI-ARMOR (3,1)" / "UNI-ARMOR · Mule 2 (9,3)"
+- its expand: "UNI-ARMOR private stash (3,1)"
+- FIND, its move-target words and the organizer: "Mule 2 · Personal stash · col 3 · row 1"
+- the mule window's list: "STASH col 3 · row 1" / "GEMS col ..." / "INVENTORY col ..."
+- a refused hand spot "Personal · Mule 1 · col 6 · row 6", the item database door "Inventory · col 3 · row 1 · Mule 2",
+  and the hand placement's task reason "you placed it at col 7 · row 6 by hand" (no area)
+FIX: _muleSpotSay(area, x, y, page) and _muleAreaSay(area, page) sit beside _sharedSpotSay, in its shape: the locker's
+mule page when the caller names one, then the area, then col and row. Every surface asks it:
+- the MOVE row and its expand (a WAR mule's too)
+- the move list's cell words
+- FIND (filed, would, a WAR mule's copies) and its move-target words
+- the organizer
+- the mule window's list and its grid label
+- the refused hand and database spots
+- the item database door's words
+- the hand placement's spot and its task reason
+Whether Mule 1 is named stays the caller's choice. FIND and the organizer name it when the locker spans pages; the
+MOVE row names Mule 2 on. The console prints no mule cell of its own (swept tv/control_ui.html and tv/*.py).
+GUARD: tv/test_a_mule_cell_has_one_spelling.py checks three things: the helper's words (in node), that every surface's
+own line calls it, and that the old spellings are gone. It has 4 red-proofs, all RED. Re-aimed at the one spelling:
+- run here: test_a_full_locker_spills_to_its_next_mule (8 red-proofs RED, its "row names the Mule" proof re-anchored),
+  test_a_saved_target_never_moves_unless_he_moves_it
+- browser laws, CI only: test_the_mule_window_places_by_hand, test_the_mule_inventory_takes_items_like_the_doll (red-proof
+  re-anchored), test_the_vault_finder_names_the_mule_and_the_cell, test_vault_l1_every_hand_add_is_a_move_task (its LINE
+  reader and its red-proof), test_vault_l1_router_files_every_item, test_vault_l1_rules_drive_every_move,
+  test_vault_l1_tasks_panel, test_vault_l1_war_stash_overflow
+
 ### REG-3005 - ONE SHARED-STASH CELL, ONE SPELLING: "Page 1 · col 3 · row 1" ON EVERY SURFACE (#144(a))
 One fact was spelled four ways:
 - the shared stash window's per-item list: "→ PAGE 1 col 3 · row 1"
