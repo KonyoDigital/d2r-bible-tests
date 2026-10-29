@@ -77,6 +77,17 @@ base. Nothing was owned, so the trade-out said "Shako is not in the vault". Each
 files as Harlequin Crest (Shako) (REG-2897; measured in node). REG-2858 is untouched, and the pane halves that fake the vault
 keep their 'Shako' keys. Red-proofs re-proven RED on green baselines: 12/12, 6/6, 10/10.
 
+### REG-2980 - THE BOARD NAMED A WAR MULE "WAR1", A NAME THE GAME REFUSES (#144, his ruling 2026-10-29)
+agent-guide measured that a D2R character name is 2-15 letters with at most one '-' or '_' and no digit. The board made its war
+mule as "WAR1" (REG-2803) and asked him to create that in the game, which he never could. His ruling: "make it ... war-A war-B".
+War number n is now named by letter through one helper, _vaultWarName(n): 1 is WAR-A, 2 WAR-B, 26 WAR-Z, 27 WAR-AA
+(_vaultLetters / _vaultLettersN map both ways). The number still binds to the id (warN, REG-2804) and decides everything; the
+take-back (REG-2889) stays keyed 'WAR'+n. The maker, the keeper why, the shared-stash overflow note, the "you have no ... mule"
+lines, the no-room line and the help text all use the letter name. A mule he adds as WAR-B is war mule 2, as WAR2 was. A war
+mule the BOARD made under the old WAR<n> name takes its letter name once and keeps a mark (auto.letterName), so his later rename
+is never undone; a war mule he named keeps his name. Names are stored uppercase ("WAR-A"), as _vmNameOk stores every mule name.
+Law: test_the_board_names_a_war_mule_by_a_name_the_game_accepts (5 tests, 6 red-proofs RED). The REG-2803, REG-2804,
+REG-2889, saved-target, shared-stash-pages and v3769 laws now read the name from _vaultWarName instead of pinning "WAR1".
 
 ### REG-2995 - REG-2915'S LAW LISTED ITS OWN SCRATCH WITH os.listdir, AND REG-2941'S CENSUS NAMED IT UNKEYABLE (integration, after int-9)
 On the integration chain, test_the_unkeyable_laws_only_get_fewer (REG-2941, int-9) named a new unkeyable law,
