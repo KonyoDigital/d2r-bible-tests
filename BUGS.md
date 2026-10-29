@@ -85,6 +85,18 @@ The two profile-publish laws stand a fixture in for _profile_saves, so no law re
 Law test_the_characters_room_says_why_its_saves_name_what_they_name (the room on the whole page in node, the upload in
 Python), 8 cases, 8 red-proofs RED, baseline green. 24 neighbours ran green (6 node-only laws refused by safe_laws for a
 test import, read and run by hand); the signed-publish, presence-beacon, shadow and mule-window Chrome laws go to CI.
+### REG-3095 - IN A SHADOW THE D2JSP FG BOX STILL TOOK TYPING, AND A PRICED CARD WOULD HAVE OFFERED POST (#83, GrokBot 06:36)
+GrokBot in the Mac's shadow: Mark sold, Remove from this list and Options changed nothing and sent nothing, and Post was
+disabled - "Small gap: the 'Your fg' box still takes typing in the shadow (typed 99, nothing was sent)". The shadow veil stops
+a typed key and every input event, but a path with no key press still reached a writable box, so it read as editable on a
+page that sends nothing. And Post was disabled there only because nothing was priced: the card disabled it for
+`send == null || sold`, so a priced card in a shadow offered a Post the veil then swallowed (driven in node: the same card's
+Post was live). In a shadow - the veil's handle window._tvdShadow, else the tvd-shadow class, the shadow law's guard form -
+the fg box is now readonly with aria-readonly and a title saying it is their console, and Post is disabled; outside a shadow
+both are exactly as before. The new guard is the board's fourth tvd-shadow check, so this branch's beacon law now pins each
+guard by its own line (REG-3049's form on the ship line) instead of a total of 3. Law:
+test_the_d2jsp_desk_is_read_only_in_a_shadow (the pane's own script in node: own, snapshot shadow, class-only shadow; 4
+red-proofs, each RED). NEEDS LIVE: GrokBot types into the fg box in a shadow and sees it refuse.
 
 ### REG-3042 - A SET PIECE OR A RUNEWORD IN THE MAGIC & RARE REGISTER WAS HOMED ON MAGIC & RARE (#163, GrokBot on Dean's shadow)
 Dean's saved records filed Aldur's Rhythm (a set piece) and Enigma (a runeword) on MAGIC & RARE. The file door has refused to treat

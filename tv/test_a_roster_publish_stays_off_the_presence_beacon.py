@@ -503,11 +503,13 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIn("their reels stay on their console, so in-game characters are not read here", board)
         # REG-3049 - each shadow guard by its own line, never a running total: the total went 2 -> 3 with the reels refusal
         # (9daa388fe), and REG-3009's read-only guard (v3839) made it 4, red as "4 != 3", a number that named nothing.
-        for site in ("    if (document.documentElement.classList.contains('tvd-shadow')) return;\n",
+        # REG-3095 - the D2JSP desk's read-only guard is a fifth, by its own line too (ship-chain replay: the union of both).
+        for site in ("    if (document.documentElement.classList.contains('tvd-shadow')) {   /* REG-3079 - only the owner's saves' reason */\n",   # REG-3079's form of _cbLearnedFetch's guard (was 'return;')
                      "    if (document.documentElement.classList.contains('tvd-shadow')) {\n",
                      "    if (document.documentElement.classList.contains('tvd-shadow')) return { ok: false, why: "
                      "'their reels stay on their console' };\n",
-                     "  try { return document.documentElement.classList.contains('tvd-shadow'); } catch (e) { return false; }\n"):
+                     "\n  try { return document.documentElement.classList.contains('tvd-shadow'); } catch (e) { return false; }\n",   # REG-3009
+                     "    try { return document.documentElement.classList.contains('tvd-shadow'); } catch (e) { return false; }\n"):   # REG-3095
             self.assertEqual(board.count(site), 1, "a shadow guard in the board went missing or doubled: %r" % site.strip())
         self.assertIn("shadowMap[k] = null", board)
         # A missing snapshot used to post pending:true into THIS browser's board, which is the claim trap.
