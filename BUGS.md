@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2994 - THE SHADOW MOVE-ROW CASE DROVE THE CHARMS "CREATE MULE" LINE INSTEAD OF A MOVE ROW (CI on ci/claude-v3837)
+test_shadow_mode_draws_their_console (REG-2758's Chrome half) read "a move row does not take the focus in the shadow" with
+rows 3, Enter stopped, a click opening nothing. It took rows[0] of every li.vtk-line, and since REG-2895 that is the "Create
+mule CHARMS" make line, which has no tabindex and no expand. Rendered in node from the law's own owner stores: one make line,
+then two move rows, each with tabindex=0, role=button, the _vaultTaskExpand handler and a tick box. The shadow's code was
+right. The case now drives li.vtk-line.vmv-row. Chrome law: CI proves it.
+
+
 ### REG-2993 - THE HAND-ADD LAW STILL SENT GHEED'S FORTUNE TO UNI-SMALL, AGAINST HIS 10-28 RULING (CI on ci/claude-v3837)
 test_vault_l1_a_hand_add_routes_by_type read 'CHARMS' != 'UNI-SMALL'. The CODE is right. His words, 2026-10-28 ~20:02: "no
 gheeds no... MF no... those go to charms mmule dedicated". REG-2895 homes Gheed's Fortune on the CHARMS mule, superseding
