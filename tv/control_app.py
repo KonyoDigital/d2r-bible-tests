@@ -46829,9 +46829,11 @@ class Handler(BaseHTTPRequestHandler):
         return out if len(out) >= 2 else beats
 
     def _prewarm_session_frames(self, beats, limit=48, width="960"):
-        """v894 — build theatre derivatives in the background so play doesn't block on sips."""
-        if IS_WIN:
-            return
+        """v894 — build theatre derivatives in the background so play doesn't block on sips.
+
+        REG-3038 - on every PC now (shadow_sessions.make_derivative: sips on a Mac, else Pillow); it returned at once on
+        Windows, so the theatre there played every frame at full size. And keyed as _serve_hist reads it (the frame's
+        path under the shelf, v2238): it wrote the BASENAME, so every prewarmed reel frame sat where no GET looked."""
         paths = []
         for b in beats:
             fr = b.get("frame") or ""
@@ -46843,6 +46845,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         def _run():
+            import shadow_sessions as _ss
             cache_dir = os.path.join(HIST_DIR, "cache" + width)
             try:
                 os.makedirs(cache_dir, exist_ok=True)
@@ -46850,19 +46853,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             for fr in paths:
                 try:
-                    src = os.path.join(HIST_DIR, fr)
+                    src = os.path.realpath(os.path.join(HIST_DIR, fr))
                     # reel_ paths are under HIST_DIR
-                    if not os.path.isfile(src):
+                    if not src.startswith(os.path.realpath(HIST_DIR) + os.sep) or not os.path.isfile(src):
                         continue
-                    base = os.path.basename(fr)
-                    cached = os.path.join(cache_dir, base)
+                    cached = os.path.join(cache_dir, os.path.relpath(src, os.path.realpath(HIST_DIR)).replace(os.sep, "__"))
                     if os.path.isfile(cached):
                         continue
-                    subprocess.run(
-                        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "68",
-                         "--resampleHeightWidthMax", width, src, "--out", cached],
-                        capture_output=True, timeout=8,
-                    )
+                    _ss.make_derivative(src, cached, int(width), 68, timeout=8)
                 except Exception:
                     pass
         threading.Thread(target=_run, daemon=True, name="tvd-prewarm-sess").start()
@@ -47230,7 +47228,8 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isfile(target):
             self._json(404, {"ok": False}); return
         want_w = (qs.get("w") or [""])[0]
-        if want_w in ("1280", "160") and not IS_WIN:   # v802 — 160 = scrub thumbnails
+        # REG-3038 - every PC: the Windows console served the Shelf scrub and the theatre every frame at full size
+        if want_w in ("1280", "160"):   # v802 — 160 = scrub thumbnails
             cache_dir = os.path.join(HIST_DIR, "cache" + want_w)
             # v2238 (Grok #1 item 2) — KEYED ON THE RELATIVE PATH, NOT THE BASENAME.
             #
@@ -47250,11 +47249,9 @@ class Handler(BaseHTTPRequestHandler):
             cached = os.path.join(cache_dir, _rel_key)
             try:
                 if not os.path.isfile(cached):
+                    import shadow_sessions as _ss
                     os.makedirs(cache_dir, exist_ok=True)
-                    r = subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72",
-                                        "--resampleHeightWidthMax", want_w, target, "--out", cached],
-                                       capture_output=True, timeout=10)
-                    if r.returncode != 0 or not os.path.isfile(cached):
+                    if not _ss.make_derivative(target, cached, int(want_w), 72) or not os.path.isfile(cached):
                         cached = target
                 target = cached
             except Exception:

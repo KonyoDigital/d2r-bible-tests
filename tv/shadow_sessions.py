@@ -24,6 +24,7 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -39,38 +40,41 @@ MAX_NAMES = 8
 THUMB_PX = 160
 
 
-def _sips_thumb(src, dst):
-    """The theatre's own 160 px derivative (control_app._prewarm_session_frames' sips call). -> bool"""
+def _sips_thumb(src, dst, max_px=THUMB_PX, quality=68, timeout=8):
+    """The theatre's own derivative, by the theatre's own sips call (160 px by default). -> bool"""
     if sys.platform != "darwin":
         return False
     try:
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "68", "--resampleHeightWidthMax",
-                        str(THUMB_PX), src, "--out", dst], capture_output=True, timeout=8)
+        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(int(quality)),
+                        "--resampleHeightWidthMax", str(int(max_px)), src, "--out", dst], capture_output=True,
+                       timeout=timeout)
     except (OSError, subprocess.SubprocessError):
         return False
     return os.path.isfile(dst)
 
 
-def _pil_thumb(src, dst):
-    """REG-3033 - the same 160 px JPEG on a PC with no sips. -> bool
+def _pil_thumb(src, dst, max_px=THUMB_PX, quality=68):
+    """REG-3033 - the same JPEG (160 px by default) on a PC with no sips. -> bool
 
     The default resizer was sips alone, and sips is macOS: on GrokBot's v3836 glass pass every one of the ALT's 16
     sessions said "no thumbnail resizer" and the site's ALT frames record held 0 pictures. Every Windows boot installs
     Pillow (start_tvd_win.ps1, #227), so the resizer was there and never asked. Written beside and moved into place: a
-    half-written file in cache160 would be taken as the thumbnail from then on."""
+    half-written file in cache160 would be taken as the thumbnail from then on. REG-3038 - and named per thread: the
+    theatre's GET makes these while the Shelf scrub asks for many at once, and two writers of one shared part file could
+    move a mix of both into place."""
     try:
         from PIL import Image
     except Exception:
         return False
-    tmp = dst + ".part"
+    tmp = "%s.%d.%d.part" % (dst, os.getpid(), threading.get_ident())
     try:
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         with Image.open(src) as im:
-            im.draft("RGB", (THUMB_PX, THUMB_PX))   # a JPEG decodes at 1/2..1/8 scale: no full-size decode per frame
+            im.draft("RGB", (max_px, max_px))   # a JPEG decodes at 1/2..1/8 scale: no full-size decode per frame
             small = im.convert("RGB")
-            small.thumbnail((THUMB_PX, THUMB_PX))  # never enlarges a small frame
-            small.save(tmp, "JPEG", quality=68)
+            small.thumbnail((max_px, max_px))  # never enlarges a small frame
+            small.save(tmp, "JPEG", quality=int(quality))
         with open(tmp, "rb") as fh:
             if fh.read(3) != b"\xff\xd8\xff":
                 raise ValueError("not a JPEG")
@@ -98,6 +102,15 @@ def resizers():
 def _make_thumb(src, dst):
     """sips first on a Mac (the theatre's own resizer), else Pillow. -> bool"""
     return _sips_thumb(src, dst) or _pil_thumb(src, dst)
+
+
+def make_derivative(src, dst, max_px, quality, timeout=10):
+    """REG-3038 - one of the theatre's derivatives (cache160 for the Shelf scrub, cache1280 for play) on any PC: sips on
+    a Mac, the call the theatre always made, else Pillow. The theatre made none off a Mac (control_app's IS_WIN guards),
+    so a Windows console served the Shelf scrub and the theatre every frame at full size - "a decoded 2560px JPEG is
+    ~14MB RGBA in the WebView" (_serve_hist's own note) - on the ALT, whose free memory fell 1.5 GB -> 560 MB in an
+    hour. -> bool"""
+    return _sips_thumb(src, dst, max_px, quality, timeout) or _pil_thumb(src, dst, max_px, quality)
 
 
 def thumb_bytes(hist_dir, frame_id, make=_make_thumb):

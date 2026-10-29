@@ -172,6 +172,21 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3038 - A WINDOWS CONSOLE SERVED THE SHELF SCRUB AND THE THEATRE EVERY FRAME AT FULL SIZE (#218, after REG-3033)
+The theatre's derivatives - cache160 for the Shelf scrub, cache1280 for play - were made by sips, so control_app gated them
+off Windows: _serve_hist's ?w=160/1280 branch carried `and not IS_WIN`, and _prewarm_session_frames returned at once on
+IS_WIN. A Windows console served every scrub thumbnail and every played frame whole; _serve_hist's own note prices that
+("a decoded 2560px JPEG is ~14MB RGBA in the WebView"), on an ALT whose free memory fell 1.5 GB -> 560 MB in an hour
+(#172). Driven on the old code as a Windows console: ?w=160 answered a 2560 px frame and the prewarm made nothing. Both now
+make their derivative through shadow_sessions.make_derivative - sips on a Mac (the theatre's own call), else Pillow (the
+REG-3033 resizer, now sized and qualitied per caller); a PC with neither still serves the full frame. Derivatives stay
+under tv_diablo's one disk budget, which counts and deletes them with their source. A sibling at the same site: the
+prewarm keyed its cache by the frame's BASENAME while _serve_hist reads by the frame's path under the shelf (v2238), so
+every prewarmed reel frame sat where no GET looked - it now writes the GET's key. Part files are named per thread, since
+the scrub asks for many at once. Kept Mac-only on purpose: the 400-frame seal prewarm (_prewarm_seal_cache), a bulk
+background pass the on-demand GET covers. Law: test_a_windows_theatre_serves_small_frames (4 cases on the real
+_serve_hist and _prewarm_session_frames; 6 red-proofs, each RED); REG-3033's two thumbnail proofs re-anchored, 7 of 7 RED.
+
 ### REG-3037 - FLEET SAID THE MAC'S ROW WAS "STALE" BESIDE ITS FRESHER BOARD: THREE DOORS, THREE CLOCKS, ONE UNNAMED AGE (#218, GrokBot #230 6485639332)
 GrokBot 03:31: the owners list and ?profile= run on separate clocks - ALT list 03:00:34 / board 02:28:01; Mac list
 22:00:41 (Fleet: "stale") / board 02:18:54; Dean list 01:35:07 / board 01:51:08 - so Fleet's age and the shadow's
