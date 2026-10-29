@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3040 - #161'S HOOK EDIT DROPPED THE PUSH HOOK'S EXECUTABLE BIT, WHICH WOULD HAVE SWITCHED THE WHOLE LOCAL GATE OFF
+core.hooksPath=hooks, and git runs a hook only when it is executable: a 100644 hooks/pre-push is skipped with a one-line
+hint while every push still "succeeds". REG-2963's commit (#161 stage 2, 38399892d) changed hooks/pre-push 100755 -> 100644
+beside its 25-line edit. Caught while cherry-picking it for v3838, from the pick's own summary ("mode change 100755 =>
+100644"), and put back before anything shipped; no other in-flight branch carried it (measured: every claude/* and ci/*
+ref). The disabled hook cannot catch itself, so the guard runs where it does not - CI's gate set reads the git index: law
+test_the_push_hook_stays_executable (hooks/pre-push and hooks/install are 100755; the checker's own red case is built in;
+measured RED on the real index with `git update-index --chmod=-x hooks/pre-push`), plus hooks/install must keep
+re-asserting the bit on a fresh clone (1 red-proof RED).
+
 ### REG-2994 - THE SHADOW MOVE-ROW CASE DROVE THE CHARMS "CREATE MULE" LINE INSTEAD OF A MOVE ROW (CI on ci/claude-v3837)
 test_shadow_mode_draws_their_console (REG-2758's Chrome half) read "a move row does not take the focus in the shadow" with
 rows 3, Enter stopped, a click opening nothing. It took rows[0] of every li.vtk-line, and since REG-2895 that is the "Create
