@@ -11617,6 +11617,13 @@ GATES = [
              "gives it a private git clone --shared of that checkout (HEAD = the worktree's, GIT_*-free, push "
              "shut). Driven on a fixture worktree under a leaked GIT_DIR: the sandbox reads the worktree's HEAD and "
              "an old commit, and building it or writing in it leaves the real repo byte-identical."),
+    Gate("test_the_parallel_full_runs_every_gate_once",
+         [sys.executable, os.path.join(HERE, "test_the_parallel_full_runs_every_gate_once.py")], 120,
+         needs_app=False,
+         why="v3842 GATE-TRIM A - a local --full ran 1,304 gates fully serial (72 min). --parallel auto runs the "
+             "light gates as 3 cost-balanced shards in their own worktrees, then the heavy ones alone. Over the real "
+             "registry: every gate lands in exactly one place, no heavy gate shares the box, the heavy pass is never "
+             "empty, and the run stays serial under the memory floor, on an unknown reading or a dirty tree."),
     Gate("test_every_worktree_banks_into_one_ledger",
          [sys.executable, os.path.join(HERE, "test_every_worktree_banks_into_one_ledger.py")], 120,
          needs_app=False,
@@ -13602,6 +13609,9 @@ def main(argv):
                     help="carry a gate whose inputs git has not changed since the proven commit")
     ap.add_argument("--full", action="store_true",
                     help="run every gate; a PASS is recorded and a FAIL is dropped")
+    ap.add_argument("--parallel", choices=("auto", "off"), default=None,
+                    help="v3842 GATE-TRIM A: with --full, the light gates as 3 shards in their own worktrees at once, "
+                         "then the heavy gates alone (tv/gates_parallel.py). Default auto for a local --full, off on CI")
     a = ap.parse_args(argv[1:])
     only = a.only
     if a.shard:
@@ -13643,6 +13653,9 @@ def main(argv):
     if busy:
         print("⛔ REFUSED — %s" % busy)
         return 2
+    _par_failed, _par_venue = _parallel_light(a, only)
+    if _par_failed is not None:
+        only = _par_failed.pop()   # the heavy gates, run below in this tree with nothing beside them
 
     print("══ GATE SET ══")
     # #94 — a console that runs from ANOTHER tree cannot be what moved this one's state (REG-1583's blind spot)
@@ -13679,6 +13692,8 @@ def main(argv):
 
     failed = [g.name for g, s, _, _, _ in results if s == "FAIL"]
     _venue = [(g.name, d) for g, s, _, d, _ in results if s == "VENUE"]     # REG-3061 - could not measure here
+    failed += list(_par_failed or [])   # GATE-TRIM A - a red light slice is a red gate set
+    _venue += list(_par_venue or [])
     if _live_moved and not _console_live and not _sweep_live:
         # not a warning: a suite that writes his console's state has already done the damage
         failed.append("live-state-untouched")
@@ -13805,6 +13820,53 @@ def main(argv):
             print("     (+%d more distinct reason(s) not listed)" % (len(_hist) - 12))
     _say_venue(_venue)
     return gate_set_exit(failed, _venue)
+
+
+def _parallel_light(a, only):
+    """GATE-TRIM A. -> (None, None) when the run stays serial, else ([...red slice names..., heavy names], venue list).
+
+    The last element of the first list is the heavy gate list the caller runs next; everything before it names a light
+    slice that came back red. Serial whenever --full is off, a selection (--only/--shard) was given, CI is running it,
+    --parallel off was asked, or gates_parallel.why_serial says so (memory floor, dirty tree)."""
+    mode = a.parallel or ("off" if os.environ.get("CI") else "auto")
+    if not a.full or only or mode == "off":
+        return None, None
+    import gates_parallel as GP
+    why = GP.why_serial(REPO)
+    if why:
+        print("── PARALLEL: %s ──" % why)
+        return None, None
+    slices, heavy = GP.plan(GATES, cost_weights(GATES))
+    if not heavy:
+        # an empty `only` means EVERY gate to run() - the heavy pass must name at least one gate
+        print("── PARALLEL: no gate weighs %.0f s or more, so there is no heavy pass to hand over - serial ──" % GP.HEAVY_S)
+        return None, None
+    print("── PARALLEL: %d light gates in %d shards (own worktrees, at once), then %d heavy gates alone ──"
+          % (sum(len(x) for x in slices), len(slices), len(heavy)), flush=True)
+    try:
+        res, wall = GP.run_light(slices)
+    except Exception as e:
+        print("── PARALLEL: %s - serial ──" % e)
+        return None, None
+    red, venue = [], []
+    for idx, rc, log in res:
+        tail = ""
+        try:
+            with open(log, encoding="utf-8", errors="replace") as fh:
+                lines = fh.read().splitlines()
+            tail = "\n".join(lines[-40:])
+        except OSError:
+            pass
+        print("── light shard %d/%d: exit %d (log %s) ──" % (idx, len(slices), rc, log))
+        if rc == 0:
+            continue
+        if rc == VENUE_EXIT:
+            venue.append(("light shard %d" % idx, "a gate could not measure there - see its log"))
+            continue
+        red.append("light shard %d/%d" % (idx, len(slices)))
+        print(tail)
+    print("── PARALLEL: light shards took %.0f s wall ──" % wall, flush=True)
+    return red + [heavy], venue
 
 
 def gate_set_exit(failed, venue):
