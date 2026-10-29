@@ -14,6 +14,27 @@ overwritten by the next paint. A landing now chooses the FIRST view only: forgeS
 (_forgeByHand.crafts / .forge), and both landings stand aside once he has picked. Measured on the whole page in node, every
 runeword made and one craft's rune and gem added through the Tools tab's tally doors: lands on MAKE NOW first; his ALL and
 COMPLETED survive a re-render. Law test_his_forge_chip_outranks_the_landing, 2 red-proofs RED.
+### REG-3059 - v527'S v536.2 SPEC PINNED ITS CHRONICLE BETWEEN TWO LOADS, AND THE BOARD'S persist() PUT INSIGHT BACK (CI on ci/claude-v3839)
+Routine I on c0f4f1e24, shard 9: tests/v527_loot_filter_card.spec.ts:97 ("owning a socket-correct base for the word
+DROPS its base") expected insightHasBase true and got false, on both attempts. Read from CI's trace and page snapshot:
+after the reload the board said 99/99 runewords and `_endgameFilterBases().names` was empty. That pair has one reading:
+Insight had come back as made. Unmade with no base, the filter would list Colossus Voulge; unmade with its base, the
+spec passes. Not REG-3009 or REG-3006/3007: bible.html's diff from the last green Playwright run (ci/claude-v3837,
+41d545624) to c0f4f1e24 is those hunks plus the stamps, and none of them runs at boot or writes d2r_rwMade.
+The spec wrote its pin (every word made but Insight, rwProfile fresh) with page.evaluate between two loads. The first
+load floors the in-memory rwMade from the seed, Insight included, and persist() writes that whole object back over
+d2r_rwMade. Once the boot is done it is the one writer of that store that runs without a click: the floor, the Hustle
+purge and the ladder-key migration run inside the boot, and every other writer is a door. d2r_rwProfile has no click-free writer
+at all. In CI's timeline the pin landed 2.5 s after load and the reload began 120 ms later. Which persist() fired is
+UNMEASURED: a Chrome spec is never run here.
+Fixed in the spec. The pin rides a second addInitScript, with RUNEWORD_TIP's names read on the first load, so the
+reload's boot reads the pin itself and every later persist() writes it. A premise check (Insight not made after the
+reload) names the pin, not the Forge, if this ever fails again. The other v527 specs pin in their first init script or
+never reload. CI proves it. The edited spec parses under node's type stripping, which refuses a planted bad file.
+NOT SWEPT: 52 evaluate-then-reload pins across tests/*.spec.ts, most of them on stores persist() writes back. They are
+green today and only CI can run them, so they are listed, not rewritten. The v527 reds REG-1234 could not reproduce
+may be this same race.
+
 ### REG-3058 - THE UNCONFIRMED LANE'S TWO HIDDEN FOOTER CHIPS HAD NO [hidden] GUARD (CI on ci/claude-v3839)
 test_a_hidden_element_is_actually_hidden read {'ch-btn': {'.ch-table .ch-t-acts .ch-btn'}} on c0f4f1e24. REG-3011 shipped
 #ch-u-confirm-sel and #ch-u-clear-sel with `hidden` (its JS shows them only in the Unconfirmed lane), and `.ch-btn`

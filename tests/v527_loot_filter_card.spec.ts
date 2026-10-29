@@ -107,20 +107,30 @@ test('v536.2 — owning a socket-correct base for the word DROPS its base from t
   // 4os polearm words pile onto the ONE Voulge copy; Insight is out-valued, flags baseOver, and its base
   // correctly STAYS farmable. The drop-from-filter promise only holds when the owned copy is genuinely
   // planned for THIS word — so this spec pins exactly that scenario.
-  await page.evaluate(() => {
-    const w: any = window;
-    const made: any = {}; Object.keys(w.RUNEWORD_TIP || {}).forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
+  // REG-3059 — THE PIN RIDES A SECOND INIT SCRIPT, NOT A WRITE BETWEEN TWO LOADS. The first load floors the
+  // in-memory rwMade from the seed (Insight included), and persist() - the one writer of d2r_rwMade that runs
+  // without a click once the boot is done - writes that whole object back. A pin written by page.evaluate
+  // before the reload lost that race on CI's v3839 run, twice: the board came back 99/99 and the filter
+  // empty. An init script runs before the board's boot on the reload, so the boot reads the pin itself and
+  // every later persist() writes the pin.
+  const words: string[] = await page.evaluate(() => Object.keys((window as any).RUNEWORD_TIP || {}));
+  expect(words).toContain('Insight');               // premise: the catalogue has loaded, so the pin is real
+  await page.addInitScript((all: string[]) => {
+    const made: any = {}; all.forEach((n) => { if (n !== 'Insight') made[n] = 'x'; });
     localStorage.setItem('d2r_rwMade', JSON.stringify(made));
     localStorage.setItem('d2r_rwProfile', 'fresh');
-  });
+  }, words);
   await page.reload(); await page.waitForTimeout(1400);
   const r = await page.evaluate(() => {
     const w: any = window;
+    let insightMade: any = null;
+    try { insightMade = !!(JSON.parse(localStorage.getItem('d2r_rwMade') || '{}') || {})['Insight']; } catch (e) {}
     w._ensureSocketBaseEntry('Colossus Voulge (4os)');
     const s = w.forgeScan();
     const insight = [...s.now, ...s.pipeline].find((t: any) => t.rw === 'Insight');
-    return { insightHasBase: !!(insight && insight.base), names: w._endgameFilterBases().names };
+    return { insightMade, insightHasBase: !!(insight && insight.base), names: w._endgameFilterBases().names };
   });
+  expect(r.insightMade).toBe(false);                // premise: the pinned Chronicle held across the reload
   expect(r.insightHasBase).toBe(true);              // Insight is a Forge make-now/pipeline task (base owned)
   expect(r.names).not.toContain('Colossus Voulge'); // …so you don't farm its base → dropped from the filter
 });
