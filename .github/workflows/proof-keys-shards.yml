@@ -31,7 +31,7 @@ env:
   PROOF_SHARDS: "16"
 jobs:
   shard:
-    name: shard ${{ matrix.shard }}
+    name: shard ${{ matrix.shard }} (${{ matrix.trace }})
     runs-on: ubuntu-latest
     # Planned max ~41 min of proving per shard (21a78ff6, N=16) plus setup; the step cap below fails loud first.
     timeout-minutes: 180
@@ -39,7 +39,10 @@ jobs:
       fail-fast: false
       max-parallel: 16
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        # REG-3102 WITNESS RUN (diagnostic only, never merged): shard 7 alone, once plain and once with every kill
+        # syscall traced, each with a 15 s witness of memory / disk / chrome / heart2 sandboxes into the job log
+        shard: [7]
+        trace: [none, kills]
     env:
       D2R_NO_CLAUDE: "1"
       HEART2_PROVE_WORKERS: "2"
@@ -99,7 +102,47 @@ jobs:
             unset HEART2_SHARD_SEED; echo "REG-2961: no seed restored - every proof of this shard runs"; fi
           S=$(date +%s)
           set +e
-          python3 -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${PROOF_SHARDS}" 2>&1 | tee "$D/prove.log"
+          W="$D/witness.log"
+          echo "WITNESS-START $(date -u +%T) nproc=$(nproc) $(free -m | awk '/Mem:/{printf "mem_total=%sM", $2} /Swap:/{printf " swap_total=%sM", $2}') ulimit_u=$(ulimit -u) ulimit_n=$(ulimit -n)" | tee -a "$W"
+          ps -eo pid,pgid,sid,ppid,comm | awk 'NR==1 || /Runner|bash|python|node/' | sed 's/^/WITNESS-PGRP /' | tee -a "$W"
+          (
+            i=0; K=0
+            while true; do
+              ts=$(date -u +%T)
+              mem=$(free -m | awk '/Mem:/{printf "mem_used=%sM avail=%sM", $3, $7} /Swap:/{printf " swap_used=%sM", $3}')
+              disk=$(df -m / | awk 'NR==2{printf "root_free=%sM", $4}')
+              tmpm=$(du -sm /tmp 2>/dev/null | cut -f1)
+              nch=$(pgrep -c -f 'chrom|headless_shell' || true)
+              rss=$(ps -eo rss=,args= | awk '/chrom|headless_shell/ && !/awk/ {s+=$1} END {printf "%d", s/1024}')
+              sbx=$(ls -d /tmp/heart2.* 2>/dev/null | wc -l)
+              sbxm=$(du -smc /tmp/heart2.* 2>/dev/null | tail -1 | cut -f1)
+              np=$(ps -e --no-headers | wc -l)
+              load=$(cut -d' ' -f1 /proc/loadavg)
+              oom=$(sudo -n dmesg 2>/dev/null | grep -ciE 'oom|killed process' || true)
+              echo "WITNESS $ts $mem $disk tmp=${tmpm}M chrome=$nch chrome_rss=${rss}M heart2_sbx=$sbx(${sbxm:-0}M) procs=$np load=$load dmesg_oom=$oom" | tee -a "$W"
+              if [ $((i % 4)) -eq 0 ]; then ps -eo rss,pid,pgid,etime,comm --sort=-rss | head -6 | sed "s/^/WITNESS-TOP $ts /" | tee -a "$W"; fi
+              if [ -f "$D/kills.log" ]; then
+                n=$(wc -l < "$D/kills.log")
+                if [ "$n" -gt "$K" ]; then
+                  tail -n +$((K + 1)) "$D/kills.log" | grep -vE 'resumed|SIGCHLD|SIGURG|SIGPIPE' | grep -E 'kill\(' | sed 's/^/KILLCALL /' | head -40 | tee -a "$W"
+                  K=$n
+                fi
+              fi
+              i=$((i + 1))
+              sleep 15
+            done
+          ) &
+          WITNESS_PID=$!
+          trap 'echo "STEP-TERM $(date -u +%T)"; ps -eo pid,pgid,sid,ppid,rss,etime,args --sort=pgid | cut -c1-180 | head -150 | sed "s/^/STEP-TERM /"' TERM
+          ST=""
+          if [ "${{ matrix.trace }}" = "kills" ]; then
+            if command -v strace >/dev/null 2>&1; then
+              ST="strace -f --seccomp-bpf -e trace=kill,tkill,tgkill,pidfd_send_signal -e signal=none -o $D/kills.log"
+            else
+              echo "WITNESS strace is not on this runner - the kills variant runs untraced"
+            fi
+          fi
+          $ST python3 -u tv/heart2.py --prove --push --proof-shard "${{ matrix.shard }}/${PROOF_SHARDS}" 2>&1 | tee "$D/prove.log"
           rc=${PIPESTATUS[0]}
           echo "prove_seconds=$(( $(date +%s) - S )) rc=$rc" | tee -a "$D/prove.log"
           if [ "${{ inputs.gate }}" = "deploy" ]; then
@@ -109,11 +152,18 @@ jobs:
             exit 0
           fi
           exit $rc
+      - name: What the kernel and the disk say at the end (REG-3102 witness)
+        if: always()
+        run: |
+          echo "--- dmesg oom / killed ---"; sudo -n dmesg -T 2>/dev/null | grep -iE 'oom|killed process|out of memory' | tail -40 || echo "dmesg unreadable"
+          echo "--- free ---"; free -m; echo "--- df ---"; df -h / /tmp; echo "--- chrome ---"; pgrep -af 'chrom|headless_shell' | cut -c1-160 | head -20
+          echo "--- heart2 sandboxes ---"; ls -d /tmp/heart2.* 2>/dev/null | head; du -smc /tmp/heart2.* 2>/dev/null | tail -1
+          echo "--- last kill calls ---"; tail -60 "$RUNNER_TEMP/shard-${{ matrix.shard }}/kills.log" 2>/dev/null | grep -E 'kill\(' | tail -40 || true
       - name: Upload this shard's cache
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: proof-shard-${{ matrix.shard }}
+          name: proof-shard-${{ matrix.shard }}-${{ matrix.trace }}
           path: ${{ runner.temp }}/shard-${{ matrix.shard }}/
           include-hidden-files: true
           if-no-files-found: warn
@@ -122,7 +172,7 @@ jobs:
   fan-in:
     name: fan-in - one whole set of this commit, or none
     needs: [shard]
-    if: ${{ always() }}
+    if: ${{ false }}   # REG-3102 witness run: one shard is no set
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
