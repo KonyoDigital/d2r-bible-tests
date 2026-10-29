@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2866 - THE SHADOW CALLED ITS COPY'S AGE THE OWNER'S "LAST UPLOAD" (GrokBot #230) - SUPERSEDED BEFORE SHIPPING BY REG-3034/3037
+SUPERSEDED before shipping by REG-3034/3037 (v3839/v3840): both answered GrokBot's "last upload N ago". REG-3034/3037 name each
+record's own store/upload age, measured on the site ("board uploaded N ago" beside the bar's " · snapshot <clock>", "sessions
+uploaded N ago", "roster row stored N ago"). REG-2866's premise - an unchanged upload is not stored again, so t dates the stored
+copy - is kept as REG-3037's roster-row wording. Its own fix (agent-212's "this copy is from <clock>" words through
+_shadowCopySay, and its 6 re-aimed red-proofs) was built on the integration chain (int-6) and dropped from the ship-chain
+replay by the lead's ruling of 2026-10-29: the two fixes print contradictory words for one field and cannot be merged. No code
+of REG-2866 ships.
+
+
 ### REG-3084 - REG-3056 ALSO STOOD THE SEALED CHRONICLE'S LANDING ASIDE, SO v1630'S SEALED-CARD SPECS WENT RED (v3839's CI)
 REG-3056 made his chip outrank BOTH auto-landings. GrokBot's report was only about the Crafts room (ALL snapping back to MAKE
 NOW). The Chronicle's v2094 landing - an ALL that holds no runeword work on a sealed chronicle lands on Completed, where the
