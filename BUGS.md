@@ -70,26 +70,37 @@ overwritten by the next paint. A landing now chooses the FIRST view only: forgeS
 (_forgeByHand.crafts / .forge), and both landings stand aside once he has picked. Measured on the whole page in node, every
 runeword made and one craft's rune and gem added through the Tools tab's tally doors: lands on MAKE NOW first; his ALL and
 COMPLETED survive a re-render. Law test_his_forge_chip_outranks_the_landing, 2 red-proofs RED.
-### REG-3059 - v527'S v536.2 SPEC PINNED ITS CHRONICLE BETWEEN TWO LOADS, AND THE BOARD'S persist() PUT INSIGHT BACK (CI on ci/claude-v3839)
+### REG-3059 - v527'S v536.2 SPEC PINNED ITS CHRONICLE BETWEEN TWO LOADS; NOTHING IN v3839 WIDENED IT - THE SAME SPEC FAILED ON v3818 (CI on ci/claude-v3839)
 Routine I on c0f4f1e24, shard 9: tests/v527_loot_filter_card.spec.ts:97 ("owning a socket-correct base for the word
-DROPS its base") expected insightHasBase true and got false, on both attempts. Read from CI's trace and page snapshot:
-after the reload the board said 99/99 runewords and `_endgameFilterBases().names` was empty. That pair has one reading:
-Insight had come back as made. Unmade with no base, the filter would list Colossus Voulge; unmade with its base, the
-spec passes. Not REG-3009 or REG-3006/3007: bible.html's diff from the last green Playwright run (ci/claude-v3837,
-41d545624) to c0f4f1e24 is those hunks plus the stamps, and none of them runs at boot or writes d2r_rwMade.
-The spec wrote its pin (every word made but Insight, rwProfile fresh) with page.evaluate between two loads. The first
-load floors the in-memory rwMade from the seed, Insight included, and persist() writes that whole object back over
-d2r_rwMade. Once the boot is done it is the one writer of that store that runs without a click: the floor, the Hustle
-purge and the ladder-key migration run inside the boot, and every other writer is a door. d2r_rwProfile has no click-free writer
-at all. In CI's timeline the pin landed 2.5 s after load and the reload began 120 ms later. Which persist() fired is
-UNMEASURED: a Chrome spec is never run here.
-Fixed in the spec. The pin rides a second addInitScript, with RUNEWORD_TIP's names read on the first load, so the
-reload's boot reads the pin itself and every later persist() writes it. A premise check (Insight not made after the
-reload) names the pin, not the Forge, if this ever fails again. The other v527 specs pin in their first init script or
-never reload. CI proves it. The edited spec parses under node's type stripping, which refuses a planted bad file.
-NOT SWEPT: 52 evaluate-then-reload pins across tests/*.spec.ts, most of them on stores persist() writes back. They are
-green today and only CI can run them, so they are listed, not rewritten. The v527 reds REG-1234 could not reproduce
-may be this same race.
+DROPS its base") expected insightHasBase true and got false, on both attempts. CI's trace: the reload's DOM already
+drew the Chronicle at (99/99), and `_endgameFilterBases().names` was empty. That pair has one reading: Insight was made
+again by the reload's boot. Unmade with no base, the filter would list Colossus Voulge; unmade with its base, the spec
+passes.
+WHAT v3839 CHANGED, measured rather than guessed: nothing that reaches this scenario.
+- The same assertion failed on both attempts of ci/claude-v3818 bedb53b33 (2026-10-28), a build with none of v3839's
+  code, and passed on the builds after it. It is an intermittent failure that takes both attempts of one run (2 of the
+  last 200 Routine I runs), not a v3839 regression.
+- Timing does not trigger it. v3839's two attempts spanned a 2.3 s and a 3.9 s navigation, and a 3 ms and a 387 ms pin,
+  and both failed; v3837's green run sat between them (2.7 s, 6 ms). v3839's shard ran faster than v3837's (1100 s
+  against 1294 s), so it was not a loaded runner either.
+- The v3839 bible.html hunks do not touch this path. REG-3009's doors (_unconfirmedTicks, _ticksConfirm, _ticksClear)
+  have no caller on the board: only the console calls them. The sunder art copy and the `_magicArtSrc` charm branch
+  never read the Chronicle, and the trace holds no page error.
+- A node replay of the whole sequence agrees: the first boot with the spec's stores, the pin, every queued timer,
+  pagehide, beforeunload and visibilitychange, then all 43 stores carried into the reload's boot, with and without its
+  #session hash. v3837's and v3839's bible.html come out identical: the pin holds (98 made), Insight is a make-now task
+  on its Colossus Voulge, and the filter names nothing. Whatever puts Insight back runs only in Chrome, on a path the
+  node world does not model (a resolved fetch, an observer, an image load). WHICH one is UNMEASURED.
+The fragile part was the spec's pin. It wrote d2r_rwMade with page.evaluate between two loads, over a first page whose
+in-memory rwMade is the seed floor (Insight included) and which persist() writes back whole. Fixed in the spec: the
+pin rides a second addInitScript, with RUNEWORD_TIP's names read on the first load, so the reload's boot reads the pin
+itself whatever the first page wrote last. A premise check (Insight not made after the reload) names the pin, not the
+Forge. If the writer is in the reload's boot itself, that check goes red and says so; the fix is then incomplete and
+the next look is in Chrome. The other v527 specs pin in their first init script or never reload. CI proves it. The
+edited spec parses under node's type stripping, which refuses a planted bad file.
+NOT SWEPT: 52 evaluate-then-reload pins across tests/*.spec.ts, most on stores persist() writes back. They are green
+today and only CI can run them, so they are listed, not rewritten.
+Corrected in v3840 (Claude, from agent-guide's measurement): the first entry said persist() put Insight back - an inference a node replay of the whole sequence does not reproduce; the writer is a Chrome-only path, UNMEASURED.
 
 ### REG-3058 - THE UNCONFIRMED LANE'S TWO HIDDEN FOOTER CHIPS HAD NO [hidden] GUARD (CI on ci/claude-v3839)
 test_a_hidden_element_is_actually_hidden read {'ch-btn': {'.ch-table .ch-t-acts .ch-btn'}} on c0f4f1e24. REG-3011 shipped
