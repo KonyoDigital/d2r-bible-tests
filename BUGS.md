@@ -103,6 +103,25 @@ the first item Dean filed would have erased the other four; a persist now carrie
 cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
 (node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
 and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+### REG-2927 - THE CHARACTERS ROOM KNEW ONLY WHAT THE REELS HAD SEEN TWICE, NOT THE NAMES THIS PC'S SAVES HOLD (#251)
+The room and the builder offered only characters this console's reels had read on two character-select visits, in the
+OCR's spelling (KONYOLOCK). The save folder names every character played on this PC, exactly (REG-2925, GET /api/saves
+REG-2926). The board now asks /api/saves beside /api/chars_learned, wherever the room, the builder or the vault asks,
+and repaints on that answer.
+- _cbTemplates: a reel name that folds to a save name takes the save's spelling and keeps the reels' class, level and
+  tier. Its key keeps its fold, so a build made from it still finds it.
+- A name only the saves know joins the in-game list with class and level UNKNOWN. The room's card says "Named by this
+  PC's save folder"; it never wears a tier. The planner's list says "class UNKNOWN (named by this PC's save folder)" and
+  counts such names in its In game label.
+- When the reels are UNKNOWN, the save-named cards stand and the room says what is not known.
+- A row counts only with its id count (the saves' own shape), a failed answer never replaces a good one, and a shadow
+  never takes them: their saves are on their PC.
+Law test_the_characters_room_names_this_pcs_saves (the whole page in node), 6 cases, 7 red-proofs RED, baseline green.
+Re-aimed: test_a_slow_character_read_still_reaches_the_shadow's two-asks stand-in fetch kept every fetch as a chars_learned
+ask, so the saves ask took the second ask's place. It now keeps the chars_learned asks only; its proof [3] stays RED.
+16 Characters neighbours ran green (7 of them node-only laws that safe_laws refuses for a prose "Chrome" or a test
+import, read and run by hand); the 2 shadow Chrome laws go to CI.
+
 ### REG-2926 - THE CONSOLE HAD NO DOOR FOR THIS PC'S SAVE NAMES (#251)
 REG-2925's reader had no route, so neither the Characters room nor the vault could ask what this PC's save folder names.
 GET /api/saves answers control_app.saves_answer(), which is d2s_read.saves() behind one door. The answer is kept while
