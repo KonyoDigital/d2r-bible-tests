@@ -12485,6 +12485,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_renewed_sunder_draws_its_plain_carving.py")], 300,
          needs_app=False,
          why="REG-3006/3007 #111: a Renewed sunder draws its plain charm's carving and a magic charm its size, never the Latent Black Cleft totem"),
+    Gate("test_a_tick_with_no_evidence_asks_its_owner",
+         [sys.executable, os.path.join(HERE, "test_a_tick_with_no_evidence_asks_its_owner.py")], 300,
+         needs_app=False,
+         why="REG-3009 #163: a tick with no evidence asks its owner; confirm writes his hand, clear presses each store's own un-tick, a shadow does neither"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

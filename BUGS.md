@@ -147,6 +147,20 @@ and held the other tab's save as "stale". Now a never-saved roster is skipped (t
 mule), and on a saved roster the stamp is saved with it whether or not a mule changed, so memory equals the store. Law:
 +1 case (a saved roster stamped at load still takes the other tab's save) and an assertion that a fresh board saves no
 roster at load; 2 red-proofs, both RED; REG-2804's own laws pass (8, 6, 4, 20 cases).
+### REG-3009 - A TICK WITH NO EVIDENCE COULD NOT BE ASKED ABOUT: DEAN'S 117 SAME-MINUTE SET PIECES (#163, his ruling 2026-10-29 Q6)
+Measured on Dean's board (#169): his found log holds 132 rows, 117 of them set pieces, every one stamped Aug 1, 2026 16:57 (one
+minute, a bulk tick, not the seed's dates), beside 98 of 99 runewords. The un-seed removes only seed-matched rows, so it does
+not apply; the console's "what earned this tick" showed "nothing banked" and offered nothing. His ruling: keep them until Dean
+confirms them in the console; a tick with no evidence asks its owner to confirm or clear it, and nothing clears one on its own.
+The board now has the three doors (it owns the stores): window._unconfirmedTicks() lists every set piece, unique and runeword
+tick that nothing on the board vouches for - no d2r_foundBy row, no d2r_foundEvidence sightings, no d2r_gameFound date, and on
+HIS ledger a row still carrying its chronicle seed's own date counts as his own record (measured on his fixture ledger: 528 of
+529 ticks evidenced, the one listed is a tick with a date of its own). _ticksConfirm writes his hand into d2r_foundBy (a
+runeword's row keyed 'rw:<name>', so a runeword and a unique of one name never answer for each other; rwToggleMade's un-mark
+drops it); _ticksClear presses each store's own un-tick (toggleSetPiece / toggleOwned / rwToggleMade), so REG-1638's redo puts
+a cleared unique's date back, refuses any tick that has evidence, and refuses a name toggleOwned would route to the vault. A
+shadow refuses both. Boot and every timer leave the ticks as they are. Law tv/test_a_tick_with_no_evidence_asks_its_owner.py
+(node, the whole page, Dean's shape and his ledger), 7 red-proofs, all RED.
 
 ### REG-3007 - EVERY MAGIC CHARM DREW THE LATENT BLACK CLEFT TOTEM (#111, the REG-3006 sweep)
 _magicArtSrc, the picture a rolled magic or rare item takes from its base, answered art/logo_charm.png for every charm - and

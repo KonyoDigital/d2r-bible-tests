@@ -5177,6 +5177,138 @@ window._foundBySay = function(row){
   return who + (how ? ' (' + how + ')' : '');
 };
 /* ⟦FOUND BY END⟧ */
+/* ⟦UNCONFIRMED TICKS BEGIN⟧ #163 (REG-3009, his ruling 2026-10-29 Q6) - A TICK WITH NO EVIDENCE ASKS ITS OWNER.
+   Measured on Dean's board (#169): his found log holds 132 rows, 117 of them set pieces, every one stamped Aug 1, 2026 16:57 -
+   one minute, a bulk tick, not the seed's dates - beside 98 of 99 runewords, and nothing on the board or the console could
+   ask him about them. His ruling: KEEP them until Dean confirms them in the console; a tick with no evidence asks its owner to
+   confirm or clear it, and nothing clears one on its own. These are the board's doors for that list (the board owns the
+   stores); the console's Chronicle inbox draws it in its "Unconfirmed" lane and adds the console's own banked sightings.
+   A tick is EVIDENCED here when something says why it is there:
+     * d2r_foundBy - who made it (REG-1886); a runeword's row is keyed 'rw:<name>', so a runeword and a unique of one name
+       ("Crescent Moon") never answer for each other;
+     * d2r_foundEvidence - the sightings a reader banked; d2r_gameFound - the game's own first-found date;
+     * on HIS ledger only, a row still carrying its chronicle seed's own date: the seed is his own record (v2696).
+   CONFIRM writes his hand into d2r_foundBy (REG-1910's loopback then banks it for the console). CLEAR is the store's own
+   un-tick - toggleSetPiece, toggleOwned, rwToggleMade - so REG-1638's misclick redo and every retraction stay theirs. A
+   shadow is read-only and refuses both. */
+window._UNCONF_RW_KEY = function(n){ return 'rw:' + String(n == null ? '' : n); };
+function _unconfReadOnly(){
+  try { return !!(window._tvdShadow || document.documentElement.classList.contains('tvd-shadow')); } catch (e) { return false; }
+}
+/* the stores the list is built from -> {fl, sp, rw, fb, ev, gf} | null when the found log, the set list or the runeword list
+   will not read (UNKNOWN - never an empty list) */
+function _unconfStores(){
+  var L = window.LSR, out = {};
+  function obj(k, opt){
+    var raw = null;
+    try { raw = L.getItem(k); } catch (e) { return opt ? {} : null; }
+    if (raw == null || raw === '') return {};
+    try { var v = JSON.parse(raw); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : (opt ? {} : null); }
+    catch (e2) { return opt ? {} : null; }
+  }
+  out.fl = obj('d2r_foundLog');
+  out.rw = obj('d2r_rwMade');
+  try { var spRaw = L.getItem('d2r_setPieces'); var sp = spRaw ? JSON.parse(spRaw) : []; out.sp = Array.isArray(sp) ? sp : null; }
+  catch (e3) { out.sp = null; }
+  if (!out.fl || !out.rw || !out.sp) return null;
+  out.fb = (typeof window._foundByRead === 'function' ? window._foundByRead() : null) || {};
+  out.ev = obj('d2r_foundEvidence', true);
+  out.gf = obj('d2r_gameFound', true);
+  return out;
+}
+function _unconfHas(o, k){ return !!(o && Object.prototype.hasOwnProperty.call(o, k)); }
+/* why this tick is evidenced on the board, or '' when nothing says */
+function _unconfWhy(S, name, store){
+  var his = window._seedsBelongHere === true;
+  if (store === 'runewords'){
+    if (_unconfHas(S.fb, window._UNCONF_RW_KEY(name))) return 'found-by';
+    if (his && window._RWC_SEED && _unconfHas(window._RWC_SEED, name) && window._RWC_SEED[name] === S.rw[name]) return 'his seed';
+    return '';
+  }
+  if (_unconfHas(S.fb, name)) return 'found-by';
+  if (_unconfHas(S.ev, name)) return 'sightings';
+  if (_unconfHas(S.gf, name)) return 'game date';
+  var seed = store === 'sets' ? window._SET_SEED : window._GRAIL_SEED;
+  if (his && seed && _unconfHas(seed, name) && seed[name] === S.fl[name]) return 'his seed';
+  return '';
+}
+/* every tick on this board -> [{name, store, date}] (sets: the set list; uniques: the found log's other rows; runewords) */
+function _unconfAll(S){
+  var rows = [], inSp = {};
+  S.sp.forEach(function(n){ if (typeof n === 'string' && n){ inSp[n] = 1; rows.push({ name: n, store: 'sets', date: _unconfHas(S.fl, n) ? S.fl[n] : null }); } });
+  Object.keys(S.fl).forEach(function(n){ if (!inSp[n]) rows.push({ name: n, store: 'uniques', date: S.fl[n] }); });
+  Object.keys(S.rw).forEach(function(n){ rows.push({ name: n, store: 'runewords', date: S.rw[n] }); });
+  rows.forEach(function(r){ r.date = (typeof r.date === 'string' && r.date) ? r.date : null; });
+  return rows;
+}
+/* the ticks nothing on this board vouches for -> {ok, rows:[{name, store, date}], total, evidenced, readOnly} */
+window._unconfirmedTicks = function(){
+  var S = _unconfStores();
+  if (!S) return { ok: false, why: 'the found log, the set list or the runeword list would not read - UNKNOWN, not "none"' };
+  var all = _unconfAll(S), rows = [], ev = 0;
+  all.forEach(function(r){ if (_unconfWhy(S, r.name, r.store)) ev++; else rows.push(r); });
+  return { ok: true, rows: rows, total: all.length, evidenced: ev, readOnly: _unconfReadOnly() };
+};
+/* the one row a {name, store} names, as it stands now -> {tick, why} | null when it is not ticked in that store */
+function _unconfRow(S, it){
+  var n = String((it && it.name) == null ? '' : it.name), st = String((it && it.store) || '');
+  if (!n) return null;
+  if (st === 'sets' && S.sp.indexOf(n) < 0) return null;
+  if (st === 'uniques' && (!_unconfHas(S.fl, n) || S.sp.indexOf(n) >= 0)) return null;
+  if (st === 'runewords' && !_unconfHas(S.rw, n)) return null;
+  if (st !== 'sets' && st !== 'uniques' && st !== 'runewords') return null;
+  return { name: n, store: st, why: _unconfWhy(S, n, st) };
+}
+/* CONFIRM - his word that each tick is real: a hand row in d2r_foundBy. -> {ok, confirmed:[names], skipped:[{name, why}]} */
+window._ticksConfirm = function(items){
+  if (_unconfReadOnly()) return { ok: false, why: "this is another PC's console, read only - it is confirmed on that PC" };
+  var S = _unconfStores();
+  if (!S) return { ok: false, why: 'the chronicle stores would not read - nothing was written' };
+  var done = [], skipped = [];
+  (Array.isArray(items) ? items : []).forEach(function(it){
+    var r = _unconfRow(S, it), n = String((it && it.name) || '');
+    if (!r) { skipped.push({ name: n, why: 'not ticked in ' + ((it && it.store) || 'any store') + ' any more' }); return; }
+    if (r.why) { skipped.push({ name: n, why: 'already has evidence (' + r.why + ')' }); return; }
+    var key = r.store === 'runewords' ? window._UNCONF_RW_KEY(n) : n;
+    var row = window._foundByMark(key, { source: 'hand', by: 'confirmed', where: "the console's unconfirmed ticks" });
+    if (row) { S.fb[key] = row; done.push(n); }
+    else skipped.push({ name: n, why: 'the found-by store would not write' });
+  });
+  return { ok: true, confirmed: done, skipped: skipped };
+};
+/* a unique the grail un-tick routes to the found log - toggleOwned's own three tests (ITEMS, _UNI_EXTRA, the unique roster);
+   any other name would fall to its physical-vault branch, so it is refused rather than pressed */
+function _unconfGrailUnique(n){
+  try {
+    if (typeof ITEMS !== 'undefined' && ITEMS.some(function(i){ return i && i.n === n; })) return true;
+    if (window._UNI_EXTRA && window._UNI_EXTRA[n]) return true;
+    if (typeof window._gUniqueRoster === 'function' && window._gUniqueRoster().indexOf(n) >= 0) return true;
+  } catch (e) {}
+  return false;
+}
+/* CLEAR - the store's own un-tick, one press per tick, only for a tick nothing vouches for. -> {ok, cleared, skipped} */
+window._ticksClear = function(items){
+  if (_unconfReadOnly()) return { ok: false, why: "this is another PC's console, read only - it is cleared on that PC" };
+  var S = _unconfStores();
+  if (!S) return { ok: false, why: 'the chronicle stores would not read - nothing was changed' };
+  var done = [], skipped = [];
+  (Array.isArray(items) ? items : []).forEach(function(it){
+    var r = _unconfRow(S, it), n = String((it && it.name) || '');
+    if (!r) { skipped.push({ name: n, why: 'not ticked in ' + ((it && it.store) || 'any store') + ' any more' }); return; }
+    if (r.why) { skipped.push({ name: n, why: 'it has evidence (' + r.why + ') - un-tick it on its own card' }); return; }
+    try {
+      if (r.store === 'sets') window.toggleSetPiece(n);
+      else if (r.store === 'runewords') window.rwToggleMade(n);
+      else if (_unconfGrailUnique(n)) window.toggleOwned(n, { source: 'hand', by: 'cleared', where: "the console's unconfirmed ticks" });
+      else { skipped.push({ name: n, why: 'not a unique this board knows - un-tick it on its own card' }); return; }
+    } catch (e) { skipped.push({ name: n, why: 'its un-tick threw: ' + String(e && e.message || e).slice(0, 80) }); return; }
+    var after = _unconfStores();
+    if (after && !_unconfRow(after, it)) done.push(n);
+    else skipped.push({ name: n, why: 'pressed, and it is still ticked' });
+  });
+  return { ok: true, cleared: done, skipped: skipped };
+};
+/* ⟦UNCONFIRMED TICKS END⟧ */
 /* ⟦TICK REDO BEGIN⟧ REG-1638 — AN UN-TICK THEN A RE-TICK IS ONE MISCLICK, NOT A NEW FIND.
    MEASURED on his board, 2026-09-30: The Cat's Eye, read from his shared stash at 01:13 (the reader's own frame, the
    vault's receipt), was un-ticked on its item card at 23:14:57 and ticked again at 23:15:00. The un-tick did what
@@ -31527,6 +31659,7 @@ window.rwToggleMade = function(name, baseHint){
     // v424 — record an explicit un-mark of a FLOOR runeword so the durable-floor top-up doesn't re-add it.
     try { if (typeof rwUnmade!=='undefined' && _RWC_SEED && _RWC_SEED[name]){ rwUnmade[name] = 1; LS.setItem('d2r_rwUnmade', JSON.stringify(rwUnmade)); } } catch(e){}
     try { window._restoreForgeBase(name); } catch(e){}   // v596 — give the consumed base back
+    try { if (typeof window._foundByDrop === 'function') window._foundByDrop(window._UNCONF_RW_KEY(name)); } catch(e){}   // #163 REG-3009 - its confirm goes with it
   }
   else {
     try { window._consumeForgeBase(name, baseHint); } catch(e){}   // v596/v626 — consume the CLICKED card's base when known (BEFORE the made flag hides the task)
