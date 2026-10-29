@@ -69,6 +69,41 @@ eagle ledger, and it did not redirect it: run from his checkout it would have wr
 test_no_test_writes_his_eagle_ledgers could not see it (the pass runs inside a -c string, not an AST call). The law
 now calls fixture_ledgers.redirect() at import, so the process and its child write a temp ledger; measured: the
 worktree's ledger kept its mtime and size across a full run.
+### REG-3042 - A SET PIECE OR A RUNEWORD IN THE MAGIC & RARE REGISTER WAS HOMED ON MAGIC & RARE (#163, GrokBot on Dean's shadow)
+Dean's saved records filed Aldur's Rhythm (a set piece) and Enigma (a runeword) on MAGIC & RARE. The file door has refused to treat
+a catalogue item as a keeper since REG-2854 (a grail unique, a set piece or a runeword draws from the catalogue on its own locker),
+but the live records derivation (REG-2853's keeper home), the dock, the keeper home every locker asks (_mfKeeperHome) and the
+MAGIC & RARE window's pack asked only "is it in magicFinds". Measured on the whole page in node: a set piece registered in
+magicFinds was homed on MAGIC & RARE. Now the door's three tests (the grail unique, set and runeword rosters by exact name, as
+REG-2854 uses them) are one answer, window._vaultCatalogueItem, and the ONE shared membership test (_inMagicRare, about eight
+callers) and the keeper home (_mfKeeperHome) ask it; a rolled name that merely contains a catalogue word ("Grief Mark",
+"Rhythm Visage") stays a keeper. Every caller was swept and asserted to give a catalogue item its own home: the owned pool
+carries a catalogue item the register holds, so the seam, the live records, a stored orphan row, FIND and the set locker's
+count all home it where the router does (Aldur's Rhythm -> SETS-REST), never MAGIC & RARE and never nowhere, a shadow included.
+v1251's self-heal moves every catalogue item - not only a runeword - out of the keeper track into owned, keeping its read's
+provenance ("Magic & Rare catalogue item migration"), and keeps the keeper row if the owned door refuses. The door still refuses
+to file a keeper elsewhere. What the current rule does with Dean's five: Aldur's Rhythm ->
+SETS-REST, Enigma -> SHARED STASH (war gear), Aldur's Deception -> SETS-REST, Alma Negra -> UNI-ARMOR, Bul-Kathos' Sacred Charge ->
+THROW OUT (his SETS-MAJOR stays his). Law tv/test_a_catalogue_item_is_never_a_magic_rare_keeper.py (node, the whole page), 7
+red-proofs, all RED; test_the_vault_finder_names_the_mule_and_the_cell [0] and test_magic_and_rare_draws_every_item_it_counts
+[3][4] re-aimed at the new lines (same sabotage, RED).
+
+### REG-3041 - DEAN'S SHADOW DREW 1 OF HIS 5 SAVED FILINGS, AND HIS NEXT FILING WOULD HAVE ERASED THE OTHER 4 (#163, GrokBot 2026-10-29)
+GrokBot: Dean's saved records (d2r_vaultRecords) file 5 items and his vault draws 1. Measured in node on those shapes (never his
+data): the saved records are the source only with a current migrate stamp and no dirty marker (v3766); otherwise the vault follows
+the live model, which holds only what d2r_owned and d2r_muleAssign hold - with the stamp all 5 draw, without it or with the dirty
+marker 1 does, which is GrokBot's picture. Which is true for the other 4 (removed, or lost) the stores cannot settle, so his
+2026-10-29 rule applies: when it cannot conclude, it asks. The source chain is now one function (_vrSourceChoice, read by
+_vaultRecordsSource, v3766 unchanged), and the Vault lists every filing the saved records hold that the drawn model lacks, with why
+it is not drawn, "file it again" (his hand: vaultHandAdd, then the file door, on the mule the current rule gives it - his old target
+named beside it, and a target the rule would throw out kept as his) and "forget it" (asked first, undone on this page). Found while
+building it: the file door's wrapper re-persists the saved records from the live model after EVERY filing, whatever the stamp, so
+the first item Dean filed would have erased the other four; a persist now carries those filings beside the records
+(savedNotDrawn) until he files them again or forgets them. Nothing runs on its own; a shadow is read only. Six law harnesses that
+cut _vaultRecordsSource now cut _vrSourceChoice with it. Law tv/test_a_saved_filing_the_board_does_not_draw_is_asked_about.py
+(node, the whole page, Dean's shapes on a fixture board), 9 red-proofs, all RED; test_v3765_records_arm_live [11][18][22][32][33]
+and test_v3767_intake_identity [9] re-aimed at the source chain's new lines (same sabotage, RED).
+
 ### REG-3012 - THREE D2JSP LAWS HAND-ADDED A BARE "Shako", WHICH REG-2858 NOW ASKS ABOUT INSTEAD OF OWNING (integration int-10)
 Red on the chain from int-7: test_a_d2jsp_card_counts_traded_copies_from_the_vault, test_a_mark_traded_goes_through_the_vault_trade_door
 and test_a_confirmed_d2jsp_post_lists_its_copies_on_the_vault each hand-added "Shako" in their whole-page half. Since REG-2858

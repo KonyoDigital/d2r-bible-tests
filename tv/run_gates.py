@@ -12797,6 +12797,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_enter_takes_the_exact_name_never_the_top_row.py")], 300,
          needs_app=False,
          why="REG-3068 (GrokBot 05:07) - ENTER TAKES THE EXACT NAME, NEVER THE TOP ROW BY GUESS: 'Spirit' added Cerebus' Bite (the top row) in the add box. Enter now takes the row whose name IS what he typed, asks when it is two items, takes nothing with no exact name, and an exact count is its tally's +1 (REG-3004). Swept: the Tools tally search ticked its top hit on Enter and now ticks only an exact name."),
+    Gate("test_a_catalogue_item_is_never_a_magic_rare_keeper",
+         [sys.executable, os.path.join(HERE, "test_a_catalogue_item_is_never_a_magic_rare_keeper.py")], 300,
+         needs_app=False,
+         why='REG-3042 #163: a grail unique, set piece or runeword is never a Magic & Rare keeper; every caller of the one test homes it on its own locker'),
+    Gate("test_a_saved_filing_the_board_does_not_draw_is_asked_about",
+         [sys.executable, os.path.join(HERE, "test_a_saved_filing_the_board_does_not_draw_is_asked_about.py")], 300,
+         needs_app=False,
+         why='REG-3041 #163: a saved filing the board does not draw is listed with why, file it again or forget it, never dropped by a write'),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
