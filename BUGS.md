@@ -14,6 +14,58 @@ the same pass held. Every kept row is read now; only the map is bounded, and a m
 (None) - the sentence says the drain's holds are UNKNOWN, never a partial map read as complete. Found by the Grok CLI's pre-ship
 look at v3841 (LOOKED, 2 findings; the other was what it was not shown). Law test_a_held_reel_is_named_by_its_hold +1 case
 (a hold after 450 recent rows; a map past its cap), 2 red-proofs; 11 of 11 RED.
+### REG-3117 - IN A SHADOW A FILLED MULE CELL STILL SAID "DRAG IT TO ANY CELL WHERE IT FITS AND IT LOCKS THERE" (#230, GrokBot 6489429952)
+GrokBot, guest -> Fleet -> Konyo · Mac -> Vault -> UNIQUE ARMOR: a filled cell's aria-label promised a drag the read-only
+shadow stops. The lock held; the words lied. REG-3103's gridCellSay fixed only the EMPTY cell. Swept: every title,
+aria-label and aria-roledescription on a vault cell or tile - the mule window's tiles (placed by hand, packed, out of fit,
+from the item database), its empty cells, a copy's ✕, the unlock, the doll's slots and their ✕, the Mule tabs; the shelf's
+locker-card cells, their ✕ (_vaultCellXTitle) and lock, a Magic & Rare cell's ✕, a locker's plate; the dock's chip and its
+✕ - 24 action phrases. Each now builds its words through one helper beside gridCellSay, gridActSay(desc, act): desc says
+what the thing is and stays; in a shadow (window._tvdShadow, else the shadow class - gridShadowRo) act becomes "Read only:
+this is their console, shown in a shadow", and outside a shadow the words are desc + act, byte for byte as before. A tile's
+key list (Enter picks it up...) is dropped in a shadow and its roledescription reads "item", not "movable item". Measured
+on the whole page in node: his board paints 431 of these words with the action phrases; the same vault in a snapshot
+shadow paints 431, none promising an action and 234 saying read only. Left as found: the shelf's registered list rows (a ✕
+"throw out" on a row, not a cell) and the MOVE TASKS row buttons - rows, outside this sweep. Law:
+test_a_shadow_cell_never_promises_an_action (the sweep lists every action phrase in these surfaces and classifies it,
+each act must sit inside the helper; the helper in and out of a shadow; the whole page twice; 8 red-proofs, each RED).
+test_a_copy_cell_says_every_copy_goes re-anchored to the helper's line (RED again). NEEDS LIVE: GrokBot reads a filled
+cell's aria-label in the guest's shadow of the Mac (Vault -> UNIQUE ARMOR).
+
+### REG-3106 - SHOULD MARKUP-SHAPED OCR READ AS "UNREADABLE TEXT (N CHARS)"? NO - AND THE CHIP'S FACE IS NOW LOCKED (#86 item 5)
+#86 item 5 asked again about the caught-text chip printing raw OCR like `CHAKm •<li•` (thHandoffNote; escaped, so never an
+injection): should markup-shaped garble read as "unreadable text (N chars)" with the raw text in a title? Decided from the
+code and the reads: no. REG-2791 measured these texts on his reels (1,029 on 38 sealed reels, 8,637 on the journal's kai
+rows) and the markup-shaped ones are a letter the OCR misread, often still readable - 'FAsT ArrA<K SpfE' is ATTACK SPEED,
+'kf>uiRfD STRENGT' is REQUIRED STRENGTH. A count would hide that evidence behind a hover a touch screen and a glance never
+make, which is the hiding REG-2791 ruled out ("a read is testimony and is never cleaned"); its quoting, escaping and "raw
+OCR" label are what answer "looks like leaked HTML". The gap found: REG-2791's law read each chip's whole span, title
+included, so moving the read into the title and showing a count passed it (proven: under that sabotage its 3 checks stayed
+green). Now the read must stand on the chip's face, outside every attribute, on the footage chip, the kai chip and the
+kai caption, and no count may stand in for it. No code changed. Law: test_unread_text_is_shown_as_the_ocr_read_it gains
+test_the_read_is_on_the_chips_face_never_only_in_a_title and 2 red-proofs (8 of 8 RED).
+
+### REG-3096 - A SHADOW'S DRAGS AND ITS VAULT / D2JSP / TV·D / RUNES TABS WERE UNKNOWN; MEASURED: NOTHING WRITES (#194, code half)
+GrokBot proved on the guest at v3806 that 0 stores change across 40 controls x 11 tabs in a shadow, and left two parts
+UNKNOWN: drag (vault tiles, dock to mule, mule to mule) and the Vault, d2jsp, TV·D and Runes tabs, which had no store counter
+to compare. The whole page now boots twice in node (vault_page_node): his board with a vault filed by the page's own doors
+(hand adds, vaultAssign to two lockers, one tile placed by hand), then a viewer's board in a snapshot shadow of exactly those
+stores (?tvd-shadow=1, the snapshot on the parent, the page's own shadow boot and veil). Driven in each: five drags by the
+page's own handlers (the right click that unlocks a placed tile, the keyboard carry, a tile pointer-dragged to an empty cell
+and onto a Mule tab, a dock chip dropped on a locker's plate) and every control the four tabs paint (475 in the shadow:
+press, click, keys, input/change, right click, drag start/over/drop/end), in a browser's event order through the page's own
+listeners. On his board every drag writes (d2r_mulePos, d2r_muleAssign) and 99 controls write - the baseline that the
+harness sees a write. In the shadow: no drag starts (each first event stopped) and none writes; no control writes or tries
+to (the storage door, LSR.setItem, is watched, since it drops a shadow's write at its first line); the viewer's real
+storage gets nothing; the 5 requests attempted (the D2JSP prices and sign-in, GETs) are refused by the veil and nothing
+reaches the network. No defect found, so no code changed. Named, not changed: a tab open attempts switchTab's d2r_activeTab
+straight into the frame's memory store, whose setItem the boot made a no-op (it lands nowhere), and the MOVE TASKS toggle
+(a VIEW handler) asks the door to keep vaultTasksOpen, view state the door drops. The harness rebinds vault_page_node's
+top-level store const inside this law (two asserted anchors) so the page's bare `localStorage` is the window's property, as
+in a browser - otherwise the shadow boot refuses to open ("would not isolate"). Law:
+test_a_shadow_writes_nothing_by_drag_or_on_four_tabs (11 tests, 6 red-proofs on the veil, each RED). NEEDS LIVE (#194):
+GrokBot repeats the drags and the four tabs on the ALT's shadow with a store counter, once the ALT is online.
+
 ### REG-3103 - IN A SHADOW FIND ON A MULE TOOK NO LETTER, AND AN EMPTY CELL STILL OFFERED THE ADD (#230, GrokBot v3838 07:08-07:25)
 GrokBot in the ALT's and the Mac's shadow: FIND on a mule ("Which mule holds it?") took the focus, and typing "Wraith Scarab"
 or "Nightwing" left it empty with no result. The shadow's key filter passed only the keys that move the view, Enter/Space on
