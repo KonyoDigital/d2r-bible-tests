@@ -114,6 +114,28 @@ The two profile-publish laws stand a fixture in for _profile_saves, so no law re
 Law test_the_characters_room_says_why_its_saves_name_what_they_name (the room on the whole page in node, the upload in
 Python), 8 cases, 8 red-proofs RED, baseline green. 24 neighbours ran green (6 node-only laws refused by safe_laws for a
 test import, read and run by hand); the signed-publish, presence-beacon, shadow and mule-window Chrome laws go to CI.
+### REG-3103 - IN A SHADOW FIND ON A MULE TOOK NO LETTER, AND AN EMPTY CELL STILL OFFERED THE ADD (#230, GrokBot v3838 07:08-07:25)
+GrokBot in the ALT's and the Mac's shadow: FIND on a mule ("Which mule holds it?") took the focus, and typing "Wraith Scarab"
+or "Nightwing" left it empty with no result. The shadow's key filter passed only the keys that move the view, Enter/Space on
+a view-only control and Ctrl+C/F/A, and its input veil stopped every input event, so every box was dead alike and a viewer
+could not ask the owner's vault where an item sits. The veil now names its lookups (window._tvdShadowLookup): 18 boxes that
+only search or filter a view over the owner's data and write nothing, each read at v3838 (FIND, the bible's search, the jump
+palette, the uniques/sets search, the runeword/recipe/value/finds filters, the D2JSP find, a locker's and the builder's stats
+filters, the builder's stash search, a forge wall's filter, the tally search). Each takes a key with no Ctrl/Cmd/Alt, Cmd+V,
+and the input and paste those make; Esc clears a typed lookup (and re-runs it) before an Esc leaves the shadow. Enter in a
+lookup stays stopped (where a box acts: the tally's tick), and every other box stays dead: the vault's add, the planner's
+add, the builder's pickers, counts, notes, imports, the D2JSP fg price. Swept: every input, textarea, select and created box
+in the board's code (89 sites) is classified in the law as a lookup or refused with its reason, so a new box fails until it is
+named. Left as found: selects that only filter a view (the cube-up targets, the builder's result filters) stay refused - a
+shadow stops their change; and the older roster shadow's own key block (armed by a 'tvd-shadow' message the console no longer
+sends, only its leave) still stops every box. Also GrokBot's nit: an empty inventory cell's title said "click (or Enter) to
+add an item from the database" in the shadow, where both are stopped; it now says "Read only: this is their console, shown
+in a shadow", in the D2JSP fg box's words. Law: test_a_lookup_answers_in_a_shadow (the sweep; the veil's own script in node,
+every lookup and every refused box given a key, a paste, an input, Enter and Esc; the cell title in and out of a shadow; 13
+red-proofs, each RED). NEEDS LIVE: GrokBot types "Nightwing" into FIND in the ALT's and the Mac's shadow and reads the
+answer; Esc clears it, a second Esc leaves; the vault's add box and an empty cell stay locked, and the cell's title says read
+only.
+
 ### REG-3094 - THE D2JSP TAB HAD NO HISTORY: A POST OR A TRADE OF AN ITEM OFF THE LIST HAD NO SURFACE LEFT (#83)
 Each card shows its own post attempts (REG-2872, the d2r_d2jsp_log store) and the vault records every copy that left
 (REG-2883, its traded rows), but there was no one place to read what the desk had done, and an item hidden or taken off the
