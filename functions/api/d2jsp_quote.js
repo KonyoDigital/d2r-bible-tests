@@ -31,9 +31,11 @@ function json(body, status) {
 
 /* ⟦D2JSP QUOTE BEGIN⟧ */
 var D2JSP_QUOTE_BOARD = 268;
-/* v3843 - ONLY THIS YEAR'S POSTS PRICE AN ITEM. A price line counts only under a post dated 2026; a page that dates
-   nothing, or only older years, reads 'no prices' and the desk says unknown. */
-var D2JSP_QUOTE_YEAR = 2026;
+/* v3843 - ONLY RECENT POSTS PRICE AN ITEM. A price line counts only under a post dated within the last
+   D2JSP_QUOTE_WINDOW_DAYS days of the reading (its readAt, else now) - a rolling window, so prices do not stop on
+   Jan 1. A page that dates nothing, or only older posts, reads 'no prices' and the desk says unknown. */
+var D2JSP_QUOTE_WINDOW_DAYS = 120;
+var D2JSP_DAY_MS = 86400000;
 
 /* v3843 - THE D2JSP LEXICON: the trade forum's own short names (its guides' slang and notation, never their prices).
    Each item maps to the words traders write for it; the search asks with the first, and a price line naming any
@@ -42,7 +44,7 @@ var D2JSP_SLANG = {
   "Annihilus": ["anni"], "Hellfire Torch": ["torch"], "Gheed's Fortune": ["gheeds"],
   "Harlequin Crest": ["shako"], "Griffon's Eye": ["gface", "griffons"], "Crown of Ages": ["coa"],
   "Arreat's Face": ["arreats"], "Andariel's Visage": ["andy"], "Herald of Zakarum": ["hoz"],
-  "Jalal's Mane": ["jmod"], "Stone of Jordan": ["soj"],
+  "Jalal's Mane": ["jalals"], "Stone of Jordan": ["soj"],
   "Bul-Kathos' Wedding Band": ["bk", "bk ring"], "Raven Frost": ["raven"], "Mara's Kaleidoscope": ["maras"],
   "Highlord's Wrath": ["highlords"], "Crown of Thieves": ["cot"], "Nightwing's Veil": ["nightwing", "veil"],
   "Mang Song's Lesson": ["mang song", "mangs"], "Eschuta's Temper": ["eschutas"], "Death's Fathom": ["fathom"],
@@ -50,7 +52,7 @@ var D2JSP_SLANG = {
   "Hand of Justice": ["hoj"], "Enigma": ["nigma"], "Infinity": ["infy"], "Insight": [],
   "Grief": [], "Spirit": [], "Heart of Winter": [], "Fortitude": ["forti"],
   "Stormshield": ["storm shield"], "Death's Web": ["deathweb"], "Titan's Revenge": ["titans"],
-  "Windforce": ["wf"], "Eaglehorn": [], "War Traveler": ["war travs", "wartravs"], "Waterwalk": ["ww"],
+  "Windforce": ["wf"], "Eaglehorn": [], "War Traveler": ["war travs", "wartravs"], "Waterwalk": [],
   "Sandstorm Trek": ["treks"], "Shadow Dancer": ["sdancer"], "Gore Rider": ["gores"],
   "Steelrend": ["rends"], "Magefist": ["mages"], "Dracul's Grasp": ["dracs"], "Bloodfist": ["bfists"],
   "Chance Guards": ["chancies"], "Arachnid Mesh": ["arach", "arachnid"], "Verdungo's Hearty Cord": ["dungo"],
@@ -123,15 +125,28 @@ function d2jspNotation(text) {
 }
 
 var D2JSP_MONTHS = 'jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec';
-/* the year a line dates its post by, or null: "Oct 12, 2026", "12 Oct 2026", "2026-10-12", or Today / Yesterday */
-function d2jspLineYear(line) {
-  var t = String(line || '');
-  var m = new RegExp('\\b(?:' + D2JSP_MONTHS + ')[a-z]*\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?,?\\s+(20\\d\\d)\\b', 'i').exec(t)
-    || new RegExp('\\b\\d{1,2}\\s+(?:' + D2JSP_MONTHS + ')[a-z]*\\.?,?\\s+(20\\d\\d)\\b', 'i').exec(t)
-    || /\b(20\d\d)-\d\d-\d\d\b/.exec(t);
-  if (m) return Number(m[1]);
-  if (/\b(?:today|yesterday)\b/i.test(t)) return D2JSP_QUOTE_YEAR;
+/* the UTC day (ms) a line dates its post by, or null: "Oct 12, 2026", "12 Oct 2026", "2026-10-12", or Today /
+   Yesterday (counted from nowMs) */
+function d2jspLineDate(line, nowMs) {
+  var t = String(line || ''), mon = D2JSP_MONTHS.split('|');
+  var m = new RegExp('\\b(' + D2JSP_MONTHS + ')[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d\\d)\\b', 'i').exec(t);
+  if (m) return Date.UTC(Number(m[3]), mon.indexOf(m[1].toLowerCase()), Number(m[2]));
+  m = new RegExp('\\b(\\d{1,2})\\s+(' + D2JSP_MONTHS + ')[a-z]*\\.?,?\\s+(20\\d\\d)\\b', 'i').exec(t);
+  if (m) return Date.UTC(Number(m[3]), mon.indexOf(m[2].toLowerCase()), Number(m[1]));
+  m = /\b(20\d\d)-(\d\d)-(\d\d)\b/.exec(t);
+  if (m) return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (/\btoday\b/i.test(t)) return nowMs;
+  if (/\byesterday\b/i.test(t)) return nowMs - D2JSP_DAY_MS;
   return null;
+}
+/* the reading's own clock: its readAt when that is a time, else now */
+function d2jspNowMs(readAt) {
+  var t = Date.parse(String(readAt || ''));
+  return isFinite(t) ? t : Date.now();
+}
+/* a post dated `when` is recent for a reading at nowMs: inside the window, and not in the future past a day of clock skew */
+function d2jspRecent(when, nowMs) {
+  return when != null && when <= nowMs + D2JSP_DAY_MS && when >= nowMs - D2JSP_QUOTE_WINDOW_DAYS * D2JSP_DAY_MS;
 }
 
 function d2jspFoldPrice(text) {
@@ -152,19 +167,20 @@ function d2jspFgAmounts(line) {
   return out;
 }
 
-function d2jspPrices(text, itemName) {
+function d2jspPrices(text, itemName, nowMs) {
+  if (nowMs == null) nowMs = Date.now();
   var forms = d2jspSearchWords(itemName).forms;
   if (!forms.length) return [];
   var plain = String(text || '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(?:p|div|tr|li|h\d)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
-  var nums = [], year = null;
+  var nums = [], when = null;
   plain.split('\n').forEach(function (line) {
-    var y = d2jspLineYear(line);
-    if (y != null) year = y;
-    /* v3843 - a price counts only under a post this year dated */
-    if (year !== D2JSP_QUOTE_YEAR) return;
+    var d = d2jspLineDate(line, nowMs);
+    if (d != null) when = d;
+    /* v3843 - a price counts only under a recently dated post */
+    if (!d2jspRecent(when, nowMs)) return;
     var folded = ' ' + d2jspFoldPrice(line).replace(/[^a-z0-9]+/g, ' ') + ' ';
     var named = forms.some(function (f) { return folded.indexOf(' ' + f.replace(/[^a-z0-9]+/g, ' ').trim() + ' ') >= 0; });
     if (!named) return;
@@ -198,7 +214,7 @@ function d2jspRead(html, item, readAt) {
     base.reason = 'need-login';
     return base;
   }
-  var nums = d2jspPrices(text, item);
+  var nums = d2jspPrices(text, item, d2jspNowMs(readAt));
   var fg = d2jspMedian(nums);
   if (fg == null) {
     base.reason = 'no prices';

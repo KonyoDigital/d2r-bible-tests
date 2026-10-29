@@ -77,6 +77,7 @@ class TheBumpCarriesItsChangelogEntry(unittest.TestCase):
         self.assertIn("ev.key === 'Escape'", ui)
         self.assertIn("ev.target === o", ui, "a click outside the box does not close it")
         self.assertIn('id="hist-x"', ui)
+        self.assertIn("if (gen !== histGen) return;", ui, "an older history answer can overwrite a newer open")
 
     def test_the_cards_show_version_date_and_one_bullet_each(self):
         if NODE is None:

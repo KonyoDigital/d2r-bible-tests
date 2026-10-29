@@ -12425,7 +12425,7 @@ function d2jspTierAvg(reads) {
   if (!ranged.length) return null;
   return ranged.reduce(function(s, r){ return s + r.pct; }, 0) / ranged.length;
 }
-/* the price by roll tier: the low end of this year's range for a low roll, the high end for a top one. Advice under
+/* the price by roll tier: the low end of the recent range for a low roll, the high end for a top one. Advice under
    the reading only - the post template and the post price are unchanged. */
 function d2jspTierPrice(q, avg) {
   q = q || {};

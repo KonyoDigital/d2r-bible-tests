@@ -3,7 +3,7 @@
 1. The search asks the way traders write: the slang form when the lexicon has one (Harlequin Crest -> shako), else the
    simplified name; a price line naming any form counts. The lexicon and notation come from the forum's guides; no
    price ever does.
-2. The public price is read on board 268, the Softcore non-ladder trading board, and only from posts dated 2026: an
+2. The public price is read on board 268, the Softcore non-ladder trading board, and only from posts dated within the last 120 days of the reading: an
    older post, or a page that dates nothing, leaves the price unknown.
 3. The roll-tier line places each typed mod within the game's own roll range (100% = the row's ceiling), prices the
    tier inside this year's range, and flags a value no row allows as likely misread. Advisory only: the post template
@@ -62,12 +62,21 @@ out.gheeds = d2jspSearchWords("Gheed's Fortune");
 out.plain = d2jspSearchWords("The Stone of Jordan Ring Thing");
 out.reaper = d2jspSearchWords("The Reaper's Toll");
 out.note = d2jspNotation("Anni 20/20/10 eth 2os @30 perf up'd rand");
-out.yr = [d2jspLineYear('Posted Oct 12, 2026 9:00'), d2jspLineYear('12 Oct 2025'), d2jspLineYear('2026-01-02'), d2jspLineYear('Today, 9:12'), d2jspLineYear('Shako 20 fg')];
-out.mixed = d2jspRead('Oct 3, 2025\nShako 300 fg\nOct 3, 2026\nShako 200 fg\nHarlequin Crest 100 fg\nShakos 999 fg', 'Harlequin Crest', 'x');
+var NOW = Date.parse('2026-10-29T12:00:00.000Z');
+out.day = [d2jspLineDate('Posted Oct 12, 2026 9:00', NOW), d2jspLineDate('12 Oct 2025', NOW), d2jspLineDate('2026-01-02', NOW), d2jspLineDate('Today, 9:12', NOW), d2jspLineDate('Yesterday', NOW), d2jspLineDate('Shako 20 fg', NOW)];
+out.day = out.day.map(function (d) { return d == null ? null : new Date(d).toISOString().slice(0, 10); });
+out.jalal = d2jspSearchWords("Jalal's Mane");
+out.jmod = d2jspSearchWords("Jeweler's Monarch of Deflecting");
+out.waterwalk = d2jspSearchWords('Waterwalk');
+out.wwAsWaterwalk = d2jspRead('Oct 20, 2026\nWW 500 fg', 'Waterwalk', '2026-10-29T12:00:00.000Z');
+out.jmodAsJalal = d2jspRead('Oct 20, 2026\njmod 900 fg', "Jalal's Mane", '2026-10-29T12:00:00.000Z');
+out.newYear = d2jspRead('Dec 28, 2026\nShako 300 fg\nJan 2, 2027\nShako 250 fg', 'Harlequin Crest', '2027-01-03T10:00:00.000Z');
+out.stale = d2jspRead('Jun 1, 2026\nShako 300 fg', 'Harlequin Crest', '2026-10-29T12:00:00.000Z');
+out.mixed = d2jspRead('Oct 3, 2025\nShako 300 fg\nOct 3, 2026\nShako 200 fg\nHarlequin Crest 100 fg\nShakos 999 fg', 'Harlequin Crest', '2026-10-29T12:00:00.000Z');
 out.undated = d2jspRead('Shako 300 fg', 'Harlequin Crest', 'x');
-out.old = d2jspRead('Mar 1, 2025\nShako 300 fg', 'Harlequin Crest', 'x');
+out.old = d2jspRead('Mar 1, 2025\nShako 300 fg', 'Harlequin Crest', '2026-10-29T12:00:00.000Z');
 out.fg = ['300fg', '300 fg', '1,500 fg', '30,000fg', '1.5k', '25k fg', '10K', '2os 40ias 300ed', '35MF gheeds', '5 keys 20fg', '99999999 fg'].map(d2jspFgAmounts);
-out.big = d2jspRead('Oct 20, 2026\nGlyph Scratch eth CS 25k\nGlyph Scratch 30,000 fg\nGlyph Scratch 1.5k', 'Glyph Scratch', 'x');
+out.big = d2jspRead('Oct 20, 2026\nGlyph Scratch eth CS 25k\nGlyph Scratch 30,000 fg\nGlyph Scratch 1.5k', 'Glyph Scratch', '2026-10-29T12:00:00.000Z');
 process.stdout.write(JSON.stringify(out));
 """
         cls.out = _node(cls.parser + "\n" + body)
@@ -89,8 +98,8 @@ process.stdout.write(JSON.stringify(out));
         self.assertIn("ethereal", n["words"])
         self.assertIn("open sockets", n["words"])
 
-    def test_only_2026_posts_price_it(self):
-        self.assertEqual(self.out["yr"], [2026, 2025, 2026, 2026, None])
+    def test_only_recent_posts_price_it(self):
+        self.assertEqual(self.out["day"], ["2026-10-12", "2025-10-12", "2026-01-02", "2026-10-29", "2026-10-28", None])
         m = self.out["mixed"]
         self.assertEqual(m["reason"], "read")
         self.assertEqual((m["low"], m["high"], m["n"]), (100, 200, 2), "a 2025 post or a longer word priced it")
@@ -98,6 +107,21 @@ process.stdout.write(JSON.stringify(out));
         self.assertEqual(self.out["undated"]["reason"], "no prices")
         self.assertIsNone(self.out["undated"]["fg"])
         self.assertEqual(self.out["old"]["reason"], "no prices")
+        s = self.out["stale"]
+        self.assertEqual(s["reason"], "no prices", "a post older than the window priced it")
+
+    def test_the_window_rolls_past_new_year(self):
+        y = self.out["newYear"]
+        self.assertEqual(y["reason"], "read", "prices stopped on Jan 1")
+        self.assertEqual((y["low"], y["high"], y["n"]), (250, 300, 2))
+
+    def test_jmod_is_not_jalals_and_ww_is_not_waterwalk(self):
+        self.assertNotIn("jmod", self.out["jalal"]["forms"], "jmod is Jeweler's Monarch of Deflecting, not Jalal's Mane")
+        self.assertNotEqual(self.out["jalal"]["query"], "jmod")
+        self.assertNotIn("ww", self.out["waterwalk"]["forms"], "ww is Whirlwind, not Waterwalk")
+        self.assertNotEqual(self.out["waterwalk"]["query"], "ww")
+        self.assertEqual(self.out["wwAsWaterwalk"]["reason"], "no prices", "a Whirlwind post priced Waterwalk")
+        self.assertEqual(self.out["jmodAsJalal"]["reason"], "no prices", "a Jeweler's Monarch post priced Jalal's Mane")
 
     def test_large_fg_amounts_read_whole(self):
         self.assertEqual(self.out["fg"], [[300], [300], [1500], [30000], [1500], [25000], [10000], [], [], [20], []])

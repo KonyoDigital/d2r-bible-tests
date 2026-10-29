@@ -33173,13 +33173,15 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     return o;
   }
   function histClose(){ var o = document.getElementById('hist-ov'); if (o) o.hidden = true; }
+  var histGen = 0;
   function histOpen(){
-    var o = histOv(), l = o.querySelector('#hist-list');
+    var o = histOv(), l = o.querySelector('#hist-list'), gen = ++histGen;
     l.innerHTML = '<div class="hist-card">Reading the history.</div>';
     o.hidden = false;
+    /* only the newest open paints: an older answer settling late never overwrites it */
     fetch('/api/changelog', { cache: 'no-store' }).then(function(r){ if (!r.ok) throw new Error('changelog ' + r.status); return r.json(); })
-      .then(function(j){ if (!j || !Array.isArray(j.versions)) throw new Error('no versions'); l.innerHTML = cardsHtml(j.versions); })
-      .catch(function(){ l.innerHTML = '<div class="hist-card">The history could not be read.</div>'; });
+      .then(function(j){ if (gen !== histGen) return; if (!j || !Array.isArray(j.versions)) throw new Error('no versions'); l.innerHTML = cardsHtml(j.versions); })
+      .catch(function(){ if (gen === histGen) l.innerHTML = '<div class="hist-card">The history could not be read.</div>'; });
   }
   window._histOpen = histOpen; window._histClose = histClose;
   document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape') histClose(); });
