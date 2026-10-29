@@ -12481,6 +12481,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_browser_law_is_proved_on_one_venue_at_least.py")], 300,
          needs_app=False,
          why='REG-2963 (#161) - the push leaves a changed browser law to the CI proof job only on a push to main whose deploy waits for it, names it, and proves every other law on the Mac'),
+    Gate("test_a_renewed_sunder_draws_its_plain_carving",
+         [sys.executable, os.path.join(HERE, "test_a_renewed_sunder_draws_its_plain_carving.py")], 300,
+         needs_app=False,
+         why="REG-3006/3007 #111: a Renewed sunder draws its plain charm's carving and a magic charm its size, never the Latent Black Cleft totem"),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

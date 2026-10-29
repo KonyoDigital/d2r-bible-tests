@@ -148,6 +148,26 @@ mule), and on a saved roster the stamp is saved with it whether or not a mule ch
 +1 case (a saved roster stamped at load still takes the other tab's save) and an assertion that a fresh board saves no
 roster at load; 2 red-proofs, both RED; REG-2804's own laws pass (8, 6, 4, 20 cases).
 
+### REG-3007 - EVERY MAGIC CHARM DREW THE LATENT BLACK CLEFT TOTEM (#111, the REG-3006 sweep)
+_magicArtSrc, the picture a rolled magic or rare item takes from its base, answered art/logo_charm.png for every charm - and
+that file is ONE charm's picture, the Latent Black Cleft totem. Measured on the whole page: "Grand Charm", "Large Charm",
+"Small Charm" and a magic "Lion Branded Grand Charm of Vita" all drew it through this function, so a magic Grand Charm's
+hover showed another item. The game draws a charm by its size, and the table already holds those three sprites: a charm is
+now hd_charm_small / hd_charm_medium / hd_charm_large by the size its words say ("(sc)/(lc)/(gc)" and "skiller" included),
+and a charm whose size is not said gets no picture rather than another charm's. Left alone, deliberately: the "Sunder Charm
+Renewal" recipe card's header emblem (logo_charm.png with alt="", a decoration, not an item's picture). Law below.
+
+### REG-3006 - THE SIX RENEWED SUNDER CHARMS ALL DREW THE LATENT BLACK CLEFT TOTEM (#111, his ruling 2026-10-29 Q10)
+His ruling: every item's picture matches the game, everywhere, the vault included. Measured on the whole page: artUrl
+answered art/logo_charm.png (the Latent Black Cleft totem) for exactly six names, the six "Renewed <sunder>" charms - they
+had no key in D2IO_ART, so _fillExtraUniqueArt gave each its base's _magicArtSrc (Grand Charm -> that file). Six different
+charms, one other charm's picture, on every surface. Renewing a Latent charm makes the charm itself, so each Renewed name now
+takes its plain charm's own entry - its own carving in its own colours (Bone Break's white stone, Black Cleft's grey, Crack
+of the Heavens' gold, Cold Rupture's blue totem, Flame Rift's orange, Rotting Fissure's green knot) - read off the one list
+of the six (SUNDER_CHARMS) into the table every surface reads: artOr (list rows, vault cells, FIND rows), the hover, the
+Forge, and the console's copy of D2IO_ART. The Latent charms keep their own icons and the plain charms are unchanged. After
+it, no item name and no table key resolves to logo_charm.png. Law tv/test_a_renewed_sunder_draws_its_plain_carving.py (node,
+the whole page; both REGs), 4 red-proofs, all RED.
 
 ### REG-2937 - THE SPINNER LAW'S SCROLL PROOF WAS BLIND: ITS CASE NEVER SCROLLED THE PANE (the v3832/v3833 push gate)
 The second push attempt was refused on test_the_planner_spinner_stays_under_the_cursor[2] ("the repaint sends the edit pane

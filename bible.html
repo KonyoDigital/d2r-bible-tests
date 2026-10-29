@@ -20902,6 +20902,17 @@ Object.assign(D2IO_ART, {"Deathspade":"art/mr_deathspade.png","Bladebone":"art/m
 /* v352 — Reign of the Warlock new items: HD art (maxroll). */
 Object.assign(D2IO_ART, {"Bane's Oathmaker":"art/mr_banesoathmaker.png","Bane's Wraithskin":"art/mr_baneswraithskin.png","Bane's Authority":"art/mr_banesauthority.png","Horazon's Countenance":"art/mr_horazonscountenance.png","Horazon's Dominion":"art/mr_horazonsdominion.png","Horazon's Hold":"art/mr_horazonshold.png","Horazon's Legacy":"art/mr_horazonslegacy.png","Horazon's Secrets":"art/mr_horazonssecrets.png"});
 window.D2IO_ART = D2IO_ART;
+/* #111 (REG-3006, his ruling 2026-10-29 Q10) - A RENEWED SUNDER DRAWS ITS PLAIN CHARM'S OWN CARVING, IN THAT CHARM'S COLOURS.
+   The six "Renewed <charm>" names had no key in this table, so _fillExtraUniqueArt gave each its base's art: Grand Charm ->
+   art/logo_charm.png, which is ONE charm's picture (the Latent Black Cleft totem). Measured on the whole page: those six
+   were the only names artUrl answered with it - six different charms, one other charm's picture, on every surface.
+   Renewing a Latent charm makes the charm itself, so each Renewed name takes its plain charm's entry (Bone Break's white
+   stone, Black Cleft's grey, Flame Rift's orange totem), read off the one list of the six. Every reader of this table -
+   artOr (rows, vault cells, FIND), the hover, the Forge, the console's copy - then draws the same picture. */
+try { (window.SUNDER_CHARMS || []).forEach(function(s){
+  var p = s && s.n;
+  if (p && Object.prototype.hasOwnProperty.call(D2IO_ART, p)) D2IO_ART['Renewed ' + p] = D2IO_ART[p];
+}); } catch (e) {}
 // v341.37 — Crafted Workshop art: each craft SLOT (and the "any jewel" ingredient) gets HD
 // base-type art so the slot icons + every floating craft tooltip show a real item image
 // (Konyo: "HD art for the items — gloves for gloves, each section relevant to its own").
@@ -24218,7 +24229,7 @@ try { window._aicRenderCompare=_aicRenderCompare; } catch(e){}
 // v1644 — THE WRAPPER THAT STAMPED NOTHING IS GONE. v1643 split this into
 // `_magicArtSrc(b){ return _magicArtSrcRaw(b); }` + `_magicArtSrcRaw`, with a comment claiming "ONE
 // wrapper stamps them all with the build id (see _artV)". It never called _artV. Measured at
-// runtime: _magicArtSrc('Grand Charm') === _magicArtSrcRaw('Grand Charm') === 'art/logo_charm.png',
+// runtime: _magicArtSrc('Grand Charm') === _magicArtSrcRaw('Grand Charm') === 'art/logo_charm.png' (then; REG-3007 sizes charms),
 // identical — a pure no-op indirection whose only caller was itself, sitting under a comment that
 // described work it did not do. Collapsed back to one function.
 // WHY IT IS NOT STAMPED HERE INSTEAD: art urls ARE cache-busted, by the DOM restamp + MutationObserver
@@ -24230,7 +24241,16 @@ try { window._aicRenderCompare=_aicRenderCompare; } catch(e){}
 function _magicArtSrc(base){
   var b=String(base||'').toLowerCase();
   if(!b) return null;
-  if(/charm|skiller|\(gc\)|\(sc\)|\(lc\)/.test(b)) return 'art/logo_charm.png';
+  /* #111 (REG-3007) - art/logo_charm.png is ONE charm's picture (the Latent Black Cleft totem), and every charm this was
+     asked about drew it: a magic Grand Charm's hover, a rolled "... Grand Charm" name, an off-grail charm with no key. The
+     game draws a charm by its size, and the table holds those three sprites. A charm whose size the words do not say
+     gets no picture - never another charm's. */
+  if(/charm|skiller|\(gc\)|\(sc\)|\(lc\)/.test(b)){
+    if(/\bsmall\b|\(sc\)/.test(b)) return 'art/hd_charm_small.png';
+    if(/\blarge\b|\(lc\)/.test(b)) return 'art/hd_charm_medium.png';
+    if(/\bgrand\b|skiller|\(gc\)/.test(b)) return 'art/hd_charm_large.png';
+    return null;
+  }
   if(/jewel/.test(b)) return 'art/jewel02_graphic.png';
   // v342.16 — ORDER MATTERS: specific elite bases, then slot-typed pieces (boots/gloves/belt, then BODY
   // ARMOR), THEN jewelry rare-name words. "Ring Mail" is body armor, not a ring — body armor must win
