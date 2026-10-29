@@ -12669,6 +12669,10 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_mule_cell_has_one_spelling.py")], 300,
          needs_app=False,
          why="REG-3062 (#144(a)'s sibling) - ONE MULE CELL, ONE SPELLING: '[Mule 2 · ]Personal stash · col 3 · row 1' from _muleSpotSay on every surface (the MOVE row said '(3,1)', its expand 'private stash (3,1)', the mule window 'STASH col 3 · row 1', a refused spot the area before the mule page). The helper's words in node, every surface's own line calls it, the old spellings are gone."),
+    Gate("test_enter_takes_the_exact_name_never_the_top_row",
+         [sys.executable, os.path.join(HERE, "test_enter_takes_the_exact_name_never_the_top_row.py")], 300,
+         needs_app=False,
+         why="REG-3068 (GrokBot 05:07) - ENTER TAKES THE EXACT NAME, NEVER THE TOP ROW BY GUESS: 'Spirit' added Cerebus' Bite (the top row) in the add box. Enter now takes the row whose name IS what he typed, asks when it is two items, takes nothing with no exact name, and an exact count is its tally's +1 (REG-3004). Swept: the Tools tally search ticked its top hit on Enter and now ticks only an exact name."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
