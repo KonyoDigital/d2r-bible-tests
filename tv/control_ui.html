@@ -27676,6 +27676,17 @@ function escC(s) {
       }), function (r) {
         return r.station + ' ' + (typeof r.n === 'number' ? r.n : '?') + (r.older ? ' older' : '');
       });
+      /* REG-3051 (GrokBot 04:30, #230 6486545342: "river stuck" beside /api/river OK) - the chip's own age, named: how long
+         each station's oldest reel has waited (the row's oldestS, counted as the beacon counts it). "river stuck" read as a
+         contradiction of a route that only said its census was readable; the age says what is old, and by how much. */
+      var _waits = sk.filter(function (e) { return e && typeof e.oldestS === 'number' && isFinite(e.oldestS) && e.oldestS >= 0; })
+        .map(function (e) {
+          var mins = Math.round(e.oldestS / 60);
+          var say = mins < 120 ? mins + ' min' : mins < 2880 ? Math.round(mins / 60) + ' h' : Math.round(mins / 1440) + ' d';
+          var older = (e.window === false) || _olderRe.test(String(e.why || ''));
+          return e.station + (older ? ' older' : '') + ' ' + say;
+        });
+      if (_waits.length) tip += ' · oldest reel waiting: ' + _waits.join(', ');
       bits.push('<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '">river stuck</span>');
     }
     if (census === 'missing' || census === 'stale' || census === 'unreadable') {

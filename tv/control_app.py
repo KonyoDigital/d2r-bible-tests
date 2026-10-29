@@ -17286,6 +17286,8 @@ def _river_for_wire(now_ms=None):
                 out["stuckKeep"] = int(_rr_keep.KEEP_RECENT)
             except Exception:
                 pass
+        # REG-3051 - this reading, with its own time, is what /api/river serves: one reckoning, never a second
+        _RIVER_STUCK_LAST.update(ts=now, stuck=out["stuck"], keep=out.get("stuckKeep"))
     _sp = dict(_SELF_PROVE)
     # #193 (his "river says unknown now", 2026-10-27) - THE BOOT WINDOW HAS A NAME. The self-prove lane's first tick lands
     # SELF_PROVE_FIRST_TICK rescue ticks (~5 min) after a start, and until then its record has no key and no census, so
@@ -17301,6 +17303,32 @@ def _river_for_wire(now_ms=None):
 
 #: #74 (REG-1461) — a station whose OLDEST reel has waited this long is STUCK, and the fleet card says so.
 RIVER_STUCK_AFTER_S = 6 * 3600
+
+#: REG-3051 - the last stuck reading the beacon computed (_river_for_wire), with the time it was computed.
+_RIVER_STUCK_LAST = {"ts": None, "stuck": None, "keep": None}
+
+
+def _river_stuck_view(now_ms=None):
+    """REG-3051 (GrokBot 04:30, #230 6486545342) - THE FLEET ROW'S "river stuck", ON /api/river, FROM ITS ONE SOURCE.
+
+    The Mac's Fleet row said "river stuck" for the Mac and the ALT while /api/river "was OK on both": two answers to two
+    questions, neither named. The row reads the beacon's stuck list (_river_stuck_for_wire: reels held past
+    RIVER_STUCK_AFTER_S at a station they should have left, or past the newest KEEP_RECENT and owed a tombstone); the
+    route's `ok` says only that its census could be read, and it carried no stuck reading at all. MEASURED on his Mac
+    on 2026-10-29 (read only, in a separate process): 25 reels past the newest 16, owed tombstones (ROUTED 11, the
+    oldest ~18 days; CAPTURE 5; UNKNOWN 8; STATION 1) - the row was right. The route now serves the SAME reading the beacon last sent, with the time it was
+    computed (asOf, ageS), never a second reckoning (a cold one took 10 s on his Mac). Not yet computed is UNKNOWN with
+    why, never an empty "flowing" list. -> {rows, asOf, ageS, keep, why}"""
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    ts = _RIVER_STUCK_LAST.get("ts")
+    if not isinstance(ts, int) or isinstance(ts, bool):
+        return {"rows": None, "asOf": None, "ageS": None, "keep": None,
+                "why": "the beacon has not read this PC's stuck reels since the console started - UNKNOWN"}
+    rows = _RIVER_STUCK_LAST.get("stuck")
+    return {"rows": rows if isinstance(rows, list) else None, "asOf": ts,
+            "ageS": round(max(0, now - ts) / 1000.0, 1), "keep": _RIVER_STUCK_LAST.get("keep"),
+            "why": None if isinstance(rows, list) else
+            "the stamp log or the shelf window could not be read when the beacon last asked - UNKNOWN, never flowing"}
 
 #: #193 (his "river says unknown now", 2026-10-27) - THE RIVER WAS READ ONLY WHEN SOMEONE ASKED FOR IT. _RIVER_LAST is
 #: filled only by /api/river, and the beacon never computes it (2-4 s on his Mac, 10.5 s for 772 reels on the ALT), so a
@@ -47824,6 +47852,8 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": bool(_cen.get("ok")),
                     "lanes": _lanes,
                     "stations": _names,
+                    # REG-3051 - the Fleet row's "river stuck", from its one source and with its own time
+                    "stuck": _river_stuck_view(),
                     # ⚠ counts = where reels ARE now; visits = how many times a station was ever
                     # reached. They differ the moment anything moves, and collapsing them would
                     # make a busy station indistinguishable from a crowded one.

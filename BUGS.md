@@ -286,6 +286,21 @@ run time") and every push it is in would re-prove it from nothing. It now lists 
 names, refused outside this run's scratch - the REG-2362/REG-2991 form. Asked of heart2 over every law REG-3033..3036 added
 or edited, no other is unkeyable (v3840's REG-3038 theatre law had the same listing and gets the same fix there). heart2
 keys it; the law passes (5) with all 7 red-proofs RED; the census passes on this tree.
+### REG-3051 - FLEET SAID "RIVER STUCK" BESIDE /api/river "OK": ONE READING ONLY ONE SURFACE COULD SEE, AND NO AGE SAID WHAT WAITED (GrokBot #230 6486545342)
+GrokBot 04:30: the Mac's Fleet row said "river stuck" for the Mac and the ALT while /api/river "is OK on both (ALT 727 reels,
+0 moved; Mac shelf 40, 239 reels)". Which field: the row reads the beacon's system.river.stuck, built by
+_river_stuck_for_wire from the river's stamp log - reels held past six hours at a station they should have left, or past the
+newest 16 and owed a tombstone. /api/river's `ok` says only that its census could be read, and the route carried no stuck
+reading at all, so the two answered different questions and neither said which. MEASURED on his Mac on 2026-10-29, read only
+in a separate process: 25 reels past the newest 16, owed tombstones - ROUTED 11 (the oldest about 18 days), CAPTURE 5,
+UNKNOWN 8, STATION 1. The row was right; nothing contradicted it but the unnamed "OK". One source now: _river_for_wire keeps
+the stuck reading it sends, with the time it was computed (_RIVER_STUCK_LAST), and /api/river serves that same reading as
+`stuck: {rows, asOf, ageS, keep, why}` - never a second reckoning (a cold one took 10 s on his Mac); not yet read is rows
+None with an UNKNOWN why, never an empty, flowing list. And the chip's tip ends naming how long each station's oldest reel has
+waited ("oldest reel waiting: ROUTED older 18 d, STATION 9 h"), so the row's age says what is old and by how much. Law:
+test_the_river_stuck_has_one_source (6 cases: the beacon's reading on the route with its time, UNKNOWN before and when
+unreadable, the route's line, the chip in node; 6 red-proofs, each RED).
+
 ### REG-3050 - A SLOW OR FAILED SESSIONS ASK CLOSED THE SHELF HE OPENED, AND A FAILED REFRESH CALLED HIS RUNS ABSENT (#86, folded #245)
 GrokBot's folded #245 tick: "the gallery self-closes 8-10 s after the Shelf button". thOpen's catch closed #theatre whenever
 /api/sessions did not answer - right for the REEL door (v2228: a black stage with nothing coming), wrong for the Shelf door:
