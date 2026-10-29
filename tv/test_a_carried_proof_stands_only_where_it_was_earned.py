@@ -316,13 +316,39 @@ class TheCarrierTakesFromThePCHisRulingNames(unittest.TestCase):
         import control_app as CA
         cls.CA = CA
 
-    def test_dean_takes_the_alt_and_nobody_else_takes_anything(self):
+    def test_dean_and_the_alt_take_each_other_and_nobody_else_takes_anything(self):
+        # v3844 - his ruling 2026-10-30 adds the ALT taking Dean's (the ALT can never hold a whole proof)
         p = self.CA._proof_carrier_peers
         self.assertEqual(p("Dean"), ("Konyo · ALT",))
-        for who in ("Konyo · ALT", "Wife PC", "Konyo · GrokBot", "Konyo · Mac", None):
+        self.assertEqual(p("Konyo · ALT"), ("Dean",))
+        for who in ("Wife PC", "Konyo · GrokBot", "Konyo · Mac", "Konyo", None):
             self.assertEqual(p(who), (), "%r takes proofs his ruling never named" % who)
         self.assertTrue(self.CA._proof_carrier_source("Konyo · ALT"))
-        self.assertFalse(self.CA._proof_carrier_source("Dean"), "Dean posts proofs nobody takes")
+        self.assertTrue(self.CA._proof_carrier_source("Dean"), "nobody takes the fleet prover's proofs")
+        self.assertFalse(self.CA._proof_carrier_source("Konyo · Mac"), "the Mac's proofs stand on a Windows PC")
+
+    def test_the_alt_never_proves_for_itself_and_still_takes_deans(self):
+        """v3844 - the weak PC only takes: its self-prove lane never starts a proof, while the status the carrier's
+        take waits on (playing, freeMb, owed) is still measured, so the take still runs."""
+        CA = self.CA
+        self.assertTrue(CA._self_prove_takes_only("Konyo · ALT"))
+        for who in ("Dean", "Wife PC", "Konyo · Mac", None):
+            self.assertFalse(CA._self_prove_takes_only(who), "%r stopped proving for itself" % who)
+        import self_prove as SP
+        census = {"state": "stale", "why": "HEAD moved", "fingerprint": "f", "owed": 40,
+                  "owedGates": [["test_x", 1]]}
+        tree = ("installed", "clean at origin")
+        idle = dict(busy_pct=5, mem={}, now_s=1e9, playing=False, free=6000, sandbox=(True, "ok"))
+        self.assertTrue(SP.decide(census, tree, None, **idle)["start"], "an idle strong PC stopped proving")
+        d = SP.decide(census, tree, None, takes_only=True, **idle)
+        self.assertFalse(d["start"], "a fleet taker started a proof of its own")
+        self.assertEqual(d["key"], "takes-fleet")
+        self.assertEqual(SP.decide(dict(census, state="current"), tree, None, takes_only=True, **idle)["key"], "current")
+        # and the carrier still takes for it: owed laws, measured idle, enough memory for an import
+        act, _why = CA._proof_carrier_due({"playing": False, "freeMb": 1100, "owed": 40}, {"take": {}, "publish": {}},
+                                          HEAD, 10000, "win32", can_take=bool(CA._proof_carrier_peers("Konyo · ALT")),
+                                          can_publish=CA._proof_carrier_source("Konyo · ALT"))
+        self.assertEqual(act, "take", "the ALT does not take Dean's proofs while it owes laws")
 
     def test_the_due_rule_takes_only_where_it_may_and_posts_only_for_someone(self):
         due = self.CA._proof_carrier_due

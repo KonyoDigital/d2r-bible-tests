@@ -773,7 +773,8 @@ def tree_state(git=None):
         return "unknown", "git could not be asked (%s)" % type(e).__name__
 
 
-def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None, sandbox=None):
+def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None, sandbox=None,
+           takes_only=False):
     """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str}
     `playing` / `free` (REG-1502): None is UNKNOWN, and a proof is never started on a guess."""
     if not on:
@@ -786,6 +787,14 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         return {"start": False, "key": "current", "why": census.get("why") or "current"}
     if st == "unknown":
         return {"start": False, "key": "unknown", "why": census.get("why") or "UNKNOWN"}
+    # v3844 (his ruling 2026-10-30: "the windows alt will never reach enough memory to prove itself.. maybe deans PC
+    # just needs to be proving himself he has enough ram for it") - a PC named a fleet TAKER never starts a proof of
+    # its own: the fleet prover (Dean) proves these bytes and the proof carrier brings them here. The status below is
+    # still measured (playing, freeMb, owed), because the carrier's take waits on exactly those.
+    if takes_only:
+        return {"start": False, "key": "takes-fleet",
+                "why": "this PC does not prove for itself - it takes the fleet prover's proofs at this HEAD "
+                       "through the proof carrier"}
     kind, twhy = tree
     if kind != "installed":
         return {"start": False, "key": "dev" if kind == "dev" else "tree-unknown",
@@ -1147,12 +1156,12 @@ def _hold_awake(pid, real=True):
 
 
 def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None,
-         playing=None, free=None, kill_fn=None, sandbox=None):
+         playing=None, free=None, kill_fn=None, sandbox=None, takes_only=False):
     """One pass of the lane. NEVER raises - it runs inside the rescue loop that also watches whether the
     console can still answer its own port. -> the lane's status in the shared vocabulary.
     `playing` / `free` are callables or values (REG-1502); None asks this machine."""
     try:
-        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)
+        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox, takes_only)
     except Exception as e:
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "raised",
                 "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
@@ -1266,7 +1275,8 @@ def _forget(mem):
     _STARTED.update(pid=None, birth=None)
 
 
-def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None, sandbox=None):
+def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None, sandbox=None,
+          takes_only=False):
     now_s = time.time() if now_s is None else now_s
     now_ms = int(now_s * 1000)
     play_now = _ask(playing, playing_state)
@@ -1393,7 +1403,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         sandbox_ready() if spawn_fn is None and not running and census.get("state") != "current" else None)
     d = decide(census, tree if tree is not None else tree_state(), running,
                busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now,
-               sandbox=(_sb() if callable(_sb) else _sb))
+               sandbox=(_sb() if callable(_sb) else _sb), takes_only=takes_only)
     if stall_gone is True:
         d = {"start": False, "key": "silent", "why": stall_why}
     elif stall_gone is False:

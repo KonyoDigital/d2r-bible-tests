@@ -21565,7 +21565,15 @@ def _self_prove_tick():
     does: there the pre-push gate is the prover."""
     try:
         import self_prove as _sp
-        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_yield_here)     # REG-1666 game · REG-2192 a sweep too
+        _owner = None
+        if sys.platform in PROOF_CARRIER_PLATFORMS:
+            try:
+                import roster_publish as _rpo
+                _owner = _rpo.owner_of(_roster_claimed_name(), _roster_platform())
+            except Exception:
+                _owner = None
+        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_yield_here,      # REG-1666 game · REG-2192 a sweep too
+                     takes_only=_self_prove_takes_only(_owner))       # v3844 - the ALT takes Dean's
         r = dict(r, gameOnScreen=shadow_game_detail())
         r = _self_prove_free_view(r)     # REG-1957 - memory is the only block: free the view of an idle PC
         if _a_sweep_is_reading() and not _sp_playing_here():   # REG-2192 - name the real reason, not "playing"
@@ -21591,7 +21599,17 @@ PROOF_CARRIER_PLATFORMS = ("win32",)
 #: REG-3047 (#186) - which PC takes which PC's proofs. His ruling (2026-10-28) names ONE direction: Dean takes the Windows
 #: ALT's. REG-2737 carried both ways and from every other roster label; a PC not named here takes from nobody, and a PC
 #: nobody takes from posts nothing. His own PC's gates do not stand on a friend's machine without his word.
-PROOF_CARRIER_ACCEPTS = {"Dean": ("Konyo · ALT",)}
+#: v3844 - his ruling 2026-10-30 (t966u) adds the other direction: the ALT (7.9 GB) can never hold a whole proof, so it
+#: takes Dean's. Both are win32 and an import re-keys every entry on the taker's own bytes, so only identical bytes carry.
+PROOF_CARRIER_ACCEPTS = {"Dean": ("Konyo · ALT",), "Konyo · ALT": ("Dean",)}
+#: v3844 - the PCs that never start a proof of their own and only take the fleet prover's (PROOF_CARRIER_ACCEPTS)
+PROOF_FLEET_TAKES_ONLY = ("Konyo · ALT",)
+
+
+def _self_prove_takes_only(owner):
+    """v3844 - does this PC only take the fleet prover's proofs? -> bool. Pure. Only a PC that also names a peer to take
+    from: a taker with nobody to take from would never prove anything, so it keeps proving for itself."""
+    return bool(owner) and owner in PROOF_FLEET_TAKES_ONLY and bool(_proof_carrier_peers(owner))
 
 
 def _proof_carrier_peers(owner):
