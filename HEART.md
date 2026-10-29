@@ -16,7 +16,7 @@ may not fall without a human saying why in `heart_floor.json`.
 
 | | |
 |---|---|
-| surfaces the console paints | **396** |
+| surfaces the console paints | **398** |
 | of those, watched | **8** |
 | coverage | **2.0%** |
 
@@ -40,9 +40,9 @@ all, so its surfaces could be neither watched nor unwatched — only unsaid.
 
 | | |
 |---|---|
-| surfaces the board paints | **571** |
+| surfaces the board paints | **575** |
 | of those, watched | **2** |
-| coverage | **0.4%** |
+| coverage | **0.3%** |
 
 ### Watched on the board
 
