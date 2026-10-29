@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2988 - THE GATE COST TABLE COVERED 94.5% OF THE GATE SET, UNDER ITS 95% FLOOR (CI on ci/claude-v3837)
+test_the_gate_set_shards_cleanly refused v3837: tv/gate_costs.json was measured on 1,207 gates and the registry had grown to
+1,277, so 5.5% of the set would have been sharded on the median guess. Refreshed with tv/gate_costs.py from that run's own job
+logs (run 40786675962, all five agent-suite shards, read with gh run view --log): 1,277 gates, 4,153 s, every registered gate
+measured. The law passes against the new table (15 cases). No gate code changed.
+
+
+### REG-2970 - THE WAR STASH LAW'S NAME-REGEX PROOF WENT BLIND ONCE ITS WAR MULES WERE SEEDED BY ROLE (the v3836 push gate)
+The push gate refused v3836: test_vault_l1_war_stash_overflow[7] ("WAR mules are matched case-sensitively") stayed GREEN with
+its sabotage in. It broke the name regex in REG-2804's one-time legacy migration; since REG-2804 a WAR mule is one by its
+STORED role, and REG-2968 seeds this law's war mules by role and number, so that migration never touches them and breaking it
+changed nothing the law can see. The proof now breaks the property the law depends on: _vaultWarRole recognising a stored
+role (the seeded war1 then takes no overflow). The name regex's own behaviour stays pinned by REG-2804's law. Chrome law:
+proven by the push gate.
+
+
 ### REG-2969 - THREE LAWS STILL CARRIED THE WORLD FROM BEFORE THE CHARMS LOCKER AND THE CAPTURE-TIME MAP (integration, v3837)
 Measured on the v3837 tree (integration steps 1-4 on v3836), each red for a reason in the LAW, not the product:
 test_a_refused_map_write_never_drops_a_filing typed its 11 core lockers by hand, so after REG-2895 made CHARMS a core locker
