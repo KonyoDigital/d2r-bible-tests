@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-3015 - TWO SHADOW GUARDS NOW SHARE ONE LINE, SO TWO LAWS THAT COUNTED IT ONCE WOULD READ IT TWICE (ship-chain slice 7)
+REG-3105 (#158 P4) added _flShadow, whose guard line is byte for byte REG-3095's inShadow guard ("try { return
+document.documentElement.classList.contains('tvd-shadow'); } catch (e) { return false; }"). REG-3095's red-proof [2] found
+that line 2 times (anchors bad 1), and the beacon law's per-site rule (REG-3049, "each == 1") would have read 2 for
+REG-3095's site. Both now name the guard by its function: the red-proof breaks inShadow's own line (same sabotage, same
+property - 4 of 4 RED on a green baseline), and the beacon law counts inShadow's and _flShadow's guards as two sites. That
+makes six sites, each counted once in this tree's bible.html.
+
+
 ### REG-3014 - THE FIRST-SIGHTING DRAIN CASE SENT A FRAME THAT NEVER SAID IT READ THE STASH WHOLE (CI on ci/claude-chain-1)
 test_vault_l1_throw_out_rows_drain's first-sighting case (REG-2843's) drained its throw-out row with an inline frame that carries
 no `complete: true`. REG-2861 counts an item gone only from a frame that read its container whole, and its own change taught the
