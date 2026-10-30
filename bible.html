@@ -86925,5 +86925,48 @@ window.tvStashAutoIntake = async function(tab, opts){
 details[data-sh] > summary{transition:color .2s ease}
 @media (prefers-reduced-motion: reduce){ details[data-sh] *{transition:none !important} }
 </style>
+<script id="v3845-field-takes-focus">
+/* v3845 - Elad 2026-10-30 09:32/09:50: in his pywebview/WebKit window, PRICE SEARCH and "Find a filed
+   item" on the D2JSP board took no keystrokes. MEASURED in a real WKWebView on his Mac (PyObjC probe,
+   the live console at :17772, board inside #tvd-eng): once the input HAS focus, native key events
+   type into it ("abc" landed). So the keys are fine and the lost step is the CLICK GIVING FOCUS.
+   Chrome gives focus on that click; his window does not. This makes the click itself hand the field
+   its focus (frame first, then the field) when the engine did not, and records each rescue to
+   /api/ui_fault so the cause inside WebKit gets named instead of guessed. */
+(function(){
+  function isField(el){
+    if (!el || el.disabled || el.readOnly) return false;
+    if (el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+    if (el.tagName !== 'INPUT') return false;
+    return !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(el.type || 'text');
+  }
+  var told = 0;
+  function rescue(el, ev){
+    if (document.activeElement === el && document.hasFocus()) return false;
+    var before = document.activeElement ? (document.activeElement.id || document.activeElement.tagName) : null;
+    try { window.focus(); } catch(_){}
+    try { el.focus({ preventScroll: true }); } catch(_){ try { el.focus(); } catch(__){} }
+    var ok = document.activeElement === el;
+    window.__fieldFocusRescues = (window.__fieldFocusRescues || 0) + 1;
+    if (told < 3) {
+      told++;
+      try {
+        fetch('/api/ui_fault', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'field-click-gave-no-focus',
+            why: 'a click on #' + (el.id || el.name || el.tagName) + ' left focus on ' + before
+               + ' (defaultPrevented ' + !!(ev && ev.defaultPrevented) + ', framed ' + (window.top !== window)
+               + ', hasFocus ' + document.hasFocus() + '); rescued ' + ok,
+            where: 'bible v3845-field-takes-focus' }) });
+      } catch(_){}
+    }
+    return ok;
+  }
+  window._fieldFocusRescue = rescue;
+  document.addEventListener('click', function(ev){
+    var el = ev.target && ev.target.closest ? ev.target.closest('input,textarea,[contenteditable="true"]') : null;
+    if (isField(el)) rescue(el, ev);
+  }, true);
+})();
+</script>
 </body>
 </html>
