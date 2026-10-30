@@ -30,22 +30,6 @@ def changed(base="origin/main"):
     return [l for l in out.splitlines() if l.strip()]
 
 
-def _imports(path, cache={}):
-    if path in cache:
-        return cache[path]
-    cache[path] = set()
-    try:
-        src = open(path, encoding="utf-8", errors="replace").read()
-    except OSError:
-        return cache[path]
-    mods = set(re.findall(r"^\s*(?:from|import)\s+([A-Za-z_]\w*)", src, re.M))
-    for m in mods:
-        p = os.path.join(HERE, m + ".py")
-        if os.path.exists(p):
-            cache[path] |= {p} | _imports(p)
-    return cache[path]
-
-
 @functools.lru_cache(maxsize=None)
 def _text(path):
     try:
@@ -93,15 +77,24 @@ def select(gates, files, base="origin/main"):
     if hit:
         return None, "shared file(s) changed: %s - every gate runs" % ", ".join(hit)
     known = {g.name for g in gates}
-    pick = [n for n in core() if n in known] + sorted(added - set(core()))
-    keys = set()
+    want = core()
+    lost = [n for n in want + sorted(added) if n not in known]
+    if lost:   # v3847 eye: a core typo or a registry name the parse made up ran nothing, silently. Fail closed.
+        return None, "fast set names unknown gate(s): %s - every gate runs" % ", ".join(lost[:5])
+    pick = list(want) + sorted(added - set(want))
+    keys, short = set(), set()
     for f in files:
         b = os.path.basename(f); keys.add(b)
         stem = os.path.splitext(b)[0]
         if len(stem) >= 5:
             keys.add(stem)
+        elif f.endswith(".py") and stem:
+            short.add(stem)   # v3847 eye: "import foo" names foo.py with no "foo.py" in the text
     absch = {os.path.join(REPO, f) for f in files}
-    rx = re.compile(r"\b(?:%s)\b" % "|".join(re.escape(k) for k in sorted(keys))) if keys else None
+    alts = [r"\b(?:%s)\b" % "|".join(re.escape(k) for k in sorted(keys))] if keys else []
+    if short:
+        alts.append(r"^\s*(?:from|import)\s+(?:[\w.]+\s*,\s*)*(?:%s)\b" % "|".join(re.escape(k) for k in sorted(short)))
+    rx = re.compile("|".join(alts), re.M) if alts else None
     seen = {}
 
     def names_one(p):
@@ -120,7 +113,7 @@ def select(gates, files, base="origin/main"):
         if law in absch or names_one(law):
             if g.name not in pick:
                 pick.append(g.name)
-    return pick, "%d core + changed-file gates for %d changed file(s)" % (len(core()), len(files))
+    return pick, "%d core + changed-file gates for %d changed file(s)" % (len(want), len(files))
 
 
 if __name__ == "__main__":
