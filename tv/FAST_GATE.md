@@ -37,6 +37,11 @@ Tradeoff:
   shows up within the hour on CI, never later than the next night), a law that every region has >= 1 gate and every
   marker is paired, and a region edit to anything global (`:root`, `window.`, top-level `function` used outside
   the region) escalates to full.
+* **Grok CLI's alternative (#230 6524714814), preferred**: no hand-drawn markers. Take the line ranges each gate's
+  trace already reads in the shared file, widen each to its enclosing function/rule block, and run a gate when a
+  hunk lands in its widened ranges. The map comes from the trace, so it cannot drift by hand; a hunk no gate's
+  range covers (new code, top-level code) runs every gate, never zero. Same cross-region risk as above, same
+  CI/nightly backstop; it costs a trace-range store in the ledger and a law for it.
 * in short: faster pushes on the files that change most, paid for by "caught at CI/nightly, not at the push" for
   cross-region breaks. It needs Elad's OK first.
 
@@ -51,3 +56,5 @@ so `--changed` reruns all of them every time. Options, safest first:
 3. **follow the children**: export the trace env to python children (15 gates) and treat `git`/`sips`/`vm_stat` as
    pure tools whose inputs are their argv files (~140 gates). Most of the win; needs a ledger change and its law.
 Recommended: 3 for git/sips/vm_stat/python children, 1 for the Chrome gates. Not in this commit.
+Grok CLI's review agrees with the rule kept here: an untraced gate carries only on an explicit input list it is
+red-proved against, or it runs. Never a guessed hash. A gate the selector cannot map (no law file) always runs.
