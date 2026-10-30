@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3845",
+  "ver": "v3846",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3845: d2jsp rolls priced by roll, WebKit field focus, show and hide toggles, Dock once, Shelf in shadow",
+  "note": "v3846: the console window takes keys after a quiet relaunch, plain gate runs bank their passes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
