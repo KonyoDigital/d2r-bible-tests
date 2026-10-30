@@ -77,6 +77,22 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
     def test_a_made_x_does_not_loop_its_own_escape(self):
         self.assertIn("e.__ovxPass ||", BLOCK.findall(UI)[0], "the made x's Escape re-enters the contract")
 
+    # v3847 pin fix (Elad 18:06): one shared inset for both gaps on every card, measured on screen from the card
+    def test_both_gaps_share_one_inset_from_the_card(self):
+        c = BLOCK.findall(UI)[0]
+        self.assertIn("(v.top + OVX_INSET) - xr.top", c, "the top gap is not the shared inset")
+        self.assertIn("xr.right - (v.right - OVX_INSET)", c, "the right gap is not the shared inset")
+        self.assertIn("if (best && big <= 1) return best;", c, "a panel on a scrim is not its own card")
+
+    def test_a_button_sharing_the_x_class_is_not_the_x(self):
+        # tally's RECEIPTS button carries .tly-x; pinning it hid the real x
+        self.assertIn("(/^(close|esc)\\b/i.test(t) || (!t && /close/i.test(lab)))", BLOCK.findall(UI)[0])
+
+    def test_an_overlays_own_close_is_pinned_not_doubled_and_gets_room(self):
+        c = BLOCK.findall(UI)[0]
+        self.assertIn("var x = xOfOverlay(ov, card);", c, "the mule window's own close gets a second made x")
+        self.assertIn("ovxClear(card, x, x.getBoundingClientRect());", c, "a header button or title stays under the x")
+
 
 RED_PROOF = [
     {"why": "an overlay with no x stays without one",
@@ -87,6 +103,12 @@ RED_PROOF = [
      "matches": 1},
     {"why": "the made x's Escape loops back into the contract",
      "file": "tv/control_ui.html", "find": "e.__ovxPass || ", "replace": "", "matches": 1},
+    {"why": "the top gap drifts off the shared inset",
+     "file": "tv/control_ui.html", "find": "(v.top + OVX_INSET) - xr.top", "replace": "(v.top + 3) - xr.top", "matches": 1},
+    {"why": "the mule window's own close is ignored and a second x is made",
+     "file": "tv/control_ui.html", "find": "var x = xOfOverlay(ov, card);", "replace": "var x = xOf(card);", "matches": 1},
+    {"why": "what sits under the x keeps sitting there",
+     "file": "tv/control_ui.html", "find": "    ovxClear(card, x, x.getBoundingClientRect());\n", "replace": "", "matches": 1},
 ]
 
 if __name__ == "__main__":

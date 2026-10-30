@@ -33359,7 +33359,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
      (or a made one) pinned OVX_INSET from the card's right edge, centred on the header row. */
   var OVX_INSET = 12, OVX_SIZE = 28;
   var OVX_SKIP = /(toast|tip\b|tips|fab|pill|ribbon|badge|dock|nav-widget|hint|spark|celebrate|epic|nudge|results|ghost|dragsay|thumb|topbar|shadow-bar|shadow-eng|tvd-eng|countdown|arttip|itip|d2tip|rs-bar|routine-status|scrim|rcpt-art|frame-mark)/i;
-  var OVX_ALSO = '#theatre,.tvz-theatre,#forensics-ov,#ch-modal,[role=dialog],[aria-modal=true]';
+  var OVX_ALSO = '#roster-box,#theatre,.tvz-theatre,#forensics-ov,#ch-modal,[role=dialog],[aria-modal=true]';
   var ovxSel = null;
   function ovxSelectors() {
     if (ovxSel) return ovxSel;
@@ -33383,16 +33383,22 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   function cardOf(ov) {
     var r = ov.getBoundingClientRect();
     if (r.width < innerWidth - 8 || r.height < innerHeight - 8) return ov;
-    var best = null, ba = 0;
+    var best = null, ba = 0, big = 0;
     for (var i = 0; i < ov.children.length; i++) {
       var q = ov.children[i].getBoundingClientRect(), a = q.width * q.height;
+      if (a > r.width * r.height * 0.1) big++;
       if (a > ba && q.width < r.width - 8) { ba = a; best = ov.children[i]; }
     }
-    return best || ov;
+    if (best && big <= 1) return best;   /* one panel on a scrim: the panel is the card */
+    /* a full-screen window laid out in columns (the mule window, the builder) is its own card: the x goes on
+       the window's corner, not on whichever column happens to be largest */
+    return (best && ba >= r.width * r.height * 0.5) ? best : ov;
   }
   function isX(b) {
     var t = (b.textContent || '').trim();
-    return (b.matches(X_SEL) || /^[\u00d7\u2715\u2716](\s|$)/.test(t)) && t.length < 12;
+    /* a close control, not a sibling button that shares the x's class (tally's RECEIPTS is .tly-x) */
+    var lab = (b.title || '') + ' ' + (b.getAttribute('aria-label') || '');
+    return t.length < 16 && (/^[\u00d7\u2715\u2716](\s|$)/.test(t) || (b.matches(X_SEL) && (/^(close|esc)\b/i.test(t) || (!t && /close/i.test(lab)))));
   }
   function xOf(card) {
     var made = card.querySelector(':scope > .ovx-made');
@@ -33406,6 +33412,14 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     }
     return made;
   }
+  /* a full-screen overlay whose card is a child: its own close may sit outside that card (the mule window's
+     header "close (Esc)") - that is the x to pin, never a second made one */
+  function xOfOverlay(ov, card) {
+    var x = xOf(card);
+    if (x && !x.classList.contains('ovx-made')) return x;
+    if (ov !== card) { var o = xOf(ov); if (o && !o.classList.contains('ovx-made')) { if (x) x.remove(); return o; } }
+    return x;
+  }
   function ovxClose(ov) {
     var esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
     esc.__ovxPass = 1;
@@ -33416,27 +33430,75 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (shown(ov)) ov.style.display = 'none';
     }, 60);
   }
-  function ovxPin(card, x) {
-    if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
-    x.classList.add('ovx');
-    var cr = card.getBoundingClientRect(), top = OVX_INSET;
-    var head = card.firstElementChild === x ? x.nextElementSibling : card.firstElementChild;
-    if (head) {
-      var hr = head.getBoundingClientRect();
-      if (hr.top - cr.top < 30 && hr.height >= OVX_SIZE && hr.height <= 80) top = Math.round(hr.top - cr.top + (hr.height - OVX_SIZE) / 2);
-      if (hr.height <= 80 && hr.right > cr.right - OVX_SIZE - 2 * OVX_INSET) {
-        var pr = parseFloat(getComputedStyle(head).paddingRight) || 0;
-        if (pr < OVX_SIZE + OVX_INSET + 8) head.style.paddingRight = (OVX_SIZE + OVX_INSET + 8) + 'px';
+  /* one shared inset: the x sits OVX_INSET from the card's visible top-right corner (both gaps the same),
+     measured from the card's rect on screen and corrected once, so offset parents, transforms and
+     scrolled cards cannot move it; header buttons under that spot get room. */
+  function ovxVisible(card) {
+    var r = card.getBoundingClientRect(), t = Math.max(r.top, 0), rt = Math.min(r.right, innerWidth);
+    for (var p = card.parentElement; p && p !== document.body; p = p.parentElement) {
+      var o = getComputedStyle(p).overflowY;
+      if (o === 'auto' || o === 'scroll' || o === 'hidden') { var q = p.getBoundingClientRect(); t = Math.max(t, q.top); rt = Math.min(rt, q.right); }
+    }
+    return { top: t, right: rt };
+  }
+  function ovxTextRect(h) {
+    /* the ink of a heading, not its full-width box: a centred title only needs room where its letters are */
+    var rg = document.createRange(), l = 1e9, t = 1e9, rt = -1e9, b = -1e9;
+    for (var c = h.firstChild; c; c = c.nextSibling) {
+      if (c.nodeType !== 3 || !c.nodeValue.trim()) continue;
+      rg.selectNodeContents(c);
+      var q = rg.getBoundingClientRect();
+      if (q.width) { l = Math.min(l, q.left); t = Math.min(t, q.top); rt = Math.max(rt, q.right); b = Math.max(b, q.bottom); }
+    }
+    return rt > l ? { left: l, top: t, right: rt, bottom: b } : null;
+  }
+  window.__ovxTextRect = ovxTextRect;
+  function ovxClear(card, x, xr) {
+    /* whatever sits under the x - a header button or a heading's text - gets room; elementsFromPoint keeps this
+       cheap on long cards, and once room is made nothing is under the x, so the next tick does nothing */
+    var pts = [[xr.left + 1, xr.top + 1], [xr.left + 1, xr.bottom - 1], [xr.left + xr.width / 2, xr.top + xr.height / 2], [xr.right - 1, xr.top + 1], [xr.right - 1, xr.bottom - 1]];
+    var seen = [];
+    for (var k = 0; k < pts.length; k++) {
+      var hs = document.elementsFromPoint(pts[k][0], pts[k][1]);
+      for (var i = 0; i < hs.length; i++) {
+        var h = hs[i];
+        if (h === x || x.contains(h) || h.contains(x) || h === card || !card.contains(h) || seen.indexOf(h) >= 0) continue;
+        seen.push(h);
+        var ctl = h.closest('button,a,[role=button],select,input');
+        var txt = false;
+        for (var c = h.firstChild; c; c = c.nextSibling) if (c.nodeType === 3 && c.nodeValue.trim()) { txt = true; break; }
+        if (!ctl && !txt) continue;
+        var r = ctl ? ctl.getBoundingClientRect() : ovxTextRect(h);
+        if (!r || r.right <= xr.left - 4 || r.left >= xr.right || r.bottom <= xr.top || r.top >= xr.bottom) continue;
+        var host = ctl ? ctl.parentElement : h;
+        if (!host || host === card) { (ctl || h).style.setProperty('margin-right', (OVX_SIZE + OVX_INSET + 8) + 'px', 'important'); continue; }
+        var pr = parseFloat(getComputedStyle(host).paddingRight) || 0;
+        host.style.setProperty('padding-right', Math.round(pr + (r.right - xr.left) + 8) + 'px', 'important');
       }
     }
-    var op = x.offsetParent || card, orr = op.getBoundingClientRect();
-    x.style.setProperty('position', 'absolute', 'important');
-    x.style.setProperty('top', Math.round(cr.top - orr.top + top - (op.clientTop || 0)) + 'px', 'important');
-    x.style.setProperty('right', Math.round(orr.right - cr.right - (op.clientLeft || 0)) + OVX_INSET + 'px', 'important');
+  }
+  function ovxPin(card, x) {
+    x.classList.add('ovx');
+    x.__ovxCard = card;
+    var v = ovxVisible(card);
+    x.style.setProperty('position', 'fixed', 'important');
     x.style.setProperty('left', 'auto', 'important');
     x.style.setProperty('bottom', 'auto', 'important');
     x.style.setProperty('margin', '0', 'important');
+    x.style.setProperty('z-index', '2147483000', 'important');
+    var top = parseFloat(x.style.top) || 0, right = parseFloat(x.style.right) || 0;
+    for (var k = 0; k < 2; k++) {
+      x.style.setProperty('top', Math.round(top) + 'px', 'important');
+      x.style.setProperty('right', Math.round(right) + 'px', 'important');
+      var xr = x.getBoundingClientRect();
+      var dT = (v.top + OVX_INSET) - xr.top, dR = xr.right - (v.right - OVX_INSET);
+      if (Math.abs(dT) < 0.5 && Math.abs(dR) < 0.5) break;
+      top += dT; right += dR;
+    }
+    ovxClear(card, x, x.getBoundingClientRect());
   }
+  window.__ovxCardOf = function (x) { return x.__ovxCard || null; };
+  window.__ovxVisible = ovxVisible;
   function ovxTick() {
     var ovs;
     try { ovs = document.querySelectorAll(ovxSelectors()); } catch (e) { ovxSel = OVX_ALSO; return; }
@@ -33446,7 +33508,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       var card = cardOf(ov), cr = card.getBoundingClientRect();
       if (cr.width < 200 || cr.height < 100) continue;
       card.classList.add('ovx-card');
-      var x = xOf(card);
+      var x = xOfOverlay(ov, card);
       if (!x) {
         x = document.createElement('button');
         x.type = 'button'; x.className = 'ovx-made'; x.title = 'close (Esc)'; x.setAttribute('aria-label', 'close');
