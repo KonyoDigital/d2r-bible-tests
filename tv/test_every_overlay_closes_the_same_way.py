@@ -111,11 +111,23 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
 
     def test_cinema_owns_escape_above_every_overlay(self):
         # v3847 CI (v877 rinse): the contract's capture-phase Esc closed the theatre under cinema in the same press
-        self.assertIn("if (document.fullscreenElement || document.body.classList.contains('cinema')) return;", BLOCK.findall(UI)[0],
-                      "Esc in cinema closes the overlay under it instead of leaving cinema")
+        for name, src in (("control_ui.html", UI), ("bible.html", BIBLE)):
+            self.assertIn("if (document.fullscreenElement || document.body.classList.contains('cinema')) return;", BLOCK.findall(src)[0],
+                          name + ": Esc in cinema closes the overlay under it instead of leaving cinema")
+
+    def test_a_row_control_is_not_an_overlay_x(self):
+        # v3847 CI (v2267): the pinned-x size rule listed .vrg-x, the routing row's remove button; 18 -> 28 px overflowed the row at 901
+        for name, src in (("control_ui.html", UI), ("bible.html", BIBLE)):
+            for m in re.finditer(r":is\(([^)]*\.th-x[^)]*)\)", src):
+                self.assertNotIn(".vrg-x", m.group(1).split(","), name + ": a routing row's remove button is sized as an overlay x")
 
 
 RED_PROOF = [
+    {"why": "v3847 eye - bible.html's cinema Esc guard goes unpinned",
+     "file": "bible.html",
+     "find": "    if (document.fullscreenElement || document.body.classList.contains('cinema')) return;\n", "replace": "", "matches": 1},
+    {"why": "v3847 CI v2267 - the routing row's remove button sized as an overlay x overflows the row",
+     "file": "bible.html", "find": ".gbc-close,.cb-x,.vd-close,.vtp-x", "replace": ".gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x", "matches": 2},
     {"why": "v3847 CI - Esc in cinema also closes the theatre under it",
      "file": "tv/control_ui.html",
      "find": "    if (document.fullscreenElement || document.body.classList.contains('cinema')) return;\n", "replace": "", "matches": 1},
