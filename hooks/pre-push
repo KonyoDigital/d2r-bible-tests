@@ -82,6 +82,19 @@ for _pp_v in $(git rev-parse --local-env-vars 2>/dev/null) GIT_DIR GIT_WORK_TREE
 done
 # <<< scrub-git-env
 
+# >>> fast-gate-overlap
+# v3847 FAST GATE - THE CHROME-FREE SUITE RUNS BESIDE THE CHROME STAGES. test_agent starts no browser, so it runs now,
+# in the background, while render / console demos use the one Chrome; the tv lane's `suite_verdict.py --check
+# test_agent --wait 900` below finds this run (in flight or green on these exact bytes) instead of starting its own.
+# A red or unfinished background run is not reused - the lane then runs the suite itself, as before. Never a skip.
+if [ -n "${TV_PUSH_BASE:-}" ] && git diff --name-only "${TV_PUSH_BASE}..HEAD" 2>/dev/null | grep -qE '^tv/.*\.py$' \
+   && [ "${SUITE_VERDICT_REUSE:-1}" != "0" ]; then
+  ( cd "$REPO" && python3 "$REPO/tv/suite_verdict.py" --run test_agent >"${TMPDIR:-/tmp}/tv-prepush-agent-bg.log" 2>&1 ) &
+  _fg_agent_bg=$!
+  echo "pre-push: [$(_pp_el)] test_agent started beside the browser stages (pid $_fg_agent_bg, no Chrome)"
+fi
+# <<< fast-gate-overlap
+
 # REG-1258 — THE GATE'S BROWSER PORT IS CHOSEN, NEVER ADOPTED. Everything below (the render block,
 # render_check._chrome_up(), crest_loudness, every suite that renders) asked "does something answer
 # on :9224?" and, if so, USED it. MEASURED 2026-09-24 before a push: another Claude session's
@@ -1039,6 +1052,20 @@ if [ -n "$_tv_lane" ]; then
   fi
   echo "pre-push: [$(_pp_el)] ✅ tv suites green."
 fi
+
+# >>> fast-gate
+# v3847 FAST GATE (Elad 2026-10-30 15:29) - THE GATE SET RUNS IN THE HOOK, NOT AS A STEP SOMEONE REMEMBERS. The full
+# run_gates.py was a ~65 min manual procedure step; the push now runs `run_gates.py --fast`: the core set
+# (tv/fast_core.txt) + every gate whose law names a changed file. bible.html / control_ui.html / control_app.py /
+# the gate machinery -> EVERY gate (--full). CI runs every gate sharded after the push and the nightly runs every gate
+# on main (tv/nightly_full_gates.sh). Law: test_the_fast_gate_runs_the_core_and_what_changed.
+if ! gate_run "fast gate set" "python3 tv/run_gates.py --fast" 5400 -- \
+     env TV_FAST_BASE="${TV_PUSH_BASE:-origin/main}" python3 "$REPO/tv/run_gates.py" --fast; then
+  echo "          ↑ a gate in the fast set is red - fix it; the push does not go."
+  exit 1
+fi
+echo "pre-push: [$(_pp_el)] ✅ fast gate set green."
+# <<< fast-gate
 
 # ══ v3292 — A CHANGED LAW MUST DEMONSTRATE IT CAN STILL GO RED ════════════════════════════════
 # A red-proof came back BLIND this session: it matched its anchor exactly once, deleted the clause

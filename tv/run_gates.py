@@ -11018,6 +11018,9 @@ GATES = [
              "named, a corrupt ledger and a FAIL all run. --full does not consult the "
              "ledger. CI does not either. A carried line says proven at a sha and an age, "
              "and it is not a fresh pass and not new Wilson evidence."),
+    Gate("test_the_fast_gate_runs_the_core_and_what_changed",
+         [sys.executable, os.path.join(HERE, "test_the_fast_gate_runs_the_core_and_what_changed.py")], 120,
+         why="v3847 FAST GATE (Elad 2026-10-30 15:29) - a push runs the core set plus every gate whose law reads a changed file; bible.html, control_ui.html, control_app.py and the gate machinery force every gate; a registry-only run_gates.py change runs the added/edited entries."),
     Gate("test_a_quiet_relaunched_window_takes_keys",
          [sys.executable, os.path.join(HERE, "test_a_quiet_relaunched_window_takes_keys.py")], 60,
          needs_app=False,
@@ -13677,8 +13680,28 @@ def main(argv):
                     help="v3842 GATE-TRIM A: with --full, the light gates as 3 shards in their own worktrees at once, "
                          "then the heavy gates alone (tv/gates_parallel.py). Default OFF: three v3842 runs each found a new "
                          "cross-tree contention red (ports, reload state) and the shards took 25-34 min, so opt in")
+    ap.add_argument("--fast", action="store_true",
+                    help="v3847 FAST GATE - the core set (tv/fast_core.txt) + every gate whose law reads a changed file "
+                         "(tv/fast_gates.py); a shared file (bible.html, control_ui.html, control_app.py, the gate "
+                         "machinery) runs every gate. Carries like --changed. CI and the nightly still run every gate")
     a = ap.parse_args(argv[1:])
     only = a.only
+    if a.fast:  # FAST-GATE
+        if a.only or a.shard or a.full:
+            print("⛔ REFUSED — --fast picks its own set; it does not combine with --only/--shard/--full; NO gate ran")
+            return 2
+        import fast_gates as _fg
+        try:
+            _names, _why = _fg.select(GATES, _fg.changed(os.environ.get("TV_FAST_BASE", "origin/main")),
+                                      os.environ.get("TV_FAST_BASE", "origin/main"))
+        except Exception as e:   # a selector that cannot decide is a FULL run, never a smaller one
+            _names, _why = None, "the fast selector could not decide (%s: %s) - every gate runs" % (type(e).__name__, e)
+        print("── FAST: %s ──" % _why)
+        if _names is None:
+            a.full = True
+        else:
+            only = a.only = _names
+            a.changed = True
     if a.shard:
         # ⚠ exit 2 is "NO GATE RAN" everywhere this file's verdict is read, and each refusal below is
         # exactly that. An EMPTY list would be worse than a refusal: `run()` reads `if only and ...`,
