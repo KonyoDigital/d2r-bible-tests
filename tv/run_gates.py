@@ -11685,6 +11685,17 @@ GATES = [
          why="v3843 - the price search matched the full item name only, read board 243 and cut 1,500 fg to 500. It now "
              "searches the Softcore non-ladder board 268 with the trade slang (shako, anni, gheeds), counts only 2026 "
              "posts, reads large fg amounts whole, and the desk shows the roll tier. The quote block runs in node."),
+    Gate("test_the_d2jsp_price_search_shows_its_posts_and_weighs_the_key_mods",
+         [sys.executable, os.path.join(HERE, "test_the_d2jsp_price_search_shows_its_posts_and_weighs_the_key_mods.py")], 120,
+         needs_app=False,
+         why="v3844 - Elad 2026-10-30: the desk's price search prices any typed item from 2026 board-268 posts, every "
+             "quote opens an evidence drawer (link, day, fg, roll, weight), the roll tier is weighted by each family's "
+             "key mods (Guardian's Thunder reads near-perfect), and Annihilus is priced only by clauses naming it."),
+    Gate("test_the_dock_wears_the_skull_tv_and_a_click_raises_it",
+         [sys.executable, os.path.join(HERE, "test_the_dock_wears_the_skull_tv_and_a_click_raises_it.py")], 60,
+         needs_app=False,
+         why="v3844 - Elad 2026-10-29: the app wears the CRT skull TV he picked (Mac Dock .icns, Windows .ico for the "
+             "window, taskbar and shortcut), and a click on the console's Dock icon brings its window in front of every app."),
     Gate("test_the_bump_carries_its_changelog_entry",
          [sys.executable, os.path.join(HERE, "test_the_bump_carries_its_changelog_entry.py")], 60,
          needs_app=False,

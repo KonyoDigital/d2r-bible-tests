@@ -382,8 +382,8 @@ class TheLaneAsksThroughTheJudge(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-1666 - the ten-minute tick asks the process alone: Boosteroid open on its launcher reads as playing",
      "file": "control_app.py",
-     "find": "        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_yield_here)     # REG-1666 game · REG-2192 a sweep too\n",
-     "replace": "        r = _sp.tick(busy=_cpu_busy_pct)\n",
+     "find": "        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_yield_here,      # REG-1666 game · REG-2192 a sweep too\n",
+     "replace": "        r = _sp.tick(busy=_cpu_busy_pct,\n",
      "matches": 1},
     {"why": "REG-1666 - the ten-second stand-aside asks the process alone, so it and the tick disagree",
      "file": "control_app.py",

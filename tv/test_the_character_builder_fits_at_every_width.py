@@ -1509,7 +1509,7 @@ RED_PROOF = [
     {
         "why": "#29(d) round 9 - a number box is one digit wide again and the helm's Sockets hint '1-2' reads '1-'",
         "file": "bible.html",
-        "find": ".cb-ed-f input[type=number]{min-width:calc(3.2ch + 34px)}\n",
+        "find": ".cb-ed-f input[type=number]{min-width:calc(3.6ch + 36px)}\n",
         "replace": "",
         "matches": 1,
         "widths": ["1280x800"],   # #42 measured 2026-09-29: the tampered law is red at 1280x800 alone

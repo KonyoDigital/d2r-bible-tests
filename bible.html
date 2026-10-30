@@ -13469,33 +13469,6 @@ function d2jspSearchLine(q, sim, parsed) {
     return { kind: 'maybe', text: heard + ', so the post may be up. Check board ' + n + ' before you post again.', link: d2jspForumUrl(n) };
   }
   /* ⟦D2JSP SEND WORDS END⟧ */
-  /* v3844 - THE PRICE SEARCH: any typed item and roll, read through the same quote path as the cards */
-  var searchGen = 0;
-  function priceSearch(){
-    var el = document.getElementById('d2jsp-price-q'), out = document.getElementById('d2jsp-price-out');
-    if (!el || !out) return;
-    var parsed = d2jspParseSearch(el.value);
-    if (!parsed.item) { out.textContent = 'Type an item, for example anni 20/20/10.'; return; }
-    var gen = ++searchGen, paths = ['/api/d2jsp_quote?item=', '/d2r/api/d2jsp_quote?item='], i = 0;
-    out.textContent = 'Reading 2026 posts for ' + parsed.item + '.';
-    function show(j){
-      if (gen !== searchGen) return;     /* only the newest search paints */
-      var sim = d2jspSimilarPrice(j, parsed.roll, parsed.item);
-      out.innerHTML = '<div>' + esc(d2jspSearchLine(j, sim, parsed)) + '</div>' + (j && j.reason === 'read' ? d2jspEvidenceHtml(sim) : '');
-    }
-    function step(){
-      if (i >= paths.length) { show({ fg: null, n: 0, readAt: null, reason: 'unanswered' }); return; }
-      fetch(paths[i++] + encodeURIComponent(parsed.item)).then(function(r){ return r.json(); }).then(function(j){
-        if (j && (j.reason === 'no prices' || j.reason === 'read' || j.reason === 'need-login')) { show(j); return; }
-        step();
-      }).catch(function(){ step(); });
-    }
-    step();
-  }
-  window._d2jspPriceSearch = priceSearch;
-  document.addEventListener('submit', function(ev){
-    if (ev.target && ev.target.id === 'd2jsp-price-form') { ev.preventDefault(); priceSearch(); }
-  });
   document.addEventListener('input', function(ev){
     var t = ev.target;
     if (!t || !t.getAttribute) return;
@@ -13526,6 +13499,33 @@ function d2jspSearchLine(q, sim, parsed) {
     }
     return host;
   }
+  /* v3844 - THE PRICE SEARCH: any typed item and roll, read through the same quote path as the cards */
+  var searchGen = 0;
+  function priceSearch(){
+    var el = document.getElementById('d2jsp-price-q'), out = document.getElementById('d2jsp-price-out');
+    if (!el || !out) return;
+    var parsed = d2jspParseSearch(el.value);
+    if (!parsed.item) { out.textContent = 'Type an item, for example anni 20/20/10.'; return; }
+    var gen = ++searchGen, paths = ['/api/d2jsp_quote?item=', '/d2r/api/d2jsp_quote?item='], i = 0;
+    out.textContent = 'Reading 2026 posts for ' + parsed.item + '.';
+    function show(j){
+      if (gen !== searchGen) return;     /* only the newest search paints */
+      var sim = d2jspSimilarPrice(j, parsed.roll, parsed.item);
+      out.innerHTML = '<div>' + esc(d2jspSearchLine(j, sim, parsed)) + '</div>' + (j && j.reason === 'read' ? d2jspEvidenceHtml(sim) : '');
+    }
+    function step(){
+      if (i >= paths.length) { show({ fg: null, n: 0, readAt: null, reason: 'unanswered' }); return; }
+      fetch(paths[i++] + encodeURIComponent(parsed.item)).then(function(r){ return r.json(); }).then(function(j){
+        if (j && (j.reason === 'no prices' || j.reason === 'read' || j.reason === 'need-login')) { show(j); return; }
+        step();
+      }).catch(function(){ step(); });
+    }
+    step();
+  }
+  window._d2jspPriceSearch = priceSearch;
+  document.addEventListener('submit', function(ev){
+    if (ev.target && ev.target.id === 'd2jsp-price-form') { ev.preventDefault(); priceSearch(); }
+  });
   function d2jspShotRead(name) {
     var raw = '';
     try {
@@ -37983,6 +37983,7 @@ function _v39_validTabName(name) {
 // Wrap switchTab to persist + sync URL hash
 const _v39_origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
+  window._v39_tabChosen = name; /* v3844 - a tab chosen while the page loads is not yanked back home by the boot landing */
   // v42 UX route-back: clicking the active tab should scroll to top (iOS-style "return to top")
   const currentActive = document.querySelector('.tab.active')?.getAttribute('data-tab');
   if (currentActive === name) {
@@ -38211,7 +38212,7 @@ _v39_whenReady(() => {
       const o = localStorage.getItem('d2r_v687_home');
       if (o && document.querySelector('.tab[data-tab="'+o+'"]')) home = o;
     } catch(e){}
-    setTimeout(() => _v39_origSwitchTab(home), 0);
+    setTimeout(() => { if (!window._v39_tabChosen) _v39_origSwitchTab(home); }, 0);  /* v3844 - a tab he already chose stands */
   }
   setTimeout(_v39_routeFromHash, 250);
   // after the router has settled on a tab, put it where the reader can see it
@@ -70813,7 +70814,8 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-ed-f{display:inline-flex;align-items:center;gap:calc(6*var(--u));font-size:var(--fs-cb-body);color:var(--text-muted)}
 /* #29(d) — a number box is as wide as its range hint: Chrome sizes an input[type=number] by its max's digits, so Sockets
    (max 2) was one digit wide and its placeholder "1-2" read "1-" beside the spin arrows (the Grok CLI's cold look, v3522) */
-.cb-ed-f input[type=number]{min-width:calc(3.2ch + 34px)}
+/* v3844 - "1-2" measured 28px of need in 28px of room (sub-pixel short), so the box gets its rounding back */
+.cb-ed-f input[type=number]{min-width:calc(3.6ch + 36px)}
 .cb-ed-f select,.cb-ed-f input[type=number]{height:calc(30*var(--u));min-height:26px;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:var(--fs-cb-body);padding:0 6px;max-width:calc(260*var(--u))}
 .cb-ed-q{margin-top:calc(16*var(--u));padding-bottom:calc(4*var(--u));border-bottom:1px solid var(--border);font-family:var(--cb-d2);font-size:var(--fs-cb-d2h);letter-spacing:var(--ls-snug);color:#9a9a9a}
 .cb-lines{margin:calc(6*var(--u)) 0 0;padding:0;list-style:none;font-family:var(--cb-d2);font-size:var(--fs-cb-d2);color:rgb(232,232,232);line-height:var(--lh-relaxed)}
