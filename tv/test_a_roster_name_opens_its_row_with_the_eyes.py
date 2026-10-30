@@ -240,6 +240,17 @@ def _render():
 @unittest.skipUnless(os.path.exists(RC.CHROME), "no Chrome on this machine - the card was not rendered (declared skip 77)")
 class ARosterNameOpensItsRowWithTheEyes(unittest.TestCase):
 
+    def test_a_stuck_row_names_its_oldest_wait(self):
+        # v3845 - heart2 found the REG-3051 pin BLIND: its guard asked the hover CARD for "river stuck", but the chip lives
+        # in the ROW, so the "oldest reel waiting" assert never ran. Ask every river-stuck chip on the rows themselves.
+        r = _render()
+        tips = [t for k in r["ship"] for x in r["ship"][k]["rows"]
+                for t in re.findall(r'title="(river stuck on this PC - [^"]*)"', x["row"] or "")]
+        self.assertTrue(tips, "PREMISE: no rendered row carries the river-stuck chip - the REG-3051 clause is unexercised")
+        for t in tips:
+            self.assertRegex(t, u" \u00b7 oldest reel waiting: \\S+ \\d+ (min|h|d)",
+                             "the river-stuck chip does not say what waited (REG-3051): %r" % t[:300])
+
     def test_the_hover_card_is_byte_for_byte_what_it_was(self):
         r = _render()
         for k in r["ship"]:

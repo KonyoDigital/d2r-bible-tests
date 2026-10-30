@@ -127,6 +127,23 @@ class TheWitnessedLaneFilesItsOwnRows(unittest.TestCase):
                          "with no gate verdict on the row, the BOARD filed one real look plus a frameless "
                          "conf-0.0 one — it does not judge each look itself")
 
+    def test_the_door_itself_drops_a_frameless_or_unsure_look(self):
+        # v3845 - heart2 found W3 BLIND: the register wrapper refuses Magefist's shape too, so a door that let a
+        # frameless conf-0.0 look through stayed hidden behind it. Ask the door alone, look by look.
+        o = board().run("var W = window._vaultWitnessCheck;"
+                        "OUT.mage = W({ lane: 'stash', witnesses: %s });"
+                        "OUT.unsure = W({ lane: 'stash', witnesses: [{ session: 's_u', frame: 'f_u.jpg', conf: 0.3 },"
+                        " { session: 's_v', frame: 'f_v.jpg', conf: 0.9 }] });"
+                        "OUT.noconf = W({ lane: 'stash', witnesses: [{ session: 's_n', frame: 'f_n.jpg' },"
+                        " { session: 's_m', frame: 'f_m.jpg', conf: 0.9 }] });"
+                        "OUT.good = W({ lane: 'stash', witnesses: %s });"
+                        % (json.dumps(MAGEFIST["witnesses"]), json.dumps(GOOD["witnesses"])))
+        for k in ("mage", "unsure", "noconf"):
+            self.assertIs(False, o[k]["ok"], "the door counted a %s look as a witness: %r" % (k, o[k]))
+            self.assertEqual(1, o[k].get("dropped"), "the door did not drop the %s look: %r" % (k, o[k]))
+            self.assertEqual(1, o[k].get("looks"), o[k])
+        self.assertIs(True, o["good"]["ok"], "PREMISE: two framed sure looks pass the door: %r" % o["good"])
+
     def test_a_witnessed_name_with_no_mule_says_so(self):
         looks = [_look("s_e", "f_e.jpg", 0.7), _look("s_f", "f_f.jpg", 0.85)]
         out = board().run("OUT.r = window.tvVaultRegister('Cold Rupture', { lane: 'stash', sessions: %s,"

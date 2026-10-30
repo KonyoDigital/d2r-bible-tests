@@ -177,7 +177,9 @@ class AHandAddRoutesByType(unittest.TestCase):
         hand) / the screenshot's source cell / a DEMO grid that says it is simulated; TO = a mini grid of that exact mule
         with ONLY this item at its exact cell. One grid per task - never a shared 'TO SETS-REST' grid of several tasks."""
         fresh()
-        add_all(["Gheed's Fortune", "Nokozan Relic"])
+        # v3845 - heart2 found this BLIND: two tasks on two mules both at c0r0, so a merged TO grid and a grid drawn at
+        # the mule's first cell looked identical. A ring now shares Nokozan's mule at a cell that is not c0r0.
+        add_all(["Gheed's Fortune", "Nokozan Relic", "Nagelring"])
         q = ("function px(e){ return [parseInt(e.style.left, 10), parseInt(e.style.top, 10)]; }"
              "function ex(n){ var r = document.querySelector('#vault-move-list .vmv-row[data-name=\\\"' + n + '\\\"]'); var x = r && r.nextElementSibling;"
              " if (!x || !x.classList.contains('vtk-expand-li')) return null; var t = x.querySelector('.vtx-to');"
@@ -188,6 +190,9 @@ class AHandAddRoutesByType(unittest.TestCase):
         o = board().run(READ + q + "OUT.collapsed = document.querySelectorAll('#vault-move-list .vtk-expand-li').length;"
                         "var a = document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Nokozan Relic\\\"]'); a.click();"
                         "document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Gheed\\'s Fortune\\\"]').click();"
+                        "document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Nagelring\\\"]').click();"
+                        "OUT.k = ex(\"Nagelring\"); OUT.toK = moveOf(\"Nagelring\")[0].to;"
+                        "OUT.toNh = moveOf('Nokozan Relic')[0].to;"
                         "OUT.n = ex('Nokozan Relic'); OUT.g = ex(\"Gheed's Fortune\"); OUT.open = document.querySelectorAll('#vault-move-list .vtk-expand-li').length;"
                         "OUT.toN = moveOf('Nokozan Relic')[0].to.cell; OUT.toG = moveOf(\"Gheed's Fortune\")[0].to.cell;"
                         "a.click(); OUT.after = ex('Nokozan Relic'); OUT.gStill = !!ex(\"Gheed's Fortune\");"
@@ -198,8 +203,13 @@ class AHandAddRoutesByType(unittest.TestCase):
         self.assertEqual(o["collapsed"], 0, "a task row starts expanded")
         # #144.14 (REG-2780): the merged BEFORE | AFTER popup is removed from the page, so "a row click opened it" can no longer
         # happen here; tv/test_a_move_row_expands_inline_and_the_popup_is_gone.py holds the popup gone and the expand drawn.
-        self.assertEqual(o["open"], 2, "two clicked tasks are not two expansions: %r" % o["open"])
-        for k, nm, to in (("n", "Nokozan Relic", o["toN"]), ("g", "Gheed", o["toG"])):
+        self.assertEqual(o["open"], 3, "three clicked tasks are not three expansions: %r" % o["open"])
+        self.assertEqual(o["toK"].get("holder"), o["toNh"].get("holder"),
+                         "PREMISE: the two small uniques do not share one mule, so a merged TO grid is unexercised: %r %r" % (o["toK"], o["toNh"]))
+        self.assertNotEqual(o["toK"]["cell"], o["toN"], "PREMISE: two tasks on one mule share one cell")
+        self.assertTrue(any(not c.endswith("c0r0") for c in (o["toK"]["cell"], o["toN"])),
+                        "PREMISE: every task sits at c0r0, so 'drawn at its exact cell' is unexercised")
+        for k, nm, to in (("n", "Nokozan Relic", o["toN"]), ("g", "Gheed", o["toG"]), ("k", "Nagelring", o["toK"]["cell"])):
             e = o[k]
             self.assertTrue(e, "%s did not expand" % nm)
             self.assertEqual(e["from"], "manual"); self.assertTrue(e["manual"])
