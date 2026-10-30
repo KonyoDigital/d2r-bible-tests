@@ -33372,6 +33372,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         r.selectorText.split(',').forEach(function (s) {
           s = s.trim();
           if (!s || /::|:hover|:focus|^body|^html/.test(s) || OVX_SKIP.test(s)) return;
+          try { document.querySelector(s); } catch (eS) { return; }   /* a selector this engine rejects is dropped alone */
           out.push(s);
         });
       }
@@ -33471,25 +33472,30 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         var r = ctl ? ctl.getBoundingClientRect() : ovxTextRect(h);
         if (!r || r.right <= xr.left - 4 || r.left >= xr.right || r.bottom <= xr.top || r.top >= xr.bottom) continue;
         var host = ctl ? ctl.parentElement : h;
-        if (!host || host === card) { (ctl || h).style.setProperty('margin-right', (OVX_SIZE + OVX_INSET + 8) + 'px', 'important'); continue; }
+        if (!host || host === card) { ovxSet(ctl || h, 'margin-right', (OVX_SIZE + OVX_INSET + 8) + 'px'); continue; }
+        if (host.__ovxRoom) continue;   /* room is made once per host: a control that stays under the x never grows it every tick */
+        host.__ovxRoom = 1;
         var pr = parseFloat(getComputedStyle(host).paddingRight) || 0;
-        host.style.setProperty('padding-right', Math.round(pr + (r.right - xr.left) + 8) + 'px', 'important');
+        ovxSet(host, 'padding-right', Math.round(pr + (r.right - xr.left) + 8) + 'px');
       }
     }
   }
+  function ovxSet(el, p, v) {   /* write only a change: a same-value write is still a mutation, and a page that never settles */
+    if (el.style.getPropertyValue(p) !== v || el.style.getPropertyPriority(p) !== 'important') el.style.setProperty(p, v, 'important');
+  }
   function ovxPin(card, x) {
-    x.classList.add('ovx');
+    if (!x.classList.contains('ovx')) x.classList.add('ovx');
     x.__ovxCard = card;
     var v = ovxVisible(card);
-    x.style.setProperty('position', 'fixed', 'important');
-    x.style.setProperty('left', 'auto', 'important');
-    x.style.setProperty('bottom', 'auto', 'important');
-    x.style.setProperty('margin', '0', 'important');
-    x.style.setProperty('z-index', '2147483000', 'important');
+    ovxSet(x, 'position', 'fixed');
+    ovxSet(x, 'left', 'auto');
+    ovxSet(x, 'bottom', 'auto');
+    ovxSet(x, 'margin', '0px');
+    ovxSet(x, 'z-index', '2147483000');
     var top = parseFloat(x.style.top) || 0, right = parseFloat(x.style.right) || 0;
     for (var k = 0; k < 2; k++) {
-      x.style.setProperty('top', Math.round(top) + 'px', 'important');
-      x.style.setProperty('right', Math.round(right) + 'px', 'important');
+      ovxSet(x, 'top', Math.round(top) + 'px');
+      ovxSet(x, 'right', Math.round(right) + 'px');
       var xr = x.getBoundingClientRect();
       var dT = (v.top + OVX_INSET) - xr.top, dR = xr.right - (v.right - OVX_INSET);
       if (Math.abs(dT) < 0.5 && Math.abs(dR) < 0.5) break;
@@ -33501,13 +33507,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   window.__ovxVisible = ovxVisible;
   function ovxTick() {
     var ovs;
-    try { ovs = document.querySelectorAll(ovxSelectors()); } catch (e) { ovxSel = OVX_ALSO; return; }
+    try { ovs = document.querySelectorAll(ovxSelectors()); } catch (e) { ovxSel = null; ovs = document.querySelectorAll(OVX_ALSO); }
     for (var i = 0; i < ovs.length; i++) {
       var ov = ovs[i];
       if (!shown(ov)) continue;
       var card = cardOf(ov), cr = card.getBoundingClientRect();
       if (cr.width < 200 || cr.height < 100) continue;
-      card.classList.add('ovx-card');
+      if (!card.classList.contains('ovx-card')) card.classList.add('ovx-card');
       var x = xOfOverlay(ov, card);
       if (!x) {
         x = document.createElement('button');
@@ -33540,7 +33546,7 @@ details[data-sh] > summary{transition:color .2s ease}
 button:not(:disabled) { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
 button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
 @media (prefers-reduced-motion: reduce) { button, :is(.th-x,.fx-x,.tlg-x) { transition: none !important; } }
-.ovx-made{z-index:5;width:28px;height:28px;padding:0;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35);font:14px/1 system-ui,sans-serif}
+.ovx-made{z-index:5;width:28px;height:28px;padding:0;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35);font-family:system-ui,sans-serif;font-size:var(--fs-title);line-height:1}
 .help-x{position:sticky;top:0;float:right;z-index:2;margin:0 0 6px 12px;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35)}
 /* /OVERLAY-X */
 </style>

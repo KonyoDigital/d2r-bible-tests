@@ -116,47 +116,56 @@ def _run(script):
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-STATE = ("console.log(JSON.stringify({quits: QUITS, heart: _hOv.hidden, verx: _vxOv.hidden, fleet: _fxOv.hidden,"
+STATE = ("console.log(JSON.stringify({quits: QUITS, empty: window._escEmptyStack || '', heart: _hOv.hidden, verx: _vxOv.hidden, fleet: _fxOv.hidden,"
          " rcpt: wrap.classList.contains('on')}));")
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
 class EscOnAConsolePanelNeverQuits(unittest.TestCase):
 
-    def test_premise_escape_on_an_empty_console_quits(self):
-        self.assertEqual(_run("press('Escape');" + STATE)["quits"], ["/api/window"],  # REG-1430 (2026-09-29): leaving the console HIDES it (/api/window {do: background}) - it no longer quits
-                         "premise: the empty-page Esc must quit (v1420), or the no-quit cases prove nothing")
+    def test_premise_escape_on_an_empty_console_reaches_the_empty_stack(self):
+        # v3847 (Elad 2026-10-30): on an empty stack Esc is a no-op - it reaches the empty-stack handler and never
+        # hides, backgrounds or quits the console. Reaching it is the premise the panel cases are measured against.
+        out = _run("press('Escape');" + STATE)
+        self.assertEqual(out["empty"], "noop", "premise: the empty-page Esc no longer reaches the empty-stack handler")
+        self.assertEqual(out["quits"], [], "an Esc on the empty stack sent the console away")
 
     def test_the_state_panel_closes_and_the_console_stays(self):
         out = _run("_vxOv.hidden = false; press('Escape');" + STATE)
         self.assertTrue(out["verx"], "Esc did not close THE STATE OF THIS CONSOLE")
         self.assertEqual(out["quits"], [], "Esc on the state panel quit his console")
+        self.assertEqual(out["empty"], "", "an Esc that closed a panel also ran the empty-stack handler")
 
     def test_the_fleet_window_closes_and_the_console_stays(self):
         out = _run("_fxOv.hidden = false; press('Escape');" + STATE)
         self.assertTrue(out["fleet"])
         self.assertEqual(out["quits"], [], "Esc on the fleet window quit his console")
+        self.assertEqual(out["empty"], "", "an Esc that closed a panel also ran the empty-stack handler")
 
     def test_the_heart_closes_and_the_console_stays(self):
         out = _run("_hOv.hidden = false; press('Escape');" + STATE)
         self.assertTrue(out["heart"])
         self.assertEqual(out["quits"], [], "Esc on the heart quit his console")
+        self.assertEqual(out["empty"], "", "an Esc that closed a panel also ran the empty-stack handler")
 
     def test_a_receipt_frame_whose_listener_comes_last_still_keeps_the_console(self):
         out = _run("wrap.classList.add('on'); press('Escape');" + STATE)
         self.assertFalse(out["rcpt"], "Esc did not close the full receipt frame")
         self.assertEqual(out["quits"], [], "the quit ran before the receipt frame's own listener (the late one)")
+        self.assertEqual(out["empty"], "", "an Esc that closed a panel also ran the empty-stack handler")
 
     def test_a_dialog_with_no_handler_yet_keeps_the_console(self):
         out = _run("var d = body.appendChild(new El('div','future-panel')); d.attrs.role = 'dialog';"
                    "press('Escape');" + STATE)
         self.assertEqual(out["quits"], [], "a visible dialog nobody wrote a handler for let Esc quit the console")
+        self.assertEqual(out["empty"], "", "an Esc that closed a panel also ran the empty-stack handler")
 
-    def test_after_the_panel_closes_a_second_escape_still_quits(self):
-        """v1420 is his design: once the page IS empty, Esc leaves the console. The fix must not remove that."""
+    def test_after_the_panel_closes_a_second_escape_reaches_the_empty_stack(self):
+        """Once the page IS empty, the next Esc reaches the empty-stack handler (a no-op since v3847) - the press-time
+        snapshot must not latch."""
         out = _run("_vxOv.hidden = false; press('Escape'); press('Escape');" + STATE)
-        self.assertEqual(out["quits"], ["/api/window"], "the snapshot latched and Esc can never leave any more")  # REG-1430 (2026-09-29): leaving the console HIDES it (/api/window {do: background}) - it no longer quits
-
+        self.assertEqual(out["empty"], "noop", "the snapshot latched and Esc never reaches the empty stack any more")
+        self.assertEqual(out["quits"], [], "an Esc on the empty stack sent the console away")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

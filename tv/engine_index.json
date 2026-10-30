@@ -714,6 +714,17 @@
     "purpose": "A stand-in `claude` binary speaking just enough stream-json for the vision worker's TDD; TV_FAKE_MODE picks ok / slow (timeout) / junk (non-JSON).",
     "territory": "capture-vision"
   },
+  "fast_gates.py": {
+    "entryPoints": [
+      "changed",
+      "core",
+      "registry_change",
+      "select"
+    ],
+    "gotcha": "Fails closed: an unknown core name, an unreadable law, a dropped registry entry or a selector error runs every gate (or that law). The import closure is NOT followed - CI and the nightly run everything.",
+    "purpose": "Picks the push-time gate set for run_gates --fast: the core list plus every law that is or names a changed file. A shared file, or a run_gates change outside the registry, runs every gate.",
+    "territory": "gates-proofs"
+  },
   "fixture_ledgers.py": {
     "entryPoints": [
       "redirect"

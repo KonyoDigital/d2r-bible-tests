@@ -26,7 +26,7 @@ def core():
 
 def changed(base="origin/main"):
     out = subprocess.run(["git", "diff", "--name-only", "%s...HEAD" % base], cwd=REPO,
-                         capture_output=True, text=True, check=True).stdout
+                         capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
     return [l for l in out.splitlines() if l.strip()]
 
 
@@ -35,7 +35,7 @@ def _text(path):
     try:
         return open(path, encoding="utf-8", errors="replace").read()
     except OSError:
-        return ""
+        return None   # UNKNOWN, never "" - a law that cannot be read is run, never read as naming nothing
 
 
 def _outside_registry(src):
@@ -61,8 +61,10 @@ def registry_change(old, new):
 
 
 def registry_only(base="origin/main"):
-    old = subprocess.run(["git", "show", "%s:tv/run_gates.py" % base], cwd=REPO, capture_output=True, text=True).stdout
-    return registry_change(old, _text(os.path.join(HERE, "run_gates.py")))
+    old = subprocess.run(["git", "show", "%s:tv/run_gates.py" % base], cwd=REPO, capture_output=True, text=True,
+                         encoding="utf-8", errors="replace").stdout
+    new = _text(os.path.join(HERE, "run_gates.py"))
+    return None if new is None else registry_change(old, new)
 
 
 def select(gates, files, base="origin/main"):
@@ -99,7 +101,8 @@ def select(gates, files, base="origin/main"):
 
     def names_one(p):
         if p not in seen:
-            seen[p] = bool(rx and rx.search(_text(p)))
+            t = _text(p)
+            seen[p] = t is None or bool(rx and rx.search(t))
         return seen[p]
     for g in gates:
         law = next((str(a) for a in g.argv if str(a).endswith(".py") and "/tv/" in str(a)), None)

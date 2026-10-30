@@ -69,7 +69,7 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
     def test_every_overlay_gets_one_x_pinned_at_the_same_spot(self):
         c = BLOCK.findall(UI)[0]
         self.assertIn("var OVX_INSET = 12, OVX_SIZE = 28;", c)
-        self.assertIn("x.style.setProperty('right', ", c, "the x is not pinned from the card's right edge")
+        self.assertIn("ovxSet(x, 'right', ", c, "the x is not pinned from the card's right edge")
         self.assertIn("x.className = 'ovx-made'", c, "an overlay with no x does not get one")
         self.assertIn(".ovx-made'", re.search(r"var X_SEL = (.*?);\n", c, re.S).group(1),
                       "a made x is not one Esc and outside-click can close")
@@ -94,7 +94,30 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
         self.assertIn("ovxClear(card, x, x.getBoundingClientRect());", c, "a header button or title stays under the x")
 
 
+    # v3847 full gate run: the 250 ms tick rewrote the same styles every tick, so a page never settled (the vault
+    # doors law waits for 250 ms with no mutation) - and the second eye: room grew every tick, a bad selector stuck
+    def test_the_tick_writes_only_a_change_and_makes_room_once(self):
+        c = BLOCK.findall(UI)[0]
+        self.assertIn("if (el.style.getPropertyValue(p) !== v || el.style.getPropertyPriority(p) !== 'important') el.style.setProperty(p, v, 'important');", c,
+                      "the tick writes styles that did not change, so the page never settles")
+        self.assertIn("if (!card.classList.contains('ovx-card')) card.classList.add('ovx-card');", c,
+                      "the tick re-adds a class it already set (a mutation every tick)")
+        self.assertNotIn(".style.setProperty(", c.replace("el.style.setProperty(p, v, 'important')", ""),
+                         "a style write bypasses the change-only writer")
+        self.assertIn("if (host.__ovxRoom) continue;", c, "room under the x grows on every tick")
+        self.assertIn("try { document.querySelector(s); } catch (eS) { return; }", c,
+                      "one selector this engine rejects drops every overlay to the short list")
+
+
 RED_PROOF = [
+    {"why": "v3847 - the tick rewrites unchanged styles every 250 ms and the page never settles",
+     "file": "tv/control_ui.html",
+     "find": "    if (el.style.getPropertyValue(p) !== v || el.style.getPropertyPriority(p) !== 'important') el.style.setProperty(p, v, 'important');",
+     "replace": "    el.style.setProperty(p, v, 'important');", "matches": 1},
+    {"why": "v3847 eye - room under the x grows on every tick",
+     "file": "tv/control_ui.html", "find": "        if (host.__ovxRoom) continue;", "replace": "", "matches": 1},
+    {"why": "v3847 eye - one bad selector drops every overlay to the short list",
+     "file": "tv/control_ui.html", "find": "          try { document.querySelector(s); } catch (eS) { return; }", "replace": "", "matches": 1},
     {"why": "an overlay with no x stays without one",
      "file": "tv/control_ui.html", "find": "x.className = 'ovx-made'", "replace": "x.className = 'ovx-gone'",
      "matches": 1},

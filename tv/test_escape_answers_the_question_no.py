@@ -98,15 +98,18 @@ def _run(script):
     return json.loads(r.stdout.strip().splitlines()[-1])
 
 
-STATE = "console.log(JSON.stringify({open: CH.open, askHidden: $('ch-ask') ? $('ch-ask').hidden : null, quits: QUITS, yes: YES, armed: $('ch-ask-yes') ? !!$('ch-ask-yes').onclick : null}));"
+STATE = "console.log(JSON.stringify({open: CH.open, askHidden: $('ch-ask') ? $('ch-ask').hidden : null, quits: QUITS, empty: window._escEmptyStack || '', yes: YES, armed: $('ch-ask-yes') ? !!$('ch-ask-yes').onclick : null}));"
 
 
 @unittest.skipIf(shutil.which("node") is None, "node is absent - this law is UNMEASURED, not passing")
 class EscapeAnswersTheQuestionNo(unittest.TestCase):
 
-    def test_premise_on_an_empty_page_escape_quits(self):
+    def test_premise_on_an_empty_page_escape_reaches_the_empty_stack(self):
+        # v3847 (Elad 2026-10-30): an empty-stack Esc is a no-op; reaching that handler is the premise the
+        # question cases are measured against
         out = _run("press('Escape');" + STATE)
-        self.assertEqual(out["quits"], ["/api/window"], "premise: the empty-page Escape must leave the console, or the no-quit cases prove nothing")  # REG-1430 (2026-09-29): leaving the console HIDES it (/api/window {do: background}) - it no longer quits
+        self.assertEqual(out["empty"], "noop", "premise: the empty-page Escape no longer reaches the empty-stack handler")
+        self.assertEqual(out["quits"], [], "an Escape on the empty stack sent the console away")
 
     def test_escape_with_a_question_up_answers_no_and_the_inbox_stays(self):
         out = _run("CH.open = true; modal.hidden = false; chAsk('Promote ALL 5?', 'Promote all 5', function(){ YES++; });"
@@ -114,6 +117,7 @@ class EscapeAnswersTheQuestionNo(unittest.TestCase):
         self.assertTrue(out["askHidden"], "the question stayed on screen after Escape")
         self.assertTrue(out["open"], "Escape on the question closed the INBOX instead")
         self.assertEqual(out["quits"], [], "Escape on the question quit the console")
+        self.assertEqual(out["empty"], "", "an Escape the question claimed also ran the empty-stack handler")
 
     def test_a_second_escape_closes_the_inbox_and_never_quits(self):
         out = _run("CH.open = true; modal.hidden = false; chAsk('Promote ALL 5?', 'Promote all 5', function(){ YES++; });"
@@ -132,6 +136,7 @@ class EscapeAnswersTheQuestionNo(unittest.TestCase):
         out = _run("CH.open = true; chAsk('Q?', 'Yes', function(){ YES++; }); CH.open = false;"
                    "document.activeElement = body; press('Escape');" + STATE)
         self.assertEqual(out["quits"], [], "an open question did not claim Escape from the quit handler")
+        self.assertEqual(out["empty"], "", "an Escape the question claimed also ran the empty-stack handler")
 
 
 if __name__ == "__main__":

@@ -86,7 +86,20 @@ class TheFastGate(unittest.TestCase):
         self.assertIsNone(names, "a core typo ran a subset that silently dropped it: %s" % why)
 
 
+    def test_a_law_that_cannot_be_read_runs(self):
+        # v3847 swallow ratchet: an unreadable law read as "" named nothing, so it silently dropped out of the set
+        class G(object):
+            def __init__(self, n, p): self.name, self.argv = n, [sys.executable, p]
+        gone = os.path.join(os.path.dirname(os.path.abspath(fg.__file__)), "test_zz_no_such_law_on_disk.py")
+        fg._text.cache_clear()
+        names, why = fg.select(list(run_gates.GATES) + [G("zz_unreadable", gone)], ["tv/rc.py"])
+        self.assertIn("zz_unreadable", names, "a law that cannot be read was dropped from the fast set: %s" % why)
+
+
 RED_PROOF = [
+    {"why": "a law that cannot be read is read as naming nothing and drops out of the fast set",
+     "file": "tv/fast_gates.py", "find": "            seen[p] = t is None or bool(rx and rx.search(t))",
+     "replace": "            seen[p] = bool(rx and t and rx.search(t))", "matches": 1},
     {"why": "a shared file stops forcing a full run, so a bible.html change ships on a subset",
      "file": "tv/fast_gates.py", "find": '    if hit:\n        return None,', "replace": '    if False:\n        return None,',
      "matches": 1},

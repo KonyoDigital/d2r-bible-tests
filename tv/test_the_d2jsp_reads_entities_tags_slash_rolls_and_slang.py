@@ -40,7 +40,7 @@ HAS_NODE = bool(shutil.which("node"))
 
 def js(expr):
     prog = D._read_quote_parser() + "\nprocess.stdout.write(JSON.stringify(" + expr + "));\n"
-    return json.loads(subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60).stdout)
+    return json.loads(subprocess.run(["node", "-"], input=prog, capture_output=True, text=True, timeout=60).stdout)
 
 
 @unittest.skipUnless(HAS_NODE, "no node on this machine (declared skip)")

@@ -216,6 +216,10 @@ class MoveTasksAndAdvancedNeverSideBySide(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "v3847 - Esc (the contract clicks the x) closes MOVE TASKS and drops focus on <body> instead of the FAB",
+     "file": "bible.html",
+     "find": "    if (_vtFocusIn && f) { try { f.focus({ preventScroll: true }); } catch (eF) {} }",
+     "replace": "", "matches": 1},
     {"why": "The FAB no longer closes Advanced (the two open side by side).",
      "file": "bible.html",
      "find": "    if (want) { var adv = document.getElementById('vault-advanced'); if (adv && adv.open) adv.open = false; } /* never side by side */",
