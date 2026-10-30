@@ -11685,6 +11685,12 @@ GATES = [
          why="v3843 - the price search matched the full item name only, read board 243 and cut 1,500 fg to 500. It now "
              "searches the Softcore non-ladder board 268 with the trade slang (shako, anni, gheeds), counts only 2026 "
              "posts, reads large fg amounts whole, and the desk shows the roll tier. The quote block runs in node."),
+    Gate("test_the_d2jsp_reads_compact_roll_columns",
+         [sys.executable, os.path.join(HERE, "test_the_d2jsp_reads_compact_roll_columns.py")], 120,
+         needs_app=False,
+         why="v3845 - Elad 2026-10-30 09:29: 'guardian's thunder +8 -9 4 40 28 140fg' is read into the jewel's mods, each "
+             "post weighed by its key-mod closeness to his +10/-9, price fit against roll instead of trimmed by the "
+             "middle, the roll shown in the drawer, and a post dated by its own date (Simsalara's Oct 7 post)."),
     Gate("test_the_d2jsp_price_search_shows_its_posts_and_weighs_the_key_mods",
          [sys.executable, os.path.join(HERE, "test_the_d2jsp_price_search_shows_its_posts_and_weighs_the_key_mods.py")], 120,
          needs_app=False,

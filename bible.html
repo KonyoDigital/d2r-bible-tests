@@ -12569,7 +12569,105 @@ function d2jspTupleOf(reads, itemName) {
   return out.every(function (v) { return v != null; }) ? out : null;
 }
 /* -> {posts: each post with its weight, fg: the weighted price or null, like: how many posts matched the roll} */
-function d2jspSimilarPrice(q, mine, itemName) {
+/* v3845 - COMPACT ROLL COLUMNS, PRICED BY ROLL (Elad, 2026-10-30 09:29). "guardian's thunder +8 -9 4 40 28 140fg": the
+   numbers after the name are the item's ranged mods in its own order (the order the card's text reads them in, each
+   with its game range). Each post is set against the roll you hold mod by mod - the family's key mods count fully, the
+   filler lightly - and the price is fit against roll position (log fg on the key mods' place in their range), so a
+   -10 jewel at 390 fg is explained by its roll, not trimmed for being far from the middle. A post is set aside only
+   when its roll does not explain its price (more than 3x off the fit). */
+function d2jspColsSpec(reads, itemName) {
+  var ranged = (reads || []).filter(function (r) { return r && r.hi > r.lo && !r.warn; });
+  if (ranged.length < 2) return null;
+  var mw = d2jspModWeights(ranged, itemName, null, null);
+  return ranged.map(function (r, i) {
+    var neg = r.hi <= 0 && r.lo < 0, w = mw.w[i];
+    return { lo: r.lo, hi: r.hi, neg: neg, key: w >= 0.75, w: w >= 0.75 ? 1 : (w > 0 ? 0.25 : 0.1), pct: r.pct / 100, line: r.line };
+  });
+}
+function d2jspColsRoll(spec, cols) {
+  if (!spec || !cols || cols.length < 2) return null;
+  var out = [], n = Math.min(spec.length, cols.length), fit = 0;
+  for (var i = 0; i < n; i++) {
+    var m = spec[i], v = Number(cols[i]);
+    if (m.neg && v > 0) v = -v;
+    if (!m.neg && v < 0) v = -v;
+    var inR = v >= m.lo && v <= m.hi;
+    if (inR) fit++;
+    var p = m.neg ? (m.hi - v) / (m.hi - m.lo) : (v - m.lo) / (m.hi - m.lo);
+    out.push({ v: v, pct: Math.max(0, Math.min(1, p)), ok: inR });
+  }
+  /* a column that falls outside its mod's range on more than one mod is not this item's roll written this way */
+  return (n - fit) <= 1 && out.slice(0, 2).every(function (c) { return c.ok; }) ? out : null;
+}
+function d2jspColsClose(spec, mine, theirs) {
+  var sw = 0, sd = 0;
+  for (var i = 0; i < theirs.length; i++) {
+    var w = spec[i].w; sw += w; sd += w * Math.abs(mine[i] - theirs[i].pct);
+  }
+  return sw > 0 ? Math.max(0, 1 - sd / sw) : 0;
+}
+/* least squares on the key mods: ln(fg) = a + sum b_k * place_k (each key mod's place in its range, 0..1) */
+function d2jspRollFit(spec, rows) {
+  var keys = [];
+  spec.forEach(function (m, i) { if (m.key) keys.push(i); });
+  var k = keys.length + 1, pts = rows.filter(function (r) { return r.read && r.fg > 0; });
+  if (!keys.length || pts.length < k + 3) return null;
+  var A = [], y = [];
+  for (var a = 0; a < k; a++) { A.push(new Array(k).fill(0)); y.push(0); }
+  pts.forEach(function (r) {
+    var x = [1].concat(keys.map(function (i) { return r.read[i] ? r.read[i].pct : 0; })), ly = Math.log(r.fg);
+    for (var a = 0; a < k; a++) { y[a] += x[a] * ly; for (var b = 0; b < k; b++) A[a][b] += x[a] * x[b]; }
+  });
+  for (var c = 0; c < k; c++) {
+    var piv = c;
+    for (var r2 = c + 1; r2 < k; r2++) if (Math.abs(A[r2][c]) > Math.abs(A[piv][c])) piv = r2;
+    if (Math.abs(A[piv][c]) < 1e-9) return null;
+    var t = A[c]; A[c] = A[piv]; A[piv] = t; var ty = y[c]; y[c] = y[piv]; y[piv] = ty;
+    for (var r3 = 0; r3 < k; r3++) if (r3 !== c) {
+      var f = A[r3][c] / A[c][c];
+      for (var c2 = c; c2 < k; c2++) A[r3][c2] -= f * A[c][c2];
+      y[r3] -= f * y[c];
+    }
+  }
+  var beta = y.map(function (v, a) { return v / A[a][a]; });
+  return { keys: keys, beta: beta, at: function (place) {
+    var z = beta[0]; keys.forEach(function (i, n) { z += beta[n + 1] * (place[i] == null ? 0 : place[i]); });
+    return Math.exp(z);
+  } };
+}
+function d2jspColsPrice(q, reads, itemName) {
+  var spec = d2jspColsSpec(reads, itemName), posts = (q && q.posts) || [];
+  if (!spec) return null;
+  var mine = spec.map(function (m) { return m.pct; });
+  var rows = posts.map(function (p) {
+    var roll = d2jspColsRoll(spec, p.cols);
+    return { fg: Number(p.fg), day: p.day || '', link: p.link || '', roll: p.roll || [], cols: p.cols || null,
+      read: roll, w: Number(p.w) > 0 ? Number(p.w) : 0, sim: null, out: p.out || '' };
+  });
+  var withRoll = rows.filter(function (r) { return r.read && r.fg > 0; });
+  if (withRoll.length < 2) return null;
+  var fit = d2jspRollFit(spec, rows);
+  /* the fit says how much each key mod moves the price: those are the key mods' weights (the most-moving at 1) */
+  if (fit) {
+    var top = Math.max.apply(null, fit.beta.slice(1).map(function (b) { return Math.max(0, b); }).concat([0]));
+    if (top > 0) fit.keys.forEach(function (i, n) { spec[i].w = Math.max(0.2, Math.max(0, fit.beta[n + 1]) / top); });
+  }
+  rows.forEach(function (r) {
+    if (!r.read) { r.w = r.w > 0 ? 0.05 : 0; return; }
+    r.out = '';
+    r.sim = d2jspColsClose(spec, mine, r.read);
+    r.w = 0.02 + 0.98 * Math.pow(r.sim, 4);
+    if (fit) {
+      var e = fit.at(r.read.map(function (c) { return c.pct; }));
+      if (r.fg > e * 3 || r.fg * 3 < e) { r.w = 0; r.out = 'its roll does not explain its price (fit ' + Math.round(e) + ' fg)'; }
+    }
+  });
+  var like = withRoll.filter(function (r) { return r.w > 0; }).length;
+  return { posts: rows, fg: d2jspWeightedMiddle(rows), fit: fit ? Math.round(fit.at(mine)) : null, like: like, cols: true,
+           weights: spec.map(function (m) { return Math.round(m.w * 100) / 100; }) };
+}
+function d2jspSimilarPrice(q, mine, itemName, reads) {
+  if (reads) { var byCols = d2jspColsPrice(q, reads, itemName); if (byCols) return byCols; }
   var posts = (q && q.posts) || [], fam = d2jspFamily(itemName), order = D2JSP_TUPLE_ORDER[fam] || [];
   var spec = fam ? D2JSP_FAMILY_MODS[fam] : null;
   var tw = order.map(function (re) { return spec && spec.key.some(function (k) { return String(k) === String(re); }) ? 1 : 0.25; });
@@ -12583,7 +12681,7 @@ function d2jspSimilarPrice(q, mine, itemName) {
       if (best > 0) like++;
       w = w * (best > 0 ? 0.1 + 0.9 * best * best : 0.1);
     }
-    return { fg: Number(p.fg), day: p.day || '', link: p.link || '', roll: p.roll || [], w: w, sim: sim, out: p.out || '' };
+    return { fg: Number(p.fg), day: p.day || '', link: p.link || '', roll: p.roll || [], cols: p.cols || null, w: w, sim: sim, out: p.out || '' };
   });
   return { posts: rows, fg: mine && like ? d2jspWeightedMiddle(rows) : null, like: like };
 }
@@ -12596,13 +12694,21 @@ function d2jspEvidenceHtml(sim) {
   var rows = (sim && sim.posts) || [];
   if (!rows.length) return '';
   var body = rows.map(function (p) {
-    var roll = (p.roll || []).map(function (t) { return t.join('/'); }).join(', ') || 'no roll written';
+    var roll = (p.cols && p.cols.length) ? p.cols.map(function (v, i) {
+        var c = p.read && p.read[i]; return (i < 2 && v > 0 ? '+' : '') + v + (c && !c.ok ? '?' : '');
+      }).join(' ')
+      : ((p.roll || []).map(function (t) { return t.join('/'); }).join(', ') || 'no roll written');
     var weight = p.out ? ('set aside, ' + p.out) : (p.w > 0 ? p.w.toFixed(2) : '0');
     var open = p.link ? ('<a href="' + d2jspEscText(p.link) + '" target="_blank" rel="noopener noreferrer">open post</a>') : 'no link';
     return '<tr><td>' + d2jspEscText(p.day) + '</td><td>' + d2jspEscText(p.fg) + ' fg</td><td>' + d2jspEscText(roll)
       + '</td><td>' + d2jspEscText(weight) + '</td><td>' + open + '</td></tr>';
   }).join('');
-  return '<details class="d2jsp-ev" data-d2jsp-ev><summary>show the ' + rows.length + ' ' + (rows.length === 1 ? 'post' : 'posts')
+  var head = (sim && sim.cols && sim.fg != null)
+    ? ('<div class="d2jsp-say" data-d2jsp-rollprice>Posts with a roll like yours: about ' + d2jspEscText(sim.fg) + ' fg'
+      + (sim.fit != null ? (', and the price-by-roll fit at your roll says ' + d2jspEscText(sim.fit) + ' fg') : '')
+      + ' (' + sim.like + ' ' + (sim.like === 1 ? 'post' : 'posts') + ' with their rolls written).</div>')
+    : '';
+  return head + '<details class="d2jsp-ev" data-d2jsp-ev><summary>show the ' + rows.length + ' ' + (rows.length === 1 ? 'post' : 'posts')
     + '</summary><table><thead><tr><th>date</th><th>price</th><th>roll as read</th><th>weight</th><th>post</th></tr></thead><tbody>'
     + body + '</tbody></table></details>';
 }
@@ -12908,8 +13014,8 @@ function d2jspSearchLine(q, sim, parsed) {
     if (!q || q.reason !== 'read') return null;
     var db = null;
     try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
-    var mine = db && modsOf(n).trim() ? d2jspTupleOf(d2jspAffixRead(modsOf(n), db, n), n) : null;
-    return d2jspSimilarPrice(q, mine, n);
+    var reads = db && modsOf(n).trim() ? d2jspAffixRead(modsOf(n), db, n) : null;
+    return d2jspSimilarPrice(q, reads ? d2jspTupleOf(reads, n) : null, n, reads);
   }
   function evHtml(n){ return d2jspEvidenceHtml(cardSim(n)); }
   /* v3843 - the roll-tier line and the tier price, under the price line; nothing when no mod is read */

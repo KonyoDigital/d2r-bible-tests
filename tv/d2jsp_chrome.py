@@ -713,6 +713,11 @@ def _public_posts(raw):
                 roll.append([int(x) for x in t[:6]])
         row = {"fg": int(fg) if fg == int(fg) else fg, "day": str(r.get("day") or "")[:10], "link": link,
                "roll": roll, "w": max(0.0, min(1.0, w))}
+        # v3845 - the compact roll columns ("+8 -9 4 40 28"), signed, in the item's own mod order; the desk maps them
+        cols = r.get("cols")
+        if (isinstance(cols, list) and 2 <= len(cols) <= 8
+                and all(isinstance(x, (int, float)) and not isinstance(x, bool) and abs(x) < 10000 for x in cols)):
+            row["cols"] = [int(x) for x in cols]
         mods = [str(x)[:30] for x in (r.get("mods") or [])[:12] if isinstance(x, str)]
         if mods:
             row["mods"] = mods

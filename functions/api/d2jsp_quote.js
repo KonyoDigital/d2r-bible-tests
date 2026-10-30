@@ -183,16 +183,51 @@ function d2jspAbsLink(href) {
 
 /* v3844 - WHICH AMOUNTS ON A LINE ARE THIS ITEM'S. A line that names one thing and carries one price is that price. A
    line listing several items ("anni 5 ist, pc 2000 fg, torch 300 fg") is split into its clauses, and only an amount in
-   a clause that names the item counts - before this, Annihilus read 5-2000 off other items' prices. */
+   a clause that names the item counts - before this, Annihilus read 5-2000 off other items' prices. v3845 (second eye
+   on v3844): when the split tears the name itself apart so that NO clause names the item, though the line does, the
+   line's amounts are not dropped - the line names the item, so they are its. */
 function d2jspNamed(text, forms) {
   var folded = ' ' + d2jspFoldPrice(text).replace(/[^a-z0-9]+/g, ' ') + ' ';
   return forms.some(function (f) { return folded.indexOf(' ' + f.replace(/[^a-z0-9]+/g, ' ').trim() + ' ') >= 0; });
 }
-function d2jspLineAmounts(line, forms) {
+
+/* v3845 - COMPACT ROLL COLUMNS (Elad, 2026-10-30 09:29): "guardian's thunder +8 -9 4 40 28 140fg" is the item, then
+   its rolls as bare numbers in the item's own mod order (signs and % kept), then the price. Each clause that names the
+   item gives its price with the numbers written between the name and that price; the desk maps them onto the mods. */
+function d2jspAfterName(clause, forms) {
+  var low = d2jspFoldPrice(clause), at = -1, len = 0;
+  forms.forEach(function (f) {
+    var re = new RegExp('(^|[^a-z0-9])' + f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+') + '(?=$|[^a-z0-9])');
+    var m = re.exec(low);
+    if (m && (at < 0 || m.index < at)) { at = m.index + m[1].length; len = m[0].length - m[1].length; }
+  });
+  return at < 0 ? null : low.slice(at + len);
+}
+function d2jspClauseCols(clause, forms) {
+  var rest = d2jspAfterName(clause, forms);
+  if (rest == null) return null;
+  var cut = /(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(?:k\b|k(?=\s*fg)|fg\b)/i.exec(rest);
+  var head = cut ? rest.slice(0, cut.index) : rest, toks = head.trim().split(/\s+/), cols = [];
+  for (var i = 0; i < toks.length; i++) {
+    var m = /^([+-]?\d{1,4})%?$/.exec(toks[i]);
+    if (!m) { if (cols.length) break; else continue; }
+    cols.push(Number(m[1]));
+  }
+  return cols.length >= 2 && cols.length <= 8 ? cols : null;
+}
+function d2jspLineRows(line, forms) {
   var all = d2jspFgAmounts(line);
-  if (all.length <= 1) return all;
-  var clauses = String(line).split(/\s*(?:[;|\u2022]|,(?!\d{3}(?!\d)))\s*/), out = [];
-  clauses.forEach(function (c) { if (d2jspNamed(c, forms)) d2jspFgAmounts(c).forEach(function (n) { out.push(n); }); });
+  if (!all.length) return [];
+  var clauses = all.length <= 1 ? [String(line)] : String(line).split(/\s*(?:[;|\u2022]|,(?!\d{3}(?!\d)))\s*/), out = [];
+  clauses.forEach(function (c) {
+    if (all.length > 1 && !d2jspNamed(c, forms)) return;
+    var cols = d2jspClauseCols(c, forms);
+    d2jspFgAmounts(c).forEach(function (n) { out.push({ fg: n, cols: cols }); });
+  });
+  if (!out.length && d2jspNamed(line, forms) && !clauses.some(function (c) { return d2jspNamed(c, forms); })) {
+    var cols = d2jspClauseCols(line, forms);
+    all.forEach(function (n) { out.push({ fg: n, cols: all.length === 1 ? cols : null }); });
+  }
   return out;
 }
 
@@ -207,20 +242,31 @@ function d2jspPosts(text, itemName, nowMs) {
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(?:p|div|tr|li|h\d)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
-  var rows = [], when = null, link = '';
+  var rows = [], when = null, link = '', explicit = false;
   plain.split('\n').forEach(function (raw) {
     var m, re = new RegExp(D2JSP_LINK_MARK.source, 'g');
-    while ((m = re.exec(raw))) { var a = d2jspAbsLink(m[1]); if (a) link = a; }
+    var here = '';
+    while ((m = re.exec(raw))) { var a = d2jspAbsLink(m[1]); if (a) here = a; }
     var line = raw.replace(new RegExp(D2JSP_LINK_MARK.source, 'g'), ' ');
     var d = d2jspLineDate(line, nowMs);
-    if (d != null) when = d;
+    /* v3845 (second eye on v3844) - a new post's date line starts a new post: the last post's link does not carry over */
+    /* v3845 - a post's own written date beats a relative "Today" / "Yesterday" (the search page's last-activity
+       stamp): Simsalara's Oct 7 post read as the reading's day. A relative stamp dates a post only when that post has
+       no written date of its own. */
+    var rel = d != null && !/\b20\d\d\b/.test(line) && /\b(?:today|yesterday)\b/i.test(line);
+    if (d != null && !rel) { when = d; explicit = true; link = here; }          /* a written date starts a post */
+    else if (here && here !== link) { link = here; when = rel ? d : null; explicit = false; }   /* so does a new post link */
+    else if (rel && !explicit) when = d;
+    else if (here) link = here;
     /* v3843 - a price counts only under a recently dated post; v3844 - and only a 2026 one */
     if (!d2jspRecent(when, nowMs) || when < D2JSP_QUOTE_SINCE_MS) return;
     if (!d2jspNamed(line, forms)) return;
     var note = d2jspNotation(line);
-    d2jspLineAmounts(line, forms).forEach(function (n) {
-      rows.push({ fg: n, day: new Date(when).toISOString().slice(0, 10), link: link,
-        roll: note.tuples, mods: note.words.slice(0, 12), w: 1 });
+    d2jspLineRows(line, forms).forEach(function (x) {
+      var row = { fg: x.fg, day: new Date(when).toISOString().slice(0, 10), link: link,
+        roll: note.tuples, mods: note.words.slice(0, 12), w: 1 };
+      if (x.cols) row.cols = x.cols;
+      rows.push(row);
     });
   });
   return d2jspTrim(rows);
@@ -231,7 +277,9 @@ function d2jspPosts(text, itemName, nowMs) {
 function d2jspTrim(rows) {
   if (rows.length < 5) return rows;
   var mid = d2jspMedian(rows.map(function (r) { return r.fg; }));
-  rows.forEach(function (r) { if (r.fg > mid * 3 || r.fg * 3 < mid) { r.w = 0; r.out = 'far from the middle ' + mid + ' fg'; } });
+  /* v3845 - a post that writes its roll is not judged by the middle: its roll may be why it is far (the -10 jewel at
+     390 fg). The desk fits price against roll and sets such a post aside only when its roll does not explain it. */
+  rows.forEach(function (r) { if (r.cols) return; if (r.fg > mid * 3 || r.fg * 3 < mid) { r.w = 0; r.out = 'far from the middle ' + mid + ' fg'; } });
   return rows;
 }
 
