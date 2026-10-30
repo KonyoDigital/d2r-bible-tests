@@ -11018,6 +11018,11 @@ GATES = [
              "named, a corrupt ledger and a FAIL all run. --full does not consult the "
              "ledger. CI does not either. A carried line says proven at a sha and an age, "
              "and it is not a fresh pass and not new Wilson evidence."),
+    Gate("test_a_plain_gate_run_banks_its_passes",
+         [sys.executable, os.path.join(HERE, "test_a_plain_gate_run_banks_its_passes.py")], 300,
+         needs_app=False,
+         why="v3846 - on v3845 two no-flag runs passed 1312 gates and banked none, so the bump-only carry had "
+             "nothing to inherit and the bump reran every gate. A no-flag run now records each PASS."),
     Gate("test_a_bump_only_commit_inherits_its_parents_passes",
          [sys.executable, os.path.join(HERE, "test_a_bump_only_commit_inherits_its_parents_passes.py")], 120,
          needs_app=False,
@@ -12814,11 +12819,14 @@ def _fold_deferred_bank(path):
 def run(only=None, live_watch=True, live_writer=None, ledger=None):
     del _skip_reasons[:]
     led = None
-    if ledger in ("changed", "full"):
+    if ledger in ("changed", "full", "record"):  # RUN-RECORDS-BY-DEFAULT
         try:
             import gate_ledger as _GL
             led = _GL.Ledger()
-            if ledger == "full":
+            if ledger == "record":
+                print("ledger: no flag runs every gate and records each PASS, so a later --changed run "
+                      "(and a bump-only commit on top) can carry it.", flush=True)
+            elif ledger == "full":
                 print("ledger: --full runs every gate. A PASS is recorded; a FAIL is kept as red, never carried as a pass.",
                       flush=True)
             elif _GL.ci_blocks():
@@ -13688,7 +13696,10 @@ def main(argv):
     # this run contradicted. No flag, and --shard alone, leave the ledger closed.
     if a.full and a.changed:
         print("ledger: --full wins over --changed. Every gate runs.")
-    ledger_mode = "full" if a.full else ("changed" if a.changed else None)
+    # ⚠ v3846 - A RUN THAT PASSED EVERYTHING AND BANKED NOTHING. On v3845 two no-flag runs passed 1312 gates and
+    # recorded none of them, so the bump-only carry had nothing to inherit and the bump reran every gate. Every
+    # unsharded run now records; it still carries nothing unless --changed is named.
+    ledger_mode = "full" if a.full else ("changed" if a.changed else ("record" if not a.shard else None))  # RUN-RECORDS-BY-DEFAULT
 
     # ⚠ 2026-09-29 — A NAME THIS REGISTRY DOES NOT HAVE RUNS NOTHING, AND NOTHING IS NOT A PASS. A zsh `--only $G` handed
     # 34 names as ONE argument; it matched no gate and the run printed "✅ 0 gate(s) passed" with exit 0 - a green over a
