@@ -11018,6 +11018,14 @@ GATES = [
              "named, a corrupt ledger and a FAIL all run. --full does not consult the "
              "ledger. CI does not either. A carried line says proven at a sha and an age, "
              "and it is not a fresh pass and not new Wilson evidence."),
+    Gate("test_a_bump_only_commit_inherits_its_parents_passes",
+         [sys.executable, os.path.join(HERE, "test_a_bump_only_commit_inherits_its_parents_passes.py")], 120,
+         needs_app=False,
+         why="v3845 - since v3843 every bump also writes tv/CHANGELOG.json, which was no stamp surface, so "
+             "every bump-only commit reran the gates its parent had just passed. The changelog now leaves the "
+             "change set only as ONE new head entry in bump_version's exact shape for the bump's own version; "
+             "an old entry reworded, a second entry, another version, a gate that reads the changelog, or any "
+             "non-bump file voids the inheritance and the gate reruns."),
     Gate("test_a_version_bump_carries_the_gates_that_ignore_the_version",
          [sys.executable, os.path.join(HERE, "test_a_version_bump_carries_the_gates_that_ignore_the_version.py")], 120,
          needs_app=False,

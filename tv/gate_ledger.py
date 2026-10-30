@@ -136,7 +136,43 @@ STAMP_SURFACES = {  # LEDGER-STAMP-SURFACES (mirrors tv/bump_version.py bump + _
                                r"measure, written by hand\.\*$")),
     ),
     "TASKS.md": (),  # handled by _tasks_row_versions: one new top ship row, exact bump format
+    "tv/CHANGELOG.json": (),  # handled by _changelog_versions: one new head entry, exact bump format (v3845)
 }
+# v3845 (Elad 2026-10-30 11:24) - THE BUMP-ONLY RULE HAD QUIETLY STOPPED HOLDING. Since v3843 every bump also
+# writes tv/CHANGELOG.json, which was no stamp surface, so every bump read as a code change and a bump-only
+# commit reran the gates its parent had just passed. The changelog now leaves the change set ONLY as one
+# new entry inserted at the head of the list, in json.dumps(indent=2) shape, for the bump's own new version,
+# with leak-checked items - any other edit to it (a reworded old entry, a second entry, a moved line) keeps
+# it changed and every gate reruns. Law: test_a_bump_only_commit_inherits_its_parents_passes.
+_CL_OPEN, _CL_CLOSE, _CL_ITEMS, _CL_ITEMS_END = "  {", "  },", '    "items": [', "    ]"
+_CL_VER = re.compile(r'^    "ver": "' + _V + r'",$')
+_CL_DATE = re.compile(r'^    "date": "\d{4}-\d\d-\d\d",$')
+_CL_ITEM = re.compile(r'^      (?P<f>"(?:[^"\\\n]|\\.)*")(?P<c>,?)$')
+
+
+def _changelog_entry(hunks):
+    """-> (new version, [item texts]) | None. One hunk inserted after line 1 ('['), nothing removed."""
+    if not hunks or len(hunks) != 1:
+        return None
+    o, n, rem, add = hunks[0]
+    if rem or o != 1 or n != 2 or len(add) < 7:  # CL-HEAD-INSERT-ONLY
+        return None
+    if add[0] != _CL_OPEN or add[3] != _CL_ITEMS or add[-2] != _CL_ITEMS_END or add[-1] != _CL_CLOSE:
+        return None
+    mv, md = _CL_VER.match(add[1]), _CL_DATE.match(add[2])
+    if not (mv and md):
+        return None
+    items = []
+    body = add[4:-2]
+    for i, line in enumerate(body):
+        m = _CL_ITEM.match(line)
+        if not m or (m.group("c") == ",") != (i < len(body) - 1):  # CL-ITEM-SHAPE
+            return None
+        try:
+            items.append(json.loads(m.group("f")))
+        except Exception:
+            return None
+    return mv.group("v"), items
 # Every coherent bump moves these. BLUEPRINT.md may or may not move (same-minute regen).
 _STAMP_REQUIRED = frozenset(("bible.html", "tv/control_app.py", "tv/tv_diablo.py",
                              "tv/WINDOWS_SHIP.json", "RESUME_HERE.md", "TASKS.md"))
@@ -157,7 +193,7 @@ _VERSION_WORDS = re.compile(
     r"D2R_BUILD|d2r-build|bump_version|WINDOWS_SHIP|stamp_versions|\bVERSION\b|"
     r"[\x27\x22]ver[\x27\x22]|<title>|resume_state|RESUME_HERE|version_stamp_gate|"
     r"second_eye_ledger|tooltip_oracle_lane|windows_boot_check|_tree_version|"
-    r"_check_version_drift|current_version|_shipped_versions|bible_stamp|TASKS\.md")
+    r"_check_version_drift|current_version|_shipped_versions|bible_stamp|TASKS\.md|CHANGELOG")
 _VERSION_READER_ONLY = frozenset(("tv/version_stamp_gate.py", "tv/windows_boot_check.py"))
 
 
@@ -260,6 +296,9 @@ def stamp_file_versions(rel, text):
         return None
     if rel == "TASKS.md":
         return _tasks_row_versions(hunks)
+    if rel == "tv/CHANGELOG.json":
+        e = _changelog_entry(hunks)
+        return (set(), {e[0]}) if e else None
     olds, news = set(), set()
     for o, n, rem, add in hunks:
         if o != n or len(rem) != len(add) or not rem:  # STAMP-IN-PLACE
@@ -295,6 +334,9 @@ def stamp_free_text(rel, text):
                 return None
             out.append(m.group("f").strip())
         return out
+    if rel == "tv/CHANGELOG.json":
+        e = _changelog_entry(hunks)
+        return list(e[1]) if e else None
     for _o, _n, _rem, add in hunks:
         for line in add:
             k = stamp_kinds(rel, line)
