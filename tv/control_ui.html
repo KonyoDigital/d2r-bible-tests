@@ -33240,8 +33240,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   var b = document.getElementById('foot-hist');
   if (b) b.addEventListener('click', function(ev){ ev.stopPropagation(); histOpen(); });
 })();
-</script>
-<script id="v3845-show-hide">
+/* v3845-show-hide - kept inside the second script block (the console has exactly two; test_a_dead_fill_keeps_its_content) */
 /* v3845 - EVERY SHOW / HIDE TOGGLE SAYS WHAT A CLICK WILL DO, AND MOVES SMOOTHLY (Elad, 2026-10-30 09:36): "after i click
    show it shows but when i want to hide it should read hide". A <details> whose summary says "show ..." reads "hide ..."
    while open and "show ..." again when closed (its arrow flips with it), and its body slides open and shut both ways -
@@ -33265,7 +33264,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     return false;
   }
   function isToggle(d){ var s = d && d.querySelector(':scope > summary'); return !!(s && RE.test(s.textContent || '')) ? s : null; }
-  function still(){ try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  function still(){ try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
   document.addEventListener('toggle', function(ev){
     var d = ev.target, s = d && d.tagName === 'DETAILS' && isToggle(d);
     if (s) { word(s, d.open); d.setAttribute('data-sh', d.open ? 'open' : 'shut'); }

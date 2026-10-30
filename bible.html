@@ -86897,7 +86897,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     return false;
   }
   function isToggle(d){ var s = d && d.querySelector(':scope > summary'); return !!(s && RE.test(s.textContent || '')) ? s : null; }
-  function still(){ try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  function still(){ try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
   document.addEventListener('toggle', function(ev){
     var d = ev.target, s = d && d.tagName === 'DETAILS' && isToggle(d);
     if (s) { word(s, d.open); d.setAttribute('data-sh', d.open ? 'open' : 'shut'); }
