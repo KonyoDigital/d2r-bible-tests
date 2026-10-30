@@ -11018,6 +11018,12 @@ GATES = [
              "named, a corrupt ledger and a FAIL all run. --full does not consult the "
              "ledger. CI does not either. A carried line says proven at a sha and an age, "
              "and it is not a fresh pass and not new Wilson evidence."),
+    Gate("test_a_quiet_relaunched_window_takes_keys",
+         [sys.executable, os.path.join(HERE, "test_a_quiet_relaunched_window_takes_keys.py")], 60,
+         needs_app=False,
+         why="v3846 (Elad 14:23) - a quiet relaunch made the window focus=False and pywebview's WindowHost kept it "
+             "unable to become key forever, so the d2jsp search took no typing (ui_faults: framed true, hasFocus "
+             "false). Loaded and every raise now let it become key."),
     Gate("test_a_plain_gate_run_banks_its_passes",
          [sys.executable, os.path.join(HERE, "test_a_plain_gate_run_banks_its_passes.py")], 300,
          needs_app=False,

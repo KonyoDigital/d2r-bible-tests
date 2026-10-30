@@ -7384,6 +7384,43 @@ def _mac_set_dock_icon(show):
 APP_ICON_ICNS = os.path.join(HERE, "appicon.icns")
 
 
+# v3846 - THE BOARD WOULD NOT TAKE TYPING (Elad 2026-10-30 14:23). A quiet relaunch creates the window with
+# focus=False so it never steals his game, and pywebview's cocoa WindowHost answers canBecomeKeyWindow with that
+# flag FOREVER: the window never became key again, so a click put the caret in a field (activeElement right) while
+# document.hasFocus() stayed false and every key went elsewhere. Measured: ui_faults 'framed true, hasFocus false'
+# on a console started with TV_QUIET_RELAUNCH. The flag now only governs the boot; once loaded, and on every raise,
+# the window may become key again (a click still decides WHEN).
+def _mac_windows_take_keys(app=None):
+    """Let every console window become key again. -> number of windows freed."""
+    n = 0
+    try:
+        if app is None:
+            import AppKit
+            app = AppKit.NSApplication.sharedApplication()
+        for w in list(app.windows() or []):
+            if hasattr(w, "focus") and w.focus is not True:  # WINDOW-TAKES-KEYS
+                w.focus = True
+                n += 1
+    except Exception:
+        pass
+    try:
+        import webview
+        for pw in list(getattr(webview, "windows", []) or []):
+            if getattr(pw, "focus", True) is not True:
+                pw.focus = True
+    except Exception:
+        pass
+    return n
+
+
+def _mac_windows_take_keys_on_main():
+    try:
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(_mac_windows_take_keys)
+    except Exception:
+        _mac_windows_take_keys()
+
+
 def _mac_raise_windows(app):
     """Bring every console window above every other app. `app` is NSApplication (a fake in the tests).
     -> list of what was done. A window in the background service goes through console_to_front instead."""
@@ -7400,6 +7437,9 @@ def _mac_raise_windows(app):
             if w.isMiniaturized():
                 w.deminiaturize_(None)
                 did.append("deminiaturized")
+            if hasattr(w, "focus") and w.focus is not True:  # RAISE-TAKES-KEYS
+                w.focus = True
+                did.append("takes-keys")
             w.makeKeyAndOrderFront_(None)
             w.orderFrontRegardless()
             did.append("raised")
@@ -10751,6 +10791,7 @@ def open_control_window():
                 #
                 # ⚠ `TV_MAC_CHROME=0` turns the tint OFF, so if it ever misbehaves on launch he
                 # has a way back in without editing code. An opt-OUT, because he asked for clean.
+                win.events.loaded += _mac_windows_take_keys_on_main  # LOADED-TAKES-KEYS
                 if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() not in ("0", "false", "no", "off"):
                     win.events.shown += _mac_tint_caption
                 if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() in ("1", "true", "yes", "on"):
