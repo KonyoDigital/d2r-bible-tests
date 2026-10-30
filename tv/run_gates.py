@@ -11685,6 +11685,10 @@ GATES = [
          why="v3843 - the price search matched the full item name only, read board 243 and cut 1,500 fg to 500. It now "
              "searches the Softcore non-ladder board 268 with the trade slang (shako, anni, gheeds), counts only 2026 "
              "posts, reads large fg amounts whole, and the desk shows the roll tier. The quote block runs in node."),
+    Gate("test_a_show_toggle_reads_hide_while_open",
+         [sys.executable, os.path.join(HERE, "test_a_show_toggle_reads_hide_while_open.py")], 120,
+         needs_app=False,
+         why="v3845 - Elad 2026-10-30 09:36: a show toggle reads hide while open and show when closed, and slides both ways."),
     Gate("test_the_d2jsp_reads_compact_roll_columns",
          [sys.executable, os.path.join(HERE, "test_the_d2jsp_reads_compact_roll_columns.py")], 120,
          needs_app=False,

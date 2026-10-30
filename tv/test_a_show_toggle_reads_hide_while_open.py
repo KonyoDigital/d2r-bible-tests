@@ -1,0 +1,60 @@
+"""v3845 - A SHOW TOGGLE READS HIDE WHILE OPEN (Elad, 2026-10-30 09:36): the d2jsp evidence drawer kept saying
+"show the 12 posts" after it opened. Every <details> whose summary says show/hide now reads "hide ..." while open and
+"show ..." when closed, and slides both ways (reduced motion: no slide). Real clicks on the board, in Chrome.
+NO CHROME = a declared skip, never a pass. RED_PROOF below. [[regression-guard]]"""
+import json
+import os
+import sys
+import time
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
+from test_a_sweep_never_reticks_what_he_unticked import Board  # noqa: E402
+import test_found_ever_never_files_to_a_mule as _H  # noqa: E402
+
+SIM = {"posts": [{"fg": 140, "day": "2026-10-07", "link": "", "roll": [], "cols": [8, -9, 4, 40, 28], "w": 0.38, "out": ""}] * 12}
+
+
+@unittest.skipUnless(os.path.exists(_H.RC.CHROME), "no Chrome on this machine (declared skip)")
+class AShowToggleReadsHideWhileOpen(unittest.TestCase):
+    def test_click_open_reads_hide_click_shut_reads_show(self):
+        b = Board()
+        b.open()
+        t = b.t
+        r = b.run("var h = document.createElement('div'); h.id = 'sh-probe'; h.style.cssText = 'position:fixed;left:20px;top:20px;z-index:2147483647;background:#000';"
+                  "h.innerHTML = d2jspEvidenceHtml(%s); document.body.appendChild(h);"
+                  "var s = h.querySelector('summary'), q = s.getBoundingClientRect(); OUT.x = q.left + 20; OUT.y = q.top + q.height / 2;"
+                  "OUT.t0 = s.textContent;" % json.dumps(SIM))
+        self.assertIn("show the 12 posts", r["t0"])
+        seen = []
+        for _ in range(2):
+            for ty in ("mousePressed", "mouseReleased"):
+                t.send("Input.dispatchMouseEvent", type=ty, x=r["x"], y=r["y"], button="left", clickCount=1)
+            mid = t.ev("(function(){var d=document.querySelector('#sh-probe details');return JSON.stringify([d.open,d.querySelector('summary').textContent,d.offsetHeight]);})()")
+            time.sleep(0.6)
+            end = t.ev("(function(){var d=document.querySelector('#sh-probe details');return JSON.stringify([d.open,d.querySelector('summary').textContent,d.offsetHeight]);})()")
+            seen.append((json.loads(mid), json.loads(end)))
+        (m1, e1), (m2, e2) = seen
+        self.assertTrue(e1[0], "the first click did not open the drawer: %r" % seen)
+        self.assertIn("hide the 12 posts", e1[1], "open, the toggle still says show: %r" % seen)
+        self.assertFalse(e2[0], "the second click did not close it: %r" % seen)
+        self.assertIn("show the 12 posts", e2[1], "closed, the toggle does not say show again: %r" % seen)
+        self.assertTrue(m2[0], "the drawer snapped shut with no slide: %r" % seen)
+        self.assertLess(m1[2], e1[2], "the drawer jumped open with no slide: %r" % seen)
+
+
+RED_PROOF = [
+    {"why": "the summary word is never swapped",
+     "file": "bible.html", "find": "    if (s) { word(s, d.open); d.setAttribute('data-sh', d.open ? 'open' : 'shut'); }",
+     "replace": "    if (s) { d.setAttribute('data-sh', d.open ? 'open' : 'shut'); }", "matches": 1},
+    {"why": "no slide: the click is left to the browser's instant toggle",
+     "file": "bible.html", "find": "    ev.preventDefault();\n    if (d._shAnim)",
+     "replace": "    return;\n    if (d._shAnim)", "matches": 1},
+]
+
+if __name__ == "__main__":
+    unittest.main()

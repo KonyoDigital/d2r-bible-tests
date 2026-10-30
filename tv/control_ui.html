@@ -33223,5 +33223,57 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   if (b) b.addEventListener('click', function(ev){ ev.stopPropagation(); histOpen(); });
 })();
 </script>
+<script id="v3845-show-hide">
+/* v3845 - EVERY SHOW / HIDE TOGGLE SAYS WHAT A CLICK WILL DO, AND MOVES SMOOTHLY (Elad, 2026-10-30 09:36): "after i click
+   show it shows but when i want to hide it should read hide". A <details> whose summary says "show ..." reads "hide ..."
+   while open and "show ..." again when closed (its arrow flips with it), and its body slides open and shut both ways -
+   height and opacity, no jump - unless the reader asked for reduced motion. One rule for the whole page, so a drawer
+   drawn later (innerHTML) gets it too. */
+(function(){
+  if (window._v3845ShowHide) return;
+  window._v3845ShowHide = true;
+  var RE = /\b(show|hide)\b/i;
+  function word(sum, open){
+    var w = document.createTreeWalker(sum, NodeFilter.SHOW_TEXT, null), n;
+    while ((n = w.nextNode())) {
+      if (RE.test(n.nodeValue)) {
+        n.nodeValue = n.nodeValue.replace(RE, function(m){
+          var t = open ? 'hide' : 'show';
+          return m[0] === m[0].toUpperCase() ? t[0].toUpperCase() + t.slice(1) : t;
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+  function isToggle(d){ var s = d && d.querySelector(':scope > summary'); return !!(s && RE.test(s.textContent || '')) ? s : null; }
+  function still(){ try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  document.addEventListener('toggle', function(ev){
+    var d = ev.target, s = d && d.tagName === 'DETAILS' && isToggle(d);
+    if (s) { word(s, d.open); d.setAttribute('data-sh', d.open ? 'open' : 'shut'); }
+  }, true);
+  document.addEventListener('click', function(ev){
+    var s = ev.target && ev.target.closest && ev.target.closest('summary');
+    var d = s && s.parentElement;
+    if (!d || d.tagName !== 'DETAILS' || s !== isToggle(d) || still() || !d.animate) return;
+    ev.preventDefault();
+    if (d._shAnim) { try { d._shAnim.cancel(); } catch (e) {} d._shAnim = null; }
+    var from = d.offsetHeight, closing = d.open;
+    if (!closing) d.open = true;
+    var to = closing ? s.offsetHeight : d.offsetHeight;
+    d.style.overflow = 'hidden';
+    var a = d._shAnim = d.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 220, easing: 'ease-out' });
+    var body = [].filter.call(d.children, function(c){ return c !== s; });
+    body.forEach(function(c){ if (c.animate) c.animate([{ opacity: closing ? 1 : 0 }, { opacity: closing ? 0 : 1 }], { duration: 220, easing: 'ease-out', fill: 'none' }); });
+    if (closing) word(s, false);
+    a.onfinish = function(){ d._shAnim = null; d.style.overflow = ''; if (closing) d.open = false; };
+    a.oncancel = function(){ d.style.overflow = ''; };
+  }, false);
+})();
+</script>
+<style id="v3845-show-hide-css">
+details[data-sh] > summary{transition:color .2s ease}
+@media (prefers-reduced-motion: reduce){ details[data-sh] *{transition:none !important} }
+</style>
 </body>
 </html>
