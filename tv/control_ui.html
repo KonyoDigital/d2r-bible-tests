@@ -23129,6 +23129,24 @@ window._lockMark = function(isOpen, px, label){
       try { TH.shelfOpening = false; } catch (e) {}
     }
   };
+  /* v3845 - THE SHELF IN A SHADOW OPENED NOTHING (Elad 2026-10-30). In a shadow their board frame (#shadow-eng) holds
+     focus, and this WebKit spends the first click outside a focused frame blurring it (#142), so the Shelf's click never
+     came. Same cure as the header tabs: in a shadow the PRESS opens it, and the click of that same press is not taken
+     twice. A click with no press ahead of it (keyboard, .click()) still opens. */
+  var _bshelfPtrTs = -1e9;
+  if (_bshelf) {
+    _bshelf.addEventListener('pointerdown', function(e){
+      if (e.button !== 0 || e.ctrlKey) return;
+      if (!(document.body.classList && document.body.classList.contains('shadow-on'))) return;
+      _bshelfPtrTs = e.timeStamp || 0;
+      e.preventDefault();
+      try { var se = document.getElementById('shadow-eng'); if (se && se.blur) se.blur(); } catch (_b) {}
+      _bshelf.onclick();
+    });
+    _bshelf.addEventListener('click', function(e){
+      if (((e.timeStamp || 0) - _bshelfPtrTs) < 700) { e.stopImmediatePropagation(); e.preventDefault(); _bshelfPtrTs = -1e9; }
+    }, true);
+  }
 
   /* v2446 — SAY IT, AND TELL THE DOCTOR. Konyo: "hook that to the heart of the console so it
      doesnt regress in the future either." A refusal that only reaches the console log is a

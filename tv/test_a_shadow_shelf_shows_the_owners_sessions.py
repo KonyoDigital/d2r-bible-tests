@@ -255,6 +255,17 @@ class TheDoorsAreJoined(unittest.TestCase):
         self.assertEqual(UI.count(opn), 1, "THE SHELF no longer opens their sessions in a shadow")
         self.assertEqual(UI.count(ask + opn), 1, "the list is not asked right after the shadow check")
 
+    def test_in_a_shadow_the_shelf_opens_on_the_press(self):
+        """v3845 - the shadow frame holds focus and WebKit spends the first click blurring it (#142): the Shelf must
+        open on the primary press in a shadow, and that press's click must not open it twice."""
+        i = UI.index("    _bshelf.addEventListener('pointerdown', function(e){\n")
+        j = UI.index("\n  }", UI.index("}, true);", i))
+        blk = UI[i:j]
+        self.assertIn("if (e.button !== 0 || e.ctrlKey) return;", blk, "a right press opens the Shelf")
+        self.assertIn("contains('shadow-on')", blk)
+        self.assertIn("      _bshelf.onclick();\n", blk, "the press in a shadow opens nothing")
+        self.assertIn("e.stopImmediatePropagation()", blk, "the press's own click opens the Shelf a second time")
+
     def test_the_bar_carries_the_pointer_and_binds_it(self):
         self.assertIn('<span id="shadow-who">read only</span><button type="button" id="shadow-sessions"', UI)
         i = UI.index("    var b = document.getElementById('shadow-sessions');\n")
@@ -269,6 +280,8 @@ class TheDoorsAreJoined(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "v3845 - in a shadow the Shelf's press opens nothing (the first click is spent blurring their frame)",
+     "file": "tv/control_ui.html", "find": "      _bshelf.onclick();\n", "replace": "", "matches": 1},
     {"why": "REG-2810 - the names read go into the page unescaped",
      "file": "tv/control_ui.html",
      "find": "nm.map(function(x){ return esc(x); }).join(' · ')",
