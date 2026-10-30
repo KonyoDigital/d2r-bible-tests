@@ -1,0 +1,112 @@
+"""v3847 - THE D2JSP PAGE TEXT IS READ AS A TRADER WROTE IT (Elad, 2026-10-30 15:27, 15:41, 15:42; #230 6524232951).
+Simsalara's board-268 post read 'no prices' when the page wrote the apostrophe as &#39; or &rsquo; or wrapped the
+name in <b>/<span>: the parser matched the raw markup, not the words. Now entities are decoded after tags go and
+inline tags unwrap with no space, so each variant reads the same 35 fg from 11 posts. A 'no prices' reading lists the
+posts it read and why each was set aside (no date, older than the window, no fg price) - their why, day and d2jsp
+link only, never the line's own words. Slash rolls ('anni 20/20/10 1200fg') are fit like roll columns: a post is set
+aside only when its roll does not explain its price. The forum's names (anni, torch, gt, jmod, ww...) resolve to their
+item for both the search and the line match, and an ambiguous word (doom, gt, gf, storm) is read by its context.
+Node only, no Chrome. NO NODE = a declared skip, never a pass. RED_PROOF below. [[regression-guard]]"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import d2jsp_chrome as D  # noqa: E402
+
+ITEM = "Guardian's Thunder"
+LINES = ["+7 -5 4 41 27 15fg", "+7 -6 4 34 30 20fg", "+5 -8 3 37 29 20fg", "+6 -8 3 36 26 25fg", "+7 -7 4 42 23 25fg",
+         "+8 -7 4 49 17 35fg", "+10 -6 3 30 30 100fg", "+8 -9 3 47 33 130fg", "+8 -9 4 40 28 140fg",
+         "+8 -9 4 46 27 140fg", "+7 -10 4 33 29 390fg"]
+NOW = "2026-10-30T07:00:00Z"
+
+
+def post(name, date="Oct 7 2026 11:04pm"):
+    return ('<div>%s <a href="topic.php?t=110445948&amp;f=268&amp;p=695336765">#1</a> Last post: Today</div>'
+            "rotw softcore nonladder<br>colossal ancient jewels:<br>" % date
+            + "".join("%s %s<br>" % (name, l) for l in LINES))
+
+
+VARIANTS = {"plain": "guardian's thunder", "numeric entity": "guardian&#39;s thunder",
+            "named entity": "guardian&rsquo;s thunder", "bold": "<b>guardian's thunder</b>",
+            "span": "<span class=\"x\">guardian</span>'s <i>thunder</i>"}
+
+HAS_NODE = bool(shutil.which("node"))
+
+
+def js(expr):
+    prog = D._read_quote_parser() + "\nprocess.stdout.write(JSON.stringify(" + expr + "));\n"
+    return json.loads(subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60).stdout)
+
+
+@unittest.skipUnless(HAS_NODE, "no node on this machine (declared skip)")
+class PageText(unittest.TestCase):
+    def test_every_markup_variant_reads_the_same_price(self):
+        for label, name in VARIANTS.items():
+            q = D.parse_public_quote(post(name), ITEM, NOW)
+            self.assertEqual("read", q.get("reason"), "%s variant: %r" % (label, q.get("reason")))
+            self.assertEqual(11, len(q.get("posts") or []), "%s variant did not price all 11 posts" % label)
+
+    def test_no_prices_lists_what_it_read_and_why(self):
+        q = D.parse_public_quote(post("guardian's thunder", date="Oct 7 2024 11:04pm"), ITEM, NOW)
+        self.assertEqual("no prices", q.get("reason"))
+        aside = q.get("aside") or []
+        self.assertEqual(11, len(aside), "the posts set aside are not listed: %r" % aside)
+        self.assertTrue(all(a.get("why") for a in aside), "a set-aside post has no reason")
+        self.assertTrue(all(set(a) <= {"why", "day", "link"} for a in aside), "a set-aside row carries the line's words")
+        self.assertTrue(all("d2jsp.org" in (a.get("link") or "d2jsp.org") for a in aside))
+
+
+@unittest.skipUnless(HAS_NODE, "no node on this machine (declared skip)")
+class SlashRolls(unittest.TestCase):
+    def test_a_slash_roll_price_is_fit_not_trimmed(self):
+        rolls = ["20/20/10 1200fg", "19/19/9 900fg", "18/18/8 700fg", "17/17/7 500fg", "16/16/6 400fg",
+                 "20/19/10 1100fg", "18/17/9 650fg", "15/15/5 5000fg"]
+        html = ('<div>Oct 20 2026 <a href="topic.php?t=1&amp;f=271&amp;p=2">#1</a></div>'
+                + "".join("anni %s<br>" % r for r in rolls))
+        q = D.parse_public_quote(html, "Annihilus", NOW)
+        posts = q.get("posts") or []
+        prices = sorted(p["fg"] for p in posts if p.get("w", 1) > 0)
+        self.assertIn(1200, prices, "the perfect anni was trimmed as far from the middle: %r" % q)
+        self.assertNotIn(5000, prices, "the 15/15/5 at 5000 fg still counts: %r" % q)
+        why = " ".join(str(p.get("out")) for p in posts if p.get("fg") == 5000)
+        self.assertIn("roll does not explain its price", why, "the 15/15/5 at 5000 fg was not set aside: %r" % q)
+
+
+@unittest.skipUnless(HAS_NODE, "no node on this machine (declared skip)")
+class Slang(unittest.TestCase):
+    def test_forum_words_resolve_to_their_item(self):
+        want = {"anni": "Annihilus", "torch": "Hellfire Torch", "gt": "Guardian's Thunder", "shako": "Harlequin Crest",
+                "jmod": "Jeweler's Monarch of Deflecting", "ww": "Whirlwind"}
+        got = js("[%s].map(function(t){return d2jspResolveItem(t).item;})" % ",".join(json.dumps(k) for k in want))
+        self.assertEqual(list(want.values()), got)
+
+    def test_an_ambiguous_word_is_read_by_its_context(self):
+        cases = [("doom", "Doom"), ("doom cv", "Doom"), ("doom sword", "Doombringer"), ("gt doom base", "Doom"),
+                 ("gf sword", "Grandfather"), ("storm monarch", "Stormshield")]
+        got = js("[%s].map(function(t){return d2jspResolveItem(t).item;})" % ",".join(json.dumps(c) for c, _ in cases))
+        self.assertEqual([w for _, w in cases], got)
+
+    def test_the_search_asks_by_the_item_and_the_line_match_obeys_context(self):
+        self.assertEqual("guardians thunder", js('d2jspSearchWords("gt").query'))
+        self.assertEqual("anni", js('d2jspSearchWords("Annihilus").query'))
+        self.assertTrue(js('d2jspOtherReading("doom cv eth 4os 900fg", "Doombringer")'))
+        self.assertFalse(js('d2jspOtherReading("doom 300fg", "Doombringer")'))
+
+
+RED_PROOF = [
+    {"why": "entities are not decoded, so &#39; hides the name again",
+     "file": "functions/api/d2jsp_quote.js", "find": "function d2jspDecodeEntities(t) {",
+     "replace": "function d2jspDecodeEntities(t) { return String(t);", "matches": 1},
+    {"why": "an alias no longer resolves to its item",
+     "file": "functions/api/d2jsp_quote.js",
+     "find": "    if (D2JSP_SLANG[k].some(function (w) { return w === f; })) return",
+     "replace": "    if (false) return", "matches": 1},
+]
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

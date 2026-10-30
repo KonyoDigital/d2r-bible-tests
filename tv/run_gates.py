@@ -11715,6 +11715,12 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_show_toggle_reads_hide_while_open.py")], 120,
          needs_app=False,
          why="v3845 - Elad 2026-10-30 09:36: a show toggle reads hide while open and show when closed, and slides both ways."),
+    Gate("test_the_d2jsp_reads_entities_tags_slash_rolls_and_slang",
+         [sys.executable, os.path.join(HERE, "test_the_d2jsp_reads_entities_tags_slash_rolls_and_slang.py")], 120,
+         needs_app=False,
+         why="v3847 - Elad 2026-10-30 15:27/15:41/15:42: entities and inline tags no longer hide an item name (Simsalara's "
+             "board-268 post reads 35 fg in every markup variant), a 'no prices' reading lists what it set aside and why, "
+             "slash rolls are fit not trimmed, and the forum's names and ambiguous words resolve to their item."),
     Gate("test_the_d2jsp_reads_compact_roll_columns",
          [sys.executable, os.path.join(HERE, "test_the_d2jsp_reads_compact_roll_columns.py")], 120,
          needs_app=False,

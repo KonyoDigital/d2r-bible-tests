@@ -65,8 +65,73 @@ var D2JSP_SLANG = {
   "Doombringer": ["doom"], "Death Cleaver": ["dc"], "Executioner's Justice": ["ej"],
   "The Reaper's Toll": ["reapers"], "Stormlash": [], "Tomb Reaver": ["reaver"],
   "Grandfather": ["gf sword"], "Azurewrath": ["azure"], "Lightsabre": ["lsabre"],
-  "Hellslayer": [], "Messerschmidt's Reaver": ["messer"], "Rainbow Facet": ["facet"]
+  "Hellslayer": [], "Messerschmidt's Reaver": ["messer"], "Rainbow Facet": ["facet"],
+  /* v3847 (Elad 15:42) - more of the forum's names; the first word is what the search box is given */
+  "Guardian's Thunder": ["guardians thunder", "gt"], "Jeweler's Monarch of Deflecting": ["jmod"],
+  "Doom": ["doom rw"], "Chains of Honor": ["coh"], "Phoenix": ["phoenix rw"], "Last Wish": ["lw"], "Faith": [],
+  "Beast": [], "Exile": [], "Dream": [], "Fury": [], "Pride": [], "Silence": [],
+  "Crescent Moon": ["cmoon"], "Bramble": [], "Destruction": [], "Obedience": ["obe"],
+  "Whirlwind": ["ww"], "Vampire Gaze": ["vgaze"], "Wisp Projector": ["wisp"],
+  "Dwarf Star": ["dwarf"], "Wizardspike": ["wspike", "spike"],
+  "Ondal's Wisdom": ["ondals"], "Lidless Wall": ["lidless"], "Homunculus": ["homu"],
+  "Arkaine's Valor": ["arkaines"], "Thunderstroke": ["tstroke"], "Kira's Guardian": ["kiras"],
+  "Tal Rasha's Guardianship": ["tal armor"], "Sigon's Complete Steel": ["sigons"],
+  "Immortal King's Stone Crusher": ["ik maul"], "Griswold's Honor": ["gris shield"]
 };
+
+/* v3847 (Elad 15:42) - A WORD THAT MEANS DIFFERENT ITEMS. Each entry lists its readings in order; a reading is taken
+   when its context words are on the line (or in the search), and the LAST reading is the default. A post line whose
+   context points at another reading does not count for this item. */
+var D2JSP_AMBIG = {
+  "doom": [{ item: "Doom", ctx: /\b(?:rw|runeword|cv|voulge|thresher|gt|polearm|pole|merc|eth)\b/ },
+           { item: "Doombringer", ctx: /\b(?:sword|champion|unique|db)\b/ }, { item: "Doom", ctx: null }],
+  "gt": [{ item: "Doom", ctx: /\b(?:doom|rw|runeword|thresher|polearm|base)\b/ },
+         { item: "Guardian's Thunder", ctx: null }],
+  "facet": [{ item: "Rainbow Facet", ctx: null }],
+  "veil": [{ item: "Nightwing's Veil", ctx: null }],
+  "storm": [{ item: "Stormshield", ctx: /\b(?:shield|monarch|ss)\b/ }, { item: "Stormlash", ctx: /\b(?:flail|lash)\b/ },
+            { item: "Stormshield", ctx: null }],
+  "spike": [{ item: "Wizardspike", ctx: null }],
+  "gf": [{ item: "Grandfather", ctx: /\b(?:sword|colossus blade|unique|gfather)\b/ }, { item: null, ctx: null }]
+};
+
+/* -> {item, via, ambiguous}: the item a typed or written name means. A full name stays itself; a forum word becomes
+   its item; an ambiguous word becomes the reading its context names (else its default). via says how it was read. */
+function d2jspResolveItem(text, context) {
+  var f = d2jspFoldPrice(text).replace(/[^a-z0-9 \-]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!f) return { item: '', via: 'empty', ambiguous: false };
+  var ctx = ' ' + d2jspFoldPrice(context || text).replace(/[^a-z0-9]+/g, ' ') + ' ';
+  var head = f.split(' ')[0];                       /* "doom cv": the first word, read by the rest */
+  var key = Object.prototype.hasOwnProperty.call(D2JSP_AMBIG, f) ? f : (Object.prototype.hasOwnProperty.call(D2JSP_AMBIG, head) && f !== head ? head : null);
+  if (key) {
+    var rs = D2JSP_AMBIG[key];
+    for (var i = 0; i < rs.length; i++) {
+      if (!rs[i].ctx || rs[i].ctx.test(ctx)) return { item: rs[i].item || String(text), via: rs[i].ctx ? 'context' : 'default', ambiguous: rs.length > 1 };
+    }
+  }
+  for (var k in D2JSP_SLANG) {
+    if (!Object.prototype.hasOwnProperty.call(D2JSP_SLANG, k)) continue;
+    var kf = d2jspSimpleName(k);
+    if (kf === d2jspSimpleName(text)) return { item: k.trim(), via: 'name', ambiguous: false };
+    if (D2JSP_SLANG[k].some(function (w) { return w === f; })) return { item: k.trim(), via: 'alias', ambiguous: false };
+  }
+  return { item: String(text).trim(), via: 'as typed', ambiguous: false };
+}
+
+/* true when a line that names an ambiguous form of itemName points, by a context word on it, at a different item
+   (a bare ambiguous word with no context still counts: nothing on the line says otherwise) */
+function d2jspOtherReading(line, itemName) {
+  var folded = ' ' + d2jspFoldPrice(line).replace(/[^a-z0-9]+/g, ' ') + ' ', me = d2jspSimpleName(itemName);
+  for (var w in D2JSP_AMBIG) {
+    if (!Object.prototype.hasOwnProperty.call(D2JSP_AMBIG, w) || folded.indexOf(' ' + w + ' ') < 0) continue;
+    if (folded.indexOf(' ' + me + ' ') >= 0) continue;          /* the full name is on the line: no doubt */
+    var mine = D2JSP_AMBIG[w].some(function (r) { return r.item && d2jspSimpleName(r.item) === me; });
+    if (!mine) continue;
+    var r = d2jspResolveItem(w, line);
+    if (r.via === 'context' && r.item && d2jspSimpleName(r.item) !== me) return true;   /* only a context word rules it out */
+  }
+  return false;
+}
 
 /* the guides' notation for mods: the short word and the plain words a seller means by it */
 var D2JSP_NOTATION = {
@@ -99,6 +164,7 @@ function d2jspSimpleName(itemName) {
 /* the search words like a search box takes them: the slang form when traders have one, else the simplified name;
    every form a price line may name it by rides along in `forms` */
 function d2jspSearchWords(itemName) {
+  itemName = d2jspResolveItem(itemName).item || itemName;   /* v3847 - "gt", "anni", "jmod" search as their item */
   var slang = d2jspSlangOf(itemName), simple = d2jspSimpleName(itemName), full = d2jspFoldPrice(itemName);
   var forms = [];
   [full, simple].concat(slang).forEach(function (w) { if (w && forms.indexOf(w) < 0) forms.push(w); });
@@ -233,7 +299,21 @@ function d2jspLineRows(line, forms) {
 
 /* each price with its evidence: the post's link, its day, the fg and the roll as read (the slash
    notation). The post's own words stay on the forum - the link opens them. */
-function d2jspPosts(text, itemName, nowMs) {
+/* v3847 - the page's HTML entities, decoded once, after the tags are gone (so a decoded "<" can never open a tag). */
+function d2jspDecodeEntities(t) {
+  var named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', rsquo: '\u2019', lsquo: '\u2018',
+                ldquo: '\u201c', rdquo: '\u201d', ndash: '-', mdash: '-', hellip: '...' };
+  return String(t).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, function (all, k) {
+    if (k[0] === '#') {
+      var n = k[1] === 'x' || k[1] === 'X' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10);
+      return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : all;
+    }
+    var v = named[k.toLowerCase()];
+    return v == null ? all : v;
+  });
+}
+
+function d2jspPosts(text, itemName, nowMs, aside) {
   if (nowMs == null) nowMs = Date.now();
   var forms = d2jspSearchWords(itemName).forms;
   if (!forms.length) return [];
@@ -241,7 +321,12 @@ function d2jspPosts(text, itemName, nowMs) {
     .replace(/<a\s[^>]*href\s*=\s*["']([^"']*(?:topic\.php|[?&]t=\d|[?&]p=\d)[^"']*)["'][^>]*>/gi, ' \u27e6L:$1\u27e7 ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(?:p|div|tr|li|h\d)>/gi, '\n')
+    /* v3847 (Elad 15:27, Guardian's Thunder read 0 posts) - search highlighting wraps the matched word in an inline tag
+       (<b>guardian</b>'s); turning that tag into a space made "guardian 's", which no item form matches. An inline tag
+       is unwrapped with NO space; every other tag still becomes one. */
+    .replace(/<\/?(?:b|i|u|em|strong|span|font|mark|small|big)(?:\s[^>]*)?>/gi, '')
     .replace(/<[^>]+>/g, ' ');
+  plain = d2jspDecodeEntities(plain);   /* v3847 - &#39; / &rsquo; / &amp; arrive raw: Guardian&#39;s matched nothing */
   var rows = [], when = null, link = '', explicit = false;
   plain.split('\n').forEach(function (raw) {
     var m, re = new RegExp(D2JSP_LINK_MARK.source, 'g');
@@ -259,10 +344,21 @@ function d2jspPosts(text, itemName, nowMs) {
     else if (rel && !explicit) when = d;
     else if (here) link = here;
     /* v3843 - a price counts only under a recently dated post; v3844 - and only a 2026 one */
-    if (!d2jspRecent(when, nowMs) || when < D2JSP_QUOTE_SINCE_MS) return;
-    if (!d2jspNamed(line, forms)) return;
+    /* v3847 (Elad 15:27) - a line that names the item and is NOT priced is kept with the reason, for the drawer: a
+       reading of 0 priced posts still shows what was read and why each was set aside. Never weighed (w 0). */
+    var named = d2jspNamed(line, forms) && !d2jspOtherReading(line, d2jspResolveItem(itemName).item || itemName);
+    if (!d2jspRecent(when, nowMs) || when < D2JSP_QUOTE_SINCE_MS) {
+      if (named && aside) aside.push({ link: link,
+        day: when ? new Date(when).toISOString().slice(0, 10) : '',
+        why: when == null ? 'no post date read' : 'older than the price window' });
+      return;
+    }
+    if (!named) return;
     var note = d2jspNotation(line);
-    d2jspLineRows(line, forms).forEach(function (x) {
+    var lr = d2jspLineRows(line, forms);
+    if (!lr.length && aside) aside.push({ link: link,
+      day: new Date(when).toISOString().slice(0, 10), why: 'no fg price on the line' });
+    lr.forEach(function (x) {
       var row = { fg: x.fg, day: new Date(when).toISOString().slice(0, 10), link: link,
         roll: note.tuples, mods: note.words.slice(0, 12), w: 1 };
       if (x.cols) row.cols = x.cols;
@@ -279,8 +375,68 @@ function d2jspTrim(rows) {
   var mid = d2jspMedian(rows.map(function (r) { return r.fg; }));
   /* v3845 - a post that writes its roll is not judged by the middle: its roll may be why it is far (the -10 jewel at
      390 fg). The desk fits price against roll and sets such a post aside only when its roll does not explain it. */
-  rows.forEach(function (r) { if (r.cols) return; if (r.fg > mid * 3 || r.fg * 3 < mid) { r.w = 0; r.out = 'far from the middle ' + mid + ' fg'; } });
+  /* v3847 (#230 6524232951) - THE SAME RULE FOR A SLASH ROLL. "anni 20/20/10 1200fg" was set aside as far from the
+     middle while its roll was why. A post that writes a slash roll is judged against a price-by-roll fit over the posts
+     that write a roll of the same shape, and set aside only when its roll does not explain its price (3x off the fit).
+     Too few such posts to fit: it is kept, never judged by the middle. */
+  var fit = d2jspSlashFit(rows);
+  rows.forEach(function (r) {
+    if (r.cols) return;
+    var t = d2jspSlashOf(r);
+    if (t) {
+      var f = fit[t.length];
+      if (!f) return;
+      var e = f.at(t);
+      if (r.fg > e * 3 || r.fg * 3 < e) { r.w = 0; r.out = 'far from the middle: its roll does not explain its price (fit ' + Math.round(e) + ' fg)'; }
+      return;
+    }
+    if (r.fg > mid * 3 || r.fg * 3 < mid) { r.w = 0; r.out = 'far from the middle ' + mid + ' fg'; }
+  });
   return rows;
+}
+
+/* the post's first slash roll (2+ numbers), or null */
+function d2jspSlashOf(r) {
+  var t = (r.roll || []).filter(function (x) { return x && x.length >= 2; })[0];
+  return t ? t.map(Number) : null;
+}
+
+/* {length: {at(t)}} - per roll shape with 5+ posts: ln(fg) = a + b * place, place = the roll's mean position between
+   the lowest and highest value each column takes in these posts (0..1). */
+function d2jspSlashFit(rows) {
+  var by = {}, out = {};
+  rows.forEach(function (r) { var t = d2jspSlashOf(r); if (t && r.fg > 0) (by[t.length] = by[t.length] || []).push({ t: t, fg: r.fg }); });
+  Object.keys(by).forEach(function (L) {
+    var pts = by[L];
+    if (pts.length < 5) return;
+    var lo = [], hi = [];
+    for (var i = 0; i < +L; i++) {
+      lo.push(Math.min.apply(null, pts.map(function (p) { return p.t[i]; })));
+      hi.push(Math.max.apply(null, pts.map(function (p) { return p.t[i]; })));
+    }
+    var place = function (t) {
+      var s = 0, n = 0;
+      for (var i = 0; i < t.length; i++) if (hi[i] > lo[i]) { s += Math.max(0, Math.min(1, (t[i] - lo[i]) / (hi[i] - lo[i]))); n++; }
+      return n ? s / n : 0.5;
+    };
+    var xs = pts.map(function (p) { return place(p.t); }), ys = pts.map(function (p) { return Math.log(p.fg); });
+    /* fit, drop the one point furthest past 3x, refit: one 2000 fg bundle must not drag the line onto the others */
+    var keep = xs.map(function () { return true; }), a = 0, b = 0;
+    for (;;) {
+      var ix = [], k;
+      for (k = 0; k < xs.length; k++) if (keep[k]) ix.push(k);
+      var mx = ix.reduce(function (s, k) { return s + xs[k]; }, 0) / ix.length, my = ix.reduce(function (s, k) { return s + ys[k]; }, 0) / ix.length;
+      var sxx = 0, sxy = 0;
+      ix.forEach(function (k) { sxx += (xs[k] - mx) * (xs[k] - mx); sxy += (xs[k] - mx) * (ys[k] - my); });
+      b = sxx > 1e-9 ? sxy / sxx : 0; a = my - b * mx;
+      var worst = -1, far = Math.log(3);
+      ix.forEach(function (k) { var d = Math.abs(ys[k] - (a + b * xs[k])); if (d > far) { far = d; worst = k; } });
+      if (worst < 0 || ix.length <= 4) break;
+      keep[worst] = false;
+    }
+    out[L] = { at: function (t) { return Math.exp(a + b * place(t)); } };
+  });
+  return out;
 }
 
 function d2jspPrices(text, itemName, nowMs) {
@@ -312,18 +468,21 @@ function d2jspRead(html, item, readAt) {
     base.reason = 'need-login';
     return base;
   }
-  var posts = d2jspPosts(text, item, d2jspNowMs(readAt));
+  var aside = [];
+  var posts = d2jspPosts(text, item, d2jspNowMs(readAt), aside);
   var nums = posts.filter(function (r) { return r.w > 0; }).map(function (r) { return r.fg; });
   var fg = d2jspMedian(nums);
   if (fg == null) {
     base.reason = 'no prices';
+    base.posts = posts.slice(0, 40);        /* v3847 - the drawer shows what was read even with no price */
+    base.aside = aside.slice(0, 40);
     return base;
   }
   var span = d2jspSpan(nums);
   return {
     item: String(item || ''), fg: fg, low: span.low, high: span.high,
     n: nums.length, readAt: readAt, reason: 'read', board: D2JSP_QUOTE_BOARD,
-    posts: posts.slice(0, 40)
+    posts: posts.slice(0, 40), aside: aside.slice(0, 40)
   };
 }
 /* ⟦D2JSP QUOTE END⟧ */
