@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3843",
+  "ver": "v3844",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3843: version history button, d2jsp slang search on the non-ladder board, recent-only prices",
+  "note": "v3844: fleet prover, themed history, skull icon, Dock raise, d2jsp price search",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
