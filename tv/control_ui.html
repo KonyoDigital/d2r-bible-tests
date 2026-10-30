@@ -1410,7 +1410,9 @@
   .fx-head { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--edge);
     background: linear-gradient(180deg, rgba(240,192,96,.05), transparent); flex: none; }
   .fx-title { font: var(--fw-bold) var(--fs-xl)/1 var(--serif); letter-spacing: var(--ls-wide); color: var(--gold);
-    text-shadow: 0 0 26px rgba(240,192,96,.25); display: flex; align-items: baseline; gap: 10px; }
+    text-shadow: 0 0 26px rgba(240,192,96,.25); display: flex; align-items: baseline; gap: 10px;
+    /* v3847: on a narrow screen the subtitle wraps under the title instead of pushing the head past the overlay x */
+    flex-wrap: wrap; min-width: 0; }
   .fx-ic { font-family: var(--mono); }
   .fx-subttl { font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--muted); }
   .fx-sidwrap { margin-left: auto; color: var(--muted); font-size: var(--fs-2xs); letter-spacing: var(--ls-snug); text-transform: uppercase; display: flex; align-items: center; gap: 7px; }
