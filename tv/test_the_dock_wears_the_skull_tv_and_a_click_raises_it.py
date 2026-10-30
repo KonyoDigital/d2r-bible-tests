@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import struct
+import time
 import sys
 import unittest
 
@@ -69,6 +70,24 @@ class TheDockClickRaisesTheConsole(unittest.TestCase):
         front = src[src.index("def console_to_front("):src.index("def _refullscreen_after_restore(")]
         self.assertIn("activateIgnoringOtherApps_", front, "a launcher 'front' leaves the console behind other apps")
 
+    def test_one_click_raises_once_and_the_event_is_answered(self):
+        calls = []
+        old_bg, old_ctf, old_last = dict(control_app._BACKGROUND), control_app.console_to_front, control_app._DOCK_LAST["t"]
+        try:
+            control_app._BACKGROUND["on"] = True
+            control_app.console_to_front = lambda **k: calls.append(k)
+            control_app._DOCK_LAST["t"] = 0.0
+            r = [control_app._mac_on_dock_click(now=t) for t in (100.0, 100.6, 103.0)]
+            time.sleep(0.3)
+        finally:
+            control_app._BACKGROUND.clear(); control_app._BACKGROUND.update(old_bg)
+            control_app.console_to_front = old_ctf
+            control_app._DOCK_LAST["t"] = old_last
+        self.assertEqual(r, [["front"], ["same-click"], ["front"]], "a repeat reopen raised again: %r" % r)
+        self.assertEqual(len(calls), 2, calls)
+        src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        self.assertIn("descriptorWithBoolean_(True), 0x2d2d2d2d", src, "the reopen event is handled but never answered")
+
 
 def _ico_sizes(path):
     with open(path, "rb") as f:
@@ -100,6 +119,11 @@ class TheIconIsTheSkullTv(unittest.TestCase):
         self.assertIn("tv\\appicon.ico", open(os.path.join(HERE, "install-tvd.ps1"), encoding="utf-8").read())
         self.assertIn("tv/appicon.icns", open(os.path.join(HERE, "install-tvd.sh"), encoding="utf-8").read())
 
+
+RED_PROOF = [
+    {"why": "a repeat reopen raises again", "file": "tv/control_app.py",
+     "find": "    if t - _DOCK_LAST[\"t\"] < 1.5:", "replace": "    if False:", "matches": 1},
+]
 
 if __name__ == "__main__":
     unittest.main()

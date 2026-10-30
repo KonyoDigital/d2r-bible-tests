@@ -7408,8 +7408,18 @@ def _mac_raise_windows(app):
     return did
 
 
-def _mac_on_dock_click():
-    """The reopen event's work, on the main thread. -> receipt list."""
+_DOCK_LAST = {"t": 0.0}
+
+
+def _mac_on_dock_click(now=None):
+    """The reopen event's work, on the main thread. -> receipt list.
+    v3845 second eye: one Dock click raised twice (macOS can deliver the reopen again while the first raise's
+    activation is still landing, and a background click queued a second console_to_front). A click inside
+    1.5 s of the last one is the same click: it raises nothing more."""
+    t = time.time() if now is None else now
+    if t - _DOCK_LAST["t"] < 1.5:
+        return ["same-click"]
+    _DOCK_LAST["t"] = t
     try:
         if _BACKGROUND.get("on"):
             threading.Thread(target=console_to_front, kwargs={"by": "dock"}, daemon=True).start()
@@ -7449,6 +7459,13 @@ def _mac_wear_icon_and_take_dock_clicks():
                     def handleReopen_withReply_(self, event, reply):
                         try:
                             _mac_on_dock_click()
+                        except Exception:
+                            pass
+                        # v3845 second eye: answer the event - a handled reopen replies with a BOOL true
+                        try:
+                            if reply is not None and reply.descriptorType() != 0x6e756c6c:   # 'null' = no reply wanted
+                                reply.setParamDescriptor_forKeyword_(
+                                    Foundation.NSAppleEventDescriptor.descriptorWithBoolean_(True), 0x2d2d2d2d)
                         except Exception:
                             pass
                     handleReopen_withReply_ = objc.selector(handleReopen_withReply_, signature=b"v@:@@")
