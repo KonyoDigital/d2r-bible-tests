@@ -114,8 +114,21 @@ class TheOwnersSessionsSummarized(unittest.TestCase):
         self.assertIn("left out to keep the record under", by[A]["why"] or "")
         self.assertLessEqual(o["bytes"], 3 * len(base64.b64encode(b"\xff\xd8thumb")))
 
+    def test_a_session_with_no_read_says_why_it_has_no_picture(self):
+        # v3847 - his two newest Mac sessions were skip-only; the shadow Shelf said "why UNKNOWN" under both
+        rows = [{"ts": 1796000000000 + k, "captureTs": 1796000000000 + k, "lane": "skip", "kind": "skip"} for k in range(4)]
+        o = SS.digest(rows, self.d, self.is_read, 1797000000000, make=None)
+        s = o["sessions"][0]
+        self.assertEqual((s["reads"], s["frames"]), (0, []))
+        self.assertIn("no frame of this session was read", s["why"] or "", "a session with no read says nothing: %r" % s["why"])
+
 
 RED_PROOF = [
+    {"why": "v3847 - a session with no read says nothing under it",
+     "file": "shadow_sessions.py",
+     "find": "            s[\"why\"] = (\"no frame of this session was read, so it has no key frame\" if not reads\n",
+     "replace": "            s[\"why\"] = (None if not reads\n",
+     "matches": 1},
     {"why": "REG-2765 - a named frame is not preferred as a key frame",
      "file": "shadow_sessions.py",
      "find": "    for f in list(reversed(named)) + ([ids[0], ids[len(ids) // 2], ids[-1]] if ids else []):\n",

@@ -193,6 +193,10 @@ def digest(rows, hist_dir, is_read, now_ms, make=_make_thumb):
             s["frames"].append({"id": fid, "jpg": base64.b64encode(data).decode("ascii")})
         if not s["frames"] and whys:
             s["why"] = whys[0]
+        elif not s["frames"]:
+            # v3847 - a session with no read has no key frame; "why UNKNOWN" under it read as a broken shadow Shelf
+            s["why"] = ("no frame of this session was read, so it has no key frame" if not reads
+                        else "its reads carry no frame id, so it has no key frame")
         out["sessions"].append(s)
     total = sum(len(f["jpg"]) for s in out["sessions"] for f in s["frames"])
     for s in reversed(out["sessions"]):                       # the oldest sessions give their pictures up first
