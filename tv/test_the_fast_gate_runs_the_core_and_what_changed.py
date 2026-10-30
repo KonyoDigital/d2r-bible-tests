@@ -96,6 +96,12 @@ class TheFastGate(unittest.TestCase):
         self.assertIn("zz_unreadable", names, "a law that cannot be read was dropped from the fast set: %s" % why)
 
 
+    def test_a_base_that_cannot_be_read_runs_every_gate(self):
+        # v3847 second eye asked: a missing base reads as "" - pinned that this already runs every gate (registry_change fails closed)
+        names, why = fg.select(list(run_gates.GATES), ["tv/run_gates.py"], base="refs/heads/zz-no-such-base-v3847")
+        self.assertIsNone(names, "an unreadable base was graded as an empty run_gates.py: %s" % why)
+
+
 RED_PROOF = [
     {"why": "a law that cannot be read is read as naming nothing and drops out of the fast set",
      "file": "tv/fast_gates.py", "find": "            seen[p] = t is None or bool(rx and rx.search(t))",
