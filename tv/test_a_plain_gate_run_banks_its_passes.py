@@ -6,6 +6,7 @@ closed), so the bump-only carry had nothing to inherit and the bump commit reran
 flag now records each PASS; only --changed carries.
 """
 import json
+import shutil
 import os
 import subprocess
 import sys
@@ -17,7 +18,7 @@ GATE = "test_a_bump_only_commit_inherits_its_parents_passes"
 
 
 def _run(args, led):
-    env = dict(os.environ, TV_GATE_LEDGER=led)
+    env = dict(os.environ, TV_GATE_LEDGER=led, D2R_GATE_LOCK_KEY=led)  # its own lock: the outer gate run holds this tree's
     env.pop("CI", None); env.pop("GITHUB_ACTIONS", None); env.pop("GATE_LEDGER", None)
     p = subprocess.run([sys.executable, os.path.join(HERE, "run_gates.py")] + args, cwd=os.path.dirname(HERE),
                        env=env, capture_output=True, text=True, timeout=600)
@@ -36,6 +37,7 @@ class APlainRunBanks(unittest.TestCase):
     def setUp(self):
         self.d = tempfile.mkdtemp(prefix="tvd-plainrun-")
         self.led = os.path.join(self.d, ".gate_ledger.json")
+        self.addCleanup(shutil.rmtree, self.d, True)
 
     def test_a_plain_run_records_the_pass(self):
         rc, out = _run(["--only", GATE], self.led)
