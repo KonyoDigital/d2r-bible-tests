@@ -3,7 +3,7 @@
 
 v3845: two `run_gates.py` runs with no flag passed 1312 gates and recorded none (no flag left the ledger
 closed), so the bump-only carry had nothing to inherit and the bump commit reran every gate. A run with no
-flag now records each PASS; only --changed carries.
+flag now records each traced PASS on a committed tree (untraced gates are never stored); only --changed carries.
 """
 import json
 import shutil
@@ -43,6 +43,12 @@ class APlainRunBanks(unittest.TestCase):
         rc, out = _run(["--only", GATE], self.led)
         self.assertEqual(rc, 0, out[-1500:])
         self.assertIn(GATE, json.dumps(_stored(self.led)), "a plain run passed the gate and banked nothing:\n" + out[-1500:])
+        # v3846 second eye: the gate's name somewhere in the file is not a banked PASS. The row must be a whole pass.
+        rows = [r for r in (_stored(self.led) or {}).values() if isinstance(r, dict) and r.get("gate") == GATE]
+        self.assertEqual(len(rows), 1, "the gate is not one row in the ledger: %r" % rows)
+        r = rows[0]
+        self.assertIs(r.get("ok"), True, "the banked row is not a pass: %r" % r)
+        self.assertTrue(r.get("traced") and r.get("sha") and r.get("inputs"), "the banked row is partial: %r" % r)
 
 
 RED_PROOF = [

@@ -7390,35 +7390,58 @@ APP_ICON_ICNS = os.path.join(HERE, "appicon.icns")
 # document.hasFocus() stayed false and every key went elsewhere. Measured: ui_faults 'framed true, hasFocus false'
 # on a console started with TV_QUIET_RELAUNCH. The flag now only governs the boot; once loaded, and on every raise,
 # the window may become key again (a click still decides WHEN).
-def _mac_windows_take_keys(app=None):
-    """Let every console window become key again. -> number of windows freed."""
+def _mac_windows_take_keys(app=None, only=None):
+    """Let console windows become key again. -> number of window objects set to take keys (AppKit hosts and
+    pywebview windows both count). `only` = the pywebview window whose page loaded: then only it and its own
+    AppKit host (pywebview's `.native`) are touched, so a window created quiet on purpose stays quiet (v3846 eye)."""
     n = 0
+    host = getattr(only, "native", None) if only is not None else None
     try:
-        if app is None:
-            import AppKit
-            app = AppKit.NSApplication.sharedApplication()
-        for w in list(app.windows() or []):
+        if only is not None:
+            hosts = [host] if host is not None else []
+        else:
+            if app is None:
+                import AppKit
+                app = AppKit.NSApplication.sharedApplication()
+            hosts = list(app.windows() or [])
+        for w in hosts:
             if hasattr(w, "focus") and w.focus is not True:  # WINDOW-TAKES-KEYS
                 w.focus = True
                 n += 1
     except Exception:
         pass
     try:
-        import webview
-        for pw in list(getattr(webview, "windows", []) or []):
+        if only is not None:
+            pws = [only]
+        else:
+            import webview
+            pws = list(getattr(webview, "windows", []) or [])
+        for pw in pws:
             if getattr(pw, "focus", True) is not True:
                 pw.focus = True
+                n += 1
     except Exception:
         pass
     return n
 
 
-def _mac_windows_take_keys_on_main():
+def _mac_windows_take_keys_on_main(only=None, _helper=None, _app=None):
+    """Run _mac_windows_take_keys on the Cocoa main thread. AppHelper.callAfter only runs when that run loop is
+    going; with no running NSApp (headless import, a test) the queued call would never run and nothing would say
+    so, so it runs here, now (v3846 eye). -> "queued" | "direct" """
     try:
-        from PyObjCTools import AppHelper
-        AppHelper.callAfter(_mac_windows_take_keys)
+        if _helper is None:
+            from PyObjCTools import AppHelper as _helper
+        if _app is None:
+            import AppKit
+            _app = AppKit.NSApplication.sharedApplication()
+        if _app.isRunning():
+            _helper.callAfter(_mac_windows_take_keys, None, only)
+            return "queued"
     except Exception:
-        _mac_windows_take_keys()
+        pass
+    _mac_windows_take_keys(None, only)
+    return "direct"
 
 
 def _mac_raise_windows(app):
@@ -10791,7 +10814,7 @@ def open_control_window():
                 #
                 # ⚠ `TV_MAC_CHROME=0` turns the tint OFF, so if it ever misbehaves on launch he
                 # has a way back in without editing code. An opt-OUT, because he asked for clean.
-                win.events.loaded += _mac_windows_take_keys_on_main  # LOADED-TAKES-KEYS
+                win.events.loaded += (lambda *_a, _w=win: _mac_windows_take_keys_on_main(_w))  # LOADED-TAKES-KEYS
                 if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() not in ("0", "false", "no", "off"):
                     win.events.shown += _mac_tint_caption
                 if str(os.environ.get("TV_MAC_CHROME", "")).strip().lower() in ("1", "true", "yes", "on"):

@@ -12839,8 +12839,8 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             import gate_ledger as _GL
             led = _GL.Ledger()
             if ledger == "record":
-                print("ledger: no flag runs every gate and records each PASS, so a later --changed run "
-                      "(and a bump-only commit on top) can carry it.", flush=True)
+                print("ledger: no flag runs every gate and records each traced PASS on a committed tree (an untraced "
+                      "gate is never stored), so a later --changed run or a bump-only commit can carry it.", flush=True)
             elif ledger == "full":
                 print("ledger: --full runs every gate. A PASS is recorded; a FAIL is kept as red, never carried as a pass.",
                       flush=True)
@@ -13728,7 +13728,7 @@ def main(argv):
               % (_k, _n, len(only), len(GATES), _cost_table()[1]))
 
     # --full wins: it does not skip, and it still records so a later push cannot carry a PASS
-    # this run contradicted. No flag, and --shard alone, leave the ledger closed.
+    # this run contradicted. --shard alone leaves the ledger closed; a no-flag run records (below) but carries nothing.
     if a.full and a.changed:
         print("ledger: --full wins over --changed. Every gate runs.")
     # ⚠ v3846 - A RUN THAT PASSED EVERYTHING AND BANKED NOTHING. On v3845 two no-flag runs passed 1312 gates and

@@ -47,10 +47,39 @@ class AQuietWindowTakesKeys(unittest.TestCase):
 
     def test_the_loaded_event_is_wired(self):
         src = open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        self.assertIn("win.events.loaded += _mac_windows_take_keys_on_main  # LOADED-TAKES-KEYS", src)
+        self.assertIn("win.events.loaded += (lambda *_a, _w=win: _mac_windows_take_keys_on_main(_w))  # LOADED-TAKES-KEYS", src)
+
+    # v3846 second eye -> v3847
+    def test_loaded_frees_only_the_window_that_loaded(self):
+        class _PW(object):
+            def __init__(self, native): self.focus, self.native = False, native
+        mine, quiet = _PW(_W(False)), _PW(_W(False))
+        self.assertEqual(CA._mac_windows_take_keys(None, mine), 2, "the loaded window or its host was not counted")
+        self.assertIs(mine.native.focus, True)
+        self.assertIs(quiet.focus, False, "a window created quiet on purpose was freed by another's load")
+        self.assertIs(quiet.native.focus, False)
+
+    def test_with_no_running_loop_the_free_runs_now(self):
+        class _Helper(object):
+            calls = []
+            def callAfter(self, *a): self.calls.append(a)
+        class _NotRunning(object):
+            def isRunning(self): return False
+        class _Running(object):
+            def isRunning(self): return True
+        class _PW(object):
+            def __init__(self): self.focus, self.native = False, _W(False)
+        pw, h = _PW(), _Helper()
+        self.assertEqual(CA._mac_windows_take_keys_on_main(pw, h, _NotRunning()), "direct")
+        self.assertIs(pw.focus, True, "with no Cocoa loop the queued free never ran")
+        self.assertEqual(h.calls, [])
+        self.assertEqual(CA._mac_windows_take_keys_on_main(_PW(), h, _Running()), "queued")
+        self.assertEqual(len(h.calls), 1)
 
 
 RED_PROOF = [
+    {"why": "a queued free with no running Cocoa loop silently never runs again",
+     "file": "tv/control_app.py", "find": "        if _app.isRunning():", "replace": "        if True:", "matches": 1},
     {"why": "the window born focus=False is never freed, so the board takes no keys",
      "file": "tv/control_app.py",
      "find": "            if hasattr(w, \"focus\") and w.focus is not True:  # WINDOW-TAKES-KEYS\n                w.focus = True",
