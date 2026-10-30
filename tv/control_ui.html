@@ -33545,10 +33545,11 @@ details[data-sh] > summary{transition:color .2s ease}
 :is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x,.ovx-made):hover {
   box-shadow: 0 0 0 1px rgba(255,190,110,.55), 0 0 10px rgba(255,170,80,.45); color: #ffd9a0;
 }
-button:not(:disabled) { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
+/* zero specificity, and never on the head tabs: a tab strip that fades its colour reads half-lit while it switches (v3847 CI, v1625 tints) */
+:where(button:not(:disabled):not(.ht)) { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
 button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
 @media (prefers-reduced-motion: reduce) { button, :is(.th-x,.fx-x,.tlg-x) { transition: none !important; } }
-.ovx-made{z-index:5;width:28px;height:28px;padding:0;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35);font-family:system-ui,sans-serif;font-size:var(--fs-title);line-height:1}
+.ovx-made{z-index:5;width:28px;height:28px;padding:0;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35);font-family:system-ui,sans-serif;font-size:var(--fs-xs);line-height:1}
 .help-x{position:sticky;top:0;float:right;z-index:2;margin:0 0 6px 12px;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35)}
 /* /OVERLAY-X */
 </style>
