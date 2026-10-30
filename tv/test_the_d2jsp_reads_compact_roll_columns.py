@@ -73,7 +73,16 @@ class CompactRollColumns(unittest.TestCase):
         self.assertIn("data-d2jsp-rollprice", self.o["html"])
 
 
+class PublicPostsLabelOnlyAReason(unittest.TestCase):
+    def test_a_truthy_non_reason_out_is_no_label(self):
+        rows = D._public_posts([{"fg": 10, "out": True}, {"fg": 11, "out": 1}, {"fg": 12, "out": "  "},
+                                {"fg": 13, "out": "far from the middle 40 fg"}])
+        self.assertEqual([r.get("out") for r in rows], [None, None, None, "far from the middle 40 fg"], rows)
+
+
 RED_PROOF = [
+    {"why": "any truthy out is a label again", "file": "tv/d2jsp_chrome.py",
+     "find": "        if isinstance(_o, str) and _o.strip():", "replace": "        if _o:", "matches": 1},
     {"why": "the compact columns are not read off the line",
      "file": "functions/api/d2jsp_quote.js", "find": "  return cols.length >= 2 && cols.length <= 8 ? cols : null;",
      "replace": "  return null;", "matches": 1},
