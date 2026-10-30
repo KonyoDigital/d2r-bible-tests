@@ -33287,7 +33287,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   var X_SEL = '.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.vx-btn,.sfp-close,' +
     '.gic-close-btn,.gbc-close,.vrg-x,.aid-close-btn,.aid-header-close,.cb-x,.vd-close,.help-close,' +
     '.kbd-help-close,.glossary-close,.glb-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,' +
-    '.tvz-th-x,.aib-close,.aic-x,.bn-x,.help-x';
+    '.tvz-th-x,.aib-close,.aic-x,.bn-x,.help-x,.ovx-made';
   function shown(el) {
     if (!el || !el.isConnected) return false;
     var r = el.getBoundingClientRect();
@@ -33333,7 +33333,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     return t && t.closest && t.closest('.cm-editor,[data-esc-own]');
   }
   window.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || typingInPlainField(e)) return;
+    if (e.key !== 'Escape' || e.__ovxPass || e.defaultPrevented || e.isComposing || typingInPlainField(e)) return;
     var top = topmost();
     if (!top) return;
     e.preventDefault();
@@ -33355,6 +33355,111 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     e.stopImmediatePropagation();
     d.x.click();
   }, true);
+  /* OVX: one x, same top-right spot, in every overlay (Elad 14:28).  Every visible overlay card gets its x
+     (or a made one) pinned OVX_INSET from the card's right edge, centred on the header row. */
+  var OVX_INSET = 12, OVX_SIZE = 28;
+  var OVX_SKIP = /(toast|tip\b|tips|fab|pill|ribbon|badge|dock|nav-widget|hint|spark|celebrate|epic|nudge|results|ghost|dragsay|thumb|topbar|shadow-bar|shadow-eng|tvd-eng|countdown|arttip|itip|d2tip|rs-bar|routine-status|scrim|rcpt-art|frame-mark)/i;
+  var OVX_ALSO = '#theatre,.tvz-theatre,#forensics-ov,#ch-modal,[role=dialog],[aria-modal=true]';
+  var ovxSel = null;
+  function ovxSelectors() {
+    if (ovxSel) return ovxSel;
+    var out = [];
+    function walk(rs) {
+      for (var i = 0; i < rs.length; i++) {
+        var r = rs[i];
+        if (r.cssRules && !r.style) { walk(r.cssRules); continue; }
+        if (!r.style || r.style.position !== 'fixed' || !r.selectorText) continue;
+        r.selectorText.split(',').forEach(function (s) {
+          s = s.trim();
+          if (!s || /::|:hover|:focus|^body|^html/.test(s) || OVX_SKIP.test(s)) return;
+          out.push(s);
+        });
+      }
+    }
+    for (var i = 0; i < document.styleSheets.length; i++) { try { walk(document.styleSheets[i].cssRules); } catch (e) {} }
+    ovxSel = out.concat(OVX_ALSO.split(',')).join(',');
+    return ovxSel;
+  }
+  function cardOf(ov) {
+    var r = ov.getBoundingClientRect();
+    if (r.width < innerWidth - 8 || r.height < innerHeight - 8) return ov;
+    var best = null, ba = 0;
+    for (var i = 0; i < ov.children.length; i++) {
+      var q = ov.children[i].getBoundingClientRect(), a = q.width * q.height;
+      if (a > ba && q.width < r.width - 8) { ba = a; best = ov.children[i]; }
+    }
+    return best || ov;
+  }
+  function isX(b) {
+    var t = (b.textContent || '').trim();
+    return (b.matches(X_SEL) || /^[\u00d7\u2715\u2716](\s|$)/.test(t)) && t.length < 12;
+  }
+  function xOf(card) {
+    var made = card.querySelector(':scope > .ovx-made');
+    var cands = card.querySelectorAll(X_SEL + ',button');
+    for (var i = 0; i < cands.length; i++) {
+      var b = cands[i];
+      if (b === made || !isX(b) || !shown(b)) continue;
+      var inner = b.parentElement && b.parentElement.closest('.ovx-card');
+      if (inner && inner !== card) continue;
+      return b;
+    }
+    return made;
+  }
+  function ovxClose(ov) {
+    var esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    esc.__ovxPass = 1;
+    document.dispatchEvent(esc);
+    setTimeout(function () {
+      if (!shown(ov)) return;
+      ['show', 'open', 'on', 'visible', 'active', 'is-open'].forEach(function (c) { ov.classList.remove(c); });
+      if (shown(ov)) ov.style.display = 'none';
+    }, 60);
+  }
+  function ovxPin(card, x) {
+    if (getComputedStyle(card).position === 'static') card.style.position = 'relative';
+    x.classList.add('ovx');
+    var cr = card.getBoundingClientRect(), top = OVX_INSET;
+    var head = card.firstElementChild === x ? x.nextElementSibling : card.firstElementChild;
+    if (head) {
+      var hr = head.getBoundingClientRect();
+      if (hr.top - cr.top < 30 && hr.height >= OVX_SIZE && hr.height <= 80) top = Math.round(hr.top - cr.top + (hr.height - OVX_SIZE) / 2);
+      if (hr.height <= 80 && hr.right > cr.right - OVX_SIZE - 2 * OVX_INSET) {
+        var pr = parseFloat(getComputedStyle(head).paddingRight) || 0;
+        if (pr < OVX_SIZE + OVX_INSET + 8) head.style.paddingRight = (OVX_SIZE + OVX_INSET + 8) + 'px';
+      }
+    }
+    var op = x.offsetParent || card, orr = op.getBoundingClientRect();
+    x.style.setProperty('position', 'absolute', 'important');
+    x.style.setProperty('top', Math.round(cr.top - orr.top + top - (op.clientTop || 0)) + 'px', 'important');
+    x.style.setProperty('right', Math.round(orr.right - cr.right - (op.clientLeft || 0)) + OVX_INSET + 'px', 'important');
+    x.style.setProperty('left', 'auto', 'important');
+    x.style.setProperty('bottom', 'auto', 'important');
+    x.style.setProperty('margin', '0', 'important');
+  }
+  function ovxTick() {
+    var ovs;
+    try { ovs = document.querySelectorAll(ovxSelectors()); } catch (e) { ovxSel = OVX_ALSO; return; }
+    for (var i = 0; i < ovs.length; i++) {
+      var ov = ovs[i];
+      if (!shown(ov)) continue;
+      var card = cardOf(ov), cr = card.getBoundingClientRect();
+      if (cr.width < 200 || cr.height < 100) continue;
+      card.classList.add('ovx-card');
+      var x = xOf(card);
+      if (!x) {
+        x = document.createElement('button');
+        x.type = 'button'; x.className = 'ovx-made'; x.title = 'close (Esc)'; x.setAttribute('aria-label', 'close');
+        x.textContent = '\u2715';
+        (function (o) { x.addEventListener('click', function (e) { e.stopPropagation(); ovxClose(o); }); })(ov);
+        card.appendChild(x);
+      }
+      ovxPin(card, x);
+    }
+  }
+  window.__tvOvxTick = ovxTick;
+  setInterval(ovxTick, 250);
+  addEventListener('resize', ovxTick);
 })();
 /* /OVERLAY-CONTRACT */
 </script>
@@ -33362,17 +33467,18 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
 details[data-sh] > summary{transition:color .2s ease}
 @media (prefers-reduced-motion: reduce){ details[data-sh] *{transition:none !important} }
 /* OVERLAY-X v3847: one x, top-right of each overlay header, hover glow, smooth */
-:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x) {
+:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x,.ovx-made) {
   min-width: 28px; min-height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
   border-radius: 6px; line-height: 1; cursor: pointer; flex: 0 0 auto;
   transition: background-color .15s ease, box-shadow .15s ease, color .15s ease, transform .15s ease;
 }
-:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x):hover {
+:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x,.ovx-made):hover {
   box-shadow: 0 0 0 1px rgba(255,190,110,.55), 0 0 10px rgba(255,170,80,.45); color: #ffd9a0;
 }
 button:not(:disabled) { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
 button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
 @media (prefers-reduced-motion: reduce) { button, :is(.th-x,.fx-x,.tlg-x) { transition: none !important; } }
+.ovx-made{z-index:5;width:28px;height:28px;padding:0;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35);font:14px/1 system-ui,sans-serif}
 .help-x{position:sticky;top:0;float:right;z-index:2;margin:0 0 6px 12px;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35)}
 /* /OVERLAY-X */
 </style>

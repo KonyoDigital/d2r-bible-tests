@@ -65,6 +65,29 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
             self.assertIn("transition:", css.group(0))
             self.assertIn("prefers-reduced-motion", css.group(0))
 
+    # v3847 x audit (Elad 14:28): one x, at the same spot, on every overlay
+    def test_every_overlay_gets_one_x_pinned_at_the_same_spot(self):
+        c = BLOCK.findall(UI)[0]
+        self.assertIn("var OVX_INSET = 12, OVX_SIZE = 28;", c)
+        self.assertIn("x.style.setProperty('right', ", c, "the x is not pinned from the card's right edge")
+        self.assertIn("x.className = 'ovx-made'", c, "an overlay with no x does not get one")
+        self.assertIn(".ovx-made'", re.search(r"var X_SEL = (.*?);\n", c, re.S).group(1),
+                      "a made x is not one Esc and outside-click can close")
+
+    def test_a_made_x_does_not_loop_its_own_escape(self):
+        self.assertIn("e.__ovxPass ||", BLOCK.findall(UI)[0], "the made x's Escape re-enters the contract")
+
+
+RED_PROOF = [
+    {"why": "an overlay with no x stays without one",
+     "file": "tv/control_ui.html", "find": "x.className = 'ovx-made'", "replace": "x.className = 'ovx-gone'",
+     "matches": 1},
+    {"why": "the two copies of the contract drift",
+     "file": "bible.html", "find": "var OVX_INSET = 12, OVX_SIZE = 28;", "replace": "var OVX_INSET = 16, OVX_SIZE = 28;",
+     "matches": 1},
+    {"why": "the made x's Escape loops back into the contract",
+     "file": "tv/control_ui.html", "find": "e.__ovxPass || ", "replace": "", "matches": 1},
+]
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
