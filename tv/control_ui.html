@@ -33338,6 +33338,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   }
   window.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' || e.__ovxPass || e.defaultPrevented || e.isComposing || typingInPlainField(e)) return;
+    /* cinema / fullscreen sits above every overlay: its own Esc leaves it, and the theatre under it stays (v877, v3847 CI) */
+    if (document.fullscreenElement || document.body.classList.contains('cinema')) return;
     var top = topmost();
     if (!top) return;
     e.preventDefault();

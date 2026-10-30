@@ -109,7 +109,16 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
                       "one selector this engine rejects drops every overlay to the short list")
 
 
+    def test_cinema_owns_escape_above_every_overlay(self):
+        # v3847 CI (v877 rinse): the contract's capture-phase Esc closed the theatre under cinema in the same press
+        self.assertIn("if (document.fullscreenElement || document.body.classList.contains('cinema')) return;", BLOCK.findall(UI)[0],
+                      "Esc in cinema closes the overlay under it instead of leaving cinema")
+
+
 RED_PROOF = [
+    {"why": "v3847 CI - Esc in cinema also closes the theatre under it",
+     "file": "tv/control_ui.html",
+     "find": "    if (document.fullscreenElement || document.body.classList.contains('cinema')) return;\n", "replace": "", "matches": 1},
     {"why": "v3847 - the tick rewrites unchanged styles every 250 ms and the page never settles",
      "file": "tv/control_ui.html",
      "find": "    if (el.style.getPropertyValue(p) !== v || el.style.getPropertyPriority(p) !== 'important') el.style.setProperty(p, v, 'important');",
