@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3844",
+  "ver": "v3845",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3844: fleet prover, themed history, skull icon, Dock raise, d2jsp price search",
+  "note": "v3845: d2jsp rolls priced by roll, WebKit field focus, show and hide toggles, Dock once, Shelf in shadow",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

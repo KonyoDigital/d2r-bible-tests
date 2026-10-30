@@ -1823,7 +1823,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3844** | `(this commit)` | v3844 — fleet prover, themed history, skull icon, Dock raise, d2jsp price search |
+| **v3845** | `(this commit)` | v3845 — d2jsp rolls priced by roll, WebKit field focus, show and hide toggles, Dock once, Shelf in shadow |
+| **v3844** | `0e0049fa` | v3844 — fleet prover, themed history, skull icon, Dock raise, d2jsp price search |
 | **v3843** | `9f3e78db` | v3843 — version history button, d2jsp slang search on the non-ladder board, recent-only prices |
 | **v3842** | `14917d0a` | v3842 — one gate ledger per repo, Mac-only test reds fixed, opt-in parallel full |
 | **v3841** | `57522952` | v3841 — The river names the reels its drain holds, and every D2JSP card finds its base again (#193 #83) |
