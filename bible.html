@@ -14729,6 +14729,7 @@ window._d2rUnseedRestore = function(){
 <button class="help-btn fab-tip" data-tip="Help &amp; guide" aria-label="help and guide" onclick="document.getElementById('help-modal').classList.add('show')" title="Help &amp; guide">?</button>
 <div class="help-modal" id="help-modal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="help-content">
+    <button type="button" class="help-x" title="close (Esc)" aria-label="close" onclick="document.getElementById('help-modal').classList.remove('show')">✕</button>
     <h3>🎯 How to use this bible</h3>
     <p>Live <strong>MF / Players dock at the bottom</strong> of the screen — drag it and every number recalculates instantly. Press <span class="kbd">D</span> to slide it away and reclaim space.</p>
     <h3>🧭 The tabs — and two floating maps</h3>
@@ -86937,6 +86938,20 @@ window.tvStashAutoIntake = async function(tab, opts){
 <style id="v3845-show-hide-css">
 details[data-sh] > summary{transition:color .2s ease}
 @media (prefers-reduced-motion: reduce){ details[data-sh] *{transition:none !important} }
+/* OVERLAY-X v3847: one x, top-right of each overlay header, hover glow, smooth */
+:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x) {
+  min-width: 28px; min-height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; line-height: 1; cursor: pointer; flex: 0 0 auto;
+  transition: background-color .15s ease, box-shadow .15s ease, color .15s ease, transform .15s ease;
+}
+:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x):hover {
+  box-shadow: 0 0 0 1px rgba(255,190,110,.55), 0 0 10px rgba(255,170,80,.45); color: #ffd9a0;
+}
+button:not(:disabled) { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
+button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
+@media (prefers-reduced-motion: reduce) { button, :is(.th-x,.fx-x,.tlg-x) { transition: none !important; } }
+.help-x{position:sticky;top:0;float:right;z-index:2;margin:0 0 6px 12px;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35)}
+/* /OVERLAY-X */
 </style>
 <script id="v3845-field-takes-focus">
 /* v3845 - Elad 2026-10-30 09:32/09:50: in his pywebview/WebKit window, PRICE SEARCH and "Find a filed
@@ -86980,6 +86995,84 @@ details[data-sh] > summary{transition:color .2s ease}
     if (isField(el)) rescue(el, ev);
   }, true);
 })();
+
+/* OVERLAY-CONTRACT v3847 (Elad 2026-10-30): every overlay closes on Esc (topmost only), on a click outside it, and on its x.  Esc with nothing open is a no-op.  The same block lives in control_ui.html and bible.html; a gate keeps the two copies identical. */
+(function () {
+  if (window.__tvOverlayContract) return;
+  window.__tvOverlayContract = 1;
+  var X_SEL = '.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.vx-btn,.sfp-close,' +
+    '.gic-close-btn,.gbc-close,.vrg-x,.aid-close-btn,.aid-header-close,.cb-x,.vd-close,.help-close,' +
+    '.kbd-help-close,.glossary-close,.glb-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,' +
+    '.tvz-th-x,.aib-close,.aic-x,.bn-x,.help-x';
+  function shown(el) {
+    if (!el || !el.isConnected) return false;
+    var r = el.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4) return false;
+    for (var p = el; p && p.nodeType === 1; p = p.parentElement) {
+      var cs = getComputedStyle(p);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
+    }
+    return r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+  }
+  function boxOf(x) {
+    var xr = x.getBoundingClientRect();
+    for (var p = x.parentElement; p && p !== document.body; p = p.parentElement) {
+      var pos = getComputedStyle(p).position, r = p.getBoundingClientRect();
+      if ((pos === 'fixed' || pos === 'absolute') && r.width >= xr.width * 4 && r.height >= xr.height * 2) return p;
+    }
+    return null;
+  }
+  function zOf(el) {
+    var z = 0;
+    for (var p = el; p && p.nodeType === 1; p = p.parentElement) {
+      var v = parseInt(getComputedStyle(p).zIndex, 10);
+      if (!isNaN(v) && v > z) z = v;
+    }
+    return z;
+  }
+  function topmost() {
+    var best = null, bz = -1, xs = document.querySelectorAll(X_SEL);
+    for (var i = 0; i < xs.length; i++) {
+      var x = xs[i];
+      if (!shown(x) || !/[\u00d7\u2715\u2716]|close|dismiss/i.test((x.textContent || '') + ' ' + (x.title || '') + ' ' + (x.getAttribute('aria-label') || ''))) continue;
+      var box = boxOf(x);
+      if (!box) continue;
+      var r = x.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      var z = zOf(box) + ((hit && (hit === x || x.contains(hit))) ? 1e9 : 0);   /* an uncovered x is on top */
+      if (z >= bz) { bz = z; best = { x: x, box: box }; }
+    }
+    return best;
+  }
+  window.__tvTopOverlay = topmost;
+  function typingInPlainField(e) {
+    var t = e.target;
+    return t && t.closest && t.closest('.cm-editor,[data-esc-own]');
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || typingInPlainField(e)) return;
+    var top = topmost();
+    if (!top) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    top.x.click();
+  }, true);
+  var downOn = null;
+  window.addEventListener('pointerdown', function (e) {
+    var top = topmost();
+    downOn = (top && !top.box.contains(e.target) && !(e.target.closest && e.target.closest(X_SEL))) ? top : null;
+  }, true);
+  window.addEventListener('click', function (e) {
+    var d = downOn;
+    downOn = null;
+    if (!d || d.box.contains(e.target)) return;
+    var now = topmost();
+    if (!now || now.box !== d.box) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    d.x.click();
+  }, true);
+})();
+/* /OVERLAY-CONTRACT */
 </script>
 </body>
 </html>

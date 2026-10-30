@@ -2097,15 +2097,17 @@ class TestExitSafeguard(unittest.TestCase):
             ca.os._exit = old_exit
 
     def test_v1420_esc_empty_stack_hits_api_quit(self):
-        # UI contract: empty-stack Escape posts /api/quit (Mac Force-Quit class).
+        # UI contract (v3847, Elad 2026-10-30): empty-stack Escape is a NO-OP - it never quits, hides or
+        # backgrounds; /api/quit is only the deliberate quit button.
         # v1472 — context manager; the bare open().read() here was the last unclosed-file
         # ResourceWarning the suite emitted (the sibling at ~3399 already did it correctly).
         with open(os.path.join(os.path.dirname(ca.__file__), "control_ui.html"),
                   encoding="utf-8") as _uf:
             ui = _uf.read()
         self.assertIn("/api/quit", ui)
-        self.assertIn("v1420", ui)
-        self.assertIn("Leaving console", ui)
+        self.assertIn("window._escEmptyStack = 'noop'", ui)
+        self.assertNotIn("Leaving console", ui)
+        self.assertNotIn("escape-empty-stack", ui)
         self.assertRegex(ui, r"key\s*!==\s*['\"]Escape['\"]")
 
 

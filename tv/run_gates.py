@@ -11021,6 +11021,11 @@ GATES = [
     Gate("test_the_fast_gate_runs_the_core_and_what_changed",
          [sys.executable, os.path.join(HERE, "test_the_fast_gate_runs_the_core_and_what_changed.py")], 120,
          why="v3847 FAST GATE (Elad 2026-10-30 15:29) - a push runs the core set plus every gate whose law reads a changed file; bible.html, control_ui.html, control_app.py and the gate machinery force every gate; a registry-only run_gates.py change runs the added/edited entries."),
+    Gate("test_every_overlay_closes_the_same_way",
+         [sys.executable, os.path.join(HERE, "test_every_overlay_closes_the_same_way.py")], 60,
+         needs_app=False,
+         why="v3847 (Elad 14:24/14:28) - every overlay closes on Esc (topmost only), outside click and its x; "
+             "Esc on an empty stack does nothing; one contract in console and board, kept identical."),
     Gate("test_a_quiet_relaunched_window_takes_keys",
          [sys.executable, os.path.join(HERE, "test_a_quiet_relaunched_window_takes_keys.py")], 60,
          needs_app=False,

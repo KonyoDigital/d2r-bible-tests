@@ -233,18 +233,13 @@ class AQuitNamesWhoAsked(unittest.TestCase):
                       "the quit button does not name itself, so a legitimate exit is also "
                       "recorded as UNATTRIBUTED and the signal cannot distinguish anything")
 
-    def test_escape_sends_the_console_to_the_background_and_names_itself(self):
-        """2026-09-29 — Esc on the empty homepage is "same as ✕", and ✕ no longer quits: it POSTs
-        /api/window {do: background} and still names itself, so a backgrounded console's log says who
-        sent it there."""
+    def test_escape_on_an_empty_stack_does_nothing(self):
+        """v3847 (Elad 2026-10-30) - Esc closes the topmost overlay only; on an empty stack it is a no-op and
+        never hides, backgrounds or quits the console."""
         js = _js_code()
-        i = js.find("do: 'background'")
-        self.assertGreater(i, -1, "the Escape handler no longer sends the console to the background")
-        tail = _span(js, i, ".catch(")
-        self.assertIn("escape-empty-stack", tail, "the Escape handler's background request does not name itself")
-        k = js.rfind("fetch(", 0, i)          # bounded by the call itself, not a guessed width
-        self.assertGreater(k, -1, "the background request is not a fetch")
-        self.assertIn("'/api/window'", js[k:i], "the Escape handler's request is not /api/window")
+        self.assertIn("window._escEmptyStack = 'noop'", js, "the empty-stack Escape handler lost its no-op")
+        self.assertNotIn("escape-empty-stack", js, "an Escape on the empty stack still sends the console away")
+        self.assertNotIn("Leaving console", js, "an Escape on the empty stack still announces leaving")
 
 
 if __name__ == "__main__":

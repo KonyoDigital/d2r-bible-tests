@@ -24680,19 +24680,11 @@ window._lockMark = function(isOpen, px, label){
         if (_ov && !_ov.hidden) return;
       }
     } catch (_e) {}
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      if (typeof toast === 'function') toast('Leaving console - it keeps recording, hidden. The Desktop icon brings it back; ⏻ quit stops it.');
-    } catch (_t) {}
-    try {
-      /* 2026-09-29 — Esc is "same as ✕", and ✕ now sends the console to the BACKGROUND instead of quitting:
-         his ruling that the sessions keep working whether the console is up or not. A real quit is ⏻ quit.
-         v3262's rule still holds - the caller names itself. */
-      fetch('/api/window', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                             body: JSON.stringify({ do: 'background', from: 'escape-empty-stack' }) })
-        .catch(function(){});
-    } catch (_f) {}
+    /* v3847 (Elad 2026-10-30 14:24) - EMPTY-STACK ESC IS A NO-OP. Esc closes the topmost overlay and nothing
+       else; with no overlay open it never hides, backgrounds or quits the console (it used to hide the window,
+       a trap when an overlay had just closed). The ✕ and ⏻ quit stay the deliberate exits. */
+    window._escEmptyStack = 'noop';   /* ESC-EMPTY-NOOP */
+    return;
   }, false);
 
   // v903 — THE MOTHERBOARD renderers
@@ -33287,10 +33279,102 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     a.oncancel = function(){ d.style.overflow = ''; };
   }, false);
 })();
+
+/* OVERLAY-CONTRACT v3847 (Elad 2026-10-30): every overlay closes on Esc (topmost only), on a click outside it, and on its x.  Esc with nothing open is a no-op.  The same block lives in control_ui.html and bible.html; a gate keeps the two copies identical. */
+(function () {
+  if (window.__tvOverlayContract) return;
+  window.__tvOverlayContract = 1;
+  var X_SEL = '.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.vx-btn,.sfp-close,' +
+    '.gic-close-btn,.gbc-close,.vrg-x,.aid-close-btn,.aid-header-close,.cb-x,.vd-close,.help-close,' +
+    '.kbd-help-close,.glossary-close,.glb-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,' +
+    '.tvz-th-x,.aib-close,.aic-x,.bn-x,.help-x';
+  function shown(el) {
+    if (!el || !el.isConnected) return false;
+    var r = el.getBoundingClientRect();
+    if (r.width < 4 || r.height < 4) return false;
+    for (var p = el; p && p.nodeType === 1; p = p.parentElement) {
+      var cs = getComputedStyle(p);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
+    }
+    return r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
+  }
+  function boxOf(x) {
+    var xr = x.getBoundingClientRect();
+    for (var p = x.parentElement; p && p !== document.body; p = p.parentElement) {
+      var pos = getComputedStyle(p).position, r = p.getBoundingClientRect();
+      if ((pos === 'fixed' || pos === 'absolute') && r.width >= xr.width * 4 && r.height >= xr.height * 2) return p;
+    }
+    return null;
+  }
+  function zOf(el) {
+    var z = 0;
+    for (var p = el; p && p.nodeType === 1; p = p.parentElement) {
+      var v = parseInt(getComputedStyle(p).zIndex, 10);
+      if (!isNaN(v) && v > z) z = v;
+    }
+    return z;
+  }
+  function topmost() {
+    var best = null, bz = -1, xs = document.querySelectorAll(X_SEL);
+    for (var i = 0; i < xs.length; i++) {
+      var x = xs[i];
+      if (!shown(x) || !/[\u00d7\u2715\u2716]|close|dismiss/i.test((x.textContent || '') + ' ' + (x.title || '') + ' ' + (x.getAttribute('aria-label') || ''))) continue;
+      var box = boxOf(x);
+      if (!box) continue;
+      var r = x.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      var z = zOf(box) + ((hit && (hit === x || x.contains(hit))) ? 1e9 : 0);   /* an uncovered x is on top */
+      if (z >= bz) { bz = z; best = { x: x, box: box }; }
+    }
+    return best;
+  }
+  window.__tvTopOverlay = topmost;
+  function typingInPlainField(e) {
+    var t = e.target;
+    return t && t.closest && t.closest('.cm-editor,[data-esc-own]');
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || typingInPlainField(e)) return;
+    var top = topmost();
+    if (!top) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    top.x.click();
+  }, true);
+  var downOn = null;
+  window.addEventListener('pointerdown', function (e) {
+    var top = topmost();
+    downOn = (top && !top.box.contains(e.target) && !(e.target.closest && e.target.closest(X_SEL))) ? top : null;
+  }, true);
+  window.addEventListener('click', function (e) {
+    var d = downOn;
+    downOn = null;
+    if (!d || d.box.contains(e.target)) return;
+    var now = topmost();
+    if (!now || now.box !== d.box) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    d.x.click();
+  }, true);
+})();
+/* /OVERLAY-CONTRACT */
 </script>
 <style id="v3845-show-hide-css">
 details[data-sh] > summary{transition:color .2s ease}
 @media (prefers-reduced-motion: reduce){ details[data-sh] *{transition:none !important} }
+/* OVERLAY-X v3847: one x, top-right of each overlay header, hover glow, smooth */
+:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x) {
+  min-width: 28px; min-height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px; line-height: 1; cursor: pointer; flex: 0 0 auto;
+  transition: background-color .15s ease, box-shadow .15s ease, color .15s ease, transform .15s ease;
+}
+:is(.th-x,.tly-x,.th-drawer-x,.sh-x,.fx-x,.thhd-x,.dsr-x,.ch-x,.gbc-close,.vrg-x,.cb-x,.vd-close,.vtp-x,.vmm-close,.vll-x,.vev-x,.tlg-x,.tlp-close,.tvz-th-x,.aic-x,.bn-x,.glossary-close,.aid-header-close,.help-x):hover {
+  box-shadow: 0 0 0 1px rgba(255,190,110,.55), 0 0 10px rgba(255,170,80,.45); color: #ffd9a0;
+}
+button:not(:disabled) { transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
+button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
+@media (prefers-reduced-motion: reduce) { button, :is(.th-x,.fx-x,.tlg-x) { transition: none !important; } }
+.help-x{position:sticky;top:0;float:right;z-index:2;margin:0 0 6px 12px;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35)}
+/* /OVERLAY-X */
 </style>
 </body>
 </html>
