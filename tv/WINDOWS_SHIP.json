@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3846",
+  "ver": "v3847",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3846: the console window takes keys after a quiet relaunch, plain gate runs bank their passes",
+  "note": "v3847: one x at one spot on every overlay, the tick writes only a change, Esc on an empty stack is a no-op",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
