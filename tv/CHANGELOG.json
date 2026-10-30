@@ -1,5 +1,14 @@
 [
   {
+    "ver": "v3847",
+    "date": "2026-10-30",
+    "items": [
+      "one x at one spot on every overlay",
+      "the tick writes only a change",
+      "Esc on an empty stack is a no-op"
+    ]
+  },
+  {
     "ver": "v3846",
     "date": "2026-10-30",
     "items": [
