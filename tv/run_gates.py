@@ -13726,8 +13726,9 @@ def _last_failed_path():
     try:
         d = subprocess.run(["git", "-C", HERE, "rev-parse", "--path-format=absolute", "--git-dir"],
                            capture_output=True, text=True, timeout=10).stdout.strip()
-    except Exception:
-        d = ""
+    except Exception as e:
+        print("· no git dir for the failed set (%s) - it lives beside run_gates.py" % type(e).__name__)
+        return os.path.join(HERE, "tv_last_failed.json")
     return os.path.join(d or HERE, "tv_last_failed.json")
 
 
@@ -13901,8 +13902,9 @@ def main(argv):
     if not a.shard:   # RERUN-FAILED - a shard sees a slice, so its reds are not the run's reds
         try:
             _head = subprocess.run(["git", "-C", HERE, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10).stdout.strip()
-        except Exception:
-            _head = ""
+        except Exception as e:
+            _head = None   # unknown HEAD: recorded as null, never as a real-looking empty head
+            print("· HEAD unreadable for the failed set (%s)" % type(e).__name__)
         _write_last_failed([n for n in failed if n != "live-state-untouched"], _head)
     print("\n── VERDICT ──")
     if _live_moved and (_console_live or _sweep_live):
