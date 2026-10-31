@@ -12698,7 +12698,7 @@ function d2jspEvidenceHtml(sim, q) {
   if (!rows.length && !aside.length) {
     return (q && q.reason === 'no prices')
       ? '<details class="d2jsp-ev" data-d2jsp-ev data-d2jsp-ev-empty><summary>show the 0 posts</summary><div class="d2jsp-say">'
-        + 'No 2026 post on the board named ' + d2jspEscText(q.item || 'this item') + ' with a date in the price window.</div></details>'
+        + 'No post dated 2026 or later on the board named ' + d2jspEscText(q.item || 'this item') + ' with a date in the price window.</div></details>'
       : '';
   }
   var body = rows.map(function (p) {
@@ -12741,7 +12741,7 @@ function d2jspSearchLine(q, sim, parsed) {
   if (q && q.reason === 'read' && parsed && parsed.roll) {
     line += sim && sim.fg != null
       ? (' Posts like ' + parsed.roll.join('/') + ': about ' + sim.fg + ' fg from ' + sim.like + ' ' + (sim.like === 1 ? 'post' : 'posts') + '.')
-      : (' No 2026 post wrote a roll like ' + parsed.roll.join('/') + '.');
+      : (' No post dated 2026 or later wrote a roll like ' + parsed.roll.join('/') + '.');
   }
   return line;
 }
@@ -13626,7 +13626,7 @@ function d2jspSearchLine(q, sim, parsed) {
     var parsed = d2jspParseSearch(el.value);
     if (!parsed.item) { out.textContent = 'Type an item, for example anni 20/20/10.'; return; }
     var gen = ++searchGen, paths = ['/api/d2jsp_quote?item=', '/d2r/api/d2jsp_quote?item='], i = 0;
-    out.textContent = 'Reading 2026 posts for ' + parsed.item + '.';
+    out.textContent = 'Reading d2jsp posts dated 2026 or later for ' + parsed.item + '.';
     function show(j){
       if (gen !== searchGen) return;     /* only the newest search paints */
       var sim = d2jspSimilarPrice(j, parsed.roll, parsed.item);

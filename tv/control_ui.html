@@ -30692,11 +30692,17 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
 
   var _tzNextMissing = false;
   window._tzRefresh = function () { try { _tzFetch(); } catch (e) {} };
+  /* v3848 - THE NEWEST ASK WINS (the J9 flake, v3847 push #3). A slow fetch started BEFORE a refresh (the relay's
+     live read under load) landed AFTER it and painted the older rotation over the newer one - in the demo, the live
+     zones over the stub, so LIVE NOW had no why and UP NEXT had one. Only the latest request may paint. */
+  var _tzSeq = 0;
   async function _tzFetch() {
     var body = document.getElementById('tz-body');
+    var mine = ++_tzSeq;
     try {
       var r = await fetch('/api/tz', { cache: 'no-store' });
       var d = await r.json();
+      if (mine !== _tzSeq) return;   // a newer ask is in flight or has painted - this answer is stale
       /* v1586 — remember whether the NEXT window is still unpublished, so the panel can lean in
          and ask again sooner instead of sitting on "not published yet" until he hits refresh. */
       var wasMissing = _tzNextMissing;
@@ -30709,6 +30715,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       if (wasMissing !== _tzNextMissing && typeof _tzSchedule === 'function') _tzSchedule();
       _tzPaint(r.ok ? d : { error: (d && d.error) || ('http ' + r.status) });
     } catch (e) {
+      if (mine !== _tzSeq) return;
       _tzPaint({ error: String((e && e.message) || e).slice(0, 120) });
     }
   }

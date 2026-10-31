@@ -4765,6 +4765,25 @@ def _seed_film(sand, hist, runs=FILM_RUNS, frames=FILM_FRAMES):
     return filmed, len(sids)
 
 
+def _seed_heart2_census(sand):
+    """-> the path of a synthetic stored census in `sand`, or None when this tree has its own tv/.heart2.json."""
+    if os.path.isfile(os.path.join(HERE, ".heart2.json")):
+        return None
+    p = os.path.join(sand, "heart2_fixture.json")
+    io.open(p, "w", encoding="utf-8").write(json.dumps({
+        "total": 1317, "declared": 1257, "proved": 1222, "provedGates": ["fixture_gate_%d" % i for i in range(3)],
+        "unproven": 60, "blind": ["fixture_blind_gate"], "blindUnchecked": ["fixture_blind_gate"], "blindRule": 2,
+        "blindRuleOwed": [], "backendProved": 1190, "backendTotal": 1283, "pixelProved": 32, "pixelTotal": 34,
+        "pixelUnclassified": [], "partial": True, "ranAt": 1700000000000, "verdictAt": {"fixture_gate_0": 1700000000000},
+        "gateShas": {}, "sliceOwed": 0, "sliceOwedSample": [], "unstampedWhy": None,
+        "stampedBy": "render fixture - not a real census",
+        "surfaces": {"ageS": 3600, "coverageFloorKnown": True, "coverageMissing": 0, "coverageStaleNodes": 0,
+                     "coverageStaleSay": "render fixture", "fanRevertedAt": [], "fanSay": "render fixture",
+                     "fanWidthsReadable": 6, "fanWidthsReported": 6, "renderFailures": 0, "reported": 35,
+                     "state": "OK", "totalTargets": 35}}))
+    return p
+
+
 def _serve_console():
     """Boot a PRIVATE control_app on an ephemeral port and return (origin, proc).
 
@@ -4921,6 +4940,14 @@ def _serve_console():
                TV_CHRON_SWEPT=os.path.join(_sand, "chronicle_swept.json"),
                TV_CHRON_READS=os.path.join(_sand, "chron_reads.json"),
                TV_SWEEP_LOCK=os.path.join(_sand, ".sweep.lock"))
+    # v3848 - A FRESH WORKTREE HAS NO STORED CENSUS (tv/.heart2.json is gitignored), so `heart-stored` photographed
+    # "never measured here" - 11 nodes against a floor of 18 - and the v3847 push #1 went red on the tree, not the
+    # code. Like the tombstones above: SYNTHETIC, in the sandbox only, and only when the tree has none of its own.
+    _seeded_h2 = _seed_heart2_census(_sand)
+    if _seeded_h2:
+        env["TV_HEART2_STATE"] = _seeded_h2
+        print("   \u2139 render sandbox: this tree has no tv/.heart2.json, so a synthetic census was written into "
+              "this sandbox only (heart-stored photographs it). His tree was not written.", flush=True)
     proc = subprocess.Popen([sys.executable, os.path.join(HERE, "control_app.py"), "--no-open"],
                             cwd=HERE, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

@@ -3,9 +3,22 @@
     "ver": "v3847",
     "date": "2026-10-31",
     "items": [
-      "one x at one spot on every overlay",
-      "the tick writes only a change",
-      "Esc on an empty stack is a no-op"
+      "every window and overlay closes the same way: Esc, a click outside, or the x",
+      "one x at one spot on every overlay, pinned 12px from the card's corner",
+      "the x stays pinned when a page redraws",
+      "Esc on an empty stack is a no-op",
+      "a softer hover glow on every close x",
+      "a bigger TV on the Dock logo, with the skull stretched to fill the screen",
+      "the shadow Shelf says why a session has no picture",
+      "d2jsp posts read right: entities, bold text and trade slang",
+      "the fast gate: the hook runs the core laws plus the ones your change touches",
+      "a Blood Crest rare he owns is no longer thrown out as a misread unique (REG-3101)",
+      "the Key of Hate placement survives a reload",
+      "Esc in cinema leaves only cinema",
+      "CLOSE sits above the REPLAY ribbon",
+      "the crafted builder's x is never clipped",
+      "the routing ledger's remove button keeps its size",
+      "the tick writes only a change, so pages settle"
     ]
   },
   {
@@ -13,7 +26,8 @@
     "date": "2026-10-30",
     "items": [
       "the d2jsp search and every board field take typing after a quiet relaunch",
-      "a plain gate run banks its passes so a bump can inherit them"
+      "a plain gate run banks its passes so a bump can inherit them",
+      "the plain-run law takes its own lock and cleans up after itself"
     ]
   },
   {

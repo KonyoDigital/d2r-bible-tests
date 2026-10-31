@@ -11032,6 +11032,28 @@ GATES = [
          why="v3846 (Elad 14:23) - a quiet relaunch made the window focus=False and pywebview's WindowHost kept it "
              "unable to become key forever, so the d2jsp search took no typing (ui_faults: framed true, hasFocus "
              "false). Loaded and every raise now let it become key."),
+    Gate("test_the_nightly_skips_when_the_machine_is_busy",
+         [sys.executable, os.path.join(HERE, "test_the_nightly_skips_when_the_machine_is_busy.py")], 90,
+         needs_app=False,
+         why="v3848 SPEED - the 04:00 IDT nightly full run skips, logs and exits 75 when a gate run, prove/census "
+             "or push hook is running, and below 15 GB free; a skipped night is never read as green."),
+    Gate("test_a_fresh_tree_renders_the_stored_heart",
+         [sys.executable, os.path.join(HERE, "test_a_fresh_tree_renders_the_stored_heart.py")], 120,
+         needs_app=False,
+         why="v3848 - v3847 push #1 went red on heart-stored because a fresh worktree has no tv/.heart2.json. The "
+             "render sandbox now seeds a synthetic census (sandbox only, tree's own wins) via TV_HEART2_STATE."),
+    Gate("test_the_newest_tz_ask_wins",
+         [sys.executable, os.path.join(HERE, "test_the_newest_tz_ask_wins.py")], 60,
+         needs_app=False,
+         why="v3848 - root cause of the v3847 J9 demo flake: a slow /api/tz answer begun before a refresh painted "
+             "the older rotation over the newer one. Only the latest ask may paint."),
+    Gate("test_the_d2jsp_year_never_reads_as_a_count", [sys.executable, "tv/test_the_d2jsp_year_never_reads_as_a_count.py"], 60, needs_app=False, why="v3848 - a d2jsp line never reads 2026 as a number of posts"),
+    Gate("test_every_ship_lists_all_its_items", [sys.executable, "tv/test_every_ship_lists_all_its_items.py"], 60, needs_app=False, why="v3848 - a version history lists every item it shipped"),
+    Gate("test_a_rerun_runs_only_the_last_reds",
+         [sys.executable, os.path.join(HERE, "test_a_rerun_runs_only_the_last_reds.py")], 120,
+         needs_app=False,
+         why="v3848 SPEED - after a red run, rerun ONLY the reds plus the gates a fix touches: --rerun-failed reads "
+             "the last run's red names from this worktree's git dir, refuses when none are recorded."),
     Gate("test_a_cold_only_run_maps_only_its_gates",
          [sys.executable, os.path.join(HERE, "test_a_cold_only_run_maps_only_its_gates.py")], 240,
          needs_app=False,
@@ -13688,6 +13710,42 @@ def shard_names(k, n, gates=None):
     return sorted(bins[int(k) - 1][2])
 
 
+def _last_failed_path():
+    """v3848 SPEED - where the last run's red gate names live: the git dir of THIS worktree (never tracked, never shared
+    across worktrees, so one tree's reds never pick another tree's rerun)."""
+    try:
+        d = subprocess.run(["git", "-C", HERE, "rev-parse", "--path-format=absolute", "--git-dir"],
+                           capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        d = ""
+    return os.path.join(d or HERE, "tv_last_failed.json")
+
+
+def _write_last_failed(names, head):
+    import json
+    try:
+        with open(_last_failed_path(), "w") as f:
+            json.dump({"head": head, "failed": list(names)}, f)
+    except Exception as e:
+        print("· could not record the failed set for --rerun-failed (%s)" % e)
+
+
+def _read_last_failed():
+    import json
+    """-> (names, why). names None = refuse. Only real gate names survive (a '(undeclared SKIP)' suffix is stripped)."""
+    try:
+        with open(_last_failed_path()) as _f:
+            d = json.load(_f)
+    except Exception as e:
+        return None, "no recorded failed set in this worktree (%s) - run the gates once first" % type(e).__name__
+    names = []
+    for n in d.get("failed") or []:
+        n = n.split(" (")[0]
+        if n not in names:
+            names.append(n)
+    return names, "the last run (at %s) had %d red gate(s)" % (str(d.get("head") or "?")[:9], len(names))
+
+
 def main(argv):
     ap = argparse.ArgumentParser(description="run the gate set and return one verdict")
     ap.add_argument("--only", nargs="*", help="run only these gate names")
@@ -13700,12 +13758,31 @@ def main(argv):
                     help="v3842 GATE-TRIM A: with --full, the light gates as 3 shards in their own worktrees at once, "
                          "then the heavy gates alone (tv/gates_parallel.py). Default OFF: three v3842 runs each found a new "
                          "cross-tree contention red (ports, reload state) and the shards took 25-34 min, so opt in")
+    ap.add_argument("--rerun-failed", action="store_true",
+                    help="v3848 SPEED - run ONLY the gates the last run in this worktree left red (plus any --only "
+                         "names, e.g. the gates a fix touches). Carries like --changed; refuses when nothing is recorded")
     ap.add_argument("--fast", action="store_true",
                     help="v3847 FAST GATE - the core set (tv/fast_core.txt) + every gate whose law reads a changed file "
                          "(tv/fast_gates.py); a shared file (bible.html, control_ui.html, control_app.py, the gate "
                          "machinery) runs every gate. Carries like --changed. CI and the nightly still run every gate")
     a = ap.parse_args(argv[1:])
     only = a.only
+    if a.rerun_failed:  # RERUN-FAILED
+        if a.shard or a.full or a.fast:
+            print("⛔ REFUSED — --rerun-failed picks its own set; it does not combine with --shard/--full/--fast; NO gate ran")
+            return 2
+        _rf, _rfwhy = _read_last_failed()
+        if _rf is None:
+            print("⛔ REFUSED — --rerun-failed: %s; NO gate ran" % _rfwhy)
+            return 2
+        _known = set(g.name for g in GATES)
+        _rf = [n for n in _rf if n in _known] + [n for n in (a.only or []) if n not in _rf]
+        if not _rf:
+            print("── RERUN-FAILED: %s and none is a gate today - nothing to rerun ──" % _rfwhy)
+            return 0
+        print("── RERUN-FAILED: %s; running %d ──" % (_rfwhy, len(_rf)))
+        only = a.only = _rf
+        a.changed = True
     if a.fast:  # FAST-GATE
         if a.only or a.shard or a.full:
             print("⛔ REFUSED — --fast picks its own set; it does not combine with --only/--shard/--full; NO gate ran")
@@ -13811,6 +13888,12 @@ def main(argv):
     skipped = [(g.name, d) for g, s, _, d, _ in results if s == "SKIP"]
     # v1925 — the verdict, not a warning: a required gate that did not run is not a clean run.
     failed += ["%s (undeclared SKIP)" % n for n in sorted(_undeclared)]
+    if not a.shard:   # RERUN-FAILED - a shard sees a slice, so its reds are not the run's reds
+        try:
+            _head = subprocess.run(["git", "-C", HERE, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10).stdout.strip()
+        except Exception:
+            _head = ""
+        _write_last_failed([n for n in failed if n != "live-state-untouched"], _head)
     print("\n── VERDICT ──")
     if _live_moved and (_console_live or _sweep_live):
         why = "the console is running on :17772" if _console_live else ("held by %s" % ", ".join(_sweep_live))

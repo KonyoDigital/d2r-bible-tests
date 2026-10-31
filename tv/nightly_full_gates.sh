@@ -16,8 +16,16 @@ if ! mkdir "$LOCK" 2>/dev/null; then
   echo "$(date '+%F %T') SKIPPED - another nightly holds $LOCK" >> "$LOG_DIR/verdicts.log"; exit 75
 fi
 trap 'rmdir "$LOCK"' EXIT
-if pgrep -f "tv/run_gates.py" >/dev/null; then
-  echo "$(date '+%F %T') SKIPPED - another gate run is going (one Chrome at a time)" >> "$LOG_DIR/verdicts.log"; exit 75
+# v3848: busy = a gate run, a prove/census, or a push hook; a skip is logged and exits 75 (never read as green)
+for _busy in "tv/run_gates.py" "tv/heart2.py" "hooks/pre-push"; do
+  if pgrep -f "$_busy" >/dev/null; then
+    echo "$(date '+%F %T') SKIPPED - busy: $_busy is running (one heavy job, one Chrome at a time)" >> "$LOG_DIR/verdicts.log"; exit 75
+  fi
+done
+# v3848: keep 15 GB free - a full run writes shots and logs
+_free_gb=$(df -g "$HOME" | awk 'NR==2{print $4}')
+if [ "${_free_gb:-0}" -lt 15 ]; then
+  echo "$(date '+%F %T') SKIPPED - only ${_free_gb} GB free (needs 15)" >> "$LOG_DIR/verdicts.log"; exit 75
 fi
 git -C "$REPO" fetch -q origin main || { echo "$(date '+%F %T') NO RUN - fetch failed" >> "$LOG_DIR/verdicts.log"; exit 1; }
 if [ -d "$TREE" ]; then git -C "$TREE" checkout -q --detach origin/main && git -C "$TREE" reset -q --hard origin/main

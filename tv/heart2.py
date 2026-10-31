@@ -112,7 +112,9 @@ try:
 except Exception:
     pass
 
-STATE = os.path.join(HERE, ".heart2.json")
+# v3848 - TV_HEART2_STATE lets the render sandbox's private console read a SYNTHETIC census when this tree has none
+# (a fresh worktree, CI). Unset everywhere else, so every prove and census still reads and writes the tree's own file.
+STATE = os.environ.get("TV_HEART2_STATE") or os.path.join(HERE, ".heart2.json")
 PROPOSALS = os.path.join(HERE, ".heart2_proposals.md")
 #: REG-2355 — the rule a census's BLIND list was judged under. 2: a proof whose every case skipped FOR NODE in both runs,
 #: on a PC with no node, is ELSEWHERE, never BLIND (REG-2354, REG-2359). A census filed under an older rule owes those
