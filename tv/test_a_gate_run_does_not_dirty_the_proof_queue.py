@@ -165,7 +165,7 @@ RED_PROOF = [
     {"why": "the runner never hands gates a scratch file", "file": "run_gates.py",
      "find": "        os.environ[\"TV_SELF_ARMING_DEFER\"] = _defer\n", "replace": "        pass\n", "matches": 1},
     {"why": "a nested run replaces an outer scratch file", "file": "run_gates.py",
-     "find": "            and not os.environ.get(\"TV_SELF_ARMING_DEFER\"):\n", "replace": "            and True:\n",
+     "find": "    if not os.environ.get(\"TV_SELF_ARMING_DEFER\"):\n", "replace": "    if True:\n",
      "matches": 1},
     {"why": "the runner leaves the defer set", "file": "run_gates.py",
      "find": "        os.environ.pop(\"TV_SELF_ARMING_DEFER\", None)\n", "replace": "        pass\n", "matches": 1},
