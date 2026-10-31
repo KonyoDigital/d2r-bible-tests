@@ -33534,6 +33534,12 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   window.__tvOvxTick = ovxTick;
   setInterval(ovxTick, 250);
   addEventListener('resize', ovxTick);
+  /* the 250 ms tick alone left a window where a card had reflowed and its x had not followed yet - a render shot taken
+     there saw the x cut by its own card (builder-crafted 1440x1000, v3847 hook push #4). Re-pin on the next frame after
+     any DOM change; ovxSet writes only a change, so this settles after one pass. */
+  var ovxRaf = 0;
+  try { new MutationObserver(function () { if (!ovxRaf) ovxRaf = requestAnimationFrame(function () { ovxRaf = 0; ovxTick(); }); })
+          .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open'] }); } catch (e) {}
 })();
 /* /OVERLAY-CONTRACT */
 </script>
