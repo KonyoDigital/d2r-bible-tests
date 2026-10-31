@@ -6,7 +6,9 @@ Now one CSS class (.nig-chip, one line, nowrap) and one JS helper (_notInGameChi
 locker and the MOVE TASKS make row; the status is rename-safe (a sighting under the mule's prevName or an alias is still
 this mule); "made by the board" is not said on a chip or a task line.
 """
-import os, re, subprocess, unittest
+import os, re, subprocess, sys, unittest
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from console_safe import enable; enable()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIBLE = os.path.join(os.path.dirname(HERE), "bible.html")
