@@ -53,10 +53,11 @@ class AColdOnlyRunMapsOnlyItsGates(unittest.TestCase):
     def test_the_self_arming_defer_holds_on_ci_too(self):
         import re
         src = open(os.path.join(HERE, "run_gates.py"), encoding="utf-8").read()
-        m = re.search(r"\n    if (led is not None[^\n]*\n[^\n]*TV_SELF_ARMING_DEFER[^\n]*)", src)
+        m = re.search(r"\n    if ([^\n]*TV_SELF_ARMING_DEFER[^\n]*):\n        _dfd, _defer", src)
         self.assertIsNotNone(m, "the self-arming defer is gone")
-        self.assertNotIn("ci_blocks", m.group(1),
-                         "CI skips the defer again: a Wilson gate dirties tv/.self_arming.jsonl mid-run on CI")
+        for w in ("ci_blocks", "led is not None", "reuse_closed"):
+            self.assertNotIn(w, m.group(1), "a venue skips the defer again (%s): a Wilson gate dirties "
+                             "tv/.self_arming.jsonl mid-run there (CI g and h red)" % w)
 
 
 RED_PROOF = [
@@ -70,8 +71,12 @@ RED_PROOF = [
      "replace": "        rows = {}\n", "matches": 1},
     {"why": "CI skips the self-arming defer, so a Wilson gate dirties the checkout mid-run (CI g red)",
      "file": "tv/run_gates.py",
-     "find": "    if led is not None and not _GL.reuse_closed() \\\n",
-     "replace": "    if led is not None and not _GL.ci_blocks() and not _GL.reuse_closed() \\\n", "matches": 1},
+     "find": '    if not os.environ.get("TV_SELF_ARMING_DEFER"):\n',
+     "replace": '    if not os.environ.get("TV_SELF_ARMING_DEFER") and not _GL.ci_blocks():\n', "matches": 1},
+    {"why": "a run with no ledger (CI's shards) skips the defer (CI h red)",
+     "file": "tv/run_gates.py",
+     "find": '    if not os.environ.get("TV_SELF_ARMING_DEFER"):\n',
+     "replace": '    if led is not None and not os.environ.get("TV_SELF_ARMING_DEFER"):\n', "matches": 1},
 ]
 
 if __name__ == "__main__":
