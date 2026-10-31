@@ -34,8 +34,9 @@ BODY = r"""
 var W = window, DB = W._cbDb();
 function code(n){ return Object.keys(DB.b).find(function(c){ return DB.b[c][0] === n; }); }
 function cur(){ var s = W._cbState(); return s && s.host && s.host.cur ? s.host.cur() : null; }
-function add(base, q, pre, suf){
+function add(base, q, pre, suf, rn){
   W.vaultPlannerOpen(''); W._cbChoose('b:' + code(base)); W._cbQuality(q);
+  if (rn){ W._cbRareName(0, rn[0]); W._cbRareName(1, rn[1]); }
   var picked = [];
   for (var k = 0; k < pre; k++){ var r = (W._cbAffixPool(cur()).rows.p || [])[k * 3]; if (r){ W._cbAddMod(r[0]); picked.push(r[0]); } }
   for (var j = 0; j < suf; j++){ var r2 = (W._cbAffixPool(cur()).rows.s || [])[j * 5]; if (r2){ W._cbAddMod(r2[0]); picked.push(r2[0]); } }
@@ -45,6 +46,8 @@ function add(base, q, pre, suf){
 }
 OUT.charm = add('Grand Charm', 'm', 1, 1);
 OUT.diadem = add('Diadem', 'rare', 2, 1);
+/* REG-3101 - the dice can name a rare after a unique it is not (Blood Crest / Blood Crescent): CI k drew it */
+OUT.crest = add('Diadem', 'rare', 2, 1, ['Blood', 'Crest']);
 OUT.mf = JSON.parse(W.LSR.getItem('d2r_magicFinds') || '{}');
 OUT.owned = JSON.parse(W.LSR.getItem('d2r_owned') || '[]');
 var gcId = 'b:' + code('Grand Charm');
@@ -89,6 +92,16 @@ class APlannerMagicItemKeepsItsMods(unittest.TestCase):
             self.assertEqual(rec["mods"], d["want"], rec)
         self.assertIn(d["name"], self.o["owned"], "the kept rare is not owned")
 
+    def test_a_rare_named_like_a_unique_is_kept_as_his_rare(self):
+        # REG-3101 (CI on ci/claude-v3847k) - "Blood Crest" was folded as a misread of the unique Blood Crescent, routed
+        # TRASH, and the planner dropped the rare it had just filed
+        c = self.o["crest"]
+        self.assertEqual((c["name"], c["picked"]), ("Blood Crest", 3), "PREMISE: the rare was not named Blood Crest with three mods: %r" % c)
+        rec = self.o["mf"].get(c["name"])
+        self.assertIsNotNone(rec, "his rare named like a unique vanished: %r not in %r" % (c["name"], sorted(self.o["mf"])))
+        self.assertEqual((rec["q"], rec["base"], len(rec["mods"])), ("rare", "Diadem", 3), rec)
+        self.assertIn(c["name"], self.o["owned"], "the kept rare is not owned")
+
     def test_the_trade_desk_lists_the_affix_line(self):
         self.assertTrue(self.o["deskWant"] is not None, "PREMISE: no affix to list")
         self.assertGreaterEqual(self.o["deskN"] or 0, 1, "the d2jsp post drops the affix line: %r" % self.o["desk"])
@@ -99,6 +112,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "  window._cbAfText = _cbAfText;\n",
      "replace": "",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-3101 - a rare he owns is folded like a misread, so a rare named after a unique is dropped",
+     "file": "bible.html",
+     "find": "      if (!_sugFolding && !_sugHisMr && typeof window.d2rResolveItem === 'function'\n",
+     "replace": "      if (!_sugFolding && typeof window.d2rResolveItem === 'function'\n",
      "matches": 1, "needs": "node"},
 ]
 

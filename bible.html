@@ -44327,7 +44327,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     } catch(e){}
     try {
-      if (!_sugFolding && typeof window.d2rResolveItem === 'function'
+      /* REG-3101 (CI on ci/claude-v3847k: a planner rare Diadem the dice named "Blood Crest" vanished) - A MAGIC OR RARE
+         HE OWNS IS NAMED BY ITS AFFIX WORDS, NEVER A MISREAD. The fuzzy fold below read "Blood Crest" as a misread of the
+         unique Blood Crescent, the router called that TRASH, and the planner dropped the rare it had just filed in Magic &
+         Rare. A name his d2r_magicFinds holds as magic, rare or crafted is that item, so it is never folded to a unique. */
+      var _sugHisMr = false;
+      try { var _mfR = (typeof magicFinds !== 'undefined' && magicFinds) ? magicFinds[name] : null;
+            _sugHisMr = !!(_mfR && typeof _mfR === 'object' && /^(magic|rare|crafted)$/.test(String(_mfR.q || ''))); } catch (eMr) {}
+      if (!_sugFolding && !_sugHisMr && typeof window.d2rResolveItem === 'function'
           && typeof window.d2rInboxEngine === 'function'){
         var _rv = window.d2rResolveItem(name);
         if (_rv && _rv.kind === 'unknown'){
