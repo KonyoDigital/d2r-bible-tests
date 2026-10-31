@@ -59,7 +59,7 @@ OUT.wars = wars(); OUT.tasks = tasks(); OUT.make = makeRows();
 OUT.makeFirst = list().indexOf('data-sec="make"') >= 0 && list().indexOf('data-sec="make"') < list().indexOf('data-sec="moves"');
 /* REG-2888 - the WAR1 card's own badge: the CHARMS mule the board makes (REG-2895) wears the same badge on its own card */
 function warBadge(){ var h = (document.getElementById('vault-shelf') || {}).innerHTML || '', w = wars()[0], at = w ? h.indexOf('data-vault-mule="' + w.id + '"') : -1;
-  if (at < 0) return null; var nx = h.indexOf('data-vault-mule="', at + 10); return h.slice(at, nx < 0 ? h.length : nx).indexOf('made by the board · not in the game yet') >= 0; }
+  if (at < 0) return null; var nx = h.indexOf('data-vault-mule="', at + 10); return h.slice(at, nx < 0 ? h.length : nx).indexOf('class="nig-chip"') >= 0; }
 OUT.badge = warBadge();
 /* the card's delete button is drawn only for a mule his delete door takes (_vmAddedMule) - ask the page, not a copy of its rule */
 OUT.deletable = OUT.wars.length ? (((document.getElementById('vault-shelf') || {}).innerHTML || '').indexOf("window.vaultDeleteMule('" + OUT.wars[0].id + "')") >= 0) : null;
