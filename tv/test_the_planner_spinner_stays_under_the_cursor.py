@@ -109,10 +109,15 @@ class ThePlannerSpinnerStaysUnderTheCursor(unittest.TestCase):
         # (Inter via Google Fonts, display=swap) can land AFTER two equal readings, and a swapped font re-measures every
         # control left of Sockets in its flex row. The baseline is read once document.fonts has nothing left loading, so
         # what a step measures is the repaint, never a font arriving.
-        o0 = board().run(MEASURE + "await document.fonts.ready; var a = m(), b = a, k = 0;"
+        # v3848 CI (twice on ci/claude-v3848, 'loading' != 'loaded'): a second face (another weight) can START loading
+        # while the row settles, after fonts.ready resolved. So wait-and-settle repeats until a settled reading finds
+        # nothing loading (at most 5 rounds); the PREMISE below still refuses a baseline read mid-font.
+        o0 = board().run(MEASURE + "var a, b, k = 0, round = 0;"
+                         "for (round = 0; round < 5; round++){ await document.fonts.ready; a = m(); b = a;"
                          "for (k = 0; k < 20; k++){ await new Promise(function(r){ setTimeout(r, 150); }); b = m();"
                          "  if (b.x === a.x && b.y === a.y && b.top === a.top) break; a = b; }"
-                         "b.settledAfterMs = (k + 1) * 150; b.fonts = document.fonts.status; OUT.m = b;")["m"]
+                         "if (document.fonts.status === 'loaded') break; }"
+                         "b.settledAfterMs = (k + 1) * 150; b.fontRounds = round + 1; b.fonts = document.fonts.status; OUT.m = b;")["m"]
         self.assertEqual(o0["focus"], "cb-sockets", "PREMISE: the Sockets field did not take focus: %r" % o0)
         # REG-2937 (the v3832/v3833 push gate: RED_PROOF[2] BLIND) - at 420 px the hook's Chrome did not scroll the edit pane,
         # so its scrollTop was 0 before any key and putting it back after a repaint changed nothing this case can see.
