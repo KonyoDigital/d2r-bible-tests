@@ -12949,7 +12949,10 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
     # input of 147 gates, so none of them could be stored. While proofs are recorded the bank goes to
     # a scratch file outside the checkout and is folded in after the last gate.  # GATES-ARMING-DEFER
     _defer = None
-    if led is not None and not _GL.ci_blocks() and not _GL.reuse_closed() \
+    # v3847 CI g - ON CI TOO. CI skipped the defer, so a Wilson gate dirtied tv/.self_arming.jsonl mid-run and a later
+    # gate that banks a plain run (test_a_plain_gate_run_banks_its_passes) found its input uncommitted - red or green by
+    # which shard it landed in. The checkout stays byte-identical on every venue.  # GATES-ARMING-DEFER-CI
+    if led is not None and not _GL.reuse_closed() \
             and not os.environ.get("TV_SELF_ARMING_DEFER"):
         _dfd, _defer = tempfile.mkstemp(prefix="self-arming-defer.", suffix=".jsonl")
         os.close(_dfd)

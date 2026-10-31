@@ -50,6 +50,15 @@ class AColdOnlyRunMapsOnlyItsGates(unittest.TestCase):
                          "a second run threw away the rows its key already had")
 
 
+    def test_the_self_arming_defer_holds_on_ci_too(self):
+        import re
+        src = open(os.path.join(HERE, "run_gates.py"), encoding="utf-8").read()
+        m = re.search(r"\n    if (led is not None[^\n]*\n[^\n]*TV_SELF_ARMING_DEFER[^\n]*)", src)
+        self.assertIsNotNone(m, "the self-arming defer is gone")
+        self.assertNotIn("ci_blocks", m.group(1),
+                         "CI skips the defer again: a Wilson gate dirties tv/.self_arming.jsonl mid-run on CI")
+
+
 RED_PROOF = [
     {"why": "a cold --only run maps every registered gate again (>200 s in a prove sandbox; test_control timed out)",
      "file": "tv/run_gates.py",
@@ -59,6 +68,10 @@ RED_PROOF = [
      "file": "tv/gate_ledger.py",
      "find": '        rows = dict(self.map.get("gates") or {}) if self.map.get("key") == map_key(root) else {}\n',
      "replace": "        rows = {}\n", "matches": 1},
+    {"why": "CI skips the self-arming defer, so a Wilson gate dirties the checkout mid-run (CI g red)",
+     "file": "tv/run_gates.py",
+     "find": "    if led is not None and not _GL.reuse_closed() \\\n",
+     "replace": "    if led is not None and not _GL.ci_blocks() and not _GL.reuse_closed() \\\n", "matches": 1},
 ]
 
 if __name__ == "__main__":
