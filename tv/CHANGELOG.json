@@ -1,5 +1,23 @@
 [
   {
+    "ver": "v3848",
+    "date": "2026-10-31",
+    "items": [
+      "a gate run can rerun only the last reds (--rerun-failed)",
+      "nightly gates at 4 in the morning that skip when the machine is busy or under 15 GB free",
+      "a fresh tree renders the stored heart instead of a blank one",
+      "the newest timezone ask wins (J9 sequence fix)",
+      "a fast gate guide says how to run and rerun the gates fast",
+      "Shako prices say dated 2026 or later, and a d2jsp year never reads as a count",
+      "every version history lists all its items (law), with v3846 and v3847 backfilled",
+      "the Shelf x rides the shared 12px pin, nested overlays are marked first",
+      "overlapping river asks share one walk instead of stacking (Dean 23-38 s)",
+      "in a shadow FIND and the named lookups take keys, the write boxes stay dead (REG-3103)",
+      "in a shadow no vault cell or tile promises an action, one helper says read only (REG-3117)",
+      "not in game yet is one chip from one rename-safe helper on every locker and MOVE TASKS"
+    ]
+  },
+  {
     "ver": "v3847",
     "date": "2026-10-31",
     "items": [
