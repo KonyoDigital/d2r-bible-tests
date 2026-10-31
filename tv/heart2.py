@@ -4066,7 +4066,7 @@ def _named_files(tree, sandbox, repo):
             continue
         for base in (sandbox, repo):
             p = os.path.normpath(os.path.join(base, s))
-            if _inside(repo, p) and os.path.isfile(p):
+            if os.path.isfile(p) and _inside(repo, p):   # one stat first: most constants name no file (5x, v3847)
                 out.add(p)
     return out
 

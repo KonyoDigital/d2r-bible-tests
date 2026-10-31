@@ -11032,6 +11032,11 @@ GATES = [
          why="v3846 (Elad 14:23) - a quiet relaunch made the window focus=False and pywebview's WindowHost kept it "
              "unable to become key forever, so the d2jsp search took no typing (ui_faults: framed true, hasFocus "
              "false). Loaded and every raise now let it become key."),
+    Gate("test_a_cold_only_run_maps_only_its_gates",
+         [sys.executable, os.path.join(HERE, "test_a_cold_only_run_maps_only_its_gates.py")], 240,
+         needs_app=False,
+         why="v3847 - a cold --only child run in a heart2 sandbox mapped every registered gate (>200 s), so "
+             "test_control's lock law timed out and read ALREADY RED at push time. A run maps the gates it runs."),
     Gate("test_a_plain_gate_run_banks_its_passes",
          [sys.executable, os.path.join(HERE, "test_a_plain_gate_run_banks_its_passes.py")], 300,
          needs_app=False,
@@ -12970,7 +12975,7 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                 continue
             if led is not None and not getattr(led, "_prepared", False):
                 try:
-                    led.prepare(GATES)
+                    led.prepare([x for x in GATES if not only or x.name in only])  # ONLY-PREPARES-ITS-OWN
                     led._prepared = True
                 except Exception as _lexc:
                     print("ledger: the input map was not built (%s). Every gate runs."

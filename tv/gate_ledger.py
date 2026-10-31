@@ -2196,8 +2196,14 @@ class Ledger(object):
         names = [getattr(g, "name", None) for g in gates]
         if self.map_hit and all(name in self.map.get("gates", {}) for name in names):
             return
-        rows = {}
+        # v3847 (REG-1877 in a prove sandbox) - DECLARE ONLY WHAT IS MISSING. A row of a map under this key is valid
+        # for this key; rebuilding all ~1300 rows because one asked-for gate was absent made a cold `--only` child run
+        # (test_control's lock laws, in a fresh heart2 sandbox) parse every law in the registry - >200 s, past its
+        # 180 s timeout, so the clean wave read the law ALREADY RED and refused a good push.
+        rows = dict(self.map.get("gates") or {}) if self.map.get("key") == map_key(root) else {}
         for gate in gates:
+            if gate.name in rows:
+                continue
             try:
                 decl, why = self.declare(gate)
             except Exception as exc:
