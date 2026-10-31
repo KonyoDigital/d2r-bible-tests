@@ -48069,7 +48069,7 @@ class Handler(BaseHTTPRequestHandler):
                     # `hiddenWhy` rather than quietly drawing a filtered-looking river it never
                     # filtered. [[unknown-stays-unknown]]
                     _hide, _hide_why = shelf_hidden_reels()
-                    _lr = _RL.lanes(hide=_hide)
+                    _lr = _RL.lanes_shared(hide=_hide)   # v3848 - overlapping asks share one walk
                     if _lr.get("ok"):
                         # ⚠ COUNTS AND THE LANE'S OWN SENTENCE — never the reel RECORDS. The
                         # shelf already has the sessions; shipping 40 reel records again would

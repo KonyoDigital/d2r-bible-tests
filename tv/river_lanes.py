@@ -335,5 +335,42 @@ def main(argv):
     return 0
 
 
+
+# v3848 (Dean /api/river 23-38 s under load) - CONCURRENT ASKS SHARE ONE WALK. MEASURED on the Mac: lanes() is
+# ~2.4 s, almost all reel_router.route(); Dean's PC is ~10x slower, and every overlapping /api/river (the strip, a
+# shadow, a probe) started its OWN route() on a busy GIL, so each one waited for all of them. A caller that arrives
+# while a walk with the same `hide` is running now waits for THAT walk and takes its answer; nothing is cached past
+# it - the next ask after it ends walks again, so no answer is older than the walk the caller waited on. No timeout
+# was raised. -> the same dict lanes() returns
+import threading as _th
+_SHARED_LOCK = _th.Lock()
+_SHARED = {}          # key -> {"ev": Event, "out": dict|None, "err": BaseException|None}
+
+
+def lanes_shared(hide=None):
+    key = tuple(sorted(str(x) for x in (hide or ())))
+    with _SHARED_LOCK:
+        cur = _SHARED.get(key)
+        mine = cur is None
+        if mine:
+            cur = _SHARED[key] = {"ev": _th.Event(), "out": None, "err": None}
+    if not mine:
+        cur["ev"].wait()
+        if cur["err"] is not None:
+            raise cur["err"]
+        return cur["out"]
+    try:
+        cur["out"] = lanes(hide=hide)
+        return cur["out"]
+    except BaseException as e:
+        cur["err"] = e
+        raise
+    finally:
+        with _SHARED_LOCK:
+            _SHARED.pop(key, None)
+        cur["ev"].set()
+
+
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+

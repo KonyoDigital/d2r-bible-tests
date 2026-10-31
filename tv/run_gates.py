@@ -11049,6 +11049,7 @@ GATES = [
              "the older rotation over the newer one. Only the latest ask may paint."),
     Gate("test_the_d2jsp_year_never_reads_as_a_count", [sys.executable, "tv/test_the_d2jsp_year_never_reads_as_a_count.py"], 60, needs_app=False, why="v3848 - a d2jsp line never reads 2026 as a number of posts"),
     Gate("test_every_ship_lists_all_its_items", [sys.executable, "tv/test_every_ship_lists_all_its_items.py"], 60, needs_app=False, why="v3848 - a version history lists every item it shipped"),
+    Gate("test_overlapping_river_asks_share_one_walk", [sys.executable, "tv/test_overlapping_river_asks_share_one_walk.py"], 60, needs_app=False, why="v3848 - overlapping /api/river asks share one router walk"),
     Gate("test_a_rerun_runs_only_the_last_reds",
          [sys.executable, os.path.join(HERE, "test_a_rerun_runs_only_the_last_reds.py")], 120,
          needs_app=False,

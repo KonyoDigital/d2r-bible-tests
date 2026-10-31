@@ -121,6 +121,15 @@ class EveryOverlayClosesTheSameWay(unittest.TestCase):
             for m in re.finditer(r":is\(([^)]*\.th-x[^)]*)\)", src):
                 self.assertNotIn(".vrg-x", m.group(1).split(","), name + ": a routing row's remove button is sized as an overlay x")
 
+    def test_the_shelf_x_rides_the_shared_pin(self):
+        # v3848 eyes 10:09: #th-shelf-x sat ~30px in from the Shelf card's corner - the Shelf was no overlay to the pin
+        for name, src in (("control_ui.html", UI), ("bible.html", BIBLE)):
+            also = re.search(r"var OVX_ALSO = '([^']*)'", src).group(1).split(",")
+            self.assertIn("#th-shelfov", also, name + ": the Shelf is not an overlay the pin knows")
+            tick = src[src.index("function ovxTick()"):src.index("window.__tvOvxTick")]
+            self.assertIn("cj.classList.add('ovx-card')", tick[:tick.index("var x = xOfOverlay")],
+                            name + ": a nested overlay is not marked before the outer one picks its x")
+
 
 RED_PROOF = [
     {"why": "v3847 eye - bible.html's cinema Esc guard goes unpinned",
@@ -151,6 +160,12 @@ RED_PROOF = [
      "file": "tv/control_ui.html", "find": "(v.top + OVX_INSET) - xr.top", "replace": "(v.top + 3) - xr.top", "matches": 1},
     {"why": "the mule window's own close is ignored and a second x is made",
      "file": "tv/control_ui.html", "find": "var x = xOfOverlay(ov, card);", "replace": "var x = xOf(card);", "matches": 1},
+    {"why": "v3848 eyes - the Shelf drops off the pin's overlay list",
+     "file": "tv/control_ui.html", "find": "'#roster-box,#theatre,#th-shelfov,", "replace": "'#roster-box,#theatre,", "matches": 1},
+    {"why": "v3848 eyes - a nested overlay is not marked first, so the theatre takes the Shelf's x",
+     "file": "tv/control_ui.html",
+     "find": "      if (rj.width >= 200 && rj.height >= 100 && !cj.classList.contains('ovx-card')) cj.classList.add('ovx-card');\n",
+     "replace": "", "matches": 1},
     {"why": "what sits under the x keeps sitting there",
      "file": "tv/control_ui.html", "find": "    ovxClear(card, x, x.getBoundingClientRect());\n", "replace": "", "matches": 1},
 ]

@@ -87091,7 +87091,7 @@ button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
      (or a made one) pinned OVX_INSET from the card's right edge, centred on the header row. */
   var OVX_INSET = 12, OVX_SIZE = 28;
   var OVX_SKIP = /(toast|tip\b|tips|fab|pill|ribbon|badge|dock|nav-widget|hint|spark|celebrate|epic|nudge|results|ghost|dragsay|thumb|topbar|shadow-bar|shadow-eng|tvd-eng|countdown|arttip|itip|d2tip|rs-bar|routine-status|scrim|rcpt-art|frame-mark)/i;
-  var OVX_ALSO = '#roster-box,#theatre,.tvz-theatre,#forensics-ov,#ch-modal,[role=dialog],[aria-modal=true]';
+  var OVX_ALSO = '#roster-box,#theatre,#th-shelfov,.tvz-theatre,#forensics-ov,#ch-modal,[role=dialog],[aria-modal=true]';
   var ovxSel = null;
   function ovxSelectors() {
     if (ovxSel) return ovxSel;
@@ -87240,6 +87240,13 @@ button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
   function ovxTick() {
     var ovs;
     try { ovs = document.querySelectorAll(ovxSelectors()); } catch (e) { ovxSel = null; ovs = document.querySelectorAll(OVX_ALSO); }
+    /* mark every shown card first, so an overlay nested in another (the Shelf inside the theatre) keeps its own x
+       and the outer one never takes it on the first tick (v3848, eyes 10:09: #th-shelf-x sat ~30px off the pin) */
+    for (var j = 0; j < ovs.length; j++) {
+      if (!shown(ovs[j])) continue;
+      var cj = cardOf(ovs[j]), rj = cj.getBoundingClientRect();
+      if (rj.width >= 200 && rj.height >= 100 && !cj.classList.contains('ovx-card')) cj.classList.add('ovx-card');
+    }
     for (var i = 0; i < ovs.length; i++) {
       var ov = ovs[i];
       if (!shown(ov)) continue;
