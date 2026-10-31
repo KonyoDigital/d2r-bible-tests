@@ -53079,8 +53079,8 @@ window.vaultAutoAssign = function(){
              fault: (used > cap) || !!oob || !!over };
   };
   /* REG-3103 (#230, GrokBot v3838) - an empty inventory cell's title, which said "click (or Enter) to add an item from the
-     database" inside a read-only shadow, where the click and the Enter are stopped. In a shadow (the veil's handle
-     window._tvdShadow, else the shadow class) it says the console is theirs, in the D2JSP fg box's words (REG-3095). */
+     database" inside a read-only shadow, where the click and the Enter are stopped. In a shadow (the veil's handle,
+     else the shadow class) it says the console is theirs, in the D2JSP fg box's words (REG-3095). */
   function gridCellSay(label, cx, cy){
     return gridActSay((label || 'Inventory') + ' · col ' + (cx + 1) + ' · row ' + (cy + 1) + ' — empty', ': click (or Enter) to add an item from the database');
   }
@@ -53089,13 +53089,11 @@ window.vaultAutoAssign = function(){
      in a read-only shadow, where the veil stops the drag - the lock held, the words lied. Every title and aria-label on a
      vault cell or tile (the mule window's tiles, cells, doll slots and Mule tabs, their ✕ and unlock, the locker cards'
      cells, ✕ and lock, a plate, a dock chip) builds its action words here: desc is what the thing IS and stays, act is
-     what a click, key or drag would do. In a shadow (the veil's handle window._tvdShadow, else the shadow class) act
+     what a click, key or drag would do. In a shadow (the veil's handle, else the shadow class) act
      becomes "Read only: this is their console, shown in a shadow"; outside a shadow the words are desc + act, as they
      always were. The law test_a_shadow_cell_never_promises_an_action lists every action phrase it found. */
   function gridShadowRo(){
-    var ro = !!window._tvdShadow;
-    try { ro = ro || document.documentElement.classList.contains('tvd-shadow'); } catch (eRo) {}
-    return ro;
+    return typeof _unconfReadOnly === 'function' ? !!_unconfReadOnly() : false;   /* the page's one read-only test */
   }
   function gridActSay(desc, act){
     return gridShadowRo() ? (desc ? desc + '. ' : '') + 'Read only: this is their console, shown in a shadow' : desc + act;

@@ -163,7 +163,7 @@ class TwoSurfacesOneShelf(unittest.TestCase):
             if not isinstance(node, ast.Call):
                 continue
             f = node.func
-            if not (isinstance(f, ast.Attribute) and f.attr == "lanes"):
+            if not (isinstance(f, ast.Attribute) and f.attr in ("lanes", "lanes_shared")):   # v3848 - lanes_shared is lanes(hide) single-flighted
                 continue
             if any(k.arg == "hide" for k in (node.keywords or [])):
                 joined.append(getattr(node, "lineno", 0))
@@ -530,8 +530,8 @@ RED_PROOF = [
         "why": "unjoining the endpoint from the filter: the hidden set is still computed, and the "
                "strip goes back to drawing every fixture",
         "file": "control_app.py",
-        "find": "_lr = _RL.lanes(hide=_hide)",
-        "replace": "_lr = _RL.lanes()",
+        "find": "_lr = _RL.lanes_shared(hide=_hide)",
+        "replace": "_lr = _RL.lanes_shared()",
         "matches": 1,
     },
     {

@@ -40,7 +40,7 @@ class NotInGameIsOneChip(unittest.TestCase):
               "console.log(JSON.stringify([_vaultMuleSeenInGame({name:'NewName',prevName:'OldName'},recs),"
               "_vaultMuleSeenInGame({name:'NewName',aliases:[{name:'oldname'}]},recs),"
               "_vaultMuleSeenInGame({name:'NewName'},recs)]));")
-        out = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        out = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         self.assertEqual(out.stdout.strip(), "[true,true,false]", out.stderr[-400:])
 
 

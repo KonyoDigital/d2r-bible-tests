@@ -40,7 +40,7 @@ class TheNewestTzAskWins(unittest.TestCase):
         src = open(UI, encoding="utf-8").read()
         m = re.search(r"\n  (var _tzSeq = 0;\n  async function _tzFetch\(\) \{.*?\n  \})\n", src, re.S)
         self.assertIsNotNone(m, "_tzFetch moved - this law must find it")
-        p = subprocess.run(["node", "-e", DRIVER % m.group(1)], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=DRIVER % m.group(1), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-800:])
         self.assertEqual(json.loads(p.stdout.strip().splitlines()[-1]), ["NEW"],
                          "an older /api/tz answer painted after the newer one")

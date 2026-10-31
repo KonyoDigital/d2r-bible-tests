@@ -167,6 +167,9 @@ def _routed(pos):
     return depth > 0
 
 
+_ro0 = PAGE.index("function _unconfReadOnly(){")
+RO_FN = PAGE[_ro0:PAGE.index("\n}\n", _ro0) + 3]   # the page's one read-only test, which gridShadowRo asks
+
 class EveryActionPhraseIsNamedAndRouted(unittest.TestCase):
 
     @classmethod
@@ -211,7 +214,7 @@ class TheHelperSaysReadOnlyOnlyInAShadow(unittest.TestCase):
         if not NODE:
             raise AssertionError("node is not on this machine - this law does not skip")
         i = PAGE.index("  function gridCellSay(label, cx, cy){")
-        fn = PAGE[i:PAGE.index("  function gridHtml(placed, gw, gh, cell, opt){", i)]
+        fn = RO_FN + PAGE[i:PAGE.index("  function gridHtml(placed, gw, gh, cell, opt){", i)]
         r = subprocess.run([NODE, "-"], input=HELPER + fn + "\n" + HELPER_SCENARIO, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("the helper did not run in node: %s" % r.stderr[-900:])

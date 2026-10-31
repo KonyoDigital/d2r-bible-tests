@@ -40,7 +40,7 @@ class AFreshTreeRendersTheStoredHeart(unittest.TestCase):
         real = os.path.isfile
         with mock.patch("os.path.isfile", lambda p: True if p.endswith(os.sep + ".heart2.json") else real(p)):
             self.assertIsNone(self.R._seed_heart2_census(self.sand))
-        self.assertEqual(os.listdir(self.sand), [])
+        self.assertFalse(os.path.exists(os.path.join(self.sand, "heart2_fixture.json")), "the tree has its own census, yet a fixture was seeded")
 
     def test_heart2_reads_the_state_it_is_pointed_at(self):
         out = subprocess.run([sys.executable, "-c", "import heart2; print(heart2.STATE)"], cwd=HERE,

@@ -11047,9 +11047,9 @@ GATES = [
          needs_app=False,
          why="v3848 - root cause of the v3847 J9 demo flake: a slow /api/tz answer begun before a refresh painted "
              "the older rotation over the newer one. Only the latest ask may paint."),
-    Gate("test_the_d2jsp_year_never_reads_as_a_count", [sys.executable, "tv/test_the_d2jsp_year_never_reads_as_a_count.py"], 60, needs_app=False, why="v3848 - a d2jsp line never reads 2026 as a number of posts"),
-    Gate("test_every_ship_lists_all_its_items", [sys.executable, "tv/test_every_ship_lists_all_its_items.py"], 60, needs_app=False, why="v3848 - a version history lists every item it shipped"),
-    Gate("test_overlapping_river_asks_share_one_walk", [sys.executable, "tv/test_overlapping_river_asks_share_one_walk.py"], 60, needs_app=False, why="v3848 - overlapping /api/river asks share one router walk"),
+    Gate("test_the_d2jsp_year_never_reads_as_a_count", [sys.executable, os.path.join(HERE, "test_the_d2jsp_year_never_reads_as_a_count.py")], 60, needs_app=False, why="v3848 - a d2jsp line never reads 2026 as a number of posts"),
+    Gate("test_every_ship_lists_all_its_items", [sys.executable, os.path.join(HERE, "test_every_ship_lists_all_its_items.py")], 60, needs_app=False, why="v3848 - a version history lists every item it shipped"),
+    Gate("test_overlapping_river_asks_share_one_walk", [sys.executable, os.path.join(HERE, "test_overlapping_river_asks_share_one_walk.py")], 60, needs_app=False, why="v3848 - overlapping /api/river asks share one router walk"),
     Gate("test_a_lookup_answers_in_a_shadow",
          [sys.executable, os.path.join(HERE, "test_a_lookup_answers_in_a_shadow.py")], 300,
          needs_app=False,
@@ -11058,7 +11058,7 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_shadow_cell_never_promises_an_action.py")], 600,
          needs_app=False,
          why="#230 REG-3117: every vault cell and tile word that promises an action goes through gridActSay and says read only in a shadow"),
-    Gate("test_not_in_game_is_one_chip", [sys.executable, "tv/test_not_in_game_is_one_chip.py"], 60, needs_app=False, why="v3848 - not in game yet is one chip from one rename-safe helper"),
+    Gate("test_not_in_game_is_one_chip", [sys.executable, os.path.join(HERE, "test_not_in_game_is_one_chip.py")], 60, needs_app=False, why="v3848 - not in game yet is one chip from one rename-safe helper"),
     Gate("test_a_rerun_runs_only_the_last_reds",
          [sys.executable, os.path.join(HERE, "test_a_rerun_runs_only_the_last_reds.py")], 120,
          needs_app=False,
@@ -13725,17 +13725,20 @@ def _last_failed_path():
     across worktrees, so one tree's reds never pick another tree's rerun)."""
     try:
         d = subprocess.run(["git", "-C", HERE, "rev-parse", "--path-format=absolute", "--git-dir"],
-                           capture_output=True, text=True, timeout=10).stdout.strip()
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
     except Exception as e:
-        print("· no git dir for the failed set (%s) - it lives beside run_gates.py" % type(e).__name__)
-        return os.path.join(HERE, "tv_last_failed.json")
-    return os.path.join(d or HERE, "tv_last_failed.json")
+        print("· no git dir for the failed set (%s) - --rerun-failed is off for this run" % type(e).__name__)
+        return None
+    return os.path.join(d, "tv_last_failed.json") if d else None
 
 
 def _write_last_failed(names, head):
     import json
+    p = _last_failed_path()
+    if not p:
+        return
     try:
-        with open(_last_failed_path(), "w") as f:
+        with open(p, "w") as f:
             json.dump({"head": head, "failed": list(names)}, f)
     except Exception as e:
         print("· could not record the failed set for --rerun-failed (%s)" % e)
@@ -13744,8 +13747,11 @@ def _write_last_failed(names, head):
 def _read_last_failed():
     import json
     """-> (names, why). names None = refuse. Only real gate names survive (a '(undeclared SKIP)' suffix is stripped)."""
+    p = _last_failed_path()
+    if not p:
+        return None, "no git dir for this worktree - the failed set is UNKNOWN, run the gates"
     try:
-        with open(_last_failed_path()) as _f:
+        with open(p) as _f:
             d = json.load(_f)
     except Exception as e:
         return None, "no recorded failed set in this worktree (%s) - run the gates once first" % type(e).__name__
@@ -13901,7 +13907,7 @@ def main(argv):
     failed += ["%s (undeclared SKIP)" % n for n in sorted(_undeclared)]
     if not a.shard:   # RERUN-FAILED - a shard sees a slice, so its reds are not the run's reds
         try:
-            _head = subprocess.run(["git", "-C", HERE, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10).stdout.strip()
+            _head = subprocess.run(["git", "-C", HERE, "rev-parse", "HEAD"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
         except Exception as e:
             _head = None   # unknown HEAD: recorded as null, never as a real-looking empty head
             print("· HEAD unreadable for the failed set (%s)" % type(e).__name__)

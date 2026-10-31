@@ -77,6 +77,14 @@ REGISTRY = {
     # ---- live_panel_gate: WHICH CONSOLE the panel states are read from. Added v2416 after CI
     # caught it unregistered — it is import-bound and therefore a redirect that will NOT take if
     # set after import, which is exactly the class this registry exists to name out loud.
+    # ---- heart2: WHICH CENSUS the proofs and the heart-stored row read. v3848: render_check seeds a
+    # fixture census for a fresh tree by setting TV_HEART2_STATE in the CHILD's env before heart2 is
+    # imported there, so the import-bound read is the point, not a trap.
+    "heart2.py:STATE": (
+        "TV_HEART2_STATE", "import-bound",
+        "v3848 - honoured at IMPORT ONLY; set it in the environment of the process that imports heart2 "
+        "(render_check passes it to the child). Patching it after import does not move the census."),
+
     "live_panel_gate.py:STATUS": (
         "TV_CONSOLE_URL", "import-bound",
         "The base URL of the console whose uiBeat.panels this gate grades, read ONCE at import and "

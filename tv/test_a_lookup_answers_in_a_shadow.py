@@ -167,6 +167,9 @@ with open(BIBLE, encoding="utf-8") as _fh:
     PAGE = _fh.read()
 
 
+_ro0 = PAGE.index("function _unconfReadOnly(){")
+RO_FN = PAGE[_ro0:PAGE.index("\n}\n", _ro0) + 3]   # the page's one read-only test, which gridShadowRo asks
+
 class EveryBoxIsNamedALookupOrRefused(unittest.TestCase):
 
     @classmethod
@@ -325,7 +328,7 @@ class AnEmptyCellSaysItIsReadOnlyInAShadow(unittest.TestCase):
     def setUpClass(cls):
         if not NODE:
             raise AssertionError("node is not on this machine - this law does not skip")
-        fn = _between(PAGE, "  function gridCellSay(label, cx, cy){", "  function gridHtml(placed, gw, gh, cell, opt){")
+        fn = RO_FN + _between(PAGE, "  function gridCellSay(label, cx, cy){", "  function gridHtml(placed, gw, gh, cell, opt){")
         r = subprocess.run([NODE, "-"], input=CELL + fn + "\n" + CELL_SCENARIO, capture_output=True, text=True, timeout=60)
         if r.returncode != 0:
             raise AssertionError("the cell title did not run in node: %s" % r.stderr[-900:])
@@ -396,13 +399,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-3103 - the empty cell offers the add in a snapshot shadow",
      "file": "bible.html",
-     "find": "    var ro = !!window._tvdShadow;\n",
-     "replace": "    var ro = false;\n",
+     "find": "  if (window._tvdShadow) return true;   /* the shadow law's guard form: a shadow refuses, it never draws differently */\n",
+     "replace": "",
      "matches": 1},
     {"why": "REG-3103 - the empty cell offers the add in a shadow known by its class",
      "file": "bible.html",
-     "find": "    try { ro = ro || document.documentElement.classList.contains('tvd-shadow'); } catch (eRo) {}\n",
-     "replace": "",
+     "find": "    return typeof _unconfReadOnly === 'function' ? !!_unconfReadOnly() : false;   /* the page's one read-only test */\n",
+     "replace": "    return false;\n",
      "matches": 1},
     {"why": "REG-3103 - the grid writes its own title and never asks the helper",
      "file": "bible.html",
