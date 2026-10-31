@@ -33555,6 +33555,8 @@ button:not(:disabled):hover { box-shadow: 0 0 8px rgba(255,170,80,.30); }
 @media (prefers-reduced-motion: reduce) { button, :is(.th-x,.fx-x,.tlg-x) { transition: none !important; } }
 .ovx-made{z-index:5;width:28px;height:28px;padding:0;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35);font-family:system-ui,sans-serif;font-size:var(--fs-xs);line-height:1}
 .help-x{position:sticky;top:0;float:right;z-index:2;margin:0 0 6px 12px;background:rgba(20,16,10,.92);color:#d8c7a0;border:1px solid rgba(255,190,110,.35)}
+/* a pinned x is position:fixed but still paints inside its header's stacking context: the theatre topline (z 4) sat under the REPLAY ribbon (z 8), so the ribbon covered ✕ CLOSE (theatre-head, v3847 hook). Lift the header that holds a pinned x. */
+.th-topline:has(> .ovx){z-index:9}
 /* /OVERLAY-X */
 </style>
 </body>
